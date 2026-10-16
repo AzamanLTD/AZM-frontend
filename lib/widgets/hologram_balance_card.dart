@@ -22,10 +22,12 @@
 
 import 'dart:async';
 
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_radius.dart';
@@ -106,6 +108,9 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    // The user's PUBLIC AZM ID for the brand header (never the internal
+    // database id) — empty/unprovisioned renders "AZM-ID pending".
+    final azmId = (ref.watch(authProvider).user?.azamanId ?? '').trim();
     final balance = ref.watch(balanceDataProvider);
     final rate = ref.watch(oracleRateProvider);
     // EXPERIENCE PASS §1: the Home hero is ALWAYS USDC-first. The
@@ -183,24 +188,48 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // ── Header: label ──────────────────────────────────────────────
-          // WALLET POUCH (2026-10-16): the visibility eye is gone from this
-          // face — the deck's tucked pouch is the default privacy state and
-          // this card's content is always fully rendered when it is out.
+          // ── Header: the brand row ───────────────────────────────────
+          // WALLET POUCH follow-up (2026-10-16): the header is the CARD'S
+          // OWN brand identity — the real Azaman logo, the card's name and
+          // the user's public AZM ID anchored far right. This exact row is
+          // what the deck's tucked pouch leaves exposed above its mouth
+          // (the pouch covers from 56px down), so the tucked header and
+          // the open card are the SAME physical object at two stages of
+          // extraction — there is no second, separately painted header.
+          // `AVAILABLE` is retired here: the label said nothing the card's
+          // own brand doesn't, and the eyebrow style crowded the logo.
+          // The AZM ID is the user's PUBLIC identifier (never the internal
+          // database id); "AZM-ID pending" covers the not-yet-provisioned
+          // state.
           Row(
             children: [
-              // RICHTEXT CORRECTIONS §2C: the one small accent
-              // highlight on the now-neutral graphite surface.
-              Icon(
-                HugeIconsSolid.wallet01,
-                size: 14,
-                color: colors.accent,
+              Image.asset(
+                'assets/images/azaman_logo.png',
+                height: 18,
+                filterQuality: FilterQuality.medium,
               ),
               const SizedBox(width: AzSpace.sm),
-              Text(
-                'AVAILABLE',
-                style: AzText.eyebrow.copyWith(
-                  color: colors.textTertiary,
+              Flexible(
+                child: Text(
+                  'Azaman Balance',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                ),
+              ),
+              const Spacer(),
+              Flexible(
+                child: Text(
+                  azmId.isEmpty ? 'AZM-ID pending' : azmId,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colors.textTertiary,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
                 ),
               ),
             ],

@@ -23,7 +23,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
 
 const _surface = Size(400, 900);
@@ -71,6 +70,53 @@ Widget _fakeCard(Key key, String label, Color color) => Container(
   ),
 );
 
+/// A fake balance card whose TOP band mirrors the REAL card's brand
+/// header (logo + "Azaman Balance" + the public AZM ID far right): the
+/// tucked pouch exposes exactly this band, so the deck's contract tests
+/// pin the tucked header against the same structure the real card owns.
+Widget _fakeBalanceCard() => Container(
+  key: _balanceKey,
+  color: const Color(0xFF1C1C1E),
+  padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        children: [
+          Image.asset(
+            'assets/images/azaman_logo.png',
+            height: 18,
+            filterQuality: FilterQuality.medium,
+          ),
+          const SizedBox(width: 8),
+          const Flexible(
+            child: Text(
+              'Azaman Balance',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const Spacer(),
+          const Flexible(
+            child: Text(
+              'AZM-ID pending',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Semantics(
+        container: true,
+        label: 'SECRET-BALANCE-AMOUNT',
+        excludeSemantics: true,
+        child: const Text('SECRET-BALANCE-AMOUNT'),
+      ),
+    ],
+  ),
+);
+
 Future<void> _pumpDeck(
   WidgetTester tester, {
   bool reducedMotion = false,
@@ -92,11 +138,7 @@ Future<void> _pumpDeck(
               child: WalletCardDeck(
                 key: _deckKey,
                 cardHeight: 165,
-                balanceCard: _fakeCard(
-                  _balanceKey,
-                  'SECRET-BALANCE-AMOUNT',
-                  const Color(0xFF1C1C1E),
-                ),
+                balanceCard: _fakeBalanceCard(),
                 visaCard: _fakeCard(
                   _visaKey,
                   'FAKE-VISA-FACE',
@@ -136,6 +178,19 @@ bool _treeHasSecret(WidgetTester tester) => _semanticsTreeContainsLabel(
       tester.getSemantics(find.byType(Scaffold)),
       'SECRET-BALANCE-AMOUNT',
     );
+
+bool _treeHasVisa(WidgetTester tester) => _semanticsTreeContainsLabel(
+      tester.getSemantics(find.byType(Scaffold)),
+      'FAKE-VISA-FACE',
+    );
+
+/// The balance card's top edge relative to the deck window — the live
+/// rendered geometry, transform-aware.
+double _balanceTopInWindow(WidgetTester tester) =>
+    tester.getTopLeft(find.byKey(_balanceKey)).dy -
+    tester.getTopLeft(
+      find.byKey(const ValueKey('wallet-deck-window')),
+    ).dy;
 
 WalletDeckState _deckState(WidgetTester tester) =>
     tester.state<WalletCardDeckState>(find.byKey(_deckKey)).state;
@@ -191,9 +246,21 @@ void main() {
       // topPad(26) + visaPeek(44) + headerBand(56) = 126.
       expect(_mouthTop(tester), closeTo(126, 0.5));
 
-      // The tucked brand header is present with the Azaman identity row.
+      // The exposed band is the REAL card's own brand header (logo,
+      // title, public AZM ID) — there is no separately painted header.
       expect(find.text('Azaman Balance'), findsOneWidget);
       expect(find.text('AZM-ID pending'), findsOneWidget);
+      // The header band sits inside the deck window, exposed above the
+      // pouch mouth: the card's top corners + rim are the visible edge.
+      final windowRect = tester
+          .getRect(find.byKey(const ValueKey('wallet-deck-window')));
+      final bandRect = tester.getRect(
+        find.byKey(const ValueKey('wallet-tucked-balance-header')),
+      );
+      expect(bandRect.top, closeTo(windowRect.top + 70, 0.5));
+      expect(bandRect.bottom, closeTo(windowRect.top + 126, 0.5));
+      expect(find.text('AVAILABLE'), findsNothing,
+          reason: 'the old eyebrow label is retired from the card face');
 
       // Both exposed selectors exist while tucked.
       expect(
@@ -299,11 +366,7 @@ void main() {
                 body: Center(
                   child: WalletCardDeck(
                     cardHeight: 165,
-                    balanceCard: _fakeCard(
-                      _balanceKey,
-                      'SECRET',
-                      const Color(0xFF1C1C1E),
-                    ),
+                    balanceCard: _fakeBalanceCard(),
                     visaCard: _fakeCard(
                       _visaKey,
                       'VISA',
@@ -318,6 +381,109 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a vertical drag over the TUCKED deck scrolls the host '
+        'page — the deck never swallows the scroll', (tester) async {
+      // A Home-like scrollable host: content above, the deck mid-page,
+      // a marker below it.
+      const markerKey = Key('below-deck-marker');
+      await tester.binding.setSurfaceSize(const Size(400, 900));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ListView(
+              children: [
+                const SizedBox(height: 300, child: Text('TOP')),
+                WalletCardDeck(
+                  key: _deckKey,
+                  cardHeight: 165,
+                  balanceCard: _fakeBalanceCard(),
+                  visaCard: _fakeCard(
+                    _visaKey,
+                    'FAKE-VISA-FACE',
+                    const Color(0xFF23262B),
+                  ),
+                ),
+                const SizedBox(
+                  key: markerKey,
+                  height: 700,
+                  child: Text('MARKER'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      expect(_deckState(tester), WalletDeckState.tucked);
+
+      // A drag starting INSIDE the deck window (its centre). Realistic
+      // multi-step movement (a real finger generates many events; a
+      // single big jump resolves the arena on its first move and drops
+      // that delta, which would under-test the arbitration).
+      final deckCenter = tester.getCenter(find.byKey(_deckKey));
+      final markerBefore = tester.getTopLeft(find.byKey(markerKey)).dy;
+
+      final gesture = await tester.startGesture(deckCenter);
+      for (var i = 0; i < 8; i++) {
+        await gesture.moveBy(const Offset(0, -12));
+        await tester.pump();
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      // The scroll happened (the marker moved up) and the deck stayed
+      // tucked — the drag was never claimed by the deck.
+      final markerAfter = tester.getTopLeft(find.byKey(markerKey)).dy;
+      expect(markerAfter, lessThan(markerBefore),
+          reason: 'the vertical drag must scroll the host page');
+      expect(_deckState(tester), WalletDeckState.tucked,
+          reason: 'the tucked deck cannot open from a drag');
+    });
+
+    testWidgets('per-card semantics privacy: only the EXPOSED card '
+        'publishes content, in both directions', (tester) async {
+      final handle = tester.ensureSemantics();
+      await _pumpDeck(tester);
+
+      // Tucked: BOTH cards' contents are excluded.
+      expect(_treeHasSecret(tester), isFalse,
+          reason: 'tucked hides the balance content');
+      expect(_treeHasVisa(tester), isFalse,
+          reason: 'tucked hides the Visa content');
+
+      // Balance out: only the balance card publishes; the covered Visa
+      // face is excluded even though its widget stays alive in the tree.
+      tester
+          .state<WalletCardDeckState>(find.byKey(_deckKey))
+          .select(WalletDeckState.balanceOut);
+      await tester.pumpAndSettle();
+      expect(_treeHasSecret(tester), isTrue);
+      expect(_treeHasVisa(tester), isFalse,
+          reason: 'the hidden Visa face must not be readable while the '
+              'balance card is out');
+
+      // Direct switch to visaOut: the balance figures/breakdown are
+      // excluded again and the Visa content becomes readable.
+      tester
+          .state<WalletCardDeckState>(find.byKey(_deckKey))
+          .select(WalletDeckState.visaOut);
+      await tester.pumpAndSettle();
+      expect(_treeHasSecret(tester), isFalse,
+          reason: 'the covered balance amount must not leak while the '
+              'Visa card is out');
+      expect(_treeHasVisa(tester), isTrue);
+
+      // Both accessible selectors exist in EVERY state.
+      expect(
+        find.bySemanticsLabel('Reveal balance card'),
+        findsAtLeastNWidgets(1),
+      );
+      expect(
+        find.bySemanticsLabel('Open AZM Visa card'),
+        findsAtLeastNWidgets(1),
+      );
+      handle.dispose();
     });
   });
 
@@ -348,6 +514,75 @@ void main() {
       expect(_deckState(tester), WalletDeckState.visaOut);
       // Visa slot (26) - lift (16) + 165 - 10 = 165.
       expect(_mouthTop(tester), closeTo(165, 0.5));
+    });
+
+    testWidgets('visaOut never paints outside the deck window: the '
+        'concealed balance card stays inside the viewport', (tester) async {
+      await _pumpDeck(tester, reducedMotion: true);
+      tester.state<WalletCardDeckState>(find.byKey(_deckKey))
+          .select(WalletDeckState.visaOut);
+      await tester.pumpAndSettle();
+
+      final windowRect = tester
+          .getRect(find.byKey(const ValueKey('wallet-deck-window')));
+      final balanceRect = tester.getRect(find.byKey(_balanceKey));
+
+      // The concealed card may touch the window FLOOR (flush by design)
+      // but must never cross it — the old +130 pose spilled its bottom
+      // 104px into Home's content and the selector row.
+      expect(balanceRect.bottom,
+          lessThanOrEqualTo(windowRect.bottom + 0.5),
+          reason: 'the hidden balance card cannot spill out of the deck');
+      expect(
+          balanceRect.top, greaterThanOrEqualTo(windowRect.top - 0.5));
+
+      // And it is genuinely concealed: its top sits below the visa
+      // strip zone, behind the lifted Visa card and the pouch mouth.
+      expect(balanceRect.top, greaterThan(windowRect.top + 70),
+          reason: 'the concealed card must not peek above the header');
+    });
+
+    testWidgets('non-committing gestures preserve the live pose: a '
+        'downward grab-and-release never snaps the card to a stale pose',
+        (tester) async {
+      await _pumpDeck(tester); // normal (spring) motion
+      tester.state<WalletCardDeckState>(find.byKey(_deckKey))
+          .select(WalletDeckState.balanceOut);
+      // Mid-emergence: the first frame latches the spring's start time,
+      // the second advances it 120ms into the 450ms traversal.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 120));
+      final midTop = _balanceTopInWindow(tester);
+      expect(midTop, greaterThan(54)); // still travelling
+      expect(midTop, lessThan(70));
+
+      // Grab and drag DOWN (slack): the pose must HOLD under the
+      // finger — frozen at the live geometry, not springing on and not
+      // snapping to a stale pose.
+      final deckCenter = tester.getCenter(find.byKey(_deckKey));
+      final gesture = await tester.startGesture(deckCenter);
+      await gesture.moveBy(const Offset(0, 18));
+      await tester.pump();
+      expect(_balanceTopInWindow(tester), closeTo(midTop, 1.0),
+          reason: 'the pose freezes under the finger');
+      await gesture.moveBy(const Offset(0, 18));
+      await tester.pump();
+      expect(_balanceTopInWindow(tester), closeTo(midTop, 1.0),
+          reason: 'a downward drag is slack — the card does not move');
+
+      // Release with no upward travel → no commit. The card springs
+      // back to the out pose FROM THE LIVE POSE: the first frame after
+      // release must not jump (the old bug reset the controller to a
+      // stale pre-drag pose and visibly snapped the card first).
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 16));
+      final afterRelease = _balanceTopInWindow(tester);
+      expect((afterRelease - midTop).abs(), lessThan(10),
+          reason: 'no stale-pose snap on release');
+
+      await tester.pumpAndSettle();
+      expect(_balanceTopInWindow(tester), closeTo(54, 0.5),
+          reason: 'and it settles back at the balance-out pose');
     });
 
     testWidgets('an upward swipe while a card is out returns it to tucked',

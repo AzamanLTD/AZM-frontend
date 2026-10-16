@@ -33,10 +33,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:azaman/providers/auth_provider.dart';
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -123,7 +120,7 @@ class WalletDeckPhysics {
 /// [balanceCard] is the primary front card; [visaCard] sits behind it and
 /// peeks above it while tucked. [onStateChanged] fires whenever the deck's
 /// state changes — Home owns the PIN gate and the details panel.
-class WalletCardDeck extends ConsumerStatefulWidget {
+class WalletCardDeck extends StatefulWidget {
   const WalletCardDeck({
     super.key,
     required this.balanceCard,
@@ -141,13 +138,13 @@ class WalletCardDeck extends ConsumerStatefulWidget {
   final ValueChanged<WalletDeckState>? onStateChanged;
 
   @override
-  ConsumerState<WalletCardDeck> createState() => WalletCardDeckState();
+  State<WalletCardDeck> createState() => WalletCardDeckState();
 }
 
 /// Public on purpose: the Home host holds a GlobalKey so the PIN-gate
 /// flow, the visibility re-lock and the app-lifecycle relock can tuck the
 /// deck programmatically (audit §6/§7).
-class WalletCardDeckState extends ConsumerState<WalletCardDeck>
+class WalletCardDeckState extends State<WalletCardDeck>
     with SingleTickerProviderStateMixin {
   // ── Geometry constants (derived from the card height) ─────────────────
   // topPad gives the lifted card headroom so it never clips the window top.
@@ -201,10 +198,17 @@ class WalletCardDeckState extends ConsumerState<WalletCardDeck>
   double _dragProgress = 0;
   bool _hapticArmed = false;
 
-  /// The tucked brand header's opacity endpoints for the current
-  /// transition: 1 settled-tucked, 0 settled-out. Directional — leaving
-  /// tucked fades it out early (ease-in), returning fades it in late
-  /// (ease-out) so the overlay never pops or double-shows.
+  /// The LIVE pose captured at drag start. The return gesture interpolates
+  /// from HERE (where the card actually is under the finger), never from a
+  /// settled pose the spring may not have reached yet — a grab mid-emergence
+  /// returns from the grabbed position, not from a stale target.
+  WalletDeckPose? _dragBasePose;
+
+  /// The tucked balance hit-target's opacity endpoints for the current
+  /// transition: 1 settled-tucked, 0 settled-out. The target itself is
+  /// INVISIBLE (a transparent tap/semantics layer over the real card's
+  /// exposed header — see _TuckedBalanceHitTarget); this fade only gates
+  /// whether it may intercept touches, so it never visibly pops.
   double _fromHeader = 1.0;
   double _toHeader = 1.0;
 
@@ -259,7 +263,16 @@ class WalletCardDeckState extends ConsumerState<WalletCardDeck>
       case WalletDeckState.visaOut:
         return WalletDeckPose(
           visaTop: _visaSlot - _lift,
-          balanceTop: _balanceSlot + 130, // sinks fully behind the pouch
+          // The concealed balance card sinks to the deck window's FLOOR
+          // (`windowHeight - cardHeight`): flush with the window's bottom
+          // edge rather than beyond it. The old +130 offset placed its
+          // bottom 104px below the window, and with Clip.none layers that
+          // spilled the hidden card over Home's content and the selector
+          // row. At the floor the card is still fully covered — the
+          // lifted Visa card (full width, drawn in front from y=10)
+          // hides its sliver above the pouch mouth, and the opaque pouch
+          // hides the rest.
+          balanceTop: _balanceSlot + _baseLip,
           mouthY: _visaSlot - _lift + h - _pouchOverlap,
           visaScale: 1.0,
           balanceScale: 0.94,
@@ -330,27 +343,45 @@ class WalletCardDeckState extends ConsumerState<WalletCardDeck>
   void _onDragStart(DragStartDetails _) {
     _hapticArmed = true;
     _dragProgress = 0;
+    // POSE CONTINUITY: capture the pose EXACTLY as rendered at the moment
+    // of the grab. If a spring is still in flight the card is frozen mid-
+    // travel (no snap, no continued drift under the finger) and the return
+    // gesture works from this live pose — never from a settled pose the
+    // spring had not reached.
+    final live = currentPose;
+    final liveHeader = _headerFade;
+    if (_ctrl.isAnimating) {
+      _ctrl.stop();
+      setState(() {
+        _fromPose = live;
+        _targetPose = live;
+        _fromHeader = liveHeader;
+        _toHeader = liveHeader;
+        _ctrl.value = 1.0; // lerp(live, live) holds the live pose
+      });
+    }
+    _dragBasePose = live;
   }
 
   void _onDragUpdate(DragUpdateDetails d) {
-    if (_state == WalletDeckState.tucked) return; // scroll past us
+    if (_state == WalletDeckState.tucked) return; // unreachable: tucked has null callbacks
     final dy = -d.delta.dy; // up (negative dy) returns the card
     if (dy <= 0) return; // a downward drag while out: ignore (no flip risk)
     _dragProgress = WalletDeckPhysics.progressFor(
       _dragProgress * WalletDeckPhysics.travelPx + dy,
     );
-    // Interpolate the pose toward tucked directly — same pose system, no
-    // second clock.
+    // Interpolate from the GRABBED pose toward tucked with resistance —
+    // same pose system, no second clock.
     final returnT = WalletDeckPhysics.returnFor(_dragProgress);
     setState(() {
       _ctrl.value = 0; // freeze the tween; pose derived below
       _targetPose = _poseFor(_state);
       _fromPose = WalletDeckPose.lerp(
-        _poseFor(_state),
+        _dragBasePose ?? _poseFor(_state),
         _poseFor(WalletDeckState.tucked),
         returnT,
       );
-      // The brand header fades back in proportionally to the return.
+      // The tucked overlay fades back in proportionally to the return.
       _fromHeader = returnT;
       _toHeader = returnT;
     });
@@ -359,24 +390,33 @@ class WalletCardDeckState extends ConsumerState<WalletCardDeck>
   void _onDragEnd(DragEndDetails _) {
     if (_state == WalletDeckState.tucked) {
       _dragProgress = 0;
+      _dragBasePose = null;
       return;
     }
     final commitsNow = WalletDeckPhysics.commits(_dragProgress);
     _dragProgress = 0;
+    _dragBasePose = null;
     if (commitsNow) {
       tuck();
     } else {
-      // Below threshold: spring back to the out pose.
+      // Below threshold: spring back to the out pose FROM THE LIVE POSE —
+      // a plain grab-and-release (no upward movement) must hold the pose
+      // where it is and settle, never snap toward a stale pre-drag pose.
+      final live = currentPose;
+      final liveHeader = _headerFade;
       if (_reduceMotion) {
         setState(() {
-          _fromPose = _poseFor(_state);
-          _fromHeader = _toHeader;
+          _fromPose = live;
+          _targetPose = _poseFor(_state);
+          _fromHeader = liveHeader;
+          _toHeader = 0.0;
           _ctrl.value = 1.0;
         });
       } else {
         setState(() {
+          _fromPose = live;
           _targetPose = _poseFor(_state);
-          _fromHeader = _headerFade;
+          _fromHeader = liveHeader;
           _toHeader = 0.0;
           _ctrl.value = 0;
         });
@@ -395,42 +435,47 @@ class WalletCardDeckState extends ConsumerState<WalletCardDeck>
     final windowH = _windowHeight;
     final dark = Theme.of(context).brightness == Brightness.dark;
 
-    final headerFade = _headerFade;
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         GestureDetector(
-          // The deck's vertical drag ONLY recognizes the return gesture; a
-          // tucked deck deliberately does not claim vertical drags so the
-          // Home scroll keeps working over it.
+          // GESTURE ARBITRATION: the vertical drag exists ONLY to return an
+          // out card. While tucked the callbacks are NULL (not merely
+          // early-returning): with no recognizers registered the deck never
+          // enters the vertical-drag arena, so a drag over the tucked deck
+          // is won outright by Home's scrollable — the cards can never
+          // swallow a page scroll.
           behavior: HitTestBehavior.opaque,
-          onVerticalDragStart: _onDragStart,
-          onVerticalDragUpdate: _onDragUpdate,
-          onVerticalDragEnd: _onDragEnd,
+          onVerticalDragStart: tucked ? null : _onDragStart,
+          onVerticalDragUpdate: tucked ? null : _onDragUpdate,
+          onVerticalDragEnd: tucked ? null : _onDragEnd,
           child: SizedBox(
+            key: const ValueKey('wallet-deck-window'),
             height: windowH,
             width: double.infinity,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // ── The two cards (sensitive content excluded from
-                //    semantics while tucked — the pouch is the privacy
-                //    state, and obscured details must not leak to
-                //    accessibility).
-                ExcludeSemantics(
-                  excluding: tucked,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      // Visa card (behind the balance card).
-                      Positioned(
-                        key: const ValueKey('wallet-deck-visa-slot'),
-                        top: pose.visaTop,
-                        left: 0,
-                        right: 0,
-                        height: h,
+                // ── The two cards. PER-CARD semantics privacy: a card's
+                //    content is excluded from accessibility whenever THAT
+                //    card is covered — the balance card is covered in
+                //    tucked AND visaOut; the Visa card is covered in
+                //    tucked AND balanceOut. Only the selected, exposed
+                //    card publishes its content, so an obscured amount or
+                //    card face can never leak to a screen reader.
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Visa card (behind the balance card).
+                    Positioned(
+                      key: const ValueKey('wallet-deck-visa-slot'),
+                      top: pose.visaTop,
+                      left: 0,
+                      right: 0,
+                      height: h,
+                      child: ExcludeSemantics(
+                        excluding: _state != WalletDeckState.visaOut,
                         child: Transform.scale(
                           scale: pose.visaScale,
                           child: _CardShell(
@@ -440,13 +485,16 @@ class WalletCardDeckState extends ConsumerState<WalletCardDeck>
                           ),
                         ),
                       ),
-                      // Balance card (the primary front card).
-                      Positioned(
-                        key: const ValueKey('wallet-deck-balance-slot'),
-                        top: pose.balanceTop,
-                        left: 0,
-                        right: 0,
-                        height: h,
+                    ),
+                    // Balance card (the primary front card).
+                    Positioned(
+                      key: const ValueKey('wallet-deck-balance-slot'),
+                      top: pose.balanceTop,
+                      left: 0,
+                      right: 0,
+                      height: h,
+                      child: ExcludeSemantics(
+                        excluding: _state != WalletDeckState.balanceOut,
                         child: Transform.scale(
                           scale: pose.balanceScale,
                           child: _CardShell(
@@ -456,27 +504,27 @@ class WalletCardDeckState extends ConsumerState<WalletCardDeck>
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                // ── Tucked-state brand header (the balance card's exposed
-                //    band): logo + "Azaman Balance" + the user's public AZM
-                //    ID, far right. Fades out on selection; its tap is the
-                //    balance selector.
-                if (headerFade > 0.01)
+                // ── Tucked balance hit-target: a TRANSPARENT tap +
+                //    semantics layer over the real card's exposed header
+                //    band (the card's own brand row — logo, "Azaman
+                //    Balance", public AZM ID — is what shows above the
+                //    pouch mouth; there is no separately painted header
+                //    to duplicate or obscure its corners). It exists only
+                //    while tucked so a header tap SELECTS the balance card
+                //    (and never flips the card beneath); once the card is
+                //    out, its own gestures own the surface.
+                if (tucked)
                   Positioned(
                     key: const ValueKey('wallet-tucked-balance-header'),
                     top: _balanceSlot,
                     left: 0,
                     right: 0,
                     height: balanceHeaderBand,
-                    child: Opacity(
-                      opacity: headerFade,
-                      child: _TuckedBalanceHeader(
-                        onTap: tucked
-                            ? () => select(WalletDeckState.balanceOut)
-                            : null,
-                      ),
+                    child: _TuckedBalanceHitTarget(
+                      onTap: () => select(WalletDeckState.balanceOut),
                     ),
                   ),
                 // ── The Visa strip selector: the Visa card's exposed
@@ -562,20 +610,21 @@ class _CardShell extends StatelessWidget {
   }
 }
 
-/// The tucked balance header band: Azaman logo, "Azaman Balance", and the
-/// user's public AZM ID far right. This is the deck's default privacy-
-/// state header — no amounts live here, ever.
-class _TuckedBalanceHeader extends ConsumerWidget {
-  const _TuckedBalanceHeader({this.onTap});
+/// The tucked balance header's transparent hit-target. The VISIBLE header
+/// is the balance card's own brand row (its top band shows above the pouch
+/// mouth — same rounded corners, same PremiumCardRim); this layer only
+/// (a) turns a header tap into a balance-card selection (never the card's
+/// own flip, which belongs to the out state) and (b) publishes the
+/// accessible "Reveal balance card" control. It paints NOTHING — no fill,
+/// no corners, no second logo — so the exposed header is literally the
+/// physical card, at both tucked and out.
+class _TuckedBalanceHitTarget extends StatelessWidget {
+  const _TuckedBalanceHitTarget({required this.onTap});
 
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
-    final user = ref.watch(authProvider).user;
-    final azmId = (user?.azamanId ?? '').trim();
-
+  Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -583,45 +632,7 @@ class _TuckedBalanceHeader extends ConsumerWidget {
         button: true,
         label: 'Reveal balance card',
         excludeSemantics: true,
-        child: Container(
-          // Opaque: it replaces the balance card's own (covered) header
-          // region while tucked — nothing beneath shows through.
-          color: colors.card,
-          padding: const EdgeInsets.symmetric(horizontal: AzSpace.xl),
-          child: Row(
-            children: [
-              Image.asset(
-                'assets/images/azaman_logo.png',
-                height: 18,
-                filterQuality: FilterQuality.medium,
-              ),
-              const SizedBox(width: AzSpace.sm),
-              Flexible(
-                child: Text(
-                  'Azaman Balance',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                ),
-              ),
-              const Spacer(),
-              Flexible(
-                child: Text(
-                  azmId.isEmpty ? 'AZM-ID pending' : azmId,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.textTertiary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: const SizedBox.expand(),
       ),
     );
   }
