@@ -46,7 +46,6 @@ import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/screens/accounts_screen.dart';
 import 'package:azaman/screens/change_password_screen.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
-import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/support_screen.dart';
 import 'package:azaman/services/biometric_service.dart';
@@ -114,9 +113,12 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.person_outline,
                 title: 'Edit Profile',
                 subtitle: 'Name, photo, personal details',
+                // The GENUINE editor (photo pick, display name, bio,
+                // phone with save). ProfileDetailsScreen is the read-only
+                // KYC identity view — never labelled "Edit Profile".
                 onTap: () => pushWithVerticalTransition(
                   context,
-                  const ProfileDetailsScreen(),
+                  const ProfileScreen(),
                 ),
               ),
               _Divider(colors),
@@ -124,7 +126,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.verified_user_outlined,
                 title: 'Identity Verification',
-                subtitle: 'Raise limits, unlock withdrawals',
+                subtitle: 'Verify your identity with Dojah',
                 trailingText: _kycChipLabel(
                   ref.watch(currentUserProvider).value?.kycStatus,
                 ),
@@ -257,25 +259,18 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               _Divider(colors),
+              // HONEST scope: the app is English-only today — there is
+              // no localization layer, so a picker would persist a
+              // preference that never changes the locale. Full app
+              // localization (arb files, locale resolution, translations)
+              // is recorded as a SEPARATE follow-up task on PR #155.
               _NavRow(
                 colors: colors,
                 icon: Icons.language,
                 title: 'Language',
-                trailingText: settings.appLanguage,
-                onTap: () => _pickFromList(
-                  context,
-                  colors,
-                  title: 'Language',
-                  options: const [
-                    'English',
-                    'French',
-                    'Spanish',
-                    'Arabic',
-                    'Twi',
-                  ],
-                  current: settings.appLanguage,
-                  onPicked: settings.setAppLanguage,
-                ),
+                subtitle: 'English — more languages are on the roadmap',
+                trailingText: 'English',
+                onTap: null,
               ),
             ],
           ),
@@ -291,14 +286,17 @@ class SettingsScreen extends ConsumerWidget {
                   // Real state, not decoration: the chip reads the same
                   // store the Security screen's toggle writes.
                   final bio = snapshot.data == true;
+                  // A biometric PREFERENCE is not 2FA status: the app
+                  // has no authoritative user 2FA field to read (the
+                  // backend exposes setup/disable/verify, not a user
+                  // status), so the chip reports ONLY the local biometric
+                  // preference and claims nothing about two-factor.
                   return _NavRow(
                     colors: colors,
                     icon: Icons.security_outlined,
-                    title: 'Two-Factor & PIN',
+                    title: 'Security & PIN',
                 subtitle: 'Sign-in protection',
-                    trailingText: snapshot.hasData
-                        ? (bio ? 'Biometrics on' : 'PIN only')
-                        : null,
+                    trailingText: bio ? 'Biometrics on' : null,
                     onTap: () => pushWithVerticalTransition(
                       context,
                       const SecuritySettingsScreen(),
@@ -390,11 +388,20 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Free up local storage',
                 onTap: () {
                   AzamanHaptics.nav();
+                  // A REAL, safe operation: clear the in-memory image
+                  // cache and report the ACTUAL number of images freed.
+                  // No fabricated megabytes — an empty cache is reported
+                  // as such.
+                  final imageCache = PaintingBinding.instance.imageCache;
+                  final cachedImages = imageCache.currentSize;
+                  imageCache.clear();
+                  final message = cachedImages > 0
+                      ? 'Cleared $cachedImages cached '
+                        '${cachedImages == 1 ? 'image' : 'images'}.'
+                      : 'Cache is already empty.';
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text(
-                        'System cache cleared. (42 MB freed)',
-                      ),
+                      content: Text(message),
                       backgroundColor: colors.success,
                       behavior: SnackBarBehavior.floating,
                     ),

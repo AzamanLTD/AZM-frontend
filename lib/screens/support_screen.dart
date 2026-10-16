@@ -41,10 +41,11 @@ const _faq = <_FaqItem>[
   ),
   _FaqItem(
     Icons.verified_user_outlined,
-    'What does verification (KYC) unlock?',
-    'Verifying your identity raises your transaction limits and enables '
-        'withdrawals to external accounts. Start from Account, then '
-        'Identity Verification; status shows on your profile.',
+    'What does verification (KYC) do?',
+    'Verifying confirms your identity with our KYC provider. Start from '
+        'Account, then Identity Verification; your status shows on your '
+        'profile. Withdrawals arrive at payout destinations you verify '
+        'yourself under Money, Accounts.',
   ),
   _FaqItem(
     Icons.badge_outlined,
@@ -56,9 +57,10 @@ const _faq = <_FaqItem>[
   _FaqItem(
     Icons.swap_horiz,
     'How does a P2P trade stay safe?',
-    'Every trade is held in escrow. The seller\'s crypto is locked the '
-        'moment you pay; it only releases when the payment is confirmed. '
-        'If anything goes wrong, open a dispute before releasing.',
+    'Every trade is held in escrow. The seller\'s crypto is locked as '
+        'soon as the trade is accepted; it only releases when you confirm '
+        'your payment. If anything goes wrong, open a dispute before you '
+        'confirm.',
   ),
   _FaqItem(
     Icons.lock_outline,

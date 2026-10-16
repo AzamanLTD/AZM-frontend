@@ -70,6 +70,7 @@ import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/accounts_screen.dart';
+import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/share_profile_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
@@ -374,8 +375,11 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
         action(
           Icons.arrow_downward,
           'Deposit',
+          // The canonical deposit experience (STK-push MoMo deposits,
+          // the same screen /deposit routes to). AccountsScreen is the
+          // saved-accounts surface — not what "Deposit" promises.
           () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const AccountsScreen()),
+            MaterialPageRoute(builder: (_) => const DepositScreen()),
           ),
         ),
         action(

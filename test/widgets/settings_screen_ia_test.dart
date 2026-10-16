@@ -184,7 +184,7 @@ void main() {
       'Display Currency',
       'Language',
       // Security group.
-      'Two-Factor & PIN',
+      'Security & PIN',
       'Change Password',
       'Account Activity',
       // Support group.
@@ -231,8 +231,75 @@ void main() {
     await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump(const Duration(milliseconds: 300));
 
-    await reveal(tester, find.text('Two-Factor & PIN'));
+    await reveal(tester, find.text('Security & PIN'));
     expect(find.text('Biometrics on'), findsOneWidget);
+  });
+
+  testWidgets('the security chip never claims 2FA status', (tester) async {
+    // Biometrics OFF: the row renders with NO chip — 'PIN only' would be a
+    // fake two-factor claim (a biometric preference is not 2FA, and the
+    // app reads no authoritative user 2FA status).
+    SharedPreferences.setMockInitialValues({
+      'biometric_lock_enabled': false,
+    });
+    final p = (await tester.runAsync(loadedProvider))!;
+    await tester.pumpWidget(harness(p, user: testUser()));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await reveal(tester, find.text('Security & PIN'));
+    expect(find.text('Biometrics on'), findsNothing);
+    expect(find.text('PIN only'), findsNothing);
+  });
+
+  testWidgets('the Language row shows the supported truth — English only',
+      (tester) async {
+    // The app has NO localization layer: the row must not open a picker
+    // that persists a preference the locale never follows.
+    final p = (await tester.runAsync(loadedProvider))!;
+    await tester.pumpWidget(harness(p, user: testUser()));
+    await tester.pump();
+
+    await reveal(tester, find.text('Language'));
+    expect(find.text('English'), findsOneWidget);
+    await tester.tap(find.text('Language'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('French'), findsNothing,
+        reason: 'no locale picker may render');
+    expect(find.text('Twi'), findsNothing);
+  });
+
+  testWidgets('Clear Cache performs a REAL clear and reports the truth',
+      (tester) async {
+    final p = (await tester.runAsync(loadedProvider))!;
+    await tester.pumpWidget(harness(p, user: testUser()));
+    await tester.pump();
+
+    await reveal(tester, find.text('Clear Cache'));
+    await tester.tap(find.text('Clear Cache'));
+    await tester.pump();
+
+    // The honest result of a REAL image-cache clear (empty cache → the
+    // neutral truth). The fabricated '42 MB freed' must never render.
+    expect(find.text('Cache is already empty.'), findsOneWidget);
+    expect(find.textContaining('MB freed'), findsNothing);
+  });
+
+  testWidgets('the Edit Profile row opens the GENUINE editor', (
+    tester,
+  ) async {
+    final p = (await tester.runAsync(loadedProvider))!;
+    await tester.pumpWidget(harness(p, user: testUser()));
+    await tester.pump();
+
+    // "Edit Profile" must deliver an editing experience — ProfileScreen
+    // (name, photo, bio, phone with save). The read-only KYC identity
+    // view (ProfileDetailsScreen) must never answer to "Edit Profile".
+    await reveal(tester, find.text('Edit Profile'));
+    await tester.tap(find.text('Edit Profile'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(ProfileScreen), findsOneWidget);
   });
 
   testWidgets('the Help & FAQ row routes to the Support screen', (

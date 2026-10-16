@@ -23,6 +23,8 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/accounts_screen.dart';
+import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/widgets/qr_profile_popup.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
@@ -253,6 +255,19 @@ void main() {
       expect(find.byIcon(Icons.settings_outlined), findsNothing);
       expect(find.text('All settings'), findsOneWidget);
       expect(find.text('Azaman 3.1'), findsOneWidget);
+    });
+
+    testWidgets('the Deposit quick action opens the CANONICAL deposit flow',
+        (tester) async {
+      await _pumpDrawer(tester, user: _verifiedUser());
+
+      // "Deposit" must deliver deposits — the STK-push MoMo screen the
+      // /deposit route serves — not the saved-accounts surface.
+      await tester.tap(find.text('Deposit'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(DepositScreen), findsOneWidget);
+      expect(find.byType(AccountsScreen), findsNothing);
     });
 
     testWidgets('unverified user renders no KYC chip (no decoration)', (
