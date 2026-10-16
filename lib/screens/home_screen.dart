@@ -689,7 +689,11 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                   reduceMotion,
                                 ),
 
-                                const SizedBox(height: AzSpace.xl),
+                                // PR #154 measured first pass: 20 → 12
+                                // pulls the deck toward the greeting so the
+                                // first viewport lands more of the wallet
+                                // area above the fold.
+                                const SizedBox(height: AzSpace.md),
 
                                 // Block 2 — the balance hero + pull-reveal
                                 // Visa deck (§3-6). The balance card visual
@@ -706,7 +710,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                   reduceMotion,
                                 ),
 
-                                const SizedBox(height: AzSpace.xxl),
+                                // PR #154 measured first pass: 24 → 16
+                                // between the deck and the module row.
+                                const SizedBox(height: AzSpace.lg),
 
                                 // Block 3 — Save / P2P / Susu modules (§9).
                                 _stage(
