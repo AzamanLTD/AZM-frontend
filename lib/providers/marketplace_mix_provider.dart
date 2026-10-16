@@ -5,6 +5,12 @@
 // (`GET /api/discovery/items`, backend PR #349): one bounded request per
 // feed page, cursor-paginated by the server.
 //
+// ALL MODE (in-place Mix): `categoryWire == null` means ALL — the
+// UNFILTERED discovery feed. The gateway OMITS the `category` query
+// parameter entirely (the server's own default page); no invented `ALL`
+// server value exists. Entering Mix starts at All; category selections
+// narrow the feed.
+//
 // PAGING & RESET HONESTY:
 //   • Changing the category or any filter RESETS the feed — stale
 //     cross-selection content is never shown.
@@ -42,7 +48,7 @@ abstract interface class MixTapRecorder {
   void recordProductTap({
     required String businessProfileId,
     required String productId,
-    required String mixCategory,
+    String? mixCategory,
   });
 }
 
@@ -53,7 +59,7 @@ class StorefrontMixTapRecorder implements MixTapRecorder {
   void recordProductTap({
     required String businessProfileId,
     required String productId,
-    required String mixCategory,
+    String? mixCategory,
   }) {
     StorefrontTrackingService.instance.trackEvent(
       businessProfileId,
@@ -61,7 +67,9 @@ class StorefrontMixTapRecorder implements MixTapRecorder {
       {
         'productId': productId,
         'widgetType': 'mix_offer_card',
-        'mixCategory': mixCategory,
+        // null (All mode) is omitted — an honest event, never a fabricated
+        // category wire the server vocabulary does not own.
+        if (mixCategory != null) 'mixCategory': mixCategory,
         'source': 'marketplace_mix',
       },
     );
@@ -88,8 +96,11 @@ enum MixPhase {
 }
 
 class MarketplaceMixState {
-  /// Selected category wire (FOOD_BEVERAGE / RETAIL / LOGISTICS / HOSPITALITY).
-  final String categoryWire;
+  /// Selected discovery category wire
+  /// (FOOD_BEVERAGE / RETAIL / LOGISTICS / HOSPITALITY). NULL means ALL —
+  /// the unfiltered discovery feed (the gateway omits the `category`
+  /// parameter entirely; no invented `ALL` server value exists).
+  final String? categoryWire;
 
   /// Selected canonical taxonomy chip ids (repeatable `taxonomy` filter).
   /// Changing this list resets the feed.
@@ -110,7 +121,7 @@ class MarketplaceMixState {
   final String? error;
 
   const MarketplaceMixState({
-    this.categoryWire = 'FOOD_BEVERAGE',
+    this.categoryWire,
     this.taxonomies = const [],
     this.phase = MixPhase.idle,
     this.loadingMore = false,
@@ -131,18 +142,15 @@ class MarketplaceMixState {
     List<MixOffer>? offers,
     Object? nextCursor = _unset,
     Object? error = _unset,
-  }) =>
-      MarketplaceMixState(
-        categoryWire: categoryWire ?? this.categoryWire,
-        taxonomies: taxonomies ?? this.taxonomies,
-        phase: phase ?? this.phase,
-        loadingMore: loadingMore ?? this.loadingMore,
-        offers: offers ?? this.offers,
-        nextCursor: nextCursor == _unset
-            ? this.nextCursor
-            : nextCursor as String?,
-        error: error == _unset ? this.error : error as String?,
-      );
+  }) => MarketplaceMixState(
+    categoryWire: categoryWire ?? this.categoryWire,
+    taxonomies: taxonomies ?? this.taxonomies,
+    phase: phase ?? this.phase,
+    loadingMore: loadingMore ?? this.loadingMore,
+    offers: offers ?? this.offers,
+    nextCursor: nextCursor == _unset ? this.nextCursor : nextCursor as String?,
+    error: error == _unset ? this.error : error as String?,
+  );
 
   static const _unset = Object();
 }
@@ -151,9 +159,9 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
   MarketplaceMixNotifier({
     required MarketplaceMixGateway gateway,
     MixTapRecorder? recorder,
-  })  : _gateway = gateway,
-        _recorder = recorder ?? const StorefrontMixTapRecorder(),
-        super(const MarketplaceMixState());
+  }) : _gateway = gateway,
+       _recorder = recorder ?? const StorefrontMixTapRecorder(),
+       super(const MarketplaceMixState());
 
   /// Backend default page size (discoveryService DEFAULT_LIMIT = 24). One
   /// bounded request per feed page — the whole point of the canonical
@@ -168,10 +176,11 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
   /// request is discarded.
   int _requestSeq = 0;
 
-  /// Switches category. Resets any taxonomy filters (chips are
-  /// category-scoped) and reloads the first page — stale cross-category
-  /// content never survives the switch.
-  Future<void> selectCategory(String wire) async {
+  /// Switches category. `null` selects ALL — the unfiltered discovery feed.
+  /// Resets any taxonomy filters (chips are category-scoped) and reloads
+  /// the first page — stale cross-category content never survives the
+  /// switch.
+  Future<void> selectCategory(String? wire) async {
     if (state.categoryWire == wire &&
         state.taxonomies.isEmpty &&
         state.phase != MixPhase.idle &&
@@ -256,10 +265,7 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
       if (seq != _requestSeq) return;
       // Page-load failure keeps the current feed; the retry affordance is
       // the pull-to-refresh / reselect path.
-      state = state.copyWith(
-        loadingMore: false,
-        nextCursor: state.nextCursor,
-      );
+      state = state.copyWith(loadingMore: false, nextCursor: state.nextCursor);
     }
   }
 
@@ -271,8 +277,9 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
   /// any ranking system (the discovery-events/ranking contract is separate
   /// future backend work).
   void trackOfferTap(MixOffer offer) {
-    if (!_gateway.supportedCapabilities
-        .contains(MixCapability.itemStoreInteractions)) {
+    if (!_gateway.supportedCapabilities.contains(
+      MixCapability.itemStoreInteractions,
+    )) {
       return;
     }
     _recorder.recordProductTap(
@@ -330,7 +337,7 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
 
 final marketplaceMixProvider =
     StateNotifierProvider<MarketplaceMixNotifier, MarketplaceMixState>((ref) {
-  return MarketplaceMixNotifier(
-    gateway: ref.watch(marketplaceMixGatewayProvider),
-  );
-});
+      return MarketplaceMixNotifier(
+        gateway: ref.watch(marketplaceMixGatewayProvider),
+      );
+    });
