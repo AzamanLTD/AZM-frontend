@@ -64,10 +64,22 @@ class MixCategory {
   });
 
   static const List<MixCategory> values = [
-    MixCategory(wire: 'FOOD_BEVERAGE', label: 'Eat', icon: HugeIconsSolid.restaurant01),
-    MixCategory(wire: 'RETAIL', label: 'Shop', icon: HugeIconsSolid.shoppingBag01),
+    MixCategory(
+      wire: 'FOOD_BEVERAGE',
+      label: 'Eat',
+      icon: HugeIconsSolid.restaurant01,
+    ),
+    MixCategory(
+      wire: 'RETAIL',
+      label: 'Shop',
+      icon: HugeIconsSolid.shoppingBag01,
+    ),
     MixCategory(wire: 'LOGISTICS', label: 'Ride', icon: HugeIconsSolid.bus01),
-    MixCategory(wire: 'HOSPITALITY', label: 'Stay', icon: HugeIconsSolid.hotel01),
+    MixCategory(
+      wire: 'HOSPITALITY',
+      label: 'Stay',
+      icon: HugeIconsSolid.hotel01,
+    ),
   ];
 
   static MixCategory? byWire(String? wire) {
@@ -89,28 +101,84 @@ class MixTaxonomy {
   final String label;
   final String? applicableCategory;
 
-  const MixTaxonomy(this.id, this.label, {this.applicableCategory});
+  /// Optional VERIFIED icon (names checked against hugeicons_pro 0.0.3's
+  /// solid set) used by the story-scale subcategory bubble rail. The `id`
+  /// stays the ONLY wire value; the icon is presentation.
+  final IconData? icon;
+
+  const MixTaxonomy(this.id, this.label, {this.applicableCategory, this.icon});
 
   /// The approved canonical vocabulary, wire-exact with the backend overlay.
   /// Do not add or rename entries without the backend contract changing
   /// first — an unknown chip is a 422 on the server.
   static const List<MixTaxonomy> canonical = [
-    MixTaxonomy('MEALS', 'Main dishes', applicableCategory: 'FOOD_BEVERAGE'),
-    MixTaxonomy('STARTERS', 'Starters', applicableCategory: 'FOOD_BEVERAGE'),
-    MixTaxonomy('SIDES', 'Sides', applicableCategory: 'FOOD_BEVERAGE'),
-    MixTaxonomy('DRINKS', 'Drinks', applicableCategory: 'FOOD_BEVERAGE'),
-    MixTaxonomy('DESSERTS', 'Desserts', applicableCategory: 'FOOD_BEVERAGE'),
-    MixTaxonomy('ROOMS', 'Rooms', applicableCategory: 'HOSPITALITY'),
-    MixTaxonomy('RIDES', 'Rides', applicableCategory: 'LOGISTICS'),
-    MixTaxonomy('RETAIL_ITEMS', 'Retail items', applicableCategory: 'RETAIL'),
-    MixTaxonomy('SERVICES', 'Services'),
+    // Icons are verified hugeicons_pro SOLID names (the package source is
+    // the authority; nothing is guessed). Presentation only — ids and
+    // applicability stay byte-exact with the backend overlay.
+    MixTaxonomy(
+      'MEALS',
+      'Main dishes',
+      applicableCategory: 'FOOD_BEVERAGE',
+      icon: HugeIconsSolid.dish01,
+    ),
+    MixTaxonomy(
+      'STARTERS',
+      'Starters',
+      applicableCategory: 'FOOD_BEVERAGE',
+      icon: HugeIconsSolid.fork,
+    ),
+    MixTaxonomy(
+      'SIDES',
+      'Sides',
+      applicableCategory: 'FOOD_BEVERAGE',
+      icon: HugeIconsSolid.plate,
+    ),
+    MixTaxonomy(
+      'DRINKS',
+      'Drinks',
+      applicableCategory: 'FOOD_BEVERAGE',
+      icon: HugeIconsSolid.drink,
+    ),
+    MixTaxonomy(
+      'DESSERTS',
+      'Desserts',
+      applicableCategory: 'FOOD_BEVERAGE',
+      icon: HugeIconsSolid.cupcake01,
+    ),
+    MixTaxonomy(
+      'ROOMS',
+      'Rooms',
+      applicableCategory: 'HOSPITALITY',
+      icon: HugeIconsSolid.bedDouble,
+    ),
+    MixTaxonomy(
+      'RIDES',
+      'Rides',
+      applicableCategory: 'LOGISTICS',
+      icon: HugeIconsSolid.bus01,
+    ),
+    MixTaxonomy(
+      'RETAIL_ITEMS',
+      'Retail items',
+      applicableCategory: 'RETAIL',
+      icon: HugeIconsSolid.shoppingBag01,
+    ),
+    MixTaxonomy('SERVICES', 'Services', icon: HugeIconsSolid.service),
   ];
 
   /// Chips offered by the filter rail for one category (null applicability
   /// = available in every category).
-  static List<MixTaxonomy> forCategory(String wire) => canonical
-      .where((t) => t.applicableCategory == null || t.applicableCategory == wire)
-      .toList(growable: false);
+  /// Chips offered for one discovery category. NULL (All mode) returns
+  /// NOTHING — an unfiltered feed has no relevant taxonomy rail, by
+  /// contract.
+  static List<MixTaxonomy> forCategory(String? wire) => wire == null
+      ? const []
+      : canonical
+          .where(
+            (t) =>
+                t.applicableCategory == null || t.applicableCategory == wire,
+          )
+          .toList(growable: false);
 
   static MixTaxonomy? byId(String? id) {
     if (id == null) return null;
@@ -143,7 +211,8 @@ class MixOfferPrice {
 
   const MixOfferPrice.unknown() : this._(status: MixPriceStatus.unknown);
 
-  const MixOfferPrice.fixedGhs(this.amountExact) : status = MixPriceStatus.fixed;
+  const MixOfferPrice.fixedGhs(this.amountExact)
+    : status = MixPriceStatus.fixed;
 
   bool get isKnown => status == MixPriceStatus.fixed;
 
@@ -341,8 +410,9 @@ class MixOffer {
       imageUrls: _toStringList(item['images']),
       tags: _toStringList(item['tags']),
       price: MixOfferPrice.fromPricing(pricing),
-      isAvailable:
-          availability['isAvailable'] == null ? null : availability['isAvailable'] == true,
+      isAvailable: availability['isAvailable'] == null
+          ? null
+          : availability['isAvailable'] == true,
       sectionWindowOpen: availability['sectionWindowOpen'] == null
           ? null
           : availability['sectionWindowOpen'] == true,
@@ -358,7 +428,9 @@ class MixOffer {
   }
 
   static List<String> _toStringList(dynamic v) {
-    if (v is List) return v.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    if (v is List) {
+      return v.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+    }
     return const [];
   }
 
@@ -371,4 +443,59 @@ class MixOffer {
 
   @override
   int get hashCode => offerKey.hashCode;
+}
+
+// ── DIAL ↔ DISCOVERY CATEGORY BOUNDARY (the one translation point) ─────────
+
+/// THE single, explicit boundary between the marketplace speed dial's
+/// category vocabulary and the Mix discovery endpoint's vocabulary.
+///
+/// The dial says REAL_ESTATE for its "Stay" pill (the wire the marketplace
+/// search / launcher allowlist already accepts); the canonical discovery
+/// endpoint (backend PR #349 parseParams) accepts HOSPITALITY instead and
+/// answers 422 for REAL_ESTATE. Every translation between the two
+/// vocabularies happens HERE and nowhere else:
+///
+///   • dial → mix: REAL_ESTATE becomes HOSPITALITY. Unknown/foreign wires
+///     become null (the unfiltered All feed) — the mismatch can NEVER
+///     generate an invalid query and NEVER silently defaults to Eat
+///     (FOOD_BEVERAGE).
+///   • mix → dial: HOSPITALITY renders as the dial's REAL_ESTATE "Stay"
+///     pill; null renders as All.
+///
+/// Both directions are TOTAL (no input throws, no input invents a wire the
+/// other vocabulary does not own) and are pinned by tests.
+abstract final class MixDialCategoryBoundary {
+  /// Dial wire → discovery wire. Null (All) stays null; unknown becomes
+  /// null — the honest unfiltered feed, never an invalid query, never a
+  /// silent Eat default.
+  static String? dialToMix(String? dialWire) {
+    switch (dialWire) {
+      case 'FOOD_BEVERAGE':
+      case 'RETAIL':
+      case 'LOGISTICS':
+      case 'HOSPITALITY':
+        return dialWire;
+      case 'REAL_ESTATE':
+        return 'HOSPITALITY';
+      default:
+        return null;
+    }
+  }
+
+  /// Discovery wire → dial wire (for rendering the dial's selection while
+  /// Mix is active). Unknown becomes null (the dial's All pill).
+  static String? mixToDial(String? mixWire) {
+    switch (mixWire) {
+      case 'FOOD_BEVERAGE':
+      case 'RETAIL':
+      case 'LOGISTICS':
+      case 'REAL_ESTATE':
+        return mixWire;
+      case 'HOSPITALITY':
+        return 'REAL_ESTATE';
+      default:
+        return null;
+    }
+  }
 }

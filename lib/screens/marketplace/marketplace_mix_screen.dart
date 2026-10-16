@@ -10,9 +10,16 @@
 //
 // REACHABILITY: pushed above the shell (the persistent bottom-nav band does
 // not overlap pushed routes), so bottom clearance is the system safe area +
-// [AzSpace.xxl]. If Mix later becomes an in-tab home mode, the clearance must
-// adopt PR #151's `navBandClearance` helper instead — deliberately NOT
-// duplicated here (that helper only exists on #151's branch).
+// [AzSpace.xxl].
+//
+// COMPATIBILITY WRAPPER (in-place Mix PR): the Marketplace's OWN Mix button
+// now toggles the in-place mode inside MarketplaceHomeScreen and never
+// pushes this route. This screen remains ONLY as the compatibility route
+// for external links (/business-market/mix?category=…): its initial
+// category travels through the ONE dial↔discovery boundary
+// ([MixDialCategoryBoundary.dialToMix] — REAL_ESTATE → HOSPITALITY,
+// unknown/absent → null = the unfiltered All feed), and its feed body is
+// the SAME shared [MixFeedSurface] the in-place mode renders.
 //
 // STATES (each rendered honestly — see the provider's failure model):
 //   loading skeletons · failed + retry (network/5xx) · empty feed (a
@@ -30,17 +37,15 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/marketplace_mix_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/az_error_surface.dart';
-import 'package:azaman/widgets/az_skeleton.dart';
-import 'package:azaman/widgets/azaman_empty_state.dart';
-import 'package:azaman/widgets/marketplace/discovery/mix_offer_card.dart';
+import 'package:azaman/widgets/marketplace/discovery/mix_feed_surface.dart';
 
 class MarketplaceMixScreen extends ConsumerStatefulWidget {
-  /// Initial category wire. Defaults to Eat (FOOD_BEVERAGE).
+  /// Initial category wire in EITHER vocabulary (a legacy marketplace link
+  /// may carry the dial's REAL_ESTATE); translated through the one
+  /// boundary, with null/unknown meaning All (the unfiltered feed).
   final String? category;
 
   const MarketplaceMixScreen({super.key, this.category});
@@ -54,16 +59,18 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
   @override
   void initState() {
     super.initState();
-    final initial = MixCategory.byWire(widget.category) != null
-        ? widget.category!
-        : 'FOOD_BEVERAGE';
+    // THE one explicit boundary: dial wire → discovery wire. REAL_ESTATE
+    // becomes HOSPITALITY; anything unknown (or absent) becomes null —
+    // the unfiltered All feed. An invalid query is impossible and the
+    // mismatch NEVER silently defaults to Eat.
+    final initial = MixDialCategoryBoundary.dialToMix(widget.category);
     // First frame: kick the load without marking the widget dirty mid-build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(marketplaceMixProvider.notifier).selectCategory(initial);
     });
   }
 
-  void _selectCategory(String wire) {
+  void _selectCategory(String? wire) {
     final current = ref.read(marketplaceMixProvider);
     // Same category and already (successfully) loaded: no-op, like the dial.
     if (current.categoryWire == wire &&
@@ -102,13 +109,13 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
             _taxonomyRail(colors, state),
             Expanded(
               key: const ValueKey('mix_feed_slot'),
-              child: switch (state.phase) {
-                MixPhase.idle || MixPhase.loading => _loading(colors),
-                MixPhase.failed => _failed(colors),
-                MixPhase.disabled => _disabled(colors),
-                MixPhase.invalidRequest => _invalidRequest(colors, state),
-                MixPhase.ready => _feed(colors, state),
-              },
+              // The SHARED feed surface — the exact body the in-place Mix
+              // mode renders. No second feed implementation exists.
+              child: MixFeedSurface(
+                onOpenStore: _openStore,
+                bottomPadding:
+                    MediaQuery.paddingOf(context).bottom + AzSpace.xxl,
+              ),
             ),
           ],
         ),
@@ -116,11 +123,15 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
     );
   }
 
-  Widget _header(AzamanColors colors, String categoryWire) {
+  Widget _header(AzamanColors colors, String? categoryWire) {
     final category = MixCategory.byWire(categoryWire);
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AzSpace.lg, AzSpace.md, AzSpace.lg, AzSpace.xs),
+        AzSpace.lg,
+        AzSpace.md,
+        AzSpace.lg,
+        AzSpace.xs,
+      ),
       child: Row(
         children: [
           IconButton(
@@ -135,14 +146,12 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
               children: [
                 Text(
                   'Marketplace Mix',
-                  style:
-                      AzText.titleL.copyWith(color: colors.textPrimary),
+                  style: AzText.titleL.copyWith(color: colors.textPrimary),
                 ),
                 const SizedBox(height: AzSpace.xxs),
                 Text(
                   'Browse ${category?.label.toLowerCase() ?? 'items'} across every store',
-                  style:
-                      AzText.bodyS.copyWith(color: colors.textTertiary),
+                  style: AzText.bodyS.copyWith(color: colors.textTertiary),
                 ),
               ],
             ),
@@ -152,26 +161,33 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
     );
   }
 
-  Widget _categoryRail(AzamanColors colors, String selectedWire) {
+  Widget _categoryRail(AzamanColors colors, String? selectedWire) {
+    // ALL first (null wire = the unfiltered discovery feed), then the four
+    // real categories — the same ladder the in-place mode's dial offers.
+    final entries = <(String?, MixCategory?)>[
+      (null, null),
+      for (final c in MixCategory.values) (c.wire, c),
+    ];
     return SizedBox(
       height: 40,
       child: ListView.separated(
         key: const ValueKey('mix_category_rail'),
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-        itemCount: MixCategory.values.length,
+        itemCount: entries.length,
         separatorBuilder: (_, __) => const SizedBox(width: AzSpace.sm),
         itemBuilder: (_, i) {
-          final c = MixCategory.values[i];
-          final selected = c.wire == selectedWire;
+          final (wire, c) = entries[i];
+          final label = c?.label ?? 'All';
+          final icon = c?.icon ?? Icons.apps_rounded;
+          final selected = wire == selectedWire;
           return GestureDetector(
-            key: ValueKey('mix_category_${c.wire}'),
+            key: ValueKey('mix_category_${wire ?? 'ALL'}'),
             behavior: HitTestBehavior.opaque,
-            onTap: () => _selectCategory(c.wire),
+            onTap: () => _selectCategory(wire),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
                 color: selected
                     ? colors.accent.withValues(alpha: 0.12)
@@ -185,14 +201,14 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(c.icon,
-                      size: 14,
-                      color: selected
-                          ? colors.accent
-                          : colors.textTertiary),
+                  Icon(
+                    icon,
+                    size: 14,
+                    color: selected ? colors.accent : colors.textTertiary,
+                  ),
                   const SizedBox(width: 6),
                   Text(
-                    c.label,
+                    label,
                     style: AzText.label.copyWith(
                       color: selected ? colors.accent : colors.textSecondary,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
@@ -211,6 +227,7 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
   /// ([MixTaxonomy.canonical] mirrors the backend overlay); a chip is NEVER
   /// inferred from a section name.
   Widget _taxonomyRail(AzamanColors colors, MarketplaceMixState state) {
+    // All mode: no chips (the provider returns none for a null wire).
     final chips = MixTaxonomy.forCategory(state.categoryWire);
     if (chips.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -237,8 +254,10 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: selected
                       ? colors.accent.withValues(alpha: 0.12)
@@ -264,160 +283,16 @@ class _MarketplaceMixScreenState extends ConsumerState<MarketplaceMixScreen> {
     );
   }
 
-  Widget _loading(AzamanColors colors) {
-    return ListView.builder(
-      key: const ValueKey('mix_loading'),
-      padding: _feedInsets(),
-      itemCount: 6,
-      itemBuilder: (_, __) => const Padding(
-        padding: EdgeInsets.only(bottom: AzSpace.sm),
-        child: Row(
-          children: [
-            AzSkeleton(width: 96, height: 96, borderRadius: AzRadius.lg),
-            SizedBox(width: AzSpace.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AzSkeleton(height: 14, width: 180),
-                  SizedBox(height: AzSpace.sm),
-                  AzSkeleton(height: 12, width: 120),
-                  SizedBox(height: AzSpace.sm),
-                  AzSkeleton(height: 12, width: 80),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _failed(AzamanColors colors) {
-    final state = ref.watch(marketplaceMixProvider);
-    return Center(
-      child: SingleChildScrollView(
-        child: AzErrorSurface(
-          key: const ValueKey('mix_error'),
-          message: state.error ?? 'We couldn\'t load this category right now.',
-          hint: 'Check your connection and try again.',
-          onRetry: () => ref.read(marketplaceMixProvider.notifier).retry(),
-        ),
-      ),
-    );
-  }
-
   /// 404 — the discovery surface is not enabled/available. Deliberately
   /// distinct from an empty feed: "no items yet" would be a false claim about
   /// the backend state, and "error, retry" would misreport a deliberate flag
   /// as a transient failure.
-  Widget _disabled(AzamanColors colors) {
-    return const Center(
-      child: SingleChildScrollView(
-        child: AzamanEmptyState(
-          key: ValueKey('mix_disabled'),
-          icon: Icons.travel_explore_outlined,
-          title: 'Marketplace Mix isn\'t available yet',
-          subtitle:
-              'Cross-store browsing is still being switched on. Please check back soon.',
-        ),
-      ),
-    );
-  }
 
   /// 422 — the server rejected a request parameter. Surfaced honestly with
   /// the server's own message and a filter-clear affordance; never retried
   /// in a loop.
-  Widget _invalidRequest(AzamanColors colors, MarketplaceMixState state) {
-    return Center(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AzamanEmptyState(
-              key: const ValueKey('mix_invalid_request'),
-              icon: Icons.filter_alt_off_outlined,
-              title: 'That filter isn\'t supported',
-              subtitle: state.error ?? 'Please change the filters and try again.',
-            ),
-            const SizedBox(height: AzSpace.sm),
-            TextButton(
-              key: const ValueKey('mix_clear_filters'),
-              onPressed: () =>
-                  ref.read(marketplaceMixProvider.notifier).clearTaxonomies(),
-              child: const Text('Clear filters'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _feed(colors, MarketplaceMixState state) {
-    if (state.offers.isEmpty) {
-      final category = MixCategory.byWire(state.categoryWire);
-      return Center(
-        child: SingleChildScrollView(
-          child: AzamanEmptyState(
-            key: const ValueKey('mix_empty'),
-            icon: category?.icon ?? Icons.inventory_2_outlined,
-            title: 'Nothing in ${category?.label ?? 'this category'} yet',
-            subtitle: state.taxonomies.isEmpty
-                ? 'New items appear here as stores list them.'
-                : 'No items match these filters. Try clearing a chip or two.',
-          ),
-        ),
-      );
-    }
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (n) {
-        // Near-end trigger for the next cursor page (deterministic, no
-        // infinite-loop risk: loadMore is a no-op without a cursor).
-        if (n.metrics.extentAfter < 400) {
-          ref.read(marketplaceMixProvider.notifier).loadMore();
-        }
-        return false;
-      },
-      child: ListView.builder(
-        key: const ValueKey('mix_feed'),
-        padding: _feedInsets(),
-        // +1 for the load-more tail row.
-        itemCount: state.offers.length + 1,
-        itemBuilder: (context, i) {
-          if (i < state.offers.length) {
-            final offer = state.offers[i];
-            return MixOfferCard(
-              offer: offer,
-              onOpenStore: _openStore,
-            );
-          }
-          return _feedTail(colors, state);
-        },
-      ),
-    );
-  }
-
-  Widget _feedTail(AzamanColors colors, MarketplaceMixState state) {
-    if (state.loadingMore) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AzSpace.lg),
-        child: Center(child: AzSkeleton(width: 120, height: 12)),
-      );
-    }
-    return const SizedBox(height: AzSpace.xxs);
-  }
 
   /// Feed insets. The BOTTOM inset is the clearance contract: pushed routes
   /// sit above the persistent nav band, so the final item clears the system
   /// gesture area plus a [AzSpace.xxl] gap. Pinned in the widget test.
-  EdgeInsets _feedInsets() {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    return EdgeInsets.fromLTRB(
-      AzSpace.lg,
-      AzSpace.md,
-      AzSpace.lg,
-      bottomInset + AzSpace.xxl,
-    );
-  }
 }

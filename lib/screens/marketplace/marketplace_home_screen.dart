@@ -40,7 +40,12 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
+import 'package:azaman/marketplace/mix/mix_models.dart';
+import 'package:azaman/providers/marketplace_mix_provider.dart';
 import 'package:azaman/widgets/liquid/category_speed_dial.dart';
+import 'package:azaman/widgets/marketplace/discovery/mix_dice.dart';
+import 'package:azaman/widgets/marketplace/discovery/mix_feed_surface.dart';
+import 'package:azaman/widgets/marketplace/discovery/mix_taxonomy_bubble_rail.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 
 import 'package:flutter_animate/flutter_animate.dart';
@@ -73,8 +78,7 @@ class MarketplaceHomeScreen extends ConsumerStatefulWidget {
       _MarketplaceHomeScreenState();
 }
 
-class _MarketplaceHomeScreenState
-    extends ConsumerState<MarketplaceHomeScreen> {
+class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
   final _scrollCtrl = ScrollController();
   double _scrollOffset = 0;
   // Live results while typing: debounce the already-updated provider text
@@ -95,6 +99,16 @@ class _MarketplaceHomeScreenState
   // View / sort / filter state
   _ViewMode _viewMode = _ViewMode.list;
   _SortMode _sort = _SortMode.topRated;
+
+  // MARKETPLACE MIX — the in-place cross-store mode. Toggled by the Mix
+  // button INSIDE this screen; NO route is pushed. While active the feed
+  // below the category selector is the cross-store discovery feed.
+  bool _mixActive = false;
+
+  /// The dial's selection before Mix was entered — restored on exit so
+  /// the normal marketplace view returns exactly as it was (the list
+  /// beneath never changed, so no re-fire is needed).
+  String? _preMixDialWire;
 
   // Location
   Position? _position;
@@ -120,7 +134,8 @@ class _MarketplaceHomeScreenState
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(businessSearchProvider.notifier)
+      ref
+          .read(businessSearchProvider.notifier)
           .search('', category: _selectedCategory);
       // Prefetch the signed-in user's own business profile so the
       // Register/Your-Business FAB shows the correct state immediately
@@ -215,10 +230,9 @@ class _MarketplaceHomeScreenState
       _fireNearby();
       return;
     }
-    ref.read(businessSearchProvider.notifier).search(
-          _query,
-          category: _selectedCategory,
-        );
+    ref
+        .read(businessSearchProvider.notifier)
+        .search(_query, category: _selectedCategory);
   }
 
   Future<void> _fireNearby() async {
@@ -227,7 +241,9 @@ class _MarketplaceHomeScreenState
       await _resolveLocation();
       return;
     }
-    ref.read(nearbySearchProvider.notifier).searchNearby(
+    ref
+        .read(nearbySearchProvider.notifier)
+        .searchNearby(
           lat: pos.latitude,
           lng: pos.longitude,
           q: _query.isEmpty ? null : _query,
@@ -241,8 +257,7 @@ class _MarketplaceHomeScreenState
       _locationError = null;
     });
     try {
-      final serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         throw 'Location services are disabled.';
       }
@@ -260,7 +275,9 @@ class _MarketplaceHomeScreenState
         _position = pos;
         _resolvingLocation = false;
       });
-      ref.read(nearbySearchProvider.notifier).searchNearby(
+      ref
+          .read(nearbySearchProvider.notifier)
+          .searchNearby(
             lat: pos.latitude,
             lng: pos.longitude,
             q: _query.isEmpty ? null : _query,
@@ -312,7 +329,9 @@ class _MarketplaceHomeScreenState
   /// wire value REAL_ESTATE: the backend/demo search already normalizes it to
   /// HOSPITALITY, but a literal equality here would empty the result list.
   bool _categoryMatchesBusiness(
-      String businessCategory, String selectedCategory) {
+    String businessCategory,
+    String selectedCategory,
+  ) {
     final actual = businessCategory.trim().toUpperCase();
     final wanted = selectedCategory.trim().toUpperCase();
     if (wanted == 'REAL_ESTATE') {
@@ -321,8 +340,7 @@ class _MarketplaceHomeScreenState
     return actual == wanted;
   }
 
-  List<BusinessProfile> _applySortFilter(
-      List<BusinessProfile> input) {
+  List<BusinessProfile> _applySortFilter(List<BusinessProfile> input) {
     var list = input.where((b) {
       if (_selectedCategory != null &&
           !_categoryMatchesBusiness(b.category, _selectedCategory!)) {
@@ -333,12 +351,10 @@ class _MarketplaceHomeScreenState
 
     switch (_sort) {
       case _SortMode.topRated:
-        list.sort((a, b) =>
-            b.averageRating.compareTo(a.averageRating));
+        list.sort((a, b) => b.averageRating.compareTo(a.averageRating));
         break;
       case _SortMode.mostPopular:
-        list.sort((a, b) =>
-            b.completedEscrows.compareTo(a.completedEscrows));
+        list.sort((a, b) => b.completedEscrows.compareTo(a.completedEscrows));
         break;
       case _SortMode.newest:
         break;
@@ -349,10 +365,9 @@ class _MarketplaceHomeScreenState
   }
 
   Future<void> _refresh() {
-    return ref.read(businessSearchProvider.notifier).search(
-          _query,
-          category: _selectedCategory,
-        );
+    return ref
+        .read(businessSearchProvider.notifier)
+        .search(_query, category: _selectedCategory);
   }
 
   // ── Back + search clear (correction H/I) ────────────────────────────────────
@@ -361,7 +376,48 @@ class _MarketplaceHomeScreenState
   // marketplace root lets the system back do its thing.
 
   void _handleBack() {
+    // In-place modes unwind from the inside out: Mix first, then the
+    // committed search, then the system default.
+    if (_mixActive) {
+      _toggleMixMode();
+      return;
+    }
     if (_searchActive) _clearSearch();
+  }
+
+  /// Toggles the in-place Mix mode. Entering: the dial renders ALL and the
+  /// unfiltered discovery feed loads (the provider's null category). No
+  /// navigation happens — the mode lives inside this screen.
+  void _toggleMixMode() {
+    AzamanHaptics.toggle();
+    if (!_mixActive) {
+      _preMixDialWire = _selectedCategory;
+      setState(() {
+        _mixActive = true;
+        _selectedCategory = null; // the dial renders All — Mix's default
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        // Entering Mix defaults to ALL: the UNFILTERED discovery feed (the
+        // gateway omits the category parameter entirely).
+        ref.read(marketplaceMixProvider.notifier).selectCategory(null);
+      });
+    } else {
+      setState(() {
+        _mixActive = false;
+        // Restore the pre-Mix dial selection — the marketplace list
+        // underneath never changed, so the view returns exactly as left.
+        _selectedCategory = _preMixDialWire;
+      });
+    }
+  }
+
+  /// Opens the OFFERING store from the Mix feed — the only navigation Mix
+  /// triggers, and it is the same storefront route the old Mix screen
+  /// used (offer identity travels through the real events contract).
+  void _openMixStore(MixOffer offer) {
+    ref.read(marketplaceMixProvider.notifier).trackOfferTap(offer);
+    context.push('/business/${offer.bizId}');
   }
 
   /// Clears the AUTHORITATIVE provider — the focused-nav search field
@@ -384,8 +440,7 @@ class _MarketplaceHomeScreenState
     // provider through the SAME [MarketplaceSearchBinding] seam this screen
     // always used — no second search provider exists. The screen reacts to
     // committed text changes with its existing debounced plumbing.
-    ref.listen(marketplaceSearchProvider.select((s) => s.text),
-        (_, text) {
+    ref.listen(marketplaceSearchProvider.select((s) => s.text), (_, text) {
       _onProviderTextChanged(text);
     });
 
@@ -401,8 +456,9 @@ class _MarketplaceHomeScreenState
       reducedMotion: !AzMotion.of(context).travel,
     );
 
-    final searchActive =
-        ref.watch(marketplaceSearchProvider.select((s) => s.isActive));
+    final searchActive = ref.watch(
+      marketplaceSearchProvider.select((s) => s.isActive),
+    );
     // Back semantics (correction H): the marketplace root is ONE result
     // screen. A committed search clears first; otherwise the system back
     // does its normal thing.
@@ -415,103 +471,134 @@ class _MarketplaceHomeScreenState
         _handleBack();
       },
       child: Scaffold(
-      backgroundColor: colors.background,
-      // FAB removed — store management moved to the storefront button (item 9)
-      body: SafeArea(
-        bottom: false,
-        child: AzPullToRefresh(
-          onRefresh: () => _viewMode == _ViewMode.list ? _refresh() : _fireNearby(),
-          child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Phase 3.4: Collapsible gradient behind header ───────────────
-            Stack(
+        backgroundColor: colors.background,
+        // FAB removed — store management moved to the storefront button (item 9)
+        body: SafeArea(
+          bottom: false,
+          child: AzPullToRefresh(
+            onRefresh: () => _mixActive
+                ? ref.read(marketplaceMixProvider.notifier).retry()
+                : (_viewMode == _ViewMode.list ? _refresh() : _fireNearby()),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Gradient that fades in as user scrolls
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedOpacity(
-                      opacity: expandRatio,
-                      duration: const Duration(milliseconds: 100),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              colors.accent.withValues(alpha: 0.08),
-                              colors.background,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                _header(colors),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // CORRECTION I: tapping anywhere on Marketplace content (while
-            // the user is on this root screen) restores the focused
-            // Marketplace nav — the "…" exit is a presentation change of
-            // the SAME tab, and content interaction brings it back. The
-            // Listener is observational: it never consumes or blocks the
-            // child's own taps and gestures.
-            Expanded(
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (_) {
-                  if (!ref.read(marketplaceNavFocusProvider)) {
-                    ref
-                        .read(marketplaceNavFocusProvider.notifier)
-                        .state = true;
-                  }
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // ── Phase 3.4: Collapsible gradient behind header ───────────────
+                Stack(
                   children: [
-                    // ── Stories: smooth scroll-driven height (Telegram-style) ──
-                    SizedBox(
-                      height: StoryRailCollapse.extentPx * storyExpandRatio,
-                      width: double.infinity,
-                      child: ClipRect(
-                        child: OverflowBox(
-                          alignment: Alignment.topCenter,
-                          minHeight: StoryRailCollapse.extentPx,
-                          maxHeight: StoryRailCollapse.extentPx,
-                          child: Opacity(
-                            opacity: storyExpandRatio.clamp(0.0, 1.0),
-                            child: MarketplaceExpandedStories(
-                              onOpenBusiness: (bizId) {
-                                _openBusinessStories(context, bizId);
-                              },
-                              onBrowsePressed: () {
-                                setState(() => _selectedCategory = null);
-                              },
+                    // Gradient that fades in as user scrolls
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedOpacity(
+                          opacity: expandRatio,
+                          duration: const Duration(milliseconds: 100),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  colors.accent.withValues(alpha: 0.08),
+                                  colors.background,
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    // ── §11: the category SPEED DIAL is the category
-                    // system (radial fan grammar) + Near You as the only
-                    // additional control. §12: no star/featured surface.
-                    _controlRow(colors),
-                    Expanded(
-                      child: _viewMode == _ViewMode.list
-                          ? _listMode(colors)
-                          : _mapMode(colors),
-                    ),
+                    _header(colors),
                   ],
                 ),
-              ),
+                const SizedBox(height: 10),
+                // CORRECTION I: tapping anywhere on Marketplace content (while
+                // the user is on this root screen) restores the focused
+                // Marketplace nav — the "…" exit is a presentation change of
+                // the SAME tab, and content interaction brings it back. The
+                // Listener is observational: it never consumes or blocks the
+                // child's own taps and gestures.
+                Expanded(
+                  child: Listener(
+                    behavior: HitTestBehavior.translucent,
+                    onPointerDown: (_) {
+                      if (!ref.read(marketplaceNavFocusProvider)) {
+                        ref.read(marketplaceNavFocusProvider.notifier).state =
+                            true;
+                      }
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Stories: smooth scroll-driven height (Telegram-style).
+                        //    Hidden while Mix is active — the cross-store feed
+                        //    is the content, and the mode's category selector
+                        //    (the dial) + subcategory bubbles replace the
+                        //    story rail's browse role.
+                        if (!_mixActive)
+                          SizedBox(
+                            height:
+                                StoryRailCollapse.extentPx * storyExpandRatio,
+                            width: double.infinity,
+                            child: ClipRect(
+                              child: OverflowBox(
+                                alignment: Alignment.topCenter,
+                                minHeight: StoryRailCollapse.extentPx,
+                                maxHeight: StoryRailCollapse.extentPx,
+                                child: Opacity(
+                                  opacity: storyExpandRatio.clamp(0.0, 1.0),
+                                  child: MarketplaceExpandedStories(
+                                    onOpenBusiness: (bizId) {
+                                      _openBusinessStories(context, bizId);
+                                    },
+                                    onBrowsePressed: () {
+                                      setState(() => _selectedCategory = null);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        // ── §11: the category SPEED DIAL is the category
+                        // system (radial fan grammar) + Near You as the only
+                        // additional control. §12: no star/featured surface.
+                        _controlRow(colors),
+                        Expanded(
+                          child: _mixActive
+                              ? _mixMode(colors)
+                              : (_viewMode == _ViewMode.list
+                                    ? _listMode(colors)
+                                    : _mapMode(colors)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
           ),
         ),
       ),
-      ),
+    );
+  }
+
+  // ── The in-place MIX MODE surface ──────────────────────────────────────
+
+  /// Mix active: the server-canonical subcategory BUBBLES for the selected
+  /// category sit immediately below the category selector (the dial), and
+  /// the shared state-honest discovery feed fills the rest. The bottom
+  /// clearance is the shell tab's live nav-band inset — never a guess.
+  Widget _mixMode(AzamanColors colors) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const MixTaxonomyBubbleRail(),
+        Expanded(
+          key: const ValueKey('mix_inplace_feed'),
+          child: MixFeedSurface(
+            onOpenStore: _openMixStore,
+            bottomPadding: navBandClearance(context) + kNavBandGap,
+          ),
+        ),
+      ],
     );
   }
 
@@ -538,7 +625,8 @@ class _MarketplaceHomeScreenState
               // Drag handle
               Center(
                 child: Container(
-                  width: 36, height: 4,
+                  width: 36,
+                  height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: colors.divider,
@@ -574,7 +662,8 @@ class _MarketplaceHomeScreenState
                     child: Row(
                       children: [
                         Container(
-                          width: 44, height: 44,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
                             color: colors.accentSurface,
                             borderRadius: BorderRadius.circular(12),
@@ -587,7 +676,11 @@ class _MarketplaceHomeScreenState
                                     fit: BoxFit.cover,
                                   ),
                                 )
-                              : Icon(Icons.store_rounded, color: colors.accent, size: 22),
+                              : Icon(
+                                  Icons.store_rounded,
+                                  color: colors.accent,
+                                  size: 22,
+                                ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -613,7 +706,11 @@ class _MarketplaceHomeScreenState
                             ],
                           ),
                         ),
-                        Icon(Icons.chevron_right_rounded, color: colors.textTertiary, size: 20),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: colors.textTertiary,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ),
@@ -642,16 +739,23 @@ class _MarketplaceHomeScreenState
                   child: Row(
                     children: [
                       Container(
-                        width: 44, height: 44,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
                           color: colors.accent,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.add_rounded, color: colors.isDark ? Colors.black : Colors.white, size: 24),
+                        child: Icon(
+                          Icons.add_rounded,
+                          color: colors.isDark ? Colors.black : Colors.white,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        isRegistered ? 'Add another store' : 'Register your business',
+                        isRegistered
+                            ? 'Add another store'
+                            : 'Register your business',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -692,9 +796,11 @@ class _MarketplaceHomeScreenState
             Expanded(
               child: MarketplaceCollapsedAvatars(
                 onTap: () {
-                  _scrollCtrl.animateTo(0,
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOut);
+                  _scrollCtrl.animateTo(
+                    0,
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOut,
+                  );
                 },
               ),
             )
@@ -731,10 +837,8 @@ class _MarketplaceHomeScreenState
             ),
             child: Row(
               children: [
-                _viewSeg(
-                    Icons.view_agenda_outlined, _ViewMode.list, colors),
-                _viewSeg(
-                    Icons.location_on_outlined, _ViewMode.map, colors),
+                _viewSeg(Icons.view_agenda_outlined, _ViewMode.list, colors),
+                _viewSeg(Icons.location_on_outlined, _ViewMode.map, colors),
               ],
             ),
           ),
@@ -743,8 +847,7 @@ class _MarketplaceHomeScreenState
     );
   }
 
-  Widget _viewSeg(
-      IconData icon, _ViewMode mode, AzamanColors colors) {
+  Widget _viewSeg(IconData icon, _ViewMode mode, AzamanColors colors) {
     final active = _viewMode == mode;
     return ScaleTap(
       onTap: () => _setViewMode(mode),
@@ -756,11 +859,13 @@ class _MarketplaceHomeScreenState
           color: active ? colors.accent : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon,
-            size: 16,
-            color: active
-                ? (colors.isDark ? Colors.black : Colors.white)
-                : colors.textSecondary),
+        child: Icon(
+          icon,
+          size: 16,
+          color: active
+              ? (colors.isDark ? Colors.black : Colors.white)
+              : colors.textSecondary,
+        ),
       ),
     );
   }
@@ -782,9 +887,7 @@ class _MarketplaceHomeScreenState
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: colors.divider, width: 0.5),
         ),
-        child: Icon(icon,
-            size: 20,
-            color: activeColor ?? colors.textSecondary),
+        child: Icon(icon, size: 20, color: activeColor ?? colors.textSecondary),
       ),
     );
   }
@@ -797,29 +900,32 @@ class _MarketplaceHomeScreenState
     // PR #142 FINAL PASS §2 — real categories carry their own accent (the
     // marketplace category palette) so they stand out over the neutral
     // gray goo; "All" stays the quiet neutral pill.
+    CategoryDialItem(wire: null, icon: Icons.apps_rounded, label: 'All'),
     CategoryDialItem(
-        wire: null, icon: Icons.apps_rounded, label: 'All'),
+      wire: 'FOOD_BEVERAGE',
+      icon: Icons.restaurant_rounded,
+      label: 'Eat',
+      accent: Color(0xFFF59E0B),
+    ),
     CategoryDialItem(
-        wire: 'FOOD_BEVERAGE',
-        icon: Icons.restaurant_rounded,
-        label: 'Eat',
-        accent: Color(0xFFF59E0B)),
+      wire: 'RETAIL',
+      icon: Icons.shopping_bag_rounded,
+      label: 'Shop',
+      accent: Color(0xFF00D97E),
+    ),
     CategoryDialItem(
-        wire: 'RETAIL',
-        icon: Icons.shopping_bag_rounded,
-        label: 'Shop',
-        accent: Color(0xFF00D97E)),
+      wire: 'LOGISTICS',
+      icon: Icons.directions_bus_rounded,
+      label: 'Ride',
+      accent: Color(0xFF4F8EF7),
+    ),
     CategoryDialItem(
-        wire: 'LOGISTICS',
-        icon: Icons.directions_bus_rounded,
-        label: 'Ride',
-        accent: Color(0xFF4F8EF7)),
-    CategoryDialItem(
-        wire: 'REAL_ESTATE',
-        icon: Icons.apartment_rounded,
-        label: 'Stay',
-        accent: Color(0xFFA78BFA)),
-];
+      wire: 'REAL_ESTATE',
+      icon: Icons.apartment_rounded,
+      label: 'Stay',
+      accent: Color(0xFFA78BFA),
+    ),
+  ];
 
   // EXPERIENCE PASS §11 — the category SPEED DIAL is THE category system.
   // The radial fan / goo-morph arms remain the visual grammar; the old row
@@ -853,119 +959,159 @@ class _MarketplaceHomeScreenState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-            // UX-CORRECTION: the dial is COMPACT — intrinsic pill width, no
-            // Expanded stretch. The radial fan anchors to the pill's real
-            // box; a stretched slot made the whole empty row-width part of
-            // the anchor (and the fan fanned off a rect the eye doesn't
-            // see). The dial and the Mix pill form the LEFT cluster that
-            // spaceBetween pins to the row's leading edge.
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-          CategorySpeedDial(
-            key: const ValueKey('marketplace-category-dial'),
-            categories: _dialCategories,
-            selectedWire: _selectedCategory,
-            colors: colors,
-            onSelected: (wire) {
-              AzamanHaptics.toggle();
-              setState(() => _selectedCategory = wire);
-              _fireSearch();
-            },
-          ),
-          // MARKETPLACE MIX — the category-first, cross-store browse mode.
-          // One entry pill in the SAME control row grammar as Near You: it
-          // opens /business-market/mix with the dial's selected category as
-          // the initial Mix category (or Eat by default when no category is
-          // selected). Isolated, additive row slot — no other control moves.
-          GestureDetector(
-            key: const ValueKey('marketplace-mix-entry'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              AzamanHaptics.toggle();
-              final wire = _selectedCategory;
-              context.push(wire == null
-                  ? AzRoutes.businessMarketMix
-                  : '${AzRoutes.businessMarketMix}?category=$wire');
-            },
-            child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: colors.divider, width: 0.5),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.auto_awesome_mosaic_outlined,
-                      size: 14, color: colors.accent),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Mix',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: colors.textSecondary,
+                  // UX-CORRECTION: the dial is COMPACT — intrinsic pill width, no
+                  // Expanded stretch. The radial fan anchors to the pill's real
+                  // box; a stretched slot made the whole empty row-width part of
+                  // the anchor (and the fan fanned off a rect the eye doesn't
+                  // see). The dial and the Mix pill form the LEFT cluster that
+                  // spaceBetween pins to the row's leading edge.
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CategorySpeedDial(
+                        key: const ValueKey('marketplace-category-dial'),
+                        categories: _dialCategories,
+                        selectedWire: _selectedCategory,
+                        colors: colors,
+                        onSelected: (wire) {
+                          AzamanHaptics.toggle();
+                          setState(() => _selectedCategory = wire);
+                          if (_mixActive) {
+                            // Inside Mix the dial is the CATEGORY SELECTOR: translate
+                            // through the ONE dial↔discovery boundary (the dial's
+                            // REAL_ESTATE "Stay" is the discovery endpoint's
+                            // HOSPITALITY; the mismatch can never build an invalid
+                            // query and never silently defaults to Eat).
+                            ref
+                                .read(marketplaceMixProvider.notifier)
+                                .selectCategory(
+                                  MixDialCategoryBoundary.dialToMix(wire),
+                                );
+                          } else {
+                            _fireSearch();
+                          }
+                        },
+                      ),
+                      // MARKETPLACE MIX — the in-place cross-store mode. The button
+                      // TOGGLES the mode inside this screen (no route is pushed); the
+                      // custom-painted isometric die is its mark, separated from the
+                      // label by a faint vertical divider with breathing space around
+                      // it. Same control-row grammar as Near You — additive slot, no
+                      // other control moves.
+                      GestureDetector(
+                        key: const ValueKey('marketplace-mix-entry'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _toggleMixMode,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _mixActive
+                                ? colors.accent.withValues(alpha: 0.12)
+                                : colors.card,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: _mixActive
+                                  ? colors.accent
+                                  : colors.divider,
+                              width: _mixActive ? 1.2 : 0.5,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // The die: breathing space around it, then a faint
+                              // vertical divider, then the label.
+                              Padding(
+                                padding: const EdgeInsets.all(2),
+                                child: MixDie(active: _mixActive),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 1,
+                                height: 14,
+                                color: colors.divider.withValues(alpha: 0.7),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Mix',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _mixActive
+                                      ? colors.accent
+                                      : colors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  // 2026-10-06 VISUAL PASS — Near You moves to the FAR END of the
+                  // control row: it reads as the secondary location/filter
+                  // utility, visually belonging to the row's end rather than to the
+                  // category fan. The dial is NOT stretched to force the
+                  // alignment; spaceBetween takes the free row width between the
+                  // clusters (a flex Spacer is illegal inside a horizontal
+                  // scrollable, where the strip can exceed the viewport).
+                  // Near You — the ONLY control outside the category selector
+                  // (location icon, same pill language). Toggling off returns to
+                  // the list view.
+                  GestureDetector(
+                    key: const ValueKey('marketplace-near-you'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      AzamanHaptics.toggle();
+                      _setViewMode(nearYou ? _ViewMode.list : _ViewMode.map);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      decoration: BoxDecoration(
+                        color: nearYou
+                            ? colors.accent.withValues(alpha: 0.12)
+                            : colors.card,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: nearYou ? colors.accent : colors.divider,
+                          width: nearYou ? 1.2 : 0.5,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.near_me_rounded,
+                            size: 14,
+                            color: nearYou
+                                ? colors.accent
+                                : colors.textTertiary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Near You',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: nearYou
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: nearYou
+                                  ? colors.accent
+                                  : colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-              ],
-            ),
-          // 2026-10-06 VISUAL PASS — Near You moves to the FAR END of the
-          // control row: it reads as the secondary location/filter
-          // utility, visually belonging to the row's end rather than to the
-          // category fan. The dial is NOT stretched to force the
-          // alignment; spaceBetween takes the free row width between the
-          // clusters (a flex Spacer is illegal inside a horizontal
-          // scrollable, where the strip can exceed the viewport).
-          // Near You — the ONLY control outside the category selector
-          // (location icon, same pill language). Toggling off returns to
-          // the list view.
-          GestureDetector(
-            key: const ValueKey('marketplace-near-you'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              AzamanHaptics.toggle();
-              _setViewMode(nearYou ? _ViewMode.list : _ViewMode.map);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: nearYou
-                    ? colors.accent.withValues(alpha: 0.12)
-                    : colors.card,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: nearYou ? colors.accent : colors.divider,
-                  width: nearYou ? 1.2 : 0.5,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.near_me_rounded,
-                      size: 14,
-                      color: nearYou ? colors.accent : colors.textTertiary),
-                  const SizedBox(width: 5),
-                  Text(
-                    'Near You',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight:
-                          nearYou ? FontWeight.w700 : FontWeight.w600,
-                      color: nearYou ? colors.accent : colors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            ),
                 ],
               ),
             ),
@@ -986,7 +1132,12 @@ class _MarketplaceHomeScreenState
           .map((g) => StoryGroup.fromJson(g as Map<String, dynamic>))
           .toList();
       if (groups.isNotEmpty && context.mounted) {
-        await StoryViewerScreen.open(context, groups: groups, initialGroupIndex: 0, heroTag: 'marketplace-story-ring-$bizId');
+        await StoryViewerScreen.open(
+          context,
+          groups: groups,
+          initialGroupIndex: 0,
+          heroTag: 'marketplace-story-ring-$bizId',
+        );
       } else if (context.mounted) {
         context.push('/business/$bizId');
       }
@@ -999,13 +1150,20 @@ class _MarketplaceHomeScreenState
 
   String _categoryLabel(String? cat) {
     switch (cat) {
-      case 'FOOD_BEVERAGE': return 'restaurants';
-      case 'REAL_ESTATE': return 'hotels & stays';
-      case 'LOGISTICS': return 'transit services';
-      case 'RETAIL': return 'retail shops';
-      case 'FREELANCE_SERVICES': return 'service providers';
-      case 'HEALTH_WELLNESS': return 'beauty & wellness';
-      default: return 'businesses';
+      case 'FOOD_BEVERAGE':
+        return 'restaurants';
+      case 'REAL_ESTATE':
+        return 'hotels & stays';
+      case 'LOGISTICS':
+        return 'transit services';
+      case 'RETAIL':
+        return 'retail shops';
+      case 'FREELANCE_SERVICES':
+        return 'service providers';
+      case 'HEALTH_WELLNESS':
+        return 'beauty & wellness';
+      default:
+        return 'businesses';
     }
   }
 
@@ -1016,7 +1174,8 @@ class _MarketplaceHomeScreenState
   Set<Marker> _buildMarkers(List<BusinessLocation> locations) {
     return locations.map((loc) {
       final cat = BusinessCategories.fromWire(
-          loc.businessProfileId.isNotEmpty ? 'OTHER' : 'OTHER');
+        loc.businessProfileId.isNotEmpty ? 'OTHER' : 'OTHER',
+      );
       // Use default marker with hue derived from category color as first pass
       final hue = _hueFromColor(cat.color);
       return Marker(
@@ -1072,21 +1231,23 @@ class _MarketplaceHomeScreenState
           }
           return Padding(
             padding: const EdgeInsets.all(12),
-            child: Consumer(builder: (ctx2, ref, _) {
-              final colors = ref.watch(themeProvider).colors;
-              return Container(
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: CollapsibleBusinessBar(
-                  key: ValueKey('map-preview-\${loc.id}'),
-                  business: business,
-                  isExpanded: true,
-                  onToggle: () => Navigator.of(ctx2).pop(),
-                ),
-              );
-            }),
+            child: Consumer(
+              builder: (ctx2, ref, _) {
+                final colors = ref.watch(themeProvider).colors;
+                return Container(
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: CollapsibleBusinessBar(
+                    key: const ValueKey('map-preview-\${loc.id}'),
+                    business: business,
+                    isExpanded: true,
+                    onToggle: () => Navigator.of(ctx2).pop(),
+                  ),
+                );
+              },
+            ),
           );
         },
       ),
@@ -1147,69 +1308,105 @@ class _MarketplaceHomeScreenState
 
     if (results.isEmpty) {
       return ListView(
-          children: [
-            const SizedBox(height: 60),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    child: LottieBuilder.asset('assets/animations/success.json', width: 120, height: 120, repeat: false),
-                  )
-                    .animate().scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), duration: 400.ms, curve: Curves.easeOutBack),
-                  const SizedBox(height: 12),
-                  Text('No businesses found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text(
-                    _query.isNotEmpty
-                        ? 'Try a different search term or category'
-                        : _selectedCategory != null
-                            ? 'No ${_categoryLabel(_selectedCategory)} yet — be the first!'
-                            : 'Be the first to register here',
-                    style: TextStyle(fontSize: 13, color: colors.textTertiary),
+        children: [
+          const SizedBox(height: 60),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  child: LottieBuilder.asset(
+                    'assets/animations/success.json',
+                    width: 120,
+                    height: 120,
+                    repeat: false,
                   ),
-                ],
-              ),
+                ).animate().scale(
+                  begin: const Offset(0.8, 0.8),
+                  end: const Offset(1, 1),
+                  duration: 400.ms,
+                  curve: Curves.easeOutBack,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'No businesses found',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _query.isNotEmpty
+                      ? 'Try a different search term or category'
+                      : _selectedCategory != null
+                      ? 'No ${_categoryLabel(_selectedCategory)} yet — be the first!'
+                      : 'Be the first to register here',
+                  style: TextStyle(fontSize: 13, color: colors.textTertiary),
+                ),
+              ],
             ),
-          ],
-        );
-      }
+          ),
+        ],
+      );
+    }
 
     return ListView.builder(
-        key: const ValueKey('marketplace_results_list'),
-        controller: _scrollCtrl,
-        // Persistent-nav occlusion fix: the bottom inset is the LIVE band
-        // height the shell publishes (navBandClearance) — not a magic 120
-        // that could under/over-pad per device — plus breathing room.
-        padding: EdgeInsets.fromLTRB(8, 6, 8, navBandClearance(context) + kNavBandGap),
-        itemCount: results.length + (state.hasMore ? 1 : 0),
-        itemBuilder: (ctx, i) {
-          // Infinite-scroll loader sentinel
-          if (i >= results.length) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
+      key: const ValueKey('marketplace_results_list'),
+      controller: _scrollCtrl,
+      // Persistent-nav occlusion fix: the bottom inset is the LIVE band
+      // height the shell publishes (navBandClearance) — not a magic 120
+      // that could under/over-pad per device — plus breathing room.
+      padding: EdgeInsets.fromLTRB(
+        8,
+        6,
+        8,
+        navBandClearance(context) + kNavBandGap,
+      ),
+      itemCount: results.length + (state.hasMore ? 1 : 0),
+      itemBuilder: (ctx, i) {
+        // Infinite-scroll loader sentinel
+        if (i >= results.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
+            ),
+          );
+        }
+        final b = results[i];
+        return CollapsibleBusinessBar(
+              key: ValueKey(b.bizId),
+              business: b,
+              isExpanded: _expandedBizId == b.bizId,
+              onToggle: () {
+                setState(() {
+                  _expandedBizId = _expandedBizId == b.bizId ? null : b.bizId;
+                });
+              },
+              distanceKm: b.locations.isNotEmpty
+                  ? b.locations.first.distanceKm
+                  : null,
+            )
+            .animate()
+            .fadeIn(
+              delay: (i * 50).ms,
+              duration: 300.ms,
+              curve: Curves.easeOutCubic,
+            )
+            .slideY(
+              begin: 0.15,
+              end: 0,
+              delay: (i * 50).ms,
+              duration: 300.ms,
+              curve: Curves.easeOutCubic,
             );
-          }
-          final b = results[i];
-          return CollapsibleBusinessBar(
-            key: ValueKey(b.bizId),
-            business: b,
-            isExpanded: _expandedBizId == b.bizId,
-            onToggle: () {
-              setState(() {
-                _expandedBizId = _expandedBizId == b.bizId ? null : b.bizId;
-              });
-            },
-            distanceKm: b.locations.isNotEmpty ? b.locations.first.distanceKm : null,
-          ).animate().fadeIn(delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic).slideY(begin: 0.15, end: 0, delay: (i * 50).ms, duration: 300.ms, curve: Curves.easeOutCubic);
-        },
+      },
     );
   }
 
@@ -1226,7 +1423,12 @@ class _MarketplaceHomeScreenState
         // skeleton rows painting behind the pill on devices where the
         // band's published inset is larger. Same live clearance as the
         // results list, plus the same breathing room.
-        padding: EdgeInsets.fromLTRB(8, 6, 8, navBandClearance(context) + kNavBandGap),
+        padding: EdgeInsets.fromLTRB(
+          8,
+          6,
+          8,
+          navBandClearance(context) + kNavBandGap,
+        ),
         itemCount: 8,
         itemBuilder: (_, __) => Container(
           margin: const EdgeInsets.symmetric(vertical: 3),
@@ -1240,7 +1442,8 @@ class _MarketplaceHomeScreenState
             children: [
               const SizedBox(width: 14),
               Container(
-                width: 42, height: 42,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: colors.divider,
                   borderRadius: BorderRadius.circular(10),
@@ -1278,14 +1481,29 @@ class _MarketplaceHomeScreenState
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SkeletonBlock(width: double.infinity, height: 120, borderRadius: BorderRadius.circular(16)),
+            SkeletonBlock(
+              width: double.infinity,
+              height: 120,
+              borderRadius: BorderRadius.circular(16),
+            ),
             const SizedBox(height: 12),
-            SkeletonBlock(width: double.infinity, height: 80, borderRadius: BorderRadius.circular(12)),
+            SkeletonBlock(
+              width: double.infinity,
+              height: 80,
+              borderRadius: BorderRadius.circular(12),
+            ),
             const SizedBox(height: 12),
-            ...List.generate(3, (_) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: SkeletonBlock(width: double.infinity, height: 56, borderRadius: BorderRadius.circular(12)),
-            )),
+            ...List.generate(
+              3,
+              (_) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: SkeletonBlock(
+                  width: double.infinity,
+                  height: 56,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ],
         ),
       );
@@ -1293,14 +1511,16 @@ class _MarketplaceHomeScreenState
 
     final locations = state.locations;
     if (locations.isEmpty) {
-      return ListView(children: const [
+      return ListView(
+        children: const [
           SizedBox(height: 60),
           AzamanEmptyState(
             icon: Icons.location_off_outlined,
             title: 'No businesses nearby',
             subtitle: 'Try expanding your search area.',
           ),
-        ]);
+        ],
+      );
     }
 
     // §1: Real embedded GoogleMap instead of a list view
@@ -1345,54 +1565,57 @@ class _MarketplaceHomeScreenState
                 color: colors.accentSurface,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.location_on_outlined,
-                  size: 36, color: colors.accent),
+              child: Icon(
+                Icons.location_on_outlined,
+                size: 36,
+                color: colors.accent,
+              ),
             ),
             const SizedBox(height: 18),
             Text(
               'Find businesses near you',
               style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800),
+                color: colors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               _locationError ??
                   'Share your location to see nearby businesses with distances.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: colors.textSecondary, fontSize: 13),
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: _resolveLocation,
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.accent,
-                foregroundColor:
-                    colors.isDark ? Colors.black : Colors.white,
+                foregroundColor: colors.isDark ? Colors.black : Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 22, vertical: 13),
+                  horizontal: 22,
+                  vertical: 13,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               icon: _resolvingLocation
                   ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.isDark
-                              ? Colors.black
-                              : Colors.white),
+                        strokeWidth: 2,
+                        color: colors.isDark ? Colors.black : Colors.white,
+                      ),
                     )
                   : const Icon(Icons.location_on_outlined, size: 18),
               label: Text(
-                  _resolvingLocation
-                      ? 'Locating...'
-                      : 'Use my location',
-                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                _resolvingLocation ? 'Locating...' : 'Use my location',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -1400,7 +1623,6 @@ class _MarketplaceHomeScreenState
     );
   }
 }
-
 
 // =============================================================================
 // ── Portal world card (2026-09-30) ───────────────────────────────────────────
