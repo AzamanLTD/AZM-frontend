@@ -114,6 +114,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.person_outline,
                 title: 'Edit Profile',
+                subtitle: 'Name, photo, personal details',
                 onTap: () => pushWithVerticalTransition(
                   context,
                   const ProfileDetailsScreen(),
@@ -124,6 +125,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.verified_user_outlined,
                 title: 'Identity Verification',
+                subtitle: 'Raise limits, unlock withdrawals',
                 trailingText: _kycChipLabel(
                   ref.watch(currentUserProvider).value?.kycStatus,
                 ),
@@ -137,6 +139,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.card_giftcard_outlined,
                 title: 'Refer & Earn',
+                subtitle: 'Invite friends, earn rewards',
                 onTap: () => pushWithVerticalTransition(
                   context,
                   const ReferralScreen(),
@@ -154,6 +157,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.arrow_downward,
                 title: 'MoMo deposits',
+                subtitle: 'STK-push accounts',
                 onTap: () => pushWithVerticalTransition(
                   context,
                   const SavedMomoAccountsScreen(),
@@ -164,6 +168,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.arrow_upward,
                 title: 'Payout destinations',
+                subtitle: 'Where withdrawals land',
                 onTap: () => pushWithVerticalTransition(
                   context,
                   const SavedWalletsScreen(),
@@ -302,6 +307,7 @@ class SettingsScreen extends ConsumerWidget {
                     colors: colors,
                     icon: Icons.security_outlined,
                     title: 'Two-Factor & PIN',
+                subtitle: 'Sign-in protection',
                     trailingText: snapshot.hasData
                         ? (bio ? 'Biometrics on' : 'PIN only')
                         : null,
@@ -317,6 +323,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.lock_outline,
                 title: 'Change Password',
+                subtitle: 'Update your credentials',
                 onTap: () => pushWithVerticalTransition(
                   context,
                   const ChangePasswordScreen(),
@@ -327,6 +334,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.history,
                 title: 'Account Activity',
+                subtitle: 'Recent sign-ins and changes',
                 onTap: () => pushWithVerticalTransition(
                   context,
                   const AccountActivityScreen(),
@@ -344,6 +352,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.help_outline,
                 title: 'Help & FAQ',
+                subtitle: 'Quick answers',
                 onTap: () => pushWithVerticalTransition(
                   context,
                   const SupportScreen(),
@@ -361,6 +370,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.info_outline,
                 title: 'About Azaman',
+                subtitle: 'What you are using',
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: 'Azaman Protocol',
@@ -389,6 +399,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.cleaning_services_outlined,
                 title: 'Clear Cache',
+                subtitle: 'Free up local storage',
                 onTap: () {
                   AzamanHaptics.nav();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -609,12 +620,27 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mockup-faithful surface: soft and quiet. Light mode floats on a
+    // whisper shadow with NO border; dark mode keeps a faint edge so
+    // the card reads against the true-black background.
+    final isDark = colors.isDark;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.divider),
+        borderRadius: BorderRadius.circular(18),
+        border: isDark
+            ? Border.all(color: colors.divider.withValues(alpha: 0.45))
+            : null,
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0x0A000000).withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -630,11 +656,15 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Indented so the divider doesn't run under the leading icon —
-    // matches iOS Settings exactly.
+    // Indented past the icon chip; hairline only, 45% strength so
+    // grouped rows stay quiet (mockup: no hard rules).
     return Padding(
-      padding: const EdgeInsets.only(left: 56),
-      child: Divider(height: 1, thickness: 0.5, color: colors.divider),
+      padding: const EdgeInsets.only(left: 64, right: 16),
+      child: Divider(
+        height: 1,
+        thickness: 0.5,
+        color: colors.divider.withValues(alpha: 0.45),
+      ),
     );
   }
 }
@@ -661,16 +691,26 @@ class _NavRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final titleColor = isDestructive ? colors.danger : colors.textPrimary;
-    final iconColor = isDestructive ? colors.danger : colors.textSecondary;
+    // Single accent does all the work (mockup contract): every icon sits
+    // in a soft accent-tinted chip, never floating bare in the row.
+    final tint = isDestructive ? colors.danger : colors.accent;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        padding: const EdgeInsets.fromLTRB(14, 10, 16, 10),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 22),
-            const SizedBox(width: 14),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: tint.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: tint, size: 19),
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -680,17 +720,18 @@ class _NavRow extends StatelessWidget {
                     title,
                     style: TextStyle(
                       color: titleColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle!,
                       style: TextStyle(
                         color: colors.textTertiary,
-                        fontSize: 12,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
@@ -745,11 +786,19 @@ class _ToggleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(14, 10, 16, 10),
       child: Row(
         children: [
-          Icon(icon, color: colors.textSecondary, size: 22),
-          const SizedBox(width: 14),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: colors.accent.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: colors.accent, size: 19),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -758,8 +807,8 @@ class _ToggleRow extends StatelessWidget {
                   title,
                   style: TextStyle(
                     color: colors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -798,13 +847,32 @@ class _AccountHeaderCard extends StatelessWidget {
         ? user!.azamanId!
         : null;
 
+    final isDark = colors.isDark;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.divider),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.card,
+            Color.lerp(colors.card, colors.accent, isDark ? 0.06 : 0.035)!,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: isDark
+            ? Border.all(color: colors.divider.withValues(alpha: 0.45))
+            : null,
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0x0A000000).withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

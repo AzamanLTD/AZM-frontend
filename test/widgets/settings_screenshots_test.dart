@@ -153,20 +153,7 @@ void main() {
                 key: scaffoldKey,
                 backgroundColor: colors.background,
                 endDrawer: const SettingsDrawer(),
-                body: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        colors.accent.withValues(alpha: 0.18),
-                        colors.background,
-                        colors.accentSecondary.withValues(alpha: 0.12),
-                      ],
-                    ),
-                  ),
-                  child: const SizedBox.expand(),
-                ),
+                body: const SizedBox.expand(),
               ),
             ),
           ),
