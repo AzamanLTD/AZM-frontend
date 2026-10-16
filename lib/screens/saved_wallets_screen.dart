@@ -254,7 +254,7 @@ class _SavedWalletsScreenState extends ConsumerState<SavedWalletsScreen>
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'Withdrawal Addresses',
+          'Payout destinations',
           style: TextStyle(
             color: colors.textPrimary,
             fontSize: 16,

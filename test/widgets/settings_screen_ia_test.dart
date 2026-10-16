@@ -18,8 +18,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azaman/models/user_model.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/settings_screen.dart';
+import 'package:azaman/screens/profile_screen.dart';
+import 'package:azaman/screens/support_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 
@@ -40,22 +44,41 @@ void main() {
     return p;
   }
 
-  Widget harness(ThemeProvider tp) => UncontrolledProviderScope(
-    container: ProviderContainer(
-      overrides: [themeProvider.overrideWith((ref) => tp)],
-    ),
-    child: const MaterialApp(home: SettingsScreen()),
+  User testUser() => User(
+    id: 'u1',
+    username: 'kofi',
+    email: 'kofi@example.com',
+    token: 't',
+    role: 'USER',
+    azamanId: 'AZM-8273941',
+    kycStatus: KycStatus.verified,
   );
 
-  // Section headers render uppercased (see _SectionHeader).
+  Widget harness(ThemeProvider tp, {User? user}) =>
+      UncontrolledProviderScope(
+        container: ProviderContainer(
+          overrides: [
+            themeProvider.overrideWith((ref) => tp),
+            // The redesign reads identity (AZM ID + KYC chip) from the
+            // auth stream — stub it so no network work runs under test.
+            currentUserProvider.overrideWith(
+              (ref) => Stream.value(user),
+            ),
+          ],
+        ),
+        child: const MaterialApp(home: SettingsScreen()),
+      );
+
+  // The redesign renders sentence-case headers (see _SectionHeader).
   const sections = <String>[
-    'PROFILE & IDENTITY',
-    'MONEY & PAYMENT METHODS',
-    'SECURITY & PRIVACY',
-    'NOTIFICATIONS',
-    'APPEARANCE & ACCESSIBILITY',
-    'LANGUAGE & REGIONAL PREFERENCES',
-    'ABOUT',
+    'Account',
+    'Money',
+    'Notifications',
+    'Appearance',
+    'Preferences',
+    'Security',
+    'Support',
+    'About',
   ];
 
   /// Settings is a long list; the SliverList unmounts offscreen rows.
@@ -83,7 +106,7 @@ void main() {
 
   testWidgets('renders the regrouped sections in order', (tester) async {
     final p = (await tester.runAsync(loadedProvider))!;
-    await tester.pumpWidget(harness(p));
+    await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump();
 
     // From the top of the document, the scroll offset needed to first
@@ -125,32 +148,45 @@ void main() {
     tester,
   ) async {
     final p = (await tester.runAsync(loadedProvider))!;
-    await tester.pumpWidget(harness(p));
+    await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump();
 
     // Document order, so the single-direction reveal walk stays monotonic.
     const destinations = <String>[
+      // Account header card + Account group.
+      '@kofi',
+      'AZM-8273941',
       'Edit Profile',
       'Identity Verification',
+      'Verified',
       'Refer & Earn',
-      'Withdrawal Addresses',
-      'Deposit Addresses',
-      'Two-Factor & PIN',
-      'Change Password',
-      'Account Activity',
+      // Money group — the merged saved-accounts card.
+      'MoMo deposits',
+      'Payout destinations',
+      // Notifications group.
       'Push Notifications',
       'Trade Alerts',
       'Chat Messages',
-      'Show Vendor Tag',
+      'Vendor tools',
+      // Appearance group.
       'Theme',
-      // The SensoryPreferencesSection lives directly under the Theme row,
-      // inside Appearance & Accessibility.
-      'Sensory',
+      // SensoryPreferencesSection sits under the Theme row, retitled.
+      'Motion & feedback',
       'Haptics',
+      // Preferences group.
       'Display Currency',
       'Language',
-      'Clear Cache',
+      // Security group.
+      'Two-Factor & PIN',
+      'Change Password',
+      'Account Activity',
+      // Support group.
+      'Help & FAQ',
+      // About group.
       'About Azaman',
+      'Version',
+      'Clear Cache',
+      // Danger zone.
       'Sign Out',
       'Delete Account',
     ];
@@ -160,9 +196,55 @@ void main() {
     }
   });
 
+  testWidgets('the account header card routes to the edit flow', (
+    tester,
+  ) async {
+    final p = (await tester.runAsync(loadedProvider))!;
+    await tester.pumpWidget(harness(p, user: testUser()));
+    await tester.pump();
+
+    // The identity moment: @username + AZM ID chip open the page.
+    expect(find.text('@kofi'), findsOneWidget);
+    expect(find.text('AZM-8273941'), findsOneWidget);
+
+    await tester.tap(find.text('@kofi'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(ProfileScreen), findsOneWidget);
+  });
+
+  testWidgets('the Two-Factor chip reads the REAL biometric store', (
+    tester,
+  ) async {
+    // Enabled → the chip says so.
+    SharedPreferences.setMockInitialValues({
+      'biometric_lock_enabled': true,
+    });
+    final p = (await tester.runAsync(loadedProvider))!;
+    await tester.pumpWidget(harness(p, user: testUser()));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    await reveal(tester, find.text('Two-Factor & PIN'));
+    expect(find.text('Biometrics on'), findsOneWidget);
+  });
+
+  testWidgets('the Help & FAQ row routes to the Support screen', (
+    tester,
+  ) async {
+    final p = (await tester.runAsync(loadedProvider))!;
+    await tester.pumpWidget(harness(p, user: testUser()));
+    await tester.pump();
+
+    await reveal(tester, find.text('Help & FAQ'));
+    await tester.tap(find.text('Help & FAQ'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(SupportScreen), findsOneWidget);
+  });
+
   testWidgets('the Theme row routes to the Themes screen', (tester) async {
     final p = (await tester.runAsync(loadedProvider))!;
-    await tester.pumpWidget(harness(p));
+    await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump();
 
     await reveal(tester, find.text('Theme'));
@@ -178,7 +260,7 @@ void main() {
     tester,
   ) async {
     final p = (await tester.runAsync(loadedProvider))!;
-    await tester.pumpWidget(harness(p));
+    await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump();
 
     await reveal(tester, find.text('Sign Out'));
@@ -211,7 +293,7 @@ void main() {
     tester,
   ) async {
     final p = (await tester.runAsync(loadedProvider))!;
-    await tester.pumpWidget(harness(p));
+    await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump();
 
     // The row reads in the danger colour.
