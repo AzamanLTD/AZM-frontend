@@ -293,7 +293,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         if (m.localId == localId) { msg = m; break; }
       }
       if (msg?.id == null) return;
-      await apiClient.patch('/chat/messages/${msg!.id}/link-preview', body: {
+      await apiClient.patch('/friends/chat/messages/${msg!.id}/link-preview', body: {
         'linkPreview': linkPreview,
       });
     } catch (_) {

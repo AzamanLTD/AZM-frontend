@@ -77,7 +77,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
 
   Future<void> _loadPreferences() async {
     try {
-      final res = await ApiClient().get('/api/users/me/notification-preferences');
+      final res = await ApiClient().get('/users/me/notification-preferences');
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       final data = body['data'] as Map<String, dynamic>? ?? {};
       setState(() {
@@ -116,7 +116,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ApiClient().put('/api/users/me/notification-preferences', {
+      await ApiClient().put('/users/me/notification-preferences', {
         'pushEnabled': _pushEnabled,
         'inAppEnabled': _inAppEnabled,
         'emailEnabled': _emailEnabled,
