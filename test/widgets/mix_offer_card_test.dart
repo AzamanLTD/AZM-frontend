@@ -90,6 +90,38 @@ Future<void> _pumpCard(
   await tester.pumpAndSettle();
 }
 
+/// Pumps the tile at a REALISTIC feed-cell width — the geometry contract
+/// must hold at the cells the feed actually creates, not just full width.
+Future<void> _pumpTile(
+  WidgetTester tester,
+  MixOffer offer,
+  double cellWidth, {
+  void Function(MixOffer)? onOpenStore,
+}) async {
+  SharedPreferences.setMockInitialValues({});
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [themeProvider.overrideWith((ref) => ThemeProvider())],
+      child: MaterialApp(
+        theme: ThemeData(useMaterial3: true),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: cellWidth,
+              child: MixOfferCard(
+                offer: offer,
+                onOpenStore: onOpenStore ?? (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('item and offering store render together', (tester) async {
     await _pumpCard(
@@ -176,34 +208,58 @@ void main() {
     expect(opened.single.productId, 'prod-1');
   });
 
-  testWidgets(
-      'GALLERY FORMAT: a near-square tile — square product image over a '
-      'distinct lower info panel, whole tile tappable (>=44dp)',
-      (tester) async {
-    await _pumpCard(tester, _offer(images: const ['https://img/jollof.jpg']));
-    final tile = tester.getRect(find.byType(MixOfferCard));
-    expect(tile.height, greaterThanOrEqualTo(44),
-        reason: 'the standing 44dp touch-target rule');
-    // The image is a SQUARE filling the tile width.
-    final image = tester.getSize(find
-        .descendant(
-            of: find.byType(MixOfferCard),
-            matching: find.byType(CachedNetworkImage))
-        .first);
-    expect(image.width, closeTo(tile.width, 1),
-        reason: 'image fills the tile width (hairline border aside)');
-    expect(image.height, closeTo(image.width, 0.5),
-        reason: 'the product image is square (aspect 1:1)');
-    // The lower info panel is a distinct surface under the image.
-    expect(find.byKey(const ValueKey('mix_offer_panel')), findsOneWidget);
-    expect(tester.getTopLeft(find.byKey(const ValueKey('mix_offer_panel'))).dy,
-        greaterThan(image.height),
-        reason: 'the panel sits BELOW the image');
-    final hit = find.descendant(
-        of: find.byType(MixOfferCard),
-        matching: find.byType(GestureDetector));
-    expect(hit, findsAtLeast(1));
-  });
+  // ── GEOMETRY CONTRACT (the gallery format) ───────────────────────────────
+  // The whole tile is near-square: a square product image plus a capped
+  // compact panel. Measured at the feed's REAL cell widths — the 320dp
+  // cell (~140dp) is the worst case, the 390dp cell (~175dp) the normal
+  // one — so a regression that makes the card tall fails HERE, not in a
+  // screenshot review.
+
+  for (final cell in [140.0, 175.0]) {
+    testWidgets(
+        'GALLERY CONTRACT at ${cell}dp cell: image square, whole tile '
+        'height ≤ 1.5× width and ≥ 1.0× width, tappable (>=44dp)',
+        (tester) async {
+      await _pumpTile(
+          tester, _offer(images: const ['https://img/jollof.jpg']), cell);
+      final tile = tester.getRect(find.byType(MixOfferCard));
+      expect(tile.height, greaterThanOrEqualTo(44),
+          reason: 'the standing 44dp touch-target rule');
+
+      // The image is a SQUARE filling the tile width.
+      final image = tester.getSize(find
+          .descendant(
+              of: find.byType(MixOfferCard),
+              matching: find.byType(CachedNetworkImage))
+          .first);
+      expect(image.width, closeTo(tile.width, 1),
+          reason: 'image fills the tile width (hairline border aside)');
+      expect(image.height, closeTo(image.width, 0.5),
+          reason: 'the product image is square (aspect 1:1)');
+
+      // The WHOLE tile meets the near-square requirement — an UPPER bound
+      // (≤ 2:3) so a tall card can never slip through, and a floor (≥
+      // 1:1, the square image anchors it) so a squat row card cannot
+      // either. Chips overlay the image, so they cannot inflate this.
+      final ratio = tile.height / tile.width;
+      expect(ratio, greaterThanOrEqualTo(1.0),
+          reason: 'the square image anchors the ratio floor');
+      expect(ratio, lessThanOrEqualTo(1.5),
+          reason: 'the panel is capped: the tile stays near-square '
+              '(measured $ratio at $cell dp)');
+
+      // The lower info panel is a distinct surface under the image.
+      expect(find.byKey(const ValueKey('mix_offer_panel')), findsOneWidget);
+      expect(tester.getTopLeft(find.byKey(const ValueKey('mix_offer_panel'))).dy,
+          greaterThan(image.height),
+          reason: 'the panel sits BELOW the image');
+
+      final hit = find.descendant(
+          of: find.byType(MixOfferCard),
+          matching: find.byType(GestureDetector));
+      expect(hit, findsAtLeast(1));
+    });
+  }
 
   testWidgets('a card with a missing image falls back gracefully',
       (tester) async {
