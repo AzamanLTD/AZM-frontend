@@ -161,7 +161,7 @@ void main() {
                 bottomNavigationBar: PremiumBottomNav(
                   selectedIndex: 0,
                   onItemSelected: (_) {},
-                  leading: _plusStandIn,
+                  trailing: _plusStandIn,
                 ),
               ),
             ),
@@ -231,7 +231,7 @@ void main() {
                 bottomNavigationBar: PremiumBottomNav(
                   selectedIndex: 2,
                   onItemSelected: (_) {},
-                  leading: _plusStandIn,
+                  trailing: _plusStandIn,
                 ),
               ),
             ),

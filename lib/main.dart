@@ -834,13 +834,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       endDrawer: const SettingsDrawer(),
       extendBody: true,
       bottomNavigationBar: PremiumBottomNav(
-        // NEW-LEFT (logo position) §8/§10: the + action trigger sits
-        // STRUCTURALLY BESIDE the nav pill on its LEFT, immediately
-        // adjacent — [+] [navigation] — themed by the AZM accent
-        // identity, sharing the pill's band and safe-area handling. The
-        // combined [logo + pill] group is centred as one responsive
-        // composition (the nav centers the group itself).
-        leading: PlusLauncherTrigger(controller: _plus),
+        // NEW-HOME §8/§10 (audit): the + action trigger sits STRUCTURALLY
+        // BESIDE the nav pill — [navigation] [+] — themed by the AZM
+        // accent identity, sharing the pill's band and safe-area handling.
+        trailing: PlusLauncherTrigger(controller: _plus),
         selectedIndex: _selectedIndex,
         onItemSelected: _onNavItemSelected,
         // NEW-C (§2.3): tap on the already-active tab springs the page to

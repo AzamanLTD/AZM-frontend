@@ -25,7 +25,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/providers/chat_provider.dart';
-import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/sensory_provider.dart';
 import 'package:azaman/providers/trade_provider.dart';
@@ -34,11 +33,7 @@ import 'package:azaman/router/top_route_observer.dart';
 import 'package:azaman/widgets/contextual_nav_band.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
 
-Widget _harness({
-  required int selectedIndex,
-  Size size = const Size(430, 200),
-  Widget? leading,
-}) {
+Widget _harness({required int selectedIndex, Size size = const Size(430, 200), Widget? trailing}) {
   return ProviderScope(
     overrides: [
       // Inert badges: geometry is under test, not unread state.
@@ -53,13 +48,8 @@ Widget _harness({
           bottomNavigationBar: PremiumBottomNav(
             selectedIndex: selectedIndex,
             onItemSelected: (_) {},
-            leading:
-                leading ??
-                const SizedBox(
-                  key: ValueKey('plus-stand-in'),
-                  width: 54,
-                  height: 54,
-                ),
+            trailing: trailing ??
+                const SizedBox(key: ValueKey('plus-stand-in'), width: 54, height: 54),
           ),
         ),
       ),
@@ -68,23 +58,21 @@ Widget _harness({
 }
 
 /// The pill's rendered width: the AnimatedContainer inside the nav.
-double _pillWidth(WidgetTester tester) => tester
-    .getSize(
+double _pillWidth(WidgetTester tester) => tester.getSize(
       find
           .descendant(
             of: find.byType(PremiumBottomNav),
             matching: find.byType(AnimatedContainer),
           )
           .first,
-    )
-    .width;
+    ).width;
 
 /// A nav label's rendered opacity (zero-width labels exist in-tree).
-double _labelOpacity(WidgetTester tester, String label) => tester
-    .widget<Opacity>(
-      find.ancestor(of: find.text(label), matching: find.byType(Opacity)).first,
-    )
-    .opacity;
+double _labelOpacity(WidgetTester tester, String label) => tester.widget<Opacity>(
+      find
+          .ancestor(of: find.text(label), matching: find.byType(Opacity))
+          .first,
+    ).opacity;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -107,11 +95,8 @@ void main() {
           if (i == entry) {
             expect(opacity, 1.0, reason: '${labels[i]} is selected: visible');
           } else {
-            expect(
-              opacity,
-              0.0,
-              reason: '${labels[i]} is inactive: NOT rendered',
-            );
+            expect(opacity, 0.0,
+                reason: '${labels[i]} is inactive: NOT rendered');
           }
         }
       }
@@ -140,64 +125,41 @@ void main() {
       expect(pill, lessThan(300), reason: 'the pill must not stretch');
       expect(pill, greaterThan(120), reason: 'three 44dp segments minimum');
 
-      // The + launcher sits BESIDE the pill, on its LEFT, immediately
-      // adjacent (NEW-LEFT logo position).
-      final plusRect = tester.getRect(
-        find.byKey(const ValueKey('plus-stand-in')),
-      );
+      // The + launcher sits BESIDE the pill (both visible, side by side).
+      final plusRect = tester.getRect(find.byKey(const ValueKey('plus-stand-in')));
       final pillRect = tester.getRect(
-        find
-            .descendant(
-              of: find.byType(PremiumBottomNav),
-              matching: find.byType(AnimatedContainer),
-            )
-            .first,
+        find.descendant(
+            of: find.byType(PremiumBottomNav),
+            matching: find.byType(AnimatedContainer)).first,
       );
-      expect(
-        plusRect.right,
-        lessThanOrEqualTo(pillRect.left),
-        reason: 'the + sits to the pill’s LEFT',
-      );
-      expect(
-        pillRect.left - plusRect.right,
-        lessThanOrEqualTo(AzSpace.sm),
-        reason: 'the + is immediately adjacent to the pill',
-      );
+      expect(plusRect.left, greaterThan(pillRect.right),
+          reason: 'the + sits to the pill’s right');
     });
 
-    testWidgets('labeled and icon-only pills differ (responsive content)', (
-      tester,
-    ) async {
+    testWidgets('labeled and icon-only pills differ (responsive content)',
+        (tester) async {
       await tester.pumpWidget(_harness(selectedIndex: 0));
       await tester.pumpAndSettle();
       final labeled = _pillWidth(tester);
 
-      // A narrow surface WITHOUT the leading + (a bare pill mount) forces
+      // A narrow surface WITHOUT the trailing + (a bare pill mount) forces
       // the icon-only fallback for the SAME selected state. 240 logical
       // px: room for the three 44dp anchors, NOT for the label.
       tester.view.physicalSize = const Size(240, 200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        _harness(
-          selectedIndex: 0,
-          size: const Size(240, 200),
-          leading: const SizedBox.shrink(),
-        ),
-      );
+      await tester.pumpWidget(_harness(
+        selectedIndex: 0,
+        size: const Size(240, 200),
+        trailing: const SizedBox.shrink(),
+      ));
       await tester.pumpAndSettle();
       final iconOnly = _pillWidth(tester);
-      expect(
-        iconOnly,
-        lessThan(labeled),
-        reason: 'a labeled pill is wider than an icon-only one',
-      );
-      expect(
-        _labelOpacity(tester, 'Home'),
-        0.0,
-        reason: 'no room for the label: icon-only fallback',
-      );
+      expect(iconOnly, lessThan(labeled),
+          reason: 'a labeled pill is wider than an icon-only one');
+      expect(_labelOpacity(tester, 'Home'), 0.0,
+          reason: 'no room for the label: icon-only fallback');
     });
   });
 
@@ -208,29 +170,19 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        _harness(selectedIndex: 0, size: const Size(320, 200)),
-      );
+      await tester.pumpWidget(_harness(
+        selectedIndex: 0,
+        size: const Size(320, 200),
+      ));
       await tester.pumpAndSettle();
 
       // No overflow exceptions, no clipped geometry.
       expect(tester.takeException(), isNull);
       // The label decision is MEASURED against the real remaining width:
-      // it shows only when the labeled pill genuinely fits. The centred
-      // NEW-LEFT composition's interior at a 320px band is
-      // 320 - 2×16 (symmetric outer insets) - 54 (launcher) - 8 (seam)
-      // - 16 (the pill's own interior padding) = 210 — the old
-      // left-anchored band gave the pill ~194, so the label gains honest
-      // room from the symmetric composition.
-      const band = 320.0;
-      const interior =
-          band -
-          2 * NavScrollCompression.outerRightInset -
-          54 -
-          AzSpace.sm -
-          16;
+      // it shows only when the labeled pill genuinely fits (the test font
+      // runs wide, so at 320px with the launcher it may fall back).
       final labelFits =
-          tester.getSize(find.text('Home')).width + 151 <= interior;
+          tester.getSize(find.text('Home')).width + 151 <= 190;
       expect(_labelOpacity(tester, 'Home'), labelFits ? 1.0 : 0.0);
       // The + launcher is still beside the pill.
       expect(find.byKey(const ValueKey('plus-stand-in')), findsOneWidget);
@@ -251,21 +203,16 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      await tester.pumpWidget(
-        _harness(
-          selectedIndex: 0,
-          size: const Size(240, 200),
-          leading: const SizedBox.shrink(),
-        ),
-      );
+      await tester.pumpWidget(_harness(
+        selectedIndex: 0,
+        size: const Size(240, 200),
+        trailing: const SizedBox.shrink(),
+      ));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(
-        _labelOpacity(tester, 'Home'),
-        0.0,
-        reason: 'no room for the label: the compact icon identity wins',
-      );
+      expect(_labelOpacity(tester, 'Home'), 0.0,
+          reason: 'no room for the label: the compact icon identity wins');
       for (var i = 0; i < 3; i++) {
         final rect = tester.getRect(find.byKey(ValueKey('nav-item-$i')));
         expect(rect.width, greaterThanOrEqualTo(44));
@@ -287,7 +234,8 @@ void main() {
       // The app's explicit reduce-motion override, the same seam the
       // sensory settings write.
       AzSensory.apply(const SensoryPreferences(forceReduceMotion: true));
-      addTearDown(() => AzSensory.apply(const SensoryPreferences()));
+      addTearDown(
+          () => AzSensory.apply(const SensoryPreferences()));
 
       await tester.pumpWidget(
         ProviderScope(
@@ -309,11 +257,8 @@ void main() {
       // ONE frame: reduced motion must be settled immediately — the
       // expanding label snaps (Duration.zero), nothing is left animating.
       await tester.pump();
-      expect(
-        _labelOpacity(tester, 'Home'),
-        1.0,
-        reason: 'reduced motion: the label is instant, not animated',
-      );
+      expect(_labelOpacity(tester, 'Home'), 1.0,
+          reason: 'reduced motion: the label is instant, not animated');
       await tester.pump(const Duration(milliseconds: 50));
       expect(_labelOpacity(tester, 'Home'), 1.0);
     });

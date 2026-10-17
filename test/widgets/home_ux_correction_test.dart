@@ -240,7 +240,7 @@ Future<PlusLauncherController> _pumpShell(
             bottomNavigationBar: PremiumBottomNav(
               selectedIndex: 0,
               onItemSelected: (_) {},
-              leading: PlusLauncherTrigger(controller: controller),
+              trailing: PlusLauncherTrigger(controller: controller),
             ),
             body: Stack(
               children: [
@@ -520,27 +520,26 @@ void main() {
             .first,
       );
 
-      // CORRECTION F (geometry fix, NEW-LEFT mirror): the rows' shared
-      // LEADING edge is flush with the + button's LEFT edge, measured
-      // live — the cluster hangs off the physical plus, extending
-      // rightward into the wide side of the screen. (The plus lives on
-      // the nav's LEFT now, so a trailing-edge anchor there would push
-      // the cluster off-screen; the mirrored leading edge is the axis
-      // the eye follows.) The only permitted overshoot past the plus's
-      // left edge is the launcher's own minimum screen margin
-      // (AzSpace.sm) — the cluster may never touch the viewport edge,
-      // and never detach from the plus.
+      // CORRECTION F (geometry fix): the rows' shared trailing edge is
+      // flush with the + button's RIGHT edge, measured live — the
+      // cluster hangs off the physical plus. (The earlier center-axis
+      // variant left the wide plus hanging right of the rows; the
+      // trailing edge is the axis the eye actually follows.) The only
+      // permitted shortfall is the launcher's own minimum screen margin
+      // (AzSpace.sm) when the plus itself sits flush at the viewport
+      // edge — the cluster may never touch the edge, and never pass
+      // beyond the plus.
       for (final row in [sendRow, withdrawRow]) {
         expect(
-          row.left,
-          greaterThanOrEqualTo(triggerRect.left - 2),
-          reason: 'the cluster never detaches left of the +',
+          row.right,
+          lessThanOrEqualTo(triggerRect.right + 2),
+          reason: 'the cluster never hangs past the +',
         );
         expect(
-          row.left,
-          lessThanOrEqualTo(triggerRect.left + AzSpace.sm + 2),
+          row.right,
+          greaterThanOrEqualTo(triggerRect.right - AzSpace.sm - 2),
           reason:
-              'flush with the + left edge, plus only the '
+              'flush with the + right edge, minus only the '
               'minimum screen margin',
         );
       }
@@ -553,11 +552,9 @@ void main() {
         reason: 'actions must originate from the plus, above it',
       );
 
-      // Never centered: the action group sits in the LEFT half of the
-      // screen, next to the plus that opened it — NEW-LEFT moved the
-      // launcher to the nav's LEFT, so the cluster hangs off it there
-      // (still never a centered modal column).
-      expect(sendRow.center.dx, lessThan(_surfaceSize.width / 2));
+      // Never centered: the action group sits in the right half of the
+      // screen, next to the plus that opened it.
+      expect(sendRow.center.dx, greaterThan(_surfaceSize.width / 2));
 
       // Every row stays on screen (bounded width, not stretched).
       expect(sendRow.left, greaterThan(0));
@@ -569,9 +566,8 @@ void main() {
   // ── §6 — Recent bubble doorway and low placement ──────────────────────
 
   group('§6 doorway wording + low placement', () {
-    testWidgets('the doorway is a neutral Recent button with no pull copy', (
-      tester,
-    ) async {
+    testWidgets('the doorway is a neutral Recent button with no pull copy',
+        (tester) async {
       await _pumpHome(tester);
 
       // Recent is a button, not a page heading or a directional-arrow CTA.
