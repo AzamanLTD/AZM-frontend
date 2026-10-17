@@ -202,11 +202,11 @@ class TabScrollRegistry {
 /// same code in the app and in the regression tests.
 class NavRetapController {
   NavRetapController({required TickerProvider vsync})
-      : liftCtrl = AnimationController(
-          vsync: vsync,
-          duration: MotionTokens.control,
-          value: 1.0,
-        );
+    : liftCtrl = AnimationController(
+        vsync: vsync,
+        duration: MotionTokens.control,
+        value: 1.0,
+      );
 
   final AnimationController liftCtrl;
 
@@ -214,13 +214,17 @@ class NavRetapController {
   /// by design — it acknowledges the tap, it does not perform.
   static final Animatable<double> _liftTween = TweenSequence<double>([
     TweenSequenceItem(
-      tween: Tween(begin: 1.0, end: 0.985)
-          .chain(CurveTween(curve: Curves.easeOut)),
+      tween: Tween(
+        begin: 1.0,
+        end: 0.985,
+      ).chain(CurveTween(curve: Curves.easeOut)),
       weight: 35,
     ),
     TweenSequenceItem(
-      tween: Tween(begin: 0.985, end: 1.0)
-          .chain(CurveTween(curve: Curves.easeOutCubic)),
+      tween: Tween(
+        begin: 0.985,
+        end: 1.0,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)),
       weight: 65,
     ),
   ]);
@@ -311,16 +315,24 @@ class PremiumBottomNav extends ConsumerWidget {
   /// through [NavRetapController].
   final VoidCallback? onActiveTabRetap;
 
-  /// NEW-HOME §8/§10 (audit): a control placed STRUCTURALLY BESIDE the
-  /// nav — [navigation] [+] — not a FAB floating above it. The shell
-  /// passes the + launcher trigger here; it shares the pill's band,
-  /// vertical center and safe-area handling, so the layout stays stable
-  /// across device sizes.
+  /// NEW-LEFT (logo position): the AZM logo/action launcher slot, placed
+  /// on the LEFT of the pill, IMMEDIATELY ADJACENT — [+] [navigation] — as
+  /// one composition. The shell passes the + launcher trigger here; it
+  /// shares the pill's band, vertical center and safe-area handling, so
+  /// the layout stays stable across device sizes. The combined
+  /// [launcher + pill] group is visually CENTRED in the band as one
+  /// responsive composition (see the band build below).
+  final Widget? leading;
+
+  /// The RIGHT-side slot beside the pill (the contextual band's collapse
+  /// affordance — 'Hide'). The shell no longer supplies the launcher here;
+  /// the launcher owns [leading] on the left.
   final Widget? trailing;
   const PremiumBottomNav({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
+    this.leading,
     this.trailing,
     this.onTabLongPress,
     this.onActiveTabRetap,
@@ -376,207 +388,239 @@ class PremiumBottomNav extends ConsumerWidget {
             (NavScrollCompression.collapsedHeight -
                     NavScrollCompression.expandedHeight) *
                 t;
-        final inset =
-            NavScrollCompression.expandedInset +
-            (NavScrollCompression.collapsedInset -
-                    NavScrollCompression.expandedInset) *
-                t;
 
-        // NEW-HOME §10: the pill and any `trailing` control share ONE
-        // bottom band. The trailing control sits in the row at the pill's
-        // right, vertically centered on the pill, and the safe-area
-        // padding below is computed ONCE for the whole band.
+        // NEW-LEFT (logo position) §10: the launcher and the pill share
+        // ONE bottom band as a single centred composition —
+        // [outer inset] [+] [gap] [navigation] [gap] [trailing?]
+        // [outer inset]. The safe-area padding below is computed ONCE for
+        // the whole band.
         // §13: [_ImeBandPad] glues the band to the IME when the band's
         // own field owns the keyboard (see the class comment).
         // UX-CORRECTION §5B — EXPLICIT bottom-control geometry: the whole
-        // band carries a named outer right inset so the + never sits flush
-        // against the viewport edge. The nav + plus read as ONE intentional
-        // bottom control system: [pill —gap— plus —outer inset— screen
-        // edge]. `lg` mirrors the pill's own rest lateral inset (16), so
-        // the composition is symmetric at rest.
+        // band carries a SYMMETRIC outer inset (16, the pill's own rest
+        // lateral inset) so neither control sits flush against a viewport
+        // edge and the [launcher + pill] group centres on the real
+        // viewport centre — the nav + plus read as ONE intentional
+        // bottom control system.
+        // CENTRING: an Align with heightFactor 1 keeps the group
+        // horizontally CENTRED as ONE responsive composition at every
+        // surface width (a plain Center would expand to the band's full
+        // height and inflate the bottom band's footprint), while the
+        // pill's Flexible(loose) still bounds it — on narrow surfaces the
+        // pill compresses (and its label falls back) exactly as before;
+        // only the composition's POSITION changed.
         return _ImeBandPad(
           child: Padding(
-            padding:
-                const EdgeInsets.only(right: NavScrollCompression.outerRightInset),
-            child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // COMPACT-NAV — the pill WRAPS TO ITS CONTENT instead of
-              // stretching across the band: Flexible(loose) lets the pill
-              // take its natural content width while staying bounded by
-              // the available band width (responsive, no fixed phone
-              // width assumption).
-              Flexible(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: inset),
-                  child: Opacity(
-            // Never below `compressedOpacity` (0.92): the page must not show
-            // through a floating pill, or it reads as a rendering bug.
-            opacity:
-                1.0 - ((1.0 - NavScrollCompression.compressedOpacity) * t),
-            child: AnimatedContainer(
-              duration: AzMotion.duration(context, MotionTokens.fast),
-              height: h,
-              decoration: BoxDecoration(
-                // UX-CORRECTION §1 (dark nav separation): a #0A0A0A pill
-                // on a #000000 page is one luma step apart — the nav read
-                // as having vanished into the background. The pill now
-                // sits on the CARD step of the dark elevation ramp
-                // (#161616) and carries an explicit rim + a top highlight
-                // so the floating surface is unmistakable even before
-                // its shadow is seen. Light keeps its existing surface +
-                // shadow treatment (the new #F2F3F5 page already gives
-                // it strong separation).
-                color: colors.isDark ? colors.card : colors.surface,
-                // `pill` (999) self-clamps to half the height, so the shape
-                // is a true pill at 62px and at 52px without tracking two radii.
-                borderRadius: AzRadius.brPill,
-                border: colors.isDark
-                    ? Border.all(color: AzElevation.rimHighlight(true))
-                    : null,
-                // Subtle vertical highlight over the card step in dark:
-                // BoxDecoration paints a gradient INSTEAD of its color, so
-                // the ramp is baked into the gradient itself.
-                gradient: colors.isDark
-                    ? LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color.alphaBlend(
-                              Colors.white.withValues(alpha: 0.05),
-                              colors.card),
-                          colors.card,
-                          Color.alphaBlend(
-                              Colors.white.withValues(alpha: 0.02),
-                              colors.card),
-                        ],
-                        stops: const [0.0, 0.55, 1.0],
-                      )
-                    : null,
-                boxShadow: AzElevation.level3(colors.isDark),
-              ),
-              // COMPACT-NAV — the pill hugs its segments: interior padding
-              // around a content-sized row, never a stretched band.
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  // COMPACT-NAV — responsive label decision, not a fixed
-                  // phone width: the selected segment shows its label
-                  // only when the pill's content fits the available band
-                  // width WITH the label. On narrow surfaces the pill
-                  // falls back to the compact icon identity rather than
-                  // clipping or overflowing. Measured with the live text
-                  // scale, so large text scales hide before they clip.
-                  final selected = _kNavItems[selectedIndex.clamp(0, 2)];
-                  final labelWidth = _measureLabel(context, selected.label);
-                  // Labeled content width: 2×44 (inactive segments) +
-                  // 44 (the selected icon anchor) + 5+12 (label box
-                  // paddings) + labelWidth, + 2px slack = 151+labelWidth.
-                  // The constraints here are the pill's INTERIOR (its
-                  // own padding is already removed), so this is exact.
-                  final needed = 151 + labelWidth;
-                  final showLabel = constraints.maxWidth >= needed;
-                  // The label box's HARD CAP: even mid-animation (label
-                  // collapsing after a selection change or a surface
-                  // resize), the box can never exceed the pill's
-                  // remaining interior width, so the row can never
-                  // transiently overflow.
-                  final labelBudget =
-                      (constraints.maxWidth - 132).clamp(0.0, double.infinity);
-                  Widget normalRow() => Row(
-                        mainAxisSize: MainAxisSize.min,
-                        // Stretch: every segment owns the FULL pill
-                        // height (>= 44dp), so each tab's touch target
-                        // is honest even as the pill compresses.
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: List.generate(
-                          _kNavItems.length,
-                          (i) => _NavButton(
-                            item: _kNavItems[i],
-                            isSelected: selectedIndex == i,
-                            index: i,
-                            colors: colors,
-                            reduceMotion: reduceMotion,
-                            showLabel:
-                                selectedIndex == i && showLabel,
-                            labelBudget: labelBudget,
-                            onTap: () => _handleTap(i),
-                            onLongPress: onTabLongPress == null
-                                ? null
-                                : () => _handleLongPress(i),
-                          ),
-                        ),
-                      );
-                  // Correction G: selected state is communicated by the
-                  // accent COLOR of the active icon/label — no glow, no
-                  // translucent backdrop blob behind the selected tab.
-                  final content = normalRow();
-                  // EXPERIENCE PASS §13: normal nav → search field is a
-                  // MORPH inside the SAME pill surface, never one widget
-                  // popping out as an unrelated TextField appears. The
-                  // pill container (height, radius, material, shadow)
-                  // is the persistent surface; only its CONTENT
-                  // cross-fades — a fast 8% vertical slide keeps the
-                  // direction of the change legible. Reduced motion
-                  // honours the fade only (no slide). LayoutBuilder
-                  // rebuilds drive AnimatedSwitcher key changes; the
-                  // fade runs on the fast token so the field is usable
-                  // almost immediately.
-                  if (reduceMotion) return content;
-                  return AnimatedSwitcher(
-                    duration: AzMotion.duration(context, MotionTokens.fast),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    layoutBuilder: (currentChild, outgoingChildren) =>
-                        Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ...outgoingChildren,
-                        if (currentChild != null) currentChild,
-                      ],
+            padding: const EdgeInsets.symmetric(
+              horizontal: NavScrollCompression.outerRightInset,
+            ),
+            child: Align(
+              alignment: Alignment.center,
+              heightFactor: 1.0,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // NEW-LEFT (logo position): the launcher sits at the pill's
+                  // LEFT, immediately adjacent (the same AzSpace.sm seam the
+                  // right side uses), and the entering Marketplace-focused
+                  // state pushes it out to the LEFT (mirrored exit).
+                  if (leading != null) ...[
+                    _PlusExit(
+                      visible: !marketplaceFocused,
+                      reduceMotion: reduceMotion,
+                      toLeft: true,
+                      child: leading!,
                     ),
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween(
-                          begin: const Offset(0, 0.08),
-                          end: Offset.zero,
-                        ).animate(anim),
-                        child: child,
+                    const SizedBox(width: AzSpace.sm),
+                  ],
+                  // COMPACT-NAV — the pill WRAPS TO ITS CONTENT instead of
+                  // stretching across the band: Flexible(loose) lets the pill
+                  // take its natural content width while staying bounded by
+                  // the available band width (responsive, no fixed phone
+                  // width assumption).
+                  Flexible(
+                    child: Opacity(
+                      // Never below `compressedOpacity` (0.92): the page must not show
+                      // through a floating pill, or it reads as a rendering bug.
+                      opacity:
+                          1.0 -
+                          ((1.0 - NavScrollCompression.compressedOpacity) * t),
+                      child: AnimatedContainer(
+                        duration: AzMotion.duration(context, MotionTokens.fast),
+                        height: h,
+                        decoration: BoxDecoration(
+                          // UX-CORRECTION §1 (dark nav separation): a #0A0A0A pill
+                          // on a #000000 page is one luma step apart — the nav read
+                          // as having vanished into the background. The pill now
+                          // sits on the CARD step of the dark elevation ramp
+                          // (#161616) and carries an explicit rim + a top highlight
+                          // so the floating surface is unmistakable even before
+                          // its shadow is seen. Light keeps its existing surface +
+                          // shadow treatment (the new #F2F3F5 page already gives
+                          // it strong separation).
+                          color: colors.isDark ? colors.card : colors.surface,
+                          // `pill` (999) self-clamps to half the height, so the shape
+                          // is a true pill at 62px and at 52px without tracking two radii.
+                          borderRadius: AzRadius.brPill,
+                          border: colors.isDark
+                              ? Border.all(
+                                  color: AzElevation.rimHighlight(true),
+                                )
+                              : null,
+                          // Subtle vertical highlight over the card step in dark:
+                          // BoxDecoration paints a gradient INSTEAD of its color, so
+                          // the ramp is baked into the gradient itself.
+                          gradient: colors.isDark
+                              ? LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color.alphaBlend(
+                                      Colors.white.withValues(alpha: 0.05),
+                                      colors.card,
+                                    ),
+                                    colors.card,
+                                    Color.alphaBlend(
+                                      Colors.white.withValues(alpha: 0.02),
+                                      colors.card,
+                                    ),
+                                  ],
+                                  stops: const [0.0, 0.55, 1.0],
+                                )
+                              : null,
+                          boxShadow: AzElevation.level3(colors.isDark),
+                        ),
+                        // COMPACT-NAV — the pill hugs its segments: interior padding
+                        // around a content-sized row, never a stretched band.
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            // COMPACT-NAV — responsive label decision, not a fixed
+                            // phone width: the selected segment shows its label
+                            // only when the pill's content fits the available band
+                            // width WITH the label. On narrow surfaces the pill
+                            // falls back to the compact icon identity rather than
+                            // clipping or overflowing. Measured with the live text
+                            // scale, so large text scales hide before they clip.
+                            final selected =
+                                _kNavItems[selectedIndex.clamp(0, 2)];
+                            final labelWidth = _measureLabel(
+                              context,
+                              selected.label,
+                            );
+                            // Labeled content width: 2×44 (inactive segments) +
+                            // 44 (the selected icon anchor) + 5+12 (label box
+                            // paddings) + labelWidth, + 2px slack = 151+labelWidth.
+                            // The constraints here are the pill's INTERIOR (its
+                            // own padding is already removed), so this is exact.
+                            final needed = 151 + labelWidth;
+                            final showLabel = constraints.maxWidth >= needed;
+                            // The label box's HARD CAP: even mid-animation (label
+                            // collapsing after a selection change or a surface
+                            // resize), the box can never exceed the pill's
+                            // remaining interior width, so the row can never
+                            // transiently overflow.
+                            final labelBudget = (constraints.maxWidth - 132)
+                                .clamp(0.0, double.infinity);
+                            Widget normalRow() => Row(
+                              mainAxisSize: MainAxisSize.min,
+                              // Stretch: every segment owns the FULL pill
+                              // height (>= 44dp), so each tab's touch target
+                              // is honest even as the pill compresses.
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: List.generate(
+                                _kNavItems.length,
+                                (i) => _NavButton(
+                                  item: _kNavItems[i],
+                                  isSelected: selectedIndex == i,
+                                  index: i,
+                                  colors: colors,
+                                  reduceMotion: reduceMotion,
+                                  showLabel: selectedIndex == i && showLabel,
+                                  labelBudget: labelBudget,
+                                  onTap: () => _handleTap(i),
+                                  onLongPress: onTabLongPress == null
+                                      ? null
+                                      : () => _handleLongPress(i),
+                                ),
+                              ),
+                            );
+                            // Correction G: selected state is communicated by the
+                            // accent COLOR of the active icon/label — no glow, no
+                            // translucent backdrop blob behind the selected tab.
+                            final content = normalRow();
+                            // EXPERIENCE PASS §13: normal nav → search field is a
+                            // MORPH inside the SAME pill surface, never one widget
+                            // popping out as an unrelated TextField appears. The
+                            // pill container (height, radius, material, shadow)
+                            // is the persistent surface; only its CONTENT
+                            // cross-fades — a fast 8% vertical slide keeps the
+                            // direction of the change legible. Reduced motion
+                            // honours the fade only (no slide). LayoutBuilder
+                            // rebuilds drive AnimatedSwitcher key changes; the
+                            // fade runs on the fast token so the field is usable
+                            // almost immediately.
+                            if (reduceMotion) return content;
+                            return AnimatedSwitcher(
+                              duration: AzMotion.duration(
+                                context,
+                                MotionTokens.fast,
+                              ),
+                              switchInCurve: Curves.easeOut,
+                              switchOutCurve: Curves.easeIn,
+                              layoutBuilder: (currentChild, outgoingChildren) =>
+                                  Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      ...outgoingChildren,
+                                      if (currentChild != null) currentChild,
+                                    ],
+                                  ),
+                              transitionBuilder: (child, anim) =>
+                                  FadeTransition(
+                                    opacity: anim,
+                                    child: SlideTransition(
+                                      position: Tween(
+                                        begin: const Offset(0, 0.08),
+                                        end: Offset.zero,
+                                      ).animate(anim),
+                                      child: child,
+                                    ),
+                                  ),
+                              child: marketplaceFocused
+                                  ? KeyedSubtree(
+                                      key: const ValueKey('nav-band-focused'),
+                                      child: _FocusedMarketplaceRow(
+                                        colors: colors,
+                                      ),
+                                    )
+                                  : KeyedSubtree(
+                                      key: const ValueKey('nav-band-normal'),
+                                      child: content,
+                                    ),
+                            );
+                          },
+                        ),
                       ),
                     ),
-                    child: marketplaceFocused
-                        ? KeyedSubtree(
-                            key: const ValueKey('nav-band-focused'),
-                            child:
-                                _FocusedMarketplaceRow(colors: colors),
-                          )
-                        : KeyedSubtree(
-                            key: const ValueKey('nav-band-normal'),
-                            child: content,
-                          ),
-                  );
-                },
-              ),
                   ),
-                ),
+                  if (trailing != null) ...[
+                    const SizedBox(width: AzSpace.sm),
+                    // Correction I: entering the focused Marketplace state
+                    // pushes the trailing control horizontally out of the
+                    // composition to the right (a subtle easeInBack
+                    // push/bounce), and it glides back in with an easeOutBack
+                    // when the normal nav is restored.
+                    _PlusExit(
+                      visible: !marketplaceFocused,
+                      reduceMotion: reduceMotion,
+                      child: trailing!,
+                    ),
+                  ],
+                ],
               ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: AzSpace.sm),
-                // Correction I: entering the focused Marketplace state
-                // pushes the + horizontally out of the composition to the
-                // right (a subtle easeInBack push/bounce), and it glides
-                // back in with an easeOutBack when the normal nav is
-                // restored.
-                _PlusExit(
-                  visible: !marketplaceFocused,
-                  reduceMotion: reduceMotion,
-                  child: trailing!,
-                ),
-              ],
-            ],
-          ),
+            ),
           ),
         );
       },
@@ -589,16 +633,17 @@ class PremiumBottomNav extends ConsumerWidget {
 /// rebuild) and exact, so large text scales hide the label before it can
 /// clip instead of after.
 double _measureLabel(BuildContext context, String label) {
-  final tp = TextPainter(
-    text: TextSpan(
-      text: label,
-      style: AzText.caption.copyWith(fontWeight: FontWeight.w700),
-    ),
-    textScaler: MediaQuery.textScalerOf(context),
-    maxLines: 1,
-  )
-    ..textDirection = TextDirection.ltr
-    ..layout();
+  final tp =
+      TextPainter(
+          text: TextSpan(
+            text: label,
+            style: AzText.caption.copyWith(fontWeight: FontWeight.w700),
+          ),
+          textScaler: MediaQuery.textScalerOf(context),
+          maxLines: 1,
+        )
+        ..textDirection = TextDirection.ltr
+        ..layout();
   return tp.width;
 }
 
@@ -712,19 +757,19 @@ class _NavButton extends StatelessWidget {
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: labelBudget),
             child: ExcludeSemantics(
-            child: Padding(
-              padding: const EdgeInsets.only(left: 5, right: 12),
-              child: Text(
-                item.label,
-                maxLines: 1,
-                softWrap: false,
-                style: AzText.caption.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w700,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 5, right: 12),
+                child: Text(
+                  item.label,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: AzText.caption.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
-          ),
           ),
         ),
       ],
@@ -864,11 +909,17 @@ class _PlusExit extends StatefulWidget {
     required this.visible,
     required this.reduceMotion,
     required this.child,
+    this.toLeft = false,
   });
 
   final bool visible;
   final bool reduceMotion;
   final Widget child;
+
+  /// NEW-LEFT (logo position): when true the exit push/bounce runs to the
+  /// LEFT (the launcher slot's own edge) instead of the right, so a
+  /// left-side control departs toward its own side of the composition.
+  final bool toLeft;
 
   @override
   State<_PlusExit> createState() => _PlusExitState();
@@ -947,7 +998,10 @@ class _PlusExitState extends State<_PlusExit>
         child: AnimatedBuilder(
           animation: curved,
           builder: (context, child) => Transform.translate(
-            offset: Offset((1 - curved.value) * 96, 0),
+            offset: Offset(
+              (widget.toLeft ? -1 : 1) * (1 - curved.value) * 96,
+              0,
+            ),
             child: child,
           ),
           child: widget.child,
@@ -977,8 +1031,7 @@ class _ImeBandPad extends StatefulWidget {
   State<_ImeBandPad> createState() => _ImeBandPadState();
 }
 
-class _ImeBandPadState extends State<_ImeBandPad>
-    with WidgetsBindingObserver {
+class _ImeBandPadState extends State<_ImeBandPad> with WidgetsBindingObserver {
   double _ime = 0;
 
   @override
@@ -1042,7 +1095,8 @@ class _FocusedMarketplaceRow extends ConsumerStatefulWidget {
       _FocusedMarketplaceRowState();
 }
 
-class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> {
+class _FocusedMarketplaceRowState
+    extends ConsumerState<_FocusedMarketplaceRow> {
   late final TextEditingController _ctrl;
   late final FocusNode _focus;
 
@@ -1051,8 +1105,9 @@ class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> 
   @override
   void initState() {
     super.initState();
-    _ctrl =
-        TextEditingController(text: ref.read(marketplaceSearchProvider).text);
+    _ctrl = TextEditingController(
+      text: ref.read(marketplaceSearchProvider).text,
+    );
     _focus = FocusNode();
     _focus.addListener(() {
       if (mounted) _binding.onFocus(_focus.hasFocus);
@@ -1099,7 +1154,9 @@ class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> 
             onTap: _restoreNormalNav,
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: AzSpace.md, vertical: AzSpace.sm),
+                horizontal: AzSpace.md,
+                vertical: AzSpace.sm,
+              ),
               child: Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
@@ -1129,15 +1186,22 @@ class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> 
               hintStyle: AzText.caption.copyWith(color: colors.textTertiary),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AzSpace.md, vertical: 8),
+                horizontal: AzSpace.md,
+                vertical: 8,
+              ),
               filled: true,
               fillColor: colors.isDark
                   ? Colors.white.withValues(alpha: 0.06)
                   : Colors.black.withValues(alpha: 0.04),
-              prefixIcon: Icon(HugeIconsStroke.search01,
-                  size: 16, color: colors.textTertiary),
-              prefixIconConstraints:
-                  const BoxConstraints(minWidth: 34, minHeight: 34),
+              prefixIcon: Icon(
+                HugeIconsStroke.search01,
+                size: 16,
+                color: colors.textTertiary,
+              ),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 34,
+                minHeight: 34,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(999),
                 borderSide: BorderSide.none,

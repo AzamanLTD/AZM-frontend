@@ -12,7 +12,6 @@
 //   * The normal Home/Chat/Marketplace tabs are not visible while focused.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
@@ -45,7 +44,7 @@ Future<void> _pumpNav(
             key: const ValueKey('nav-under-test'),
             selectedIndex: selectedIndex,
             onItemSelected: (_) {},
-            trailing: const SizedBox(
+            leading: const SizedBox(
               key: ValueKey('plus-stand-in'),
               width: 54,
               height: 54,

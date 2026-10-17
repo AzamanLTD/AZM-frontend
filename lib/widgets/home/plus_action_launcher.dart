@@ -104,11 +104,12 @@ class PlusLauncherController extends ChangeNotifier {
   void toggle() => _isOpen ? close() : open();
 }
 
-/// The + trigger. Structurally ADJACENT to the nav ([navigation] [+]) via
-/// PremiumBottomNav's `trailing` slot — not an unrelated FAB floating
-/// above the bar. The AZM accent identity/theme system colors it: the
-/// gradient is the theme's accent pair and the glow is the accent itself,
-/// so light/dark/accent behavior follows the user's identity.
+/// The + trigger. Structurally ADJACENT to the nav on its LEFT —
+/// [+] [navigation] — via PremiumBottomNav's `leading` slot, the two
+/// centred as one composition — not an unrelated FAB floating above the
+/// bar. The AZM accent identity/theme system colors it: the gradient is
+/// the theme's accent pair and the glow is the accent itself, so
+/// light/dark/accent behavior follows the user's identity.
 class PlusLauncherTrigger extends ConsumerStatefulWidget {
   const PlusLauncherTrigger({
     super.key,
@@ -403,16 +404,31 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
   /// CORRECTION G anchor geometry, measured LIVE from the physical +
   /// button's render box (see [PlusLauncherController.triggerRect]).
   ///
-  /// The cluster's RIGHT edge rides the PLUS's own RIGHT edge — not its
-  /// center axis — so the cluster's trailing boundary is flush with the
-  /// control it opens from, close to the plus/right side of the
-  /// viewport, exactly as it is physically positioned. Combined with the
-  /// intrinsic-width constraint below (no `stretch`, an [IntrinsicWidth]
-  /// cap instead of a bare max-width Column), the cluster can no longer
-  /// balloon out to its 300px ceiling and drift toward the opposite side
-  /// of the screen — it is only ever as wide as its longest row actually
-  /// needs. Falls back to the bottom-right corner of the screen (beside
-  /// where the + lives) if the rect is somehow unavailable.
+  /// NEW-LEFT anchoring. The cluster hangs off the plus on the side it
+  /// physically lives on:
+  ///  - plus in the RIGHT half → the cluster's RIGHT edge rides the
+  ///    plus's own RIGHT edge (the original contract), extending
+  ///    leftward.
+  ///  - plus in the LEFT half (the NEW-LEFT composition, beside the
+  ///    nav pill) → the cluster's LEFT edge rides the plus's own LEFT
+  ///    edge, extending rightward: a left-edge anchor there has only
+  ///    ~120px of leftward room, which would push the cluster
+  ///    off-screen; the mirrored anchor keeps the same flush-edge
+  ///    reading without overflow. In both cases the cluster is only
+  ///    ever as wide as its longest row actually needs.
+  bool _plusOnLeftHalf(BuildContext context) {
+    final local = _localTriggerRect(context);
+    final box = context.findRenderObject();
+    final width = box is RenderBox && box.attached
+        ? box.size.width
+        : MediaQuery.sizeOf(context).width;
+    if (local == null) return false;
+    return (local.left + local.width / 2) < width / 2;
+  }
+
+  /// The `right:` offset for a right-half plus (cluster's right edge
+  /// flush with the plus's right edge). Falls back to the corner beside
+  /// where the + lives if the rect is somehow unavailable.
   double _anchorRight(BuildContext context) {
     final local = _localTriggerRect(context);
     if (local == null) return AzSpace.lg;
@@ -422,6 +438,15 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
         : MediaQuery.sizeOf(context).width;
     final plusRight = local.left + local.width;
     return (width - plusRight).clamp(AzSpace.sm, width - AzSpace.lg);
+  }
+
+  /// The `left:` offset for a LEFT-half plus (cluster's left edge flush
+  /// with the plus's left edge) — the NEW-LEFT mirror of
+  /// [_anchorRight].
+  double _anchorLeft(BuildContext context) {
+    final local = _localTriggerRect(context);
+    if (local == null) return AzSpace.lg;
+    return local.left.clamp(AzSpace.sm, double.infinity).toDouble();
   }
 
   double _anchorBottom(BuildContext context) {
@@ -517,7 +542,8 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
             // BEFORE the follower — the link form asserted every frame in
             // debug.)
             Positioned(
-              right: _anchorRight(context),
+              left: _plusOnLeftHalf(context) ? _anchorLeft(context) : null,
+              right: _plusOnLeftHalf(context) ? null : _anchorRight(context),
               bottom: _anchorBottom(context),
               child: IgnorePointer(
                 ignoring: t < 0.5,
@@ -541,7 +567,15 @@ class _PlusActionLauncherState extends ConsumerState<PlusActionLauncher>
                   child: IntrinsicWidth(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                      // NEW-LEFT mirror: the rows share a LEADING edge
+                      // when the cluster hangs off a LEFT-half plus
+                      // (extending rightward), a TRAILING edge when it
+                      // hangs off a right-half plus — the blocks always
+                      // read as one edge-aligned stack hanging off the
+                      // physical plus.
+                      crossAxisAlignment: _plusOnLeftHalf(context)
+                          ? CrossAxisAlignment.start
+                          : CrossAxisAlignment.end,
                       children: [
                         for (var i = 0; i < widget.actions.length; i++)
                           _LauncherRow(

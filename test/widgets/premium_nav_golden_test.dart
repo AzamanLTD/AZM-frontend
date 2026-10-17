@@ -69,7 +69,7 @@ void main() {
                   child: PremiumBottomNav(
                     selectedIndex: focused ? 2 : 0,
                     onItemSelected: (_) {},
-                    trailing: const SizedBox(
+                    leading: const SizedBox(
                       key: ValueKey('plus-stand-in'),
                       width: 54,
                       height: 54,
