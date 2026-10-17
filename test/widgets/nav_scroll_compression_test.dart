@@ -115,6 +115,15 @@ double _pillOpacity(WidgetTester tester) => (tester.widget(
       find.descendant(of: _navFinder, matching: find.byType(Opacity)).first,
     ) as Opacity).opacity;
 
+/// COMPACT-NAV — a nav label's rendered visibility: the expanding label
+/// keeps its Text in the tree at zero width/opacity when not shown, so
+/// "visible" is the label's OWN Opacity, not tree presence.
+double _labelOpacity(WidgetTester tester, String label) => tester.widget<Opacity>(
+      find
+          .ancestor(of: find.text(label), matching: find.byType(Opacity))
+          .first,
+    ).opacity;
+
 void main() {
   tearDown(() => AzSensory.apply(const SensoryPreferences()));
   setUp(() {
@@ -241,17 +250,20 @@ void main() {
       // UX-CORRECTION §4 — deliberate thinner height, not a cramped scale-down.
       expect(_navHeight(tester), 48 + 16);
       expect(_pillOpacity(tester), 1.0);
-      // No persistent text labels in the resting nav.
-      for (final label in ['Home', 'Chat', 'Marketplace']) {
-        expect(find.text(label), findsNothing);
-      }
+      // COMPACT-NAV — the SELECTED tab shows its label ('Home') at full
+      // opacity; the INACTIVE tabs stay compact icon controls (their
+      // labels exist in the tree at zero width but are NOT rendered).
+      expect(find.text('Home'), findsOneWidget);
+      expect(_labelOpacity(tester, 'Home'), 1.0);
+      expect(_labelOpacity(tester, 'Chat'), 0.0);
+      expect(_labelOpacity(tester, 'Market'), 0.0);
       // The three icons ARE there (selected Home is the solid glyph,
       // unselected Chat/Marketplace the stroke ones), and the tab
       // identities survive on Semantics — active-tab semantics preserved.
       expect(find.byIcon(HugeIconsSolid.home01), findsOneWidget);
       expect(find.byIcon(HugeIconsStroke.message01), findsOneWidget);
       expect(find.byIcon(HugeIconsStroke.store01), findsOneWidget);
-      expect(find.bySemanticsLabel('Marketplace'), findsOneWidget);
+      expect(find.bySemanticsLabel('Market'), findsOneWidget);
     });
 
     testWidgets('fully compressed: 44px (tap-target floor), 0.92 opacity',
@@ -263,8 +275,10 @@ void main() {
       // 44 IS the minimum tap target — the compressed pill rests on it.
       expect(_navHeight(tester), 44 + 16);
       expect(_pillOpacity(tester), closeTo(0.92, 0.001));
-      // Icons survive the compression — the pill is icon-only, not empty.
+      // Icons survive the compression — the pill is never empty, and the
+      // selected tab keeps its identity (icon + label).
       expect(find.byIcon(HugeIconsSolid.home01), findsOneWidget);
+      expect(find.text('Home'), findsOneWidget);
     });
 
     testWidgets('scrolling back to the top restores the pill', (tester) async {
