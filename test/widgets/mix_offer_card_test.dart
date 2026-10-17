@@ -8,8 +8,9 @@
 //     EXACT 2dp string, never floated; absent/malformed/non-GHS payload
 //     prices render "Price unavailable", never zero, never a USDC figure,
 //     never "price on request"
-//   • payment rail: capabilities.payableIn renders honestly (USDC chip);
-//     a GHS listing price NEVER renders a GHS payment claim
+//   • payment rail: capabilities.payableIn is model data, NEVER rendered
+//     (crypto presentation removed — Workstream B); no USDC chip, and a
+//     GHS listing price NEVER renders a GHS payment claim
 //   • availability: rendered only when the payload said so (isAvailable /
 //     sectionWindowOpen); never inferred from a price
 //   • a tap fires the item+store navigation callback with the OFFERING
@@ -160,18 +161,22 @@ void main() {
   });
 
   testWidgets(
-      'the payment rail renders ONLY what the server reported (USDC chip)',
+      'NO crypto presentation renders even when the server reports a USDC rail',
       (tester) async {
-    await _pumpCard(tester, _offer());
-    expect(find.byKey(const ValueKey('mix_chip_USDC')), findsOneWidget);
+    // Workstream B: the payment rail stays DATA (capabilities.payableIn),
+    // never UI — the Ghana marketplace browsing surface presents no crypto.
+    await _pumpCard(tester, _offer()); // default payableIn: ['USDC']
+    expect(find.textContaining('USDC'), findsNothing,
+        reason: 'the crypto payment rail is model data, never presentation');
+    expect(find.byKey(const ValueKey('mix_chip_USDC')), findsNothing);
     expect(find.textContaining('GHS'), findsNothing,
-        reason: 'a GHS listing price never claims GHS payment');
+        reason: 'a GHS listing price never claims GHS payment either');
   });
 
-  testWidgets('no payment-rail chip when the payload reports no rails',
+  testWidgets('an absent payment rail changes nothing on the surface',
       (tester) async {
     await _pumpCard(tester, _offer(payableIn: const []));
-    expect(find.byKey(const ValueKey('mix_chip_USDC')), findsNothing);
+    expect(find.textContaining('USDC'), findsNothing);
   });
 
   testWidgets('unavailable renders a quiet badge only when the payload said so',
