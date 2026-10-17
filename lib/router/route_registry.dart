@@ -58,6 +58,10 @@ abstract final class AzRouteNames {
   // Susu
   static const susuHub = 'susu-hub';
   static const proofOfResidency = 'proof-of-residency';
+
+  // Balance ↔ Visa card transfer (full-height surface from the Home deck
+  // seam control; submission gated on the real card programme).
+  static const cardTransfer = 'card-transfer';
   static const susuInvite = 'susu-invite';
   static const susuDetail = 'susu-detail';
   static const susuContract = 'susu-contract';
@@ -184,6 +188,9 @@ abstract final class AzRoutes {
     ];
     return params.isEmpty ? '/deposit' : '/deposit?${params.join('&')}';
   }
+
+  // ── Card transfer ─────────────────────────────────────────────────────────
+  static const cardTransfer = '/card-transfer';
 
   // ── Susu ─────────────────────────────────────────────────────────────────
   static const susuHub = '/susu';

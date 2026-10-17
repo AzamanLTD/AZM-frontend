@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
@@ -42,8 +43,10 @@ import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
 import 'package:azaman/providers/home_shell_active_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
+import 'package:azaman/widgets/home/visa_transfer_seam_control.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
@@ -934,16 +937,19 @@ class _DeckHostState extends ConsumerState<_DeckHost>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        WalletCardDeck(
-          key: _deckKey,
-          cardHeight: _cardHeight,
-          // WALLET POUCH follow-up: the old TapHintOverlay is REMOVED —
-          // its hand animation played invisibly behind the opaque pouch
-          // (the deck's exposed headers already teach tap-to-select).
-          // No perpetual ambient animation replaces it.
-          balanceCard: const FlippableBalanceCard(),
-          visaCard: const AzmVisaCard(),
-          onStateChanged: _onDeckStateChanged,
+        VisaTransferSeamAnchor(
+          onTransfer: () => context.push(AzRoutes.cardTransfer),
+          child: WalletCardDeck(
+            key: _deckKey,
+            cardHeight: _cardHeight,
+            // WALLET POUCH follow-up: the old TapHintOverlay is REMOVED —
+            // its hand animation played invisibly behind the opaque pouch
+            // (the deck's exposed headers already teach tap-to-select).
+            // No perpetual ambient animation replaces it.
+            balanceCard: const FlippableBalanceCard(),
+            visaCard: const AzmVisaCard(),
+            onStateChanged: _onDeckStateChanged,
+          ),
         ),
         // §6: sensitive card content appears ONLY after the gate passes.
         if (_detailsUnlocked)
