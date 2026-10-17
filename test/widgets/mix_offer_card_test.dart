@@ -24,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_offer_card.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 const _absent = '__absent__';
 
@@ -37,6 +38,8 @@ MixOffer _offer({
   dynamic isAvailable = _absent,
   dynamic sectionWindowOpen = _absent,
   List<String> payableIn = const ['USDC'],
+  String? businessLogoUrl,
+  List<String> images = const [],
 }) =>
     MixOffer(
       productId: productId,
@@ -44,8 +47,10 @@ MixOffer _offer({
       bizId: bizId,
       businessName: store,
       businessCategory: 'FOOD_BEVERAGE',
+      businessLogoUrl: businessLogoUrl,
       name: name,
       price: price,
+      imageUrls: images,
       isAvailable: isAvailable == _absent ? null : isAvailable,
       sectionWindowOpen: sectionWindowOpen == _absent ? null : sectionWindowOpen,
       capabilities: MixOfferCapabilities(payableIn: payableIn),
@@ -171,11 +176,29 @@ void main() {
     expect(opened.single.productId, 'prod-1');
   });
 
-  testWidgets("the card's hit area is a full-width row (>=48px touch target)",
+  testWidgets(
+      'GALLERY FORMAT: a near-square tile — square product image over a '
+      'distinct lower info panel, whole tile tappable (>=44dp)',
       (tester) async {
-    await _pumpCard(tester, _offer());
-    final rect = tester.getRect(find.byType(MixOfferCard));
-    expect(rect.height, greaterThanOrEqualTo(88));
+    await _pumpCard(tester, _offer(images: const ['https://img/jollof.jpg']));
+    final tile = tester.getRect(find.byType(MixOfferCard));
+    expect(tile.height, greaterThanOrEqualTo(44),
+        reason: 'the standing 44dp touch-target rule');
+    // The image is a SQUARE filling the tile width.
+    final image = tester.getSize(find
+        .descendant(
+            of: find.byType(MixOfferCard),
+            matching: find.byType(CachedNetworkImage))
+        .first);
+    expect(image.width, closeTo(tile.width, 1),
+        reason: 'image fills the tile width (hairline border aside)');
+    expect(image.height, closeTo(image.width, 0.5),
+        reason: 'the product image is square (aspect 1:1)');
+    // The lower info panel is a distinct surface under the image.
+    expect(find.byKey(const ValueKey('mix_offer_panel')), findsOneWidget);
+    expect(tester.getTopLeft(find.byKey(const ValueKey('mix_offer_panel'))).dy,
+        greaterThan(image.height),
+        reason: 'the panel sits BELOW the image');
     final hit = find.descendant(
         of: find.byType(MixOfferCard),
         matching: find.byType(GestureDetector));
@@ -186,5 +209,53 @@ void main() {
       (tester) async {
     await _pumpCard(tester, _offer());
     expect(tester.takeException(), isNull);
+  });
+
+  // ── STORE LOGO GRAMMAR ────────────────────────────────────────────────────
+
+  testWidgets('a GENUINE logo renders in the store row when the payload '
+      'carries one', (tester) async {
+    await _pumpCard(
+        tester,
+        _offer(
+            businessLogoUrl: 'https://cdn.azaman/biz-1/logo.png',
+            images: const ['https://img/jollof.jpg']));
+    final logoSlot = find.byKey(const ValueKey('mix_store_logo'));
+    expect(logoSlot, findsOneWidget);
+    final logoImage = find.descendant(
+        of: logoSlot, matching: find.byType(CachedNetworkImage));
+    expect(logoImage, findsOneWidget);
+    expect(
+        (tester.widget(logoImage) as CachedNetworkImage).imageUrl,
+        'https://cdn.azaman/biz-1/logo.png',
+        reason: 'the logo is the payload\'s GENUINE url, unmodified');
+  });
+
+  testWidgets('a MISSING logo degrades to the storefront glyph — never an '
+      'item image in the logo slot', (tester) async {
+    await _pumpCard(
+        tester,
+        _offer(images: const ['https://img/jollof.jpg']));
+    expect(find.byKey(const ValueKey('mix_store_logo_fallback')), findsOneWidget);
+    // The logo slot must NOT load the ITEM image as a stand-in.
+    final logoSlot = find.byKey(const ValueKey('mix_store_logo'));
+    expect(
+        find.descendant(
+            of: logoSlot, matching: find.byType(CachedNetworkImage)),
+        findsNothing,
+        reason: 'a missing logo is never inferred or substituted');
+  });
+
+  testWidgets('a FAILED logo load degrades to the storefront glyph '
+      '(image-error fallback)', (tester) async {
+    await _pumpCard(
+        tester,
+        _offer(
+            businessLogoUrl: 'https://cdn.azaman/dead/logo.png',
+            images: const ['https://img/jollof.jpg']));
+    // The fetch fails in the test env (no cache manager) — the honest
+    // errorWidget path is exactly the production fallback.
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('mix_store_logo_fallback')), findsOneWidget);
   });
 }
