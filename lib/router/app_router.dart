@@ -41,6 +41,7 @@ import 'package:azaman/screens/active_trade_screen.dart';
 import 'package:azaman/screens/waiting_room_screen.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
+import 'package:azaman/screens/card_transfer_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/payment_requests_screen.dart';
 import 'package:azaman/screens/payment_request_landing_screen.dart';
@@ -395,6 +396,20 @@ final GoRouter appRouter = GoRouter(
           prefillAmount: state.uri.queryParameters['amount'],
           memo: state.uri.queryParameters['memo'],
         ),
+      ),
+    ),
+
+    // ── Card Transfer (Balance ↔ Visa) — opened from the Home deck's seam
+    // control. The same rise family as Deposit/Receive (a layered push).
+    // The surface keeps transfer submission disabled until the real card
+    // programme + backend settlement contract exist (see the screen).
+    GoRoute(
+      path: '/card-transfer',
+      name: AzRouteNames.cardTransfer,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: const CardTransferScreen(),
       ),
     ),
 
