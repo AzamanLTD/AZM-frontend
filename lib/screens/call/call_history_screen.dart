@@ -18,7 +18,7 @@ import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 // Provider for call history
 final callHistoryProvider = FutureProvider<List<dynamic>>((ref) async {
-  final response = await ApiClient().get('/api/calls?limit=50');
+  final response = await ApiClient().get('/calls?limit=50');
   return jsonDecode(response.body)['data'] as List<dynamic>;
 });
 

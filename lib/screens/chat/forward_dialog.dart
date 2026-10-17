@@ -76,12 +76,18 @@ class _ForwardSheetState extends State<_ForwardSheet> {
   void _loadConversations() async {
     try {
       // Load friends
-      final friendsRes = await ApiClient().get('/api/friends');
-      final friends = List<Map<String, dynamic>>.from(jsonDecode(friendsRes.body) as List? ?? []);
+      final friendsRes = await ApiClient().get('/friends');
+      final friendsBody =
+          jsonDecode(friendsRes.body) as Map<String, dynamic>? ?? {};
+      final friends = List<Map<String, dynamic>>.from(
+          friendsBody['friends'] ?? []);
 
       // Load groups
-      final groupsRes = await ApiClient().get('/api/groups');
-      final groups = List<Map<String, dynamic>>.from(jsonDecode(groupsRes.body) as List? ?? []);
+      final groupsRes = await ApiClient().get('/group-chats');
+      final groupsBody =
+          jsonDecode(groupsRes.body) as Map<String, dynamic>? ?? {};
+      final groups = List<Map<String, dynamic>>.from(
+          groupsBody['groups'] ?? []);
 
       if (mounted) {
         setState(() {
