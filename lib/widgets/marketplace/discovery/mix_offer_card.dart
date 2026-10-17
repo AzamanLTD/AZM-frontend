@@ -25,11 +25,15 @@
 //   • Unknown price (absent/malformed/non-GHS payload) → "Price
 //     unavailable" — never `priceUsdc`, never a converted USDC figure,
 //     never "GH₵ 0.00", never "Price on request".
-// PAYMENT-RAIL GRAMMAR (honest capability, §5.3):
-//   • `capabilities.payableIn` renders as a quiet "USDC" rail chip when
-//     non-empty (today the merged endpoint reports `['USDC']`).
-//   • A GHS LISTING price never implies GHS payment: no GHS payment chip
-//     exists in this build because the server does not report one.
+// PAYMENT-RAIL GRAMMAR (crypto presentation removed — Workstream B,
+// 2026-10-17): the Ghana Marketplace is presented as a cedis shopping
+// experience. `capabilities.payableIn` (today `['USDC']`) is still
+// PARSED from the payload — the server's truth about the payment rail
+// is preserved as model data — but it is NEVER rendered: no USDC/crypto
+// chip, no payment-rail hint of any kind on the browsing surface. The
+// rail a listing implies is a checkout/settlement concern, not browsing
+// presentation. A GHS LISTING price never implies GHS payment either
+// way: no payment chip exists in this build.
 // AVAILABILITY GRAMMAR:
 //   • `isAvailable == false` → a quiet "Unavailable" chip.
 //   • `sectionWindowOpen == false` → a quiet "Opens later" chip (the
@@ -132,8 +136,9 @@ class MixOfferCard extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          if (offer.capabilities.payableIn.isNotEmpty)
-                            _chip(colors, offer.capabilities.payableIn.join('/')),
+                          // NO crypto presentation: the USDC payment
+                          // capability stays model data, never a chip
+                          // (Workstream B). Only availability chips render.
                           if (offer.isAvailable == false)
                             _chip(colors, 'Unavailable'),
                           if (offer.sectionWindowOpen == false)
@@ -203,10 +208,10 @@ class MixOfferCard extends ConsumerWidget {
     );
   }
 
+  // Chips are AVAILABILITY-only now — the payment rail never contributes
+  // (crypto presentation removed, Workstream B).
   bool get _hasChips =>
-      offer.capabilities.payableIn.isNotEmpty ||
-      offer.isAvailable == false ||
-      offer.sectionWindowOpen == false;
+      offer.isAvailable == false || offer.sectionWindowOpen == false;
 
   /// The compact store identity row: genuine logo (or glyph) + name.
   Widget _storeRow(AzamanColors colors) => Row(
