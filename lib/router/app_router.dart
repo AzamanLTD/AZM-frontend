@@ -43,6 +43,7 @@ import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/card_transfer_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/screens/payment_requests_screen.dart';
 import 'package:azaman/screens/payment_request_landing_screen.dart';
 import 'package:azaman/screens/receive_screen.dart';
@@ -399,10 +400,27 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
 
-    // ── Card Transfer (Balance ↔ Visa) — opened from the Home deck's seam
-    // control. The same rise family as Deposit/Receive (a layered push).
-    // The surface keeps transfer submission disabled until the real card
-    // programme + backend settlement contract exist (see the screen).
+    // ── Send Money (r43, PR #159) ───────────────────────────────────────
+    // The canonical friendship-scoped transfer surface. Registered so the
+    // universal search quick action (and any future deep link) routes to
+    // the REAL send flow — previously 'Send Money' pointed at /deposit.
+    GoRoute(
+      path: AzRoutes.sendMoney,
+      name: AzRouteNames.sendMoney,
+      // Same rise family as /deposit — the surface rises from a lower
+      // layer, matching the + launcher's imperative push semantics.
+      // initialRecipient stays an in-process affordance (+ launcher
+      // activity actions); the route takes no query params today.
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: const SendMoneyScreen(),
+      ),
+    ),
+
+    // ── Card Transfer (Balance ↔ Visa), opened from the Home deck seam.
+    // Submission remains disabled until the real card programme and backend
+    // settlement contract exist; this route exposes only the gated UI.
     GoRoute(
       path: '/card-transfer',
       name: AzRouteNames.cardTransfer,

@@ -148,7 +148,10 @@ class WalletCardDeckState extends State<WalletCardDeck>
     with SingleTickerProviderStateMixin {
   // ── Geometry constants (derived from the card height) ─────────────────
   // topPad gives the lifted card headroom so it never clips the window top.
-  static const double _topPad = 26;
+  /// Top of the exposed Visa header strip in the tucked pouch pose.
+  /// Public so Home's seam control and its geometry test share this value.
+  static const double visaHeaderTop = 26;
+  static const double _topPad = visaHeaderTop;
 
   /// Height of the Visa card's exposed header strip while tucked.
   static const double visaPeek = 44;

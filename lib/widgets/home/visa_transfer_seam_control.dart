@@ -1,19 +1,9 @@
 // =============================================================================
 // AZAMAN — VISA TRANSFER SEAM CONTROL  (Balance ↔ Visa card transfer)
 //
-// A circular transfer control anchored to the STABLE OVERLAP SEAM of the two
-// Home cards: at rest the pull-reveal deck shows the balance card fully and
-// the AZM Visa sample card peeking `restPeekPx` beneath it — the two faces
-// overlap in one stable band ([cardHeight - peek, cardHeight]). This control
-// pins to that band's centre on the deck's right edge, so it reads as part of
-// the two-card composition, not as a floating FAB.
-//
-// On tap it hands off to the shell (Home owns the route), opening the
-// full-height Card Transfer surface ([CardTransferScreen]).
-//
-// GEOMETRY: all constants come from the deck's own physics
-// ([PullRevealPhysics.restPeekPx]) and the host's card height, so the anchor
-// moves with the deck, never with a second opinion.
+// The current wallet-pouch deck exposes the Visa header above the balance
+// card while tucked. The control sits in the clear centre of that header
+// band, avoiding the AZM, SAMPLE and VISA marks at either end.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -22,50 +12,46 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/home/pull_reveal_card_deck.dart'
-    show PullRevealPhysics;
+import 'package:azaman/widgets/home/wallet_card_deck.dart'
+    show WalletCardDeckState;
 
 /// The circular control's footprint (>= the 44dp minimum touch target).
 const double kSeamControlSize = 48;
 
-/// Lays [child] (the pull-reveal deck) under the circular transfer control,
-/// anchored to the two cards' stable overlap seam.
+/// Places the transfer control over the current wallet-pouch deck using the
+/// deck's public geometry constants.
 class VisaTransferSeamAnchor extends ConsumerWidget {
   const VisaTransferSeamAnchor({
     super.key,
     required this.child,
-    required this.cardHeight,
     required this.onTransfer,
   });
 
-  /// The deck (gesture surface). The control floats ABOVE it; the deck's own
-  /// drag/tap grammar is untouched underneath.
+  /// The real wallet deck (gesture surface), underneath the control.
   final Widget child;
-
-  /// The deck's card height — the same `_cardHeight` the host passes to
-  /// [PullRevealCardDeck], so the seam is computed from the real geometry.
-  final double cardHeight;
-
   final VoidCallback onTransfer;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    const peek = PullRevealPhysics.restPeekPx;
-    // The stable overlap seam: at rest the under-card's top edge sits at
-    // `cardHeight - peek` and the top card ends at `cardHeight`, so the two
-    // faces share the band between them. The control's CENTRE rides the
-    // band's centre line.
-    final seamCentreY = cardHeight - peek / 2;
+    // The exposed Visa header is the stable visible seam in the tucked pose.
+    const seamCentreY =
+        WalletCardDeckState.visaHeaderTop + WalletCardDeckState.visaPeek / 2;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
         child,
         Positioned(
-          right: AzSpace.md,
+          left: 0,
+          right: 0,
           top: seamCentreY - kSeamControlSize / 2,
-          child: _SeamControlButton(onTransfer: onTransfer, colors: colors),
+          child: Center(
+            child: _SeamControlButton(
+              onTransfer: onTransfer,
+              colors: colors,
+            ),
+          ),
         ),
       ],
     );
@@ -96,8 +82,6 @@ class _SeamControlButton extends StatelessWidget {
           height: kSeamControlSize,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            // The card language: a raised dark/gold-accent chip that reads
-            // as a control pinned to BOTH physical cards, not page chrome.
             color: colors.card,
             border: Border.all(color: colors.accent.withValues(alpha: 0.55)),
             boxShadow: [
