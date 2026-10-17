@@ -16,10 +16,13 @@
 // The current card programme is the demo-only [DemoCardProgramme]; the card
 // on Home is a SAMPLE surface. This screen therefore NEVER calls a card
 // funding endpoint, NEVER mutates balances locally, and NEVER displays a
-// successful transfer. Submission is disabled until
-// [AzmCardProgramme.supportsTransfers] is true — i.e. until a REAL card
-// programme and the backend transfer ledger / settlement / idempotency
-// contract exist. The disabled state tells the truth in copy.
+// successful transfer. Submission in THIS BUILD is structurally disabled —
+// there is no transfer execution path at all, so no capability flag alone
+// can imply that a transfer can be made: the gate copy is identical in
+// every state, and the submit control never enables. When a REAL card
+// programme, the backend transfer ledger / settlement / idempotency
+// contract, and the funding rail are proven together, THAT change wires
+// [AzmCardProgramme.supportsTransfers] to a real submit — not this one.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -78,18 +81,12 @@ class _CardTransferScreenState extends ConsumerState<CardTransferScreen>
   double? get _amountValue => AmountInput.value(_amountRaw);
   String get _amountDisplay => AmountInput.display(_amountRaw);
 
-  /// The capability gate: read from the SAME programme seam the Home card
-  /// renders from. While the demo programme is mounted this is false and
-  /// submission stays disabled with truthful copy — never a fake success,
-  /// never a local balance mutation, never an invented endpoint call.
-  bool get _transfersSupported =>
-      ref.read(azmCardProgrammeProvider).supportsTransfers;
-
   void _onTabChanged() {
     if (_tabs.indexIsChanging) return;
-    // A direction change invalidates the review statement: back to the
-    // amount stage so the user reviews the direction they now see.
-    if (mounted && _stage == _Stage.review) {
+    // A direction change invalidates the review statement AND hands the
+    // money-flow animation to the newly selected pane (the off-screen
+    // pane's loop stops). Both are screen state, so one setState.
+    if (mounted) {
       setState(() => _stage = _Stage.amount);
     }
   }
@@ -152,7 +149,7 @@ class _CardTransferScreenState extends ConsumerState<CardTransferScreen>
                       key: const ValueKey('card-transfer-pane-to-visa'),
                       direction: CardTransferDirection.toVisa,
                       maskedCardNumber: programme.maskedNumber,
-                      transfersSupported: _transfersSupported,
+                      active: _tabs.index == 0,
                       stage: _stage,
                       amountDisplay: _amountDisplay,
                       hasAmount: (_amountValue ?? 0) > 0,
@@ -165,7 +162,7 @@ class _CardTransferScreenState extends ConsumerState<CardTransferScreen>
                       key: const ValueKey('card-transfer-pane-from-visa'),
                       direction: CardTransferDirection.fromVisa,
                       maskedCardNumber: programme.maskedNumber,
-                      transfersSupported: _transfersSupported,
+                      active: _tabs.index == 1,
                       stage: _stage,
                       amountDisplay: _amountDisplay,
                       hasAmount: (_amountValue ?? 0) > 0,
@@ -321,7 +318,7 @@ class _DirectionPane extends StatelessWidget {
     super.key,
     required this.direction,
     required this.maskedCardNumber,
-    required this.transfersSupported,
+    required this.active,
     required this.stage,
     required this.amountDisplay,
     required this.hasAmount,
@@ -333,7 +330,10 @@ class _DirectionPane extends StatelessWidget {
 
   final CardTransferDirection direction;
   final String maskedCardNumber;
-  final bool transfersSupported;
+
+  /// The SELECTED direction — only the active pane's flow animates; the
+  /// off-screen pane's controller is stopped (not merely painted away).
+  final bool active;
   final _Stage stage;
   final String amountDisplay;
   final bool hasAmount;
@@ -375,6 +375,7 @@ class _DirectionPane extends StatelessWidget {
               toVisa: direction == CardTransferDirection.toVisa,
               colors: colors,
               reduceMotion: reduceMotion,
+              active: active,
               height: 44.0,
             ),
             const SizedBox(
@@ -411,7 +412,6 @@ class _DirectionPane extends StatelessWidget {
                             direction: direction,
                             maskedCardNumber: maskedCardNumber,
                             amountDisplay: amountDisplay,
-                            transfersSupported: transfersSupported,
                             colors: colors,
                             onBackToAmount: onBackToAmount,
                           ),
@@ -444,6 +444,7 @@ class DirectionalMoneyFlow extends StatefulWidget {
     required this.toVisa,
     required this.colors,
     required this.reduceMotion,
+    required this.active,
     this.height = 44,
   });
 
@@ -452,13 +453,21 @@ class DirectionalMoneyFlow extends StatefulWidget {
   final bool toVisa;
   final AzamanColors colors;
   final bool reduceMotion;
+
+  /// The SELECTED direction pane — only the active pane's loop runs; the
+  /// off-screen pane's controller is STOPPED (its state remains legible
+  /// as a static painting).
+  final bool active;
   final double height;
 
   @override
-  State<DirectionalMoneyFlow> createState() => _DirectionalMoneyFlowState();
+  State<DirectionalMoneyFlow> createState() => DirectionalMoneyFlowState();
 }
 
-class _DirectionalMoneyFlowState extends State<DirectionalMoneyFlow>
+/// Public state: the loop is part of the reviewed contract — tests pin
+/// that it runs ONLY for the active direction and stops at runtime when
+/// the reduced-motion preference lands.
+class DirectionalMoneyFlowState extends State<DirectionalMoneyFlow>
     with SingleTickerProviderStateMixin {
   late final AnimationController _flow = AnimationController(
     vsync: this,
@@ -469,7 +478,32 @@ class _DirectionalMoneyFlowState extends State<DirectionalMoneyFlow>
   @override
   void initState() {
     super.initState();
-    if (!widget.reduceMotion) _flow.repeat();
+    _syncLoop();
+  }
+
+  /// Whether the travel loop is currently running (test contract).
+  bool get isLooping => _flow.isAnimating;
+
+  /// The loop follows the widget at RUNTIME: it starts only for the
+  /// ACTIVE pane without a reduced-motion preference, and stops on any
+  /// change of either — including a settings change mid-flight (the
+  /// inherited AzMotion rebuilds this widget; didUpdateWidget reacts).
+  void _syncLoop() {
+    final shouldRun = widget.active && !widget.reduceMotion;
+    if (shouldRun && !_flow.isAnimating) {
+      _flow.repeat();
+    } else if (!shouldRun && _flow.isAnimating) {
+      _flow.stop();
+    }
+  }
+
+  @override
+  void didUpdateWidget(DirectionalMoneyFlow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.active != widget.active ||
+        oldWidget.reduceMotion != widget.reduceMotion) {
+      _syncLoop();
+    }
   }
 
   @override
@@ -480,8 +514,9 @@ class _DirectionalMoneyFlowState extends State<DirectionalMoneyFlow>
 
   @override
   Widget build(BuildContext context) {
-    if (widget.reduceMotion) {
-      // Reduced motion: the direction stays legible without any travel.
+    if (widget.reduceMotion || !widget.active) {
+      // Reduced motion OR the off-screen pane: the direction stays
+      // legible without any travel — a static painting, no loop.
       return SizedBox(
         height: widget.height,
         child: CustomPaint(
@@ -747,7 +782,6 @@ class _ReviewStage extends StatelessWidget {
     required this.direction,
     required this.maskedCardNumber,
     required this.amountDisplay,
-    required this.transfersSupported,
     required this.colors,
     required this.onBackToAmount,
   });
@@ -755,7 +789,6 @@ class _ReviewStage extends StatelessWidget {
   final CardTransferDirection direction;
   final String maskedCardNumber;
   final String amountDisplay;
-  final bool transfersSupported;
   final AzamanColors colors;
   final VoidCallback onBackToAmount;
 
@@ -843,16 +876,17 @@ class _ReviewStage extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AzSpace.sm),
+                // The SAME honest copy in every state: this build has no
+                // transfer execution path at all, so no capability flag
+                // can ever imply that a transfer can be made here. When
+                // the real programme + backend settlement contract land,
+                // THAT change replaces this gate with a real submit.
                 Text(
-                  transfersSupported
-                      ? 'The card programme is ready; transfers are enabled.'
-                      // The honest copy for the SAMPLE card: the demo
-                      // programme has no real funding rail behind it.
-                      : 'Your AZM card is a sample preview. Moving money '
-                          'between your balance and a real card needs the '
-                          'Flutterwave card programme and our transfer '
-                          'settlement contract — both are coming. Nothing '
-                          'has been sent.',
+                  'Your AZM card is a sample preview. Moving money '
+                  'between your balance and a real card needs the '
+                  'Flutterwave card programme and our transfer '
+                  'settlement contract — both are coming. Nothing '
+                  'has been sent.',
                   style: AzText.caption.copyWith(
                     color: colors.textSecondary,
                     height: 1.4,

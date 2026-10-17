@@ -42,6 +42,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// A programme that CLAIMS `supportsTransfers` — a real issuer seam behind
+/// it would still need the backend transfer ledger, settlement and
+/// idempotency contract and the funding rail. The screen must not let the
+/// flag alone imply that a transfer can be made here.
+class _ProgrammeClaimingTransfers extends DemoCardProgramme {
+  @override
+  bool get supportsTransfers => true;
+}
+
 /// A susu list that never resolves — the FlippableBalanceCard watcher must
 /// degrade silently (the F-023 failure path behaving as designed); no test
 /// traffic ever leaves the process.
@@ -102,7 +111,7 @@ Widget _app(
   );
 }
 
-ProviderContainer _container() {
+ProviderContainer _container({AzmCardProgramme? programme}) {
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
@@ -111,6 +120,8 @@ ProviderContainer _container() {
       ),
       oracleRateProvider.overrideWith((ref) => 1.0),
       susuListProvider.overrideWith(_SusuListNeverLoads.new),
+      if (programme != null)
+        azmCardProgrammeProvider.overrideWith((ref) => programme),
     ],
   );
   addTearDown(container.dispose);
@@ -123,12 +134,13 @@ Future<void> _pumpTransfer(
   WidgetTester tester, {
   Size surface = const Size(400, 890),
   bool reduceMotion = false,
+  AzmCardProgramme? programme,
 }) async {
   await tester.binding.setSurfaceSize(surface);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final router = _router();
   await tester.pumpWidget(
-    _app(_container(), router, reduceMotion: reduceMotion),
+    _app(_container(programme: programme), router, reduceMotion: reduceMotion),
   );
   router.go(AzRoutes.cardTransfer);
   await tester.pump();
@@ -400,6 +412,86 @@ void main() {
       expect(flow.reduceMotion, isTrue);
       expect(flow.toVisa, isTrue);
     });
+
+    testWidgets('only the ACTIVE pane loops — the loop follows the selection',
+        (tester) async {
+      await _pumpTransfer(tester);
+
+      final toVisa = find.byKey(const ValueKey('card-transfer-flow-to-visa'));
+      expect(tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
+          isTrue,
+          reason: 'the selected pane (To Visa at mount) owns the loop');
+
+      // A fling builds the neighboring pane MID-TRANSITION: while it is
+      // merely traveling into view — not yet the selected direction —
+      // its loop must NOT start. (Off-screen, TabBarView disposes the
+      // pane entirely; the transition is the only window where a hidden
+      // loop could exist.)
+      await tester.fling(
+        find.byKey(const ValueKey('card-transfer-pane-to-visa')),
+        const Offset(-400, 0),
+        1000,
+      );
+      await tester.pump(const Duration(milliseconds: 150));
+
+      final fromVisaMid =
+          find.byKey(const ValueKey('card-transfer-flow-from-visa'));
+      expect(
+          tester.state<DirectionalMoneyFlowState>(fromVisaMid).isLooping,
+          isFalse,
+          reason: 'a pane that is only traveling into view does not loop');
+      // The STILL-selected pane keeps the loop through the transition.
+      expect(tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
+          isTrue);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // Settled on From Visa: the loop has FOLLOWED the selection. The
+      // previous page is disposed WITH its controller — there is never a
+      // hidden second loop.
+      final fromVisa =
+          find.byKey(const ValueKey('card-transfer-flow-from-visa'));
+      expect(
+          tester.state<DirectionalMoneyFlowState>(fromVisa).isLooping,
+          isTrue,
+          reason: 'the newly selected pane now owns the loop');
+      expect(find.byKey(const ValueKey('card-transfer-flow-to-visa')),
+          findsNothing,
+          reason: 'the previous pane is fully disposed with its controller');
+    });
+
+    testWidgets('a runtime reduced-motion change stops — and re-allows — the loop',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 890));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final router = _router();
+      final container = _container();
+      await tester.pumpWidget(_app(container, router, reduceMotion: false));
+      router.go(AzRoutes.cardTransfer);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final toVisa = find.byKey(const ValueKey('card-transfer-flow-to-visa'));
+      expect(tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
+          isTrue);
+
+      // The preference flips at runtime (settings → AzMotion rebuild).
+      // The widget state persists; only the inherited motion changes —
+      // didUpdateWidget must react by stopping the loop.
+      await tester.pumpWidget(_app(container, router, reduceMotion: true));
+      await tester.pump();
+      expect(tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
+          isFalse,
+          reason: 'reduced motion lands mid-flight: the loop stops');
+
+      // And back: re-allowing motion resumes the loop.
+      await tester.pumpWidget(_app(container, router, reduceMotion: false));
+      await tester.pump();
+      expect(tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
+          isTrue,
+          reason: 'the loop resumes when motion is re-allowed');
+    });
   });
 
   // ── 5. AMOUNT ENTRY ─────────────────────────────────────────────────────
@@ -477,6 +569,36 @@ void main() {
       expect(find.text('Transfer sent'), findsNothing);
       expect(find.text('Success'), findsNothing);
       expect(find.textContaining('sample preview'), findsOneWidget);
+    });
+
+    testWidgets('a programme CLAIMING supportsTransfers still cannot imply '
+        'that a transfer can be made here', (tester) async {
+      await _pumpTransfer(
+        tester,
+        programme: _ProgrammeClaimingTransfers(),
+      );
+
+      // Drive to the review stage so the gate is visible.
+      await _tapKey(tester, '1');
+      await _tapKey(tester, '2');
+      await tester
+          .tap(find.byKey(const ValueKey('card-transfer-review-cta')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // The flag alone NEVER flips the copy or the submit: this build has
+      // no transfer execution path, so it cannot claim enablement.
+      expect(find.textContaining('transfers are enabled'), findsNothing);
+      expect(find.textContaining('programme is ready'), findsNothing);
+      expect(find.textContaining('sample preview'), findsOneWidget,
+          reason: 'the honest gate copy is state-independent');
+      final submit = find.byKey(const ValueKey('card-transfer-submit'));
+      expect(
+        tester.widget<Semantics>(
+          find.ancestor(of: submit, matching: find.byType(Semantics)).first,
+        ).properties.enabled,
+        isFalse,
+        reason: 'submit stays structurally disabled regardless of the flag');
     });
   });
 
