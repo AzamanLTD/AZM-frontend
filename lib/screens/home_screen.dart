@@ -27,11 +27,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -45,6 +47,7 @@ import 'package:azaman/widgets/home/az_refresh_reward.dart';
 import 'package:azaman/providers/home_shell_active_provider.dart';
 import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
+import 'package:azaman/widgets/home/visa_transfer_seam_control.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
@@ -885,15 +888,23 @@ class _DeckHostState extends ConsumerState<_DeckHost> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PullRevealCardDeck(
-          key: _deckKey,
+        // BALANCE ↔ VISA TRANSFER (2026-10-17): the circular seam control
+        // rides the two cards' stable overlap band (see the widget) and
+        // opens the full-height Card Transfer surface. The deck's own
+        // gesture surface is untouched underneath the control.
+        VisaTransferSeamAnchor(
           cardHeight: _cardHeight,
-          topCard: const TapHintOverlay(
-            hintKey: 'has_seen_flippable_card_hint',
-            child: FlippableBalanceCard(),
+          onTransfer: () => context.push(AzRoutes.cardTransfer),
+          child: PullRevealCardDeck(
+            key: _deckKey,
+            cardHeight: _cardHeight,
+            topCard: const TapHintOverlay(
+              hintKey: 'has_seen_flippable_card_hint',
+              child: FlippableBalanceCard(),
+            ),
+            bottomCard: const AzmVisaCard(),
+            onRevealChanged: _onRevealChanged,
           ),
-          bottomCard: const AzmVisaCard(),
-          onRevealChanged: _onRevealChanged,
         ),
         // §6: sensitive card content appears ONLY after the gate passes.
         if (_detailsUnlocked)

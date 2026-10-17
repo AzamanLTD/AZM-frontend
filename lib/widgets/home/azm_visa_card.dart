@@ -59,6 +59,24 @@ abstract class AzmCardProgramme {
 
   /// Cardholder display name.
   String get cardholderLabel;
+
+  /// BALANCE ↔ VISA TRANSFER CAPABILITY GATE (2026-10-17).
+  ///
+  /// Whether this programme can actually move funds between the AZM
+  /// balance and the issued card. The Home UI may OFFER the transfer
+  /// experience, but submission stays disabled while this is false —
+  /// the demo programme must never pretend a transfer can succeed.
+  ///
+  /// A real implementation flips this to true ONLY together with the
+  /// backend transfer ledger/settlement/idempotency contract: a
+  /// `POST /card/transfer` initiation + confirmation pair, idempotent
+  /// by operation key, settling through the card programme's funding
+  /// rail (Flutterwave card programme capabilities for virtual card
+  /// funding/top-up and payout).
+  ///
+  /// Default false — additive: existing implementors (the demo
+  /// programme) inherit the honest "not available yet" behaviour.
+  bool get supportsTransfers => false;
 }
 
 /// The placeholder programme. PLACEHOLDER — REPLACE WITH THE REAL CARD
@@ -104,6 +122,12 @@ class DemoCardProgramme implements AzmCardProgramme {
 
   @override
   String get cardholderLabel => 'CARDHOLDER';
+
+  /// The capability gate, EXPLICIT on the demo programme: a sample card
+  /// can never move real money, so the Balance ↔ Visa transfer surface
+  /// keeps submission disabled while this programme is mounted.
+  @override
+  bool get supportsTransfers => false;
 
   static bool _valid(String pin) =>
       pin.length >= 4 && pin.length <= 6 && RegExp(r'^\d+$').hasMatch(pin);
