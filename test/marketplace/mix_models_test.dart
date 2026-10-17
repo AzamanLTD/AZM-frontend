@@ -126,6 +126,26 @@ void main() {
       expect(offer.capabilities.payableIn, ['USDC']);
 
       expect(offer.rankScore, 0.42);
+
+      // The genuine store logo: TODAY'S overlay does not select it, so the
+      // absent field must parse to null — never an item image, never
+      // invented.
+      expect(offer.businessLogoUrl, isNull);
+    });
+
+    test('a payload that carries the genuine store logo maps it unchanged', () {
+      final dto = _dto();
+      dto['businessLogoUrl'] = 'https://cdn.example/biz-logos/bp-1.png';
+      final offer = MixOffer.fromDiscoveryDto(dto);
+      expect(offer.businessLogoUrl, 'https://cdn.example/biz-logos/bp-1.png');
+    });
+
+    test('a non-string businessLogoUrl never becomes a broken image URL', () {
+      final dto = _dto();
+      dto['businessLogoUrl'] = 42;
+      final offer = MixOffer.fromDiscoveryDto(dto);
+      expect(offer.businessLogoUrl, '42',
+          reason: 'toString coercion mirrors the other identity fields');
     });
 
     test('item.imageUrl is the first of item.images (DTO contract)', () {

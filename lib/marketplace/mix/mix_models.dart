@@ -305,6 +305,15 @@ class MixOffer {
   final String bizId;
   final String businessName;
   final String businessCategory;
+
+  /// The offering store's GENUINE logo URL, or null. Parsed from the
+  /// discovery DTO's optional top-level `businessLogoUrl` — the business's
+  /// own `BusinessProfile.logoUrl`. Today's discovery overlay does NOT
+  /// select the logo, so this is null on the wire and the tile's store row
+  /// degrades to the storefront glyph + name. The logo is NEVER inferred
+  /// and NEVER substituted with an item image or any other URL.
+  final String? businessLogoUrl;
+
   final String name;
   final String? description;
   final List<String> imageUrls;
@@ -347,6 +356,7 @@ class MixOffer {
     required this.bizId,
     required this.businessName,
     required this.businessCategory,
+    this.businessLogoUrl,
     required this.name,
     required this.price,
     this.description,
@@ -405,6 +415,9 @@ class MixOffer {
       bizId: (json['bizId'] ?? '').toString(),
       businessName: (json['businessName'] ?? '').toString(),
       businessCategory: (json['businessCategory'] ?? '').toString(),
+      // Optional forward field: the genuine store logo, absent on today's
+      // wire (fail-closed null) — see the field doc above.
+      businessLogoUrl: json['businessLogoUrl']?.toString(),
       name: (item['name'] ?? '').toString(),
       description: item['description']?.toString(),
       imageUrls: _toStringList(item['images']),

@@ -16,6 +16,11 @@
 //
 // MONEY/DATA GUARANTEES (PR #153, unchanged): server order, server-verified
 // exact 2dp GHS strings, no client ranking, payableIn rails only.
+//
+// FORMAT: the ready feed renders PRODUCT-GALLERY TILES — two near-square
+// MixOfferCards per row (responsive at every phone width: 320dp → ~148dp
+// tiles, 390dp → ~179dp tiles). Server ORDER is untouched: reading order is
+// left-to-right, top-to-bottom, exactly the payload order.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -29,6 +34,33 @@ import 'package:azaman/widgets/az_error_surface.dart';
 import 'package:azaman/widgets/az_skeleton.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_offer_card.dart';
+
+/// One gallery-format loading tile: a square image block over the panel
+/// blocks, mirroring the ready tile's composition at every width.
+class _TileSkeleton extends StatelessWidget {
+  const _TileSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(AzSpace.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 1,
+            child: AzSkeleton(
+                width: double.infinity, height: 16, borderRadius: AzRadius.lg),
+          ),
+          SizedBox(height: AzSpace.xs),
+          AzSkeleton(height: 36, borderRadius: AzRadius.md),
+          SizedBox(height: AzSpace.xs),
+          AzSkeleton(height: 12, width: 70),
+        ],
+      ),
+    );
+  }
+}
 
 /// The Mix feed body: phase-switched states + the cursor-paginated offer
 /// feed. Both Mix surfaces (in-place mode + compatibility wrapper) render
@@ -62,33 +94,28 @@ class MixFeedSurface extends ConsumerWidget {
   }
 
   Widget _loading() {
+    // Gallery-grid skeletons: 6 tiles = 3 pair rows, mirroring the ready
+    // feed's two-column product format.
     return ListView.builder(
       key: const ValueKey('mix_loading'),
       padding: _insets(),
-      itemCount: 6,
+      itemCount: 3,
+      // The row measures the ALREADY-INSETTED content width, so the pair
+      // exactly fills the row at every phone width.
       itemBuilder: (_, __) => const Padding(
         padding: EdgeInsets.only(bottom: AzSpace.sm),
         child: Row(
           children: [
-            AzSkeleton(width: 96, height: 96, borderRadius: AzRadius.lg),
-            SizedBox(width: AzSpace.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AzSkeleton(height: 14, width: 180),
-                  SizedBox(height: AzSpace.sm),
-                  AzSkeleton(height: 12, width: 120),
-                  SizedBox(height: AzSpace.sm),
-                  AzSkeleton(height: 12, width: 80),
-                ],
-              ),
-            ),
+            Expanded(child: _TileSkeleton()),
+            SizedBox(width: AzSpace.sm),
+            Expanded(child: _TileSkeleton()),
           ],
         ),
       ),
     );
   }
+
+
 
   Widget _failed(WidgetRef ref, MarketplaceMixState state) {
     return Center(
@@ -183,12 +210,33 @@ class MixFeedSurface extends ConsumerWidget {
       child: ListView.builder(
         key: const ValueKey('mix_feed'),
         padding: _insets(),
-        itemCount: state.offers.length + 1,
+        // Pair rows keep server ORDER: offers 2i and 2i+1 render left and
+        // right of one row, then the next pair — exactly payload order.
+        itemCount: (state.offers.length + 1) ~/ 2 + 1,
         itemBuilder: (context, i) {
-          if (i < state.offers.length) {
-            return MixOfferCard(
-              offer: state.offers[i],
-              onOpenStore: onOpenStore,
+          final left = 2 * i;
+          if (left < state.offers.length) {
+            final right = left + 1;
+            final hasRight = right < state.offers.length;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: MixOfferCard(
+                    offer: state.offers[left],
+                    onOpenStore: onOpenStore,
+                  ),
+                ),
+                const SizedBox(width: AzSpace.sm),
+                Expanded(
+                  child: hasRight
+                      ? MixOfferCard(
+                          offer: state.offers[right],
+                          onOpenStore: onOpenStore,
+                        )
+                      : const SizedBox(),
+                ),
+              ],
             );
           }
           return _feedTail(state);
