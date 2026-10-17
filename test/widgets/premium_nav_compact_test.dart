@@ -178,11 +178,13 @@ void main() {
 
       // No overflow exceptions, no clipped geometry.
       expect(tester.takeException(), isNull);
-      // The label decision is MEASURED against the real remaining width:
-      // it shows only when the labeled pill genuinely fits (the test font
-      // runs wide, so at 320px with the launcher it may fall back).
+      // The label decision is MEASURED against the pill's actual
+      // interior budget. With the placement fix (the pill's lateral inset
+      // applies only to the screen-edge side), the interior at 320dp is:
+      //   320 - 16 (outer right inset) - 8 (spacer) - 54 (launcher)
+      //   - 16 (left lateral inset) - 16 (pill's own padding) = 210.
       final labelFits =
-          tester.getSize(find.text('Home')).width + 151 <= 190;
+          tester.getSize(find.text('Home')).width + 151 <= 210;
       expect(_labelOpacity(tester, 'Home'), labelFits ? 1.0 : 0.0);
       // The + launcher is still beside the pill.
       expect(find.byKey(const ValueKey('plus-stand-in')), findsOneWidget);
@@ -330,6 +332,109 @@ void main() {
         reason: 'the pushed page was popped back to the shell base',
       );
       expect(requested, [2], reason: 'the shell bus got the tab switch');
+    });
+  });
+
+  group('6. placement geometry — [pill] 8dp [launcher] 16dp [edge]', () {
+    // The review requirement: the launcher stays on the RIGHT of the pill
+    // (order never reverts to the NEW-LEFT experiment) with the EXPLICIT
+    // composition gap measured, not eyeballed — the same 8dp spacer is the
+    // WHOLE visible gap at narrow and normal widths (the pill's lateral
+    // inset never leaks into it), the launcher is pinned 16dp from the
+    // screen edge, and both controls share one vertical center.
+    for (final width in [320.0, 430.0]) {
+      testWidgets('pill → launcher relationship measured at ${width.toInt()}dp',
+          (tester) async {
+        tester.view.physicalSize = Size(width, 400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(_harness(selectedIndex: 0, size: Size(width, 400)));
+        await tester.pumpAndSettle();
+
+        final pillRect = tester.getRect(
+          find
+              .descendant(
+                of: find.byType(PremiumBottomNav),
+                matching: find.byType(AnimatedContainer),
+              )
+              .first,
+        );
+        final plusRect =
+            tester.getRect(find.byKey(const ValueKey('plus-stand-in')));
+
+        // ORDER: [nav pill] then [AZM launcher] — never left of it.
+        expect(pillRect.left < plusRect.left, isTrue,
+            reason: 'the launcher sits RIGHT of the pill');
+        expect(pillRect.right <= plusRect.left, isTrue,
+            reason: 'no overlap between pill and launcher');
+
+        // THE GAP: exactly the band's spacer — the pill's lateral inset
+        // (16dp at rest) must NOT leak into the composition gap.
+        expect(plusRect.left - pillRect.right, closeTo(8, 0.5),
+            reason:
+                'pill edge → launcher = 8dp exactly '
+                '(measured \${plusRect.left - pillRect.right}dp '
+                'at ${width.toInt()}dp)');
+
+        // The composition packs from the start edge, so any slack sits
+        // BETWEEN the launcher and the screen edge — never between the
+        // two controls. The named outer right inset is the MINIMUM
+        // clearance: the launcher can never sit flush against the edge.
+        expect(width - plusRect.right, greaterThanOrEqualTo(16),
+            reason: 'the launcher always clears the viewport edge by '
+                '>= 16dp (outer right inset)');
+
+        // Whole-composition alignment: one shared vertical center.
+        expect(
+          (pillRect.center.dy - plusRect.center.dy).abs(),
+          lessThan(0.5),
+          reason: 'the launcher is vertically centered on the pill',
+        );
+      });
+    }
+
+    testWidgets('no trailing control → the pill keeps symmetric lateral '
+        'inset (no dead gap where a launcher would be)', (tester) async {
+      await tester.pumpWidget(_harness(selectedIndex: 0, size: const Size(430, 400))
+        );
+      // _harness always passes a trailing stand-in; re-pump without one.
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          totalUnreadChatCountProvider.overrideWith((ref) async => 0),
+          activeTradeCountProvider.overrideWith((ref) async => 0),
+          unreadCountProvider.overrideWith((ref) => 0),
+        ],
+        child: MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(430, 400)),
+            child: Scaffold(
+              bottomNavigationBar: PremiumBottomNav(
+                selectedIndex: 0,
+                onItemSelected: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      final pillRect = tester.getRect(
+        find
+            .descendant(
+              of: find.byType(PremiumBottomNav),
+              matching: find.byType(AnimatedContainer),
+            )
+            .first,
+      );
+      // Without a trailing control the lateral inset applies on BOTH
+      // sides: the pill anchors 16dp from the left edge (its right side
+      // still carries the inset slot — the pill is content-sized, so
+      // nothing renders there; what matters is it never stretches to
+      // the band edge).
+      expect(pillRect.left, closeTo(16, 0.5));
+      expect(pillRect.right, lessThan(430 - 16),
+          reason: 'no dead-gap spacer to a missing launcher');
     });
   });
 }

@@ -399,6 +399,16 @@ class PremiumBottomNav extends ConsumerWidget {
             padding:
                 const EdgeInsets.only(right: NavScrollCompression.outerRightInset),
             child: Row(
+            // EXPLICIT composition rule (review round 2): the band reads
+            // as ONE bottom control system, packed from the start edge —
+            //   [pill] —8dp gap— [launcher] —(slack)— 16dp minimum — edge
+            // The 8dp spacer is the WHOLE gap between the two controls;
+            // any width slack sits between the launcher and the screen
+            // edge (never inside the pair), and the named outer right
+            // inset is the launcher's MINIMUM edge clearance. The pill's
+            // lateral inset applies only to the side facing the screen
+            // edge (left). Both controls share one vertical center.
+            mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // COMPACT-NAV — the pill WRAPS TO ITS CONTENT instead of
@@ -408,7 +418,16 @@ class PremiumBottomNav extends ConsumerWidget {
               // width assumption).
               Flexible(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: inset),
+                  // The lateral inset insets the pill from the SCREEN
+                  // EDGE (left). The RIGHT side does NOT carry it when a
+                  // trailing control exists — otherwise the visible gap
+                  // to the launcher reads inset+spacer (24dp at rest)
+                  // instead of the spacer alone (8dp). Without a trailing
+                  // control the inset stays symmetric.
+                  padding: EdgeInsets.only(
+                    left: inset,
+                    right: trailing == null ? inset : 0.0,
+                  ),
                   child: Opacity(
             // Never below `compressedOpacity` (0.92): the page must not show
             // through a floating pill, or it reads as a rendering bug.
