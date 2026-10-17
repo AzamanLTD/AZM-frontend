@@ -19,7 +19,7 @@ class _WorkerTimeOffScreenState extends ConsumerState<WorkerTimeOffScreen> {
     setState(() => _submitting = true);
     try {
       final client = ref.read(apiClientProvider);
-      final res = await client.post('/api/business-os/employees/time-off', {
+      final res = await client.post('/business-os/employees/time-off', {
         'type': _selectedType.name.toUpperCase(),
         'startDate': _startDate.toIso8601String(),
         'endDate': _endDate.toIso8601String(),

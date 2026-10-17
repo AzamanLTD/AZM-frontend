@@ -7,7 +7,7 @@ import 'dart:convert';
 final openSwapsProvider = FutureProvider<List<dynamic>>((ref) async {
   final client = ref.read(apiClientProvider);
   try {
-    final res = await client.get('/api/business-os/employees/shifts/open');
+    final res = await client.get('/business-os/employees/shifts/open');
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     return body['swaps'] as List<dynamic>? ?? [];

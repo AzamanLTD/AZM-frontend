@@ -36,7 +36,7 @@ class _WorkerEwaScreenState extends ConsumerState<WorkerEwaScreen> {
     setState(() => _submitting = true);
     try {
       final client = ref.read(apiClientProvider);
-      final res = await client.post('/api/business-os/employees/my-ewa-request', {'amount': amount, 'clientRequestId': _idempotencyKey});
+      final res = await client.post('/business-os/employees/my-ewa-request', {'amount': amount, 'clientRequestId': _idempotencyKey});
       if (res.statusCode == 200) {
         ref.refresh(myEwaProvider);
         ref.refresh(workerDashboardProvider);

@@ -1,6 +1,9 @@
 // =============================================================================
 // WORKER PROVIDER — Riverpod state for the Worker Sub-Portal
 // API pattern: jsonDecode(res.body) — matches BusinessService
+// Endpoint convention: ApiClient.baseUrl already carries the '/api'
+// prefix, so paths are written WITHOUT it (e.g. '/business-os/...').
+// Writing '/api/business-os/...' doubles to '/api/api/...' → 404.
 // =============================================================================
 
 import 'dart:convert';
@@ -11,7 +14,7 @@ import 'package:azaman/models/employee_models.dart';
 final workerDashboardProvider = FutureProvider<WorkerDashboard?>((ref) async {
   final client = ref.read(apiClientProvider);
   try {
-    final res = await client.get('/api/business-os/employees/my-dashboard');
+    final res = await client.get('/business-os/employees/my-dashboard');
     if (res.statusCode != 200) return null;
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) return null;
@@ -26,7 +29,7 @@ final workerDashboardProvider = FutureProvider<WorkerDashboard?>((ref) async {
 final myEmployeeProvider = FutureProvider<BusinessEmployee?>((ref) async {
   final client = ref.read(apiClientProvider);
   try {
-    final res = await client.get('/api/business-os/employees/me');
+    final res = await client.get('/business-os/employees/me');
     if (res.statusCode != 200) return null;
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) return null;
@@ -41,7 +44,7 @@ final myEmployeeProvider = FutureProvider<BusinessEmployee?>((ref) async {
 final myShiftsProvider = FutureProvider<List<Shift>>((ref) async {
   final client = ref.read(apiClientProvider);
   try {
-    final res = await client.get('/api/business-os/employees/my-shifts');
+    final res = await client.get('/business-os/employees/my-shifts');
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final list = body['shifts'] as List<dynamic>? ?? [];
@@ -54,7 +57,7 @@ final myShiftsProvider = FutureProvider<List<Shift>>((ref) async {
 final myPayrollProvider = FutureProvider<List<PayrollRecord>>((ref) async {
   final client = ref.read(apiClientProvider);
   try {
-    final res = await client.get('/api/business-os/employees/my-payroll');
+    final res = await client.get('/business-os/employees/my-payroll');
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final list = body['records'] as List<dynamic>? ?? [];
@@ -67,7 +70,7 @@ final myPayrollProvider = FutureProvider<List<PayrollRecord>>((ref) async {
 final myEwaProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final client = ref.read(apiClientProvider);
   try {
-    final res = await client.get('/api/business-os/employees/my-earnings');
+    final res = await client.get('/business-os/employees/my-earnings');
     if (res.statusCode != 200) return {};
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     return {
@@ -85,7 +88,7 @@ final myEwaProvider = FutureProvider<Map<String, dynamic>>((ref) async {
 final myFeedbackProvider = FutureProvider<List<EmployeeFeedback>>((ref) async {
   final client = ref.read(apiClientProvider);
   try {
-    final res = await client.get('/api/business-os/employees/my-feedback');
+    final res = await client.get('/business-os/employees/my-feedback');
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final list = body['feedback'] as List<dynamic>? ?? [];
@@ -98,7 +101,7 @@ final myFeedbackProvider = FutureProvider<List<EmployeeFeedback>>((ref) async {
 final myTimeOffProvider = FutureProvider<List<TimeOffRequest>>((ref) async {
   final client = ref.read(apiClientProvider);
   try {
-    final res = await client.get('/api/business-os/time-off/my-requests');
+    final res = await client.get('/business-os/time-off/my-requests');
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final list = body['requests'] as List<dynamic>? ?? [];
