@@ -218,25 +218,30 @@ class MixFeedSurface extends ConsumerWidget {
           if (left < state.offers.length) {
             final right = left + 1;
             final hasRight = right < state.offers.length;
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: MixOfferCard(
-                    offer: state.offers[left],
-                    onOpenStore: onOpenStore,
+            // The ROW owns the grid's vertical gutter (the tile rect is
+            // pure tile — the geometry contract measures it directly).
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AzSpace.sm),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: MixOfferCard(
+                      offer: state.offers[left],
+                      onOpenStore: onOpenStore,
+                    ),
                   ),
-                ),
-                const SizedBox(width: AzSpace.sm),
-                Expanded(
-                  child: hasRight
-                      ? MixOfferCard(
-                          offer: state.offers[right],
-                          onOpenStore: onOpenStore,
-                        )
-                      : const SizedBox(),
-                ),
-              ],
+                  const SizedBox(width: AzSpace.sm),
+                  Expanded(
+                    child: hasRight
+                        ? MixOfferCard(
+                            offer: state.offers[right],
+                            onOpenStore: onOpenStore,
+                          )
+                        : const SizedBox(),
+                  ),
+                ],
+              ),
             );
           }
           return _feedTail(state);

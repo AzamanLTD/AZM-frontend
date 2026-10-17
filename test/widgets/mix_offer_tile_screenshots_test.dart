@@ -385,9 +385,16 @@ void main() {
         expect(firstPair.width,
             closeTo((width - 2 * AzSpace.lg - AzSpace.sm) / 2, 1),
             reason: 'each tile is a responsive half-feed cell');
-        final a = tester.getSize(tiles.at(0));
-        expect(a.height, greaterThan(a.width * 0.9),
-            reason: 'near-square: tall-product tile, not a squat row card');
+        // The WHOLE tile honors the gallery geometry contract — an upper
+        // bound (≤ 1.5, 2:3) AND the square-image floor (≥ 1.0), measured
+        // per capture at the reference width.
+        final a = tester.getRect(tiles.at(0)).size;
+        final ratio = a.height / a.width;
+        expect(ratio, greaterThanOrEqualTo(1.0),
+            reason: 'the square image anchors the ratio floor');
+        expect(ratio, lessThanOrEqualTo(1.5),
+            reason: 'the whole tile is near-square (measured $ratio '
+                'at tile width ${a.width})');
 
         // The product image is a square filling the tile width.
         final imageA = tester.getSize(

@@ -1,22 +1,30 @@
 // =============================================================================
 // AZAMAN — MIX OFFER CARD (product-gallery tile)
 //
-// One item offered by ONE business in the selected category: a near-square
-// product tile — a large square product image over a DISTINCT lower
+// One item offered by ONE business in the selected category: a product
+// tile — a full-width SQUARE product image over a compact, DISTINCT lower
 // information panel — item identity and offering store rendered TOGETHER
 // (the Mix invariant), plus honest price, payment-rail and availability
 // states. The gallery format is deliberately unlike the horizontal
 // store/list cards used elsewhere in the app: image-forward, half-feed
 // width, with an inset panel that carries its own surface color.
 //
+// GEOMETRY CONTRACT (pinned in test/widgets/mix_offer_card_test.dart):
+//   • The product image is a 1:1 SQUARE filling the tile width.
+//   • The WHOLE tile is near-square: height ≤ 1.5 × width (a 2:3
+//     product-tile ratio at the WORST case, the 320dp feed cell) and
+//     ≥ 1.0 × width (the square image anchors the floor). The panel is
+//     the only addition and it is capped with it: one-line name, one
+//     price line, one store row — nothing else. Chips are NOT panel
+//     content; they overlay the image so they can never grow the tile.
 // PRICE GRAMMAR (pinned in test/widgets/mix_offer_card_test.dart):
 //   • Known price  → `AzMoney.ghsExact(pricing.amount)` — the EXACT
 //     two-decimal GHS string from the server's verified BusinessPrice row.
 //     String in, string out: the amount is NEVER parsed into a double, so
 //     no float can ever round a pesewa.
 //   • Unknown price (absent/malformed/non-GHS payload) → "Price
-//     unavailable" — never `priceUsdc`, never a converted USDC figure, never
-//     "GH₵ 0.00", never "Price on request".
+//     unavailable" — never `priceUsdc`, never a converted USDC figure,
+//     never "GH₵ 0.00", never "Price on request".
 // PAYMENT-RAIL GRAMMAR (honest capability, §5.3):
 //   • `capabilities.payableIn` renders as a quiet "USDC" rail chip when
 //     non-empty (today the merged endpoint reports `['USDC']`).
@@ -50,7 +58,11 @@ import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
 /// The diameter of the store row's logo chip.
-const double kMixStoreLogoSize = 20;
+const double kMixStoreLogoSize = 16;
+
+/// The whole-tile ratio ceiling: height ≤ 1.5 × width (2:3). Enforced at
+/// the worst case — the 320dp feed cell.
+const double kMixTileMaxHeightRatio = 1.5;
 
 class MixOfferCard extends ConsumerWidget {
   final MixOffer offer;
@@ -78,113 +90,123 @@ class MixOfferCard extends ConsumerWidget {
     final price = offer.price;
     final priceText = price.isKnown ? AzMoney.ghsExact(price.amountExact) : null;
 
-    return Padding(
-      // Row gutter between paired tiles comes from the feed's pair row;
-      // the bottom inset keeps vertical breathing room stable in the grid.
-      padding: const EdgeInsets.only(bottom: AzSpace.sm),
-      child: ScaleTap(
-        onTap: () => onOpenStore(offer),
-        child: Container(
-          key: ValueKey('mix_offer_${offer.offerKey}'),
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(AzRadius.lg),
-            border: Border.all(color: colors.divider, width: 0.5),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // ── Product image: a full-width SQUARE — the gallery format's
-              // near-square anchor. Absent/failed image → the glyph
-              // fallback, never a stretched placeholder.
-              AspectRatio(
-                aspectRatio: 1,
-                child: AzamanNetworkImage(
-                  imageUrl: offer.primaryImage,
-                  cacheManager: cacheManager,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => _imageFallback(colors),
-                  errorWidget: (_, __, ___) => _imageFallback(colors),
-                ),
-              ),
-              // ── The DISTINCT lower information panel: its own inset
-              // surface, visually separated from the image and from the
-              // store/list cards used elsewhere in the app.
-              Padding(
-                padding: const EdgeInsets.all(AzSpace.xs),
-                child: Container(
-                  key: const ValueKey('mix_offer_panel'),
-                  padding: const EdgeInsets.all(AzSpace.sm),
-                  decoration: BoxDecoration(
-                    color: colors.softSurface,
-                    borderRadius: BorderRadius.circular(AzRadius.md),
+    return ScaleTap(
+      onTap: () => onOpenStore(offer),
+      child: Container(
+        key: ValueKey('mix_offer_${offer.offerKey}'),
+        clipBehavior: Clip.antiAlias,
+        // No vertical padding on the tile itself — the feed's pair row
+        // owns the grid gutter, so the tile rect IS the visual tile the
+        // geometry contract measures.
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(AzRadius.lg),
+          border: Border.all(color: colors.divider, width: 0.5),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── Product image: a full-width SQUARE — the gallery format's
+            // near-square anchor. Absent/failed image → the glyph
+            // fallback, never a stretched placeholder. Server-reported
+            // chips (payment rail / availability) OVERLAY the image so
+            // they can never grow the tile's height.
+            AspectRatio(
+              aspectRatio: 1,
+              child: Stack(
+                fit: StackFit.passthrough,
+                children: [
+                  AzamanNetworkImage(
+                    imageUrl: offer.primaryImage,
+                    cacheManager: cacheManager,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => _imageFallback(colors),
+                    errorWidget: (_, __, ___) => _imageFallback(colors),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Item identity.
-                      Text(
-                        offer.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AzText.title.copyWith(
-                            color: colors.textPrimary, fontSize: 13.5, height: 1.2),
+                  if (_hasChips)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (offer.capabilities.payableIn.isNotEmpty)
+                            _chip(colors, offer.capabilities.payableIn.join('/')),
+                          if (offer.isAvailable == false)
+                            _chip(colors, 'Unavailable'),
+                          if (offer.sectionWindowOpen == false)
+                            _chip(colors, 'Opens later'),
+                        ],
                       ),
-                      const SizedBox(height: AzSpace.xs),
-                      // Price — see the grammar in the file header. The
-                      // exact string never touches a double.
-                      if (priceText != null)
-                        Text(
-                          priceText,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AzText.money(colors.textPrimary, size: 14),
-                        )
-                      else
-                        Text(
-                          'Price unavailable',
-                          key: const ValueKey('mix_price_unavailable'),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style:
-                              AzText.bodyS.copyWith(color: colors.textTertiary),
-                        ),
-                      const SizedBox(height: AzSpace.xs),
-                      // Offering business — never omitted: the Mix
-                      // invariant. The GENUINE logo when the payload has
-                      // one; the storefront glyph otherwise.
-                      _storeRow(colors),
-                      // Payment rail + availability — only what the SERVER
-                      // reported. Never GHS payment. Never inferred.
-                      if (offer.capabilities.payableIn.isNotEmpty ||
-                          offer.isAvailable == false ||
-                          offer.sectionWindowOpen == false) ...[
-                        const SizedBox(height: AzSpace.xs),
-                        Wrap(
-                          spacing: AzSpace.xs,
-                          runSpacing: AzSpace.xxs,
-                          children: [
-                            if (offer.capabilities.payableIn.isNotEmpty)
-                              _chip(colors, offer.capabilities.payableIn.join('/')),
-                            if (offer.isAvailable == false)
-                              _chip(colors, 'Unavailable'),
-                            if (offer.sectionWindowOpen == false)
-                              _chip(colors, 'Opens later'),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                ],
+              ),
+            ),
+            // ── The compact, DISTINCT lower information panel: its own
+            // inset surface. Exactly three fixed rows — name, price,
+            // store — so the whole-tile ratio ceiling holds at every
+            // width.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AzSpace.xs, 2, AzSpace.xs, 3),
+              child: Container(
+                key: const ValueKey('mix_offer_panel'),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: colors.softSurface,
+                  borderRadius: BorderRadius.circular(AzRadius.md),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Item identity — one line; the tile's height budget
+                    // never depends on the name's length.
+                    Text(
+                      offer.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AzText.title.copyWith(
+                          color: colors.textPrimary, fontSize: 12.5, height: 1.25),
+                    ),
+                    const SizedBox(height: 2),
+                    // Price — see the grammar in the file header. The
+                    // exact string never touches a double.
+                    if (priceText != null)
+                      Text(
+                        priceText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AzText.money(colors.textPrimary, size: 13.5),
+                      )
+                    else
+                      Text(
+                        'Price unavailable',
+                        key: const ValueKey('mix_price_unavailable'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AzText.bodyS.copyWith(color: colors.textTertiary),
+                      ),
+                    const SizedBox(height: 2),
+                    // Offering business — never omitted: the Mix
+                    // invariant. The GENUINE logo when the payload has
+                    // one; the storefront glyph otherwise.
+                    _storeRow(colors),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  bool get _hasChips =>
+      offer.capabilities.payableIn.isNotEmpty ||
+      offer.isAvailable == false ||
+      offer.sectionWindowOpen == false;
 
   /// The compact store identity row: genuine logo (or glyph) + name.
   Widget _storeRow(AzamanColors colors) => Row(
@@ -216,22 +238,28 @@ class MixOfferCard extends ConsumerWidget {
               offer.businessName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AzText.bodyS.copyWith(color: colors.textSecondary),
+              style:
+                  AzText.bodyS.copyWith(color: colors.textSecondary, fontSize: 11),
             ),
           ),
         ],
       );
 
+  /// A quiet server-reported chip. Overlaid on the product image, so it
+  /// needs its own solid surface in both themes.
   Widget _chip(AzamanColors colors, String label) => Container(
         key: ValueKey('mix_chip_$label'),
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        margin: const EdgeInsets.only(bottom: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
         decoration: BoxDecoration(
           color: colors.card,
           borderRadius: BorderRadius.circular(AzRadius.xs),
+          border: Border.all(color: colors.divider, width: 0.5),
         ),
         child: Text(
           label,
-          style: AzText.caption.copyWith(color: colors.textTertiary, fontSize: 10),
+          style:
+              AzText.caption.copyWith(color: colors.textTertiary, fontSize: 9),
         ),
       );
 
@@ -245,6 +273,6 @@ class MixOfferCard extends ConsumerWidget {
         key: const ValueKey('mix_store_logo_fallback'),
         color: colors.card,
         child: Icon(Icons.storefront_outlined,
-            size: 13, color: colors.textTertiary),
+            size: 10, color: colors.textTertiary),
       );
 }
