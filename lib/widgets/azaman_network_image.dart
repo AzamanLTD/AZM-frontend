@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -25,9 +26,15 @@ class AzamanNetworkImage extends ConsumerWidget {
   final Widget Function(BuildContext, String)? placeholder;
   final Widget Function(BuildContext, String, Object)? errorWidget;
 
+  /// Optional cache manager passthrough (defaults to the manager
+  /// CachedNetworkImage uses when null — identical to previous behavior).
+  /// Lets tests feed REAL local files through the same render path.
+  final BaseCacheManager? cacheManager;
+
   const AzamanNetworkImage({
     super.key,
     required this.imageUrl,
+    this.cacheManager,
     this.width,
     this.height,
     this.fit = BoxFit.cover,
@@ -68,6 +75,7 @@ class AzamanNetworkImage extends ConsumerWidget {
       image = _fallback(colors, w, h);
     } else {
       image = CachedNetworkImage(
+        cacheManager: cacheManager,
         imageUrl: imageUrl!,
         width: width,
         height: height,
