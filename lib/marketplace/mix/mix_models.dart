@@ -307,11 +307,14 @@ class MixOffer {
   final String businessCategory;
 
   /// The offering store's GENUINE logo URL, or null. Parsed from the
-  /// discovery DTO's optional top-level `businessLogoUrl` — the business's
-  /// own `BusinessProfile.logoUrl`. Today's discovery overlay does NOT
-  /// select the logo, so this is null on the wire and the tile's store row
-  /// degrades to the storefront glyph + name. The logo is NEVER inferred
-  /// and NEVER substituted with an item image or any other URL.
+  /// discovery DTO's top-level `businessLogoUrl` — the business's own
+  /// `BusinessProfile.logoUrl`, exposed since backend PR #354
+  /// (GET /api/discovery/items). Strictly validated via [_strictLogoUrl]:
+  /// only a non-empty http(s) URL string is accepted; a wrong type, blank
+  /// string, malformed URL, or unsupported scheme is treated as absent and
+  /// the tile's store row degrades to the storefront glyph + name. The
+  /// logo is NEVER inferred and NEVER substituted with an item image or
+  /// any other URL.
   final String? businessLogoUrl;
 
   final String name;
@@ -415,9 +418,10 @@ class MixOffer {
       bizId: (json['bizId'] ?? '').toString(),
       businessName: (json['businessName'] ?? '').toString(),
       businessCategory: (json['businessCategory'] ?? '').toString(),
-      // Optional forward field: the genuine store logo, absent on today's
-      // wire (fail-closed null) — see the field doc above.
-      businessLogoUrl: json['businessLogoUrl']?.toString(),
+      // The genuine store logo (backend PR #354) — strictly validated:
+      // only a non-empty http(s) URL string is used; anything else is an
+      // honest absent (null) so the tile degrades to the storefront glyph.
+      businessLogoUrl: _strictLogoUrl(json['businessLogoUrl']),
       name: (item['name'] ?? '').toString(),
       description: item['description']?.toString(),
       imageUrls: _toStringList(item['images']),
@@ -438,6 +442,25 @@ class MixOffer {
       capabilities: MixOfferCapabilities.fromJson(capabilities),
       rankScore: score is num ? score.toDouble() : null,
     );
+  }
+
+  /// Strict optional-logo URL parse (app image-URL policy). A logo is
+  /// usable only when it is a genuine non-empty http(s) URL string:
+  ///   - non-String types (num, bool, map, list) → absent;
+  ///   - blank / whitespace-only strings → absent;
+  ///   - values that do not parse as a URI, or parse without a scheme
+  ///     (e.g. "www.gh.jpg") → absent;
+  ///   - schemes other than http/https (ftp:, data:, file:, ...) → absent.
+  /// Never invents or substitutes an alternative image.
+  static String? _strictLogoUrl(dynamic raw) {
+    if (raw is! String) return null;
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || !uri.hasScheme) return null;
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return null;
+    return trimmed;
   }
 
   static List<String> _toStringList(dynamic v) {

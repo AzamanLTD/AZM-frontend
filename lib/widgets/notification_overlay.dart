@@ -752,7 +752,6 @@ class _State extends ConsumerState<NotificationOverlay>
                 onDelete: () => ref
                     .read(notificationProvider.notifier)
                     .deleteNotification(n.id),
-                onSnooze: () {},
               ),
             ),
           ],
@@ -767,14 +766,12 @@ class _SlideRevealNotification extends StatefulWidget {
   final AzamanColors colors;
   final VoidCallback onMarkRead;
   final VoidCallback onDelete;
-  final VoidCallback onSnooze;
   const _SlideRevealNotification({
     super.key,
     required this.notification,
     required this.colors,
     required this.onMarkRead,
     required this.onDelete,
-    required this.onSnooze,
   });
 
   @override
@@ -861,20 +858,14 @@ class _SlideState extends State<_SlideRevealNotification>
                           ),
                         ),
                       const Spacer(),
+                      // Left-swipe offers ONLY Delete. There is no
+                      // "Later"/snooze affordance because the backend
+                      // notification contract (GET /notifications,
+                      // unread-count, PATCH :id/read, PATCH read-all) has
+                      // no snooze/mute/remind-later operation — a visible
+                      // chip that pretended to snooze without changing
+                      // anything was removed rather than kept as a no-op.
                       if (showLeft) ...[
-                        GestureDetector(
-                          onTap: () {
-                            widget.onSnooze();
-                            _snapBack();
-                          },
-                          child: _chip(
-                            c,
-                            HugeIconsSolid.clock01,
-                            'Later',
-                            c.warning,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
                         GestureDetector(
                           onTap: () {
                             widget.onDelete();
