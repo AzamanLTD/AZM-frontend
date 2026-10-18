@@ -73,9 +73,12 @@ class ProductCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
+                  // GHS availability truth (review 2026-10-18): browse
+                  // surfaces never fall back to the legacy USDC figure —
+                  // without a server-confirmed GHS price the card says so.
                   product.priceGhs != null
                       ? 'GH₵${product.priceGhs}'
-                      : '${product.priceUsdc.toStringAsFixed(2)} USDC',
+                      : 'Price unavailable',
                   style: TextStyle(
                     color: colors.accent,
                     fontSize: 15,

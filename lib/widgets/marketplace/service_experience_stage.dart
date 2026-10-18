@@ -175,7 +175,7 @@ class _ServiceExperienceStageState extends State<ServiceExperienceStage> {
                         child: Text(product.description!, maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: widget.colors.textSecondary, fontSize: 12, height: 1.35)),
                       ),
                     const SizedBox(height: 8),
-                    Text(product.priceGhs != null ? 'GH₵${product.priceGhs}' : '${product.priceUsdc.toStringAsFixed(2)} USDC', style: TextStyle(color: widget.colors.accent, fontSize: 14, fontWeight: FontWeight.w900)),
+                    Text(product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable', style: TextStyle(color: widget.colors.accent, fontSize: 14, fontWeight: FontWeight.w900)),
                     const SizedBox(height: 9),
                     SizedBox(width: double.infinity, child: FilledButton(onPressed: widget.onContinue, child: Text(widget.blueprint.detailPresentation == MarketplaceDetailPresentation.serviceDossier ? 'Continue with this' : 'Continue'))),
                   ],
@@ -219,7 +219,7 @@ class _OfferingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = '${product.name}, ${product.priceGhs != null ? 'GH₵${product.priceGhs}' : '${product.priceUsdc.toStringAsFixed(2)} USDC'}';
+    final label = '${product.name}, ${product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable'}';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
       child: AnimatedScale(
@@ -245,7 +245,7 @@ class _OfferingCard extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                     child: Row(
                       children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(product.priceGhs != null ? 'GH₵${product.priceGhs}' : '${product.priceUsdc.toStringAsFixed(2)} USDC', style: TextStyle(color: colors.accent, fontSize: 11.5, fontWeight: FontWeight.w800))])),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable', style: TextStyle(color: colors.accent, fontSize: 11.5, fontWeight: FontWeight.w800))])),
                         Icon(Icons.open_in_full_rounded, size: 17, color: colors.textTertiary),
                       ],
                     ),

@@ -7,7 +7,10 @@
 //     1dp/3dp, exponents, blanks and wrong types are ABSENT (null), never
 //     stringified and never derived from priceUsdc.
 //   • Rendering preference: a server-confirmed GHS price renders as
-//     "GH₵<exact>"; a product without one keeps the truthful USDC label.
+//     "GH₵<exact>"; a product WITHOUT one renders "Price unavailable" —
+//     browse surfaces never fall back to the legacy USDC figure
+//     (review 2026-10-18: the USDC fallback enshrined here earlier was a
+//     presentation lie once GHS became the authoritative merchant price).
 //   • No USDC→GHS conversion ever happens on browse surfaces.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,7 +88,8 @@ void main() {
       expect(find.textContaining('USDC'), findsNothing);
     });
 
-    testWidgets('no GHS price keeps the truthful USDC label (no conversion)',
+    testWidgets(
+        'no GHS price renders "Price unavailable" (no USDC fallback, no conversion)',
         (tester) async {
       await tester.pumpWidget(_wrap(Align(
         alignment: Alignment.topLeft,
@@ -95,8 +99,10 @@ void main() {
         )),
       )));
       await tester.pumpAndSettle();
-      expect(find.text('13.42 USDC'), findsOneWidget);
+      expect(find.text('Price unavailable'), findsOneWidget);
+      // No invented GHS figure and no legacy USDC price presentation.
       expect(find.textContaining('GH₵'), findsNothing);
+      expect(find.textContaining('USDC'), findsNothing);
     });
   });
 }

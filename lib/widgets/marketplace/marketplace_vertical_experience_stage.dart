@@ -278,19 +278,18 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   Widget _retailStage(BuildContext context, MarketplaceExperienceBlueprint blueprint) {
     if (business.products.isEmpty) return _bookCtaCard(icon: Icons.shopping_bag_outlined, title: 'Shop the Catalog', subtitle: 'Browse this business\'s full catalog and check out with escrow-backed payment protection.', buttonLabel: 'Shop Now', onTap: onOpenCatalogView, blueprint: blueprint);
     final products = visibleProducts.take(6).map((product) {
-      final price = product.priceUsdc.isFinite && product.priceUsdc > 0
-          ? product.priceUsdc
-          : null;
-      // Authoritative merchant GHS price wins when the server confirmed one;
-      // the exact 2dp string round-trips losslessly through the double at
-      // this precision and the dossier renders it with AzMoney.ghs.
+      // GHS availability truth (review 2026-10-18): the retail dossier
+      // carries ONLY the authoritative merchant GHS price — the legacy
+      // priceUsdc figure is never a fallback. Without a server-confirmed
+      // GHS price the dossier renders "Price unavailable".
       final ghs = product.priceGhs;
+      final ghsValue = ghs != null ? double.tryParse(ghs) : null;
       return RetailProduct(
         id: product.id,
         name: product.name,
         description: product.description,
-        price: ghs != null ? double.tryParse(ghs) ?? price : price,
-        currency: ghs != null ? 'GHS' : 'USDC',
+        price: ghsValue,
+        currency: ghsValue != null ? 'GHS' : null,
         imageUrls: product.imageUrls,
         tags: product.tags,
         available: product.isActive,
@@ -358,6 +357,12 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
           Text(
             isGhs ? AzMoney.ghs(price) : AzMoney.usdc(price),
             style: AzText.money(colors.textPrimary, size: AzText.sizeTitleXl),
+          ),
+          const SizedBox(height: AzSpace.sm),
+        ] else ...[
+          Text(
+            'Price unavailable',
+            style: AzText.body.copyWith(color: colors.textSecondary),
           ),
           const SizedBox(height: AzSpace.sm),
         ],

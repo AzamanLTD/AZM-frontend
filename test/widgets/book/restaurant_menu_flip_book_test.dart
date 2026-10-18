@@ -9,7 +9,8 @@ import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
 
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
-BusinessProduct _dish(String name, double price, {List<String> tags = const []}) {
+BusinessProduct _dish(String name, double price,
+    {List<String> tags = const [], String? priceGhs}) {
   return BusinessProduct(
     id: name.toLowerCase(),
     businessProfileId: 'b1',
@@ -17,6 +18,7 @@ BusinessProduct _dish(String name, double price, {List<String> tags = const []})
     slug: name.toLowerCase(),
     description: '$name, cooked over open fire.',
     priceUsdc: price,
+    priceGhs: priceGhs,
     totalRevenue: 0,
     imageUrls: const [],
     isActive: true,
@@ -90,12 +92,14 @@ void main() {
   testWidgets('renders dish name, price and semantic spicy indicator',
       (tester) async {
     await _pumpMenu(tester, sections: [
-      _section('Mains', [_dish('Waakye', 8.5, tags: ['spicy'])]),
+      _section('Mains', [
+        _dish('Waakye', 8.5, tags: ['spicy'], priceGhs: '8.50'),
+      ]),
     ]);
     await _openMenu(tester);
 
     expect(find.text('Waakye'), findsOneWidget);
-    expect(find.textContaining('8.5'), findsWidgets);
+    expect(find.textContaining('GH₵8.50'), findsWidgets);
     expect(find.text('Mains'), findsOneWidget);
     expect(find.byIcon(Icons.local_fire_department_outlined), findsOneWidget);
   });
