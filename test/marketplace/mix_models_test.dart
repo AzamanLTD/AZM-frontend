@@ -144,8 +144,11 @@ void main() {
       final dto = _dto();
       dto['businessLogoUrl'] = 42;
       final offer = MixOffer.fromDiscoveryDto(dto);
-      expect(offer.businessLogoUrl, '42',
-          reason: 'toString coercion mirrors the other identity fields');
+      // Strict gate: the type gate rejects it BEFORE any coercion — a
+      // coerced '42' would itself be a broken image URL. The tile degrades
+      // to the storefront glyph + name instead.
+      expect(offer.businessLogoUrl, isNull,
+          reason: 'wrong type fails closed to the glyph, never a fake URL');
     });
 
     test('item.imageUrl is the first of item.images (DTO contract)', () {
