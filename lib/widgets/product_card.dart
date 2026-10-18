@@ -72,19 +72,31 @@ class ProductCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  // GHS availability truth (review 2026-10-18): browse
-                  // surfaces never fall back to the legacy USDC figure —
-                  // without a server-confirmed GHS price the card says so.
-                  product.priceGhs != null
-                      ? 'GH₵${product.priceGhs}'
-                      : 'Price unavailable',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                // GHS availability truth (review 2026-10-18): browse
+                // surfaces never fall back to the legacy USDC figure —
+                // without a server-confirmed GHS price the card says so.
+                // The unpriced case is a status note, not a price: single
+                // line, muted, ellipsized so a narrow card can never wrap
+                // it into a layout overflow (CI regression, run 39121267400).
+                product.priceGhs != null
+                    ? Text(
+                        'GH₵${product.priceGhs}',
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      )
+                    : Text(
+                        'Price unavailable',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                 if (product.estimatedDelivery != null &&
                     product.estimatedDelivery!.isNotEmpty) ...[
                   const SizedBox(height: 4),
