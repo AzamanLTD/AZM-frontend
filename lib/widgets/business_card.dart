@@ -198,7 +198,9 @@ class BusinessCard extends ConsumerWidget {
                   style: TextStyle(color: colors.textTertiary, fontSize: 12),
                 ),
                 TextSpan(
-                  text: '${fromPrice.toStringAsFixed(2)} USDC',
+                  text: _cheapestGhs() != null
+                      ? 'GH₵${_cheapestGhs()}'
+                      : '${fromPrice.toStringAsFixed(2)} USDC',
                   style: TextStyle(
                     color: colors.accent,
                     fontSize: 15,
@@ -358,6 +360,18 @@ class BusinessCard extends ConsumerWidget {
     if (active.isEmpty) return null;
     active.sort((a, b) => a.priceUsdc.compareTo(b.priceUsdc));
     return active.first.priceUsdc;
+  }
+
+  /// Cheapest authoritative merchant GHS price across active products
+  /// (server-confirmed BusinessPrice rows only — never a converted USDC
+  /// figure). Returns the exact 2dp string the server sent.
+  String? _cheapestGhs() {
+    final priced = business.products
+        .where((p) => p.isActive && p.priceGhs != null)
+        .toList();
+    if (priced.isEmpty) return null;
+    priced.sort((a, b) => a.priceGhs!.compareTo(b.priceGhs!));
+    return priced.first.priceGhs;
   }
 
   /// Resolve the best cover image: first product imageUrl → logoUrl → null.

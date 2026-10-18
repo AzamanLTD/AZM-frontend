@@ -73,7 +73,9 @@ class ProductCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${product.priceUsdc.toStringAsFixed(2)} USDC',
+                  product.priceGhs != null
+                      ? 'GH₵${product.priceGhs}'
+                      : '${product.priceUsdc.toStringAsFixed(2)} USDC',
                   style: TextStyle(
                     color: colors.accent,
                     fontSize: 15,

@@ -281,12 +281,16 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
       final price = product.priceUsdc.isFinite && product.priceUsdc > 0
           ? product.priceUsdc
           : null;
+      // Authoritative merchant GHS price wins when the server confirmed one;
+      // the exact 2dp string round-trips losslessly through the double at
+      // this precision and the dossier renders it with AzMoney.ghs.
+      final ghs = product.priceGhs;
       return RetailProduct(
         id: product.id,
         name: product.name,
         description: product.description,
-        price: price,
-        currency: 'USDC',
+        price: ghs != null ? double.tryParse(ghs) ?? price : price,
+        currency: ghs != null ? 'GHS' : 'USDC',
         imageUrls: product.imageUrls,
         tags: product.tags,
         available: product.isActive,
