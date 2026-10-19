@@ -17,7 +17,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/business_models.dart';
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/product_card.dart';
 
 BusinessProduct _product({dynamic priceGhs, double priceUsdc = 13.42}) {

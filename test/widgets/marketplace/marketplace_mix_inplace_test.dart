@@ -21,7 +21,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/experience/gateways/marketplace_mix_gateway.dart';
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/business_provider.dart';
-import 'package:azaman/providers/marketplace_mix_provider.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_mix_screen.dart';
 import 'package:azaman/services/business_service.dart';

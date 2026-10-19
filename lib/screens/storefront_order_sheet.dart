@@ -200,20 +200,30 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
               // Quantity selector
               Text('Quantity', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary)),
               const SizedBox(height: 8),
-              Row(
+              // Wrap, not Row: at phone widths (320-390dp) the quantity
+              // stepper plus the Total chip cannot share one line — the
+              // Total chip flows to a second line instead of overflowing.
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  _QtyButton(icon: Icons.remove, onTap: () => setState(() { if (_quantity > 1) _quantity--; })),
-                  Container(
-                    width: 56, height: 44,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: colors.divider),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text('$_quantity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _QtyButton(icon: Icons.remove, onTap: () => setState(() { if (_quantity > 1) _quantity--; })),
+                      Container(
+                        width: 56, height: 44,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: colors.divider),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text('$_quantity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                      ),
+                      _QtyButton(icon: Icons.add, onTap: () => setState(() { if (_quantity < 99) _quantity++; })),
+                    ],
                   ),
-                  _QtyButton(icon: Icons.add, onTap: () => setState(() { if (_quantity < 99) _quantity++; })),
-                  const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),

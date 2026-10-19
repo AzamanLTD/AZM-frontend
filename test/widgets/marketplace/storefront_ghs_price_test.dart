@@ -24,7 +24,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/cart_provider.dart';
-import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/cart_screen.dart' show CartScreen;
 import 'package:azaman/screens/storefront_order_sheet.dart';
 import 'package:azaman/screens/storefront_screen.dart';

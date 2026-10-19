@@ -437,8 +437,14 @@ class _ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product image
-            ClipRRect(
+            // Product image. FLEXIBLE, not fixed-aspect: at phone widths
+            // (320-390dp) a 1.2-aspect image plus the intrinsic info block
+            // (name + description + tags + exact price) exceeds the
+            // childAspectRatio-0.72 grid cell. The image shrinks to give
+            // the info block its full intrinsic height — the exact GHS
+            // price is never ellipsized and the card never overflows.
+            Flexible(
+              child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
               child: AspectRatio(
                 aspectRatio: 1.2,
@@ -446,12 +452,13 @@ class _ProductCard extends StatelessWidget {
                     ? AzamanNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover,
                         errorWidget: (_, __, ___) => _ProductImageFallback(colors: colors))
                     : _ProductImageFallback(colors: colors),
+                ),
               ),
             ),
 
-            // Product info
-            Expanded(
-              child: Padding(
+            // Product info: intrinsic height — the image above absorbs
+            // whatever the cell has left.
+            Padding(
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,7 +470,6 @@ class _ProductCard extends StatelessWidget {
                       Text(description, style: TextStyle(fontSize: 11, color: colors.textSecondary),
                           maxLines: 2, overflow: TextOverflow.ellipsis),
                     ],
-                    const Spacer(),
                     // Tags row
                     if (tags.isNotEmpty)
                       Wrap(
@@ -472,8 +478,17 @@ class _ProductCard extends StatelessWidget {
                         children: tags.take(2).map((tag) => _TagChip(tag: tag, colors: colors)).toList(),
                       ),
                     const SizedBox(height: 4),
-                    // Price + Order button
-                    Row(
+                    // Price + Order button. A Wrap, not a Row: at phone
+                    // widths (320-390dp) the exact GHS price text plus the
+                    // prep time plus the Add chip cannot share one line in
+                    // a 2-column grid card. The price string is NEVER
+                    // ellipsized (exact-2dp truth) — the Add chip flows to
+                    // a second line instead of overflowing off-card.
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
                         Text(
                           priceGhs == null ? 'Price unavailable' : 'GH₵$priceGhs',
@@ -481,11 +496,8 @@ class _ProductCard extends StatelessWidget {
                               ? TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textTertiary)
                               : TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.accent),
                         ),
-                        if (prepMins != null) ...[
-                          const SizedBox(width: 6),
+                        if (prepMins != null)
                           Text('~${prepMins}min', style: TextStyle(fontSize: 10, color: colors.textSecondary)),
-                        ],
-                        const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                           decoration: BoxDecoration(
@@ -506,7 +518,6 @@ class _ProductCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
           ],
         ),
       ),

@@ -51,7 +51,8 @@ void main() {
 
     expect(find.text('Order tray'), findsOneWidget);
     expect(find.text('Koko House'), findsOneWidget);
-    expect(find.text(r'$8.00'), findsOneWidget);
+    expect(find.text('8.00 USDC'), findsOneWidget,
+        reason: 'payable subtotal carries the explicit USDC denomination');
     expect(find.text('1'), findsOneWidget);
   });
 
@@ -76,7 +77,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 120));
 
     expect(find.text('2'), findsOneWidget);
-    expect(find.text(r'$12.00'), findsOneWidget);
+    expect(find.text('12.00 USDC'), findsOneWidget,
+        reason: 'payable subtotal carries the explicit USDC denomination');
     expect(find.byType(ScaleTransition), findsWidgets);
   });
 
