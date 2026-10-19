@@ -33,6 +33,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/currency_model.dart';
+import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/settings_provider.dart';
 import 'package:azaman/widgets/sensory_preferences_section.dart';
@@ -42,12 +43,14 @@ import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
+import 'package:azaman/screens/accounts_screen.dart';
 import 'package:azaman/screens/change_password_screen.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
-import 'package:azaman/screens/profile_details_screen.dart';
+import 'package:azaman/screens/profile_screen.dart';
+import 'package:azaman/screens/support_screen.dart';
+import 'package:azaman/services/biometric_service.dart';
+import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/screens/referral_screen.dart';
-import 'package:azaman/screens/saved_wallets_screen.dart';
-import 'package:azaman/screens/saved_momo_accounts_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -90,29 +93,18 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         physics: const BouncingScrollPhysics(),
         children: [
-          _SettingsLogoHeader(colors: colors),
-          Center(
-            child: Text(
-              'Azaman Protocol v3.1',
-              style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+          // ── ACCOUNT HEADER ───────────────────────────────────────────
+          // Phantom-style: the page opens with WHO you are on Azaman,
+          // not a logo. Avatar, @username, public AZM ID, one chevron
+          // into the genuine edit flow.
+          _AccountHeaderCard(
+            colors: colors,
+            user: ref.watch(currentUserProvider).value,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
-          // =====================================================================
-          // Home/Settings refresh S9 (2026-10-13) - information architecture
-          // regroup. Every destination from the previous layout survives
-          // verbatim; only the grouping, order and icon system change.
-          // Sign-out, account deactivation and every security control keep
-          // their exact behaviour.
-          // =====================================================================
-
-          // -- PROFILE & IDENTITY ----------------------------------------------
-          _SectionHeader('Profile & Identity', colors: colors),
+          // ── ACCOUNT ──────────────────────────────────────────────────
+          _SectionHeader('Account', colors: colors),
           _Card(
             colors: colors,
             children: [
@@ -120,10 +112,13 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.person_outline,
                 title: 'Edit Profile',
-                subtitle: 'Name, photo and contact details',
+                subtitle: 'Name, photo, personal details',
+                // The GENUINE editor (photo pick, display name, bio,
+                // phone with save). ProfileDetailsScreen is the read-only
+                // KYC identity view — never labelled "Edit Profile".
                 onTap: () => pushWithVerticalTransition(
                   context,
-                  const ProfileDetailsScreen(),
+                  const ProfileScreen(),
                 ),
               ),
               _Divider(colors),
@@ -131,7 +126,10 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.verified_user_outlined,
                 title: 'Identity Verification',
-                subtitle: 'KYC status and limits',
+                subtitle: 'Verify your identity with Dojah',
+                trailingText: _kycChipLabel(
+                  ref.watch(currentUserProvider).value?.kycStatus,
+                ),
                 onTap: () => pushWithVerticalTransition(
                   context,
                   const KycVerificationScreen(),
@@ -143,83 +141,33 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.card_giftcard_outlined,
                 title: 'Refer & Earn',
                 subtitle: 'Invite friends, earn rewards',
-                onTap: () =>
-                    pushWithVerticalTransition(context, const ReferralScreen()),
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const ReferralScreen(),
+                ),
               ),
             ],
           ),
 
-          // -- MONEY & PAYMENT METHODS -------------------------------------------
-          // Phase UI-2 note stands: Trade Accounts (vendor P2P ad payout
-          // handles) stay OUT of the user surface - vendor dashboard only.
-          _SectionHeader('Money & Payment Methods', colors: colors),
+          // ── MONEY ────────────────────────────────────────────────────
+          _SectionHeader('Money', colors: colors),
           _Card(
             colors: colors,
             children: [
               _NavRow(
                 colors: colors,
-                icon: Icons.outbox_outlined,
-                title: 'Withdrawal Addresses',
-                subtitle: 'Saved wallets for payouts',
+                icon: Icons.account_balance_wallet_outlined,
+                title: 'Accounts',
+                subtitle: 'Deposits and payout destinations',
                 onTap: () => pushWithVerticalTransition(
                   context,
-                  const SavedWalletsScreen(),
-                ),
-              ),
-              _Divider(colors),
-              _NavRow(
-                colors: colors,
-                icon: Icons.inbox_outlined,
-                title: 'Deposit Addresses',
-                subtitle: 'Saved MoMo accounts',
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const SavedMomoAccountsScreen(),
+                  const AccountsScreen(),
                 ),
               ),
             ],
           ),
 
-          // -- SECURITY & PRIVACY ------------------------------------------------
-          _SectionHeader('Security & Privacy', colors: colors),
-          _Card(
-            colors: colors,
-            children: [
-              _NavRow(
-                colors: colors,
-                icon: Icons.security_outlined,
-                title: 'Two-Factor & PIN',
-                subtitle: 'Login protection and app lock',
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const SecuritySettingsScreen(),
-                ),
-              ),
-              _Divider(colors),
-              _NavRow(
-                colors: colors,
-                icon: Icons.lock_outline,
-                title: 'Change Password',
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const ChangePasswordScreen(),
-                ),
-              ),
-              _Divider(colors),
-              _NavRow(
-                colors: colors,
-                icon: Icons.history,
-                title: 'Account Activity',
-                subtitle: 'Recent sign-ins and security events',
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const AccountActivityScreen(),
-                ),
-              ),
-            ],
-          ),
-
-          // -- NOTIFICATIONS -----------------------------------------------------
+          // ── NOTIFICATIONS ────────────────────────────────────────────
           _SectionHeader('Notifications', colors: colors),
           _Card(
             colors: colors,
@@ -228,7 +176,6 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.notifications_outlined,
                 title: 'Push Notifications',
-                subtitle: 'Receive alerts on your device',
                 value: settings.pushNotifications,
                 onChanged: (v) => settings.setPushNotifications(v),
               ),
@@ -237,7 +184,6 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.swap_horiz,
                 title: 'Trade Alerts',
-                subtitle: 'New orders, releases, cancellations',
                 value: settings.tradeAlerts,
                 onChanged: (v) => settings.setTradeAlerts(v),
               ),
@@ -246,30 +192,24 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.chat_bubble_outline,
                 title: 'Chat Messages',
-                subtitle: 'In-trade chat notifications',
                 value: settings.chatNotifications,
                 onChanged: (v) => settings.setChatNotifications(v),
               ),
               _Divider(colors),
-              // Master Sprint v2 (2026-05-27): vendor-tag visibility.
-              // Off by default - only users who actually want the
-              // vendor portal entry point need to see the side ribbon.
+              // Master Sprint v2: vendor-tag visibility, renamed for
+              // humans — same provider, same behaviour.
               _ToggleRow(
                 colors: colors,
                 icon: Icons.storefront_outlined,
-                title: 'Show Vendor Tag',
-                subtitle: 'Pull-tab on the P2P tab to enter the vendor portal',
+                title: 'Vendor tools',
                 value: settings.vendorTagEnabled,
                 onChanged: (v) => settings.setVendorTagEnabled(v),
               ),
             ],
           ),
 
-          // -- APPEARANCE & ACCESSIBILITY ----------------------------------------
-          // The identity/colour experience (appearance + accent) lives in
-          // Themes, not duplicated here; the Theme row routes there. The
-          // accent picker no longer lives in sensory preferences.
-          _SectionHeader('Appearance & Accessibility', colors: colors),
+          // ── APPEARANCE ────────────────────────────────────────────────
+          _SectionHeader('Appearance', colors: colors),
           _Card(
             colors: colors,
             children: [
@@ -277,7 +217,6 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.palette_outlined,
                 title: 'Theme',
-                subtitle: 'Appearance and accent identity',
                 trailingText:
                     '$themeLabel \u00b7 ${themeNotifier.accent.label}',
                 onTap: () {
@@ -290,10 +229,10 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SensoryPreferencesSection(title: 'Sensory'),
+          const SensoryPreferencesSection(title: 'Motion & feedback'),
 
-          // -- LANGUAGE & REGIONAL PREFERENCES -----------------------------------
-          _SectionHeader('Language & Regional Preferences', colors: colors),
+          // ── PREFERENCES ───────────────────────────────────────────────
+          _SectionHeader('Preferences', colors: colors),
           _Card(
             colors: colors,
             children: [
@@ -320,47 +259,47 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
               _Divider(colors),
+              // HONEST scope: the app is English-only today — there is
+              // no localization layer, so a picker would persist a
+              // preference that never changes the locale. Full app
+              // localization (arb files, locale resolution, translations)
+              // is recorded as a SEPARATE follow-up task on PR #155.
               _NavRow(
                 colors: colors,
                 icon: Icons.language,
                 title: 'Language',
-                trailingText: settings.appLanguage,
-                onTap: () => _pickFromList(
-                  context,
-                  colors,
-                  title: 'Language',
-                  options: const [
-                    'English',
-                    'French',
-                    'Spanish',
-                    'Arabic',
-                    'Twi',
-                  ],
-                  current: settings.appLanguage,
-                  onPicked: settings.setAppLanguage,
-                ),
+                subtitle: 'English — more languages are on the roadmap',
+                trailingText: 'English',
+                onTap: null,
               ),
             ],
           ),
 
-          // -- ABOUT -------------------------------------------------------------
-          _SectionHeader('About', colors: colors),
+          // ── SECURITY ──────────────────────────────────────────────────
+          _SectionHeader('Security', colors: colors),
           _Card(
             colors: colors,
             children: [
-              _NavRow(
-                colors: colors,
-                icon: Icons.cleaning_services_outlined,
-                title: 'Clear Cache',
-                onTap: () {
-                  AzamanHaptics.nav();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text(
-                        'System cache cleared. (42 MB freed)',
-                      ),
-                      backgroundColor: colors.success,
-                      behavior: SnackBarBehavior.floating,
+              FutureBuilder<bool>(
+                future: BiometricService().isEnabled,
+                builder: (context, snapshot) {
+                  // Real state, not decoration: the chip reads the same
+                  // store the Security screen's toggle writes.
+                  final bio = snapshot.data == true;
+                  // A biometric PREFERENCE is not 2FA status: the app
+                  // has no authoritative user 2FA field to read (the
+                  // backend exposes setup/disable/verify, not a user
+                  // status), so the chip reports ONLY the local biometric
+                  // preference and claims nothing about two-factor.
+                  return _NavRow(
+                    colors: colors,
+                    icon: Icons.security_outlined,
+                    title: 'Security & PIN',
+                subtitle: 'Sign-in protection',
+                    trailingText: bio ? 'Biometrics on' : null,
+                    onTap: () => pushWithVerticalTransition(
+                      context,
+                      const SecuritySettingsScreen(),
                     ),
                   );
                 },
@@ -368,8 +307,56 @@ class SettingsScreen extends ConsumerWidget {
               _Divider(colors),
               _NavRow(
                 colors: colors,
+                icon: Icons.lock_outline,
+                title: 'Change Password',
+                subtitle: 'Update your credentials',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const ChangePasswordScreen(),
+                ),
+              ),
+              _Divider(colors),
+              _NavRow(
+                colors: colors,
+                icon: Icons.history,
+                title: 'Account Activity',
+                subtitle: 'Recent sign-ins and changes',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const AccountActivityScreen(),
+                ),
+              ),
+            ],
+          ),
+
+          // ── SUPPORT ───────────────────────────────────────────────────
+          _SectionHeader('Support', colors: colors),
+          _Card(
+            colors: colors,
+            children: [
+              _NavRow(
+                colors: colors,
+                icon: Icons.help_outline,
+                title: 'Help & FAQ',
+                subtitle: 'Quick answers',
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  const SupportScreen(),
+                ),
+              ),
+            ],
+          ),
+
+          // ── ABOUT ─────────────────────────────────────────────────────
+          _SectionHeader('About', colors: colors),
+          _Card(
+            colors: colors,
+            children: [
+              _NavRow(
+                colors: colors,
                 icon: Icons.info_outline,
                 title: 'About Azaman',
+                subtitle: 'What you are using',
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: 'Azaman Protocol',
@@ -385,14 +372,50 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+              _Divider(colors),
+              _NavRow(
+                colors: colors,
+                icon: Icons.tag_outlined,
+                title: 'Version',
+                trailingText: 'v3.1',
+                onTap: null,
+              ),
+              _Divider(colors),
+              _NavRow(
+                colors: colors,
+                icon: Icons.cleaning_services_outlined,
+                title: 'Clear Cache',
+                subtitle: 'Free up local storage',
+                onTap: () {
+                  AzamanHaptics.nav();
+                  // A REAL, safe operation: clear the in-memory image
+                  // cache and report the ACTUAL number of images freed.
+                  // No fabricated megabytes — an empty cache is reported
+                  // as such.
+                  final imageCache = PaintingBinding.instance.imageCache;
+                  final cachedImages = imageCache.currentSize;
+                  imageCache.clear();
+                  final message = cachedImages > 0
+                      ? 'Cleared $cachedImages cached '
+                        '${cachedImages == 1 ? 'image' : 'images'}.'
+                      : 'Cache is already empty.';
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(message),
+                      backgroundColor: colors.success,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+              ),
             ],
           ),
 
           const SizedBox(height: 24),
 
-          // -- ACCOUNT MANAGEMENT (destructive) ----------------------------------
-          // Phase M: account_deactivation_screen.dart stays wired, directly
-          // under Sign Out so destructive actions read as a distinct zone.
+          // ── ACCOUNT MANAGEMENT (destructive) ──────────────────────────
+          // Directly under Sign Out so destructive actions read as a
+          // distinct zone.
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SizedBox(
@@ -445,6 +468,20 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  /// Real KYC state chip — the same KycStatus the backend returns.
+  /// Unverified renders no chip at all (no decoration).
+  String? _kycChipLabel(KycStatus? status) {
+    switch (status) {
+      case KycStatus.verified:
+        return 'Verified';
+      case KycStatus.pending:
+        return 'Pending';
+      case KycStatus.rejected:
+        return 'Action needed';
+      default:
+        return null;
+    }
+  }
   // ── DROPDOWN HELPER (iOS-style action sheet) ──────────────────────────────
   //
   // Replaces the previous DropdownButton crammed inside a row tile. Renders
@@ -559,12 +596,12 @@ class _SectionHeader extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 8),
       child: Text(
-        title.toUpperCase(),
+        title,
         style: TextStyle(
           color: colors.textTertiary,
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.1,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.1,
         ),
       ),
     );
@@ -578,12 +615,27 @@ class _Card extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Mockup-faithful surface: soft and quiet. Light mode floats on a
+    // whisper shadow with NO border; dark mode keeps a faint edge so
+    // the card reads against the true-black background.
+    final isDark = colors.isDark;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.divider),
+        borderRadius: BorderRadius.circular(18),
+        border: isDark
+            ? Border.all(color: colors.divider.withValues(alpha: 0.45))
+            : null,
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0x0A000000).withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -599,11 +651,15 @@ class _Divider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Indented so the divider doesn't run under the leading icon —
-    // matches iOS Settings exactly.
+    // Indented past the icon chip; hairline only, 45% strength so
+    // grouped rows stay quiet (mockup: no hard rules).
     return Padding(
-      padding: const EdgeInsets.only(left: 56),
-      child: Divider(height: 1, thickness: 0.5, color: colors.divider),
+      padding: const EdgeInsets.only(left: 52, right: 16),
+      child: Divider(
+        height: 1,
+        thickness: 0.5,
+        color: colors.divider.withValues(alpha: 0.45),
+      ),
     );
   }
 }
@@ -630,15 +686,18 @@ class _NavRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final titleColor = isDestructive ? colors.danger : colors.textPrimary;
-    final iconColor = isDestructive ? colors.danger : colors.textSecondary;
+    // Single accent does all the work (mockup contract): every icon sits
+    // in a soft accent-tinted chip, never floating bare in the row.
+    final tint = isDestructive ? colors.danger : colors.accent;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
         child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 22),
+            // Mockup contract: clean bare icons — never boxed in chips.
+            Icon(icon, color: tint, size: 22),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -649,29 +708,45 @@ class _NavRow extends StatelessWidget {
                     title,
                     style: TextStyle(
                       color: titleColor,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   if (subtitle != null) ...[
-                    const SizedBox(height: 1),
+                    const SizedBox(height: 2),
                     Text(
                       subtitle!,
                       style: TextStyle(
                         color: colors.textTertiary,
-                        fontSize: 12,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ],
                 ],
               ),
             ),
-            if (trailingText != null) ...[
-              Text(
-                trailingText!,
-                style: TextStyle(color: colors.textTertiary, fontSize: 13),
+            if (trailingText != null && trailingText!.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  trailingText!,
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1,
+                  ),
+                ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
             ],
             Icon(Icons.arrow_forward, color: colors.textTertiary, size: 13),
           ],
@@ -685,7 +760,6 @@ class _ToggleRow extends StatelessWidget {
   final AzamanColors colors;
   final IconData icon;
   final String title;
-  final String? subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -695,16 +769,15 @@ class _ToggleRow extends StatelessWidget {
     required this.title,
     required this.value,
     required this.onChanged,
-    this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(16, 13, 12, 13),
       child: Row(
         children: [
-          Icon(icon, color: colors.textSecondary, size: 22),
+          Icon(icon, color: colors.accent, size: 22),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -714,17 +787,10 @@ class _ToggleRow extends StatelessWidget {
                   title,
                   style: TextStyle(
                     color: colors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
-                  ),
-                ],
               ],
             ),
           ),
@@ -742,110 +808,149 @@ class _ToggleRow extends StatelessWidget {
   }
 }
 
-class _SettingsLogoHeader extends ConsumerStatefulWidget {
+// ──────────────────────────────────────────────────────────────────────────
+// ACCOUNT HEADER — the identity moment at the top of Settings.
+// Avatar, @username, public AZM ID, one chevron into the genuine edit
+// flow (ProfileScreen; ProfileDetailsScreen is the read-only view and
+// stays one row below).
+class _AccountHeaderCard extends StatelessWidget {
   final AzamanColors colors;
-  const _SettingsLogoHeader({required this.colors});
+  final User? user;
 
-  @override
-  ConsumerState<_SettingsLogoHeader> createState() =>
-      _SettingsLogoHeaderState();
-}
-
-class _SettingsLogoHeaderState extends ConsumerState<_SettingsLogoHeader>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ringCtrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ringCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _ringCtrl.dispose();
-    super.dispose();
-  }
+  const _AccountHeaderCard({required this.colors, this.user});
 
   @override
   Widget build(BuildContext context) {
-    final colors = ref.watch(themeProvider).colors;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      child: Center(
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 90,
-              height: 90,
-              child: AnimatedBuilder(
-                animation: _ringCtrl,
-                builder: (_, __) => Transform.rotate(
-                  angle: _ringCtrl.value * 2 * 3.14159,
-                  child: CustomPaint(
-                    painter: _GradientRingPainter(color: colors.accent),
-                    size: const Size(90, 90),
-                  ),
+    final username =
+        (user?.username.isNotEmpty ?? false) ? user!.username : 'Guest';
+    final azm = (user?.azamanId != null && user!.azamanId!.isNotEmpty)
+        ? user!.azamanId!
+        : null;
+
+    final isDark = colors.isDark;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            colors.card,
+            Color.lerp(colors.card, colors.accent, isDark ? 0.06 : 0.035)!,
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: isDark
+            ? Border.all(color: colors.divider.withValues(alpha: 0.45))
+            : null,
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: const Color(0x0A000000).withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
                 ),
+              ],
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          AzamanHaptics.nav();
+          pushWithVerticalTransition(context, const ProfileScreen());
+        },
+        child: Row(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: colors.divider),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: AzamanNetworkImage(
+                imageUrl: user?.profilePictureUrl,
+                width: 54,
+                height: 54,
+                fit: BoxFit.cover,
+                placeholder: (_, __) => _initials(colors, username),
+                errorWidget: (_, __, ___) => _initials(colors, username),
               ),
             ),
-            Image.asset(
-              'assets/images/azaman_logo.png',
-              width: 56,
-              height: 56,
-              fit: BoxFit.contain,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '@$username',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (azm != null) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accent.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            azm,
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                        if (user?.kycStatus == KycStatus.verified) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.verified,
+                            color: colors.success,
+                            size: 14,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 16),
           ],
         ),
       ),
     );
   }
-}
 
-class _GradientRingPainter extends CustomPainter {
-  // Backlog item 11: was hardcoded to the old stale gold hex regardless
-  // of the active theme's accent -- now takes the live accent color so
-  // this ring stays in sync whenever the theme palette changes.
-  final Color color;
-  const _GradientRingPainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 3;
-
-    final sweepGradient = SweepGradient(
-      startAngle: 0.0,
-      endAngle: 2 * 3.14159 * 0.75, // 3/4 circle
-      colors: [
-        color.withValues(alpha: 0.0),
-        color.withValues(alpha: 0.3),
-        color.withValues(alpha: 0.8),
-      ],
-      stops: const [0.0, 0.5, 1.0],
-    );
-
-    final paint = Paint()
-      ..shader = sweepGradient.createShader(
-        Rect.fromCircle(center: center, radius: radius),
-      )
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      0, // start angle
-      2 * 3.14159 * 0.75, // sweep 3/4
-      false,
-      paint,
+  Widget _initials(AzamanColors colors, String username) {
+    final initials = username.isEmpty
+        ? '?'
+        : username.substring(0, 1).toUpperCase();
+    return Container(
+      color: colors.accent.withValues(alpha: 0.12),
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: TextStyle(
+          color: colors.accent,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -23,6 +23,8 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/accounts_screen.dart';
+import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/widgets/qr_profile_popup.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
@@ -203,26 +205,93 @@ void main() {
       expect(find.text('AZM Auction'), findsNothing);
       expect(find.text('Referral Rewards'), findsNothing);
       expect(find.text('Leaderboard'), findsNothing);
-      expect(find.text('Deposit'), findsNothing);
+      // NOTE: 'Deposit' is no longer asserted absent here — the redesign
+      // deliberately reintroduces it as a quick action.
     });
 
-    testWidgets('regrouped destination sections are present', (tester) async {
+    testWidgets('redesigned groups, quick actions and real chips render', (
+      tester,
+    ) async {
+      // The Security chip reads the REAL biometric pref — turn it on so
+      // the chip renders; the drawer loads it asynchronously after mount.
+      SharedPreferences.setMockInitialValues({
+        'biometric_lock_enabled': true,
+      });
+      await _pumpDrawer(tester, user: _verifiedUser());
+      await tester.pump(const Duration(milliseconds: 120));
+
+      // Sentence-case groups (the ALL-CAPS enterprise labels are gone).
+      expect(find.text('Account'), findsOneWidget);
+      expect(find.text('Money'), findsOneWidget);
+      expect(find.text('Security'), findsOneWidget);
+      expect(find.text('PROFILE & IDENTITY'), findsNothing);
+      expect(find.text('MONEY & PAYMENT METHODS'), findsNothing);
+      expect(find.text('SECURITY & PRIVACY'), findsNothing);
+      expect(find.text('APPEARANCE & PREFERENCES'), findsNothing);
+      expect(find.text('AZMAN PROTOCOL V3.0 — THEMED'), findsNothing);
+
+      // Quick actions: the four things the drawer is opened for.
+      expect(find.text('Withdraw'), findsOneWidget);
+      expect(find.text('Deposit'), findsOneWidget);
+      expect(find.text('QR'), findsOneWidget);
+      expect(find.text('Refer'), findsOneWidget);
+
+      // Account group: identity + verification with the REAL KYC state.
+      expect(find.text('Profile'), findsOneWidget);
+      expect(find.text('Verification'), findsOneWidget);
+      expect(find.text('Verified'), findsOneWidget);
+
+      // Money group: the ONE Accounts row (deposits + payouts are a
+      // single concept — the mockup contract), currency, store.
+      expect(find.text('Accounts'), findsOneWidget);
+      expect(find.text('Currency'), findsOneWidget);
+      expect(find.text('Azaman Store'), findsOneWidget);
+
+      // Security row with the real biometric state chip.
+      expect(find.text('Security & PIN'), findsOneWidget);
+      expect(find.text('Biometrics on'), findsOneWidget);
+
+      // The gear is gone; the canonical Settings entry is a labelled row.
+      expect(find.byIcon(Icons.settings_outlined), findsNothing);
+      expect(find.text('All settings'), findsOneWidget);
+      expect(find.text('Azaman 3.1'), findsOneWidget);
+    });
+
+    testWidgets('the Deposit quick action opens the CANONICAL deposit flow',
+        (tester) async {
       await _pumpDrawer(tester, user: _verifiedUser());
 
-      expect(find.text('PROFILE & IDENTITY'), findsOneWidget);
-      expect(find.text('MONEY & PAYMENT METHODS'), findsOneWidget);
-      expect(find.text('SECURITY & PRIVACY'), findsOneWidget);
-      expect(find.text('APPEARANCE & PREFERENCES'), findsOneWidget);
+      // "Deposit" must deliver deposits — the STK-push MoMo screen the
+      // /deposit route serves — not the saved-accounts surface.
+      await tester.tap(find.text('Deposit'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.byType(DepositScreen), findsOneWidget);
+      expect(find.byType(AccountsScreen), findsNothing);
+    });
 
-      // Canonical destinations stay reachable from the drawer.
-      expect(find.text('Profile Details'), findsOneWidget);
-      expect(find.text('Share Profile'), findsOneWidget);
-      expect(find.text('Withdraw'), findsOneWidget);
-      expect(find.text('Deposit Addresses'), findsOneWidget);
-      expect(find.text('Withdrawal Addresses'), findsOneWidget);
-      expect(find.text('Azaman Store'), findsOneWidget);
-      expect(find.text('Security Center'), findsOneWidget);
-      expect(find.text('Theme'), findsOneWidget);
+    testWidgets('unverified user renders no KYC chip (no decoration)', (
+      tester,
+    ) async {
+      final unverified = _verifiedUser().copyWith(
+        kycStatus: KycStatus.unverified,
+      );
+      await _pumpDrawer(tester, user: unverified);
+
+      expect(find.text('Verification'), findsOneWidget);
+      expect(find.text('Verified'), findsNothing);
+      expect(find.text('Pending'), findsNothing);
+    });
+
+    testWidgets('biometrics disabled renders no chip on Security row', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      await _pumpDrawer(tester, user: _verifiedUser());
+      await tester.pump(const Duration(milliseconds: 120));
+
+      expect(find.text('Security & PIN'), findsOneWidget);
+      expect(find.text('Biometrics on'), findsNothing);
     });
   });
 
@@ -233,7 +302,10 @@ void main() {
       await _pumpDrawer(
         tester,
         user: _verifiedUser(),
-        surface: const Size(420, 800),
+        // The drawer content now fits a tall phone without scrolling, so the
+        // collapse contract is exercised on a shorter viewport where the
+        // scroll actually happens.
+        surface: const Size(420, 650),
       );
 
       // Expanded: hero content visible.

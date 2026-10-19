@@ -40,7 +40,7 @@ class SavedMomoAccountsScreen extends ConsumerWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Deposit Addresses',
+          'MoMo deposits',
           style: TextStyle(
             color: colors.textPrimary,
             fontSize: 17,
