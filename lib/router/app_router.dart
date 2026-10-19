@@ -42,7 +42,6 @@ import 'package:azaman/screens/waiting_room_screen.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
-import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/screens/payment_requests_screen.dart';
 import 'package:azaman/screens/payment_request_landing_screen.dart';
 import 'package:azaman/screens/receive_screen.dart';
@@ -396,24 +395,6 @@ final GoRouter appRouter = GoRouter(
           prefillAmount: state.uri.queryParameters['amount'],
           memo: state.uri.queryParameters['memo'],
         ),
-      ),
-    ),
-
-    // ── Send Money (r43, PR #159) ───────────────────────────────────────
-    // The canonical friendship-scoped transfer surface. Registered so the
-    // universal search quick action (and any future deep link) routes to
-    // the REAL send flow — previously 'Send Money' pointed at /deposit.
-    GoRoute(
-      path: AzRoutes.sendMoney,
-      name: AzRouteNames.sendMoney,
-      // Same rise family as /deposit — the surface rises from a lower
-      // layer, matching the + launcher's imperative push semantics.
-      // initialRecipient stays an in-process affordance (+ launcher
-      // activity actions); the route takes no query params today.
-      pageBuilder: (context, state) => risePage(
-        key: state.pageKey,
-        restorationId: state.name,
-        child: const SendMoneyScreen(),
       ),
     ),
 

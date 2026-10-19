@@ -62,23 +62,14 @@ void main() {
   testWidgets('normal state: three tabs + the + beside the pill',
       (tester) async {
     await _pumpNav(tester, selectedIndex: 0);
-    await tester.pumpAndSettle();
-    // COMPACT-NAV — the selected tab shows its label; the inactive tabs
-    // stay compact icon controls (labels in-tree at zero width, not
-    // rendered — the pill wraps to its content now).
-    double labelOpacity(String label) => tester.widget<Opacity>(
-          find
-              .ancestor(of: find.text(label), matching: find.byType(Opacity))
-              .first,
-        ).opacity;
-    expect(find.text('Home'), findsOneWidget);
-    expect(labelOpacity('Home'), 1.0);
-    expect(labelOpacity('Chat'), 0.0);
-    expect(labelOpacity('Market'), 0.0);
+    // UX-CORRECTION §4 — icon-only resting nav: no text labels.
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Chat'), findsNothing);
+    expect(find.text('Marketplace'), findsNothing);
     // The three tab identities live on Semantics.
     expect(find.bySemanticsLabel('Home'), findsOneWidget);
     expect(find.bySemanticsLabel('Chat'), findsOneWidget);
-    expect(find.bySemanticsLabel('Market'), findsOneWidget);
+    expect(find.bySemanticsLabel('Marketplace'), findsOneWidget);
     expect(find.byKey(const ValueKey('plus-stand-in')), findsOneWidget);
     // No focused row.
     expect(find.byKey(const ValueKey('marketplace-nav-back')),
@@ -133,7 +124,7 @@ void main() {
     // Normal navigation restored (icon-only identities on Semantics).
     expect(find.bySemanticsLabel('Home'), findsOneWidget);
     expect(find.bySemanticsLabel('Chat'), findsOneWidget);
-    expect(find.bySemanticsLabel('Market'), findsOneWidget);
+    expect(find.bySemanticsLabel('Marketplace'), findsOneWidget);
     // Marketplace is STILL the selected tab (accent identity), and the +
     // glides back in.
     expect(find.byKey(const ValueKey('plus-stand-in')), findsOneWidget);

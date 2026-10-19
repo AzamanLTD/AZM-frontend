@@ -24,9 +24,9 @@ import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/live_market_section.dart';
 import 'package:azaman/widgets/recent_activity_section.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
+import 'package:azaman/widgets/home/pull_reveal_card_deck.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
-import 'package:azaman/widgets/home/wallet_card_deck.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:flutter/services.dart' show FontLoader;
@@ -107,7 +107,7 @@ void main() {
 
     // 2 — balance card still the hero, now inside the pull-reveal deck.
     expect(find.byType(FlippableBalanceCard), findsOneWidget);
-    expect(find.byType(WalletCardDeck), findsOneWidget);
+    expect(find.byType(PullRevealCardDeck), findsOneWidget);
 
     // 3 — the Visa card exists UNDER the balance card (peeking at rest).
     expect(find.byType(AzmVisaCard), findsOneWidget);

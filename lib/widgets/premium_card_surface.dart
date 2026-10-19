@@ -22,8 +22,6 @@
 
 import 'package:flutter/widgets.dart';
 
-import 'package:azaman/widgets/premium_card_rim.dart';
-
 /// Permanent brand palette (identical values to the P2P card's).
 abstract final class PremiumCardPalette {
   static const Color cardAccent = Color(0xFFD4AF37); // gold — not theme accent
@@ -63,6 +61,7 @@ class PremiumCardSurface extends StatelessWidget {
                     PremiumCardPalette.gradBottom,
                   ],
                 ),
+                border: Border.all(color: gold.withValues(alpha: 0.22), width: 1),
                 boxShadow: [
                   BoxShadow(
                     color: gold.withValues(alpha: 0.14),
@@ -120,11 +119,6 @@ class PremiumCardFrame extends StatelessWidget {
       children: [
         Positioned.fill(child: PremiumCardSurface(radius: radius)),
         child,
-        // §4 EDGE LANGUAGE — the Visa surface keeps its own carbon/gold
-        // material but wears the SAME crisp metallic perimeter as the
-        // holographic balance card, so both physical cards share one edge
-        // grammar across dark and light themes.
-        Positioned.fill(child: PremiumCardRim(radius: radius)),
       ],
     );
   }
