@@ -6,7 +6,8 @@
 //   Give the nav a `depth` value (0 on root tabs, 1+ on pushed routes). At
 //   depth ≥ 1 the pill morphs into a contextual bar: the active tab is
 //   replaced by the current route's title + a back chevron, and the other
-//   tabs collapse into a single "…" that reopens the pill on tap.
+//   tabs collapse into an explicit "Tabs" control that reopens the pill
+//   on tap (COMPACT-NAV: a word, never an ellipsis).
 //
 // Depth comes from the router and ONLY from the router — NEW-A's
 // [RouteDepthTracker] owns the answer (never infer depth from screen
@@ -349,10 +350,12 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
               ),
             ),
           ),
+          // COMPACT-NAV — an EXPLICIT tab-switch affordance, not an
+          // ellipsis: the word "Tabs" says what the control does.
           _BandTextAction(
             key: const Key('contextual-nav-toggle'),
-            label: '…',
-            semanticLabel: 'Show tabs',
+            label: 'Tabs',
+            semanticLabel: 'Switch tabs',
             onTap: _openPill,
           ),
         ],
@@ -368,7 +371,7 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
   /// The retap override is the review blocker fix: inside the contextual
   /// pill, a tap on the ALREADY-SELECTED tab must still return to the
   /// shell (pop + tab hand-off), exactly like any other tab tap. Only
-  /// '…'/'Hide tabs' collapses the pill in place. This override is local
+  /// the explicit 'Hide' control collapses the pill in place. This override is local
   /// to the band's pill; the shell's own depth-0 retap contract
   /// (scroll-to-top / lift) is untouched.
   Widget _buildPill() {
@@ -378,7 +381,7 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
       onItemSelected: _onBandTabTap,
       onActiveTabRetap: () => _onBandTabTap(appShellBus.activeTab),
       trailing: _BandTextAction(
-        label: '…',
+        label: 'Hide',
         semanticLabel: 'Hide tabs',
         onTap: _collapsePill,
       ),
@@ -429,6 +432,11 @@ class _BandTextAction extends StatelessWidget {
   final String semanticLabel;
   final VoidCallback onTap;
 
+  /// COMPACT-NAV — explicit words ('Tabs', 'Hide') are wider than the old
+  /// '…' glyph: the control takes the width it needs plus generous
+  /// padding, with a 44dp floor.
+  static const double _minWidth = 64;
+
   @override
   Widget build(BuildContext context) {
     return Consumer(
@@ -440,13 +448,19 @@ class _BandTextAction extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: AzRadius.brPill,
-            child: SizedBox(
-              width: 48,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: _minWidth),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               height: NavScrollCompression.expandedHeight,
-              child: Center(
+              alignment: Alignment.center,
+              // ExcludeSemantics: the control's own Semantics node
+              // announces the action ('Switch tabs' / 'Hide tabs'); a
+              // second visible text would MERGE with it and corrupt the
+              // announced label.
+              child: ExcludeSemantics(
                 child: Text(
                   label,
-                  style: AzText.titleL.copyWith(color: colors.textPrimary),
+                  style: AzText.body.copyWith(color: colors.textPrimary),
                 ),
               ),
             ),
