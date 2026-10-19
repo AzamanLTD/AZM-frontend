@@ -3,11 +3,10 @@
 //
 // Pins the invariants the 2026-09-28 post-009d audit flagged as untested:
 //
-//   1. PRIVACY (WALLET POUCH, 2026-10-16): the balance-visibility eye is
-//      GONE — the card face is always fully rendered. The privacy state is
-//      the Home wallet pouch (the tucked deck), covered by the deck suite.
-//      Here we pin the removal: no eye control, no mask dots, and the real
-//      figure always present when the card is on screen.
+//   1. PRIVACY (audit D-1, P1): the delta chip obeys the balance-visibility
+//      mask. While the balance is hidden, a balance/rate change must NOT
+//      surface a "+USDC 50.00" chip above the mask — the eye toggle exists so
+//      amounts are unreadable in public, and the chip is an amount.
 //   2. REDUCED MOTION (audit D-2, P2): the flip lands on the first frame when
 //      the OS asks for reduced motion (brief acceptance #11).
 //   3. SUSU UNKNOWN ≠ ZERO (audit D-3, P2): while the susu list has no data
@@ -22,6 +21,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,6 +31,8 @@ import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/widgets/balance_visibility_eye.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/odometer_number.dart';
@@ -73,6 +75,18 @@ SusuSummary _susu({
 }
 
 
+/// §2B fade suite helper: the nearest RenderOpacity above this subtree —
+/// the one-shot text fade wrapper — so tests assert EFFECTIVE visibility,
+/// not just widget presence in the tree.
+double? _nearestOpacityOf(WidgetTester tester, Finder finder) {
+  RenderObject? node = tester.renderObject(finder).parent as RenderObject?;
+  while (node != null) {
+    if (node is RenderOpacity) return node.opacity;
+    node = node.parent as RenderObject?;
+  }
+  return null;
+}
+
 Widget _wrap(Widget child, {bool reduceMotion = false}) {
   return MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -90,6 +104,7 @@ Widget _wrap(Widget child, {bool reduceMotion = false}) {
 Future<ProviderContainer> _pumpFrontFace(
   WidgetTester tester, {
   required double balance,
+  bool visible = true,
   bool reduceMotion = false,
 }) async {
   final container = ProviderContainer(overrides: [
@@ -97,6 +112,7 @@ Future<ProviderContainer> _pumpFrontFace(
       (ref) => BalanceData(availableBalance: balance),
     ),
     oracleRateProvider.overrideWith((ref) => 1.0),
+    balanceVisibleProvider.overrideWith((ref) => visible),
   ]);
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -154,7 +170,97 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  group('delta chip vs. the visibility mask (audit D-1)', () {
+    testWidgets(
+      'a balance change surfaces a chip while the balance is visible',
+      (tester) async {
+        final container = await _pumpFrontFace(tester, balance: 100);
+        expect(find.textContaining('+USDC'), findsNothing);
 
+        container.read(balanceDataProvider.notifier).state =
+            const BalanceData(availableBalance: 150);
+        await tester.pump();
+
+        // The positive control: the chip IS the feature when visible.
+        expect(find.textContaining('+USDC'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a balance change does NOT surface a chip while the balance is hidden',
+      (tester) async {
+        final container = await _pumpFrontFace(
+          tester,
+          balance: 100,
+          visible: false,
+        );
+        // The mask is doing its job.
+        expect(find.text('••••••••'), findsOneWidget);
+
+        container.read(balanceDataProvider.notifier).state =
+            const BalanceData(availableBalance: 150);
+        await tester.pump();
+
+        // THE privacy invariant: no change magnitude above the mask.
+        expect(find.textContaining('+USDC'), findsNothing);
+        expect(find.text('••••••••'), findsOneWidget);
+      },
+    );
+  });
+
+  group('UX-CORRECTION §11 — hidden state preserves the structural layout',
+      () {
+    testWidgets('the hidden figure keeps the USDC unit label in place and '
+        'the masked amount in the same region — the layout never jumps',
+        (tester) async {
+      // VISIBLE baseline geometry.
+      await _pumpFrontFace(tester, balance: 123.45);
+      final usdcVisible = tester.getRect(find.text('USDC'));
+      final secondaryVisible =
+          tester.getRect(find.text(AzMoney.ghs(123.45)));
+
+      // HIDDEN state (Home refresh §2B): the card mounts hidden already
+      // fully faded — the eye-only end state, no 3s replay on mount.
+      await _pumpFrontFace(tester, balance: 123.45, visible: false);
+
+      // The figure row structure is intact in the tree (geometry below is
+      // asserted on the same widgets), and the masked amount occupies the
+      // same amount region — the §2B fade is OPACITY ONLY, so no layout
+      // jump can occur.
+      expect(find.text('USDC'), findsOneWidget);
+      expect(find.text('••••••••'), findsOneWidget);
+      final usdcHidden = tester.getRect(find.text('USDC'));
+
+      // The layout geometry does not change between states: the unit
+      // label lands at the same spot.
+      expect(usdcHidden.topLeft, usdcVisible.topLeft,
+          reason: 'the USDC unit label must not move when hiding');
+
+      // The secondary GHS line keeps its normal position AND its
+      // grammar — symbol FIRST, masked value after (no reorder to the
+      // end of the line).
+      final secondaryHidden =
+          tester.getRect(find.text('GH₵ ••••'));
+      expect(secondaryHidden.topLeft, secondaryVisible.topLeft,
+          reason: 'the GHS secondary line must not jump or reorder '
+              'between visible and hidden states');
+
+      // (The §2B eye-only end state — opacity 0 on every text element —
+      // is asserted in the dedicated single-pump §2B suite below; this
+      // double-pump geometry test reuses the element tree across two
+      // containers, so the controller's mounted-hidden fast-path is not
+      // re-exercised here.)
+    });
+
+    testWidgets('the real balance value never leaks into the hidden tree '
+        'or semantics', (tester) async {
+      await _pumpFrontFace(tester, balance: 123.45, visible: false);
+      expect(find.textContaining('123.45'), findsNothing,
+          reason: 'the masked figure must not render the real amount');
+      final masked = tester.widget<Text>(find.text('••••••••'));
+      expect(masked.semanticsLabel, 'Balance hidden');
+    });
+  });
 
   group('EXPERIENCE PASS §1 — USDC-first hero', () {
     testWidgets('the front face shows no wallet/user-id line', (tester) async {
@@ -239,33 +345,164 @@ void main() {
       expect(surface.tint, isNot(colors.accent));
     });
 
+    testWidgets('the rate row fades with the card text (§2B supersedes '
+        'the old rate-survives rule — the hidden end state is eye-only)',
+        (tester) async {
+      // The old UX-11 contract kept the public rate visible while the
+      // balance was masked. The 2026-10-13 §2B contract is stricter: at
+      // the end of the hide fade the EYE is the only visible item, so
+      // the rate row fades out with the rest of the card text.
+      await _pumpFrontFace(tester, balance: 100, visible: false);
+      // Structure is intact in the tree (opacity-only fade)...
+      expect(find.text('••••••••'), findsOneWidget);
+      expect(find.textContaining('1 USDC ='), findsOneWidget);
+      expect(find.byType(RateRefreshIndicator), findsOneWidget);
+      // ...but fully faded at the end state.
+      expect(_nearestOpacityOf(tester, find.textContaining('1 USDC =')),
+          0.0);
+      expect(_nearestOpacityOf(tester, find.text('••••••••')), 0.0);
+    });
   });
 
 
-
-  group('WALLET POUCH — the eye is gone, privacy is the deck', () {
+  group('Home refresh §2B — one-shot text-free hide fade', () {
     testWidgets(
-      'no eye control renders on the card — and no mask dots either',
+      'visible start: every textual element is present at full opacity',
       (tester) async {
         await _pumpFrontFace(tester, balance: 123.45);
-        // The eye control and the masked figure are both gone from the
-        // card; the tucked pouch deck owns privacy now.
-        expect(find.bySemanticsLabel('Toggle balance visibility'),
-            findsNothing,
-            reason: 'the eye semantics control must not exist');
-        expect(find.text('••••••••'), findsNothing,
-            reason: 'the mask dots belong to the removed hide state');
+        expect(find.text('AVAILABLE'), findsOneWidget);
+        expect(find.text('USDC'), findsOneWidget);
+        expect(find.byType(OdometerNumber), findsOneWidget);
+        expect(find.text(AzMoney.ghs(123.45)), findsOneWidget);
+        expect(find.textContaining('1 USDC ='), findsOneWidget);
+        expect(
+          _nearestOpacityOf(tester, find.text('AVAILABLE')), 1.0);
+        expect(_nearestOpacityOf(tester, find.text('USDC')), 1.0);
       },
     );
 
     testWidgets(
-      'the real figure is always present when the card is on screen',
+      'hide tap: the text fade starts — at the halfway point text is '
+      'half-visible, no layout jump',
       (tester) async {
         await _pumpFrontFace(tester, balance: 123.45);
-        expect(find.textContaining('123'), findsOneWidget,
-            reason: 'the card face renders the real amount; privacy is '
-                'physical (the pouch), not a mask');
+        final usdcBefore = tester.getRect(find.text('USDC'));
+
+        // The user presses the eye (real control, real provider toggle).
+        await tester.tap(find.byType(BalanceVisibilityEye));
+        await tester.pump();
+
+        // The mask applies instantly (no data leak), then the fade runs.
+        expect(find.text('••••••••'), findsOneWidget);
+
+        // Deterministic mid-fade point: 1.5s of the 3s window.
+        await tester.pump(const Duration(milliseconds: 1500));
+        expect(
+          _nearestOpacityOf(tester, find.text('USDC')), 0.5);
+        expect(
+          _nearestOpacityOf(tester, find.textContaining('1 USDC =')),
+          0.5);
+        expect(
+          _nearestOpacityOf(tester, find.text('AVAILABLE')), 0.5);
+
+        // Opacity-only fade: geometry is untouched while text fades (the
+        // USDC unit label keeps rendering in the masked row, so its rect
+        // is comparable across the hide tap).
+        expect(tester.getRect(find.text('USDC')).topLeft,
+            usdcBefore.topLeft);
+      },
+    );
+
+    testWidgets(
+      'at three seconds the card is TEXT-FREE: the eye is the only '
+      'visible item, and no placeholder text remains visible',
+      (tester) async {
+        await _pumpFrontFace(tester, balance: 123.45);
+        await tester.tap(find.byType(BalanceVisibilityEye));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 3));
+
+        // EVERY textual element is fully invisible at the end state.
+        for (final t in [
+          find.text('AVAILABLE'),
+          find.text('USDC'),
+          find.text('••••••••'),
+          find.text('GH₵ ••••'),
+          find.textContaining('1 USDC ='),
+        ]) {
+          expect(_nearestOpacityOf(tester, t), 0.0);
+        }
+
+        // The eye itself stays fully visible and tappable.
+        expect(find.byType(BalanceVisibilityEye), findsOneWidget);
+        expect(tester.getCenter(find.byType(BalanceVisibilityEye)),
+            isNotNull);
+        await tester.tap(find.byType(BalanceVisibilityEye));
+        await tester.pump();
+
+        // Tapping Show restores: this also proves the eye was hit-testable.
         expect(find.byType(OdometerNumber), findsOneWidget);
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(_nearestOpacityOf(tester, find.text('USDC')), 1.0);
+      },
+    );
+
+    testWidgets(
+      'reveal BEFORE the fade ends reverses cleanly — no flicker, no '
+      'stale callback resurrecting the fade',
+      (tester) async {
+        await _pumpFrontFace(tester, balance: 123.45);
+        await tester.tap(find.byType(BalanceVisibilityEye));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 1500));
+        expect(_nearestOpacityOf(tester, find.text('USDC')), 0.5);
+
+        // Show mid-fade.
+        await tester.tap(find.byType(BalanceVisibilityEye));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(_nearestOpacityOf(tester, find.text('USDC')), 1.0);
+
+        // No stale fade callback: well past the original 3s window the
+        // text is still fully visible (the one-shot forward was cleanly
+        // cancelled by the reverse, never resumed).
+        await tester.pump(const Duration(seconds: 4));
+        expect(_nearestOpacityOf(tester, find.text('USDC')), 1.0);
+        expect(
+            _nearestOpacityOf(tester, find.textContaining('1 USDC =')),
+            1.0);
+      },
+    );
+
+    testWidgets(
+      'reveal AFTER the fade finished restores the full card content',
+      (tester) async {
+        await _pumpFrontFace(tester, balance: 123.45);
+        await tester.tap(find.byType(BalanceVisibilityEye));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 3));
+        expect(_nearestOpacityOf(tester, find.text('USDC')), 0.0);
+
+        await tester.tap(find.byType(BalanceVisibilityEye));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(_nearestOpacityOf(tester, find.text('USDC')), 1.0);
+        expect(find.byType(OdometerNumber), findsOneWidget);
+        expect(find.text('AVAILABLE'), findsOneWidget);
+        expect(find.textContaining('1 USDC ='), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'reduced motion: the hide transition collapses — the end state is '
+      'reached on the first frame',
+      (tester) async {
+        await _pumpFrontFace(tester, balance: 123.45, reduceMotion: true);
+        await tester.tap(find.byType(BalanceVisibilityEye));
+        // ONE frame only — reduced motion means no 3s spatial fade.
+        await tester.pump();
+        expect(_nearestOpacityOf(tester, find.text('USDC')), 0.0);
+        expect(find.byType(BalanceVisibilityEye), findsOneWidget);
       },
     );
   });

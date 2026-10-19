@@ -41,7 +41,6 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
-import 'package:azaman/widgets/premium_card_rim.dart';
 
 class FlippableBalanceCard extends ConsumerStatefulWidget {
   const FlippableBalanceCard({super.key});
@@ -62,6 +61,8 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
   /// guard on pointer-down; this card's flip Listener consumes the mark on
   /// pointer-up and cedes the gesture, so tapping the eye NEVER also flips
   /// the card while the card's established tap-to-flip keeps working.
+  final ValueNotifier<bool> _eyeClaimed = ValueNotifier<bool>(false);
+
   // Cached extras pulled lazily on first flip — re-fetched at most once per
   // [_extrasTtl] (the F-023 fix: this used to re-hit the network on every open).
   double _vaultLocked = 0;
@@ -79,8 +80,8 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
   }
 
   @override
-  @override
   void dispose() {
+    _eyeClaimed.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -212,6 +213,12 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
         if (downAt == null) return;
         final dist = (e.position - downAt!).distance;
         downAt = null;
+        // The visibility eye owns this gesture (its own Listener marked the
+        // guard on pointer-down, before this up event). Cede it: toggling
+        // balance visibility must NEVER also flip the card.
+        final eyeClaimed = _eyeClaimed.value;
+        _eyeClaimed.value = false;
+        if (eyeClaimed) return;
         // Treat anything under 8px movement as a tap (lets the user
         // scroll the page without false-flipping the card).
         if (dist < 8) _toggle();
@@ -232,30 +239,14 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                 ? Transform(
                     alignment: Alignment.center,
                     transform: Matrix4.identity()..rotateX(math.pi),
-                    child: Stack(
-                      fit: StackFit.passthrough,
-                      children: [
-                        _BackFace(
-                          vaultLocked: _vaultLocked,
-                          savingsLocked: _savingsLocked,
-                          susuLocked: susuCommitted,
-                          susuKnown: susuKnown,
-                        ),
-                        const Positioned.fill(child: PremiumCardRim(radius: 20)),
-                      ],
+                    child: _BackFace(
+                      vaultLocked: _vaultLocked,
+                      savingsLocked: _savingsLocked,
+                      susuLocked: susuCommitted,
+                      susuKnown: susuKnown,
                     ),
                   )
-                : const Stack(
-                fit: StackFit.passthrough,
-                children: [
-                  HologramBalanceCard(),
-                  // §4 EDGE LANGUAGE — the balance card's own graphite/
-                  // hologram material, wearing the same crisp metallic
-                  // perimeter as the Visa card. NOT wrapped in
-                  // PremiumCardSurface: only the rim is shared.
-                  Positioned.fill(child: PremiumCardRim(radius: 20)),
-                ],
-              ),
+                : HologramBalanceCard(flipGuard: _eyeClaimed),
           );
         },
       ),

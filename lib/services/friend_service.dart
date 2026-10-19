@@ -6,26 +6,8 @@
 // =============================================================================
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
-
-/// r43 — typed failure of GET /users/lookup/:azamanId. Carries the backend
-/// errorCode (AZAMAN_ID_INVALID | USER_NOT_FOUND | AZAMAN_ID_SELF | ...)
-/// so the Send flow can fail closed with the truthful reason instead of a
-/// generic 'User not found' for every failure.
-class LookupFailure implements Exception {
-  final int statusCode;
-  final String errorCode;
-  final String message;
-  const LookupFailure({
-    required this.statusCode,
-    required this.errorCode,
-    required this.message,
-  });
-  @override
-  String toString() => 'LookupFailure($statusCode $errorCode): $message';
-}
 
 class FriendService {
   static final FriendService _instance = FriendService._internal();
@@ -49,112 +31,20 @@ class FriendService {
   final Map<String, FinancialOperationRef> _flowRefs = {};
   FriendService._internal();
 
-  /// Test seam (same pattern as ApiClient.operationAccountOverride): when
-  /// set, every FriendService HTTP call goes through this client instead of
-  /// the global [apiClient] singleton. Production code never touches it —
-  /// it exists so widget/integration tests can pin the REAL routes this
-  /// service calls without monkey-patching the singleton.
-  @visibleForTesting
-  static ApiClient? testClientOverride;
-
-  ApiClient get _api => testClientOverride ?? apiClient;
-
   // ===========================================================================
   // USER DISCOVERY
   // ===========================================================================
 
-  /// Search users by username or user ID.
-  /// r43: the query is percent-encoded — usernames may contain characters
-  /// that would otherwise corrupt the query string.
+  /// Search users by username or user ID
   Future<List<Map<String, dynamic>>> searchUsers(
       String query, String token) async {
-    final response =
-        await _api.get('/friends/search?q=${Uri.encodeQueryComponent(query)}');
+    final response = await apiClient.get('/friends/search?q=$query');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return List<Map<String, dynamic>>.from(data['users'] ?? []);
     }
     throw Exception('Failed to search users: ${response.body}');
-  }
-
-  /// r43 — resolve an Azaman ID through the canonical identity rail
-  /// (GET /api/users/lookup/:azamanId). Returns the public profile
-  /// { azamanId, displayName, avatar, friendship: {friendshipId, status} | null }.
-  ///
-  /// The friendship field is the CALLER's own row — the Send flow routes to
-  /// the canonical friendship-scoped transfer rail (sendFunds) when it is
-  /// ACCEPTED, and fails closed with a truthful reason otherwise. Never
-  /// invented, never fabricated — an unresolvable ID is an error, not a
-  /// 'found' user.
-  Future<Map<String, dynamic>> lookupByAzamanId(String azamanId) async {
-    final encoded = Uri.encodeComponent(azamanId.trim());
-    final response = await _api.get('/users/lookup/$encoded');
-
-    dynamic decoded;
-    try {
-      decoded = jsonDecode(response.body);
-    } catch (_) {
-      decoded = null;
-    }
-    final body = decoded is Map<String, dynamic> ? decoded : null;
-
-    if (response.statusCode == 200) {
-      final user = body?['data']?['user'];
-      if (user is Map<String, dynamic>) return user;
-      throw const FormatException('Malformed lookup response.');
-    }
-    final code = body?['errorCode']?.toString() ?? '';
-    final message = body?['message']?.toString();
-    throw LookupFailure(
-      statusCode: response.statusCode,
-      errorCode: code.isNotEmpty ? code : 'LOOKUP_HTTP_${response.statusCode}',
-      message: message ?? 'Lookup failed.',
-    );
-  }
-
-  /// r43 — page through the caller's accepted friendships until the row for
-  /// [userId] is found, then return that friendship row (the shape
-  /// getFriends returns: { friendshipId, friend: {...}, ... }). Null when the
-  /// bound is exhausted — callers must FAIL CLOSED on null, never guess.
-  Future<Map<String, dynamic>?> findFriendshipByUserId(
-      int userId, String token) async {
-    // Provider-cache-first is the caller's job; this is the authoritative
-    // fallback when the cache page missed. Bounded: 10 pages x 100 rows.
-    String? cursor;
-    for (var page = 0; page < 10; page += 1) {
-      final endpoint = cursor == null
-          ? '/friends?limit=100'
-          : '/friends?limit=100&cursor=${Uri.encodeQueryComponent(cursor)}';
-      final response = await _api.get(endpoint);
-      if (response.statusCode != 200) {
-        // Read error => cannot prove friendship => fail closed (null).
-        return null;
-      }
-      dynamic decoded;
-      try {
-        decoded = jsonDecode(response.body);
-      } catch (_) {
-        return null;
-      }
-      final body = decoded is Map<String, dynamic> ? decoded : null;
-      final rows = body?['friends'];
-      final friends = rows is List
-          ? rows.whereType<Map<String, dynamic>>().toList()
-          : const <Map<String, dynamic>>[];
-      for (final row in friends) {
-        final friend = row['friend'];
-        final id = friend is Map<String, dynamic> ? friend['id'] : null;
-        if (id is int && id == userId) return row;
-        final parsed = int.tryParse('$id');
-        if (parsed == userId) return row;
-      }
-      final hasMore = body?['hasMore'] == true;
-      final next = body?['nextCursor']?.toString();
-      if (!hasMore || next == null || next.isEmpty) return null;
-      cursor = next;
-    }
-    return null;
   }
 
   // ===========================================================================
@@ -164,7 +54,7 @@ class FriendService {
   /// Send a friend request to another user
   Future<Map<String, dynamic>> sendFriendRequest(
       int addresseeId, String message, String token) async {
-    final response = await _api.post('/friends/request', {
+    final response = await apiClient.post('/friends/request', {
       'addresseeId': addresseeId,
       'message': message,
     });
@@ -177,7 +67,7 @@ class FriendService {
 
   /// Get pending incoming friend requests
   Future<List<Map<String, dynamic>>> getPendingRequests(String token) async {
-    final response = await _api.get('/friends/requests');
+    final response = await apiClient.get('/friends/requests');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -189,7 +79,7 @@ class FriendService {
   /// Accept a friend request
   Future<Map<String, dynamic>> acceptFriendRequest(
       String id, String token) async {
-    final response = await _api.put('/friends/request/$id/accept', {});
+    final response = await apiClient.put('/friends/request/$id/accept', {});
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -200,7 +90,7 @@ class FriendService {
   /// Reject a friend request
   Future<Map<String, dynamic>> rejectFriendRequest(
       String id, String token) async {
-    final response = await _api.put('/friends/request/$id/reject', {});
+    final response = await apiClient.put('/friends/request/$id/reject', {});
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -214,7 +104,7 @@ class FriendService {
 
   /// Get all friends with chat preview info
   Future<List<Map<String, dynamic>>> getFriends(String token) async {
-    final response = await _api.get('/friends');
+    final response = await apiClient.get('/friends');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -225,7 +115,7 @@ class FriendService {
 
   /// Remove a friend
   Future<bool> removeFriend(String id, String token) async {
-    final response = await _api.delete('/friends/$id');
+    final response = await apiClient.delete('/friends/$id');
     return response.statusCode == 200;
   }
 
@@ -237,7 +127,7 @@ class FriendService {
   Future<Map<String, dynamic>> getMessages(
       String friendshipId, String token,
       {int page = 1}) async {
-    final response = await _api.get(
+    final response = await apiClient.get(
         '/friends/chat/$friendshipId/messages?page=$page');
 
     if (response.statusCode == 200) {
@@ -277,7 +167,7 @@ class FriendService {
         'mediaWaveformPeaks': mediaWaveformPeaks,
       if (linkPreview != null) 'linkPreview': linkPreview,
     };
-    final response = await _api.post(
+    final response = await apiClient.post(
       '/friends/chat/$friendshipId/messages',
       body,
     );
@@ -290,12 +180,12 @@ class FriendService {
 
   /// Mark all messages as read in a conversation
   Future<void> markAsRead(String friendshipId, String token) async {
-    await _api.put('/friends/chat/$friendshipId/read', {});
+    await apiClient.put('/friends/chat/$friendshipId/read', {});
   }
 
   /// Get total unread message count across all conversations
   Future<int> getUnreadCount(String token) async {
-    final response = await _api.get('/friends/chat/unread-count');
+    final response = await apiClient.get('/friends/chat/unread-count');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -330,7 +220,7 @@ class FriendService {
     // the same identity and the backend's legacy txHash derivation stays
     // consistent. Lifecycle (retire on answered outcomes, retain on 409 /
     // network loss) is owned by the helper.
-    final response = await _api.postFinancial('/friends/transfer/send', {
+    final response = await apiClient.postFinancial('/friends/transfer/send', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
@@ -359,7 +249,7 @@ class FriendService {
     // instance and the old record stays recoverable).
     final requestRef = _flowRefs.putIfAbsent(
         'request.$friendshipId', () => FinancialOperationRef());
-    final account = await _api.operationAccount(failClosed: true);
+    final account = await apiClient.operationAccount(failClosed: true);
     DurableOperation op;
     final retryId = requestRef.operationId;
     if (retryId != null) {
@@ -413,7 +303,7 @@ class FriendService {
     }
     requestRef.operationId = op.operationId;
     final requestId = op.key;
-    final response = await _api.post('/friends/transfer/request', {
+    final response = await apiClient.post('/friends/transfer/request', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
@@ -433,7 +323,7 @@ class FriendService {
   /// Fulfill a pending transfer request (pay it)
   Future<Map<String, dynamic>> fulfillTransfer(
       String transferId, String token) async {
-    final response = await _api.put('/friends/transfer/$transferId/fulfill', {});
+    final response = await apiClient.put('/friends/transfer/$transferId/fulfill', {});
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -444,7 +334,7 @@ class FriendService {
   /// Decline a pending transfer request
   Future<Map<String, dynamic>> declineTransfer(
       String transferId, String token) async {
-    final response = await _api.put('/friends/transfer/$transferId/decline', {});
+    final response = await apiClient.put('/friends/transfer/$transferId/decline', {});
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -455,7 +345,7 @@ class FriendService {
   /// Get details of a specific transfer
   Future<Map<String, dynamic>> getTransferDetails(
       String transferId, String token) async {
-    final response = await _api.get('/friends/transfer/$transferId');
+    final response = await apiClient.get('/friends/transfer/$transferId');
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -465,7 +355,7 @@ class FriendService {
 
   /// Get all pending transfer requests (incoming)
   Future<Map<String, dynamic>> getPendingTransferRequests(String token) async {
-    final response = await _api.get('/friends/transfer/pending');
+    final response = await apiClient.get('/friends/transfer/pending');
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);

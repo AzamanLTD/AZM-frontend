@@ -22,12 +22,10 @@
 
 import 'dart:async';
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
-import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_radius.dart';
@@ -36,21 +34,19 @@ import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
+import 'package:azaman/widgets/balance_visibility_eye.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
 import 'package:azaman/widgets/odometer_number.dart';
 
 class HologramBalanceCard extends ConsumerStatefulWidget {
-  /// WALLET POUCH (2026-10-16): the balance-visibility eye is REMOVED from
-  /// this card — the Home wallet pouch is now the default privacy state
-  /// (the tucked deck covers this entire face), so the card's own toggle
-  /// control is redundant here. `balanceVisibleProvider` itself is
-  /// untouched: the separate P2P/dashboard visibility controls keep their
-  /// behaviour. When this card is OUT of the pouch its content is always
-  /// fully visible.
+  /// NESTED-GESTURE CONTRACT (2026-10-12 refresh): when this front face is
+  /// hosted inside FlippableBalanceCard, the flip card passes its eye-claim
+  /// guard so the relocated visibility control can mark its gestures and the
+  /// flip card's raw Listener does not ALSO flip the card for an eye tap.
+  /// Null when hosted standalone (the control then works, the host simply
+  /// has no tap-through conflict to arbitrate).
   const HologramBalanceCard({super.key, this.flipGuard});
 
-  /// Retained for source compatibility; no longer consumed (the eye is
-  /// gone). Will be removed with the next host cleanup.
   final ValueNotifier<bool>? flipGuard;
 
   @override
@@ -71,11 +67,50 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
   /// Clears [_delta] after it has been on screen long enough to read.
   Timer? _deltaTimer;
 
+  /// ONE-SHOT TEXT-FREE FADE (Home refresh §2B, 2026-10-13): on Hide the
+  /// card's ENTIRE text content fades out over a single 3-second window
+  /// until the eye is the only visible item on the card. This is a
+  /// one-shot AnimationController per hide action — NOT a repeating timer
+  /// and NOT a perpetual animation. Show mid-fade reverses it cleanly
+  /// (no stale callbacks); reduced-motion collapses the window to zero.
+  static const Duration _hideFadeWindow = Duration(seconds: 3);
+
+  late final AnimationController _hideFade;
+
+  @override
+  void initState() {
+    super.initState();
+    _hideFade = AnimationController(
+      vsync: this,
+      duration: _hideFadeWindow,
+      // A persisted hidden balance must not replay a 3-second fade on
+      // mount: the card starts already text-free when it mounts hidden.
+      value: ref.read(balanceVisibleProvider) ? 0.0 : 1.0,
+    );
+  }
+
   @override
   void dispose() {
+    _hideFade.dispose();
     _deltaTimer?.cancel();
     super.dispose();
   }
+
+  /// Wraps one fading region of the card. Opacity only — the subtree keeps
+  /// its layout geometry (no jump, no reflow), and at the fully-hidden end
+  /// of the fade the region is also excluded from semantics so no text or
+  /// placeholder leaks to accessibility while the balance is hidden.
+  Widget _fadingText(Widget child) => AnimatedBuilder(
+        animation: _hideFade,
+        child: child,
+        builder: (context, child) => ExcludeSemantics(
+          excluding: _hideFade.isCompleted,
+          child: Opacity(
+            opacity: 1.0 - _hideFade.value,
+            child: child,
+          ),
+        ),
+      );
 
   /// Called during build (before the figure is painted) so the delta is always
   /// computed from the freshest value. Deliberately NOT in `didUpdateWidget`:
@@ -107,11 +142,32 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
 
   @override
   Widget build(BuildContext context) {
+    // ONE-SHOT fade wiring (§2B): the provider toggle drives the fade —
+    // Hide runs the 3s window forward, Show reverses it cleanly. The
+    // window respects reduced motion (collapses to zero), and starting
+    // from the persisted state in initState means a card mounted hidden
+    // never animates on mount.
+    ref.listen<bool>(balanceVisibleProvider, (previous, next) {
+      // forward()/reverse() carry no duration parameter on this Flutter
+      // version; the window is set on the controller before each leg.
+      if (next) {
+        _hideFade.duration = MotionTokens.accessibleDuration(
+          context,
+          const Duration(milliseconds: 350),
+        );
+        _hideFade.reverse();
+      } else {
+        _hideFade.duration = MotionTokens.accessibleDuration(
+          context,
+          _hideFadeWindow,
+        );
+        _hideFade.forward();
+      }
+    });
+
     final colors = ref.watch(themeProvider).colors;
-    // The user's PUBLIC AZM ID for the brand header (never the internal
-    // database id) — empty/unprovisioned renders "AZM-ID pending".
-    final azmId = (ref.watch(authProvider).user?.azamanId ?? '').trim();
     final balance = ref.watch(balanceDataProvider);
+    final isVisible = ref.watch(balanceVisibleProvider);
     final rate = ref.watch(oracleRateProvider);
     // EXPERIENCE PASS §1: the Home hero is ALWAYS USDC-first. The
     // DisplayCurrency toggle infrastructure survives for other surfaces,
@@ -121,13 +177,21 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     final primaryValue = balance.availableBalance;
     final primaryLabel = AzMoney.usdcFirst(primaryValue);
     final secondaryLabel = AzMoney.ghs(ghsValue);
+    // UX-CORRECTION §11 — the secondary mask keeps the EXACT visible
+    // grammar (symbol first, then the value region) so the GHS line does
+    // not reorder when hiding. Only the amount region becomes dots.
+    const secondaryMask = '${AzMoney.ghsSymbol} ••••';
 
     // Derived during build so the chip always reflects the freshest value.
     // `_trackDelta` schedules a timer but never calls setState synchronously,
     // so this is safe to run inside build.
     _trackDelta(primaryValue);
 
-    final chipDelta = _delta;
+    // The chip announces a change in the balance, so it must obey the same
+    // visibility mask as the figure itself — a hidden balance must not leak
+    // how much it just moved. Tracking continues while hidden (the baseline
+    // stays honest); only the rendering is suppressed.
+    final chipDelta = isVisible ? _delta : null;
 
     // Reduced motion: the chip appears without sliding. `accessibleDuration`
     // collapses to zero, and a zero-duration AnimatedSlide is an instant
@@ -188,54 +252,52 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // ── Header: the brand row ───────────────────────────────────
-          // WALLET POUCH follow-up (2026-10-16): the header is the CARD'S
-          // OWN brand identity — the real Azaman logo, the card's name and
-          // the user's public AZM ID anchored far right. This exact row is
-          // what the deck's tucked pouch leaves exposed above its mouth
-          // (the pouch covers from 56px down), so the tucked header and
-          // the open card are the SAME physical object at two stages of
-          // extraction — there is no second, separately painted header.
-          // `AVAILABLE` is retired here: the label said nothing the card's
-          // own brand doesn't, and the eyebrow style crowded the logo.
-          // The AZM ID is the user's PUBLIC identifier (never the internal
-          // database id); "AZM-ID pending" covers the not-yet-provisioned
-          // state.
+          // ── Header: label + visibility state ──────────────────────────
           Row(
             children: [
-              Image.asset(
-                'assets/images/azaman_logo.png',
-                height: 18,
-                filterQuality: FilterQuality.medium,
-              ),
-              const SizedBox(width: AzSpace.sm),
-              Flexible(
-                child: Text(
-                  'Azaman Balance',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
+              // §2B: the header's label group is part of the card's text
+              // content and fades with it; the EYE stays outside the fade
+              // and remains the only visible item at the hidden end state.
+              _fadingText(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // RICHTEXT CORRECTIONS §2C: the one small accent
+                    // highlight on the now-neutral graphite surface.
+                    Icon(
+                      HugeIconsSolid.wallet01,
+                      size: 14,
+                      color: colors.accent,
+                    ),
+                    const SizedBox(width: AzSpace.sm),
+                    Text(
+                      'AVAILABLE',
+                      style: AzText.eyebrow.copyWith(
+                        color: colors.textTertiary,
                       ),
+                    ),
+                  ],
                 ),
               ),
               const Spacer(),
-              Flexible(
-                child: Text(
-                  azmId.isEmpty ? 'AZM-ID pending' : azmId,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.textTertiary,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                ),
-              ),
+              // HOME REFRESH (2026-10-12): the balance-visibility control now
+              // LIVES HERE — the exact control relocated from Home's greeting
+              // header (same provider toggle, surface, press, glyph transition
+              // and haptic; see BalanceVisibilityEye). The old hidden-state
+              // only affordance is gone: one control, both states visible.
+              // The eye is a card-local control; its tap must not flip the
+              // card (see the nested-gesture contract in the widget docs).
+              BalanceVisibilityEye(flipGuard: widget.flipGuard, size: 32),
             ],
           ),
 
           // ── The figure ────────────────────────────────────────────────
+          // §2B: the entire figure block (delta chip, USDC unit + amount
+          // or mask, secondary GHS line, live rate row + indicator) is
+          // card text and fades with it — at the hidden end state the eye
+          // is the ONLY visible item, with no dots, ellipses, currency
+          // labels or rate text left behind.
+          _fadingText(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -327,15 +389,29 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                   // and its internal scale-down guard engages exactly as it
                   // did when it sat directly in the Column.
                   Flexible(
-                    child: OdometerNumber(
-                      value: AzMoney.amount(primaryValue),
-                      style: AzText.money(
-                        colors.textPrimary,
-                        size: AzText.sizeHero,
-                        weight: FontWeight.w600,
-                      ),
-                      semanticsLabel: '$primaryLabel available',
-                    ),
+                    child: isVisible
+                        ? OdometerNumber(
+                            value: AzMoney.amount(primaryValue),
+                            style: AzText.money(
+                              colors.textPrimary,
+                              size: AzText.sizeHero,
+                              weight: FontWeight.w600,
+                            ),
+                            semanticsLabel: '$primaryLabel available',
+                          )
+                        // UX-CORRECTION §11 — the masked amount occupies
+                        // the same region with the same hero style; the
+                        // real value is never exposed to semantics while
+                        // hidden.
+                        : Text(
+                            '••••••••',
+                            semanticsLabel: 'Balance hidden',
+                            style: AzText.money(
+                              colors.textPrimary,
+                              size: AzText.sizeHero,
+                              weight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -345,7 +421,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
               // Secondary figure: the other side of the pair, so the user
               // always knows what they actually hold.
               Text(
-                secondaryLabel,
+                isVisible ? secondaryLabel : secondaryMask,
                 style: AzText.bodyS.copyWith(color: colors.textSecondary),
               ),
 
@@ -389,6 +465,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                 ],
               ),
             ],
+          ),
           ),
         ],
       ),

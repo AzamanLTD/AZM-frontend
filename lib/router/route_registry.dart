@@ -54,7 +54,6 @@ abstract final class AzRouteNames {
   static const marketplace = 'marketplace';
   static const savings = 'savings';
   static const deposit = 'deposit';
-  static const sendMoney = 'send-money';
 
   // Susu
   static const susuHub = 'susu-hub';
@@ -178,12 +177,6 @@ abstract final class AzRoutes {
 
   /// `/deposit?amount=&memo=` — Susu T-24h shortfall reminders pre-fill the
   /// Mobile Money tab with these two query parameters (Req 12.4).
-  /// `/send-money` — the canonical friendship-scoped transfer surface
-  /// (SendMoneyScreen). Registered additively in r43 so every 'Send
-  /// Money' affordance (universal search, quick actions, deep links)
-  /// lands on the real rail instead of the unrelated deposit flow.
-  static const sendMoney = '/send-money';
-
   static String deposit({String? amount, String? memo}) {
     final params = <String>[
       if (amount != null) 'amount=${_encode(amount)}',

@@ -97,7 +97,9 @@ class WalletModulesRow extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: AzSpace.md),
-          const Expanded(child: _SusuPill()),
+          Expanded(
+            child: _SusuPill(),
+          ),
         ],
       ),
     );
@@ -153,36 +155,27 @@ class _WalletPill extends ConsumerWidget {
     // shadow — exactly the "existing elevation, surface, text, spacing
     // primitives" the brief allows. DARK keeps the premium glass
     // language untouched: glass reads on the black ramp.
-    // PR #154: guarantee the 44dp minimum pill hit target even under
-    // reduced text scales. The pill box = this content + the container's
-    // 24px vertical padding, so a 20px content floor keeps the tappable
-    // pill at >= 44dp while the default-metric pill is visually unchanged.
-    final content = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 20),
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // PASS E — the wallet module icons are SUPPORTING feature
-            // icons: muted gold, so bright gold stays reserved for the
-            // primary actions and selected navigation.
-            Icon(icon, size: 18, color: colors.mutedAccent),
-            const SizedBox(width: AzSpace.sm),
-            Flexible(
-              child: Text(
-                label,
-                style: AzText.title.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+    final content = Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // PASS E — the wallet module icons are SUPPORTING feature
+        // icons: muted gold, so bright gold stays reserved for the
+        // primary actions and selected navigation.
+        Icon(icon, size: 18, color: colors.mutedAccent),
+        const SizedBox(width: AzSpace.sm),
+        Flexible(
+          child: Text(
+            label,
+            style: AzText.title.copyWith(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w800,
             ),
-          ],
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-      ),
+      ],
     );
 
     return ScaleTap(
@@ -193,18 +186,14 @@ class _WalletPill extends ConsumerWidget {
               opacity: 0.05,
               borderRadius: 999,
               padding: const EdgeInsets.symmetric(
-                horizontal: AzSpace.lg,
-                vertical: 12,
-              ),
+                  horizontal: AzSpace.lg, vertical: 12),
               enableShadow: false,
               border: Border.all(color: colors.divider, width: 0.5),
               child: content,
             )
           : Container(
               padding: const EdgeInsets.symmetric(
-                horizontal: AzSpace.lg,
-                vertical: 12,
-              ),
+                  horizontal: AzSpace.lg, vertical: 12),
               decoration: BoxDecoration(
                 color: colors.card,
                 borderRadius: BorderRadius.circular(999),
