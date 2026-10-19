@@ -18,7 +18,7 @@ import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 // Provider for call history
 final callHistoryProvider = FutureProvider<List<dynamic>>((ref) async {
-  final response = await ApiClient().get('/api/calls?limit=50');
+  final response = await ref.read(apiClientProvider).get('/calls?limit=50');
   return jsonDecode(response.body)['data'] as List<dynamic>;
 });
 
@@ -264,8 +264,11 @@ class _CallHistoryItem extends StatelessWidget {
           Icon(statusIcon, size: 14, color: statusColor),
           const SizedBox(width: 4),
           if (createdAt != null)
-            Text(_formatTimestamp(createdAt),
-                style: Theme.of(context).textTheme.bodySmall),
+            Flexible(
+              child: Text(_formatTimestamp(createdAt),
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall),
+            ),
           const SizedBox(width: 8),
           if (durationSec > 0)
             Text('(${_formatDuration(durationSec)})',

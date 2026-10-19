@@ -6,10 +6,19 @@
 // =============================================================================
 
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 import 'package:azaman/services/api_client.dart';
 
 class MessageActionService {
-  static final ApiClient _client = ApiClient();
+  /// Test seam: when set, tests record the exact request paths through this
+  /// client instead of the real one (URL construction contracts).
+  @visibleForTesting
+  static ApiClient? testClientOverride;
+
+  static ApiClient? _clientInstance;
+  static ApiClient get _client =>
+      testClientOverride ?? (_clientInstance ??= ApiClient());
 
   /// Search messages across conversations
   static Future<List<Map<String, dynamic>>> searchMessages({
@@ -17,7 +26,7 @@ class MessageActionService {
     String context = 'all',
     String? conversationId,
   }) async {
-    final response = await _client.post('/api/messages/search', {
+    final response = await _client.post('/messages/search', {
       'query': query,
       'context': context,
       if (conversationId != null) 'conversationId': conversationId,
@@ -31,7 +40,7 @@ class MessageActionService {
     required String context,
     required String messageId,
   }) async {
-    final response = await _client.patch('/api/messages/$context/$messageId/pin');
+    final response = await _client.patch('/messages/$context/$messageId/pin');
     final body = jsonDecode(response.body);
     return body['data'] as Map<String, dynamic>;
   }
@@ -41,14 +50,14 @@ class MessageActionService {
     required String context,
     required String messageId,
   }) async {
-    final response = await _client.patch('/api/messages/$context/$messageId/star');
+    final response = await _client.patch('/messages/$context/$messageId/star');
     final body = jsonDecode(response.body);
     return body['data'] as Map<String, dynamic>;
   }
 
   /// Get all starred messages
   static Future<List<Map<String, dynamic>>> getStarredMessages() async {
-    final response = await _client.get('/api/messages/starred');
+    final response = await _client.get('/messages/starred');
     final body = jsonDecode(response.body);
     return List<Map<String, dynamic>>.from(body['data'] as List);
   }
@@ -60,7 +69,7 @@ class MessageActionService {
     required String toContext,
     required String toConversationId,
   }) async {
-    final response = await _client.post('/api/messages/forward', {
+    final response = await _client.post('/messages/forward', {
       'messageId': messageId,
       'fromContext': fromContext,
       'toContext': toContext,

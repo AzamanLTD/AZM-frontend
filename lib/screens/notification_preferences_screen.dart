@@ -77,7 +77,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
 
   Future<void> _loadPreferences() async {
     try {
-      final res = await ApiClient().get('/api/users/me/notification-preferences');
+      final res = await ref.read(apiClientProvider).get('/users/me/notification-preferences');
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       final data = body['data'] as Map<String, dynamic>? ?? {};
       setState(() {
@@ -116,7 +116,7 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await ApiClient().put('/api/users/me/notification-preferences', {
+      await ref.read(apiClientProvider).put('/users/me/notification-preferences', {
         'pushEnabled': _pushEnabled,
         'inAppEnabled': _inAppEnabled,
         'emailEnabled': _emailEnabled,
@@ -256,13 +256,17 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
   }
 
   Widget _card(AzamanColors colors, {required Widget child}) {
+    // Material, not a decorated Container: tiles paint their ink splashes
+    // on the nearest Material ancestor, so a DecoratedBox background would
+    // hide them (and trip the framework's debug assertion).
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
+      child: Material(
         color: colors.surface,
         borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: child,
       ),
-      child: child,
     );
   }
 
@@ -286,7 +290,11 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
         children: [
           Icon(info.$2, color: colors.accent, size: 22),
           const SizedBox(width: 12),
-          Text(info.$1, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+          Flexible(
+            child: Text(info.$1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
+          ),
         ],
       ),
       activeThumbColor: colors.accent,
@@ -303,10 +311,12 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
         children: [
           Icon(isLocked ? HugeIconsSolid.lockKey : info.$2, color: colors.accent, size: 20),
           const SizedBox(width: 12),
-          Text(info.$1, style: TextStyle(
-            color: isLocked ? colors.textTertiary : colors.textPrimary,
-            fontWeight: FontWeight.w600, fontSize: 14,
-          )),
+          Flexible(child: Text(info.$1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isLocked ? colors.textTertiary : colors.textPrimary,
+                fontWeight: FontWeight.w600, fontSize: 14,
+              ))),
         ],
       ),
       activeThumbColor: colors.accent,
