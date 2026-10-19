@@ -59,6 +59,10 @@ abstract class AzmCardProgramme {
 
   /// Cardholder display name.
   String get cardholderLabel;
+
+  /// Whether the issuer can really move funds to/from the AZM Visa card.
+  /// The current demo programme must never imply transfer execution.
+  bool get supportsTransfers => false;
 }
 
 /// The placeholder programme. PLACEHOLDER — REPLACE WITH THE REAL CARD
@@ -104,6 +108,10 @@ class DemoCardProgramme implements AzmCardProgramme {
 
   @override
   String get cardholderLabel => 'CARDHOLDER';
+
+  /// The sample programme cannot move funds in either direction.
+  @override
+  bool get supportsTransfers => false;
 
   static bool _valid(String pin) =>
       pin.length >= 4 && pin.length <= 6 && RegExp(r'^\d+$').hasMatch(pin);

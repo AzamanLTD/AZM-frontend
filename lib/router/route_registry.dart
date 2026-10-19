@@ -56,6 +56,8 @@ abstract final class AzRouteNames {
   static const deposit = 'deposit';
 
   // Susu
+  // Balance ↔ Visa card transfer from the Home deck seam.
+  static const cardTransfer = 'card-transfer';
   static const susuHub = 'susu-hub';
   static const proofOfResidency = 'proof-of-residency';
   static const susuInvite = 'susu-invite';
@@ -184,6 +186,9 @@ abstract final class AzRoutes {
     ];
     return params.isEmpty ? '/deposit' : '/deposit?${params.join('&')}';
   }
+
+  // ── Card transfer ─────────────────────────────────────────────────────────
+  static const cardTransfer = '/card-transfer';
 
   // ── Susu ─────────────────────────────────────────────────────────────────
   static const susuHub = '/susu';
