@@ -1,22 +1,36 @@
 // =============================================================================
 // AZAMAN — VISA TRANSFER SEAM CONTROL  (Balance ↔ Visa card transfer)
 //
-// The current wallet-pouch deck exposes the Visa header above the balance
-// card while tucked. The control sits in the clear centre of that header
-// band, avoiding the AZM, SAMPLE and VISA marks at either end.
+// The tucked wallet pouch is the only pose with a free, unclaimed surface:
+// the pocket's front face. The two exposed header bands (the Visa strip
+// and the balance card's brand row) are the deck's established selection
+// gestures — the control must never cover them, their marks, or their
+// taps. The control therefore rides as a CLASP on the pocket mouth, fully
+// on the absorbing pouch surface, and exists only while the deck is
+// tucked: once a card is out, the card's own gestures own the surface.
 // =============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart'
     show WalletCardDeckState;
 
 /// The circular control's footprint (>= the 44dp minimum touch target).
 const double kSeamControlSize = 48;
+
+/// The tucked pose's pocket mouth (stack coordinates): the bottom edge of
+/// the balance card's exposed brand header, where the pouch begins.
+const double kPocketMouthY =
+    WalletCardDeckState.visaHeaderTop +
+    WalletCardDeckState.visaPeek +
+    WalletCardDeckState.balanceHeaderBand;
+
+/// The clasp's vertical centre: fully on the pocket front, tangent to the
+/// balance header's bottom edge, clear of the mouth curve's dip.
+const double kPocketClaspCentreY = kPocketMouthY + kSeamControlSize / 2;
 
 /// Places the transfer control over the current wallet-pouch deck using the
 /// deck's public geometry constants.
@@ -25,34 +39,39 @@ class VisaTransferSeamAnchor extends ConsumerWidget {
     super.key,
     required this.child,
     required this.onTransfer,
+    this.visible = true,
   });
 
   /// The real wallet deck (gesture surface), underneath the control.
   final Widget child;
+
   final VoidCallback onTransfer;
+
+  /// The clasp exists only in the tucked pose (see the header comment).
+  /// Hosts pass the deck's live state; the default keeps stand-alone
+  /// test mounts simple.
+  final bool visible;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    // The exposed Visa header is the stable visible seam in the tucked pose.
-    const seamCentreY =
-        WalletCardDeckState.visaHeaderTop + WalletCardDeckState.visaPeek / 2;
 
     return Stack(
       clipBehavior: Clip.none,
       children: [
         child,
-        Positioned(
-          left: 0,
-          right: 0,
-          top: seamCentreY - kSeamControlSize / 2,
-          child: Center(
-            child: _SeamControlButton(
-              onTransfer: onTransfer,
-              colors: colors,
+        if (visible)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: kPocketClaspCentreY - kSeamControlSize / 2,
+            child: Center(
+              child: _SeamControlButton(
+                onTransfer: onTransfer,
+                colors: colors,
+              ),
             ),
           ),
-        ),
       ],
     );
   }

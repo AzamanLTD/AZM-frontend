@@ -866,6 +866,12 @@ class _DeckHostState extends ConsumerState<_DeckHost>
     with WidgetsBindingObserver {
   bool _detailsUnlocked = false;
 
+  /// The deck's live pose. The transfer clasp (VisaTransferSeamAnchor) is
+  /// mounted only while tucked — an out card's own gestures own the deck
+  /// surface, and the pocket mouth (the clasp's home) is only exposed in
+  /// the tucked pose.
+  WalletDeckState _deckState = WalletDeckState.tucked;
+
   /// STALE-RESULT GUARD (2026-10-16 follow-up): monotonic attempt counter
   /// for the Visa PIN gate. A gate that is pending when the app is
   /// backgrounded, the deck is tucked/switched or the Home tab loses
@@ -938,6 +944,7 @@ class _DeckHostState extends ConsumerState<_DeckHost>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         VisaTransferSeamAnchor(
+          visible: _deckState == WalletDeckState.tucked,
           onTransfer: () => context.push(AzRoutes.cardTransfer),
           child: WalletCardDeck(
             key: _deckKey,
@@ -985,6 +992,9 @@ class _DeckHostState extends ConsumerState<_DeckHost>
   /// The deck reports every state change; the host owns what each state
   /// means downstream (audit §6).
   Future<void> _onDeckStateChanged(WalletDeckState next) async {
+    if (_deckState != next) {
+      setState(() => _deckState = next);
+    }
     switch (next) {
       case WalletDeckState.tucked:
         // Returned to the pouch (swipe, tap elsewhere, programmatic):

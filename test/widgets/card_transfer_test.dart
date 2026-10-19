@@ -4,10 +4,11 @@
 // Pins the contract of the full-height transfer surface and its Home seam
 // control:
 //
-//   1. OPENING / DISMISSING — the seam control exists on the deck's stable
-//      overlap seam, opens the surface via the real route, and the surface
-//      dismisses via both the close button and the committed pull-down
-//      (with the review stage consuming a pull first).
+//   1. OPENING / DISMISSING — the clasp exists on the tucked pouch's
+//      pocket mouth (clear of both header-band tap targets and every card
+//      mark), only while tucked, opens the surface via the real route,
+//      and the surface dismisses via both the close button and the
+//      committed pull-down (with the review stage consuming a pull first).
 //   2. BOTH DIRECTIONS — "To Visa" / "From Visa" swap source and
 //      destination everywhere they appear.
 //   3. TAB-SWIPE SYNCHRONISATION — taps and horizontal swipes drive the
@@ -169,7 +170,8 @@ void main() {
   // ── 1. OPENING / DISMISSING ────────────────────────────────────────────
 
   group('the Home seam control', () {
-    testWidgets('rides the two cards\' stable overlap seam', (tester) async {
+    testWidgets('rides the tucked pouch\'s pocket mouth, clear of both '
+        'header-band tap targets', (tester) async {
       await tester.binding.setSurfaceSize(const Size(400, 400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       var tapped = 0;
@@ -197,23 +199,64 @@ void main() {
       final control = find.byKey(const ValueKey('visa-transfer-seam-control'));
       expect(control, findsOneWidget);
 
-      // The visible Visa header band is the seam in the wallet-pouch pose.
-      // Keep the control in its clear center so AZM / SAMPLE / VISA marks
-      // at the sides stay visible.
+      // The clasp rides the tucked pouch's POCKET MOUTH — fully on the
+      // absorbing pouch surface, tangent to the balance header's bottom
+      // edge. It must NOT touch either header band's tap target (the
+      // Visa strip at visaHeaderTop..+visaPeek, the balance brand header
+      // below it) nor cover any AZM / SAMPLE / VISA mark.
       final rect = tester.getRect(control);
       final deckRect = tester.getRect(find.byKey(_standInDeckKey));
-      const seamCentreY =
-          WalletCardDeckState.visaHeaderTop + WalletCardDeckState.visaPeek / 2;
+      const pocketMouthY =
+          WalletCardDeckState.visaHeaderTop +
+          WalletCardDeckState.visaPeek +
+          WalletCardDeckState.balanceHeaderBand;
       expect(rect.top - deckRect.top,
-          moreOrLessEquals(seamCentreY - 24, epsilon: 0.5));
+          moreOrLessEquals(pocketMouthY, epsilon: 0.5),
+          reason: 'the clasp starts exactly at the pocket mouth — below it, '
+              'the balance header band must stay fully tappable');
       expect(rect.bottom - deckRect.top,
-          moreOrLessEquals(seamCentreY + 24, epsilon: 0.5));
+          moreOrLessEquals(pocketMouthY + kSeamControlSize, epsilon: 0.5));
       expect(rect.center.dx - deckRect.left,
-          moreOrLessEquals(deckRect.width / 2, epsilon: 0.5));
+          moreOrLessEquals(deckRect.width / 2, epsilon: 0.5),
+          reason: 'the clasp sits in the pocket mouth\'s clear center — '
+              'AZM / SAMPLE / VISA marks stay visible at the sides');
 
       await tester.tap(control);
       await tester.pump();
       expect(tapped, 1);
+    });
+
+    testWidgets('exists only while the deck is tucked (the clasp never '
+        'fights an out card\'s own gestures)', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: _container(),
+          child: MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: VisaTransferSeamAnchor(
+                  visible: false,
+                  onTransfer: () {},
+                  child: const SizedBox(
+                    key: _standInDeckKey,
+                    width: 400,
+                    height: 261,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.byKey(const ValueKey('visa-transfer-seam-control')),
+        findsNothing,
+        reason: 'an out card owns the deck surface — the clasp must not '
+            'mount over it',
+      );
     });
 
     testWidgets('opens the transfer surface via the real route', (
@@ -313,7 +356,10 @@ void main() {
 
       final route = find.byKey(const ValueKey('card-transfer-route-to-visa'));
       expect(route, findsOneWidget);
-      expect(find.text('Azaman Balance'), findsOneWidget);
+      // TWO 'Azaman Balance' texts are expected post-pouch (#163): the route
+      // row states the source once, and HologramBalanceCard's face carries
+      // the deck's own established label. No third instance may exist.
+      expect(find.text('Azaman Balance'), findsNWidgets(2));
 
       // The Home card renderers themselves — never duplicates.
       expect(find.byType(FlippableBalanceCard), findsOneWidget);
@@ -556,7 +602,9 @@ void main() {
       // Source and destination rows, the chosen direction.
       expect(find.text('From'), findsOneWidget);
       expect(find.text('To'), findsOneWidget);
-      expect(find.text('Azaman Balance'), findsOneWidget);
+      // The review From-row names the balance once; the mounted card's own
+      // hologram face (#163) carries the deck label — and only those two.
+      expect(find.text('Azaman Balance'), findsNWidgets(2));
 
       // THE GATE: truthful copy, disabled submission, never a success.
       expect(

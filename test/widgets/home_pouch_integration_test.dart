@@ -60,6 +60,10 @@ class _NoopHistoryNotifier extends TransactionHistoryNotifier {
 class _PinnedProgramme implements AzmCardProgramme {
   String? _pin;
 
+  // The transfer surface ships inert: no fake programme may claim support.
+  @override
+  bool get supportsTransfers => false;
+
   @override
   bool get hasPin => _pin != null;
 
