@@ -65,7 +65,10 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
 
   Future<void> _loadMyAds() async {
     try {
-      final res = await apiClient.get('/p2p/my-ads');
+      // The vendor's own active ads live on the real ad-management rail:
+      // GET /api/ads/mine ({success, ads:[...]}, the caller's ads only).
+      // The old '/p2p/my-ads' target never existed on the backend.
+      final res = await ref.read(apiClientProvider).get('/ads/mine');
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         final list = (body['ads'] as List<dynamic>? ?? const [])
