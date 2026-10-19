@@ -117,6 +117,18 @@ class MarketplaceMixState {
   /// Opaque server cursor for the next page; null = end of feed.
   final String? nextCursor;
 
+  /// Truthful multi-request feedback (acceptance close-out 2026-10-19):
+  /// the first-page walk (or a manual continuation) is auto-following
+  /// empty cursor pages — the loading state stays honest about doing
+  /// more work instead of a silent skeleton.
+  final bool searchingWide;
+
+  /// The continuation path hit a cursor that does not advance (a cursor
+  /// already consumed came back, or the submitted cursor was returned
+  /// unchanged). Show more would just resubmit the same cursor, so the
+  /// surface shows an explicit stalled notice with retry/refresh instead.
+  final bool continuationStalled;
+
   /// One-sentence user-facing failure message; never a raw exception string.
   final String? error;
 
@@ -127,6 +139,8 @@ class MarketplaceMixState {
     this.loadingMore = false,
     this.offers = const [],
     this.nextCursor,
+    this.searchingWide = false,
+    this.continuationStalled = false,
     this.error,
   });
 
@@ -141,6 +155,8 @@ class MarketplaceMixState {
     bool? loadingMore,
     List<MixOffer>? offers,
     Object? nextCursor = _unset,
+    bool? searchingWide,
+    bool? continuationStalled,
     Object? error = _unset,
   }) => MarketplaceMixState(
     categoryWire: categoryWire ?? this.categoryWire,
@@ -149,6 +165,8 @@ class MarketplaceMixState {
     loadingMore: loadingMore ?? this.loadingMore,
     offers: offers ?? this.offers,
     nextCursor: nextCursor == _unset ? this.nextCursor : nextCursor as String?,
+    searchingWide: searchingWide ?? this.searchingWide,
+    continuationStalled: continuationStalled ?? this.continuationStalled,
     error: error == _unset ? this.error : error as String?,
   );
 
@@ -188,6 +206,25 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
   /// result must carry the id it was issued; a response for a superseded
   /// request is discarded.
   int _requestSeq = 0;
+
+  /// Cursor-progress validation (acceptance close-out 2026-10-19): every
+  /// cursor the walk CONSUMES (submits to the gateway) is remembered for
+  /// the life of the feed selection. A cursor that comes back from the
+  /// server a second time — or a submitted cursor returned unchanged — is
+  /// NO PROGRESS: following it would loop without advancing, so the walk
+  /// stops and the state flags `continuationStalled` for an explicit
+  /// retry/refresh affordance. Cleared at the start of every first-page
+  /// load (a new selection starts a fresh walk).
+  final Set<String> _consumedCursors = <String>{};
+
+  /// A returned cursor is a stall when the walk has already consumed it
+  /// (it loops back) or when it is the cursor the request just submitted
+  /// (the source did not advance).
+  bool _isCursorStall(String? submitted, String? returned) {
+    if (returned == null) return false;
+    if (submitted != null && returned == submitted) return true;
+    return _consumedCursors.contains(returned);
+  }
 
   /// Switches category. `null` selects ALL — the unfiltered discovery feed.
   /// Resets any taxonomy filters (chips are category-scoped) and reloads
@@ -245,6 +282,8 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
     state = state.copyWith(
       phase: MixPhase.loading,
       loadingMore: false,
+      searchingWide: false,
+      continuationStalled: false,
       error: null,
     );
     await _loadFirstPage();
@@ -253,33 +292,94 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
   /// Loads the next cursor page, APPENDING to the existing feed so nothing
   /// the user is looking at reshuffles mid-scroll. Preserves the selected
   /// category and filters in the request.
+  ///
+  /// Cursor-progress validation (acceptance close-out 2026-10-19): the
+  /// manual path now applies the SAME no-progress guard as the first-page
+  /// walk. An empty page with a NEW cursor is followed automatically
+  /// within the bounded continuation limit (an empty page is not true
+  /// exhaustion); a cursor that cannot advance stops the walk and flags
+  /// `continuationStalled`, so the surface replaces the apparently
+  /// productive Show more with an explicit stalled/retry/refresh state —
+  /// never a button that resubmits the same cursor forever. While stalled,
+  /// loadMore is a no-op (including the scroll trigger), so no request
+  /// loop exists.
   Future<void> loadMore() async {
-    if (state.loadingMore || !state.hasMore || state.phase != MixPhase.ready) {
+    if (state.loadingMore ||
+        !state.hasMore ||
+        state.phase != MixPhase.ready ||
+        state.continuationStalled) {
       return;
     }
+    final submitted = state.nextCursor;
+    if (submitted != null) _consumedCursors.add(submitted);
     final seq = ++_requestSeq;
-    state = state.copyWith(loadingMore: true);
+    state = state.copyWith(loadingMore: true, continuationStalled: false);
     try {
-      final page = await _gateway.fetchItems(
+      var page = await _gateway.fetchItems(
         category: state.categoryWire,
         taxonomies: state.taxonomies,
         limit: kPageSize,
-        cursor: state.nextCursor,
+        cursor: submitted,
       );
       // Stale-response guard: the selection may have changed while the page
       // was in flight — a late page never appends to a newer feed.
       if (seq != _requestSeq) return;
+      var continuations = 0;
+      while (page.offers.isEmpty &&
+          page.nextCursor != null &&
+          !_isCursorStall(submitted, page.nextCursor) &&
+          continuations < kMaxFirstPageContinuations) {
+        // Empty page with a NEW cursor: not exhaustion — follow it within
+        // the bounded limit, with truthful feedback while walking.
+        _consumedCursors.add(page.nextCursor!);
+        state = state.copyWith(searchingWide: true);
+        page = await _gateway.fetchItems(
+          category: state.categoryWire,
+          taxonomies: state.taxonomies,
+          limit: kPageSize,
+          cursor: page.nextCursor,
+        );
+        continuations += 1;
+        if (seq != _requestSeq) return;
+      }
+      final stalled = _isCursorStall(submitted, page.nextCursor);
       state = state.copyWith(
         loadingMore: false,
+        searchingWide: false,
         offers: [...state.offers, ...page.offers],
         nextCursor: page.nextCursor,
+        continuationStalled: stalled,
       );
     } catch (_) {
       if (seq != _requestSeq) return;
       // Page-load failure keeps the current feed; the retry affordance is
       // the pull-to-refresh / reselect path.
-      state = state.copyWith(loadingMore: false, nextCursor: state.nextCursor);
+      state = state.copyWith(loadingMore: false, searchingWide: false);
     }
+  }
+
+  /// Explicit affordance for a stalled continuation: one more manual
+  /// attempt with the same cursor (each attempt is user-initiated and
+  /// re-validated — a repeated cursor re-flags the stall immediately, so
+  /// no loop exists).
+  Future<void> retryStalledContinuation() async {
+    if (!state.continuationStalled) return;
+    state = state.copyWith(continuationStalled: false);
+    await loadMore();
+  }
+
+  /// Explicit reset of the whole feed: a fresh first-page walk from the
+  /// top, clearing the consumed-cursor history (a clean slate for cursor
+  /// progress).
+  Future<void> refreshFeed() async {
+    state = state.copyWith(
+      phase: MixPhase.loading,
+      loadingMore: false,
+      searchingWide: false,
+      continuationStalled: false,
+      error: null,
+    );
+    await _loadFirstPage();
   }
 
   /// Records a tap on one item+store offer pair through the real backend
@@ -304,6 +404,8 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
 
   Future<void> _loadFirstPage() async {
     final seq = ++_requestSeq;
+    // A fresh first-page walk starts with a clean cursor-progress history.
+    _consumedCursors.clear();
     try {
       var page = await _gateway.fetchItems(
         category: state.categoryWire,
@@ -321,17 +423,15 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
       // null). An exhausted budget leaves the remaining cursor in the
       // state so the surface's continuation affordance stays truthful.
       var continuations = 0;
-      // Progress guard (final acceptance follow-up 2026-10-19): a cursor
-      // the walk has ALREADY consumed and seen again means the source is
-      // not advancing — following it would loop without progress. The walk
-      // stops instead; the surviving cursor stays in the state so the
-      // surface affordance remains truthful.
-      final seenCursors = <String?>{};
       while (page.offers.isEmpty &&
           page.nextCursor != null &&
-          !seenCursors.contains(page.nextCursor) &&
+          !_isCursorStall(null, page.nextCursor) &&
           continuations < kMaxFirstPageContinuations) {
-        seenCursors.add(page.nextCursor);
+        // Truthful multi-request feedback: the loading state tells the
+        // user the walk is doing MORE work, not a silent skeleton for the
+        // whole worst case.
+        _consumedCursors.add(page.nextCursor!);
+        state = state.copyWith(searchingWide: true);
         page = await _gateway.fetchItems(
           category: state.categoryWire,
           taxonomies: state.taxonomies,
@@ -341,12 +441,20 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
         continuations += 1;
         if (seq != _requestSeq) return;
       }
+      // Progress guard: a cursor the walk has ALREADY consumed and seen
+      // again means the source is not advancing — following it would loop
+      // without progress. The walk stops and flags the stall; the
+      // surviving cursor stays in the state so the surface shows the
+      // explicit stalled/retry/refresh affordance instead of a dead end.
+      final stalled = _isCursorStall(null, page.nextCursor);
       state = MarketplaceMixState(
         categoryWire: state.categoryWire,
         taxonomies: state.taxonomies,
         phase: MixPhase.ready,
         offers: page.offers,
         nextCursor: page.nextCursor,
+        searchingWide: false,
+        continuationStalled: stalled,
       );
     } on MixEndpointDisabledException {
       if (seq != _requestSeq) return;
@@ -354,6 +462,8 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
         phase: MixPhase.disabled,
         offers: const [],
         nextCursor: null,
+        searchingWide: false,
+        continuationStalled: false,
         error: null,
       );
     } on MixInvalidFilterException catch (e) {
@@ -362,6 +472,8 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
         phase: MixPhase.invalidRequest,
         offers: const [],
         nextCursor: null,
+        searchingWide: false,
+        continuationStalled: false,
         error: e.message,
       );
     } catch (_) {
@@ -370,6 +482,8 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
         phase: MixPhase.failed,
         offers: const [],
         nextCursor: null,
+        searchingWide: false,
+        continuationStalled: false,
         error: 'We couldn\'t load this category right now.',
       );
     }

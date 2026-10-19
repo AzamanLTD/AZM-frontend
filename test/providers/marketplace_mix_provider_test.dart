@@ -608,23 +608,45 @@ void main() {
 
   test(
     'progress guard: a cursor that repeats without progress stops the walk '
-    'early — never the full continuation budget',
+    'early and flags the stall — retry is bounded, refreshFeed resets',
     () async {
       final g = _FakeGateway()
         ..behavior = (req) async => _page([], 'CUR-REPEAT');
       final c = _container(g);
-      await _notifier(c).load();
+      final n = _notifier(c);
+      await n.load();
 
       // Page 1 is empty with CUR-REPEAT; the follow-up (consuming
       // CUR-REPEAT) returns the SAME cursor — no progress. The guard stops
       // the walk after ONE continuation, not the full budget.
       expect(g.requests, hasLength(2));
-      final state = c.read(marketplaceMixProvider);
+      var state = c.read(marketplaceMixProvider);
       expect(state.phase, MixPhase.ready);
       expect(state.offers, isEmpty);
       // The repeated cursor stays truthfully — the surface affordance
       // remains, but the automatic walk cannot spin on it.
       expect(state.nextCursor, 'CUR-REPEAT');
+      // The stall is EXPLICIT: the surface shows the stalled panel, and
+      // loadMore (including the scroll trigger) no-ops while stalled.
+      expect(state.continuationStalled, isTrue);
+      await n.loadMore();
+      expect(g.requests, hasLength(2), reason: 'no request while stalled');
+
+      // The explicit retry affordance: ONE more validated attempt. The
+      // same repeated cursor re-flags the stall immediately — bounded.
+      await n.retryStalledContinuation();
+      expect(g.requests, hasLength(3));
+      state = c.read(marketplaceMixProvider);
+      expect(state.continuationStalled, isTrue);
+      expect(state.offers, isEmpty);
+
+      // Refresh feed: a fresh first-page walk with a clean cursor history
+      // (page 1 + one continuation before the repeat re-flags the stall).
+      await n.refreshFeed();
+      expect(g.requests, hasLength(5), reason: 'fresh walk restarts at page 1');
+      state = c.read(marketplaceMixProvider);
+      expect(state.continuationStalled, isTrue,
+          reason: 'the gateway still repeats the cursor — honestly stalled');
     },
   );
 
@@ -650,24 +672,15 @@ void main() {
       expect(g.requests, hasLength(budget));
       expect(c.read(marketplaceMixProvider).offers, isEmpty);
 
-      // First user-driven continuation: STILL an empty page with a cursor.
-      await n.loadMore();
-      expect(g.requests, hasLength(budget + 1));
-      expect(c.read(marketplaceMixProvider).offers, isEmpty);
-      expect(c.read(marketplaceMixProvider).nextCursor, isNotNull);
-
-      // Second user-driven continuation: STILL empty with a cursor — the
-      // affordance stays truthful, no items invented, no loop in code.
-      await n.loadMore();
-      expect(g.requests, hasLength(budget + 2));
-      expect(c.read(marketplaceMixProvider).offers, isEmpty);
-
-      // Third user-driven continuation: the eligible item finally appears.
+      // ONE user-driven continuation now walks the remaining empty pages
+      // (bounded by the same continuation limit) and finds the item —
+      // the user never taps Show more three times for one result.
       await n.loadMore();
       expect(g.requests, hasLength(budget + 3));
       final state = c.read(marketplaceMixProvider);
       expect(state.offers.map((o) => o.productId), ['found']);
       expect(state.nextCursor, isNull);
+      expect(state.continuationStalled, isFalse);
     },
   );
 
@@ -697,6 +710,133 @@ void main() {
       // honest terminal empty state with no affordance.
       await n.loadMore();
       expect(g.requests, hasLength(2));
+    },
+  );
+
+  test(
+    'manual continuation stall: a loadMore that returns the SUBMITTED cursor '
+    'unchanged flags the stall, keeps the feed intact and blocks re-submits',
+    () async {
+      // Ready feed with items + a cursor.
+      final g = _FakeGateway()
+        ..behavior = (req) async {
+          if (req.cursor == null) return _page(['a', 'b'], 'CUR-A');
+          // Submitting CUR-A returns NOTHING and the SAME cursor — the
+          // source did not advance.
+          return _page([], 'CUR-A');
+        };
+      final c = _container(g);
+      final n = _notifier(c);
+      await n.load();
+      expect(c.read(marketplaceMixProvider).offers, hasLength(2));
+
+      await n.loadMore();
+      expect(g.requests, hasLength(2));
+      var state = c.read(marketplaceMixProvider);
+      // The feed is untouched (nothing invented, nothing lost) and the
+      // stall is EXPLICIT — Show more is replaced by the stalled state.
+      expect(state.offers.map((o) => o.productId), ['a', 'b']);
+      expect(state.continuationStalled, isTrue);
+      expect(state.hasMore, isTrue, reason: 'the cursor survives truthfully');
+
+      // While stalled, loadMore (and the scroll trigger) is a no-op.
+      await n.loadMore();
+      expect(g.requests, hasLength(2));
+
+      // The explicit retry: one more validated attempt. This time the
+      // server advances (a new cursor + new items) — the stall clears and
+      // the feed appends normally.
+      g.behavior = (req) async {
+        if (req.cursor == 'CUR-A') return _page(['c'], 'CUR-B');
+        return _page([], null);
+      };
+      await n.retryStalledContinuation();
+      expect(g.requests, hasLength(3));
+      state = c.read(marketplaceMixProvider);
+      expect(state.continuationStalled, isFalse);
+      expect(state.offers.map((o) => o.productId), ['a', 'b', 'c']);
+      expect(state.nextCursor, 'CUR-B');
+    },
+  );
+
+  test(
+    'manual continuation stall across MULTIPLE attempts: a cursor that loops '
+    'back (A -> B -> A) re-flags the stall every time — bounded, no loop',
+    () async {
+      final g = _FakeGateway()
+        ..behavior = (req) async {
+          if (req.cursor == null) return _page(['a'], 'CUR-A');
+          // CUR-A -> empty + CUR-B; CUR-B -> empty + CUR-A (loops back to
+          // an ALREADY CONSUMED cursor).
+          if (req.cursor == 'CUR-A') return _page([], 'CUR-B');
+          return _page([], 'CUR-A');
+        };
+      final c = _container(g);
+      final n = _notifier(c);
+      await n.load();
+      expect(g.requests, hasLength(1));
+
+      // First manual attempt: CUR-A -> CUR-B (progress) -> CUR-A (already
+      // consumed — stall).
+      await n.loadMore();
+      expect(g.requests, hasLength(3));
+      var state = c.read(marketplaceMixProvider);
+      expect(state.continuationStalled, isTrue);
+      expect(state.offers.map((o) => o.productId), ['a']);
+      // The stalled cursor is the loop-back point.
+      expect(state.nextCursor, 'CUR-A');
+
+      // Second manual attempt (explicit retry): the whole cycle is already
+      // in the consumed history, so the walk halts at the FIRST already-
+      // seen cursor — exactly ONE request per retry, never more.
+      await n.retryStalledContinuation();
+      expect(g.requests, hasLength(4));
+      state = c.read(marketplaceMixProvider);
+      expect(state.continuationStalled, isTrue);
+      // The stalled cursor alternates through the cycle truthfully.
+      expect(state.nextCursor, 'CUR-B');
+
+      // Third attempt: identical. The retry affordance stays bounded —
+      // every attempt is user-initiated and progress-validated.
+      await n.retryStalledContinuation();
+      expect(g.requests, hasLength(5));
+      state = c.read(marketplaceMixProvider);
+      expect(state.continuationStalled, isTrue);
+      expect(state.nextCursor, 'CUR-A');
+    },
+  );
+
+  test(
+    'searchingWide feedback: a multi-request first-page walk emits the '
+    'honest searching state between requests, and clears it at the end',
+    () async {
+      final g = _FakeGateway();
+      var call = 0;
+      g.behavior = (req) async {
+        // Three empty pages with cursors, then the item.
+        call += 1;
+        if (call <= 3) return _page([], 'CUR-$call');
+        return _page(['found'], null);
+      };
+      final c = _container(g);
+      final seenSearching = <bool>[];
+      // Watch every emitted state during the walk.
+      final sub = c.listen(
+        marketplaceMixProvider,
+        (previous, next) => seenSearching.add(next.searchingWide),
+      );
+      addTearDown(sub.close);
+      await _notifier(c).load();
+
+      expect(g.requests, hasLength(4));
+      // At least one intermediate state during the auto-follow walk told
+      // the truth: the feed is doing MORE work, not a silent skeleton.
+      expect(seenSearching.contains(true), isTrue);
+      // The terminal state is clean — no stuck feedback flag.
+      final state = c.read(marketplaceMixProvider);
+      expect(state.searchingWide, isFalse);
+      expect(state.phase, MixPhase.ready);
+      expect(state.offers.map((o) => o.productId), ['found']);
     },
   );
 

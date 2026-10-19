@@ -85,7 +85,7 @@ class MixFeedSurface extends ConsumerWidget {
     final state = ref.watch(marketplaceMixProvider);
 
     return switch (state.phase) {
-      MixPhase.idle || MixPhase.loading => _loading(),
+      MixPhase.idle || MixPhase.loading => _loading(state),
       MixPhase.failed => _failed(ref, state),
       MixPhase.disabled => _disabled(),
       MixPhase.invalidRequest => _invalidRequest(state),
@@ -93,25 +93,86 @@ class MixFeedSurface extends ConsumerWidget {
     };
   }
 
-  Widget _loading() {
+  Widget _loading(MarketplaceMixState state) {
     // Gallery-grid skeletons: 6 tiles = 3 pair rows, mirroring the ready
-    // feed's two-column product format.
-    return ListView.builder(
+    // feed's two-column product format. When the first-page walk is
+    // auto-following empty cursor pages (multi-request worst case) the
+    // skeleton stays but gains a truthful line about doing more work —
+    // placed ABOVE the grid so it is always visible, never left waiting
+    // below the fold or hidden behind a silent skeleton.
+    final searchingWide = state.searchingWide;
+    return ListView(
       key: const ValueKey('mix_loading'),
       padding: _insets(),
-      itemCount: 3,
-      // The row measures the ALREADY-INSETTED content width, so the pair
-      // exactly fills the row at every phone width.
-      itemBuilder: (_, __) => const Padding(
-        padding: EdgeInsets.only(bottom: AzSpace.sm),
-        child: Row(
-          children: [
-            Expanded(child: _TileSkeleton()),
-            SizedBox(width: AzSpace.sm),
-            Expanded(child: _TileSkeleton()),
-          ],
+      children: [
+        if (searchingWide)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AzSpace.lg),
+            child: Center(
+              child: Text(
+                'Still searching — looking further for you…',
+                key: ValueKey('mix_searching_wide'),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        for (var row = 0; row < 3; row++)
+          const Padding(
+            padding: EdgeInsets.only(bottom: AzSpace.sm),
+            child: Row(
+              children: [
+                Expanded(child: _TileSkeleton()),
+                SizedBox(width: AzSpace.sm),
+                Expanded(child: _TileSkeleton()),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// Stalled continuation panel (acceptance close-out 2026-10-19): the
+  /// cursor cannot advance, so instead of an apparently productive Show
+  /// more that would resubmit the same cursor forever, the user gets an
+  /// explicit state with two bounded affordances: Try again (one more
+  /// validated attempt) and Refresh feed (a fresh first-page walk with a
+  /// clean cursor history).
+  Widget _stalledPanel(WidgetRef ref, {required bool compact}) {
+    Widget notice = AzamanEmptyState(
+      key: const ValueKey('mix_stalled_notice'),
+      icon: Icons.hourglass_disabled_outlined,
+      title: 'Couldn\'t load more right now',
+      subtitle:
+          'This list stopped moving. Try again, or refresh the whole feed.',
+    );
+    Widget actions = Row(
+      key: const ValueKey('mix_stalled_actions'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        TextButton(
+          key: const ValueKey('mix_stalled_retry'),
+          onPressed: () => ref
+              .read(marketplaceMixProvider.notifier)
+              .retryStalledContinuation(),
+          child: const Text('Try again'),
         ),
-      ),
+        TextButton(
+          key: const ValueKey('mix_stalled_refresh'),
+          onPressed: () =>
+              ref.read(marketplaceMixProvider.notifier).refreshFeed(),
+          child: const Text('Refresh feed'),
+        ),
+      ],
+    );
+    if (compact) {
+      notice = const Text(
+        'Couldn\'t load more right now.',
+        key: ValueKey('mix_stalled_tail_notice'),
+      );
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [notice, actions],
     );
   }
 
@@ -202,7 +263,13 @@ class MixFeedSurface extends ConsumerWidget {
               // load; if its continuation budget itself is exhausted while
               // a cursor remains, the honest empty state carries an
               // explicit continuation affordance instead of a dead end.
-              if (state.hasMore) ...[
+              // A STALLED cursor (acceptance close-out 2026-10-19) shows
+              // the explicit stalled panel instead — never a Show more
+              // that resubmits the same cursor.
+              if (state.continuationStalled) ...[
+                const SizedBox(height: AzSpace.sm),
+                _stalledPanel(ref, compact: false),
+              ] else if (state.hasMore) ...[
                 const SizedBox(height: AzSpace.sm),
                 TextButton(
                   key: const ValueKey('mix_empty_continue'),
@@ -263,17 +330,25 @@ class MixFeedSurface extends ConsumerWidget {
               ),
             );
           }
-          return _feedTail(state);
+          return _feedTail(ref, state);
         },
       ),
     );
   }
 
-  Widget _feedTail(MarketplaceMixState state) {
+  Widget _feedTail(WidgetRef ref, MarketplaceMixState state) {
     if (state.loadingMore) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: AzSpace.lg),
         child: Center(child: AzSkeleton(width: 120, height: 12)),
+      );
+    }
+    // A stalled continuation on a NON-empty feed: the explicit compact
+    // panel replaces the tail — the scroll trigger no-ops while stalled.
+    if (state.continuationStalled) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: AzSpace.lg),
+        child: _stalledPanel(ref, compact: true),
       );
     }
     return const SizedBox(height: AzSpace.xxs);

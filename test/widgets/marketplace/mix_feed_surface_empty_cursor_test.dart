@@ -13,6 +13,8 @@
 //     it surfaces the eligible items waiting beyond the scan window.
 // =============================================================================
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -143,6 +145,123 @@ void main() {
       expect(find.byKey(const ValueKey('mix_feed')), findsOneWidget);
       expect(find.byKey(const ValueKey('mix_empty')), findsNothing);
       expect(find.text('Item x'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'a stalled cursor renders the explicit stalled panel (retry/refresh) — '
+    'never a Show more that resubmits the same cursor',
+    (tester) async {
+      // The cursor repeats: the automatic walk stops at the first repeat
+      // and flags the stall.
+      final g = _FakeGateway((cursor, call) async => _page([], 'CUR-REPEAT'));
+      await _pumpSurface(tester, g);
+
+      expect(g.calls, 2, reason: 'page 1 plus one follow-up before the repeat');
+      // The STALLED panel, not the Show more affordance.
+      expect(find.byKey(const ValueKey('mix_stalled_notice')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mix_stalled_retry')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mix_stalled_refresh')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mix_empty_continue')), findsNothing);
+      expect(find.text('Show more'), findsNothing);
+
+      // Refresh feed: a fresh walk — which honestly stalls again on the
+      // same repeating gateway, bounded (no loop).
+      await tester.tap(find.byKey(const ValueKey('mix_stalled_refresh')));
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(g.calls, 4, reason: 'the refresh walk is bounded again');
+      expect(
+        find.byKey(const ValueKey('mix_stalled_notice')),
+        findsOneWidget,
+        reason: 'still honestly stalled — no invented items',
+      );
+    },
+  );
+
+  testWidgets(
+    'a multi-request first-page walk shows the truthful searching feedback '
+    'line during the walk (never a silent skeleton)',
+    (tester) async {
+      final secondPage = Completer<MixDiscoveryPage>();
+      var calls = 0;
+      final g = _FakeGateway((cursor, call) async {
+        calls += 1;
+        if (calls == 1) return _page([], 'CUR-1');
+        // The follow-up request hangs until the test completes it — the
+        // walk is visibly in progress.
+        return secondPage.future;
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [marketplaceMixGatewayProvider.overrideWithValue(g)],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: MixFeedSurface(onOpenStore: _noop, bottomPadding: 0),
+            ),
+          ),
+        ),
+      );
+      final ctx = tester.element(find.byType(MixFeedSurface));
+      final container = ProviderScope.containerOf(ctx);
+      container.read(marketplaceMixProvider.notifier).load();
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      // Page 1 is empty with a cursor and the follow-up is in flight: the
+      // loading state says what it is doing — searching further — instead
+      // of a silent skeleton for the whole worst case.
+      expect(calls, 2);
+      expect(find.byKey(const ValueKey('mix_loading')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mix_searching_wide')), findsOneWidget);
+
+      // The follow-up resolves with the offers — the feed renders.
+      secondPage.complete(_page(['x'], null));
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(find.byKey(const ValueKey('mix_feed')), findsOneWidget);
+      expect(find.text('Item x'), findsOneWidget);
+      expect(find.byKey(const ValueKey('mix_searching_wide')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'a stalled continuation on a NON-empty feed renders the compact stalled '
+    'tail and keeps the feed intact',
+    (tester) async {
+      final g = _FakeGateway((cursor, call) async {
+        if (call == 1) return _page(['a'], 'CUR-A');
+        // Manual continuation submits CUR-A and gets the SAME cursor back.
+        return _page([], 'CUR-A');
+      });
+      await _pumpSurface(tester, g);
+      expect(find.text('Item a'), findsOneWidget);
+
+      // Drive the manual continuation through the widget's own scope.
+      // (Fire-and-forget like the harness load(): the fake-async gateway
+      // future only advances while frames pump.)
+      final ctx = tester.element(find.byType(MixFeedSurface));
+      ProviderScope.containerOf(ctx)
+          .read(marketplaceMixProvider.notifier)
+          .loadMore();
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      // The feed is untouched and the explicit compact stalled tail shows.
+      expect(g.calls, 2);
+      expect(find.text('Item a'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('mix_stalled_tail_notice')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('mix_stalled_retry')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mix_stalled_refresh')), findsOneWidget);
+      // No skeleton stuck in loadingMore, no infinite tail.
+      expect(g.calls, 2, reason: 'the stall blocks any further continuation');
     },
   );
 
