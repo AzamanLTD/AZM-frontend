@@ -20,6 +20,7 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 // ── Search result model ──────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ class _QuickAction {
 }
 
 final _quickActions = <_QuickAction>[
-  _QuickAction(title: 'Send Money', icon: HugeIconsSolid.moneySend01, route: '/deposit', keywords: ['send', 'transfer', 'pay']),
+  _QuickAction(title: 'Send Money', icon: HugeIconsSolid.moneySend01, route: AzRoutes.sendMoney, keywords: ['send', 'transfer', 'pay']),
   _QuickAction(title: 'Withdraw', icon: HugeIconsSolid.moneySendSquare, route: '/withdraw', keywords: ['withdraw', 'cash out']),
   _QuickAction(title: 'New Trade', icon: HugeIconsSolid.exchange01, route: '/trade/create', keywords: ['trade', 'exchange', 'buy', 'sell', 'crypto']),
   _QuickAction(title: 'Marketplace', icon: HugeIconsSolid.store01, route: '/marketplace', keywords: ['market', 'shop', 'business', 'store']),
