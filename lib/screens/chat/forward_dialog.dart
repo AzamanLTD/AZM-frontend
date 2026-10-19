@@ -8,6 +8,7 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
 import 'package:azaman/services/message_action_service.dart';
@@ -40,7 +41,7 @@ class ForwardDialog {
   }
 }
 
-class _ForwardSheet extends StatefulWidget {
+class _ForwardSheet extends ConsumerStatefulWidget {
   final String messageId;
   final String fromContext;
 
@@ -56,10 +57,10 @@ class _ForwardSheet extends StatefulWidget {
   });
 
   @override
-  State<_ForwardSheet> createState() => _ForwardSheetState();
+  ConsumerState<_ForwardSheet> createState() => _ForwardSheetState();
 }
 
-class _ForwardSheetState extends State<_ForwardSheet> {
+class _ForwardSheetState extends ConsumerState<_ForwardSheet> {
   final _searchController = TextEditingController();
   List<Map<String, dynamic>> _friends = [];
   List<Map<String, dynamic>> _groups = [];
@@ -76,18 +77,20 @@ class _ForwardSheetState extends State<_ForwardSheet> {
   void _loadConversations() async {
     try {
       // Load friends
-      final friendsRes = await ApiClient().get('/friends');
+      final friendsRes = await ref.read(apiClientProvider).get('/friends');
       final friendsBody =
           jsonDecode(friendsRes.body) as Map<String, dynamic>? ?? {};
       final friends = List<Map<String, dynamic>>.from(
-          friendsBody['friends'] ?? []);
+        friendsBody['friends'] ?? [],
+      );
 
       // Load groups
-      final groupsRes = await ApiClient().get('/group-chats');
+      final groupsRes = await ref.read(apiClientProvider).get('/group-chats');
       final groupsBody =
           jsonDecode(groupsRes.body) as Map<String, dynamic>? ?? {};
       final groups = List<Map<String, dynamic>>.from(
-          groupsBody['groups'] ?? []);
+        groupsBody['groups'] ?? [],
+      );
 
       if (mounted) {
         setState(() {
@@ -114,14 +117,20 @@ class _ForwardSheetState extends State<_ForwardSheet> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Forwarded to $name'), backgroundColor: Colors.green),
+          SnackBar(
+            content: Text('Forwarded to $name'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.of(context).pop(true);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to forward'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('Failed to forward'),
+            backgroundColor: Colors.red,
+          ),
         );
         setState(() => _forwarding = false);
       }
@@ -133,7 +142,9 @@ class _ForwardSheetState extends State<_ForwardSheet> {
     final filteredFriends = _searchQuery.isEmpty
         ? _friends
         : _friends.where((f) {
-            final name = (f['displayName'] ?? f['username'] ?? '').toString().toLowerCase();
+            final name = (f['displayName'] ?? f['username'] ?? '')
+                .toString()
+                .toLowerCase();
             return name.contains(_searchQuery.toLowerCase());
           }).toList();
 
@@ -178,73 +189,78 @@ class _ForwardSheetState extends State<_ForwardSheet> {
           child: _forwarding
               ? const Center(child: CircularProgressIndicator())
               : _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView(
-                      controller: widget.scrollController,
-                      children: [
-                        if (filteredFriends.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                            child: Text(
-                              'Friends',
-                              style: Theme.of(context).textTheme.labelMedium,
-                            ),
+              ? const Center(child: CircularProgressIndicator())
+              // A transparent Material between the sheet surface's
+              // DecoratedBox and the tiles, so the tiles' ink splashes
+              // paint (and stay) visible instead of under the surface.
+              : Material(
+                  type: MaterialType.transparency,
+                  child: ListView(
+                    controller: widget.scrollController,
+                    children: [
+                      if (filteredFriends.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          child: Text(
+                            'Friends',
+                            style: Theme.of(context).textTheme.labelMedium,
                           ),
-                          ...filteredFriends.map((f) {
-                            final name = f['displayName'] ??
-                                f['username'] ??
-                                'Unknown';
-                            final avatar = f['profilePictureUrl'];
-                            final friendshipId = f['friendshipId'] ?? f['id'];
-                            return ListTile(
-                              leading: AzAvatar(
-                                circular: true,
-                                imageUrl: avatar as String?,
-                                name: name.toString(),
-                              ),
-                              title: Text(name),
-                              onTap: () => _forward(
-                                'direct',
-                                friendshipId.toString(),
-                                name.toString(),
-                              ),
-                            );
-                          }),
-                        ],
-                        if (filteredGroups.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                            child: Text(
-                              'Groups',
-                              style: Theme.of(context).textTheme.labelMedium,
+                        ),
+                        ...filteredFriends.map((f) {
+                          final name =
+                              f['displayName'] ?? f['username'] ?? 'Unknown';
+                          final avatar = f['profilePictureUrl'];
+                          final friendshipId = f['friendshipId'] ?? f['id'];
+                          return ListTile(
+                            leading: AzAvatar(
+                              circular: true,
+                              imageUrl: avatar as String?,
+                              name: name.toString(),
                             ),
-                          ),
-                          ...filteredGroups.map((g) {
-                            final name = g['name'] ?? 'Group';
-                            final groupId = g['id'];
-                            return ListTile(
-                              leading: AzAvatar(
-                                circular: true,
-                                name: name.toString(),
-                              ),
-                              title: Text(name.toString()),
-                              onTap: () => _forward(
-                                'group',
-                                groupId.toString(),
-                                name.toString(),
-                              ),
-                            );
-                          }),
-                        ],
-                        if (filteredFriends.isEmpty && filteredGroups.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(40),
-                              child: Text('No conversations found'),
+                            title: Text(name),
+                            onTap: () => _forward(
+                              'direct',
+                              friendshipId.toString(),
+                              name.toString(),
                             ),
-                          ),
+                          );
+                        }),
                       ],
-                    ),
+                      if (filteredGroups.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                          child: Text(
+                            'Groups',
+                            style: Theme.of(context).textTheme.labelMedium,
+                          ),
+                        ),
+                        ...filteredGroups.map((g) {
+                          final name = g['name'] ?? 'Group';
+                          final groupId = g['id'];
+                          return ListTile(
+                            leading: AzAvatar(
+                              circular: true,
+                              name: name.toString(),
+                            ),
+                            title: Text(name.toString()),
+                            onTap: () => _forward(
+                              'group',
+                              groupId.toString(),
+                              name.toString(),
+                            ),
+                          );
+                        }),
+                      ],
+                      if (filteredFriends.isEmpty && filteredGroups.isEmpty)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(40),
+                            child: Text('No conversations found'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
         ),
       ],
     );

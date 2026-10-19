@@ -6,10 +6,19 @@
 // =============================================================================
 
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 import 'package:azaman/services/api_client.dart';
 
 class MessageActionService {
-  static final ApiClient _client = ApiClient();
+  /// Test seam: when set, tests record the exact request paths through this
+  /// client instead of the real one (URL construction contracts).
+  @visibleForTesting
+  static ApiClient? testClientOverride;
+
+  static ApiClient? _clientInstance;
+  static ApiClient get _client =>
+      testClientOverride ?? (_clientInstance ??= ApiClient());
 
   /// Search messages across conversations
   static Future<List<Map<String, dynamic>>> searchMessages({
