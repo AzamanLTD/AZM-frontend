@@ -158,6 +158,33 @@ class AzmVisaCard extends ConsumerWidget {
                       ),
                     ),
                     const Spacer(),
+                    // 2026-10-16 pouch-deck fix: the SAMPLE disclosure chip
+                    // previously floated at Positioned(top:12,right:12) —
+                    // directly ON TOP of this VISA pill (both upper-right,
+                    // the tag collided with the network mark). It now lives
+                    // INSIDE the header row, left of the pill, so the
+                    // tucked deck's exposed 44px Visa strip reads cleanly:
+                    // AZM ······ [SAMPLE] [VISA]. Demo disclosure preserved.
+                    Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'SAMPLE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
                     // SAMPLE network mark — Visa-concept visual only. The
                     // production network claim lives with the real card
                     // programme, not this placeholder surface.
@@ -242,28 +269,6 @@ class AzmVisaCard extends ConsumerWidget {
             ),
           ),
           // Unmistakably-safe demo tag: this card has NOT been issued.
-          // (Same datum as before the restyle, now stacked over the
-          // premium carbon surface.)
-          Positioned(
-            top: AzSpace.md,
-            right: AzSpace.md,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.22),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'SAMPLE',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1,
-                ),
-              ),
-            ),
-          ),
           // "powered by Flutterwave" mark for the sample surface.
           Positioned(
             bottom: AzSpace.md,
