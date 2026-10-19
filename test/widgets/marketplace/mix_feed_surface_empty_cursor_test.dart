@@ -145,4 +145,24 @@ void main() {
       expect(find.text('Item x'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'true exhaustion is an honest terminal empty state — no cursor, no affordance',
+    (tester) async {
+      // The automatic walk's first follow-up page is empty with a NULL
+      // cursor: the source is exhausted. Nothing more to follow.
+      final g = _FakeGateway((cursor, call) async {
+        if (call == 1) return _page([], 'CUR-1');
+        return _page([], null);
+      });
+      await _pumpSurface(tester, g);
+
+      expect(g.calls, 2, reason: 'the initial page plus its one follow-up');
+      expect(find.byKey(const ValueKey('mix_empty')), findsOneWidget);
+      expect(find.text('Nothing here yet'), findsOneWidget);
+      // Terminal: no cursor survives, so NO continuation affordance.
+      expect(find.byKey(const ValueKey('mix_empty_continue')), findsNothing);
+      expect(find.text('Show more'), findsNothing);
+    },
+  );
 }

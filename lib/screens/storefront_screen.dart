@@ -385,6 +385,18 @@ class _ProductsSection extends StatelessWidget {
   }
 }
 
+/// Strict exact-2dp GHS listing price parse (same canonical contract as
+/// BusinessProduct._parsePriceGhs): only a non-empty String matching
+/// ^\d+\.\d{2}$ is accepted — numbers, malformed and blank values are
+/// treated as absent (null), never stringified, never converted from
+/// priceUsdc.
+String? _parsePriceGhs(dynamic v) {
+  if (v is! String) return null;
+  final t = v.trim();
+  if (t.isEmpty) return null;
+  return RegExp(r'^\d+\.\d{2}$').hasMatch(t) ? t : null;
+}
+
 class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final AzamanColors colors;
@@ -396,7 +408,12 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = data['name'] as String? ?? 'Product';
     final description = data['description'] as String?;
-    final price = (data['priceUsdc'] as num?)?.toDouble() ?? 0.0;
+    // GHS availability truth (final acceptance follow-up 2026-10-19): the
+    // storefront catalogue card is a browse LISTING — only the authoritative
+    // server-confirmed GHS price renders; the payable priceUsdc rail amount
+    // is never a substitute listing price. Strict exact-2dp string parse,
+    // fail closed to null.
+    final priceGhs = _parsePriceGhs(data['priceGhs']);
     final imageUrls = (data['imageUrls'] as List?)?.cast<String>() ?? [];
     final tags = (data['tags'] as List?)?.cast<String>() ?? [];
     final prepMins = data['preparationMins'] as int?;
@@ -459,8 +476,10 @@ class _ProductCard extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          '\$${price.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.accent),
+                          priceGhs == null ? 'Price unavailable' : 'GH₵$priceGhs',
+                          style: priceGhs == null
+                              ? TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textTertiary)
+                              : TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.accent),
                         ),
                         if (prepMins != null) ...[
                           const SizedBox(width: 6),

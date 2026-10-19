@@ -115,9 +115,15 @@ void main() {
       ]));
 
       expect(
-        find.text('from Price unavailable', findRichText: true),
+        find.text('Price unavailable', findRichText: true),
         findsOneWidget,
-        reason: 'the anchor reports the missing GHS truth instead of a USDC substitute',
+        reason: 'the anchor reports the missing GHS truth without a from-prefix '
+            'and without any USDC substitute',
+      );
+      expect(
+        find.text('from Price unavailable', findRichText: true),
+        findsNothing,
+        reason: 'an unavailable state is not a price range — no from prefix',
       );
       final allText = tester
           .widgetList<RichText>(find.byType(RichText))

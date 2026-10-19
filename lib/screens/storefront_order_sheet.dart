@@ -49,6 +49,17 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
 
   double get _unitPrice => (widget.product['priceUsdc'] as num?)?.toDouble() ?? 0.0;
   double get _total => _unitPrice * _quantity;
+  /// Strict exact-2dp GHS listing price (canonical contract: only a
+  /// non-empty String matching ^\d+\.\d{2}$ — everything else is absent).
+  /// Displayed as a SEPARATE fact from the payable USDC amount; absent
+  /// renders nothing, never a converted priceUsdc.
+  String? get _priceGhs {
+    final v = widget.product['priceGhs'];
+    if (v is! String) return null;
+    final t = v.trim();
+    if (t.isEmpty) return null;
+    return RegExp(r'^\d+\.\d{2}$').hasMatch(t) ? t : null;
+  }
   String get _productName => widget.product['name'] as String? ?? 'Product';
   String? get _imageUrl {
     final urls = (widget.product['imageUrls'] as List?)?.cast<String>();
@@ -150,10 +161,19 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                           const SizedBox(height: 2),
                           Text(description, style: TextStyle(fontSize: 12, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
                         ],
+                        if (_priceGhs != null) ...[
+                          const SizedBox(height: 2),
+                          // Separate fact, never an equivalence: the GHS
+                          // LISTING price is the merchant's server-confirmed
+                          // asking price; the USDC figure below is the
+                          // payable order rail amount. No conversion, no
+                          // implied GHS settlement capability.
+                          Text('Listed: GH₵$_priceGhs', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                        ],
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text('\$${_unitPrice.toStringAsFixed(2)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.accent)),
+                            Text('${_unitPrice.toStringAsFixed(2)} USDC', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.accent)),
                             if (prepMins != null) ...[
                               const SizedBox(width: 8),
                               Text('~${prepMins}min', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
@@ -200,7 +220,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                     child: Row(
                       children: [
                         Text('Total: ', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
-                        Text('\$${_total.toStringAsFixed(2)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.accent)),
+                        Text('${_total.toStringAsFixed(2)} USDC', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.accent)),
                       ],
                     ),
                   ),
@@ -246,7 +266,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                           children: [
                             const Icon(Icons.shopping_bag, size: 18),
                             const SizedBox(width: 8),
-                            Text('Place Order · \$${_total.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            Text('Place Order · ${_total.toStringAsFixed(2)} USDC', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                           ],
                         ),
                 ),

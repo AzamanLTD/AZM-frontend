@@ -607,6 +607,100 @@ void main() {
   );
 
   test(
+    'progress guard: a cursor that repeats without progress stops the walk '
+    'early — never the full continuation budget',
+    () async {
+      final g = _FakeGateway()
+        ..behavior = (req) async => _page([], 'CUR-REPEAT');
+      final c = _container(g);
+      await _notifier(c).load();
+
+      // Page 1 is empty with CUR-REPEAT; the follow-up (consuming
+      // CUR-REPEAT) returns the SAME cursor — no progress. The guard stops
+      // the walk after ONE continuation, not the full budget.
+      expect(g.requests, hasLength(2));
+      final state = c.read(marketplaceMixProvider);
+      expect(state.phase, MixPhase.ready);
+      expect(state.offers, isEmpty);
+      // The repeated cursor stays truthfully — the surface affordance
+      // remains, but the automatic walk cannot spin on it.
+      expect(state.nextCursor, 'CUR-REPEAT');
+    },
+  );
+
+  test(
+    'beyond the automatic budget: consecutive empty pages with cursors, then '
+    'an eligible item — loadMore walks it, each action bounded',
+    () async {
+      final g = _FakeGateway();
+      g.behavior = (req) async {
+        // The automatic first-page walk exhausts its 8-continuation
+        // budget on empty pages; two MORE consecutive empty pages follow
+        // (the user-driven affordance), and only then the item.
+        if (g.requests.length <=
+            1 + MarketplaceMixNotifier.kMaxFirstPageContinuations + 2) {
+          return _page([], 'CUR-${g.requests.length}');
+        }
+        return _page(['found'], null);
+      };
+      final c = _container(g);
+      final n = _notifier(c);
+      await n.load();
+      final budget = 1 + MarketplaceMixNotifier.kMaxFirstPageContinuations;
+      expect(g.requests, hasLength(budget));
+      expect(c.read(marketplaceMixProvider).offers, isEmpty);
+
+      // First user-driven continuation: STILL an empty page with a cursor.
+      await n.loadMore();
+      expect(g.requests, hasLength(budget + 1));
+      expect(c.read(marketplaceMixProvider).offers, isEmpty);
+      expect(c.read(marketplaceMixProvider).nextCursor, isNotNull);
+
+      // Second user-driven continuation: STILL empty with a cursor — the
+      // affordance stays truthful, no items invented, no loop in code.
+      await n.loadMore();
+      expect(g.requests, hasLength(budget + 2));
+      expect(c.read(marketplaceMixProvider).offers, isEmpty);
+
+      // Third user-driven continuation: the eligible item finally appears.
+      await n.loadMore();
+      expect(g.requests, hasLength(budget + 3));
+      final state = c.read(marketplaceMixProvider);
+      expect(state.offers.map((o) => o.productId), ['found']);
+      expect(state.nextCursor, isNull);
+    },
+  );
+
+  test(
+    'true exhaustion via the continuation path: an empty page with a NULL '
+    'cursor is the honest terminal state — no further requests possible',
+    () async {
+      final g = _FakeGateway()
+        ..behavior = (req) async {
+          if (req.cursor == null) return _page([], 'CUR-1');
+          if (req.cursor == 'CUR-1') return _page([], null);
+          return _page(['late'], null);
+        };
+      final c = _container(g);
+      final n = _notifier(c);
+      await n.load();
+      // Page 1 empty+CUR-1, auto-follow to CUR-1's page: empty + NULL
+      // cursor — true exhaustion, terminal.
+      expect(g.requests, hasLength(2));
+      final state = c.read(marketplaceMixProvider);
+      expect(state.phase, MixPhase.ready);
+      expect(state.offers, isEmpty);
+      expect(state.nextCursor, isNull, reason: 'exhausted source has no cursor');
+      expect(state.hasMore, isFalse);
+
+      // With no cursor, loadMore is a no-op — the surface renders the
+      // honest terminal empty state with no affordance.
+      await n.loadMore();
+      expect(g.requests, hasLength(2));
+    },
+  );
+
+  test(
     'the provider watches the real gateway provider (HTTP adapter in prod)',
     () {
       final c = ProviderContainer();

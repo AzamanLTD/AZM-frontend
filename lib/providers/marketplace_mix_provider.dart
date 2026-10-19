@@ -321,9 +321,17 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
       // null). An exhausted budget leaves the remaining cursor in the
       // state so the surface's continuation affordance stays truthful.
       var continuations = 0;
+      // Progress guard (final acceptance follow-up 2026-10-19): a cursor
+      // the walk has ALREADY consumed and seen again means the source is
+      // not advancing — following it would loop without progress. The walk
+      // stops instead; the surviving cursor stays in the state so the
+      // surface affordance remains truthful.
+      final seenCursors = <String?>{};
       while (page.offers.isEmpty &&
           page.nextCursor != null &&
+          !seenCursors.contains(page.nextCursor) &&
           continuations < kMaxFirstPageContinuations) {
+        seenCursors.add(page.nextCursor);
         page = await _gateway.fetchItems(
           category: state.categoryWire,
           taxonomies: state.taxonomies,

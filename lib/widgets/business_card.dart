@@ -193,15 +193,18 @@ class BusinessCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Text.rich(
               TextSpan(children: [
+                if (_cheapestGhs() != null)
+                  TextSpan(
+                    text: 'from ',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                  ),
                 TextSpan(
-                  text: 'from ',
-                  style: TextStyle(color: colors.textTertiary, fontSize: 12),
-                ),
-                TextSpan(
-                  // GHS availability truth (final acceptance pass 2026-10-19):
-                  // the legacy priceUsdc figure is never a substitute browse
-                  // listing price — without a server-confirmed GHS price the
-                  // anchor says so, single-line and muted.
+                  // GHS availability truth (final acceptance follow-up
+                  // 2026-10-19): the legacy priceUsdc figure is never a
+                  // substitute browse listing price — without a
+                  // server-confirmed GHS price the anchor says so,
+                  // single-line and muted, WITHOUT the 'from' prefix (an
+                  // unavailable state is not a price range).
                   text: _cheapestGhs() != null
                       ? 'GH₵${_cheapestGhs()}'
                       : 'Price unavailable',
