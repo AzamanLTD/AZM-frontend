@@ -6,13 +6,15 @@ import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/marketplace/service_experience_stage.dart';
 
-BusinessProduct _product(String id, String name, double price, {bool active = true}) => BusinessProduct(
+BusinessProduct _product(String id, String name, double price,
+        {bool active = true, String? priceGhs}) => BusinessProduct(
       id: id,
       businessProfileId: 'business-1',
       name: name,
       slug: name.toLowerCase().replaceAll(' ', '-'),
       description: '$name description',
       priceUsdc: price,
+      priceGhs: priceGhs,
       totalRevenue: 0,
       imageUrls: const [],
       tags: const [],
@@ -71,7 +73,7 @@ Future<void> _pump(WidgetTester tester, {required List<BusinessProduct> offering
 
 void main() {
   testWidgets('shows real active service offerings in a peeking rail', (tester) async {
-    await _pump(tester, offerings: [_product('1', 'Consulting', 50), _product('2', 'Audit', 80)]);
+    await _pump(tester, offerings: [_product('1', 'Consulting', 50, priceGhs: '50.00'), _product('2', 'Audit', 80)]);
 
     expect(find.text('Explore Apex Studio'), findsOneWidget);
     expect(find.text('Consulting'), findsOneWidget);
@@ -80,13 +82,13 @@ void main() {
   });
 
   testWidgets('focuses an offering into a detail surface', (tester) async {
-    await _pump(tester, offerings: [_product('1', 'Consulting', 50)]);
+    await _pump(tester, offerings: [_product('1', 'Consulting', 50, priceGhs: '50.00')]);
 
     await tester.tap(find.byKey(const ValueKey('service-offering-1')));
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('Consulting description'), findsOneWidget);
-    expect(find.text('50.00 USDC'), findsAtLeastNWidgets(1));
+    expect(find.textContaining('GH₵50.00'), findsAtLeastNWidgets(1));
     expect(find.text('Continue with this'), findsOneWidget);
   });
 

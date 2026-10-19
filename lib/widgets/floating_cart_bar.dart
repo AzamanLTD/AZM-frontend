@@ -260,8 +260,11 @@ class _FloatingCartBarState extends ConsumerState<FloatingCartBar>
                                       child: child,
                                     ),
                                   ),
+                              // Payable truth: explicit USDC denomination,
+                              // never a bare '$' subtotal (price-rail
+                              // contract, same as the order sheet).
                               child: Text(
-                                '\$${cart.subtotal.toStringAsFixed(2)}',
+                                '${cart.subtotal.toStringAsFixed(2)} USDC',
                                 key: ValueKey(cart.subtotal),
                                 style: const TextStyle(
                                   color: Colors.white,

@@ -193,17 +193,32 @@ class BusinessCard extends ConsumerWidget {
             const SizedBox(height: 8),
             Text.rich(
               TextSpan(children: [
-                TextSpan(
-                  text: 'from ',
-                  style: TextStyle(color: colors.textTertiary, fontSize: 12),
-                ),
-                TextSpan(
-                  text: '${fromPrice.toStringAsFixed(2)} USDC',
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                if (_cheapestGhs() != null)
+                  TextSpan(
+                    text: 'from ',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
                   ),
+                TextSpan(
+                  // GHS availability truth (final acceptance follow-up
+                  // 2026-10-19): the legacy priceUsdc figure is never a
+                  // substitute browse listing price — without a
+                  // server-confirmed GHS price the anchor says so,
+                  // single-line and muted, WITHOUT the 'from' prefix (an
+                  // unavailable state is not a price range).
+                  text: _cheapestGhs() != null
+                      ? 'GH₵${_cheapestGhs()}'
+                      : 'Price unavailable',
+                  style: _cheapestGhs() != null
+                      ? TextStyle(
+                          color: colors.accent,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        )
+                      : TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
                 ),
               ]),
             ),
@@ -359,6 +374,29 @@ class BusinessCard extends ConsumerWidget {
     active.sort((a, b) => a.priceUsdc.compareTo(b.priceUsdc));
     return active.first.priceUsdc;
   }
+
+  /// Cheapest authoritative merchant GHS price across active products
+  /// (server-confirmed BusinessPrice rows only — never a converted USDC
+  /// figure). Returns the exact 2dp string the server sent.
+  String? _cheapestGhs() {
+    final priced = business.products
+        .where((p) => p.isActive && p.priceGhs != null)
+        .toList();
+    if (priced.isEmpty) return null;
+    // Numeric comparison (final acceptance pass 2026-10-19): exact 2dp
+    // strings must never be ordered lexicographically ('100.00' < '49.50'
+    // < '9.00' as text). The DISPLAYED value stays the server's exact 2dp
+    // string; only the ordering parses it. A malformed value fails closed
+    // to worst (never the cheapest slot).
+    priced.sort((a, b) => _ghsOrderKey(a.priceGhs)
+        .compareTo(_ghsOrderKey(b.priceGhs)));
+    return priced.first.priceGhs;
+  }
+
+  /// Ordering key for a canonical GHS string: numeric value, with malformed
+  /// input (never expected — the model strictly parses exact 2dp strings)
+  /// demoted to the end of the ordering.
+  double _ghsOrderKey(String? ghs) => double.tryParse(ghs ?? '') ?? double.infinity;
 
   /// Resolve the best cover image: first product imageUrl → logoUrl → null.
   String? _resolveCoverUrl() {

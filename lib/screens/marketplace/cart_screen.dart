@@ -384,7 +384,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.divider.withValues(alpha: 0.55))),
           child: Column(
             children: [
-              _SummaryRow(label: 'Subtotal', value: '\$${cart.subtotal.toStringAsFixed(2)}', colors: colors),
+              _SummaryRow(label: 'Subtotal', value: '${cart.subtotal.toStringAsFixed(2)} USDC', colors: colors),
               const SizedBox(height: 8),
               _SummaryRow(label: 'Items', value: '${cart.itemCount} ${cart.itemCount == 1 ? "item" : "items"}', colors: colors),
               const SizedBox(height: 10),
@@ -396,7 +396,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 child: _SummaryRow(
                   key: ValueKey(cart.subtotal),
                   label: 'Total',
-                  value: '\$${cart.subtotal.toStringAsFixed(2)}',
+                  value: '${cart.subtotal.toStringAsFixed(2)} USDC',
                   colors: colors,
                   isBold: true,
                 ),
@@ -436,7 +436,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               switchOutCurve: MotionTokens.exit,
               child: _isPlacingOrder
                   ? const Text('Sending…', key: ValueKey('sending'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800))
-                  : Text('${presentation.checkoutLabel} · \$${cart.subtotal.toStringAsFixed(2)}', key: ValueKey('${presentation.checkoutLabel}:${cart.subtotal}'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+                  : Text('${presentation.checkoutLabel} · ${cart.subtotal.toStringAsFixed(2)} USDC', key: ValueKey('${presentation.checkoutLabel}:${cart.subtotal}'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
             ),
           ),
         ),
@@ -571,7 +571,7 @@ class _CartTile extends StatelessWidget {
                 children: [
                   Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
                   const SizedBox(height: 4),
-                  Text('\$${item.unitPrice.toStringAsFixed(2)} each', style: TextStyle(fontSize: 13, color: colors.textTertiary)),
+                  Text('${item.unitPrice.toStringAsFixed(2)} USDC each', style: TextStyle(fontSize: 13, color: colors.textTertiary)),
                   if (item.variants.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(item.variants.entries.map((entry) => '${entry.key}: ${entry.value}').join(' • '), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontWeight: FontWeight.w600)),

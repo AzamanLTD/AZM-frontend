@@ -36,8 +36,18 @@ class StorefrontRenderer extends StatelessWidget {
         return a.position.col.compareTo(b.position.col);
       });
 
+    // Nested scroll fix (final acceptance follow-up 2026-10-19): this list
+    // lives inside StorefrontScreen's CustomScrollView sliver, which hands
+    // box children an UNBOUNDED main-axis extent — an expanding viewport
+    // here crashes under debug layout assertions and produces an
+    // infinite-extent sliver in release. shrinkWrap + NeverScrollable is
+    // the standard nested-list pattern: the tile list lays out fully and
+    // the outer CustomScrollView owns the scrolling (it already has the
+    // screen's scroll controller and pull-to-refresh).
     final scrollChild = ListView.builder(
       padding: EdgeInsets.zero,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: tiles.length,
       itemBuilder: (context, index) {
         return _TileWrapper(

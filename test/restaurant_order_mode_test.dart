@@ -551,10 +551,14 @@ void main() {
     );
     await tester.pump();
 
-    // Menu row (initial state, empty selections): the configurable dish must
-    // show 'From 10.50 USDC' — the dish price via the canonical precedence
-    // rule — never the bare catalog price 12.00.
-    expect(find.text('From 10.50 USDC'), findsOneWidget);
+    // Menu row (initial state, empty selections) — GHS availability truth
+    // (review 2026-10-18): with no server-confirmed GHS price the row says
+    // 'Price unavailable' instead of falling back to a USDC figure. The
+    // canonical dish-price precedence (10.50 dish price, never the bare
+    // catalog 12.00) is still proven below on every charge-path surface:
+    // detail, build sheet, and the cart's own unit price.
+    expect(find.text('Price unavailable'), findsOneWidget);
+    expect(find.text('From 10.50 USDC'), findsNothing);
     expect(find.text('From 12.00 USDC'), findsNothing);
     expect(find.text('0.00 USDC'), findsNothing);
 

@@ -23,6 +23,15 @@ import 'package:flutter/material.dart';
 // Shared parse helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Strict server-confirmed GHS price parse: exact 2dp decimal string only.
+// Anything else (numbers, 1dp, 3dp, exponent, blank, wrong type) is absent.
+String? _parsePriceGhs(dynamic v) {
+  if (v is! String) return null;
+  final t = v.trim();
+  if (t.isEmpty) return null;
+  return RegExp(r'^\d+\.\d{2}$').hasMatch(t) ? t : null;
+}
+
 double _toDouble(dynamic v) {
   if (v == null) return 0.0;
   if (v is num) return v.toDouble();
@@ -571,6 +580,10 @@ class BusinessProduct {
   final String? deliveryTerms;
   final String? estimatedDelivery;
   final double priceUsdc;
+  // Authoritative server-confirmed merchant GHS price (exact 2dp string from
+  // the product's eligible current BusinessPrice row — BE PR #359). Null when
+  // no authoritative GHS price exists; NEVER a converted priceUsdc.
+  final String? priceGhs;
   final double totalRevenue;
   final List<String> imageUrls;
   final bool isActive;
@@ -583,6 +596,7 @@ class BusinessProduct {
     required this.name,
     required this.slug,
     required this.priceUsdc,
+    this.priceGhs,
     required this.totalRevenue,
     required this.imageUrls,
     required this.isActive,
@@ -609,6 +623,11 @@ class BusinessProduct {
       deliveryTerms: json['deliveryTerms']?.toString(),
       estimatedDelivery: json['estimatedDelivery']?.toString(),
       priceUsdc: _toDouble(json['priceUsdc']),
+      // Strict parse: only a non-empty String matching the canonical exact
+      // 2dp GHS contract is accepted. Numbers, malformed values and blank
+      // strings are treated as absent (null) — never stringified, never
+      // converted from priceUsdc.
+      priceGhs: _parsePriceGhs(json['priceGhs']),
       totalRevenue: _toDouble(json['totalRevenue']),
       imageUrls: _toStringList(json['imageUrls']),
       isActive: json['isActive'] != false,

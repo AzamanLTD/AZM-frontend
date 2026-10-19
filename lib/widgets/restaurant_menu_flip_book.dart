@@ -489,7 +489,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                 const SizedBox(height: 3),
                 Row(children: [
                   Text(
-                    '${product.priceUsdc.toStringAsFixed(2)} USDC',
+                    product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable',
                     style: const TextStyle(color: _gold, fontSize: 11.5, fontWeight: FontWeight.w800),
                   ),
                   if (isSpicy) ...[
@@ -592,7 +592,7 @@ class _RestaurantMenuFlipBookState extends State<RestaurantMenuFlipBook> {
                                     fit: BoxFit.scaleDown,
                                     alignment: Alignment.centerLeft,
                                     child: Text(
-                                      '${product.priceUsdc.toStringAsFixed(2)} USDC',
+                                      product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable',
                                       maxLines: 1,
                                       style: TextStyle(color: colors.accent, fontSize: 17, fontWeight: FontWeight.w900),
                                     ),

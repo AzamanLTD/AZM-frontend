@@ -385,6 +385,18 @@ class _ProductsSection extends StatelessWidget {
   }
 }
 
+/// Strict exact-2dp GHS listing price parse (same canonical contract as
+/// BusinessProduct._parsePriceGhs): only a non-empty String matching
+/// ^\d+\.\d{2}$ is accepted — numbers, malformed and blank values are
+/// treated as absent (null), never stringified, never converted from
+/// priceUsdc.
+String? _parsePriceGhs(dynamic v) {
+  if (v is! String) return null;
+  final t = v.trim();
+  if (t.isEmpty) return null;
+  return RegExp(r'^\d+\.\d{2}$').hasMatch(t) ? t : null;
+}
+
 class _ProductCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final AzamanColors colors;
@@ -396,7 +408,12 @@ class _ProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = data['name'] as String? ?? 'Product';
     final description = data['description'] as String?;
-    final price = (data['priceUsdc'] as num?)?.toDouble() ?? 0.0;
+    // GHS availability truth (final acceptance follow-up 2026-10-19): the
+    // storefront catalogue card is a browse LISTING — only the authoritative
+    // server-confirmed GHS price renders; the payable priceUsdc rail amount
+    // is never a substitute listing price. Strict exact-2dp string parse,
+    // fail closed to null.
+    final priceGhs = _parsePriceGhs(data['priceGhs']);
     final imageUrls = (data['imageUrls'] as List?)?.cast<String>() ?? [];
     final tags = (data['tags'] as List?)?.cast<String>() ?? [];
     final prepMins = data['preparationMins'] as int?;
@@ -420,8 +437,14 @@ class _ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product image
-            ClipRRect(
+            // Product image. FLEXIBLE, not fixed-aspect: at phone widths
+            // (320-390dp) a 1.2-aspect image plus the intrinsic info block
+            // (name + description + tags + exact price) exceeds the
+            // childAspectRatio-0.72 grid cell. The image shrinks to give
+            // the info block its full intrinsic height — the exact GHS
+            // price is never ellipsized and the card never overflows.
+            Flexible(
+              child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
               child: AspectRatio(
                 aspectRatio: 1.2,
@@ -429,12 +452,13 @@ class _ProductCard extends StatelessWidget {
                     ? AzamanNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover,
                         errorWidget: (_, __, ___) => _ProductImageFallback(colors: colors))
                     : _ProductImageFallback(colors: colors),
+                ),
               ),
             ),
 
-            // Product info
-            Expanded(
-              child: Padding(
+            // Product info: intrinsic height — the image above absorbs
+            // whatever the cell has left.
+            Padding(
                 padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,7 +470,6 @@ class _ProductCard extends StatelessWidget {
                       Text(description, style: TextStyle(fontSize: 11, color: colors.textSecondary),
                           maxLines: 2, overflow: TextOverflow.ellipsis),
                     ],
-                    const Spacer(),
                     // Tags row
                     if (tags.isNotEmpty)
                       Wrap(
@@ -455,18 +478,26 @@ class _ProductCard extends StatelessWidget {
                         children: tags.take(2).map((tag) => _TagChip(tag: tag, colors: colors)).toList(),
                       ),
                     const SizedBox(height: 4),
-                    // Price + Order button
-                    Row(
+                    // Price + Order button. A Wrap, not a Row: at phone
+                    // widths (320-390dp) the exact GHS price text plus the
+                    // prep time plus the Add chip cannot share one line in
+                    // a 2-column grid card. The price string is NEVER
+                    // ellipsized (exact-2dp truth) — the Add chip flows to
+                    // a second line instead of overflowing off-card.
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
                         Text(
-                          '\$${price.toStringAsFixed(2)}',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.accent),
+                          priceGhs == null ? 'Price unavailable' : 'GH₵$priceGhs',
+                          style: priceGhs == null
+                              ? TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textTertiary)
+                              : TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.accent),
                         ),
-                        if (prepMins != null) ...[
-                          const SizedBox(width: 6),
+                        if (prepMins != null)
                           Text('~${prepMins}min', style: TextStyle(fontSize: 10, color: colors.textSecondary)),
-                        ],
-                        const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                           decoration: BoxDecoration(
@@ -487,7 +518,6 @@ class _ProductCard extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
           ],
         ),
       ),
