@@ -14,7 +14,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
-import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
@@ -43,9 +42,12 @@ class RetailEditorialCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final image = product.primaryImage;
-    final price = product.priceUsdc.isFinite && product.priceUsdc > 0
-        ? product.priceUsdc
-        : null;
+    // GHS availability truth (final acceptance pass 2026-10-19): the browse
+    // listing price is ONLY the server-confirmed exact 2dp priceGhs string —
+    // the legacy priceUsdc figure is never rendered as a substitute (the
+    // widget is currently unreferenced; this keeps it contract-correct if a
+    // future surface mounts it).
+    final priceGhs = product.priceGhs;
     return RepaintBoundary(
       child: GestureDetector(
         key: ValueKey('retail_editorial_${product.id}'),
@@ -106,8 +108,8 @@ class RetailEditorialCard extends StatelessWidget {
             ),
             const SizedBox(height: AzSpace.xxs),
             Text(
-              price == null ? 'Price unavailable' : AzMoney.usdc(price),
-              style: price == null
+              priceGhs == null ? 'Price unavailable' : 'GH₵$priceGhs',
+              style: priceGhs == null
                   ? AzText.caption.copyWith(color: colors.textTertiary)
                   : AzText.money(colors.textPrimary,
                       size: 14, weight: FontWeight.w700, tracking: 0),

@@ -184,15 +184,34 @@ class MixFeedSurface extends ConsumerWidget {
       final category = MixCategory.byWire(state.categoryWire);
       return Center(
         child: SingleChildScrollView(
-          child: AzamanEmptyState(
-            key: const ValueKey('mix_empty'),
-            icon: category?.icon ?? Icons.inventory_2_outlined,
-            title: category == null
-                ? 'Nothing here yet'
-                : 'Nothing in ${category.label} yet',
-            subtitle: state.taxonomies.isEmpty
-                ? 'New items appear here as stores list them.'
-                : 'No items match these filters. Try clearing a bubble or two.',
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AzamanEmptyState(
+                key: const ValueKey('mix_empty'),
+                icon: category?.icon ?? Icons.inventory_2_outlined,
+                title: category == null
+                    ? 'Nothing here yet'
+                    : 'Nothing in ${category.label} yet',
+                subtitle: state.taxonomies.isEmpty
+                    ? 'New items appear here as stores list them.'
+                    : 'No items match these filters. Try clearing a bubble or two.',
+              ),
+              // Scan-budget boundary (final acceptance pass, 2026-10-19):
+              // the notifier auto-follows empty cursor pages on the first
+              // load; if its continuation budget itself is exhausted while
+              // a cursor remains, the honest empty state carries an
+              // explicit continuation affordance instead of a dead end.
+              if (state.hasMore) ...[
+                const SizedBox(height: AzSpace.sm),
+                TextButton(
+                  key: const ValueKey('mix_empty_continue'),
+                  onPressed: () =>
+                      ref.read(marketplaceMixProvider.notifier).loadMore(),
+                  child: const Text('Show more'),
+                ),
+              ],
+            ],
           ),
         ),
       );

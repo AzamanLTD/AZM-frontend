@@ -168,6 +168,19 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
   /// endpoint.
   static const int kPageSize = 24;
 
+  /// Explicit, safe continuation limit for the first-page walk (final
+  /// acceptance pass, 2026-10-19). The server's window-filter scan is
+  /// bounded per request (backend runQuery walks at most MAX_ROUNDS
+  /// batches of where-eligible rows past the section-window post-filter),
+  /// so a page can legitimately return `items: []` with a NON-NULL
+  /// nextCursor — the scan budget ended before any eligible item. The
+  /// first page AUTO-FOLLOWS such cursors, at most this many follow-ups
+  /// (each one bounded server round trip), until offers appear or the
+  /// source is exhausted. Hard limit — no unbounded retry loop exists —
+  /// and the stale-response guard discards any page a newer selection
+  /// superseded mid-walk.
+  static const int kMaxFirstPageContinuations = 8;
+
   final MarketplaceMixGateway _gateway;
   final MixTapRecorder _recorder;
 
@@ -292,7 +305,7 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
   Future<void> _loadFirstPage() async {
     final seq = ++_requestSeq;
     try {
-      final page = await _gateway.fetchItems(
+      var page = await _gateway.fetchItems(
         category: state.categoryWire,
         taxonomies: state.taxonomies,
         limit: kPageSize,
@@ -300,6 +313,26 @@ class MarketplaceMixNotifier extends StateNotifier<MarketplaceMixState> {
       // Stale-response guard: a newer selection superseded this request —
       // its result is discarded entirely.
       if (seq != _requestSeq) return;
+      // Scan-budget continuation (final acceptance pass, 2026-10-19): an
+      // empty page WITH a cursor is not a dead end — the server's bounded
+      // window-filter scan ended the page before an eligible item. The
+      // walk continues from the cursor within the explicit continuation
+      // limit until offers appear or the source is exhausted (cursor
+      // null). An exhausted budget leaves the remaining cursor in the
+      // state so the surface's continuation affordance stays truthful.
+      var continuations = 0;
+      while (page.offers.isEmpty &&
+          page.nextCursor != null &&
+          continuations < kMaxFirstPageContinuations) {
+        page = await _gateway.fetchItems(
+          category: state.categoryWire,
+          taxonomies: state.taxonomies,
+          limit: kPageSize,
+          cursor: page.nextCursor,
+        );
+        continuations += 1;
+        if (seq != _requestSeq) return;
+      }
       state = MarketplaceMixState(
         categoryWire: state.categoryWire,
         taxonomies: state.taxonomies,

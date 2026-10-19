@@ -496,6 +496,117 @@ void main() {
   });
 
   test(
+    'first page: an EMPTY page WITH a cursor is auto-followed until offers '
+    'appear (server scan-budget boundary, final acceptance pass 2026-10-19)',
+    () async {
+      final g = _FakeGateway()
+        ..behavior = (req) async {
+          if (req.cursor == null) return _page([], 'CUR-1');
+          if (req.cursor == 'CUR-1') return _page(['a'], 'CUR-2');
+          return _page(['b'], null);
+        };
+      final c = _container(g);
+      await _notifier(c).load();
+
+      // Exactly two bounded requests: the initial page plus ONE follow-up.
+      expect(g.requests, hasLength(2));
+      expect(g.requests.first.cursor, isNull);
+      expect(g.requests[1].cursor, 'CUR-1');
+      // The continuation preserves the selection exactly.
+      expect(g.requests[1].category, isNull);
+      expect(g.requests[1].taxonomies, isEmpty);
+      expect(g.requests[1].limit, MarketplaceMixNotifier.kPageSize);
+
+      final state = c.read(marketplaceMixProvider);
+      expect(state.phase, MixPhase.ready);
+      expect(state.offers.map((o) => o.productId), ['a']);
+      expect(state.nextCursor, 'CUR-2');
+    },
+  );
+
+  test(
+    'first page: an empty page with a NULL cursor is true exhaustion — NO '
+    'continuation request is made',
+    () async {
+      final g = _FakeGateway()..behavior = (req) async => _page([], null);
+      final c = _container(g);
+      await _notifier(c).load();
+
+      expect(g.requests, hasLength(1));
+      final state = c.read(marketplaceMixProvider);
+      expect(state.phase, MixPhase.ready);
+      expect(state.offers, isEmpty);
+      expect(state.nextCursor, isNull);
+    },
+  );
+
+  test(
+    'first page: the continuation budget is a HARD limit — at most '
+    'kMaxFirstPageContinuations follow-ups, remaining cursor kept truthfully',
+    () async {
+      final g = _FakeGateway();
+      g.behavior = (req) async => _page([], 'CUR-${g.requests.length}');
+      final c = _container(g);
+      await _notifier(c).load();
+
+      // 1 initial request + the explicit continuation limit.
+      expect(
+        g.requests,
+        hasLength(1 + MarketplaceMixNotifier.kMaxFirstPageContinuations),
+      );
+      // Every follow-up pages through the previous page's cursor.
+      for (var i = 1; i < g.requests.length; i++) {
+        expect(g.requests[i].cursor, 'CUR-$i');
+      }
+      final state = c.read(marketplaceMixProvider);
+      expect(state.phase, MixPhase.ready);
+      expect(state.offers, isEmpty);
+      // The walk stopped with a source still ahead — the cursor stays so
+      // the surface's continuation affordance remains truthful, never a
+      // dead end and never a fabricated "no items exist".
+      expect(state.nextCursor, isNotNull);
+    },
+  );
+
+  test(
+    'stale-response guard holds MID-WALK: a continuation superseded by a new '
+    'category selection never overwrites the newer feed',
+    () async {
+      final stalePage = Completer<MixDiscoveryPage>();
+      final g = _FakeGateway()
+        ..behavior = (req) async {
+          if (req.cursor == 'CUR-1') return stalePage.future;
+          if (req.category == 'FOOD_BEVERAGE') return _page(['fresh'], null);
+          return _page([], 'CUR-1');
+        };
+      final c = _container(g);
+      final n = _notifier(c);
+      // Initial load: first page is empty with a cursor — the continuation
+      // request goes out and awaits the (pending) stale page.
+      final initialLoad = n.load();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(g.requests, hasLength(2));
+      expect(g.requests[1].cursor, 'CUR-1');
+
+      // The user switches category while the continuation is in flight.
+      await n.selectCategory('FOOD_BEVERAGE');
+      expect(
+        c.read(marketplaceMixProvider).offers.map((o) => o.productId),
+        ['fresh'],
+      );
+
+      // The superseded continuation page finally arrives — discarded.
+      stalePage.complete(_page(['late'], 'CUR-2'));
+      await initialLoad;
+      final state = c.read(marketplaceMixProvider);
+      expect(state.categoryWire, 'FOOD_BEVERAGE');
+      expect(state.offers.map((o) => o.productId), ['fresh']);
+      expect(state.nextCursor, isNull);
+    },
+  );
+
+  test(
     'the provider watches the real gateway provider (HTTP adapter in prod)',
     () {
       final c = ProviderContainer();
