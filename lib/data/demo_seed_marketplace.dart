@@ -146,7 +146,6 @@ class DemoMarketplaceSeed {
     '/marketplace/transit/trips/trip-001/seats',
     '/marketplace/trust-score/$_demoAzamanId',
     '/showcases/$restaurantBizId',
-    '/stories/business/$restaurantBizId',
   ];
 
   // ── Search (deterministic, filter-aware, cursor-paginated) ────────────
@@ -933,8 +932,12 @@ class DemoMarketplaceSeed {
   ];
 
   // ── Business Stories ──────────────────────────────────────────────────
-  /// Returns story groups for a specific business. Each business has 2-3
-  /// stories showcasing their products/services.
+  /// Returns the production shape of GET /api/marketplace/business/:id/stories
+  /// for a specific business: {success, stories} where each row is a Story
+  /// plus its poster user. Each business has 2-3 showcase stories; extra
+  /// showcase keys (mediaType, durationSeconds, boosted, seen) are retained
+  /// for downstream demo consumers and ignored by BusinessStory.fromJson,
+  /// which maps only fields the real rail sends.
   static Map<String, dynamic> getBusinessStories(String bizId) {
     final businesses = {
       restaurantBizId: {
@@ -1129,22 +1132,24 @@ class DemoMarketplaceSeed {
 
     final biz = businesses[bizId];
     if (biz == null) {
-      throw DemoEndpointNotSeededException('GET', '/stories/business/$bizId');
+      throw DemoEndpointNotSeededException(
+          'GET', '/marketplace/business/$bizId/stories');
     }
 
     return {
-      'groups': [
-        {
-          'authorId': 0,
-          'author': {
-            'username': biz['name'],
-            'profilePictureUrl': biz['logo'],
-          },
-          'hasUnseen': (biz['stories'] as List).any((s) => s['seen'] == false),
-          'isBoosted': (biz['stories'] as List).any((s) => s['boosted'] == true),
-          'stories': biz['stories'],
-        },
-      ],
+      'success': true,
+      'stories': (biz['stories'] as List)
+          .map<Map<String, dynamic>>((raw) => {
+                ...raw as Map<String, dynamic>,
+                'userId': 1,
+                'businessProfileId': bizId,
+                'expiresAt': _hoursFromNow(24),
+                'user': {
+                  'username': biz['name'],
+                  'profilePictureUrl': biz['logo'],
+                },
+              })
+          .toList(),
     };
   }
 

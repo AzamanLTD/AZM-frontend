@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/data/demo_seed_marketplace.dart';
 import 'package:azaman/data/demo_interceptor.dart';
+import 'package:azaman/models/marketplace_booking_models.dart';
 
 /// Marketplace demo-seed permanent guards (milestone 2026-09-30):
 ///   1. The seed carries EIGHT businesses (two per primary category) so the
@@ -339,10 +340,10 @@ void main() {
 
   group('Demo business stories — truthful seeded path', () {
     test(
-      'interceptor serves business-specific seeded stories, no Unsplash',
+      'interceptor serves the real production rail shape, no Unsplash',
       () {
         final res = DemoInterceptor.tryGet(
-          '/stories/business/${DemoMarketplaceSeed.restaurantBizId}',
+          '/marketplace/business/${DemoMarketplaceSeed.restaurantBizId}/stories',
         );
         expect(res, isNotNull);
         final body = jsonDecode(res!.body) as Map<String, dynamic>;
@@ -350,35 +351,29 @@ void main() {
         // Never Unsplash media in the demo story path.
         expect(res.body, isNot(contains('images.unsplash.com')));
 
-        final groups = body['groups'] as List;
-        expect(
-          groups,
-          isNotEmpty,
-          reason: 'seeded business must have story groups',
-        );
-        final first = groups.first as Map<String, dynamic>;
-        final author = first['author'] as Map<String, dynamic>;
-        expect(
-          author['username'],
-          "Chef Abby's",
-          reason: 'story author is the seeded business, not "Demo Business"',
-        );
-        final stories = first['stories'] as List;
-        expect(stories, isNotEmpty);
+        // Production shape parity: {success, stories} — never the legacy
+        // {groups} envelope, which no backend route ever sent.
+        expect(body['success'], true);
+        expect(body, isNot(contains('groups')));
+        final stories = body['stories'] as List;
+        expect(stories, isNotEmpty,
+            reason: 'seeded business must have story rows');
         for (final st in stories.whereType<Map<String, dynamic>>()) {
-          expect(
-            (st['id'] as String).startsWith('bs-'),
-            true,
-            reason: 'story IDs come from the seed, not DateTime.now() fakes',
-          );
+          expect((st['id'] as String).startsWith('bs-'), true,
+              reason: 'story IDs come from the seed, not DateTime.now() fakes');
           expect(st['mediaUrl'], isNot(contains('images.unsplash.com')));
+          expect(st['businessProfileId'],
+              DemoMarketplaceSeed.restaurantBizId);
+          // Every row must parse as the real-rail model.
+          expect(() => BusinessStory.fromJson(st), returnsNormally);
         }
       },
     );
 
     test('unknown business stories throw the typed not-seeded signal', () {
       expect(
-        () => DemoInterceptor.tryGet('/stories/business/BIZ-NOPE-999'),
+        () => DemoInterceptor.tryGet(
+            '/marketplace/business/BIZ-NOPE-999/stories'),
         throwsA(isA<DemoEndpointNotSeededException>()),
       );
     });
@@ -393,8 +388,13 @@ void main() {
         reason: 'the Unsplash demo story generator must stay deleted',
       );
       expect(source, isNot(contains('images.unsplash.com')));
-      // Both modes use the normal API route.
-      expect(source, contains("apiClient.get('/stories/business/\$bizId')"));
+      // The dead /stories/business/:id path must stay gone: that route never
+      // existed on the backend, so every production tap silently fell back
+      // to the profile page while showing a story ring.
+      expect(source, isNot(contains('/stories/business/')));
+      // The ring now fetches through the real marketplace rail.
+      expect(source, contains('getBusinessStories(bizId)'));
+      expect(source, contains('storyGroupFromBusinessStories(stories)'));
     });
   });
 }

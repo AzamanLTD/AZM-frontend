@@ -26,6 +26,7 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
+import 'package:azaman/services/marketplace_booking_service.dart' show marketplaceBookingServiceProvider;
 import 'package:azaman/providers/marketplace_search_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/nav_band_clearance.dart';
@@ -35,8 +36,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
-import 'dart:convert';
-import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
@@ -976,17 +975,25 @@ class _MarketplaceHomeScreenState
   }
 
   /// Opens the story viewer for a business's stories (not their profile).
-  /// Both production and demo mode use the same API route — in demo mode the
-  /// DemoInterceptor supplies the seeded business-specific story response.
-  void _openBusinessStories(BuildContext context, String bizId) async {
+  ///
+  /// Real rail: GET /api/marketplace/business/:id/stories (the only backend
+  /// route that serves business stories). The former stories fetch used a
+  /// dead path — that route never existed on the backend, so every
+  /// production tap silently fell back to the profile. Demo mode serves the
+  /// same production shape from the seeded marketplace stories.
+  Future<void> _openBusinessStories(BuildContext context, String bizId) async {
     try {
-      final res = await apiClient.get('/stories/business/$bizId');
-      final body = jsonDecode(res.body);
-      final groups = (body['groups'] as List? ?? [])
-          .map((g) => StoryGroup.fromJson(g as Map<String, dynamic>))
-          .toList();
+      final stories = await ref
+          .read(marketplaceBookingServiceProvider)
+          .getBusinessStories(bizId);
+      final groups = stories.isEmpty
+          ? <StoryGroup>[]
+          : [storyGroupFromBusinessStories(stories)];
       if (groups.isNotEmpty && context.mounted) {
-        await StoryViewerScreen.open(context, groups: groups, initialGroupIndex: 0, heroTag: 'marketplace-story-ring-$bizId');
+        await StoryViewerScreen.open(context,
+            groups: groups,
+            initialGroupIndex: 0,
+            heroTag: 'marketplace-story-ring-$bizId');
       } else if (context.mounted) {
         context.push('/business/$bizId');
       }

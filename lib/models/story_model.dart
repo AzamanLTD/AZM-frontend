@@ -1,3 +1,5 @@
+import 'package:azaman/models/marketplace_booking_models.dart' show BusinessStory;
+
 class StoryItem {
   final String id;
   final String mediaUrl;
@@ -64,4 +66,40 @@ class StoryGroup {
         .map((s) => StoryItem.fromJson(s as Map<String, dynamic>)).toList(),
     );
   }
+}
+
+/// Maps a real-rail business-story page onto the single viewer group.
+///
+/// The rail is GET /api/marketplace/business/:id/stories → {success, stories},
+/// each row a Prisma Story plus its poster user. The Story schema carries no
+/// mediaType (image URL only), no per-viewer seen state and no boost flag,
+/// so items map with the same truthful fallbacks GET /stories/feed uses:
+/// IMAGE media, the 5-second image duration, seen=false.
+/// [durationSecondsProvided] stays null — the server never sent a duration.
+/// Group author is the first poster (the row set's only identity the rail
+/// provides); hasUnseen=true reflects that no view record exists for these
+/// rows when the ring was tapped.
+StoryGroup storyGroupFromBusinessStories(List<BusinessStory> stories) {
+  final first = stories.first;
+  return StoryGroup(
+    authorId: int.tryParse(first.userId) ?? 0,
+    authorUsername: first.username ?? '',
+    authorAvatarUrl: first.userProfilePictureUrl,
+    hasUnseen: true,
+    isBoosted: false,
+    stories: stories
+        .map((s) => StoryItem(
+              id: s.id,
+              mediaUrl: s.mediaUrl,
+              mediaType: 'IMAGE',
+              caption: s.caption,
+              linkedBizId: s.businessProfileId,
+              durationSeconds: 5,
+              boosted: false,
+              seen: false,
+              createdAt: s.createdAt,
+              durationSecondsProvided: null,
+            ))
+        .toList(),
+  );
 }
