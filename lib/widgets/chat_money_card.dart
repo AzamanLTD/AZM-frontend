@@ -444,7 +444,7 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                     border: Border.all(
                         color: _textColor.withValues(alpha: 0.2), width: 1),
                   ),
-                  child: Text('Accept',
+                  child: Text('Decline',
                       style: TextStyle(
                           color: _textColor,
                           fontWeight: FontWeight.w700,
