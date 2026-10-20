@@ -137,18 +137,30 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     // financial authority; only the presentation order moves.
     final pref = ref.watch(currencyProvider);
     final ghsFirst = pref == DisplayCurrency.ghs;
-    final ghsValue = balance.availableBalance * rate;
-    final primaryValue = ghsFirst ? ghsValue : balance.availableBalance;
-    final primaryLabel = ghsFirst ? AzMoney.ghs(primaryValue) : AzMoney.usdcFirst(primaryValue);
-    final secondaryLabel = ghsFirst
-        ? AzMoney.usdcFirst(balance.availableBalance)
-        : AzMoney.ghs(ghsValue);
+    // §5 — rate 0 means "unavailable", never a live zero: the card must
+    // not render GH₵ 0.00 over a funded USDC ledger, and must never show
+    // "1 USDC = GH₵0.00" as if it were a valid rate. The real USDC ledger
+    // balance stays visible and the cedi equivalent is named unavailable.
+    final rateUsable = rate > 0;
+    final ghsValue = rateUsable ? balance.availableBalance * rate : 0.0;
+    final primaryValue = ghsFirst && rateUsable ? ghsValue : balance.availableBalance;
+    final primaryLabel = ghsFirst && rateUsable
+        ? AzMoney.ghs(primaryValue)
+        : AzMoney.usdcFirst(primaryValue);
+    final secondaryLabel = rateUsable
+        ? (ghsFirst
+            ? AzMoney.usdcFirst(balance.availableBalance)
+            : AzMoney.ghs(ghsValue))
+        : 'GH₵ equivalent unavailable';
 
     // Derived during build so the chip always reflects the freshest value.
     // `_trackDelta` schedules a timer but never calls setState synchronously,
-    // so this is safe to run inside build.
+    // so this is safe to run inside build. The signature carries rate
+    // availability so a rate recovering (or dropping) re-baselines the
+    // delta rather than masquerading as balance movement.
     _trackDelta(primaryValue,
-        signature: '${ghsFirst ? 'ghs' : 'usdc'}|${rate.toStringAsFixed(4)}');
+        signature:
+            '${ghsFirst ? 'ghs' : 'usdc'}|${rateUsable ? rate.toStringAsFixed(4) : 'unavailable'}');
 
     final chipDelta = _delta;
 
@@ -416,7 +428,12 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                         alignment: Alignment.centerLeft,
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          '1 USDC = ${AzMoney.ghs(rate)}',
+                          rateUsable
+                              ? '1 USDC = ${AzMoney.ghs(rate)}'
+                              : 'FX rate unavailable',
+                          key: rateUsable
+                              ? null
+                              : const ValueKey('hologram-rate-unavailable'),
                           style: AzText.caption.copyWith(
                             color: colors.textTertiary,
                           ),

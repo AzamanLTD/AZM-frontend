@@ -279,6 +279,13 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       return CurrencyMath.isUsableRate(override) ? override : null;
     }
     try {
+      // §2: the commit gate must not accept the provider's RETAINED
+      // value — after a stale window the cached snapshot could still
+      // hold an old, no-longer-fresh observation. Invalidate first so
+      // the oracle is genuinely re-fetched and freshness is re-derived
+      // from lastExternalSync at commit time, then await the NEW
+      // snapshot. On any failure: null — never a silent pass.
+      ref.invalidate(fxRateProvider);
       final fx = await ref.read(fxRateProvider.future);
       return (fx != null && fx.isUsable) ? fx.ghsPerUsdc : null;
     } catch (_) {
@@ -291,12 +298,15 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   /// (unusable rate, non-finite input, or a result that would round to a
   /// zero transfer). This is the ONLY amount derivation path.
   double? _wireAmount({required double amount, required double? rate}) {
-    if (rate == null) return null;
+    // §1: a DIRECT USDC entry is already the wire amount and needs no
+    // FX rate — CurrencyMath's same-unit path deliberately converts with
+    // an unusable/absent rate. Only a GHS composition requires the rate
+    // to derive the exact USDC amount (and fails closed without it).
     return CurrencyMath.convert(
       amount: amount,
       from: _entryUnit,
       to: CurrencyCatalog.usdc,
-      ghsPerUsdc: rate,
+      ghsPerUsdc: rate ?? 0,
     );
   }
 
@@ -869,7 +879,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(top: 4, left: 4),
                       child: Text(
-                        'USDC equivalent unavailable — rate not loaded yet',
+                        '${other.code} equivalent unavailable — rate not loaded yet',
                         key: const ValueKey('send-amount-equivalent'),
                         style: TextStyle(
                             color: colors.textTertiary,
@@ -1062,6 +1072,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                       // amount the backend will transfer is identified
                       // explicitly right under it, plus the frozen rate
                       // it was derived at.
+                      // §4 — the pair is always shown under BOTH entry
+                      // units: the entry denomination leads; the exact
+                      // USDC wire amount (the only thing the backend
+                      // transfers) is identified explicitly second.
                       if (entryUnit == CurrencyCatalog.ghs) ...[
                         _ReviewRow(
                             colors: colors,
@@ -1081,18 +1095,53 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                         const SizedBox(height: 12),
                         _ReviewRow(
                             colors: colors,
-                            label: 'Rate at review',
+                            // §2: honest labelling — this is the rate the
+                            // USDC amount was DERIVED at, not a guaranteed
+                            // provider execution quote.
+                            label: 'Rate used to derive the USDC amount',
                             value:
                                 '1 USDC = ${AzMoney.ghs(_frozenRate ?? 0)}',
                             valueKey:
                                 const ValueKey('send-review-rate')),
                         const SizedBox(height: 12),
-                      ] else
+                      ] else ...[
                         _ReviewRow(
                             colors: colors,
                             label: 'Amount',
                             value: '${amount.toStringAsFixed(2)} USDC',
-                            valueKey: const ValueKey('send-review-amount')),
+                            valueKey:
+                                const ValueKey('send-review-amount'),
+                            emphasized: true),
+                        const SizedBox(height: 12),
+                        _ReviewRow(
+                            colors: colors,
+                            // Direct USDC entry: the GHS equivalent is a
+                            // DISPLAY value — it is never presented as a
+                            // separate GHS settlement. Unavailable rate →
+                            // the equivalent is named unavailable, never a
+                            // false GH₵ 0.00.
+                            label: 'GHS equivalent',
+                            value: (_frozenRate != null &&
+                                    CurrencyMath.isUsableRate(_frozenRate!))
+                                ? AzMoney.ghs(CurrencyMath.convert(
+                                    amount: amount,
+                                    from: CurrencyCatalog.usdc,
+                                    to: CurrencyCatalog.ghs,
+                                    ghsPerUsdc: _frozenRate!) ?? 0)
+                                : 'Unavailable — rate not loaded',
+                            valueKey: const ValueKey(
+                                'send-review-ghs-equivalent')),
+                        const SizedBox(height: 12),
+                        if (_frozenRate != null &&
+                            CurrencyMath.isUsableRate(_frozenRate!))
+                          _ReviewRow(
+                              colors: colors,
+                              label: 'Rate used for the equivalent',
+                              value:
+                                  '1 USDC = ${AzMoney.ghs(_frozenRate!)}',
+                              valueKey:
+                                  const ValueKey('send-review-rate')),
+                      ],
                       const SizedBox(height: 12),
                       // Fee truth: the backend rail records feeUsdc: 0 for
                       // both parties (peerTransferController.sendFunds) —
@@ -1203,10 +1252,21 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       amountText: wasGhs
           ? AzMoney.ghs(entryAmount ?? 0)
           : '${(amount ?? 0).toStringAsFixed(2)} USDC',
+      // §4: under USDC entry the cedi equivalent rides second when the
+      // frozen rate is valid; an unavailable rate is named honestly — a
+      // false GH₵ 0.00 equivalent is never shown. The label keeps the
+      // truth clear: the WIRE amount is the USDC one.
       secondaryAmountText: wasGhs
           ? '${(amount ?? 0).toStringAsFixed(2)} USDC'
-          : null,
-      secondaryAmountLabel: 'Transferred on the wire as',
+          : (_frozenRate != null && CurrencyMath.isUsableRate(_frozenRate!)
+              ? AzMoney.ghs(CurrencyMath.convert(
+                  amount: amount ?? 0,
+                  from: CurrencyCatalog.usdc,
+                  to: CurrencyCatalog.ghs,
+                  ghsPerUsdc: _frozenRate!) ?? 0)
+              : 'GHS equivalent unavailable — rate not loaded'),
+      secondaryAmountLabel:
+          wasGhs ? 'Transferred on the wire as' : 'Equivalent in cedis (display only — the transfer settled in USDC)',
       recipientName: recipient?.name ?? '',
       // RAW canonical username (unprefixed) — the panel's AtHandle
       // formatter adds the glyph at most once, or nothing when there is

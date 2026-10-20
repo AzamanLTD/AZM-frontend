@@ -1,9 +1,12 @@
 // =============================================================================
 // AZAMAN — UNIFIED SEND: VISUAL CAPTURES (320 / 360 / 390 dp × LIGHT / DARK)
 //
-// Deliberate, reviewable golden ADDITIONS for the Send composer journey.
-// Three phone widths × three stages (compose, review, success) × two
-// brightnesses = 18 rasters (PR #165 review finding 5).
+// Deliberate, reviewable goldens for the Send composer journey, in BOTH
+// entry modes: GHS-entry (default) and a genuinely wheel-rolled USDC
+// entry (the harness drives the LOCAL Send wheel — never the global
+// Display Currency preference). 3 widths × 3 stages × 2 brightnesses ×
+// 2 entry modes = 36 rasters, plus 2 deliberate-USDC-pref rasters
+// (PR #165 review §6).
 //
 // Two hard rules learned from the old 9-raster set (see
 // test/goldens/README.md):
@@ -106,15 +109,48 @@ Future<void> _loadFace(String family, String path) async {
 /// Loads the app's real bundled faces exactly once per test process: the
 /// display/UI family (ComicNeue 400/700) and Inter. Without this the
 /// engine rasterises Ahem and the captures misrepresent the product.
+///
+/// §6 font truth: ComicNeue has NO cedi glyph (₵, U+20B5), and the test
+/// environment has no OS font fallback — so 'GH₵' rasterised as 'GH□'
+/// and Material icons as empty squares. Two committed faces fix it:
+///   • 'MaterialIcons' — the REAL production icon font (from the
+///     Flutter SDK artifacts, see MaterialIcons_LICENSE.txt), so icons
+///     render exactly as on-device;
+///   • 'DejaVuSans' — a glyph-complete fallback wired into the harness
+///     theme via fontFamilyFallback, so ₵ renders while all metrics
+///     still come from the app's real faces (license alongside).
+/// Placeholder glyphs are never accepted as product evidence.
 Future<void> _loadAppFonts() async {
   if (_fontsLoaded) return;
   await _loadFace('Inter', 'assets/fonts/Inter-Variable.ttf');
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
+  await _loadFace('MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+  await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
   _fontsLoaded = true;
 }
 
 // ── Stage drives (mirrors the green composer UX suite) ─────────────────────
+
+/// §6: rolls the Send LOCAL entry wheel to USDC through the real picker
+/// interaction — the same gesture path a user takes (tap wheel → pick).
+/// This is the transaction-local denomination, deliberately NOT the
+/// global Display Currency preference.
+Future<void> _rollWheelToUsdc(WidgetTester tester) async {
+  final wheel = find.byKey(const ValueKey('send-amount-currency'));
+  expect(wheel, findsOneWidget,
+      reason: 'the Send amount wheel must be present to roll');
+  await tester.tap(wheel, warnIfMissed: false);
+  await tester.pumpAndSettle();
+  final usdcItem = find.text('USDC — USD Coin');
+  expect(usdcItem, findsOneWidget,
+      reason: 'the picker must offer the USDC entry option');
+  await tester.tap(usdcItem);
+  await tester.pumpAndSettle();
+  // The picker has closed and the wheel rolled; the LOCAL entry unit is
+  // now USDC. The review stage of each USDC-entry capture pins the
+  // postcondition (the GHS-equivalent row exists only under USDC entry).
+}
 
 Future<void> _driveKeypadToReview(WidgetTester tester) async {
   for (final key in const ['5', '.', '0', '0']) {
@@ -137,6 +173,19 @@ Future<void> _slideToConfirm(WidgetTester tester) async {
   await gesture.moveBy(const Offset(1200, 0));
   await gesture.up();
   await tester.pump();
+}
+
+/// The harness theme: the REAL app theme, with a glyph-complete
+/// fallback family so the cedi symbol renders exactly as on-device (where
+/// the OS supplies the missing glyph for ComicNeue). Metrics stay the
+/// app's own; only missing glyphs fall through.
+ThemeData _harnessTheme(bool dark) {
+  final base = ThemeProvider.getThemeData(
+    dark ? AzamanTheme.dark : AzamanTheme.light,
+  );
+  return base.copyWith(
+    textTheme: base.textTheme.apply(fontFamilyFallback: const ['DejaVuSans']),
+  );
 }
 
 Future<void> _pump(
@@ -179,9 +228,7 @@ Future<void> _pump(
         data: const MediaQueryData(disableAnimations: true),
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
-          theme: ThemeProvider.getThemeData(
-            dark ? AzamanTheme.dark : AzamanTheme.light,
-          ),
+          theme: _harnessTheme(dark),
           home: RepaintBoundary(child: _screen()),
         ),
       ),
@@ -195,13 +242,30 @@ Future<void> _capture(
   required String width,
   required String stage,
   required bool dark,
+  bool usdcEntry = false,
   bool usdcPref = false,
 }) async {
   final size = _sizes[width]!;
   await _pump(tester, size, dark: dark, usdcPref: usdcPref);
 
+  // §6: the LOCAL entry wheel is rolled to USDC for usdcEntry captures —
+  // a genuine transaction-local denomination change, never the global
+  // Display Currency preference.
+  if (usdcEntry) {
+    await _rollWheelToUsdc(tester);
+  }
+
   if (stage != 'compose') {
     await _driveKeypadToReview(tester);
+  }
+
+  // Postcondition for USDC entry: the review card's GHS-equivalent row
+  // exists ONLY under direct USDC entry (GHS entry has the wire row +
+  // derivation-rate row instead). Never trust the wheel tap alone.
+  if (usdcEntry && stage == 'review') {
+    expect(find.byKey(const ValueKey('send-review-ghs-equivalent')),
+        findsOneWidget,
+        reason: 'USDC-entry review must show the paired GHS equivalent');
   }
 
   if (stage == 'success') {
@@ -214,10 +278,11 @@ Future<void> _capture(
         reason: 'the capture must show the committed success panel');
   }
 
+  final suffix = usdcEntry ? '_usdcentry' : (usdcPref ? '_usdcpref' : '');
   await expectLater(
     find.byType(MaterialApp),
     matchesGoldenFile(
-        '../goldens/send/${width}dp_${dark ? 'dark' : 'light'}_$stage${usdcPref ? '_usdc' : ''}.png'),
+        '../goldens/send/${width}dp_${dark ? 'dark' : 'light'}_$stage$suffix.png'),
   );
 }
 
@@ -236,9 +301,25 @@ void main() {
     }
   }
 
-  // Deliberate-USDC captures: USDC-primary appearance is legitimate ONLY
-  // under an explicitly saved USDC preference (work order §4D). Pinned at
-  // the reference width in light theme across compose + review.
+  // §6: genuine USDC-ENTRY captures — the LOCAL Send wheel rolled to
+  // USDC on every width and theme, across the full journey.
+  for (final dark in const [false, true]) {
+    for (final width in const ['320', '360', '390']) {
+      for (final stage in const ['compose', 'review', 'success']) {
+        testWidgets(
+            'capture $width dp ${dark ? 'dark' : 'light'} — $stage (USDC entry)',
+            (tester) async {
+          await _capture(
+              tester, width: width, stage: stage, dark: dark, usdcEntry: true);
+        });
+      }
+    }
+  }
+
+  // Deliberate-USDC PREFERENCE captures (clearly named): the GLOBAL
+  // display preference is USDC while the entry stays GHS. These pin that
+  // USDC-primary appearance of the balance chip is legitimate ONLY under
+  // an explicitly saved USDC preference (work order §4D).
   for (final stage in const ['compose', 'review']) {
     testWidgets('capture 360 dp light — $stage (deliberate USDC pref)',
         (tester) async {

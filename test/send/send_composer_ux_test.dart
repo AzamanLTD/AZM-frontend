@@ -38,6 +38,7 @@ import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/currency_provider.dart';
 import 'package:azaman/screens/send_money_screen.dart';
+import 'package:azaman/widgets/amount_keypad.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/widgets/home/activity_actions.dart';
@@ -162,16 +163,28 @@ Future<void> _selectUsdcEntry(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Taps a keypad key by its LABEL, scoped to the AmountKeypad itself.
+///
+/// Scoping matters: the odometer renders each amount digit as its own
+/// Text, so a bare `find.text('0')` can match a display digit (or a
+/// digit inside an overlay route) instead of the key — which is exactly
+/// how the §1/§2/§4 tests first failed. Every amount tap in this suite
+/// goes through here.
+Future<void> _tapKey(WidgetTester tester, String key) async {
+  final finder = find.descendant(
+    of: find.byType(AmountKeypad),
+    matching: find.text(key),
+  );
+  expect(finder, findsWidgets, reason: 'the keypad must offer "$key"');
+  await tester.tap(finder.first, warnIfMissed: false);
+  await tester.pump();
+}
+
 Future<void> _enterAmount(WidgetTester tester) async {
   await _selectUsdcEntry(tester);
-  await tester.tap(find.text('5').first);
-  await tester.pump();
-  await tester.tap(find.text('.').first);
-  await tester.pump();
-  await tester.tap(find.text('0').first);
-  await tester.pump();
-  await tester.tap(find.text('0').first);
-  await tester.pump();
+  for (final key in const ['5', '.', '0', '0']) {
+    await _tapKey(tester, key);
+  }
 }
 
 /// Drives the money-action slide through its full intentional gesture:
@@ -782,11 +795,11 @@ void main() {
   // The wheel's production default is GHS; the rail ALWAYS settles USDC.
   // =========================================================================
   group('GHS-first entry', () {
-    /// Enters 5.00 on the wheel's GHS default (no USDC roll).
+    /// Enters 5.00 on the wheel's GHS default (no USDC roll), through
+    /// the same keypad-scoped finder as every other amount entry.
     Future<void> enterGhs(WidgetTester tester) async {
       for (final key in const ['5', '.', '0', '0']) {
-        await tester.tap(find.text(key).first);
-        await tester.pump();
+        await _tapKey(tester, key);
       }
     }
 
@@ -914,14 +927,10 @@ void main() {
         friendProvider.overrideWith((ref) => _FakeFriends(ref)),
         themeProvider.overrideWith((ref) => tp),
         // A LIVE oracle the test can move: each (re)compute reads the
-        // current value of [rate].
+        // current value of [rate]. The snapshot carries the FULL §2
+        // freshness contract (a genuinely fresh observation).
         fxRateProvider.overrideWith(
-            (ref) async => FxRateSnapshot(
-                  ghsPerUsdc: rate,
-                  source: 'TEST',
-                  lastSync: DateTime.now().toUtc(),
-                  fetchedAt: DateTime.now().toUtc(),
-                )),
+            (ref) async => _freshSnapshot(rate)),
       ]);
       addTearDown(container.dispose);
 
@@ -948,9 +957,11 @@ void main() {
       expect(find.text('1 USDC = GH\u20B5\u00A015.38'), findsOneWidget,
           reason: 'the quote froze at the reviewed rate');
 
-      // The oracle moves while the composition sits at review.
+      // The oracle moves while the composition sits at review. §2: NO
+      // manual invalidation — the commit gate itself re-fetches and
+      // re-derives freshness from lastExternalSync, so the moved oracle
+      // is detected exactly as in production.
       rate = 15.50;
-      container.invalidate(fxRateProvider);
       await tester.pumpAndSettle();
 
       // The slide is rejected: the user is returned to compose with an
@@ -975,5 +986,200 @@ void main() {
           reason: 'the recovery path commits the newly reviewed quote');
       expect(find.byKey(const ValueKey('send-success-icon')), findsOneWidget);
     });
+
+    // =========================================================================
+    // PR #165 review §1/§2/§4 — direct USDC entry, server freshness, and
+    // the paired display under BOTH entry units.
+    // =========================================================================
+
+    testWidgets('§1 — a DIRECT USDC entry submits with UNAVAILABLE FX: the '
+        'amount is already the wire, the equivalent is named unavailable '
+        '(never a false zero)',
+        (tester) async {
+      final wire = <double>[];
+      await _mockSecureStorage();
+      await _pump(
+        tester,
+        screen: SendMoneyScreen.toFriend(
+          fxRateOverride: 0, // dead oracle: NO equivalent is displayable
+          recipient: _friendRecipient(),
+          sendOverride: (friendshipId, amount, reference, token) async {
+            wire.add(amount);
+            return {'success': true};
+          },
+        ),
+      );
+
+      // Wheel rolled to USDC, 5.00 typed directly in the wire unit.
+      await _enterAmount(tester);
+      await tester.tap(find.byKey(const ValueKey('send-cta-Review')));
+      await tester.pumpAndSettle();
+
+      // Review is REACHED with no rate at all — the exact wire amount is
+      // the entered amount and the GHS equivalent is honestly unavailable.
+      expect(find.byKey(const ValueKey('send-review-card')), findsOneWidget,
+          reason: 'direct USDC must not be blocked by a dead oracle');
+      expect(find.text('5.00 USDC'), findsOneWidget,
+          reason: 'the primary amount is the exact entered wire amount');
+      expect(
+          find.byKey(const ValueKey('send-review-ghs-equivalent')),
+          findsOneWidget,
+          reason: 'the paired GHS-equivalent row exists under USDC entry');
+      expect(
+          find.text('Unavailable — rate not loaded'),
+          findsOneWidget,
+          reason: 'the unavailable equivalent is named, never GH₵ 0.00');
+      expect(find.textContaining('GH₵ 0.00'), findsNothing,
+          reason: 'a false zero equivalent must never render');
+
+      // Commit succeeds — the wire amount is exactly the entered amount.
+      await _slideToConfirm(tester);
+      await tester.pumpAndSettle();
+      expect(wire, [5.00],
+          reason: 'the USDC digits are the wire payload, unconverted');
+      expect(find.byKey(const ValueKey('send-success-icon')), findsOneWidget);
+      expect(find.textContaining('5.00 USDC'), findsOneWidget,
+          reason: 'success keeps the wire amount primary');
+      expect(find.textContaining('GHS equivalent unavailable'), findsOneWidget,
+          reason: 'success names the unavailable equivalent honestly');
+      expect(find.textContaining('settled in USDC'), findsOneWidget,
+          reason: 'success never presents the equivalent as settlement');
+    });
+
+    testWidgets('§4 — USDC entry with a VALID rate shows the paired GHS '
+        'equivalent in order: primary wire amount, equivalent second, fee '
+        'truth, no fabrication',
+        (tester) async {
+      final wire = <double>[];
+      await _mockSecureStorage();
+      await _pump(
+        tester,
+        screen: SendMoneyScreen.toFriend(
+          fxRateOverride: 15.38,
+          recipient: _friendRecipient(),
+          sendOverride: (friendshipId, amount, reference, token) async {
+            wire.add(amount);
+            return {'success': true};
+          },
+        ),
+      );
+
+      await _enterAmount(tester); // wheel on USDC, 5.00 typed
+      await tester.tap(find.byKey(const ValueKey('send-cta-Review')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('send-review-amount')), findsOneWidget);
+      expect(find.text('5.00 USDC'), findsOneWidget,
+          reason: 'the primary amount is the exact wire amount');
+      // 5.00 × 15.38 = 76.90 — the equivalent rides second.
+      expect(
+          find.byKey(const ValueKey('send-review-ghs-equivalent')),
+          findsOneWidget);
+      expect(find.text('GH₵ 76.90'), findsOneWidget,
+          reason: 'the GHS equivalent is computed at the frozen rate');
+      expect(find.text('Rate used for the equivalent'), findsOneWidget,
+          reason: 'the pair is labelled as the derivation rate, not an '
+              'execution quote');
+      expect(find.text('No fee'), findsOneWidget,
+          reason: 'fee truth stays exact');
+
+      await _slideToConfirm(tester);
+      await tester.pumpAndSettle();
+      expect(wire, [5.00]);
+      expect(find.byKey(const ValueKey('send-success-icon')), findsOneWidget);
+      expect(find.textContaining('GH₵ 76.90'), findsOneWidget,
+          reason: 'success also shows the paired equivalent under USDC entry');
+    });
+
+    testWidgets('§2 — a STALE SERVER snapshot is rejected for GHS entry; a '
+        'FRESH one is accepted (no manual invalidation anywhere)',
+        (tester) async {
+      var stale = true;
+      await _mockSecureStorage();
+      final container = ProviderContainer(overrides: [
+        authProvider.overrideWith((ref) => _FixedAuth(_user())),
+        friendProvider.overrideWith((ref) => _FakeFriends(ref)),
+        themeProvider.overrideWith((ref) => ThemeProvider()),
+        // One live oracle whose CURRENT observation is either stale
+        // (aged past the backend threshold, isFresh false) or fresh.
+        fxRateProvider.overrideWith(
+            (ref) async => stale ? _staleSnapshot(15.38) : _freshSnapshot(15.38)),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: SendMoneyScreen.toFriend(
+              recipient: _friendRecipient(),
+              sendOverride: (friendshipId, amount, reference, token) async =>
+                  {'success': true},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // STALE server observation: a GHS composition cannot review.
+      await enterGhs(tester);
+      await tester.tap(find.byKey(const ValueKey('send-cta-Review')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('send-review-card')), findsNothing,
+          reason: 'a stale server snapshot must not convert');
+      expect(
+          find.textContaining(
+              'Exchange rate unavailable — enter the amount in USDC instead'),
+          findsOneWidget,
+          reason: 'the composer explains the stale oracle honestly');
+
+      // FRESH observation: the oracle recovers, and after the provider
+      // recomputes (a later retry of the same composition) review works.
+      // Commit-time revalidation itself is covered by the drift test.
+      stale = false;
+      container.invalidate(fxRateProvider);
+      // The composer's rate read is non-watching; force the recompute
+      // the same way the commit gate does — await the oracle's future.
+      await container.read(fxRateProvider.future);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('send-cta-Review')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('send-review-card')), findsOneWidget,
+          reason: 'a fresh canonical snapshot converts');
+      expect(find.text('1 USDC = GH₵ 15.38'), findsOneWidget);
+    });
   });
 }
+
+  // A genuinely fresh snapshot fixture for §2 tests: the full backend
+  // freshness contract holds at the moment of the call.
+  FxRateSnapshot _freshSnapshot(double rate) {
+    final observed = DateTime.now().toUtc().subtract(const Duration(seconds: 10));
+    return FxRateSnapshot(
+      ghsPerUsdc: rate,
+      source: 'TEST',
+      lastSync: observed,
+      fetchedAt: DateTime.now().toUtc(),
+      serverFresh: true,
+      lastExternalSync: observed,
+      externalRateAgeSeconds: 10,
+      rateFreshnessMaxAgeSeconds: 1800,
+    );
+  }
+
+  // A stale server observation: aged past the backend's threshold and the
+  // backend itself says isFresh == false. fetchedAt is NOW — the §2 trap:
+  // a fresh fetch of an old observation must not make it usable.
+  FxRateSnapshot _staleSnapshot(double rate) {
+    final observed = DateTime.now().toUtc().subtract(const Duration(hours: 2));
+    return FxRateSnapshot(
+      ghsPerUsdc: rate,
+      source: 'TEST',
+      lastSync: observed,
+      fetchedAt: DateTime.now().toUtc(),
+      serverFresh: false,
+      lastExternalSync: observed,
+      externalRateAgeSeconds: 7200,
+      rateFreshnessMaxAgeSeconds: 1800,
+    );
+  }

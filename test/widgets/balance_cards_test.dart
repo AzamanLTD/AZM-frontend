@@ -165,6 +165,30 @@ void main() {
 
 
   group('GHANA-FIRST (2026-10-20) — GHS is the default primary', () {
+
+testWidgets(
+      'PR #165 §5 — an unavailable rate keeps the USDC ledger balance visible '
+      'and names the cedi equivalent unavailable (never GH₵ 0.00)',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pumpFrontFace(tester, balance: 50.0, rate: 0);
+
+    // The REAL ledger balance stays primary and visible. The hero
+    // renders the balance as per-digit odometer cells, so the assertion
+    // targets the card's own semantics label — the full formatted amount.
+    expect(find.bySemanticsLabel(RegExp('USDC.50.00\\savailable')),
+        findsOneWidget,
+        reason: 'the funded USDC ledger balance must stay visible');
+    expect(find.text('GH\u20B5 equivalent unavailable'), findsOneWidget,
+        reason: 'the cedi equivalent is named unavailable');
+    expect(find.byKey(const ValueKey('hologram-rate-unavailable')),
+        findsOneWidget,
+        reason: 'the rate row says FX unavailable, never 1 USDC = GH₵ 0.00');
+    expect(find.text('1 USDC = GH\u20B5\u00A00.00'), findsNothing,
+        reason: 'a fabricated live-looking zero rate must never render');
+    handle.dispose();
+  });
+
     testWidgets('the un-seeded preference renders GHS-primary with the '
         'USDC ledger equivalent as the secondary figure', (tester) async {
       await _seedCurrency(null);

@@ -235,17 +235,23 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
       ),
     );
 
+    // §6 — the fade lives ONLY inside the peek gutters: the selected
+    // chip (always centered, spanning the full slot minus the peeks) is
+    // rendered at FULL opacity — the shader never touches its label or
+    // accent border — while the neighbours genuinely peek through the
+    // fading edges. Computed from the geometry constants, not eyeballed.
+    final edgeFade = _peek / slot;
     final fader = ShaderMask(
-      shaderCallback: (bounds) => const LinearGradient(
+      shaderCallback: (bounds) => LinearGradient(
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
-        colors: [
+        colors: const [
           Color(0x00000000),
           Color(0xFF000000),
           Color(0xFF000000),
           Color(0x00000000),
         ],
-        stops: [0.0, 0.16, 0.84, 1.0],
+        stops: [0.0, edgeFade, 1.0 - edgeFade, 1.0],
       ).createShader(bounds),
       blendMode: BlendMode.dstIn,
       child: roller,
