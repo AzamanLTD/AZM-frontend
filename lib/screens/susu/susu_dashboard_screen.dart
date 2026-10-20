@@ -44,10 +44,17 @@ import 'package:azaman/widgets/susu/susu_wheel.dart';
 
 class SusuDashboardScreen extends ConsumerWidget {
   final String susuId;
-  const SusuDashboardScreen({super.key, required this.susuId});
+
+  /// Injectable clock, forwarded to the payout wheel so golden captures
+  /// are deterministic. Production always leaves it null (wall clock).
+  final DateTime Function()? nowFn;
+
+  const SusuDashboardScreen(
+      {super.key, required this.susuId, this.nowFn});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final nowFn = this.nowFn;
     final colors = ref.watch(themeProvider).colors;
     final detail = ref.watch(susuDetailV2Provider(susuId));
     final members = ref.watch(susuMembersProvider(susuId));
@@ -124,6 +131,7 @@ class SusuDashboardScreen extends ConsumerWidget {
                   cycles: cycles.valueOrNull ?? const [],
                   totalSlots: susu.totalCycles,
                   meUserId: me?.id,
+                  nowFn: nowFn,
                 ),
                 if (susu.status == SusuStatus.completed)
                   Padding(
@@ -1093,8 +1101,14 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
                 color: colors.textSecondary, fontSize: 12, height: 1.4),
           ),
           const SizedBox(height: 8),
-          SwitchListTile.adaptive(
-            value: _enabled,
+          // Material host: this Container paints a background, so a bare
+          // ListTile here fires the debug assertion and its ink splash is
+          // painted UNDER the panel (invisible on device). Transparency
+          // keeps the look identical while giving the switch its own ink.
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile.adaptive(
+              value: _enabled,
             onChanged: _busy
                 ? null
                 : (v) async {
@@ -1116,18 +1130,19 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
                       if (mounted) setState(() => _busy = false);
                     }
                   },
-            activeColor: colors.accent,
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              'Auto-retain next contribution',
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700),
-            ),
-            subtitle: Text(
-              'Reserve my next cycle amount from my balance after each payout.',
-              style: TextStyle(color: colors.textTertiary, fontSize: 11),
+              activeColor: colors.accent,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'Auto-retain next contribution',
+                style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                'Reserve my next cycle amount from my balance after each payout.',
+                style: TextStyle(color: colors.textTertiary, fontSize: 11),
+              ),
             ),
           ),
         ],

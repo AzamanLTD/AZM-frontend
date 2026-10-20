@@ -522,12 +522,15 @@ void main() {
       ));
       await tester.pump();
 
+      // The inline widget keeps BOTH parts verbatim: one RichText when
+      // the composed line fits, lead + tail as two nodes when it wraps.
+      // The truth test must read the whole rendered surface, not one node.
       String read() => tester
-          .widget<RichText>(find.descendant(
+          .widgetList<RichText>(find.descendant(
               of: find.byKey(const ValueKey('flip-target')),
               matching: find.byType(RichText)))
-          .text
-          .toPlainText();
+          .map((r) => r.text.toPlainText())
+          .join(' ');
 
       final usdcFirst = read();
       expect(usdcFirst, contains('20.00 USDC'));

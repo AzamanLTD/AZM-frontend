@@ -21,7 +21,14 @@ import 'package:azaman/widgets/nav_transitions.dart';
 
 class VaultDetailScreen extends ConsumerStatefulWidget {
   final String vaultId;
-  const VaultDetailScreen({super.key, required this.vaultId});
+
+  /// Injectable clock for golden tests. Production always leaves it null
+  /// (wall clock); pinned now makes 'days left' and deposit-history
+  /// captions byte-identical across runs.
+  final DateTime Function()? nowFn;
+
+  const VaultDetailScreen(
+      {super.key, required this.vaultId, this.nowFn});
 
   @override
   ConsumerState<VaultDetailScreen> createState() => _VaultDetailScreenState();
@@ -104,7 +111,7 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
   /// GHS settlement on the native-USDC record.
   String _estimateSuffix(double amountUsdc) {
     final snapshot = ref.read(fxRateProvider).valueOrNull;
-    final now = DateTime.now().toUtc();
+    final now = (widget.nowFn?.call() ?? DateTime.now()).toUtc();
     if (snapshot == null || !snapshot.isUsableAt(now)) return '';
     final ghs = CurrencyMath.convert(
       amount: amountUsdc,
@@ -145,7 +152,9 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
           if (v == null) return const Center(child: Text('Vault not found'));
           final isActive = v.status == 'ACTIVE';
           final progress = v.progressFraction;
-          final daysLeft = v.maturityDate.difference(DateTime.now()).inDays;
+          final daysLeft = v.maturityDate
+              .difference(widget.nowFn?.call() ?? DateTime.now())
+              .inDays;
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
@@ -218,7 +227,10 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                       )
                     : Column(
                         children: list
-                            .map((d) => _DepositTile(d: d, colors: colors))
+                            .map((d) => _DepositTile(
+                                d: d,
+                                colors: colors,
+                                nowFn: widget.nowFn))
                             .toList(),
                       ),
               ),
@@ -476,7 +488,9 @@ class _DepositCard extends StatelessWidget {
 class _DepositTile extends StatelessWidget {
   final VaultDeposit d;
   final AzamanColors colors;
-  const _DepositTile({required this.d, required this.colors});
+  final DateTime Function()? nowFn;
+  const _DepositTile(
+      {required this.d, required this.colors, this.nowFn});
 
   IconData get _icon => switch (d.type) {
         'AUTO_RULE' => Icons.refresh,
@@ -563,7 +577,7 @@ class _DepositTile extends StatelessWidget {
   }
 
   String _short(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
+    final diff = (nowFn?.call() ?? DateTime.now()).difference(dt);
     if (diff.inMinutes < 60) return '${diff.inMinutes}m';
     if (diff.inHours < 24) return '${diff.inHours}h';
     return '${diff.inDays}d';

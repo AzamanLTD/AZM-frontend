@@ -157,12 +157,19 @@ class SusuWheel extends ConsumerStatefulWidget {
   final int totalSlots;
   final dynamic meUserId;
 
+  /// Injectable clock. Production leaves it null and reads the wall
+  /// clock; golden tests pin it so the countdown label and arc sweep are
+  /// byte-identical on every run (a wall-clock capture drifts across the
+  /// hour boundary and breaks its own golden).
+  final DateTime Function()? nowFn;
+
   const SusuWheel({
     super.key,
     required this.members,
     required this.cycles,
     required this.totalSlots,
     required this.meUserId,
+    this.nowFn,
   });
 
   @override
@@ -248,7 +255,7 @@ class _SusuWheelState extends ConsumerState<SusuWheel>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final now = DateTime.now();
+    final now = widget.nowFn?.call() ?? DateTime.now();
     final meId = widget.meUserId?.toString();
 
     final membersBySlot = <int, SusuMemberView>{};
