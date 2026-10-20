@@ -143,6 +143,7 @@ Future<void> _pump(
   WidgetTester tester,
   Size size, {
   required bool dark,
+  bool usdcPref = false,
 }) async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
@@ -152,8 +153,11 @@ Future<void> _pump(
   // azaman_theme: 0 = light, 1 = dark (index stability contract,
   // theme_provider.dart). No biometric_lock_enabled pref → the gate
   // stays off, so the slide alone commits.
+  // usdcPref seeds a DELIBERATE saved USDC display preference (the only
+  // state in which USDC-primary visuals are legitimate — work order §4D).
   SharedPreferences.setMockInitialValues({
     'azaman_theme': dark ? 1 : 0,
+    if (usdcPref) 'display_currency': 'usdc',
   });
   final tp = ThemeProvider();
   tester.view
@@ -191,9 +195,10 @@ Future<void> _capture(
   required String width,
   required String stage,
   required bool dark,
+  bool usdcPref = false,
 }) async {
   final size = _sizes[width]!;
-  await _pump(tester, size, dark: dark);
+  await _pump(tester, size, dark: dark, usdcPref: usdcPref);
 
   if (stage != 'compose') {
     await _driveKeypadToReview(tester);
@@ -212,7 +217,7 @@ Future<void> _capture(
   await expectLater(
     find.byType(MaterialApp),
     matchesGoldenFile(
-        '../goldens/send/${width}dp_${dark ? 'dark' : 'light'}_$stage.png'),
+        '../goldens/send/${width}dp_${dark ? 'dark' : 'light'}_$stage${usdcPref ? '_usdc' : ''}.png'),
   );
 }
 
@@ -229,5 +234,21 @@ void main() {
         });
       }
     }
+  }
+
+  // Deliberate-USDC captures: USDC-primary appearance is legitimate ONLY
+  // under an explicitly saved USDC preference (work order §4D). Pinned at
+  // the reference width in light theme across compose + review.
+  for (final stage in const ['compose', 'review']) {
+    testWidgets('capture 360 dp light — $stage (deliberate USDC pref)',
+        (tester) async {
+      await _capture(
+        tester,
+        width: '360',
+        stage: stage,
+        dark: false,
+        usdcPref: true,
+      );
+    });
   }
 }
