@@ -116,6 +116,204 @@ void main() {
     );
   });
 
+  // ---------------------------------------------------------------------
+  // Stage 2 follow-up: gesture arbitration. A pointer-down must never
+  // commit a setting change; only a COMPLETED tap (or a semantic action)
+  // may flip the value, fire haptics and persist.
+  // ---------------------------------------------------------------------
+  group('AzToggle gesture arbitration', () {
+    testWidgets(
+      'a drag that starts on the toggle and is won by the scrollable '
+      'never commits the setting or its persistence',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final prefs = await SharedPreferences.getInstance();
+        final theme = await _loadTheme(tester);
+
+        var changes = 0;
+        bool? lastValue;
+        Widget host() => MaterialApp(
+              home: Scaffold(
+                // A REAL scrollable parent with enough content to win the
+                // gesture arena when the pointer drags vertically.
+                body: ListView(
+                  children: [
+                    const SizedBox(height: 48),
+                    Center(
+                      child: AzToggle(
+                        value: false,
+                        colors: theme.colors,
+                        semanticLabel: 'Push Notifications',
+                        onChanged: (v) {
+                          changes++;
+                          lastValue = v;
+                          prefs.setBool('az_toggle_probe', v);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 1200),
+                  ],
+                ),
+              ),
+            );
+
+        await tester.pumpWidget(host());
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byType(AzToggle)),
+        );
+        await tester.pump(const Duration(milliseconds: 60));
+        // The drag exceeds touch slop: the Scrollable claims the arena and
+        // the tap recognizer is rejected (this is the cancelled-tap path).
+        await gesture.moveBy(const Offset(0, -140));
+        await tester.pump();
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(changes, 0,
+            reason: 'a scroll-won drag must not toggle the setting');
+        expect(lastValue, isNull,
+            reason: 'the caller callback must not fire at all');
+        expect(prefs.getBool('az_toggle_probe'), isNull,
+            reason: 'nothing may be persisted by a cancelled gesture');
+        expect(find.byType(AzToggle), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'pointer-down alone never commits; the completed tap commits exactly '
+      'once and persists',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final prefs = await SharedPreferences.getInstance();
+        final theme = await _loadTheme(tester);
+
+        var changes = 0;
+        bool? lastValue;
+        Widget host() => MaterialApp(
+              home: Scaffold(
+                body: Center(
+                  child: AzToggle(
+                    value: false,
+                    colors: theme.colors,
+                    semanticLabel: 'Push Notifications',
+                    onChanged: (v) {
+                      changes++;
+                      lastValue = v;
+                      prefs.setBool('az_toggle_probe', v);
+                    },
+                  ),
+                ),
+              ),
+            );
+
+        await tester.pumpWidget(host());
+        await tester.pump(const Duration(milliseconds: 300));
+
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byType(AzToggle)),
+        );
+        await tester.pump(const Duration(milliseconds: 120));
+        expect(changes, 0,
+            reason: 'a pointer-down/hold must never flip a setting');
+
+        await gesture.up();
+        await tester.pumpAndSettle();
+
+        expect(changes, 1, reason: 'one completed tap, exactly one toggle');
+        expect(lastValue, isTrue);
+        expect(prefs.getBool('az_toggle_probe'), isTrue,
+            reason: 'a completed tap persists');
+      },
+    );
+
+    testWidgets('a cancelled pointer interaction leaves value and persistence '
+        'untouched', (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = await _loadTheme(tester);
+
+      var changes = 0;
+      Widget host() => MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: AzToggle(
+                  value: false,
+                  colors: theme.colors,
+                  semanticLabel: 'Push Notifications',
+                  onChanged: (v) {
+                    changes++;
+                    prefs.setBool('az_toggle_probe', v);
+                  },
+                ),
+              ),
+            ),
+          );
+
+      await tester.pumpWidget(host());
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(AzToggle)),
+      );
+      await tester.pump(const Duration(milliseconds: 80));
+      await gesture.cancel();
+      await tester.pumpAndSettle();
+
+      expect(changes, 0);
+      expect(prefs.getBool('az_toggle_probe'), isNull);
+    });
+
+    testWidgets(
+      'a saved value rehydrates from persistence and a semantic action '
+      'still activates the control',
+      (tester) async {
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'az_toggle_probe': true,
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final theme = await _loadTheme(tester);
+
+        var value = prefs.getBool('az_toggle_probe') ?? false;
+        var changes = 0;
+        final handle = tester.ensureSemantics();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: StatefulBuilder(
+                  builder: (context, setState) => AzToggle(
+                    value: value,
+                    colors: theme.colors,
+                    semanticLabel: 'Push Notifications',
+                    onChanged: (v) {
+                      changes++;
+                      prefs.setBool('az_toggle_probe', v);
+                      setState(() => value = v);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 300));
+
+        expect(value, isTrue, reason: 'the stored preference rehydrates');
+
+        await tester.tap(find.bySemanticsLabel('Push Notifications'));
+        await tester.pumpAndSettle();
+
+        expect(changes, 1,
+            reason: 'the semantic action is the accessible activation path');
+        expect(value, isFalse);
+        expect(prefs.getBool('az_toggle_probe'), isFalse);
+        handle.dispose();
+      },
+    );
+  });
+
   group('sensory preferences integration', () {
     testWidgets(
       'the sensory rows use the branded control — no stock Flutter Switch '
@@ -132,8 +330,8 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: MaterialApp(
-              home: const Scaffold(body: SensoryPreferencesSection()),
+            child: const MaterialApp(
+              home: Scaffold(body: SensoryPreferencesSection()),
             ),
           ),
         );

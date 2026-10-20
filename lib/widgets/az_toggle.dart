@@ -60,7 +60,14 @@ class AzToggle extends StatelessWidget {
       child: GestureDetector(
         // 48dp-height hit field — the visual control rides centered.
         behavior: HitTestBehavior.opaque,
-        onTapDown: (_) {
+        // Commit only on a COMPLETED tap. Never on pointer-down: a
+        // drag that starts on the toggle and is won by a surrounding
+        // scrollable must not change the setting (tap is rejected by
+        // the gesture arena, so onTap never fires). Semantic
+        // activation goes through the Semantics.onTap above; pointer
+        // and semantic paths are disjoint, so a real tap cannot toggle
+        // twice.
+        onTap: () {
           AzamanHaptics.toggle();
           onChanged(!value);
         },
