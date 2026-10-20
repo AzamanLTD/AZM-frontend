@@ -276,30 +276,65 @@ class NativeAmountText extends ConsumerWidget {
     final tail = resolved.inlineTail;
     final hasTail = showEquivalent && tail.isNotEmpty;
 
+    final tailStyle = base.copyWith(
+      fontWeight: FontWeight.w600,
+      color: (base.color ?? colors.textPrimary).withValues(alpha: 0.72),
+    );
+    final leadSpan = TextSpan(text: resolved.inlineLead, style: base);
+    final fullSpan = TextSpan(
+      text: resolved.inlineLead,
+      style: base,
+      children: hasTail
+          ? [TextSpan(text: ' \u00b7 $tail', style: tailStyle)]
+          : null,
+    );
+
+    // Narrow-width honesty: a single ellipsized line would eat the trailing
+    // part FIRST — under a GHS preference that trailing part is the NATIVE
+    // USDC amount, and under a USDC preference it is the estimate caveat.
+    // Either loss is a financial display lie. So we measure the composed
+    // line: when it fits, the designed single-line presentation is kept
+    // exactly as before; when it does not, the same two spans FLOW in a
+    // Wrap — the tail wraps to its own line instead of being ellipsized.
+    // Nothing is dropped, shortened or hidden; both parts stay verbatim.
+    Widget content() {
+      if (!hasTail) {
+        return Text.rich(leadSpan,
+            maxLines: maxLines,
+            overflow: TextOverflow.ellipsis,
+            textAlign: textAlign);
+      }
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final oneLine = TextPainter(
+            text: fullSpan,
+            textScaler: MediaQuery.textScalerOf(context),
+            textDirection: Directionality.of(context),
+            maxLines: 1,
+          )..layout(maxWidth: constraints.maxWidth);
+          if (!oneLine.didExceedMaxLines) {
+            return Text.rich(fullSpan,
+                maxLines: maxLines,
+                overflow: TextOverflow.ellipsis,
+                textAlign: textAlign);
+          }
+          return Wrap(
+            spacing: 6,
+            runSpacing: 2,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            children: [
+              Text.rich(leadSpan, style: base, textAlign: textAlign),
+              Text(tail, style: tailStyle, textAlign: textAlign),
+            ],
+          );
+        },
+      );
+    }
+
     return Semantics(
       label: resolved.semanticsLabel,
       excludeSemantics: true,
-      child: Text.rich(
-        TextSpan(
-          text: resolved.inlineLead,
-          style: base,
-          children: hasTail
-              ? [
-                  TextSpan(
-                    text: ' · $tail',
-                    style: base.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: (base.color ?? colors.textPrimary)
-                          .withValues(alpha: 0.72),
-                    ),
-                  ),
-                ]
-              : null,
-        ),
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
-        textAlign: textAlign,
-      ),
+      child: content(),
     );
   }
 }

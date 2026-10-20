@@ -13,7 +13,10 @@
 //     payable value or settlement.
 // =============================================================================
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/currency_provider.dart';
@@ -277,5 +280,140 @@ void main() {
       snapshot: _fresh(1),
     );
     expect(r.primary, 'GH₵${kNb}1,234,567.89');
+  });
+
+  // ===========================================================================
+  // WIDGET BATTERY — narrow screens and large amounts (D1 final gate).
+  //
+  // NativeAmountText is a ONE-LINE Text.rich with ellipsis. Ellipsis eats the
+  // trailing span first — under a GHS preference the trailing span is the
+  // NATIVE USDC amount, under a USDC preference it is the ESTIMATE CAVEAT.
+  // Losing either is a financial display lie. The widget must therefore keep
+  // both parts verbatim at any width: single line when it fits, wrap when it
+  // does not. These tests attack it with seven-figure amounts at 320dp/360dp
+  // under BOTH preferences, plus the stale-rate and recorded tails.
+  // ===========================================================================
+
+  group('NativeAmountText narrow-screen honesty', () {
+    String allText(WidgetTester tester) {
+      final parts = <String>[];
+      for (final t in tester.widgetList<Text>(find.byType(Text))) {
+        parts.add(t.data ?? '');
+      }
+      for (final rich in tester.widgetList<RichText>(find.byType(RichText))) {
+        void walk(InlineSpan span) {
+          if (span is TextSpan) {
+            parts.add(span.text ?? '');
+            span.children?.forEach(walk);
+          }
+        }
+        walk(rich.text);
+      }
+      return parts.join(' ');
+    }
+
+    Widget narrowBody(Widget child) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: Align(alignment: Alignment.topLeft, child: child),
+        );
+
+    Future<void> pumpBody(
+      WidgetTester tester, {
+      required double width,
+      required DisplayCurrency pref,
+      required Widget child,
+    }) async {
+      final c = ProviderContainer()
+        ..read(currencyProvider.notifier).state = pref;
+      addTearDown(c.dispose);
+      tester.view.physicalSize = Size(width * 3, 844 * 3);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: c,
+          child: MaterialApp(home: Scaffold(body: narrowBody(child))),
+        ),
+      );
+      await tester.pump();
+    }
+
+    for (final width in [320.0, 360.0]) {
+      for (final pref in DisplayCurrency.values) {
+        testWidgets(
+            'large amount at ${width.toInt()}dp, ${pref.name} preference: '
+            'native amount AND estimate survive verbatim',
+            (tester) async {
+          await pumpBody(tester,
+              width: width,
+              pref: pref,
+              child: NativeAmountText(
+                amountUsdc: 1234567.89,
+                snapshotOverride: _fresh(15.38),
+              ));
+          final text = allText(tester);
+          // The amount of record, verbatim and complete.
+          expect(text, contains('1,234,567.89'));
+          expect(text, contains('USDC'));
+          // The GHS figure, verbatim, and its caveat, never truncated.
+          expect(text, contains('GH\u20b5'));
+          expect(text, contains('18,987,654.15'));
+          expect(text, contains('estimate'));
+          // Nothing was ellipsized away.
+          expect(text, isNot(contains('\u2026')));
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
+
+    testWidgets('stale rate at 320dp: the unavailable notice is never '
+        'truncated', (tester) async {
+      await pumpBody(tester,
+          width: 320,
+          pref: DisplayCurrency.ghs,
+          child: const NativeAmountText(amountUsdc: 1234567.89));
+      final text = allText(tester);
+      expect(text, contains('1,234,567.89 USDC'));
+      expect(text, contains('GHS equivalent unavailable'));
+      expect(text, isNot(contains('\u2026')));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('recorded equivalent at 320dp: both figures and the label '
+        'survive', (tester) async {
+      await pumpBody(tester,
+          width: 320,
+          pref: DisplayCurrency.ghs,
+          child: NativeAmountText(
+            amountUsdc: 1234567.89,
+            recordedGhs: 15333876.90,
+            snapshotOverride: _fresh(15.38),
+          ));
+      final text = allText(tester);
+      expect(text, contains('15,333,876.90'));
+      expect(text, contains('recorded equivalent'));
+      expect(text, contains('1,234,567.89 USDC'));
+      expect(text, isNot(contains('\u2026')));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('normal amount that fits keeps the designed single line',
+        (tester) async {
+      // The Ahem test font is wider than production Inter, so a short
+      // amount in a small style is used to prove the SINGLE-LINE path is
+      // kept when the composed line fits — the wrap is a fallback, not a
+      // default.
+      await pumpBody(tester,
+          width: 390,
+          pref: DisplayCurrency.ghs,
+          child: NativeAmountText(
+            amountUsdc: 0.5,
+            snapshotOverride: _fresh(15.38),
+            style: const TextStyle(fontSize: 8),
+          ));
+      final text = allText(tester);
+      expect(text, contains('\u00b7'));
+      expect(tester.takeException(), isNull);
+    });
   });
 }
