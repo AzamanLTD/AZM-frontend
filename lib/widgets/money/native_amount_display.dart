@@ -10,10 +10,11 @@
 // So a GHS figure next to it can only ever be one of three things, and the
 // renderer must say WHICH one:
 //
-//   1. a RECORDED historical GHS amount (`recordedGhs`, optionally with
-//      `recordedRate` persisted at initiation) — the amount of record. It is
-//      shown as such, never as an "estimate", and NEVER re-derived from
-//      today's rate;
+//   1. a RECORDED historical GHS equivalent (`recordedGhs`, optionally with
+//      `recordedRate` persisted at initiation) — a quote captured when the
+//      record was made, NOT a GHS principal and NOT evidence that anything
+//      settled in GHS. It is shown as "recorded", never as an "estimate",
+//      and NEVER re-derived from today's rate;
 //   2. a LIVE conversion at the fresh oracle rate — always labelled
 //      "current estimate", i.e. explicitly NOT payable value;
 //   3. nothing — when no usable rate exists, the native amount stands alone
@@ -64,6 +65,8 @@ class ResolvedNativeAmount {
   const ResolvedNativeAmount({
     required this.primary,
     required this.secondary,
+    required this.inlineLead,
+    required this.inlineTail,
     required this.kind,
     required this.semanticsLabel,
   });
@@ -73,6 +76,16 @@ class ResolvedNativeAmount {
 
   /// The supporting line: the other denomination, or the unavailable notice.
   final String secondary;
+
+  /// The one-line composition: the leading figure WITH its caveat, then the
+  /// remaining denomination. Both parts are ALWAYS visible on screen — the
+  /// inline variant never shows an unlabeled GHS conversion, and it never
+  /// shows a GHS figure without the native USDC amount beside it.
+  final String inlineLead;
+
+  /// The trailing part of the one-line form (may be the unavailable notice).
+  /// Empty when the caller explicitly asked to omit the equivalent line.
+  final String inlineTail;
 
   final EquivalenceKind kind;
 
@@ -90,9 +103,16 @@ class ResolvedNativeAmount {
 /// preference and the rate availability change ONLY which figure leads and
 /// what the second line says. They can never change the amount.
 ///
-/// [recordedGhs] is the GHS amount persisted with the record at initiation.
-/// When present it wins outright: no live conversion is computed for it and it
-/// is not labelled an estimate.
+/// [recordedGhs] is a historical GHS equivalent persisted with the record at
+/// initiation (with an approved GHS settlement contract it could someday be a
+/// real GHS principal; the backend plan v3 does not authorise that yet). It
+/// wins outright over a live conversion: no estimate is computed for it and
+/// it is labelled "recorded", never "estimate". Showing it never implies that
+/// the record settled in GHS.
+///
+/// [forceNative] keeps the native USDC amount leading regardless of the
+/// display preference — for same-unit comparisons (current vs target), where
+/// a converted figure in one slot would silently mix denominations.
 ResolvedNativeAmount resolveNativeAmount({
   required double amountUsdc,
   required DisplayCurrency preference,
@@ -100,17 +120,33 @@ ResolvedNativeAmount resolveNativeAmount({
   DateTime? now,
   double? recordedGhs,
   String nativeSuffix = '',
+  bool forceNative = false,
 }) {
   final native = '${AzMoney.amount(amountUsdc)} USDC$nativeSuffix';
+  final ghsFirst = preference == DisplayCurrency.ghs && !forceNative;
 
-  // ── Case 1: a real recorded GHS principal. The amount of record. ──────────
+  // ── Case 1: a recorded historical GHS equivalent persisted at initiation.
   if (recordedGhs != null && recordedGhs.isFinite && recordedGhs >= 0) {
     final ghs = AzMoney.ghs(recordedGhs);
+    const recordedLabel = 'recorded equivalent';
+    if (ghsFirst) {
+      return ResolvedNativeAmount(
+        primary: ghs,
+        secondary: '$native · native amount',
+        inlineLead: '$ghs ($recordedLabel)',
+        inlineTail: native,
+        kind: EquivalenceKind.recorded,
+        semanticsLabel:
+            '$ghs recorded historical GHS equivalent, $native native amount.',
+      );
+    }
     return ResolvedNativeAmount(
-      primary: preference == DisplayCurrency.ghs ? ghs : native,
-      secondary: preference == DisplayCurrency.ghs ? native : ghs,
+      primary: native,
+      secondary: '$ghs · $recordedLabel',
+      inlineLead: native,
+      inlineTail: '$ghs ($recordedLabel)',
       kind: EquivalenceKind.recorded,
-      semanticsLabel: '$ghs as recorded at initiation, $native native amount',
+      semanticsLabel: '$native. $ghs recorded historical GHS equivalent.',
     );
   }
 
@@ -123,6 +159,8 @@ ResolvedNativeAmount resolveNativeAmount({
     return ResolvedNativeAmount(
       primary: native,
       secondary: 'GHS equivalent unavailable',
+      inlineLead: native,
+      inlineTail: 'GHS equivalent unavailable',
       kind: EquivalenceKind.unavailable,
       semanticsLabel:
           '$native. GHS equivalent unavailable: no current rate is usable.',
@@ -139,6 +177,8 @@ ResolvedNativeAmount resolveNativeAmount({
     return ResolvedNativeAmount(
       primary: native,
       secondary: 'GHS equivalent unavailable',
+      inlineLead: native,
+      inlineTail: 'GHS equivalent unavailable',
       kind: EquivalenceKind.unavailable,
       semanticsLabel:
           '$native. GHS equivalent unavailable: no current rate is usable.',
@@ -146,10 +186,12 @@ ResolvedNativeAmount resolveNativeAmount({
   }
 
   final estimate = AzMoney.ghs(ghsValue);
-  if (preference == DisplayCurrency.ghs) {
+  if (ghsFirst) {
     return ResolvedNativeAmount(
       primary: estimate,
       secondary: 'current estimate · $native',
+      inlineLead: '$estimate (estimate)',
+      inlineTail: native,
       kind: EquivalenceKind.currentEstimate,
       semanticsLabel:
           '$estimate, a current estimate converted from $native. Not a settled '
@@ -160,6 +202,8 @@ ResolvedNativeAmount resolveNativeAmount({
   return ResolvedNativeAmount(
     primary: native,
     secondary: '≈ $estimate · current estimate',
+    inlineLead: native,
+    inlineTail: '≈ $estimate (estimate)',
     kind: EquivalenceKind.currentEstimate,
     semanticsLabel:
         '$native. A current estimate of approximately $estimate. '
@@ -169,8 +213,18 @@ ResolvedNativeAmount resolveNativeAmount({
 
 /// Inline variant for tiles, list rows and receipt lines.
 ///
-/// GHS-first when the preference asks for it AND a truthful GHS figure exists;
-/// otherwise the native USDC amount leads. One line, no overflow surprises.
+/// Renders the FULL truth on one line: the lead figure, its caveat when the
+/// figure is an estimate or a recorded equivalent, and the other denomination.
+/// A GHS conversion is never shown without the word "estimate"; the native
+/// USDC amount is never dropped from the visible text.
+///
+/// [forceNative] keeps USDC leading even under a GHS preference — use it for
+/// same-unit comparison slots (current vs target) so a converted figure can
+/// never mix denominations inside one comparison.
+///
+/// [showEquivalent] omits the second part entirely (native amount alone) for
+/// ultra-compact slots (rails, deposit rows) where a conversion would only
+/// get truncated — an omitted estimate is honest; a truncated one is not.
 class NativeAmountText extends ConsumerWidget {
   const NativeAmountText({
     super.key,
@@ -180,6 +234,8 @@ class NativeAmountText extends ConsumerWidget {
     this.style,
     this.textAlign,
     this.maxLines = 1,
+    this.forceNative = false,
+    this.showEquivalent = true,
   });
 
   final double amountUsdc;
@@ -191,6 +247,8 @@ class NativeAmountText extends ConsumerWidget {
   final TextStyle? style;
   final TextAlign? textAlign;
   final int maxLines;
+  final bool forceNative;
+  final bool showEquivalent;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -204,23 +262,43 @@ class NativeAmountText extends ConsumerWidget {
       preference: preference,
       snapshot: snapshot,
       recordedGhs: recordedGhs,
+      forceNative: forceNative,
     );
+
+    final base = (style ??
+            TextStyle(
+              color: colors.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ))
+        .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+
+    final tail = resolved.inlineTail;
+    final hasTail = showEquivalent && tail.isNotEmpty;
 
     return Semantics(
       label: resolved.semanticsLabel,
       excludeSemantics: true,
-      child: Text(
-        resolved.primary,
+      child: Text.rich(
+        TextSpan(
+          text: resolved.inlineLead,
+          style: base,
+          children: hasTail
+              ? [
+                  TextSpan(
+                    text: ' · $tail',
+                    style: base.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: (base.color ?? colors.textPrimary)
+                          .withValues(alpha: 0.72),
+                    ),
+                  ),
+                ]
+              : null,
+        ),
         maxLines: maxLines,
         overflow: TextOverflow.ellipsis,
         textAlign: textAlign,
-        style: (style ??
-                TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ))
-            .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
       ),
     );
   }
@@ -237,6 +315,7 @@ class NativeAmountDisplay extends ConsumerWidget {
     this.primaryStyle,
     this.secondaryStyle,
     this.crossAxisAlignment = CrossAxisAlignment.start,
+    this.forceNative = false,
   });
 
   final double amountUsdc;
@@ -245,6 +324,7 @@ class NativeAmountDisplay extends ConsumerWidget {
   final TextStyle? primaryStyle;
   final TextStyle? secondaryStyle;
   final CrossAxisAlignment crossAxisAlignment;
+  final bool forceNative;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -258,6 +338,7 @@ class NativeAmountDisplay extends ConsumerWidget {
       preference: preference,
       snapshot: snapshot,
       recordedGhs: recordedGhs,
+      forceNative: forceNative,
     );
 
     final primary = (primaryStyle ??
@@ -343,13 +424,16 @@ class AmountEntryEquivalent extends ConsumerWidget {
           : 'GHS equivalent unavailable';
     }
 
+    final visible =
+        railNote.isEmpty ? estimate : '$estimate · $railNote';
+
     return Semantics(
       label: 'Amount is $railNote. $estimate.',
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.only(top: 6, left: 2),
         child: Text(
-          '$estimate · $railNote',
+          visible,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(

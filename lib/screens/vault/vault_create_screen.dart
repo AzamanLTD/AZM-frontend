@@ -29,6 +29,7 @@ class VaultCreateScreen extends ConsumerStatefulWidget {
 
 class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
   bool _rulesAccepted = false;
+  bool _rulesPromptShown = false;
   final _name = TextEditingController(text: 'My Vault');
   final _target = TextEditingController();
   DateTime _maturity = DateTime.now().add(const Duration(days: 30));
@@ -117,10 +118,16 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
-    // Auto-prompt rules sheet on first build
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_rulesAccepted) _showRules(colors);
-    });
+    // Auto-prompt rules sheet on first build ONLY: the callback lives in
+    // build(), so ANY rebuild (a late theme load, an fx snapshot arriving)
+    // would push a SECOND sheet on top of the first — stacking two live
+    // gates the user must walk twice. The flag makes the prompt one-shot.
+    if (!_rulesPromptShown) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_rulesAccepted) _showRules(colors);
+      });
+      _rulesPromptShown = true;
+    }
 
     return Scaffold(
       backgroundColor: Colors.transparent,

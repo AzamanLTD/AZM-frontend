@@ -323,10 +323,18 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                                           color: colors.textTertiary),
                                     ),
                                     const SizedBox(height: 2),
+                                    // Rail slots are too narrow for a
+                                    // labelled two-part line: truncation
+                                    // could cut the caveat off a GHS
+                                    // figure. Native-only here is the
+                                    // honest choice; the expanded panel
+                                    // carries the labelled estimate.
                                     NativeAmountText(
                                       key: const ValueKey(
                                           'escrow-rail-amount'),
                                       amountUsdc: escrow.amountUsdc,
+                                      forceNative: true,
+                                      showEquivalent: false,
                                       style: AzText.money(
                                           colors.textPrimary, size: 19),
                                     ),
@@ -389,6 +397,8 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                               key: const ValueKey(
                                   'escrow-rail-post-amount'),
                               amountUsdc: escrow.amountUsdc,
+                              forceNative: true,
+                              showEquivalent: false,
                               style: AzText.money(colors.textPrimary, size: 15),
                             ),
                           ],

@@ -300,13 +300,16 @@ class _Hero extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Vault balances are native-USDC records; GHS appears only
-              // as an honestly-labelled current estimate (the reviewed
-              // GHS-authority contract does not exist yet).
+              // The headline comparison keeps both slots in the native
+              // USDC denomination (current / target must be same-unit);
+              // the labelled GHS estimate of the balance sits under the
+              // progress bar, never inside the comparison.
               Flexible(
                 child: NativeAmountText(
                   key: const ValueKey('vault-detail-balance'),
                   amountUsdc: v.currentAmountUsdc,
+                  forceNative: true,
+                  showEquivalent: false,
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontSize: 30,
@@ -339,6 +342,11 @@ class _Hero extends StatelessWidget {
           Text(
             '${(progress * 100).toStringAsFixed(1)}% to goal',
             style: TextStyle(color: colors.textSecondary, fontSize: 11),
+          ),
+          const SizedBox(height: 4),
+          AmountEntryEquivalent(
+            amountUsdc: v.currentAmountUsdc,
+            railNote: 'vault balance held in USDC',
           ),
         ],
       ),
@@ -512,9 +520,14 @@ class _DepositTile extends StatelessWidget {
               children: [
                 Row(
                   children: [
+                    // Settled USDC movement: native amount only — a
+                    // truncated estimate in this tight row would be worse
+                    // than none. The header line carries the estimate.
                     NativeAmountText(
                       key: const ValueKey('vault-deposit-amount'),
                       amountUsdc: d.amountUsdc,
+                      forceNative: true,
+                      showEquivalent: false,
                       style: TextStyle(
                         color: colors.textPrimary,
                         fontSize: 12.5,

@@ -17,12 +17,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:azaman/models/currency_model.dart';
+import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/providers/currency_provider.dart';
+import 'package:azaman/providers/smart_route_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/vault_provider.dart' show Vault;
 import 'package:azaman/screens/smart_route/smart_route_create_screen.dart';
 import 'package:azaman/screens/susu/susu_config_screen.dart';
 import 'package:azaman/screens/vault/vault_create_screen.dart';
 import 'package:azaman/widgets/currency_wheel_toggle.dart';
+import 'package:azaman/widgets/escrow_status_panel.dart';
+import 'package:azaman/widgets/escrow_vault_rail.dart';
 import 'package:azaman/widgets/money/native_amount_display.dart';
+import 'package:azaman/widgets/smart_route/smart_route_card.dart';
+import 'package:azaman/widgets/vault/vault_progress_card.dart';
 
 DateTime get _nowUtc => DateTime.now().toUtc();
 
@@ -83,7 +92,87 @@ String _equivalentText(WidgetTester tester) {
   return texts;
 }
 
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+// D1 REVIEW CORRECTIONS — every changed display path, pinned.
+//
+// The 2026-10-20 review found two blockers: an estimate could render without
+// its visible label (primary-only inline), and Vault comparisons could mix
+// denominations. These tests pin the corrected contracts on the real
+// widgets: same-unit comparison rows, labelled estimate lines, native-only
+// narrow rails, no-wheel, and preference-flip invariance.
+// ═════════════════════════════════════════════════════════════════════════════
+
+Vault _vault({double current = 500, double target = 1000}) => Vault(
+      id: 'v1',
+      name: 'Emergency fund',
+      targetAmountUsdc: target,
+      currentAmountUsdc: current,
+      status: 'ACTIVE',
+      startDate: DateTime.now().subtract(const Duration(days: 10)),
+      maturityDate: DateTime.now().add(const Duration(days: 80)),
+      isLocked: true,
+      earlyBreakPenaltyPct: 5,
+      autoRuleEnabled: false,
+      streakCount: 3,
+      longestStreak: 3,
+      missedCount: 0,
+      consistencyScore: 1,
+      totalAzmEarned: 12,
+    );
+
+SmartEscrow _escrow({double amount = 20}) => SmartEscrow(
+      id: 'esc_1',
+      ticketId: 'tkt_1',
+      payerId: 10,
+      payeeId: 20,
+      amountUsdc: amount,
+      feeUsdc: 0.5,
+      status: EscrowStatus.funded,
+      payerSatisfied: false,
+      payeeSatisfied: false,
+      fundedAt: DateTime.now(),
+      expiresAt: DateTime.now().add(const Duration(days: 3)),
+    );
+
+/// A fresh container with the pinned rate snapshot and the display
+/// preference set on the REAL CurrencyNotifier (the loader's prefs call
+/// cannot resolve in the test env, so the assigned state stands).
+ProviderContainer _container(
+        {FxRateSnapshot? snapshot, DisplayCurrency pref = DisplayCurrency.usdc}) =>
+    ProviderContainer(overrides: [
+      fxRateProvider.overrideWith((ref) async => snapshot),
+    ])
+      ..read(currencyProvider.notifier).state = pref;
+
+Widget _surface(ProviderContainer c, Widget child) =>
+    UncontrolledProviderScope(
+      container: c,
+      child: MaterialApp(
+        home: Scaffold(
+          body: SizedBox(width: 390, child: child),
+        ),
+      ),
+    );
+
+/// Wraps a colors-dependent widget with the live theme provider, exactly the
+/// way the real screens feed their cards.
+class _Themed extends ConsumerWidget {
+  final Widget Function(AzamanColors colors) make;
+  const _Themed(this.make);
+  @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      make(ref.watch(themeProvider).colors);
+}
+
+String _texts(WidgetTester tester, Finder of) => tester
+    .widgetList<Text>(find.descendant(of: of, matching: find.byType(Text)))
+    .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
+    .join(' § ');
+
 void main() {
+
   group('SusuConfig contribution field', () {
     testWidgets('shows the labelled GHS estimate under a usable rate',
         (tester) async {
@@ -247,6 +336,233 @@ void main() {
       // answer is "unavailable", never a silently wrong number.
       expect(_equivalentText(tester), contains('unavailable'));
       expect(_equivalentText(tester), isNot(contains('7,690')));
+    });
+  });
+
+  // ── Vault comparison surfaces stay same-unit (review blocker B) ──────────
+  group('VaultProgressCard comparison row', () {
+    testWidgets('GHS preference: both comparison slots stay USDC; the GHS '
+        'estimate is its own labelled line', (tester) async {
+      await tester.pumpWidget(_surface(
+        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+        _Themed((colors) => VaultProgressCard(
+              vault: _vault(),
+              colors: colors,
+              onTap: () {},
+            )),
+      ));
+      await tester.pump();
+
+      final row = _texts(tester, find.byType(VaultProgressCard));
+      // The comparison itself never mixes denominations.
+      expect(row, contains('500.00 USDC'));
+      expect(row, contains('1000.00 USDC'));
+      // The GHS estimate exists, is labelled, and mentions the vault's
+      // balance — never posed as comparable to the USDC target.
+      expect(row, contains('7,690.00'));
+      expect(row, contains('current estimate'));
+      expect(row, contains('vault balance held in USDC'));
+      // No wheel ever appears on these read-only surfaces.
+      expect(find.byType(CurrencyWheelToggle), findsNothing);
+    });
+
+    testWidgets('stale rate: no GHS figure anywhere, equivalence named '
+        'unavailable, comparison intact', (tester) async {
+      await tester.pumpWidget(_surface(
+        _container(snapshot: _staleSnapshot(), pref: DisplayCurrency.ghs),
+        _Themed((colors) => VaultProgressCard(
+              vault: _vault(),
+              colors: colors,
+              onTap: () {},
+            )),
+      ));
+      await tester.pump();
+
+      final row = _texts(tester, find.byType(VaultProgressCard));
+      expect(row, contains('500.00 USDC'));
+      expect(row, contains('1000.00 USDC'));
+      expect(row, contains('GHS equivalent unavailable'));
+      expect(row, isNot(contains('GH₵')));
+    });
+  });
+
+  // ── Susu pool composition: stacked, honest under GHS-first (blocker A) ────
+  group('Susu pool stacked composition', () {
+    testWidgets('GHS preference leads with the estimate, secondary names the '
+        'native amount', (tester) async {
+      await tester.pumpWidget(_surface(
+        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+        const NativeAmountDisplay(
+          amountUsdc: 20,
+          primaryStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+        ),
+      ));
+      await tester.pump();
+
+      final t = _texts(tester, find.byType(NativeAmountDisplay));
+      expect(t, contains('GH₵'));
+      expect(t, contains('307.60'));
+      expect(t, contains('current estimate'));
+      expect(t, contains('20.00 USDC'));
+    });
+
+    testWidgets('stale rate: native amount leads and the omission is named',
+        (tester) async {
+      await tester.pumpWidget(_surface(
+        _container(snapshot: _staleSnapshot(), pref: DisplayCurrency.ghs),
+        const NativeAmountDisplay(amountUsdc: 20),
+      ));
+      await tester.pump();
+
+      final t = _texts(tester, find.byType(NativeAmountDisplay));
+      expect(t, contains('20.00 USDC'));
+      expect(t, contains('GHS equivalent unavailable'));
+      expect(t, isNot(contains('GH₵')));
+    });
+  });
+
+  // ── Escrow surfaces: labelled estimate on the panel, native-only rail ────
+  group('Escrow money surfaces', () {
+    testWidgets('collapsed panel keeps a native title and a labelled '
+        'estimate line under GHS preference', (tester) async {
+      await tester.pumpWidget(_surface(
+        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+        _Themed((colors) => EscrowStatusPanel(
+              escrow: _escrow(),
+              currentUserId: 10,
+              isLoading: false,
+              onFund: () async {},
+              onSatisfy: () async => true,
+              onDispute: (String reason, List<String> files) async {},
+              onUpdateTerms: (String terms) async {},
+              onCancel: () async {},
+            )),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final panel = _texts(tester, find.byType(EscrowStatusPanel));
+      // The tight title row stays native (no truncation risk for the label).
+      expect(panel, contains('Escrow · '));
+      expect(panel, contains('20.00 USDC'));
+      // The estimate is present, labelled, and names the rail.
+      expect(panel, contains('307.60'));
+      expect(panel, contains('current estimate'));
+      expect(panel, contains('held in USDC'));
+    });
+
+    testWidgets('rail slots stay native-only under GHS preference — a '
+        'truncated estimate would be worse than none', (tester) async {
+      await tester.pumpWidget(_surface(
+        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+        EscrowVaultRail(
+          escrow: _escrow(amount: 20),
+          currentUserId: 10,
+          isLoading: false,
+        ),
+      ));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final amount = tester.widget<RichText>(
+        find.descendant(
+          of: find.byKey(const ValueKey('escrow-rail-amount')),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(amount.text.toPlainText(), '20.00 USDC');
+    });
+  });
+
+  // ── Smart route card: native caption, never a silent conversion ──────────
+  group('SmartRouteCard caption', () {
+    testWidgets('the card names the native denomination and shows no '
+        'conversion claim or wheel', (tester) async {
+      await tester.pumpWidget(_surface(
+        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+        _Themed((colors) => SmartRouteCard(
+              route: SmartRoute(
+                id: 'sr1',
+                name: 'Rent savings',
+                action: 'TRANSFER',
+                amountUsdc: 20,
+                frequency: 'MONTHLY',
+                status: 'ACTIVE',
+                startDate: DateTime.now(),
+                nextRunAt: DateTime.now().add(const Duration(days: 7)),
+                totalRuns: 3,
+                totalRoutedUsdc: 60,
+              ),
+              colors: colors,
+            )),
+      ));
+      await tester.pump();
+
+      final card = _texts(tester, find.byType(SmartRouteCard));
+      expect(card, contains('20.00 USDC'));
+      expect(card, isNot(contains('estimate')));
+      expect(find.byType(CurrencyWheelToggle), findsNothing);
+    });
+  });
+
+  // ── Preference flip: presentation only, never a payload mutation ─────────
+  group('Preference flip invariance', () {
+    testWidgets('flipping the display preference re-renders both honest '
+        'forms without changing the amount', (tester) async {
+      final c = _container(
+        snapshot: _freshSnapshot(),
+        pref: DisplayCurrency.usdc,
+      );
+      await tester.pumpWidget(_surface(
+        c,
+        const NativeAmountText(
+          key: ValueKey('flip-target'),
+          amountUsdc: 20,
+        ),
+      ));
+      await tester.pump();
+
+      String read() => tester
+          .widget<RichText>(find.descendant(
+              of: find.byKey(const ValueKey('flip-target')),
+              matching: find.byType(RichText)))
+          .text
+          .toPlainText();
+
+      final usdcFirst = read();
+      expect(usdcFirst, contains('20.00 USDC'));
+      expect(usdcFirst, contains('estimate'));
+
+      c.read(currencyProvider.notifier).state = DisplayCurrency.ghs;
+      await tester.pump();
+      final ghsFirst = read();
+      expect(ghsFirst, contains('307.60'));
+      expect(ghsFirst, contains('estimate'));
+      // The native amount survives the flip — the estimate never replaces it.
+      expect(ghsFirst, contains('20.00 USDC'));
+
+      c.read(currencyProvider.notifier).state = DisplayCurrency.usdc;
+      await tester.pump();
+      expect(read(), usdcFirst); // deterministic, reversible, display-only
+    });
+  });
+
+  // ── Deposit rows (vault detail): native amount only, type stays beside ───
+  group('Vault deposit row composition', () {
+    testWidgets('forceNative + no equivalent renders the plain USDC amount',
+        (tester) async {
+      await tester.pumpWidget(_surface(
+        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+        const NativeAmountText(
+          amountUsdc: 20,
+          forceNative: true,
+          showEquivalent: false,
+        ),
+      ));
+      await tester.pump();
+
+      final t = _texts(tester, find.byType(NativeAmountText));
+      expect(t, '20.00 USDC');
     });
   });
 }

@@ -147,14 +147,19 @@ class VaultProgressCard extends ConsumerWidget {
                   const SizedBox(width: 12),
                   Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Native-USDC amounts of record; the GHS reading, when
-                    // shown, is an honestly-labelled current estimate.
+                    // The comparison row keeps BOTH slots in the native
+                    // USDC denomination — a converted figure here would mix
+                    // units inside one progress comparison. The labelled
+                    // GHS estimate lives on its own line below, never posed
+                    // as comparable to the USDC target.
                     Row(
                       children: [
                         Flexible(
                           child: NativeAmountText(
                             key: const ValueKey('vault-progress-current'),
                             amountUsdc: vault.currentAmountUsdc,
+                            forceNative: true,
+                            showEquivalent: false,
                             style: TextStyle(
                               color: colors.textSecondary,
                               fontSize: 12,
@@ -171,6 +176,11 @@ class VaultProgressCard extends ConsumerWidget {
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 2),
+                    AmountEntryEquivalent(
+                      amountUsdc: vault.currentAmountUsdc,
+                      railNote: 'vault balance held in USDC',
                     ),
                     const SizedBox(height: 2),
                     Text(

@@ -375,9 +375,14 @@ class _SharedVaultCard extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                // Same-unit comparison: both slots stay USDC so the
+                // row never mixes denominations; the labelled estimate
+                // is its own line below.
                 NativeAmountText(
                   key: const ValueKey('shared-vault-current'),
                   amountUsdc: vault.currentAmountUsdc,
+                  forceNative: true,
+                  showEquivalent: false,
                   style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
                 Text(
@@ -385,6 +390,14 @@ class _SharedVaultCard extends ConsumerWidget {
                   style: TextStyle(color: colors.textTertiary, fontSize: 11),
                 ),
               ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AmountEntryEquivalent(
+                amountUsdc: vault.currentAmountUsdc,
+                railNote: 'vault balance held in USDC',
+              ),
             ),
             const SizedBox(height: 14),
 

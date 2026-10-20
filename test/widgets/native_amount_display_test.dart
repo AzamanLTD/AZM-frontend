@@ -116,30 +116,64 @@ void main() {
     expect(r.kind, EquivalenceKind.unavailable);
   });
 
-  // ── 3. Recorded history: the amount of record, never an estimate ─────────
-  test('recorded GHS principal wins over the live rate and is not an estimate',
-      () {
+  // ── 3. Recorded history: a historical equivalent, never a principal and
+  //      never an estimate; its figure GENUINELY differs from today's
+  //      conversion so passing proves the recorded value was used. ──────────
+  test('a recorded historical GHS equivalent wins over the live rate', () {
+    // 5 × 15.38 = 76.90 is what TODAY would say; the recorded figure is
+    // 69.00, so any recomputation from the live rate fails these asserts.
     final r = resolveNativeAmount(
       amountUsdc: 5,
       preference: DisplayCurrency.ghs,
-      snapshot: _fresh(99.99), // today's rate must NOT touch this figure
-      recordedGhs: 76.90,
+      snapshot: _fresh(15.38), // today's rate would say GH₵76.90
+      recordedGhs: 69.00, // recorded at initiation, at a DIFFERENT rate
     );
     expect(r.kind, EquivalenceKind.recorded);
-    expect(r.primary, 'GH₵${kNb}76.90');
-    expect(r.secondary, '5.00 USDC');
+    expect(r.primary, 'GH₵${kNb}69.00');
+    expect(r.primary, isNot(contains('76.90')));
+    expect(r.semanticsLabel, isNot(contains('76.90')));
     expect(r.primary, isNot(contains('estimate')));
   });
 
-  test('recorded GHS is never derived from today\'s rate', () {
+  test('recorded equivalent keeps the native USDC amount visible and labelled',
+      () {
     final r = resolveNativeAmount(
       amountUsdc: 5,
       preference: DisplayCurrency.usdc,
       snapshot: _fresh(15.38),
-      recordedGhs: 76.90, // a DIFFERENT figure from 5 × 15.38 = 76.90…
+      recordedGhs: 69.00,
     );
-    // …deliberately equal here; the assertion that matters is recorded wins:
-    expect(r.secondary, 'GH₵${kNb}76.90');
+    expect(r.kind, EquivalenceKind.recorded);
+    expect(r.primary, '5.00 USDC');
+    expect(r.secondary, contains('GH₵${kNb}69.00'));
+    expect(r.secondary, contains('recorded equivalent'));
+    expect(r.secondary, isNot(contains('estimate')));
+    expect(r.inlineLead, '5.00 USDC');
+    expect(r.inlineTail, 'GH₵${kNb}69.00 (recorded equivalent)');
+  });
+
+  test('a recorded value is never presented as today\'s live estimate', () {
+    final r = resolveNativeAmount(
+      amountUsdc: 5,
+      preference: DisplayCurrency.ghs,
+      snapshot: _fresh(15.38),
+      recordedGhs: 69.00,
+    );
+    expect(r.semanticsLabel.toLowerCase(), contains('recorded'));
+    expect(
+        r.semanticsLabel.toLowerCase(), isNot(contains('current estimate')));
+    expect(r.inlineLead, 'GH₵${kNb}69.00 (recorded equivalent)');
+  });
+
+  test('an invalid recorded value is ignored, never coerced', () {
+    final r = resolveNativeAmount(
+      amountUsdc: 5,
+      preference: DisplayCurrency.ghs,
+      recordedGhs: double.nan, // invalid: refused like a missing record
+    );
+    expect(r.kind, EquivalenceKind.unavailable);
+    expect(r.primary, '5.00 USDC');
+    expect(r.primary, isNot(contains('GH₵')));
   });
 
   // ── 4. No mutation under preference changes ──────────────────────────────
@@ -189,6 +223,50 @@ void main() {
       expect(r.semanticsLabel.toLowerCase(), contains('estimate'));
       expect(r.semanticsLabel.toLowerCase(), contains('not a settled'));
     }
+  });
+
+  // ── 5b. Inline one-line truth: both parts visible, caveat attached ───────
+  test('GHS-first inline shows the estimate caveat AND the native amount', () {
+    final r = resolveNativeAmount(
+      amountUsdc: 5,
+      preference: DisplayCurrency.ghs,
+      snapshot: _fresh(15.38),
+    );
+    expect(r.inlineLead, 'GH₵${kNb}76.90 (estimate)');
+    expect(r.inlineTail, '5.00 USDC');
+  });
+
+  test('USDC-first inline carries a labelled estimate after the native', () {
+    final r = resolveNativeAmount(
+      amountUsdc: 5,
+      preference: DisplayCurrency.usdc,
+      snapshot: _fresh(15.38),
+    );
+    expect(r.inlineLead, '5.00 USDC');
+    expect(r.inlineTail, '≈ GH₵${kNb}76.90 (estimate)');
+  });
+
+  test('unavailable inline names the missing equivalence, native intact', () {
+    final r = resolveNativeAmount(
+      amountUsdc: 5,
+      preference: DisplayCurrency.ghs,
+      snapshot: null,
+    );
+    expect(r.inlineLead, '5.00 USDC');
+    expect(r.inlineTail, 'GHS equivalent unavailable');
+  });
+
+  test('forceNative keeps a comparison slot same-unit under GHS preference',
+      () {
+    final r = resolveNativeAmount(
+      amountUsdc: 5,
+      preference: DisplayCurrency.ghs,
+      snapshot: _fresh(15.38),
+      forceNative: true,
+    );
+    expect(r.primary, '5.00 USDC');
+    expect(r.inlineLead, '5.00 USDC');
+    expect(r.inlineTail, '≈ GH₵${kNb}76.90 (estimate)');
   });
 
   // ── 6. Formatting parity ─────────────────────────────────────────────────

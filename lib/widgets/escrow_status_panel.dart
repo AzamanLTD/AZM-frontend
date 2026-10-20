@@ -163,14 +163,17 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              // GHS-first when a truthful GHS figure exists
-                              // (fresh estimate at the #165 oracle rate);
-                              // otherwise the native USDC amount of record.
+                              // The collapsed title keeps the native USDC
+                              // amount of record (a conversion here would
+                              // truncate its label in this tight row); the
+                              // labelled estimate gets its own line below.
                               Flexible(
                                 child: NativeAmountText(
                                   key: const ValueKey(
                                       'escrow-panel-collapsed-amount'),
                                   amountUsdc: escrow.amountUsdc,
+                                  forceNative: true,
+                                  showEquivalent: false,
                                   style: TextStyle(
                                     color: colors.textPrimary,
                                     fontSize: 14,
@@ -200,6 +203,21 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          // ── Labelled GHS estimate strip ─────────────────────────────────────
+          // Lives OUTSIDE the fixed 60px header so the collapsed row keeps
+          // its geometry: the estimate is its own first-class line, never a
+          // truncatable suffix of the tight title row.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 9),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: AmountEntryEquivalent(
+                amountUsdc: escrow.amountUsdc,
+                railNote: 'held in USDC',
               ),
             ),
           ),

@@ -271,10 +271,13 @@ class _Hero extends ConsumerWidget {
           const SizedBox(height: 14),
           // The susu pool is a native-USDC record: GHS leads only as an
           // honestly-labelled current estimate at the fresh oracle rate.
-          NativeAmountText(
+          // Stacked (not inline) because a 28px two-part line would
+          // truncate its own honesty; the support line sits below at
+          // reading size, where the caveat can never be cut off.
+          NativeAmountDisplay(
             key: const ValueKey('susu-pool-amount'),
             amountUsdc: pool,
-            style: TextStyle(
+            primaryStyle: TextStyle(
               color: colors.textPrimary,
               fontSize: 28,
               fontWeight: FontWeight.w900,
