@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/sensory_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/az_toggle.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
@@ -158,10 +159,17 @@ class _SensoryRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Switch(
-              value: value,
-              onChanged: enabled ? onChanged : null,
-              activeThumbColor: colors.accent,
+            Opacity(
+              opacity: enabled ? 1.0 : 0.45,
+              child: IgnorePointer(
+                ignoring: !enabled,
+                child: AzToggle(
+                  value: value,
+                  colors: colors,
+                  semanticLabel: title,
+                  onChanged: onChanged,
+                ),
+              ),
             ),
           ],
         ),

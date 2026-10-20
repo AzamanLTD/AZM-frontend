@@ -53,7 +53,9 @@ import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/screens/theme_picker_screen.dart';
+import 'package:azaman/theme/nav_band_clearance.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/az_toggle.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
@@ -462,7 +464,9 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
 
-          const SizedBox(height: 40),
+          // Floating bottom-nav clearance (Stage 2: the shared utility, not
+          // a guessed constant — pushed screens sit under the nav band).
+          SizedBox(height: navBandClearance(context) + kNavBandGap),
         ],
       ),
     );
@@ -794,13 +798,11 @@ class _ToggleRow extends StatelessWidget {
               ],
             ),
           ),
-          Switch(
+          AzToggle(
             value: value,
-            onChanged: (v) {
-              AzamanHaptics.toggle();
-              onChanged(v);
-            },
-            activeThumbColor: colors.success,
+            colors: colors,
+            semanticLabel: title,
+            onChanged: onChanged,
           ),
         ],
       ),
