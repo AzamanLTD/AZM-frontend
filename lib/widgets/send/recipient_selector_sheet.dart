@@ -212,7 +212,9 @@ class _RecipientSelectorSheetState
         ? _friends
         : _friends
             .where((f) =>
-                f.username.toLowerCase().contains(query.toLowerCase()) ||
+                (f.username ?? '')
+                    .toLowerCase()
+                    .contains(query.toLowerCase()) ||
                 (f.displayName
                         ?.toLowerCase()
                         .contains(query.toLowerCase()) ??
@@ -486,9 +488,11 @@ class _RecipientRow extends StatelessWidget {
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     Text(
-                      r.azamanId != null
-                          ? '${r.azamanId} · @${r.username}'
-                          : '@${r.username}',
+                      // Honest identity: AZM ID alone when the
+                      // backend returned no username — the display
+                      // name is never fabricated into a handle
+                      // (PR #165 review finding 4).
+                      r.identityLine,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:

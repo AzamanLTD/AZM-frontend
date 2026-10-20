@@ -164,7 +164,8 @@ class ApiClient {
       {required String operationType,
       FinancialOperationRef? ref,
       bool requireAuth = true,
-      Map<String, String>? headers}) async {
+      Map<String, String>? headers,
+      bool failClosedOnPendingFingerprintChange = false}) async {
     if (operationType.trim().isEmpty) {
       throw ArgumentError('Financial mutations require a non-empty operationType');
     }
@@ -196,8 +197,17 @@ class ApiClient {
             endpoint: endpoint,
             request: body_);
       } on DurableOperationFingerprintMismatchException {
-        // Materially different request: a genuinely NEW instance. The
-        // old one stays pending, untouched and recoverable.
+        // Materially different request while the flow's instance is still
+        // PENDING. Default (legacy) semantics: a genuinely NEW instance;
+        // the old one stays pending, untouched and recoverable.
+        //
+        // PR #165 review finding 2: money-moving flows may opt in to
+        // FAIL-CLOSED instead — never silently begin a new financial
+        // operation while a prior one of the same flow is unresolved.
+        // Zero wire traffic in that case.
+        if (failClosedOnPendingFingerprintChange) {
+          throw PendingFinancialOperationException(ref!.operationId!);
+        }
         op = await DurableOperationRegistry.begin(
             account: account,
             type: operationType,

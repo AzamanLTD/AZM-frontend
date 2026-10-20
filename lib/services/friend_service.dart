@@ -237,7 +237,14 @@ class FriendService {
       'clientRequestId': '', // auto-filled from the durable registry
     }, operationType: _sendAction(friendshipId),
         ref: _flowRefs.putIfAbsent(
-            'send.$friendshipId', () => FinancialOperationRef()));
+            'send.$friendshipId', () => FinancialOperationRef()),
+        // PR #165 review finding 2: an unresolved send of THIS friendship
+        // must never be silently replaced by a materially different send
+        // while the prior outcome is unknown. A changed request while the
+        // flow ref holds a pending instance fails CLOSED here (zero wire);
+        // the caller shows the honest resolution path. Other operation
+        // types keep the legacy begin-a-new-instance semantics.
+        failClosedOnPendingFingerprintChange: true);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);

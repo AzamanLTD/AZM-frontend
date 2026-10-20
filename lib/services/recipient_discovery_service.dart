@@ -78,7 +78,13 @@ String? personalQrUsername(String raw) {
 
 class SendRecipient {
   /// Canonical username — the directory's stable handle for a user.
-  final String username;
+  /// NULLABLE since PR #165 review finding 4: the AZM-ID identity endpoint
+  /// (`GET /users/lookup/:azamanId`) deliberately projects
+  /// `{ azamanId, displayName, avatar }` and does NOT return `username`.
+  /// A username-less row is a legitimate DISPLAY-ONLY identity (shown by
+  /// display name + AZM ID, never a fabricated `@handle`) and is honest
+  /// about not being send-capable until an accepted friendship exists.
+  final String? username;
 
   /// Optional display/full name (from identity lookup or friend profile).
   final String? displayName;
@@ -121,9 +127,13 @@ class SendRecipient {
     this.userId,
     this.friendshipId,
     this.avatarUrl,
-  })  : assert(username.trim().isNotEmpty,
-            'a financial recipient needs a canonical username — '
-            'guest fallbacks and placeholder rows are display-only'),
+  })  : assert(username == null || username.trim().isNotEmpty,
+            'a canonical username, when present, is never blank'),
+        assert(
+            username != null ||
+                (displayName != null && displayName.trim().isNotEmpty),
+            'a username-less row is display-only and must still identify '
+            'the person by their real display name — no anonymous rows'),
         assert(
             azamanId == null ||
                 (_azmIdPattern.hasMatch(azamanId) &&
@@ -139,9 +149,27 @@ class SendRecipient {
     return f != null && f.isNotEmpty;
   }
 
-  /// The name the UI leads with. Username is the canonical handle; a
-  /// display name is extra identity evidence, never a substitute.
-  String get name => displayName ?? username;
+  /// The name the UI leads with. A real username is the canonical handle;
+  /// a display name is extra identity evidence, never a substitute. A
+  /// username-less row leads with its display name and shows the AZM ID
+  /// — a missing username is represented accurately, never fabricated
+  /// into an `@handle`.
+  String get name => displayName ?? username ?? azamanId ?? '';
+
+  /// True only when the backend actually returned a canonical username.
+  /// The UI renders an `@handle` ONLY when this is true.
+  bool get hasUsername => username != null && username!.trim().isNotEmpty;
+
+  /// The identity line rendered under the name. Honest by construction:
+  /// `AZM-… · @handle` when both exist, the AZM ID alone when there is no
+  /// username (no fabricated handle), the handle alone otherwise.
+  String get identityLine {
+    final id = azamanId;
+    final handle = hasUsername ? '@$username' : null;
+    if (id != null && handle != null) return '$id · $handle';
+    if (id != null) return id;
+    return handle ?? '';
+  }
 
   SendRecipient copyWith({String? friendshipId, SendRecipientSource? source}) =>
       SendRecipient(
@@ -198,6 +226,15 @@ String? parsePersonalQrPayload(String raw) {
     return username.isNotEmpty ? username : null;
   }
   return null;
+}
+
+/// A backend string field that is null/blank is represented as null —
+/// a canonical username that was never returned never becomes '' or a
+/// fabricated fallback.
+String? _cleanOptional(dynamic v) {
+  if (v == null) return null;
+  final t = v.toString().trim();
+  return t.isEmpty ? null : t;
 }
 
 /// Resolves send recipients through the live backend contracts. Injectable
@@ -267,19 +304,17 @@ class RecipientDiscoveryService {
             user['azamanId'] != null &&
             _azmIdPattern.hasMatch(user['azamanId'].toString())) {
           final recipient = SendRecipient(
-            username: user['username']?.toString() ??
-                user['displayName']?.toString() ??
-                '', // identity service projects displayName; username may
-            // be absent — the sheet still shows a resolvable identity via
-            // displayName + AZM ID, never sends on it.
+            // PR #165 review finding 4: the identity contract projects
+            // {azamanId, displayName, avatar} — `username` is genuinely
+            // absent for this endpoint's shape. It is represented as
+            // null (display-only row: display name + AZM ID, honest
+            // "not connected"), NEVER fabricated from displayName.
+            username: _cleanOptional(user['username']),
             displayName: user['displayName']?.toString(),
             azamanId: user['azamanId'].toString(),
             avatarUrl: user['avatar']?.toString(),
             source: SendRecipientSource.azmLookup,
           );
-          if (recipient.username.isEmpty) {
-            return const AzmLookupOutcome(AzmLookupStatus.notFound);
-          }
           return AzmLookupOutcome.found(recipient);
         }
         return const AzmLookupOutcome(AzmLookupStatus.notFound);

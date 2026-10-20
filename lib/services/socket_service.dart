@@ -459,6 +459,12 @@ class SocketService {
 
   bool get isConnected => _socket?.connected ?? false;
   io.Socket? get rawSocket => _socket;
+
+  /// Test-only seam (PR #165 review finding 3): lets widget tests inject a
+  /// fake socket so listener-lifecycle regressions are assertable without
+  /// a live connection. No production call site touches this.
+  @visibleForTesting
+  set rawSocketForTesting(io.Socket? socket) => _socket = socket;
   io.Socket? get socket => _socket;
   String? get userId => _currentUserId;
   int get userIdInt => int.tryParse(_currentUserId ?? '0') ?? 0;

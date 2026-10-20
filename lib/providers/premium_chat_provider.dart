@@ -95,8 +95,30 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     _init();
   }
 
-  String get _myUserId =>
+  // The participant id is captured ONCE, while the notifier's ref is
+  // alive. dispose() -> _leaveRoom() runs during container teardown
+  // (screen unmount / app exit), where reading a provider throws
+  // 'container already disposed' — found by the socket-scoping
+  // regression suite. The room's participant id never changes mid-chat,
+  // so a construction-time capture is both safe and honest.
+  late final String _cachedUserId =
     _ref.read(authProvider).user?.id.toString() ?? '';
+
+  // PR #165 review finding 3 — SCOPED socket lifecycle, notifier side.
+  // _subscribeToSocket registers through _onSocket, which KEEPS the
+  // unsubscribe closure socket.on() returns. dispose() calls exactly
+  // those closures, so ONLY this notifier's handlers come off — a bare
+  // socket.off(event) would also strip FriendProvider's friend_message
+  // listener and any chat screen's own handlers on the same events.
+  final List<Function> _socketUnsubscribers = [];
+
+  void _onSocket(String event, Function(dynamic) handler) {
+    final socket = SocketService.instance.rawSocket;
+    if (socket == null) return;
+    _socketUnsubscribers.add(socket.on(event, handler));
+  }
+
+  String get _myUserId => _cachedUserId;
 
   void _init() {
     _joinRoom();
@@ -506,11 +528,11 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
 
   // ── SOCKET SUBSCRIPTIONS ────────────────────────────────────────────────
   void _subscribeToSocket() {
-    final socket = SocketService.instance.rawSocket;
-    if (socket == null) return;
+    // All registrations go through _onSocket (scoped lifecycle: each
+    // handler's own unsubscribe closure is kept for dispose).
 
     // message_ack — optimistic bubble transitions sending→sent
-    socket.on('message_ack', (data) {
+    _onSocket('message_ack', (data) {
       if (data is! Map) return;
       final localId  = data['localId']?.toString() ?? '';
       final serverId = data['id']?.toString() ?? '';
@@ -523,7 +545,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     });
 
     // legacy friend_message_saved
-    socket.on('friend_message_saved', (data) {
+    _onSocket('friend_message_saved', (data) {
       if (data is! Map) return;
       final localId  = data['tempId']?.toString() ?? '';
       final serverId = data['id']?.toString() ?? '';
@@ -536,7 +558,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     });
 
     // message_delivered — single→double tick (grey)
-    socket.on('message_delivered', (data) {
+    _onSocket('message_delivered', (data) {
       if (data is! Map) return;
       final id = data['id']?.toString() ?? '';
       _updateMessageById(id, (m) {
@@ -545,7 +567,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     });
 
     // messages_read / message_read — double tick turns blue
-    socket.on('messages_read', (data) {
+    _onSocket('messages_read', (data) {
       if (data is! Map) return;
       final ctxId = data['contextId']?.toString() ?? '';
       if (ctxId != _params.contextId) return;
@@ -557,14 +579,14 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       }).toList();
       state = state.copyWith(messages: updated);
     });
-    socket.on('message_read', (data) {
+    _onSocket('message_read', (data) {
       if (data is! Map) return;
       final id = data['id']?.toString() ?? '';
       _updateMessageById(id, (m) { m.status = MessageStatus.read; return m; });
     });
 
     // message_error — mark optimistic as failed
-    socket.on('message_error', (data) {
+    _onSocket('message_error', (data) {
       if (data is! Map) return;
       _markFailed(data['localId']?.toString() ?? '');
     });
@@ -572,7 +594,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     // new incoming messages
     final incomingEvents = _incomingEventNames();
     for (final ev in incomingEvents) {
-      socket.on(ev, (data) {
+      _onSocket(ev, (data) {
         if (data is! Map) return;
         final incoming = ChatMessage.fromJson(
           Map<String,dynamic>.from(data),
@@ -590,7 +612,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     }
 
     // reaction_updated
-    socket.on('reaction_updated', (data) {
+    _onSocket('reaction_updated', (data) {
       if (data is! Map) return;
       final msgId = data['messageId']?.toString() ?? '';
       final rawR = data['reactions'];
@@ -603,7 +625,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     });
 
     // message_edited
-    socket.on('message_edited', (data) {
+    _onSocket('message_edited', (data) {
       if (data is! Map) return;
       final msgId  = data['messageId']?.toString() ?? '';
       final newTxt = data['newContent']?.toString() ?? '';
@@ -612,32 +634,32 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     });
 
     // message_deleted
-    socket.on('message_deleted', (data) {
+    _onSocket('message_deleted', (data) {
       if (data is! Map) return;
       final msgId = data['messageId']?.toString() ?? '';
       _updateMessageById(msgId, (m) => m.copyWith(isDeleted: true));
     });
 
     // typing_started / typing_stopped
-    socket.on('typing_started', (data) {
+    _onSocket('typing_started', (data) {
       if (data is! Map) return;
       final uid = data['userId']?.toString() ?? '';
       if (uid.isEmpty || uid == _myUserId) return;
       final updated = Set<String>.from(state.typingUserIds)..add(uid);
       state = state.copyWith(typingUserIds: updated);
     });
-    socket.on('typing_stopped', (data) {
+    _onSocket('typing_stopped', (data) {
       if (data is! Map) return;
       final uid = data['userId']?.toString() ?? '';
       final updated = Set<String>.from(state.typingUserIds)..remove(uid);
       state = state.copyWith(typingUserIds: updated);
     });
     // backward-compat typing aliases
-    socket.on('user_typing_personal', (d) => _handleLegacyTyping(d));
-    socket.on('user_typing_trade',    (d) => _handleLegacyTyping(d));
-    socket.on('friend_typing',        (d) => _handleLegacyTyping(d));
-    socket.on('group_typing_started', (d) => _handleLegacyTyping(d, isTyping: true));
-    socket.on('group_typing_stopped', (d) => _handleLegacyTyping(d, isTyping: false));
+    _onSocket('user_typing_personal', (d) => _handleLegacyTyping(d));
+    _onSocket('user_typing_trade',    (d) => _handleLegacyTyping(d));
+    _onSocket('friend_typing',        (d) => _handleLegacyTyping(d));
+    _onSocket('group_typing_started', (d) => _handleLegacyTyping(d, isTyping: true));
+    _onSocket('group_typing_stopped', (d) => _handleLegacyTyping(d, isTyping: false));
   }
 
   void _handleLegacyTyping(dynamic d, {bool? isTyping}) {
@@ -651,17 +673,15 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   }
 
   void _unsubscribeFromSocket() {
-    final socket = SocketService.instance.rawSocket;
-    if (socket == null) return;
-    for (final ev in [
-      'message_ack','message_delivered','messages_read','message_read',
-      'message_error','reaction_updated','message_edited','message_deleted',
-      'typing_started','typing_stopped',
-      'friend_message_saved',
-      'user_typing_personal','user_typing_trade','friend_typing',
-      'group_typing_started','group_typing_stopped',
-      ..._incomingEventNames()
-    ]) { socket.off(ev); }
+    // Only the closures registered by THIS notifier come off (each is
+    // socket.on()'s own unsubscribe for the exact handler). Every other
+    // component's listener on the same events stays attached — a bare
+    // socket.off(event) here would deafen FriendProvider and any open
+    // chat screen (PR #165 review finding 3).
+    for (final off in _socketUnsubscribers) {
+      (off as dynamic)();
+    }
+    _socketUnsubscribers.clear();
   }
 
   List<String> _incomingEventNames() {

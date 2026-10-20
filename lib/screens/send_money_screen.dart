@@ -54,6 +54,10 @@ import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/utils/amount_input.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/utils/biometric_gate.dart';
+import 'package:azaman/utils/durable_operation_registry.dart'
+    show PendingFinancialOperationException;
+import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/amount_keypad.dart';
 import 'package:azaman/widgets/home/activity_actions.dart'
     show ActivityRecipient;
@@ -115,6 +119,15 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   final TextEditingController _referenceController = TextEditingController();
 
   _SendStage _stage = _SendStage.compose;
+
+  // PR #165 review finding 1: the money action is confirmed through the
+  // same audited safeguards as the legacy TransferModal — an intentional
+  // SlideToConfirm gesture (a reflex tap can't fire it), then the opt-in
+  // AzamanBiometricGate before the wire. The key re-arms the slider when
+  // authentication is cancelled: a cancelled gate NEVER executes the
+  // transfer.
+  final GlobalKey<SlideToConfirmState> _slideKey =
+      GlobalKey<SlideToConfirmState>();
 
   // The amount state machine: AmountInput.applyKey owns every invariant
   // (one decimal point, two fraction digits, no leading-zero buildup, no
@@ -235,7 +248,12 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   }
 
   void _backToCompose() {
-    if (_stage == _SendStage.sending) return;
+    // PR #165 review finding 2: while the outcome of a committed attempt
+    // is UNKNOWN, the amount/recipient/reference are FROZEN — editing the
+    // composition before the durable operation is resolved could silently
+    // start a materially different financial operation while the prior
+    // one is unresolved (and fails closed at the service layer if forced).
+    if (_stage == _SendStage.sending || _stage == _SendStage.unknown) return;
     // Edit path: the entered amount AND the recipient are preserved —
     // going back never discards the user's composition.
     setState(() => _stage = _SendStage.compose);
@@ -243,8 +261,23 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   // ── The money action ────────────────────────────────────────────────────
 
+  /// The ONLY path into the money action. Reached exclusively from the
+  /// SlideToConfirm gesture on the review stage, never from a bare tap.
+  /// The biometric gate runs FIRST when the user has enabled biometric
+  /// lock; cancellation re-arms the slider and NEVER executes the
+  /// transfer (the send money screen's financial action inherits the
+  /// audited TransferModal contract, PR #165 review finding 1).
+  void _confirmSlide() {
+    AzamanBiometricGate.runSync(
+      context,
+      _commit,
+      reason: 'Authenticate to send funds',
+      onCancelled: () => _slideKey.currentState?.reset(),
+    );
+  }
+
   /// Commits the transfer through the canonical durable rail. Duplicate
-  /// submission is blocked here AND by the disabled CTA AND by the
+  /// submission is blocked here AND by the disabled slide AND by the
   /// backend's idempotency claim — widget-level protection is never the
   /// only layer.
   Future<void> _commit() async {
@@ -256,6 +289,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     final myUsername = ref.read(authProvider).user?.username;
     if (myUsername != null && myUsername == recipient.username) {
       setState(() => _error = "That's you — you can't send to yourself.");
+      _rearmRetrySlider();
       return;
     }
 
@@ -263,6 +297,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     if (token == null || token.isEmpty) {
       setState(() =>
           _error = 'Your session needs to be refreshed. Re-open Send to continue.');
+      _rearmRetrySlider();
       return;
     }
 
@@ -299,6 +334,20 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       // balance shown is never locally mutated.
       unawaited(ref.read(authProvider).fetchUserDetails());
       unawaited(ref.read(friendProvider).fetchFriends());
+    } on PendingFinancialOperationException {
+      // Fail-closed fingerprint change: the flow still holds an UNRESOLVED
+      // send and the request changed. Zero wire traffic occurred. The
+      // honest path: retry the SAME transfer (the slider is armed for
+      // exactly that) so the durable registry resolves the pending
+      // instance; a materially different send stays refused until then.
+      if (!mounted) return;
+      setState(() {
+        _stage = _SendStage.unknown;
+        _error =
+            'A previous transfer of this kind is still resolving. Retry '
+            'the same transfer to resolve it first — no new transfer was '
+            'started.';
+      });
     } on ApiException catch (e) {
       if (!mounted) return;
       _classifyApiException(e);
@@ -332,11 +381,30 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         });
       }
     }
+    // Recoverability: every terminal outcome except success leaves the
+    // slide armed for the identical retry. The success path builds the
+    // done stage (no slider), so it is excluded by design.
+    if (_stage == _SendStage.failed || _stage == _SendStage.unknown) {
+      _rearmRetrySlider();
+    }
   }
 
   void _classifyApiException(ApiException e) {
     final statusCode = e.statusCode;
     final body = e.message;
+    // PR #165 review finding 2: 409 (idempotent replay collision), 429
+    // (rate limited — the request may have been processed before the
+    // limiter answered) and every 5xx are UNKNOWN outcomes unless the
+    // financial contract proves otherwise. The durable layer RETAINS the
+    // operation identity for exactly these statuses
+    // (postFinancial: retire on 2xx and definitive pre-economic 4xx,
+    // retain on 401/409/429, 5xx and network loss) — the screen must not
+    // contradict it by calling the transfer "failed" and offering edits.
+    if (statusCode == 409 || statusCode == 429 || statusCode >= 500) {
+      if (!mounted) return;
+      setState(() => _stage = _SendStage.unknown);
+      return;
+    }
     // 2FA / step-up denial: the rail is require2FA()-protected.
     if (statusCode == 401 ||
         body.contains('2FA') ||
@@ -388,6 +456,17 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     setState(() => _stage = _SendStage.unknown);
   }
 
+  // PR #165 review finding 2 (recoverability): every retryable outcome
+  // must leave the slide re-armed. didUpdateWidget re-arms on the
+  // isLoading true->false edge, but when the failure lands before a
+  // sending frame renders (an immediate throw, or a synchronous
+  // client-side refusal), the edge never fires and the slider would stay
+  // locked at _confirmed=true with no way to retry. Reset explicitly.
+  void _rearmRetrySlider() {
+    final st = _slideKey.currentState;
+    if (st != null && st.mounted) st.reset();
+  }
+
   // ── Build ───────────────────────────────────────────────────────────────
 
   @override
@@ -396,7 +475,18 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     final balance = ref.watch(authProvider).user?.availableBalance ?? 0.0;
     final myAzamanId = ref.watch(authProvider).user?.azamanId ?? '';
 
-    return Scaffold(
+    // PR #165 review finding 2: while the outcome of the committed
+    // attempt is UNKNOWN, ordinary navigation (system back, edge swipe)
+    // must never silently abandon the unresolved operation. The pop is
+    // intercepted with an explicit decision: retry the exact operation
+    // (same durable identity) or acknowledge leaving it pending.
+    return PopScope(
+      canPop: _stage != _SendStage.unknown,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _stage != _SendStage.unknown || !mounted) return;
+        _showUnknownPendingDialog();
+      },
+      child: Scaffold(
       backgroundColor: colors.surface,
       appBar: AppBar(
         key: const ValueKey('send-app-bar'),
@@ -405,12 +495,19 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        leading: _stage == _SendStage.review || _stage == _SendStage.sending
+        leading: _stage == _SendStage.review ||
+                _stage == _SendStage.sending ||
+                _stage == _SendStage.unknown
             ? IconButton(
                 key: const ValueKey('send-edit-back'),
                 icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
-                onPressed:
-                    _stage == _SendStage.sending ? null : _backToCompose,
+                // Disabled mid-flight AND while the outcome is UNKNOWN —
+                // the composition is frozen until the durable operation
+                // resolves (PR #165 review finding 2).
+                onPressed: (_stage == _SendStage.sending ||
+                        _stage == _SendStage.unknown)
+                    ? null
+                    : _backToCompose,
                 tooltip: 'Back to edit',
               )
             : IconButton(
@@ -418,7 +515,9 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                 onPressed: () => Navigator.of(context).pop(),
               ),
         title: Text(
-          _stage == _SendStage.review || _stage == _SendStage.sending
+          _stage == _SendStage.review ||
+                  _stage == _SendStage.sending ||
+                  _stage == _SendStage.unknown
               ? 'Review transfer'
               : 'Send',
           style: TextStyle(
@@ -441,7 +540,61 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
           _ => _buildReview(colors),
         },
       ),
+      ),
     );
+  }
+
+  /// The unknown-outcome pop decision: retry the exact operation (same
+  /// durable identity) or explicitly acknowledge leaving it pending on
+  /// the account. Leaving is never silent (PR #165 review finding 2).
+  Future<void> _showUnknownPendingDialog() async {
+    final colors = ref.read(themeProvider).colors;
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        key: const ValueKey('send-unknown-leave-dialog'),
+        backgroundColor: colors.card,
+        title: Text('This transfer is still pending',
+            key: const ValueKey('send-unknown-dialog-title'),
+            style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w800)),
+        content: Text(
+          'We could not confirm the result yet. Retrying re-runs the exact '
+          'same transfer and never double-sends it. Leaving now keeps it '
+          'pending on your account.',
+          key: const ValueKey('send-unknown-dialog-body'),
+          style: TextStyle(color: colors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            key: const ValueKey('send-unknown-dialog-retry'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Retry transfer',
+                style: TextStyle(
+                    color: colors.accent, fontWeight: FontWeight.w700)),
+          ),
+          TextButton(
+            key: const ValueKey('send-unknown-dialog-leave'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Leave pending',
+                style: TextStyle(
+                    color: colors.textTertiary, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (leave != true) {
+      // Retry resolves the SAME durable operation — fields are frozen so
+      // the body is byte-identical.
+      if (mounted && _stage == _SendStage.unknown) _commit();
+    } else if (mounted && _stage == _SendStage.unknown) {
+      // Acknowledged abandonment: leave the pending operation on the
+      // account and pop the composer.
+      _stage = _SendStage.compose; // release the PopScope guard
+      Navigator.of(context).pop(true);
+    }
   }
 
   // ── Compose stage: the Add Cash grammar ─────────────────────────────────
@@ -642,14 +795,16 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 2),
-                                Text(
-                                  '@${recipient.username}',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                      color: colors.textSecondary,
-                                      fontSize: 13),
-                                ),
+                                if (recipient.hasUsername)
+                                  Text(
+                                    '@${recipient.username!}',
+                                    key: const ValueKey('send-review-handle'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: colors.textSecondary,
+                                        fontSize: 13),
+                                  ),
                                 if (recipient.azamanId != null) ...[
                                   const SizedBox(height: 2),
                                   Text(recipient.azamanId!,
@@ -721,9 +876,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                 const SizedBox(height: 18),
 
                 // Edit preserves everything — review is deliberate, not a
-                // trap. Never visible mid-flight (no amount/recipient
-                // edits while the durable operation may be committing).
-                if (!sending)
+                // trap. Never visible mid-flight AND never while the
+                // outcome is UNKNOWN (the composition is frozen until the
+                // unresolved operation resolves — PR #165 review finding 2).
+                if (!sending && !unknown)
                   ScaleTap(
                     onTap: _backToCompose,
                     child: Text('Edit amount or recipient',
@@ -740,12 +896,22 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         ),
         Padding(
           padding: EdgeInsets.fromLTRB(20, 8, 20, 12 + bottomInset),
-          child: _PrimaryAction(
-            colors: colors,
-            label: ctaLabel,
+          child: SlideToConfirm(
+            key: _slideKey,
+            // PR #165 review finding 1: the money action requires the
+            // same audited safeguards as the legacy TransferModal —
+            // SlideToConfirm (a reflex tap cannot fire it; the thumb
+            // snaps back under threshold) with the opt-in
+            // AzamanBiometricGate in _confirmSlide. In flight the
+            // slider shows progress and rejects drags, so a duplicate
+            // gesture can never re-enter _commit. The unknown state
+            // re-arms the SAME durable operation identity on retry.
+            text: ctaLabel,
+            backgroundColor: colors.card,
+            thumbColor: colors.accent,
+            onConfirmed: _confirmSlide,
+            isLoading: sending,
             enabled: !sending,
-            onTap: _commit,
-            semanticsLabel: ctaLabel,
           ),
         ),
       ],
@@ -761,7 +927,12 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       colors: colors,
       amountText: '${(amount ?? 0).toStringAsFixed(2)} USDC',
       recipientName: recipient?.name ?? '',
-      recipientUsername: recipient?.username ?? '',
+      // Success is reachable only for an accepted friend (canReceive), and
+      // friend rows always carry a real username — but render honestly
+      // anyway: never interpolate a fabricated handle (finding 4).
+      recipientUsername: recipient != null && recipient.hasUsername
+          ? '@${recipient.username!}'
+          : (recipient?.azamanId ?? ''),
       onDone: () {
         // Correct navigation semantics: pop the composer with a positive
         // result so the originating screen (Home or chat) refreshes.
@@ -946,9 +1117,11 @@ class _RecipientField extends StatelessWidget {
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     Text(
-                      r.azamanId != null
-                          ? '${r.azamanId} · @${r.username}'
-                          : '@${r.username}',
+                      // PR #165 review finding 4: honest identity line. A
+                      // username-less AZM lookup shows displayName + the
+                      // real AZM ID — the display name is NEVER
+                      // manufactured into an `@handle`.
+                      r.identityLine,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(

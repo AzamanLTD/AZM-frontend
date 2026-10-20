@@ -249,7 +249,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('AZM ID MATCH'), findsOneWidget);
-    expect(find.text('AZM-123456789'), findsOneWidget);
+    // PR #165 review finding 4: the identity endpoint returned NO username
+    // (only azamanId + displayName). The row leads with the display name
+    // and shows the REAL AZM ID — the display name is never fabricated
+    // into an `@handle`.
+    // Two honest rows share the display name: the accepted FRIEND (with
+    // its friendship) and the AZM-ID hit (display-only, not connected).
+    expect(find.text('Ama Mensah'), findsWidgets,
+        reason: 'the friend row and the AZM hit row both lead with the '
+            'real display name');
+    expect(find.text('AZM-123456789'), findsWidgets,
+        reason: 'the real AZM ID is the identity line (plus the query '
+            'field echoing it)');
+    expect(find.text('@Ama Mensah'), findsNothing,
+        reason: 'a displayName must never become an @handle');
+    expect(find.byType(TextField), findsOneWidget,
+        reason: 'the query field still echoes the typed AZM ID');
     expect(find.text('Not connected'), findsOneWidget);
     expect(scripted.requests.first.url.path,
         contains('/users/lookup/AZM-123456789'));
