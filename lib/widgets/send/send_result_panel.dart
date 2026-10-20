@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/utils/at_handle.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
@@ -21,16 +22,33 @@ class SendResultPanel extends StatelessWidget {
     required this.recipientName,
     required this.recipientUsername,
     required this.onDone,
+    this.secondaryAmountText,
+    this.secondaryAmountLabel = 'Transferred as',
   });
 
   final AzamanColors colors;
+
+  /// The PRIMARY amount in the denomination the user entered — GHS-first
+  /// when the composition was in cedis (the Ghana-first default).
   final String amountText;
+
+  /// The USDC actually transferred on the wire, when the entry unit was
+  /// GHS — rendered SECOND and explicitly labelled, never presented as
+  /// proof of GHS settlement (a USDC rail moved USDC).
+  final String? secondaryAmountText;
+  final String secondaryAmountLabel;
+
   final String recipientName;
+
+  /// RAW canonical username (unprefixed) — the panel formats the glyph
+  /// itself via [AtHandle] so it can never double it.
   final String recipientUsername;
   final VoidCallback onDone;
 
   @override
   Widget build(BuildContext context) {
+    // One formatter, at most one '@': '@@ama' can never render again.
+    final handle = AtHandle.format(recipientUsername);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -69,15 +87,28 @@ class SendResultPanel extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '$amountText to $recipientName (@$recipientUsername)',
+              handle.isEmpty
+                  ? '$amountText to $recipientName'
+                  : '$amountText to $recipientName ($handle)',
               key: const ValueKey('send-success-detail'),
               textAlign: TextAlign.center,
               style:
                   TextStyle(color: colors.textSecondary, fontSize: 14),
             ),
+            if (secondaryAmountText != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                '$secondaryAmountLabel $secondaryAmountText',
+                key: const ValueKey('send-success-wire-amount'),
+                textAlign: TextAlign.center,
+                style:
+                    TextStyle(color: colors.textTertiary, fontSize: 12),
+              ),
+            ],
             const SizedBox(height: 6),
             Text(
-              'The transfer appears in your conversation with $recipientUsername.',
+              'The transfer appears in your conversation with '
+              '${handle.isEmpty ? recipientName : handle}.',
               key: const ValueKey('send-success-chat-note'),
               textAlign: TextAlign.center,
               style:

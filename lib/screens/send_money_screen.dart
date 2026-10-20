@@ -24,9 +24,20 @@
 //     user's own accepted-friend list. AZM-ID/username/QR lookups resolve
 //     identity for display and explicit selection; a resolved non-friend
 //     is shown honestly as "not connected" and can never be sent to here.
-//   • Currency is USDC everywhere (the rail's currency); balance is the
-//     authoritative account state, never locally mutated — after a
-//     confirmed send the account re-hydrates from the backend.
+//   • GHANA-FIRST CURRENCY (2026-10-20): the amount-entry wheel starts
+//     in GHS; the typed digits are denominated in the wheel's unit. A GHS
+//     composition is CONVERTED, at the validated canonical USDC/GHS
+//     retail rate, into an EXACT reviewed USDC amount — that number is
+//     the wire payload. A GHS value can never reach the USDC `amount`
+//     field, and an unconvertible amount fails closed (never a fake or
+//     zero conversion). Review FREEZES the rate snapshot + the wire
+//     amount; if the rate changes before the commit, the composition
+//     returns to compose for recalculation and a fresh review — the
+//     confirmed amount is never silently altered. The wheel is LOCAL to
+//     this transaction: it never writes the global display preference.
+//   • The wire rail's currency is USDC everywhere (the settlement truth);
+//     balance is the authoritative account state, never locally mutated
+//     — after a confirmed send the account re-hydrates from the backend.
 //   • Fee truth: the backend rail charges no fee and records feeUsdc: 0
 //     on both parties' history rows (peerTransferController.sendFunds).
 //     The review stage states "No fee" on that authority, nothing
@@ -45,7 +56,11 @@ import 'package:meta/meta.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/models/currency_catalog.dart';
+import 'package:azaman/models/currency_model.dart'
+    show currencyProvider, DisplayCurrency;
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/currency_provider.dart' show fxRateProvider;
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -54,11 +69,14 @@ import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/utils/amount_input.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/utils/currency_math.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/utils/durable_operation_registry.dart'
     show PendingFinancialOperationException;
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/amount_keypad.dart';
+import 'package:azaman/widgets/currency_wheel_toggle.dart';
 import 'package:azaman/widgets/home/activity_actions.dart'
     show ActivityRecipient;
 import 'package:azaman/widgets/odometer_number.dart';
@@ -82,7 +100,11 @@ typedef PeerSendOverride = Future<Map<String, dynamic>> Function(
 
 class SendMoneyScreen extends ConsumerStatefulWidget {
   const SendMoneyScreen(
-      {super.key, this.initialRecipient, this.discovery, this.sendOverride})
+      {super.key,
+      this.initialRecipient,
+      this.discovery,
+      this.sendOverride,
+      this.fxRateOverride})
       : seededFriend = null;
 
   /// Chat entry: the shared composer pre-seeded with the conversation's
@@ -91,7 +113,8 @@ class SendMoneyScreen extends ConsumerStatefulWidget {
       {super.key,
       required SendRecipient recipient,
       this.discovery,
-      this.sendOverride})
+      this.sendOverride,
+      this.fxRateOverride})
       : seededFriend = recipient,
         initialRecipient = null;
 
@@ -110,6 +133,13 @@ class SendMoneyScreen extends ConsumerStatefulWidget {
   final PeerSendOverride? sendOverride;
 
   final SendRecipient? seededFriend;
+
+  /// Test/golden seam ONLY: a validated GHS-per-USDC rate for driving the
+  /// GHS conversion deterministically. Production callers leave it null —
+  /// the screen then reads the canonical FX snapshot (fxRateProvider,
+  /// the same single-flight oracle request every other surface shares).
+  @visibleForTesting
+  final double? fxRateOverride;
 
   @override
   ConsumerState<SendMoneyScreen> createState() => _SendMoneyScreenState();
@@ -133,13 +163,30 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   // (one decimal point, two fraction digits, no leading-zero buildup, no
   // negative — no sign key exists). An invalid amount can never exist.
   String _amountRaw = '';
+
+  // GHANA-FIRST: the entry wheel always starts in GHS (the Send surface's
+  // initial input denomination). The wheel is LOCAL to this composition —
+  // it never writes the user's global display preference.
+  int _entryIndex = 0;
+
+  // The review FREEZE: the exact USDC wire amount the user reviewed, the
+  // rate snapshot it was derived at, and the entered amount. Frozen at
+  // review entry; the commit path uses ONLY the frozen wire amount, and
+  // revalidates the rate snapshot before the wire.
+  double? _frozenRate;
+  double? _frozenUsdc;
+  double? _frozenEntry;
+
   SendRecipient? _recipient;
 
   bool _seedLookupDone = false;
   bool _seedLookingUp = false;
   String? _error;
 
-  static const _quickAmounts = [5.0, 10.0, 20.0, 50.0];
+  // Quick amounts per entry unit — a '10' pill is NEVER ambiguous: the
+  // label carries the unit, and GHS pills are cedi-scale, not USDC digits.
+  List<double> get _quickAmounts =>
+      _entryIndex == 0 ? const [20.0, 50.0, 100.0, 200.0] : const [5.0, 10.0, 20.0, 50.0];
 
   @override
   void initState() {
@@ -206,6 +253,94 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   double? get _amountValue => AmountInput.value(_amountRaw);
   String get _amountDisplay => AmountInput.display(_amountRaw);
 
+  AzCurrency get _entryUnit => CurrencyCatalog.sendEntryUnits[_entryIndex];
+
+  /// The validated canonical GHS-per-USDC rate for THIS screen. The test
+  /// seam wins when present (deterministic suites/goldens); production
+  /// reads the typed FX snapshot and never a legacy or fabricated rate.
+  double? _liveRate() {
+    final override = widget.fxRateOverride;
+    if (override != null) {
+      return CurrencyMath.isUsableRate(override) ? override : null;
+    }
+    final fx = ref.read(fxRateProvider).value;
+    return (fx != null && fx.isUsable) ? fx.ghsPerUsdc : null;
+  }
+
+  /// The COMMIT-GATE rate reader. Unlike the sync [_liveRate], this
+  /// awaits the oracle's CURRENT snapshot: after an invalidation a sync
+  /// `AsyncValue.value` still returns the PREVIOUS retained figure, so a
+  /// stale retained rate could silently satisfy revalidation. The money
+  /// action must never be authorized by a retained value — it waits for
+  /// the authoritative snapshot and fails closed on any error.
+  Future<double?> _commitRate() async {
+    final override = widget.fxRateOverride;
+    if (override != null) {
+      return CurrencyMath.isUsableRate(override) ? override : null;
+    }
+    try {
+      final fx = await ref.read(fxRateProvider.future);
+      return (fx != null && fx.isUsable) ? fx.ghsPerUsdc : null;
+    } catch (_) {
+      return null; // the oracle itself failed: never a silent pass
+    }
+  }
+
+  /// The EXACT USDC wire amount for [amount] in the current entry unit at
+  /// [rate] — or null when the conversion cannot be established safely
+  /// (unusable rate, non-finite input, or a result that would round to a
+  /// zero transfer). This is the ONLY amount derivation path.
+  double? _wireAmount({required double amount, required double? rate}) {
+    if (rate == null) return null;
+    return CurrencyMath.convert(
+      amount: amount,
+      from: _entryUnit,
+      to: CurrencyCatalog.usdc,
+      ghsPerUsdc: rate,
+    );
+  }
+
+  /// Converts an existing entry to [next] (wheel switch). Returns null
+  /// when the conversion cannot be established — the caller then refuses
+  /// the switch instead of silently relabelling the digits.
+  double? _convertEntry(AzCurrency next, double? rate) {
+    final amount = _amountValue;
+    if (amount == null) return null;
+    if (rate == null) return null;
+    return CurrencyMath.convert(
+        amount: amount, from: _entryUnit, to: next, ghsPerUsdc: rate);
+  }
+
+  void _onEntryUnitChanged(int newIndex) {
+    if (newIndex == _entryIndex) return;
+    final next = CurrencyCatalog.sendEntryUnits[newIndex];
+    final rate = _liveRate();
+
+    // No amount typed yet — a pure denomination change, nothing to convert.
+    if (_amountRaw.isEmpty) {
+      setState(() => _entryIndex = newIndex);
+      return;
+    }
+
+    final converted = _convertEntry(next, rate);
+    if (converted == null) {
+      // Fail closed: the switch is REFUSED — digits are never relabelled,
+      // never silently zeroed, never converted at a fabricated rate.
+      setState(() => _error = rate == null
+          ? 'Exchange rate unavailable — the amount stays in '
+              '${_entryUnit.symbol}. Enter it in ${next.symbol} if needed.'
+          : 'That amount converts to less than the smallest ${next.symbol} '
+              'unit — enter a larger amount.');
+      return;
+    }
+    AzamanHaptics.toggle();
+    setState(() {
+      _entryIndex = newIndex;
+      _amountRaw = _formatQuick(converted);
+      _error = null;
+    });
+  }
+
   bool get _canProgress =>
       _amountValue != null && _recipient != null && _recipient!.canReceive;
 
@@ -240,8 +375,28 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   void _openReview() {
     if (!_canProgress) return;
+    final amount = _amountValue!;
+    final rate = _liveRate();
+
+    // Fail closed: a GHS composition whose USDC wire amount cannot be
+    // derived at a VALID rate never reaches review — no fake amount, no
+    // zero conversion, no silent use of a display-only rate.
+    final wire = _wireAmount(amount: amount, rate: rate);
+    if (wire == null) {
+      setState(() => _error = _entryUnit == CurrencyCatalog.ghs
+          ? 'Exchange rate unavailable — enter the amount in USDC instead, '
+              'or try again in a moment.'
+          : 'Enter an amount greater than zero to continue.');
+      return;
+    }
+
     AzamanHaptics.confirm();
     setState(() {
+      // THE FREEZE: the exact wire amount + the rate snapshot it was
+      // derived at. Review and commit use only these frozen numbers.
+      _frozenRate = rate;
+      _frozenUsdc = wire;
+      _frozenEntry = amount;
       _stage = _SendStage.review;
       _error = null;
     });
@@ -282,9 +437,33 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   /// only layer.
   Future<void> _commit() async {
     final recipient = _recipient;
-    final amount = _amountValue;
+    final amount = _frozenUsdc; // the EXACT reviewed wire amount — never recomputed
     if (_stage == _SendStage.sending) return;
     if (recipient == null || !recipient.canReceive || amount == null) return;
+
+    // Quote revalidation (fail closed): a GHS-derived wire amount is only
+    // valid at the rate the user reviewed. If the live rate has moved or
+    // become unusable, the composition returns to compose for
+    // recalculation and a FRESH review — the confirmed amount is never
+    // silently altered after confirmation.
+    if (_entryUnit == CurrencyCatalog.ghs) {
+      final live = await _commitRate();
+      if (!mounted) return;
+      if (live == null || _frozenRate == null || live != _frozenRate) {
+        if (!mounted) return;
+        setState(() {
+          _stage = _SendStage.compose;
+          _frozenRate = null;
+          _frozenUsdc = null;
+          _frozenEntry = null;
+          _error = 'The exchange rate changed since you reviewed the '
+              'amount. Review the new amount before sending.';
+        });
+        _rearmRetrySlider();
+        AzamanHaptics.warn();
+        return;
+      }
+    }
 
     final myUsername = ref.read(authProvider).user?.username;
     if (myUsername != null && myUsername == recipient.username) {
@@ -603,13 +782,23 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       AzamanColors colors, bool compact, double balance, String myAzamanId) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final recipient = _recipient;
+    // The chip is a DISPLAY surface: it follows the user's global display
+    // preference (never the local entry wheel) and shows the ledger truth
+    // (USDC) alongside its equivalent when the rate is valid.
+    final pref = ref.watch(currencyProvider);
+    final chipRate = _liveRate();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
-          child: _BalanceChip(colors: colors, balance: balance, myAzamanId: myAzamanId),
+          child: _BalanceChip(
+              colors: colors,
+              balance: balance,
+              myAzamanId: myAzamanId,
+              ghsFirst: pref == DisplayCurrency.ghs,
+              rate: chipRate),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -628,18 +817,18 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          // GHANA-FIRST: the inline currency wheel rides
+                          // immediately before the amount. It chooses the
+                          // denomination the digits represent (LOCAL to
+                          // this transaction — never the global display
+                          // preference) and a switch CONVERTS the amount.
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              'USDC',
+                            child: CurrencyWheelToggle(
                               key: const ValueKey('send-amount-currency'),
-                              style: TextStyle(
-                                color: colors.textSecondary,
-                                fontSize: compact ? 18 : 22,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                                height: 1.2,
-                              ),
+                              options: CurrencyCatalog.sendEntryUnits,
+                              selectedIndex: _entryIndex,
+                              onChanged: _onEntryUnitChanged,
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -652,16 +841,59 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                               letterSpacing: -1.0,
                               height: 1.0,
                             ),
-                            semanticsLabel: '$_amountDisplay USDC',
+                            semanticsLabel:
+                                '$_amountDisplay ${_entryUnit.symbol}',
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 6),
+
+                // Live paired equivalent — updates while typing, at the
+                // current valid rate. Compose-only: Review freezes.
+                Builder(builder: (_) {
+                  final amount = _amountValue;
+                  if (amount == null) return const SizedBox.shrink();
+                  final rate = _liveRate();
+                  final other = _entryUnit == CurrencyCatalog.ghs
+                      ? CurrencyCatalog.usdc
+                      : CurrencyCatalog.ghs;
+                  final converted = CurrencyMath.convert(
+                      amount: amount,
+                      from: _entryUnit,
+                      to: other,
+                      ghsPerUsdc: rate ?? 0);
+                  if (converted == null) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4, left: 4),
+                      child: Text(
+                        'USDC equivalent unavailable — rate not loaded yet',
+                        key: const ValueKey('send-amount-equivalent'),
+                        style: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    );
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 2, left: 4),
+                    child: Text(
+                      '≈ ${other == CurrencyCatalog.ghs ? AzMoney.ghs(converted) : AzMoney.usdc(converted)}'
+                      '${other == CurrencyCatalog.ghs ? '' : ' — the reviewed transfer is in USDC'}',
+                      key: const ValueKey('send-amount-equivalent'),
+                      style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  );
+                }),
                 const SizedBox(height: 12),
 
-                // Quick amounts.
+                // Quick amounts — denominated in the wheel's selected unit.
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   child: Wrap(
@@ -672,6 +904,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                         _QuickAmountPill(
                           colors: colors,
                           amount: amt,
+                          unit: _entryUnit,
                           selected: _amountRaw == _formatQuick(amt),
                           onTap: () {
                             AzamanHaptics.toggle();
@@ -734,7 +967,12 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   Widget _buildReview(AzamanColors colors) {
     final recipient = _recipient!;
-    final amount = _amountValue!;
+    // THE FREEZE: review reads only the frozen snapshot — a live rate move
+    // can never silently rewrite what the user is looking at. The commit
+    // path revalidates the snapshot before the wire.
+    final amount = _frozenUsdc ?? _amountValue!;
+    final entryAmount = _frozenEntry ?? _amountValue!;
+    final entryUnit = _entryUnit;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final reference = _referenceController.text.trim();
     final sending = _stage == _SendStage.sending;
@@ -819,11 +1057,42 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                         ],
                       ),
                       const Divider(height: 28),
-                      _ReviewRow(
-                          colors: colors,
-                          label: 'Amount',
-                          value: '${amount.toStringAsFixed(2)} USDC',
-                          valueKey: const ValueKey('send-review-amount')),
+                      // GHANA-FIRST REVIEW: the entered amount leads in
+                      // the denomination the user chose; the EXACT USDC
+                      // amount the backend will transfer is identified
+                      // explicitly right under it, plus the frozen rate
+                      // it was derived at.
+                      if (entryUnit == CurrencyCatalog.ghs) ...[
+                        _ReviewRow(
+                            colors: colors,
+                            label: 'Amount',
+                            value: AzMoney.ghs(entryAmount),
+                            valueKey:
+                                const ValueKey('send-review-entry-amount'),
+                            emphasized: true),
+                        const SizedBox(height: 12),
+                        _ReviewRow(
+                            colors: colors,
+                            label: 'You send (USDC)',
+                            value: '${amount.toStringAsFixed(2)} USDC',
+                            valueKey:
+                                const ValueKey('send-review-amount'),
+                            emphasized: true),
+                        const SizedBox(height: 12),
+                        _ReviewRow(
+                            colors: colors,
+                            label: 'Rate at review',
+                            value:
+                                '1 USDC = ${AzMoney.ghs(_frozenRate ?? 0)}',
+                            valueKey:
+                                const ValueKey('send-review-rate')),
+                        const SizedBox(height: 12),
+                      ] else
+                        _ReviewRow(
+                            colors: colors,
+                            label: 'Amount',
+                            value: '${amount.toStringAsFixed(2)} USDC',
+                            valueKey: const ValueKey('send-review-amount')),
                       const SizedBox(height: 12),
                       // Fee truth: the backend rail records feeUsdc: 0 for
                       // both parties (peerTransferController.sendFunds) —
@@ -922,17 +1191,27 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   Widget _buildDone(AzamanColors colors) {
     final recipient = _recipient;
-    final amount = _amountValue;
+    final amount = _frozenUsdc ?? _amountValue;
+    final entryAmount = _frozenEntry ?? _amountValue;
+    final wasGhs = _entryUnit == CurrencyCatalog.ghs;
     return SendResultPanel(
       colors: colors,
-      amountText: '${(amount ?? 0).toStringAsFixed(2)} USDC',
+      // GHANA-FIRST SUCCESS: the amount the user entered leads; the USDC
+      // actually transferred on the wire is identified separately and
+      // labelled as the transfer — an equivalent is never presented as
+      // proof that funds settled in that currency.
+      amountText: wasGhs
+          ? AzMoney.ghs(entryAmount ?? 0)
+          : '${(amount ?? 0).toStringAsFixed(2)} USDC',
+      secondaryAmountText: wasGhs
+          ? '${(amount ?? 0).toStringAsFixed(2)} USDC'
+          : null,
+      secondaryAmountLabel: 'Transferred on the wire as',
       recipientName: recipient?.name ?? '',
-      // Success is reachable only for an accepted friend (canReceive), and
-      // friend rows always carry a real username — but render honestly
-      // anyway: never interpolate a fabricated handle (finding 4).
-      recipientUsername: recipient != null && recipient.hasUsername
-          ? '@${recipient.username!}'
-          : (recipient?.azamanId ?? ''),
+      // RAW canonical username (unprefixed) — the panel's AtHandle
+      // formatter adds the glyph at most once, or nothing when there is
+      // no real handle. '@@ama' can never render again.
+      recipientUsername: recipient?.username ?? '',
       onDone: () {
         // Correct navigation semantics: pop the composer with a positive
         // result so the originating screen (Home or chat) refreshes.
@@ -945,13 +1224,34 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 // ── Shared sub-widgets ────────────────────────────────────────────────────
 
 class _BalanceChip extends StatelessWidget {
-  const _BalanceChip({required this.colors, required this.balance, required this.myAzamanId});
+  const _BalanceChip({required this.colors, required this.balance, required this.myAzamanId, required this.ghsFirst, required this.rate});
   final AzamanColors colors;
   final double balance;
   final String myAzamanId;
 
+  /// Global display preference ordering. The USDC ledger value stays the
+  /// financial authority either way — only the presentation order moves.
+  final bool ghsFirst;
+
+  /// Validated GHS-per-USDC rate, or null when no honest equivalent can
+  /// be shown (then the chip shows the ledger value alone).
+  final double? rate;
+
   @override
   Widget build(BuildContext context) {
+    // Ghana-first: with the GHS preference the cedi equivalent leads and
+    // the actual USDC ledger balance follows. Reversed when the user has
+    // deliberately selected USDC. No rate → ledger value only, no fake.
+    final hasRate = rate != null && CurrencyMath.isUsableRate(rate!);
+    final ghsText = hasRate ? AzMoney.ghs(balance * rate!) : null;
+    final ledgerText = '${balance.toStringAsFixed(2)} USDC';
+    final available = ghsFirst
+        ? (ghsText == null
+            ? 'Available: $ledgerText'
+            : 'Available: $ghsText · $ledgerText')
+        : (ghsText == null
+            ? 'Available: $ledgerText'
+            : 'Available: $ledgerText · $ghsText');
     return Container(
       key: const ValueKey('send-balance-chip'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -964,7 +1264,7 @@ class _BalanceChip extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            'Available: ${balance.toStringAsFixed(2)} USDC',
+            available,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -990,17 +1290,20 @@ class _BalanceChip extends StatelessWidget {
 
 class _QuickAmountPill extends StatelessWidget {
   const _QuickAmountPill(
-      {required this.colors, required this.amount, required this.selected, required this.onTap});
+      {required this.colors, required this.amount, required this.unit, required this.selected, required this.onTap});
   final AzamanColors colors;
   final double amount;
+  final AzCurrency unit;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    // The label ALWAYS names the unit: 'GH₵ 100' is never misread as
+    // '100 USDC' when the wheel has moved.
     final label = amount == amount.truncateToDouble()
-        ? amount.toStringAsFixed(0)
-        : amount.toStringAsFixed(2);
+        ? '${unit.symbol}\u00A0${amount.toStringAsFixed(0)}'
+        : '${unit.symbol}\u00A0${amount.toStringAsFixed(2)}';
     final face = selected ? colors.accent : colors.card;
     final textColor = selected ? colors.onAccent : colors.textSecondary;
     return ScaleTap(
@@ -1251,11 +1554,15 @@ class _Avatar extends StatelessWidget {
 }
 
 class _ReviewRow extends StatelessWidget {
-  const _ReviewRow({required this.colors, required this.label, required this.value, this.valueKey});
+  const _ReviewRow({required this.colors, required this.label, required this.value, this.valueKey, this.emphasized = false});
   final AzamanColors colors;
   final String label;
   final String value;
   final Key? valueKey;
+
+  /// The primary figures (entered amount, wire amount) render heavier so
+  /// the hierarchy is unmistakable — per the GHS-first review contract.
+  final bool emphasized;
 
   @override
   Widget build(BuildContext context) {
@@ -1276,8 +1583,8 @@ class _ReviewRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   color: colors.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700)),
+                  fontSize: emphasized ? 16.5 : 15,
+                  fontWeight: emphasized ? FontWeight.w800 : FontWeight.w700)),
         ),
       ],
     );

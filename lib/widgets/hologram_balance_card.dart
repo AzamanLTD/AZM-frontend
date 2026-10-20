@@ -34,7 +34,11 @@ import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/models/currency_catalog.dart';
+import 'package:azaman/models/currency_model.dart'
+    show currencyProvider, DisplayCurrency;
 import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/widgets/currency_wheel_toggle.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
 import 'package:azaman/widgets/odometer_number.dart';
@@ -68,6 +72,12 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
   /// The signed change to display, or null when there is nothing to show.
   double? _delta;
 
+  /// GHANA-FIRST (2026-10-20): the delta chip is denominated in the
+  /// PRIMARY display unit. A display-unit switch or an FX move changes
+  /// the figure's MEANING, not the balance — the baseline re-anchors
+  /// silently so a rate move can never masquerade as balance movement.
+  String? _deltaSignature;
+
   /// Clears [_delta] after it has been on screen long enough to read.
   Timer? _deltaTimer;
 
@@ -80,11 +90,19 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
   /// Called during build (before the figure is painted) so the delta is always
   /// computed from the freshest value. Deliberately NOT in `didUpdateWidget`:
   /// the value comes from a provider, so there is no widget-level update hook.
-  void _trackDelta(double value) {
-    // EXPERIENCE PASS §1: the hero's unit is fixed (USDC-first), so there is
-    // no currency-toggle re-baseline path any more — only the first paint
-    // baselines silently (the mount animation belongs to the screen's
-    // entrance choreography, not to a value change).
+  void _trackDelta(double value, {required String signature}) {
+    // GHANA-FIRST: when the display unit or the rate changes, the
+    // baseline re-anchors WITHOUT a chip — an FX move or a unit switch is
+    // not balance movement (only the first paint baselines silently by
+    // design: the entrance animation belongs to the screen, not a change).
+    if (_deltaSignature != null && _deltaSignature != signature) {
+      _deltaSignature = signature;
+      _lastValue = value;
+      _delta = null;
+      _deltaTimer?.cancel();
+      return;
+    }
+    _deltaSignature = signature;
     final previous = _lastValue;
     if (previous == null || previous == value) {
       _lastValue = value;
@@ -113,19 +131,24 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     final azmId = (ref.watch(authProvider).user?.azamanId ?? '').trim();
     final balance = ref.watch(balanceDataProvider);
     final rate = ref.watch(oracleRateProvider);
-    // EXPERIENCE PASS §1: the Home hero is ALWAYS USDC-first. The
-    // DisplayCurrency toggle infrastructure survives for other surfaces,
-    // but this presentation is fixed: USDC is the principal, GHS the
-    // secondary equivalent.
+    // GHANA-FIRST (2026-10-20): the Home hero follows the user's global
+    // display preference — GHS primary by default, USDC primary only when
+    // deliberately selected. The USDC ledger balance remains the
+    // financial authority; only the presentation order moves.
+    final pref = ref.watch(currencyProvider);
+    final ghsFirst = pref == DisplayCurrency.ghs;
     final ghsValue = balance.availableBalance * rate;
-    final primaryValue = balance.availableBalance;
-    final primaryLabel = AzMoney.usdcFirst(primaryValue);
-    final secondaryLabel = AzMoney.ghs(ghsValue);
+    final primaryValue = ghsFirst ? ghsValue : balance.availableBalance;
+    final primaryLabel = ghsFirst ? AzMoney.ghs(primaryValue) : AzMoney.usdcFirst(primaryValue);
+    final secondaryLabel = ghsFirst
+        ? AzMoney.usdcFirst(balance.availableBalance)
+        : AzMoney.ghs(ghsValue);
 
     // Derived during build so the chip always reflects the freshest value.
     // `_trackDelta` schedules a timer but never calls setState synchronously,
     // so this is safe to run inside build.
-    _trackDelta(primaryValue);
+    _trackDelta(primaryValue,
+        signature: '${ghsFirst ? 'ghs' : 'usdc'}|${rate.toStringAsFixed(4)}');
 
     final chipDelta = _delta;
 
@@ -272,7 +295,11 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                               Text(
                                 AzMoney.delta(
                                   chipDelta,
-                                  symbol: AzMoney.usdcSymbol,
+                                  // The chip is denominated in the PRIMARY
+                                  // display unit — it follows the wheel.
+                                  symbol: ghsFirst
+                                      ? AzMoney.ghsSymbol
+                                      : AzMoney.usdcSymbol,
                                 ),
                                 style: AzText.delta(
                                   chipDelta >= 0
@@ -303,14 +330,27 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // GHANA-FIRST (2026-10-20): the inline display-currency
+                  // wheel rides immediately before the figure — the same
+                  // grammar as the Send composer's entry wheel. This is a
+                  // pure DISPLAY surface: rotating it updates the user's
+                  // GLOBAL display preference; it never touches the USDC
+                  // ledger or any contractual price.
                   Padding(
                     padding: const EdgeInsets.only(right: AzSpace.sm),
-                    child: Text(
-                      AzMoney.usdcSymbol,
-                      style: AzText.eyebrow.copyWith(
-                        color: colors.textTertiary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: CurrencyWheelToggle(
+                      key: const ValueKey('home-balance-currency-wheel'),
+                      options: const [
+                        CurrencyCatalog.ghs,
+                        CurrencyCatalog.usdc
+                      ],
+                      selectedIndex: ghsFirst ? 0 : 1,
+                      semanticLabelPrefix: 'Display currency',
+                      onChanged: (i) => ref
+                          .read(currencyProvider.notifier)
+                          .set(i == 0
+                              ? DisplayCurrency.ghs
+                              : DisplayCurrency.usdc),
                     ),
                   ),
                   // OdometerNumber rolls ONLY the digits that changed.

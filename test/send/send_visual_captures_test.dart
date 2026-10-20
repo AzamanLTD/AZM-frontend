@@ -76,6 +76,9 @@ const _sizes = {
 };
 
 SendMoneyScreen _screen() => SendMoneyScreen.toFriend(
+      // The seam exists so captures can pin ONE rate and exercise the
+      // live GHS↔USDC conversion: 5.00 GHS → 0.33 USDC on the wire.
+      fxRateOverride: 15.38,
       recipient: SendRecipient(
         username: 'ama',
         displayName: 'Ama Mensah',

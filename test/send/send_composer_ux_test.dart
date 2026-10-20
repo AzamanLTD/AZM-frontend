@@ -36,10 +36,12 @@ import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/providers/currency_provider.dart';
 import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/widgets/home/activity_actions.dart';
+import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 
 const _storageChannel =
@@ -150,7 +152,18 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
+/// Rolls the entry wheel to USDC so the legacy harness amounts keep
+/// meaning '5.00 USDC'. (The wheel's production default is GHS-first;
+/// the GHS conversion path is covered by its own tests below.)
+Future<void> _selectUsdcEntry(WidgetTester tester) async {
+  final wheel = find.byKey(const ValueKey('send-amount-currency'));
+  expect(wheel, findsOneWidget);
+  await tester.drag(wheel, const Offset(-80, 0));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _enterAmount(WidgetTester tester) async {
+  await _selectUsdcEntry(tester);
   await tester.tap(find.text('5').first);
   await tester.pump();
   await tester.tap(find.text('.').first);
@@ -188,6 +201,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: _friendRecipient(),
         sendOverride: (friendshipId, amount, reference, token) async {
           expect(friendshipId, 'fs-1',
@@ -234,6 +248,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: _friendRecipient(),
         sendOverride: (friendshipId, amount, reference, token) async {
           commits++;
@@ -270,6 +285,7 @@ void main() {
       tester,
       biometricLock: true,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: _friendRecipient(),
         sendOverride: (friendshipId, amount, reference, token) async {
           commits++;
@@ -330,6 +346,7 @@ void main() {
       tester,
       biometricLock: true,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: _friendRecipient(),
         sendOverride: (friendshipId, amount, reference, token) async {
           commits++;
@@ -359,6 +376,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: SendRecipient(
           username: 'stranger',
           userId: 555,
@@ -390,6 +408,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: SendRecipient(
           username: 'me',
           displayName: 'Myself',
@@ -422,6 +441,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: _friendRecipient(),
         sendOverride: (friendshipId, amount, reference, token) async {
           commits++;
@@ -463,6 +483,7 @@ void main() {
       await _pump(
         tester,
         screen: SendMoneyScreen.toFriend(
+          fxRateOverride: 15.38,
           // A unique key per iteration: pumpWidget reuses State when the
           // widget type matches, and iteration 1 ends on the done stage.
           key: ValueKey('send-unknown-$status'),
@@ -543,6 +564,7 @@ void main() {
                   onPressed: () => Navigator.of(ctx).push<bool>(
                     MaterialPageRoute(
                       builder: (_) => SendMoneyScreen.toFriend(
+                        fxRateOverride: 15.38,
                         recipient: _friendRecipient(),
                         sendOverride:
                             (friendshipId, amount, reference, token) async {
@@ -606,6 +628,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: _friendRecipient(),
         sendOverride: (friendshipId, amount, reference, token) async {
           throw ApiException(
@@ -635,6 +658,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen.toFriend(
+        fxRateOverride: 15.38,
         recipient: _friendRecipient(),
         sendOverride: (friendshipId, amount, reference, token) async {
           commits++;
@@ -677,6 +701,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen(
+        fxRateOverride: 15.38,
         initialRecipient: const ActivityRecipient(
             azamanId: 'AZM-123456789', displayName: 'Ama Mensah'),
         discovery: RecipientDiscoveryService(api: api),
@@ -722,6 +747,7 @@ void main() {
     await _pump(
       tester,
       screen: SendMoneyScreen(
+        fxRateOverride: 15.38,
         initialRecipient: const ActivityRecipient(
             azamanId: 'AZM-123456789', displayName: 'Ama Mensah'),
         discovery: RecipientDiscoveryService(api: api),
@@ -749,5 +775,205 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('send-review-card')), findsNothing,
         reason: 'a display-only row can never reach review');
+  });
+
+  // =========================================================================
+  // GHANA-FIRST (2026-10-20) — the GHS entry path through a frozen rate.
+  // The wheel's production default is GHS; the rail ALWAYS settles USDC.
+  // =========================================================================
+  group('GHS-first entry', () {
+    /// Enters 5.00 on the wheel's GHS default (no USDC roll).
+    Future<void> enterGhs(WidgetTester tester) async {
+      for (final key in const ['5', '.', '0', '0']) {
+        await tester.tap(find.text(key).first);
+        await tester.pump();
+      }
+    }
+
+    testWidgets('a GHS entry converts through the frozen rate — the rail '
+        'carries the exact reviewed USDC wire, never the GHS digits',
+        (tester) async {
+      final wire = <double>[];
+      await _pump(
+        tester,
+        screen: SendMoneyScreen.toFriend(
+          fxRateOverride: 15.38,
+          recipient: _friendRecipient(),
+          sendOverride: (friendshipId, amount, reference, token) async {
+            wire.add(amount);
+            return {'success': true};
+          },
+        ),
+      );
+
+      // The live equivalent line is present while typing (compose-only).
+      await enterGhs(tester);
+      expect(
+          find.textContaining(
+              '≈ 0.33\u00A0USDC — the reviewed transfer is in USDC'),
+          findsOneWidget,
+          reason: 'the GHS figure shows its USDC pair at the live rate');
+
+      await tester.tap(find.byKey(const ValueKey('send-cta-Review')));
+      await tester.pumpAndSettle();
+
+      // Review leads with the entered denomination, identifies the EXACT
+      // USDC wire (5.00 / 15.38 = 0.33, half-up at wire decimals) and the
+      // rate the figure was derived at.
+      expect(find.text('GH\u20B5\u00A05.00'), findsOneWidget);
+      expect(find.text('0.33 USDC'), findsOneWidget);
+      expect(find.text('1 USDC = GH\u20B5\u00A015.38'), findsOneWidget);
+
+      await _slideToConfirm(tester);
+      await tester.pumpAndSettle();
+
+      expect(wire, [0.33],
+          reason: 'the rail receives the CONVERTED USDC wire amount');
+      expect(find.byKey(const ValueKey('send-success-icon')), findsOneWidget);
+      // GHANA-FIRST SUCCESS: the entered figure leads the sentence; the
+      // wire truth is labelled separately — never presented as what the
+      // user typed.
+      expect(
+          find.textContaining('GH\u20B5\u00A05.00 to Ama Mensah'),
+          findsOneWidget,
+          reason: 'the GHS entry leads the success message');
+      expect(
+          find.text('Transferred on the wire as 0.33 USDC'), findsOneWidget,
+          reason: 'the actual USDC settlement is identified separately');
+    });
+
+    testWidgets('the entry wheel CONVERTS the digits on a roll — a unit '
+        'switch is numeric, never a label swap', (tester) async {
+      await _pump(
+        tester,
+        screen: SendMoneyScreen.toFriend(
+          fxRateOverride: 15.38,
+          recipient: _friendRecipient(),
+          sendOverride: (friendshipId, amount, reference, token) async =>
+              {'success': true},
+        ),
+      );
+
+      await enterGhs(tester);
+      await tester.drag(
+          find.byKey(const ValueKey('send-amount-currency')),
+          const Offset(-80, 0));
+      await tester.pumpAndSettle();
+
+      // 5.00 GHS -> 0.33 USDC (half-up): the digits THEMSELVES convert.
+      // (The figure renders through OdometerNumber's per-slot cells, so
+      // the amount contract is pinned on the odometer's own value.)
+      final odometer =
+          tester.widget<OdometerNumber>(find.byType(OdometerNumber));
+      expect(odometer.value, '0.33',
+          reason: 'the entry converted to its USDC equivalent');
+      expect(find.textContaining('≈ GH\u20B5\u00A05.08'), findsOneWidget,
+          reason: 'the paired equivalent round-trips at the live rate');
+    });
+
+    testWidgets('a GHS composition without a usable rate FAILS CLOSED — '
+        'review is unreachable and no wire is ever attempted', (tester) async {
+      var commits = 0;
+      await _pump(
+        tester,
+        screen: SendMoneyScreen.toFriend(
+          fxRateOverride: 0, // unusable: the seam mirrors a dead oracle
+          recipient: _friendRecipient(),
+          sendOverride: (friendshipId, amount, reference, token) async {
+            commits++;
+            return {'success': true};
+          },
+        ),
+      );
+
+      await enterGhs(tester);
+      await tester.tap(find.byKey(const ValueKey('send-cta-Review')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('send-review-card')), findsNothing,
+          reason: 'an unconvertible composition never reaches review');
+      expect(
+          find.textContaining(
+              'Exchange rate unavailable — enter the amount in USDC instead'),
+          findsOneWidget,
+          reason: 'the composer explains the dead rate honestly');
+      expect(commits, 0, reason: 'the rail is never touched');
+    });
+
+    testWidgets('a rate that drifts between review and commit FAILS CLOSED '
+        '— the frozen quote is revalidated, never silently re-priced',
+        (tester) async {
+      var rate = 15.38;
+      final wire = <double>[];
+
+      await _mockSecureStorage();
+      SharedPreferences.setMockInitialValues({'azaman_theme': 1});
+      final tp = ThemeProvider();
+      final container = ProviderContainer(overrides: [
+        authProvider.overrideWith((ref) => _FixedAuth(_user())),
+        friendProvider.overrideWith((ref) => _FakeFriends(ref)),
+        themeProvider.overrideWith((ref) => tp),
+        // A LIVE oracle the test can move: each (re)compute reads the
+        // current value of [rate].
+        fxRateProvider.overrideWith(
+            (ref) async => FxRateSnapshot(
+                  ghsPerUsdc: rate,
+                  source: 'TEST',
+                  lastSync: DateTime.now().toUtc(),
+                  fetchedAt: DateTime.now().toUtc(),
+                )),
+      ]);
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: SendMoneyScreen.toFriend(
+              recipient: _friendRecipient(),
+              sendOverride: (friendshipId, amount, reference, token) async {
+                wire.add(amount);
+                return {'success': true};
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Compose + review at 15.38 (via the LIVE provider, not the seam).
+      await enterGhs(tester);
+      await tester.tap(find.byKey(const ValueKey('send-cta-Review')));
+      await tester.pumpAndSettle();
+      expect(find.text('1 USDC = GH\u20B5\u00A015.38'), findsOneWidget,
+          reason: 'the quote froze at the reviewed rate');
+
+      // The oracle moves while the composition sits at review.
+      rate = 15.50;
+      container.invalidate(fxRateProvider);
+      await tester.pumpAndSettle();
+
+      // The slide is rejected: the user is returned to compose with an
+      // honest explanation and the rail is never touched.
+      await _slideToConfirm(tester);
+      await tester.pumpAndSettle();
+      expect(wire, isEmpty, reason: 'a stale quote never commits');
+      expect(
+          find.textContaining(
+              'The exchange rate changed since you reviewed the amount'),
+          findsOneWidget);
+
+      // A FRESH review at the new rate recovers the composition honestly:
+      // 5.00 GHS / 15.50 = 0.32 USDC.
+      await tester.tap(find.byKey(const ValueKey('send-cta-Review')));
+      await tester.pumpAndSettle();
+      expect(find.text('1 USDC = GH\u20B5\u00A015.50'), findsOneWidget);
+      expect(find.text('0.32 USDC'), findsOneWidget);
+      await _slideToConfirm(tester);
+      await tester.pumpAndSettle();
+      expect(wire, [0.32],
+          reason: 'the recovery path commits the newly reviewed quote');
+      expect(find.byKey(const ValueKey('send-success-icon')), findsOneWidget);
+    });
   });
 }

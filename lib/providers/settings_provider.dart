@@ -22,9 +22,12 @@ class SettingsProvider with ChangeNotifier {
   bool _tradeAlerts = true;
   bool _chatNotifications = true;
 
-  // USDC is AZAMAN's primary financial rail. GHS is a display/conversion
-  // currency; USD is accepted only as a legacy value from older installs.
-  String _defaultCurrency = 'USDC';
+  // NOTE (2026-10-20): the duplicate currency preference that lived here
+  // ('default_currency' + backend 'currencyDisplay') is RETIRED. The ONE
+  // authoritative display preference is CurrencyNotifier (currencyProvider,
+  // 'display_currency' key, GHS-first). This provider no longer reads,
+  // writes or syncs any currency value — see lib/models/currency_model.dart
+  // for the migration rule and the one-way backend mirror.
   String _appLanguage = 'English';
 
   bool _vendorTagEnabled = false;
@@ -47,7 +50,6 @@ class SettingsProvider with ChangeNotifier {
   bool get tradeAlerts => _tradeAlerts;
   bool get chatNotifications => _chatNotifications;
   bool get vendorTagEnabled => _vendorTagEnabled;
-  String get defaultCurrency => _defaultCurrency;
   String get appLanguage => _appLanguage;
   List<HQShortcut> get shortcuts => _shortcuts;
   List<HQShortcut> get enabledShortcuts => _shortcuts.where((s) => s.enabled).toList();
@@ -57,24 +59,12 @@ class SettingsProvider with ChangeNotifier {
     _loadPreferences();
   }
 
-  static String _normalizeCurrency(String value) {
-    switch (value.trim().toUpperCase()) {
-      case 'GHS':
-        return 'GHS';
-      case 'USDC':
-      case 'USD':
-      default:
-        return 'USDC';
-    }
-  }
-
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
 
     _pushNotifications = prefs.getBool('push_notifications') ?? true;
     _tradeAlerts = prefs.getBool('trade_alerts') ?? true;
     _chatNotifications = prefs.getBool('chat_notifications') ?? true;
-    _defaultCurrency = _normalizeCurrency(prefs.getString('default_currency') ?? 'USDC');
     _appLanguage = prefs.getString('app_language') ?? 'English';
     _vendorTagEnabled = prefs.getBool('vendor_tag_enabled') ?? false;
 
@@ -117,15 +107,6 @@ class SettingsProvider with ChangeNotifier {
     await prefs.setBool('vendor_tag_enabled', value);
   }
 
-  Future<void> setDefaultCurrency(String value) async {
-    final normalized = _normalizeCurrency(value);
-    _defaultCurrency = normalized;
-    notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('default_currency', normalized);
-    _syncPreferencesToBackend();
-  }
-
   Future<void> setAppLanguage(String value) async {
     _appLanguage = value;
     notifyListeners();
@@ -151,7 +132,6 @@ class SettingsProvider with ChangeNotifier {
           'pushNotifications': _pushNotifications,
           'tradeAlerts': _tradeAlerts,
           'chatNotifications': _chatNotifications,
-          'currencyDisplay': _defaultCurrency,
           'language': _appLanguage,
         },
       });
@@ -199,11 +179,6 @@ class SettingsProvider with ChangeNotifier {
         if (preferences['chatNotifications'] is bool) {
           _chatNotifications = preferences['chatNotifications'];
           await prefs.setBool('chat_notifications', _chatNotifications);
-          changed = true;
-        }
-        if (preferences['currencyDisplay'] is String && (preferences['currencyDisplay'] as String).isNotEmpty) {
-          _defaultCurrency = _normalizeCurrency(preferences['currencyDisplay'] as String);
-          await prefs.setString('default_currency', _defaultCurrency);
           changed = true;
         }
         if (preferences['language'] is String && (preferences['language'] as String).isNotEmpty) {
