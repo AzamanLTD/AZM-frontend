@@ -97,12 +97,26 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
 
   // View / sort / filter state
   _ViewMode _viewMode = _ViewMode.list;
-  _SortMode _sort = _SortMode.topRated;
+  // 2026-10-20 discovery refinement: the DEFAULT sort is Newest — a
+  // transparent, data-grounded ordering (the backend's createdAt). The
+  // old default (topRated) ranked by averageRating while the star
+  // widgets were being removed from the cards — ranking by a signal
+  // the surface no longer shows was silently dishonest. Top rated
+  // (Audit note: there is NO sort menu on this surface — the stale
+  // "_resultsBar: Sort ▼" comment predates its removal — so topRated
+  // was a hidden hard-wired ranking, which is exactly what the
+  // refinement forbids. mostPopular (completedEscrows) and nearest
+  // (map mode) are the other real, data-grounded modes.)
+  _SortMode _sort = _SortMode.newest;
 
   // MARKETPLACE MIX — the in-place cross-store mode. Toggled by the Mix
   // button INSIDE this screen; NO route is pushed. While active the feed
   // below the category selector is the cross-store discovery feed.
   bool _mixActive = false;
+
+  /// Whole-button press cue for the Mix entry pill (visual only — the
+  /// mode still toggles on a completed tap).
+  bool _mixEntryPressed = false;
 
   /// The dial's selection before Mix was entered — restored on exit so
   /// the normal marketplace view returns exactly as it was (the list
@@ -356,6 +370,9 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
         list.sort((a, b) => b.completedEscrows.compareTo(a.completedEscrows));
         break;
       case _SortMode.newest:
+        // Real createdAt ordering — the previous `break` silently left
+        // the list in fetch order while the UI labelled it "Newest".
+        list.sort((a, b) => b.createdOrEpoch.compareTo(a.createdOrEpoch));
         break;
       case _SortMode.nearest:
         break;
@@ -528,12 +545,12 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // ── Stories: smooth scroll-driven height (Telegram-style).
-                        //    Hidden while Mix is active — the cross-store feed
-                        //    is the content, and the mode's category selector
-                        //    (the dial) + subcategory bubbles replace the
-                        //    story rail's browse role.
-                        if (!_mixActive)
-                          SizedBox(
+                        //    2026-10-20: Stories stay in their normal position
+                        //    ABOVE the selectors/feed while Mix is active — Mix
+                        //    is an in-place mode of THIS page, not a separate
+                        //    page; the story rail keeps its browse role and its
+                        //    scroll-collapse behavior in both modes.
+                        SizedBox(
                             height:
                                 StoryRailCollapse.extentPx * storyExpandRatio,
                             width: double.infinity,
@@ -991,6 +1008,19 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                           }
                         },
                       ),
+                      // 2026-10-20: the faint vertical divider separates the
+                      // CATEGORY DIAL from the MIX CONTROL — it no longer
+                      // lives inside the Mix pill between its die and label.
+                      // One 1px rule + 8px breathing space on each side:
+                      // the cluster stays usable at 320dp without clipping.
+                      const SizedBox(width: 8),
+                      Container(
+                        key: const ValueKey('marketplace-dial-mix-divider'),
+                        width: 1,
+                        height: 18,
+                        color: colors.divider.withValues(alpha: 0.7),
+                      ),
+                      const SizedBox(width: 8),
                       // MARKETPLACE MIX — the in-place cross-store mode. The button
                       // TOGGLES the mode inside this screen (no route is pushed); the
                       // custom-painted isometric die is its mark, separated from the
@@ -1001,7 +1031,21 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                         key: const ValueKey('marketplace-mix-entry'),
                         behavior: HitTestBehavior.opaque,
                         onTap: _toggleMixMode,
-                        child: AnimatedContainer(
+                        // Whole-button pressed feedback: the entire pill
+                        // (die + label together) dips on pointer-down and
+                        // springs back — visual only; nothing commits
+                        // before the completed tap.
+                        onTapDown: (_) =>
+                            setState(() => _mixEntryPressed = true),
+                        onTapUp: (_) =>
+                            setState(() => _mixEntryPressed = false),
+                        onTapCancel: () =>
+                            setState(() => _mixEntryPressed = false),
+                        child: AnimatedScale(
+                          scale: _mixEntryPressed ? 0.96 : 1.0,
+                          duration: const Duration(milliseconds: 110),
+                          curve: Curves.easeOutCubic,
+                          child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
@@ -1022,19 +1066,15 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // The die: breathing space around it, then a faint
-                              // vertical divider, then the label.
+                              // The die: breathing space around it, then
+                              // the label. (The vertical divider used to
+                              // sit here, inside the pill — it now separates
+                              // the dial from this control.)
                               Padding(
                                 padding: const EdgeInsets.all(2),
                                 child: MixDie(active: _mixActive),
                               ),
-                              const SizedBox(width: 6),
-                              Container(
-                                width: 1,
-                                height: 14,
-                                color: colors.divider.withValues(alpha: 0.7),
-                              ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 7),
                               Text(
                                 'Mix',
                                 style: TextStyle(
@@ -1047,6 +1087,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                               ),
                             ],
                           ),
+                        ),
                         ),
                       ),
                     ],

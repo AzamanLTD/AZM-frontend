@@ -20,7 +20,12 @@ BusinessProduct _product(String name, int orders) => BusinessProduct(
       totalOrders: orders,
     );
 
-BusinessProfile _business(String category) => BusinessProfile(
+BusinessProfile _business(
+  String category, {
+  int completedEscrows = 0,
+}) =>
+    BusinessProfile(
+      completedEscrows: completedEscrows,
       id: 'bp-1',
       bizId: 'BIZ-1',
       businessName: 'Test Business',
@@ -29,7 +34,6 @@ BusinessProfile _business(String category) => BusinessProfile(
       isSuspended: false,
       kybStatus: 'VERIFIED',
       totalEscrows: 0,
-      completedEscrows: 0,
       userId: 1,
       totalVolume: 0,
       averageRating: 4.7,
@@ -73,5 +77,38 @@ void main() {
 
     expect(find.text('Bestsellers'), findsOneWidget);
     expect(find.text('View store'), findsWidgets);
+  });
+
+  // ── 2026-10-20 discovery refinement ──────────────────────────────────────
+  // The listing card no longer shows prominent star ratings; the freed
+  // space carries grounded facts (category, verified badge, order count).
+  // Rating/review RECORDS remain — they surface on detail/review surfaces.
+
+  testWidgets('the card shows NO star rating anywhere — collapsed or expanded',
+      (tester) async {
+    await _pumpBar(tester, _business('FOOD_BEVERAGE'));
+
+    // No numeric rating text (fixture is 4.7).
+    expect(find.text('4.7'), findsNothing);
+    // No star icons in either the collapsed row or the expanded header.
+    expect(
+      find.byIcon(Icons.star_rounded, skipOffstage: false), findsNothing);
+  });
+
+  testWidgets('collapsed row surfaces the grounded category label',
+      (tester) async {
+    await _pumpBar(tester, _business('FOOD_BEVERAGE'));
+
+    expect(find.text('Restaurants'), findsWidgets);
+  });
+
+  testWidgets('completed escrows surface as an honest order count, not reviews',
+      (tester) async {
+    await _pumpBar(tester, _business('FOOD_BEVERAGE', completedEscrows: 12));
+
+    expect(find.text('· 12 orders'), findsOneWidget);
+    // The escrow count is never mislabelled as a review count.
+    expect(find.textContaining('12 reviews'), findsNothing);
+    expect(find.text('4.9'), findsNothing);
   });
 }
