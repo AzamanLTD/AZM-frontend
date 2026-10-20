@@ -30,6 +30,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/escrow_models.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -322,8 +323,10 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                                           color: colors.textTertiary),
                                     ),
                                     const SizedBox(height: 2),
-                                    Text(
-                                      '${escrow.amountUsdc.toStringAsFixed(2)} USDC',
+                                    NativeAmountText(
+                                      key: const ValueKey(
+                                          'escrow-rail-amount'),
+                                      amountUsdc: escrow.amountUsdc,
                                       style: AzText.money(
                                           colors.textPrimary, size: 19),
                                     ),
@@ -382,8 +385,10 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                                   .copyWith(color: colors.success),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '${escrow.amountUsdc.toStringAsFixed(2)} USDC',
+                            NativeAmountText(
+                              key: const ValueKey(
+                                  'escrow-rail-post-amount'),
+                              amountUsdc: escrow.amountUsdc,
                               style: AzText.money(colors.textPrimary, size: 15),
                             ),
                           ],

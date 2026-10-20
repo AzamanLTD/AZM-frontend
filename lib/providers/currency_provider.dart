@@ -93,10 +93,9 @@ class FxRateSnapshot {
 
   /// Honest countdown target for freshness-sensitive UI: the moment this
   /// observation becomes stale under the backend's threshold.
-  DateTime? get staleAt => lastExternalSync == null
-      ? null
-      : lastExternalSync!
-          .add(Duration(seconds: rateFreshnessMaxAgeSeconds.round()));
+  DateTime? get staleAt => lastExternalSync?.add(
+        Duration(seconds: rateFreshnessMaxAgeSeconds.round()),
+      );
 
   double usdcToGhs(double usdc) => usdc * ghsPerUsdc;
 

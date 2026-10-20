@@ -38,6 +38,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/susu_service.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/widgets/susu/susu_wheel.dart';
 
 
@@ -202,13 +203,13 @@ class SusuDashboardScreen extends ConsumerWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _Hero extends StatelessWidget {
+class _Hero extends ConsumerWidget {
   final SusuDetail susu;
   final AzamanColors colors;
   const _Hero({required this.susu, required this.colors});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final pool = susu.contributionUsdc * susu.totalCycles;
     final (label, color) = switch (susu.status) {
       SusuStatus.configuring => ('PENDING', colors.warning),
@@ -268,8 +269,11 @@ class _Hero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text(
-            '\$${pool.toStringAsFixed(2)}',
+          // The susu pool is a native-USDC record: GHS leads only as an
+          // honestly-labelled current estimate at the fresh oracle rate.
+          NativeAmountText(
+            key: const ValueKey('susu-pool-amount'),
+            amountUsdc: pool,
             style: TextStyle(
               color: colors.textPrimary,
               fontSize: 28,
@@ -279,7 +283,7 @@ class _Hero extends StatelessWidget {
           ),
           Text(
             'Pool · ${susu.totalCycles} cycles · '
-            '\$${susu.contributionUsdc.toStringAsFixed(2)} per cycle',
+            '${susu.contributionUsdc.toStringAsFixed(2)} USDC per cycle',
             style: TextStyle(color: colors.textTertiary, fontSize: 11),
           ),
         ],

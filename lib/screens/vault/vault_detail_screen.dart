@@ -7,7 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/providers/currency_provider.dart';
+import 'package:azaman/models/currency_catalog.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/utils/currency_math.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
@@ -66,8 +71,8 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
             style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
         content: Text(
           'You will pay a ${(v.earlyBreakPenaltyPct * 100).toStringAsFixed(1)}% penalty on '
-          '\$${v.currentAmountUsdc.toStringAsFixed(2)}. The remainder returns to your wallet. '
-          'AZM already earned stays.',
+          '${v.currentAmountUsdc.toStringAsFixed(2)} USDC${_estimateSuffix(v.currentAmountUsdc)}. '
+          'The remainder returns to your wallet. AZM already earned stays.',
           style: TextStyle(color: colors.textSecondary),
         ),
         actions: [
@@ -92,6 +97,23 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// The honest live-equivalent suffix for money confirmations: labelled a
+  /// current estimate, absent when the rate is not usable — never a claim of
+  /// GHS settlement on the native-USDC record.
+  String _estimateSuffix(double amountUsdc) {
+    final snapshot = ref.read(fxRateProvider).valueOrNull;
+    final now = DateTime.now().toUtc();
+    if (snapshot == null || !snapshot.isUsableAt(now)) return '';
+    final ghs = CurrencyMath.convert(
+      amount: amountUsdc,
+      from: CurrencyCatalog.usdc,
+      to: CurrencyCatalog.ghs,
+      ghsPerUsdc: snapshot.ghsPerUsdc,
+    );
+    if (ghs == null) return '';
+    return ' (≈ ${AzMoney.ghs(ghs)} · current estimate)';
   }
 
   @override
@@ -278,18 +300,26 @@ class _Hero extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('\$${v.currentAmountUsdc.toStringAsFixed(2)}',
+              // Vault balances are native-USDC records; GHS appears only
+              // as an honestly-labelled current estimate (the reviewed
+              // GHS-authority contract does not exist yet).
+              Flexible(
+                child: NativeAmountText(
+                  key: const ValueKey('vault-detail-balance'),
+                  amountUsdc: v.currentAmountUsdc,
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontSize: 30,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -1,
-                  )),
+                  ),
+                ),
+              ),
               const SizedBox(width: 6),
               Padding(
                 padding: const EdgeInsets.only(bottom: 5),
                 child: Text(
-                  '/ \$${v.targetAmountUsdc.toStringAsFixed(2)}',
+                  '/ ${v.targetAmountUsdc.toStringAsFixed(2)} USDC',
                   style: TextStyle(color: colors.textTertiary, fontSize: 13),
                 ),
               ),
@@ -480,13 +510,26 @@ class _DepositTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '\$${d.amountUsdc.toStringAsFixed(2)} · ${d.type}',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    NativeAmountText(
+                      key: const ValueKey('vault-deposit-amount'),
+                      amountUsdc: d.amountUsdc,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      ' · ${d.type}',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   d.failureReason ?? '+${d.azmAwarded.toStringAsFixed(2)} AZM',

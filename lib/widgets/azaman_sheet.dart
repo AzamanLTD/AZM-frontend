@@ -173,7 +173,11 @@ class AzSheetSurface extends ConsumerWidget {
     final bottom = MediaQuery.of(context).padding.bottom;
     final sigma = AzSheetGeometry.scrimSigmaFor(weight);
 
-    final body = Container(
+    // A Material, not a Container: sheet content (tiles, chips, ink wells)
+    // paints on its nearest Material ancestor, and a plain colored container
+    // in between leaves ripples and tile state invisible — Flutter asserts
+    // on exactly this in debug builds. The sheet surface owns the host.
+    final body = Material(
       color: colors.surface,
       child: Padding(
         padding: EdgeInsets.only(bottom: safeBottom ? bottom : 0),

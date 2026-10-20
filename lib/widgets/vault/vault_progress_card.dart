@@ -11,12 +11,14 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/providers/vault_provider.dart';
 
 
-class VaultProgressCard extends StatelessWidget {
+class VaultProgressCard extends ConsumerWidget {
   final Vault vault;
   final AzamanColors colors;
   final VoidCallback onTap;
@@ -35,7 +37,7 @@ class VaultProgressCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final progress = vault.progressFraction;
     final isActive = vault.status == 'ACTIVE';
     final remaining = vault.maturityDate.difference(DateTime.now());
@@ -145,13 +147,30 @@ class VaultProgressCard extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      '\$${vault.currentAmountUsdc.toStringAsFixed(2)} / \$${vault.targetAmountUsdc.toStringAsFixed(2)} USDC',
-                      style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    // Native-USDC amounts of record; the GHS reading, when
+                    // shown, is an honestly-labelled current estimate.
+                    Row(
+                      children: [
+                        Flexible(
+                          child: NativeAmountText(
+                            key: const ValueKey('vault-progress-current'),
+                            amountUsdc: vault.currentAmountUsdc,
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          ' / ${vault.targetAmountUsdc.toStringAsFixed(2)} USDC',
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(

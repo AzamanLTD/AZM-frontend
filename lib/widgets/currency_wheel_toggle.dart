@@ -64,6 +64,7 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
   static const _chipWidth = 74.0;
   static const _chipHeight = 44.0; // ≥44dp touch target
   static const _peek = 14.0; // neighbour visibility per side
+  static const _kSlotTotal = _chipWidth + 2 * _peek; // full wheel slot
   static const _dragThreshold = 24.0;
 
   late final AnimationController _controller;
@@ -179,7 +180,7 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     final selected = widget.options[widget.selectedIndex.clamp(
         0, widget.options.length - 1)];
 
-    const slot = _chipWidth + 2 * _peek;
+    const slot = _kSlotTotal;
     final rollT = Curves.easeOutCubic.transform(_controller.value);
     final base = _animFrom + (_animTo - _animFrom) * rollT;
     final offset = -base * slot + _dragDx;
@@ -240,12 +241,12 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     // rendered at FULL opacity — the shader never touches its label or
     // accent border — while the neighbours genuinely peek through the
     // fading edges. Computed from the geometry constants, not eyeballed.
-    final edgeFade = _peek / slot;
+    const edgeFade = _peek / _kSlotTotal;
     final fader = ShaderMask(
-      shaderCallback: (bounds) => LinearGradient(
+      shaderCallback: (bounds) => const LinearGradient(
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
-        colors: const [
+        colors: [
           Color(0x00000000),
           Color(0xFF000000),
           Color(0xFF000000),
