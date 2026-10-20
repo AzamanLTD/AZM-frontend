@@ -803,13 +803,15 @@ class _BalanceChip extends StatelessWidget {
           ),
         ),
         if (myAzamanId.isNotEmpty)
-          Text('Your ID: $myAzamanId',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text('Your ID: $myAzamanId',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+          ),
       ]),
     );
   }
