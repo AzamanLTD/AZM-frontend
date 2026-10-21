@@ -34,11 +34,10 @@ import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
-import 'package:azaman/models/currency_catalog.dart';
 import 'package:azaman/models/currency_model.dart'
     show currencyProvider, DisplayCurrency;
 import 'package:azaman/utils/az_money.dart';
-import 'package:azaman/widgets/currency_wheel_toggle.dart';
+import 'package:azaman/widgets/fx_typing_dots.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
 import 'package:azaman/widgets/odometer_number.dart';
@@ -147,11 +146,15 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     final primaryLabel = ghsFirst && rateUsable
         ? AzMoney.ghs(primaryValue)
         : AzMoney.usdcFirst(primaryValue);
+    // WORKSTREAM B: while the FX rate is unresolved (or zero), the cedi
+    // equivalent is NOT a value — it is pending. The slot renders a
+    // restrained three-dot waiting indicator instead of "unavailable"
+    // copy; a real amount arrives the moment a usable rate does.
     final secondaryLabel = rateUsable
         ? (ghsFirst
             ? AzMoney.usdcFirst(balance.availableBalance)
             : AzMoney.ghs(ghsValue))
-        : 'GH₵ equivalent unavailable';
+        : null;
 
     // Derived during build so the chip always reflects the freshest value.
     // `_trackDelta` schedules a timer but never calls setState synchronously,
@@ -342,27 +345,23 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // GHANA-FIRST (2026-10-20): the inline display-currency
-                  // wheel rides immediately before the figure — the same
-                  // grammar as the Send composer's entry wheel. This is a
-                  // pure DISPLAY surface: rotating it updates the user's
-                  // GLOBAL display preference; it never touches the USDC
-                  // ledger or any contractual price.
+                  // WORKSTREAM B: the inline display-currency wheel is GONE
+                  // from the Home card — this surface follows the user's
+                  // GLOBAL display preference (see `ghsFirst` above); the
+                  // preference is switched elsewhere, never here. The
+                  // USDC ledger remains the financial authority either way.
+                  //
+                  // The wheel's chip was the only visible unit mark on the
+                  // figure, so its removal left the hero unitless. The unit
+                  // returns as a quiet label — never a control.
                   Padding(
                     padding: const EdgeInsets.only(right: AzSpace.sm),
-                    child: CurrencyWheelToggle(
-                      key: const ValueKey('home-balance-currency-wheel'),
-                      options: const [
-                        CurrencyCatalog.ghs,
-                        CurrencyCatalog.usdc
-                      ],
-                      selectedIndex: ghsFirst ? 0 : 1,
-                      semanticLabelPrefix: 'Display currency',
-                      onChanged: (i) => ref
-                          .read(currencyProvider.notifier)
-                          .set(i == 0
-                              ? DisplayCurrency.ghs
-                              : DisplayCurrency.usdc),
+                    child: Text(
+                      ghsFirst ? 'GH₵' : 'USDC',
+                      key: const ValueKey('home-balance-primary-unit'),
+                      style: AzText.label.copyWith(
+                        color: colors.textTertiary,
+                      ),
                     ),
                   ),
                   // OdometerNumber rolls ONLY the digits that changed.
@@ -395,11 +394,30 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
               const SizedBox(height: AzSpace.xs),
 
               // Secondary figure: the other side of the pair, so the user
-              // always knows what they actually hold.
-              Text(
-                secondaryLabel,
-                style: AzText.bodyS.copyWith(color: colors.textSecondary),
-              ),
+              // always knows what they actually hold. While FX is
+              // unresolved the slot shows the three-dot waiting indicator
+              // (WORKSTREAM B) — fixed at the bodyS line height so the card
+              // never changes height when the rate lands.
+              secondaryLabel == null
+                  ? Semantics(
+                      label: 'Exchange rate loading',
+                      liveRegion: true,
+                      child: SizedBox(
+                        height: 12 * 1.45, // AzText.bodyS line height
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FxTypingDots(
+                            key: const ValueKey('home-balance-fx-dots'),
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Text(
+                      secondaryLabel,
+                      style:
+                          AzText.bodyS.copyWith(color: colors.textSecondary),
+                    ),
 
               // EXPERIENCE PASS §1: the live FX rate row is BACK ON the
               // card — "1 USDC = GH₵ …" plus the refresh/countdown
