@@ -1442,10 +1442,34 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
         8,
         navBandClearance(context) + kNavBandGap,
       ),
-      itemCount: results.length + (state.hasMore ? 1 : 0),
+      // REVIEW §5 — the tail sentinel renders while more pages exist OR a
+      // later-page fetch failed (the inline retry replaces the spinner).
+      itemCount: results.length +
+          ((state.hasMore || state.loadMoreError != null) ? 1 : 0),
       itemBuilder: (ctx, i) {
-        // Infinite-scroll loader sentinel
+        // Tail sentinel: inline accessible retry when a later-page fetch
+        // failed; the infinite-scroll spinner while a page is in flight.
         if (i >= results.length) {
+          if (state.loadMoreError != null) {
+            return Semantics(
+              label: 'Couldn\'t load more businesses. Retry.',
+              button: true,
+              liveRegion: true,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: TextButton.icon(
+                    key: const Key('marketplace-load-more-retry'),
+                    onPressed: () => ref
+                        .read(businessSearchProvider.notifier)
+                        .loadMore(),
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Couldn\'t load more — retry'),
+                  ),
+                ),
+              ),
+            );
+          }
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(20),

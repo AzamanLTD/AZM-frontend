@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:azaman/models/business_models.dart';
+
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/services/business_service.dart';
@@ -65,6 +67,57 @@ Future<void> _pumpHome(WidgetTester tester, BusinessSearchNotifier notifier) asy
   await tester.pump(const Duration(milliseconds: 600));
 }
 
+/// Results are loaded, a later page failed — the honest inline retry
+/// (Lead review §5). Loaded results stay visible; the tail retry
+/// re-fires the real pagination without dropping results.
+class _StalePaginationNotifier extends BusinessSearchNotifier {
+  _StalePaginationNotifier() : super(BusinessService());
+
+  int loadMoreCalls = 0;
+
+  @override
+  Future<void> search(
+    String query, {
+    String? category,
+    bool? verified,
+    String? subcategory,
+  }) async {
+    state = state.copyWith(
+      isLoading: false,
+      clearError: true,
+      results: [
+        const BusinessProfile(
+          id: '1',
+          bizId: 'BIZ-1',
+          businessName: 'Koko Corner',
+          category: 'RETAIL',
+          isVerified: true,
+          isSuspended: false,
+          kybStatus: 'VERIFIED',
+          totalEscrows: 0,
+          completedEscrows: 0,
+          userId: 1,
+          totalVolume: 0,
+          averageRating: 5,
+          username: 'koko_owner',
+        ),
+      ],
+      hasMore: true,
+      nextCursor: 'c1',
+      // The state exactly as it looks AFTER a failed later-page fetch:
+      // results intact, cursor retained, inline pagination failure live.
+      loadMoreError: 'dead page',
+    );
+  }
+
+  @override
+  Future<void> loadMore() async {
+    loadMoreCalls++;
+    state =
+        state.copyWith(isLoadingMore: false, loadMoreError: 'dead page');
+  }
+}
+
 void main() {
   testWidgets('failure: dead search shows the failure state, never the empty lie', (tester) async {
     final notifier = _FailingSearchNotifier();
@@ -86,6 +139,42 @@ void main() {
     await tester.pump();
 
     expect(notifier.calls, before + 1);
+  });
+
+  testWidgets('failed later page: results stay visible with an accessible '
+      'inline retry; Retry re-fires the real pagination', (tester) async {
+    final notifier = _StalePaginationNotifier();
+    // Tall surface: the retry row is the list-tail sentinel of a lazy
+    // ListView.builder — it only builds once the viewport can see it.
+    await tester.binding.setSurfaceSize(const Size(420, 2600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await _pumpHome(tester, notifier);
+
+    // Loaded results are intact; neither the full-screen failure nor the
+    // empty state masquerades as the pagination outcome.
+    expect(find.byKey(const Key('marketplace-search-failure')), findsNothing);
+    expect(find.text('No businesses found'), findsNothing);
+    expect(find.text('Koko Corner'), findsOneWidget,
+        reason: 'already-loaded results stay visible after a page failure');
+
+    // The inline tail retry is rendered with its accessibility semantics.
+    final retry = find.byKey(const Key('marketplace-load-more-retry'));
+    expect(retry, findsOneWidget);
+    // The Semantics live-region wrapper and its merged button text both
+    // carry the label — at least one accessible match proves the affordance.
+    expect(
+      find.bySemanticsLabel(RegExp("couldn.t load more.*retry", caseSensitive: false)),
+      findsWidgets,
+      reason: 'the retry row exposes live-region button semantics',
+    );
+
+    await tester.tap(retry);
+    await tester.pump();
+    expect(notifier.loadMoreCalls, 1,
+        reason: 'Retry re-fires the failed pagination itself');
+
+    // Flush any pending screen timers (debounce/animation) before disposal.
+    await tester.pump(const Duration(milliseconds: 900));
   });
 
   testWidgets('empty: successful zero-result search keeps the honest empty state', (tester) async {

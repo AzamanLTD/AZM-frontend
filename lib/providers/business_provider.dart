@@ -98,6 +98,11 @@ class BusinessSearchState {
   final bool hasMore;
   final String? nextCursor;
   final String? error;
+  // REVIEW §5 — a failed LATER-PAGE fetch keeps the loaded results visible;
+  // this field drives the inline "couldn't load more" retry affordance at
+  // the list tail (distinct from `error`, which is the INITIAL-search
+  // failure shown by the honest full-screen failure state).
+  final String? loadMoreError;
   // Active query parameters (so loadMore replays the same filters).
   final String query;
   final String? category;
@@ -111,6 +116,7 @@ class BusinessSearchState {
     this.hasMore = false,
     this.nextCursor,
     this.error,
+    this.loadMoreError,
     this.query = '',
     this.category,
     this.verified,
@@ -124,11 +130,13 @@ class BusinessSearchState {
     bool? hasMore,
     String? nextCursor,
     String? error,
+    String? loadMoreError,
     String? query,
     String? category,
     bool? verified,
     String? subcategory,
     bool clearError = false,
+    bool clearLoadMoreError = false,
     bool clearCategory = false,
     bool clearVerified = false,
     bool clearSubcategory = false,
@@ -141,6 +149,8 @@ class BusinessSearchState {
       hasMore: hasMore ?? this.hasMore,
       nextCursor: clearCursor ? null : (nextCursor ?? this.nextCursor),
       error: clearError ? null : (error ?? this.error),
+      loadMoreError:
+          clearLoadMoreError ? null : (loadMoreError ?? this.loadMoreError),
       query: query ?? this.query,
       category: clearCategory ? null : (category ?? this.category),
       verified: clearVerified ? null : (verified ?? this.verified),
@@ -153,8 +163,15 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
   final BusinessService _service;
   BusinessSearchNotifier(this._service) : super(const BusinessSearchState());
 
+  // REVIEW §5 — request identity: every search() bumps the generation, so
+  // a LATE response for query A can never overwrite newer results for
+  // query B (it is discarded, not applied). loadMore() inherits the
+  // current generation; a superseding search discards its page too.
+  int _generation = 0;
+
   Future<void> search(String query,
       {String? category, bool? verified, String? subcategory}) async {
+    final generation = ++_generation;
     state = BusinessSearchState(
       isLoading: true,
       query: query,
@@ -169,15 +186,16 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
         verified: verified,
         subcategory: subcategory,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         results: page.businesses,
         hasMore: page.hasMore,
         nextCursor: page.nextCursor,
         isLoading: false,
+        clearLoadMoreError: true,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
@@ -186,7 +204,8 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
     if (state.isLoadingMore || !state.hasMore || state.nextCursor == null) {
       return;
     }
-    state = state.copyWith(isLoadingMore: true);
+    final generation = _generation;
+    state = state.copyWith(isLoadingMore: true, clearLoadMoreError: true);
     try {
       final page = await _service.searchBusinesses(
         q: state.query,
@@ -195,16 +214,22 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
         subcategory: state.subcategory,
         cursor: state.nextCursor,
       );
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         results: [...state.results, ...page.businesses],
         hasMore: page.hasMore,
         nextCursor: page.nextCursor,
         isLoadingMore: false,
+        clearLoadMoreError: true,
       );
     } catch (e) {
-      if (!mounted) return;
-      state = state.copyWith(isLoadingMore: false, error: e.toString());
+      if (!mounted || generation != _generation) return;
+      // REVIEW §5 — a failed pagination keeps the ALREADY-LOADED results
+      // untouched; only the inline tail retry becomes visible. Retrying
+      // calls loadMore() again with the SAME nextCursor, so results are
+      // never dropped or duplicated.
+      state = state.copyWith(
+          isLoadingMore: false, loadMoreError: e.toString());
     }
   }
 
