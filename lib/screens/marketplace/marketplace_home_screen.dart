@@ -551,6 +551,11 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                         //    page; the story rail keeps its browse role and its
                         //    scroll-collapse behavior in both modes.
                         SizedBox(
+                            // Testable seam: this box's height IS the rail's
+                            // collapsed extent — the child inside the
+                            // OverflowBox always lays out at full height and
+                            // is clipped away, so assertions must read HERE.
+                            key: const ValueKey('marketplace_story_rail_extent'),
                             height:
                                 StoryRailCollapse.extentPx * storyExpandRatio,
                             width: double.infinity,
@@ -802,8 +807,16 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
     );
     final storyCollapsedOpacity = (1.0 - storyExpandRatio).clamp(0.0, 1.0);
 
+    // Review A1 — the collapsed story affordance now renders with the
+    // CompactStoryRail's OWN AzSpace.xl (20) horizontal padding, exactly
+    // like the chat strip. The header row therefore contributes NO
+    // leading padding: 0 (parent) + 20 (component) = 20, the same
+    // effective ring offset as chat's full-width strip. The trailing 12
+    // stays for the action icons; the rail's own trailing padding keeps
+    // the chevron 20dp inside the affordance's right edge, mirroring
+    // chat's chevron geometry.
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 10, 12, 0),
+      padding: const EdgeInsets.fromLTRB(0, 10, 12, 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [

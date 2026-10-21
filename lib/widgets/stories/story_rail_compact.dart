@@ -16,6 +16,153 @@ import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/widgets/stories/inbox_story_rail_sliver.dart';
 
+
+/// Data-neutral item for the shared collapsed story presentation.
+///
+/// Surfaces supply their own story sources (chat: the personal story
+/// feed; marketplace: followed businesses) — the geometry and visual
+/// language below is the ONE collapsed presentation.
+@immutable
+class CompactStoryItem {
+  final String? avatarUrl;
+  final StoryRingCounts counts;
+
+  /// Verified/boosted ring treatment (real data only, §9).
+  final bool isBoosted;
+
+  const CompactStoryItem({
+    required this.avatarUrl,
+    required this.counts,
+    this.isBoosted = false,
+  });
+}
+
+/// The SHARED collapsed story presentation (Workstream A, 2026-10-21).
+///
+/// The same visual language on every story surface: up to three
+/// overlapping 24dp circular [StoryRing]s (14dp overlap), a caption
+/// label, and an expand chevron — exactly the geometry the chat hub's
+/// collapsed rail has always rendered. Callers differ only in DATA
+/// ([CompactStoryItem]s) and in whether the chevron sits at the row's
+/// far edge (chat's full-width strip) or right beside the label
+/// (marketplace's header-row affordance).
+class CompactStoryRail extends ConsumerWidget {
+  /// Rings are 24dp and overlap by 14dp — the chat collapsed geometry.
+  static const double ringSize = 24;
+  static const double ringOverlap = 14;
+
+  final List<CompactStoryItem> items;
+  final String label;
+  final VoidCallback onTap;
+
+  /// Chat (full-width strip): the chevron floats at the far edge.
+  /// Marketplace (left affordance in the header row): the chevron sits
+  /// directly after the label so the action icons keep the row's right.
+  final bool chevronAtEnd;
+
+  /// Chat pads the strip with the rail's leading space; the marketplace
+  /// header row already carries its own horizontal padding.
+  final EdgeInsets padding;
+
+  final Key? stripKey;
+  final Key? labelKey;
+
+  const CompactStoryRail({
+    super.key,
+    this.stripKey,
+    this.labelKey,
+    required this.items,
+    required this.label,
+    required this.onTap,
+    this.chevronAtEnd = true,
+    this.padding = const EdgeInsets.symmetric(horizontal: AzSpace.xl),
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider.select((t) => t.colors));
+    final avatars = items.take(3).toList(growable: false);
+
+    final chevron = Icon(
+      Icons.keyboard_arrow_down_rounded,
+      size: 18,
+      color: colors.textTertiary,
+    );
+
+    return GestureDetector(
+      key: stripKey,
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        height: StoryRailCompact.height,
+        child: Padding(
+          padding: padding,
+          child: Row(
+            children: [
+              if (avatars.isNotEmpty)
+                SizedBox(
+                  width: ringSize + ringOverlap * (avatars.length - 1).clamp(0, 2),
+                  height: ringSize,
+                  child: Stack(
+                    children: [
+                      for (var i = 0; i < avatars.length; i++)
+                        Positioned(
+                          left: i * ringOverlap,
+                          child: StoryRing(
+                            avatarUrl: avatars[i].avatarUrl,
+                            counts: avatars[i].counts,
+                            isBoosted: avatars[i].isBoosted,
+                            size: ringSize,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              if (avatars.isNotEmpty) const SizedBox(width: AzSpace.sm),
+              // Review A1 (2026-10-21): with chevronAtEnd the label is an
+              // Expanded+Align(left), NOT a Flexible paired with a Spacer.
+              // The old Flexible+Spacer pair split the row's free space
+              // 1:1, so the chevron never actually reached the trailing
+              // edge — it floated mid-row (measured x≈252 of 360). The
+              // documented grammar ("the chevron floats at the far edge")
+              // is now real on BOTH surfaces: Expanded takes ALL the
+              // remaining space, the label aligns left and still
+              // ellipsizes under the 320dp squeeze, and the chevron lands
+              // at the true trailing edge minus the strip's own padding.
+              if (chevronAtEnd) ...[
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      label,
+                      key: labelKey,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AzText.caption.copyWith(color: colors.textSecondary),
+                    ),
+                  ),
+                ),
+                chevron,
+              ] else ...[
+                Flexible(
+                  child: Text(
+                    label,
+                    key: labelKey,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AzText.caption.copyWith(color: colors.textSecondary),
+                  ),
+                ),
+                chevron,
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class StoryRailCompact extends ConsumerWidget {
   final VoidCallback onTap;
 
@@ -36,49 +183,30 @@ class StoryRailCompact extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
     final groups = ref.watch(
       storyFeedProvider.select((f) => f.valueOrNull ?? const <StoryGroup>[]),
     );
     final unseen = groups.where((g) => g.hasUnseen).length;
     final avatars = groups.take(3).toList(growable: false);
 
-    final stripBody = SizedBox(
-      height: height,
-      child: Row(
-          children: [
-            const SizedBox(width: AzSpace.xl),
-            if (avatars.isNotEmpty)
-              SizedBox(
-                width: 24.0 + 14.0 * (avatars.length - 1).clamp(0, 2),
-                height: 24,
-                child: Stack(
-                  children: [
-                    for (var i = 0; i < avatars.length; i++)
-                      Positioned(
-                        left: i * 14.0,
-                        child: StoryRing(
-                          avatarUrl: avatars[i].authorAvatarUrl,
-                          // REAL data path (§9); geometry scales to 24dp.
-                          counts: StoryRingCounts.fromGroup(avatars[i]),
-                          isBoosted: false,
-                          size: 24,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            if (avatars.isNotEmpty) const SizedBox(width: AzSpace.sm),
-            Text(
-              unseen > 0 ? '$unseen new' : 'Stories',
-              key: const ValueKey('inbox_story_rail_compact_label'),
-              style: AzText.caption.copyWith(color: colors.textSecondary),
-            ),
-            const Spacer(),
-            Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: colors.textTertiary),
-            const SizedBox(width: AzSpace.xl),
-          ],
-        ),
+    // Workstream A (2026-10-21): the strip body is the SHARED collapsed
+    // presentation — the marketplace header renders the same component
+    // with business data, so the two surfaces cannot drift apart again.
+    final stripBody = CompactStoryRail(
+      stripKey: const ValueKey('inbox_story_rail_compact_body'),
+      labelKey: const ValueKey('inbox_story_rail_compact_label'),
+      items: [
+        for (final g in avatars)
+          CompactStoryItem(
+            avatarUrl: g.authorAvatarUrl,
+            // REAL data path (§9); geometry scales to 24dp.
+            counts: StoryRingCounts.fromGroup(g),
+            isBoosted: false,
+          ),
+      ],
+      label: unseen > 0 ? '$unseen new' : 'Stories',
+      onTap: onTap,
+      chevronAtEnd: true,
     );
 
     final rail = reveal;
