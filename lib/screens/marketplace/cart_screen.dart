@@ -11,7 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
-import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -122,7 +123,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(storefrontFailureMessage(failure, e)),
-            backgroundColor: failure.isUnconfirmed ? colors.warning : colors.danger,
+            backgroundColor: failure.isUnconfirmed
+                ? colors.warning
+                : colors.danger,
           ),
         );
       }
@@ -132,7 +135,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     }
   }
 
-  void _showOrderConfirmation(int itemCount, String? businessName, {String? orderRef, required AzamanColors colors}) {
+  void _showOrderConfirmation(
+    int itemCount,
+    String? businessName, {
+    String? orderRef,
+    required AzamanColors colors,
+  }) {
     final cart = ref.read(cartProvider);
     final presentation = _CartPresentation.fromPreset(cart.experiencePreset);
     showDialog(
@@ -170,11 +178,22 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             if (orderRef != null) ...[
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.softSurface,
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Text(
                   orderRef,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary, fontFamily: 'monospace'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textPrimary,
+                    fontFamily: 'monospace',
+                  ),
                 ),
               ),
             ],
@@ -205,7 +224,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         title: const Text('Clear cart?'),
         content: const Text('This will remove all items from your cart.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () {
               ref.read(cartProvider.notifier).clearCart();
@@ -225,7 +247,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final cart = ref.watch(cartProvider);
     final colors = ref.watch(themeProvider.select((t) => t.colors));
     final presentation = _CartPresentation.fromPreset(cart.experiencePreset);
-    final motion = MotionTokens.accessibleDuration(context, MotionTokens.standard);
+    final motion = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.standard,
+    );
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -250,8 +275,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ),
         ],
       ),
-      body: cart.isEmpty ? _buildEmptyState(colors, presentation) : _buildCartList(colors, cart, presentation),
-      bottomNavigationBar: cart.isEmpty ? null : _buildCheckoutBar(colors, cart, presentation),
+      body: cart.isEmpty
+          ? _buildEmptyState(colors, presentation)
+          : _buildCartList(colors, cart, presentation),
+      bottomNavigationBar: cart.isEmpty
+          ? null
+          : _buildCheckoutBar(colors, cart, presentation),
     );
   }
 
@@ -265,19 +294,30 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             Container(
               width: 88,
               height: 88,
-              decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.10), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: colors.accent.withValues(alpha: 0.10),
+                shape: BoxShape.circle,
+              ),
               child: Icon(presentation.icon, size: 42, color: colors.accent),
             ),
             const SizedBox(height: 20),
             Text(
               presentation.emptyTitle,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: colors.textPrimary),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                color: colors.textPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               presentation.emptyBody,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, height: 1.45, color: colors.textTertiary),
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.45,
+                color: colors.textTertiary,
+              ),
             ),
           ],
         ),
@@ -285,7 +325,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Widget _buildCartList(AzamanColors colors, CartState cart, _CartPresentation presentation) {
+  Widget _buildCartList(
+    AzamanColors colors,
+    CartState cart,
+    _CartPresentation presentation,
+  ) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 108),
       children: [
@@ -303,44 +347,70 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 Container(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.10), shape: BoxShape.circle),
-                  child: Icon(presentation.icon, size: 19, color: colors.accent),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    presentation.icon,
+                    size: 19,
+                    color: colors.accent,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(cart.businessName!, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: colors.textPrimary)),
+                      Text(
+                        cart.businessName!,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: colors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(presentation.merchantHint, style: TextStyle(fontSize: 11.5, color: colors.textTertiary)),
+                      Text(
+                        presentation.merchantHint,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: colors.textTertiary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-        ...cart.items.map((item) => _CartTile(
-              item: item,
-              colors: colors,
-              onIncrement: () {
-                AzamanHaptics.toggle();
-                ref.read(cartProvider.notifier).incrementLine(item.lineKey);
-              },
-              onDecrement: () {
-                AzamanHaptics.toggle();
-                ref.read(cartProvider.notifier).decrementLine(item.lineKey);
-              },
-              onRemove: () {
-                AzamanHaptics.nav();
-                ref.read(cartProvider.notifier).removeLine(item.lineKey);
-              },
-            )),
+        ...cart.items.map(
+          (item) => _CartTile(
+            item: item,
+            colors: colors,
+            onIncrement: () {
+              AzamanHaptics.toggle();
+              ref.read(cartProvider.notifier).incrementLine(item.lineKey);
+            },
+            onDecrement: () {
+              AzamanHaptics.toggle();
+              ref.read(cartProvider.notifier).decrementLine(item.lineKey);
+            },
+            onRemove: () {
+              AzamanHaptics.nav();
+              ref.read(cartProvider.notifier).removeLine(item.lineKey);
+            },
+          ),
+        ),
         const SizedBox(height: 16),
         _SectionHeader(title: presentation.detailsTitle, colors: colors),
         const SizedBox(height: 8),
         Container(
-          decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: colors.divider.withValues(alpha: 0.55))),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.divider.withValues(alpha: 0.55)),
+          ),
           child: TextField(
             controller: _deliveryAddressCtrl,
             maxLines: 2,
@@ -351,7 +421,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               contentPadding: const EdgeInsets.all(14),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 12, top: 12, bottom: 12),
-                child: Icon(HugeIconsStroke.location01, size: 20, color: colors.accent),
+                child: Icon(
+                  HugeIconsStroke.location01,
+                  size: 20,
+                  color: colors.accent,
+                ),
               ),
             ),
             style: TextStyle(color: colors.textPrimary, fontSize: 14),
@@ -359,7 +433,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ),
         const SizedBox(height: 12),
         Container(
-          decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: colors.divider.withValues(alpha: 0.55))),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: colors.divider.withValues(alpha: 0.55)),
+          ),
           child: TextField(
             controller: _orderNotesCtrl,
             maxLines: 2,
@@ -370,7 +448,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               contentPadding: const EdgeInsets.all(14),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 12, top: 12, bottom: 12),
-                child: Icon(HugeIconsStroke.pencilEdit01, size: 20, color: colors.accent),
+                child: Icon(
+                  HugeIconsStroke.pencilEdit01,
+                  size: 20,
+                  color: colors.accent,
+                ),
               ),
             ),
             style: TextStyle(color: colors.textPrimary, fontSize: 14),
@@ -381,24 +463,55 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: colors.divider.withValues(alpha: 0.55))),
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.divider.withValues(alpha: 0.55)),
+          ),
           child: Column(
             children: [
-              _SummaryRow(label: 'Subtotal', value: '${cart.subtotal.toStringAsFixed(2)} USDC', colors: colors),
+              _SummaryRow(
+                label: 'Subtotal',
+                value: '${AzMoney.amount(cart.subtotal)} USDC',
+                colors: colors,
+              ),
               const SizedBox(height: 8),
-              _SummaryRow(label: 'Items', value: '${cart.itemCount} ${cart.itemCount == 1 ? "item" : "items"}', colors: colors),
+              _SummaryRow(
+                label: 'Items',
+                value:
+                    '${cart.itemCount} ${cart.itemCount == 1 ? "item" : "items"}',
+                colors: colors,
+              ),
               const SizedBox(height: 10),
               Divider(color: colors.divider, height: 1),
               const SizedBox(height: 10),
               AnimatedSwitcher(
-                duration: MotionTokens.accessibleDuration(context, MotionTokens.microInteraction),
-                transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: ScaleTransition(scale: animation, child: child)),
+                duration: MotionTokens.accessibleDuration(
+                  context,
+                  MotionTokens.microInteraction,
+                ),
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(scale: animation, child: child),
+                ),
                 child: _SummaryRow(
                   key: ValueKey(cart.subtotal),
                   label: 'Total',
-                  value: '${cart.subtotal.toStringAsFixed(2)} USDC',
+                  value: '${AzMoney.amount(cart.subtotal)} USDC',
                   colors: colors,
                   isBold: true,
+                ),
+              ),
+              // D2 merchant honesty: the payable figure is USDC-native; a
+              // live labelled GHS estimate gives the payer cedi context.
+              // Absent (never a guess) when the rate is not usable.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: AmountEntryEquivalent(
+                  amountUsdc: cart.subtotal,
+                  // Checkout prep, not settlement: nothing has been paid
+                  // until the order flow completes.
+                  railNote: 'payable in USDC',
                 ),
               ),
             ],
@@ -408,35 +521,79 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Widget _buildCheckoutBar(AzamanColors colors, CartState cart, _CartPresentation presentation) {
-    final duration = MotionTokens.accessibleDuration(context, MotionTokens.control);
+  Widget _buildCheckoutBar(
+    AzamanColors colors,
+    CartState cart,
+    _CartPresentation presentation,
+  ) {
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.control,
+    );
     return SafeArea(
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
         decoration: BoxDecoration(
           color: colors.surface,
-          border: Border(top: BorderSide(color: colors.divider.withValues(alpha: 0.65), width: 0.5)),
+          border: Border(
+            top: BorderSide(
+              color: colors.divider.withValues(alpha: 0.65),
+              width: 0.5,
+            ),
+          ),
         ),
         child: SizedBox(
           width: double.infinity,
           height: 56,
           child: FilledButton.icon(
             onPressed: _isPlacingOrder ? null : _placeOrder,
-            style: FilledButton.styleFrom(backgroundColor: colors.accent, foregroundColor: colors.isDark ? Colors.black : Colors.white, shape: const StadiumBorder()),
+            style: FilledButton.styleFrom(
+              backgroundColor: colors.accent,
+              foregroundColor: colors.isDark ? Colors.black : Colors.white,
+              shape: const StadiumBorder(),
+            ),
             icon: AnimatedSwitcher(
               duration: duration,
               child: _isPlacingOrder
-                  ? const SizedBox(key: ValueKey('loading'), width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : Icon(presentation.checkoutIcon, key: const ValueKey('icon'), size: 19),
+                  ? const SizedBox(
+                      key: ValueKey('loading'),
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      presentation.checkoutIcon,
+                      key: const ValueKey('icon'),
+                      size: 19,
+                    ),
             ),
             label: AnimatedSwitcher(
               duration: duration,
               switchInCurve: MotionTokens.enter,
               switchOutCurve: MotionTokens.exit,
               child: _isPlacingOrder
-                  ? const Text('Sending…', key: ValueKey('sending'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800))
-                  : Text('${presentation.checkoutLabel} · ${cart.subtotal.toStringAsFixed(2)} USDC', key: ValueKey('${presentation.checkoutLabel}:${cart.subtotal}'), style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+                  ? const Text(
+                      'Sending…',
+                      key: ValueKey('sending'),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    )
+                  : Text(
+                      '${presentation.checkoutLabel} · ${AzMoney.amount(cart.subtotal)} USDC',
+                      key: ValueKey(
+                        '${presentation.checkoutLabel}:${cart.subtotal}',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
             ),
           ),
         ),
@@ -486,7 +643,8 @@ class _CartPresentation {
           notesHint: 'Kitchen notes, allergies, preferences…',
           checkoutLabel: 'Send order',
           emptyTitle: 'Your tray is waiting',
-          emptyBody: 'Pick a dish from the menu and it will land here before you send the order.',
+          emptyBody:
+              'Pick a dish from the menu and it will land here before you send the order.',
           successTitle: 'Order sent!',
           icon: Icons.restaurant_menu_outlined,
           checkoutIcon: Icons.restaurant_rounded,
@@ -549,19 +707,32 @@ class _CartTile extends StatelessWidget {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(color: colors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(
+          color: colors.danger.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(14),
+        ),
         child: Icon(HugeIconsStroke.delete01, color: colors.danger, size: 24),
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: colors.surface, borderRadius: BorderRadius.circular(14), border: Border.all(color: colors.divider.withValues(alpha: 0.45))),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: colors.divider.withValues(alpha: 0.45)),
+        ),
         child: Row(
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(11),
               child: item.image_url != null
-                  ? AzamanNetworkImage(imageUrl: item.image_url!, width: 60, height: 60, fit: BoxFit.cover, errorWidget: (_, __, ___) => _placeholderImage())
+                  ? AzamanNetworkImage(
+                      imageUrl: item.image_url!,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => _placeholderImage(),
+                    )
                   : _placeholderImage(),
             ),
             const SizedBox(width: 12),
@@ -569,33 +740,102 @@ class _CartTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(item.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                  Text(
+                    item.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('${item.unitPrice.toStringAsFixed(2)} USDC each', style: TextStyle(fontSize: 13, color: colors.textTertiary)),
+                  Text(
+                    '${AzMoney.amount(item.unitPrice)} USDC each',
+                    style: TextStyle(fontSize: 13, color: colors.textTertiary),
+                  ),
                   if (item.variants.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(item.variants.entries.map((entry) => '${entry.key}: ${entry.value}').join(' • '), maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: colors.textSecondary, fontWeight: FontWeight.w600)),
+                    Text(
+                      item.variants.entries
+                          .map((entry) => '${entry.key}: ${entry.value}')
+                          .join(' • '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                   if (item.notes != null && item.notes!.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(item.notes!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: colors.textTertiary, fontStyle: FontStyle.italic)),
+                    Text(
+                      item.notes!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textTertiary,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ],
                 ],
               ),
             ),
             const SizedBox(width: 8),
             Container(
-              decoration: BoxDecoration(color: colors.background, borderRadius: BorderRadius.circular(11), border: Border.all(color: colors.divider, width: 0.5)),
+              decoration: BoxDecoration(
+                color: colors.background,
+                borderRadius: BorderRadius.circular(11),
+                border: Border.all(color: colors.divider, width: 0.5),
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(onPressed: onDecrement, icon: Icon(HugeIconsStroke.minusSign, size: 18, color: colors.textSecondary), visualDensity: VisualDensity.compact, constraints: const BoxConstraints(minWidth: 34, minHeight: 34)),
+                  IconButton(
+                    onPressed: onDecrement,
+                    icon: Icon(
+                      HugeIconsStroke.minusSign,
+                      size: 18,
+                      color: colors.textSecondary,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 34,
+                      minHeight: 34,
+                    ),
+                  ),
                   AnimatedSwitcher(
                     duration: MotionTokens.microInteraction,
-                    transitionBuilder: (child, animation) => ScaleTransition(scale: animation, child: child),
-                    child: Text('${item.quantity}', key: ValueKey(item.quantity), style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
+                    child: Text(
+                      '${item.quantity}',
+                      key: ValueKey(item.quantity),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary,
+                      ),
+                    ),
                   ),
-                  IconButton(onPressed: onIncrement, icon: Icon(HugeIconsStroke.plusSign, size: 18, color: colors.accent), visualDensity: VisualDensity.compact, constraints: const BoxConstraints(minWidth: 34, minHeight: 34)),
+                  IconButton(
+                    onPressed: onIncrement,
+                    icon: Icon(
+                      HugeIconsStroke.plusSign,
+                      size: 18,
+                      color: colors.accent,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 34,
+                      minHeight: 34,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -606,7 +846,16 @@ class _CartTile extends StatelessWidget {
   }
 
   Widget _placeholderImage() {
-    return Container(width: 60, height: 60, color: colors.background, child: Icon(HugeIconsStroke.shoppingBag01, size: 24, color: colors.textTertiary));
+    return Container(
+      width: 60,
+      height: 60,
+      color: colors.background,
+      child: Icon(
+        HugeIconsStroke.shoppingBag01,
+        size: 24,
+        color: colors.textTertiary,
+      ),
+    );
   }
 }
 
@@ -618,7 +867,14 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary));
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: colors.textPrimary,
+      ),
+    );
   }
 }
 
@@ -628,15 +884,35 @@ class _SummaryRow extends StatelessWidget {
   final AzamanColors colors;
   final bool isBold;
 
-  const _SummaryRow({super.key, required this.label, required this.value, required this.colors, this.isBold = false});
+  const _SummaryRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.colors,
+    this.isBold = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontSize: isBold ? 16 : 14, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: isBold ? colors.textPrimary : colors.textSecondary)),
-        Text(value, style: TextStyle(fontSize: isBold ? 18 : 14, fontWeight: isBold ? FontWeight.bold : FontWeight.w600, color: isBold ? colors.accent : colors.textPrimary)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: isBold ? 16 : 14,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: isBold ? colors.textPrimary : colors.textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: isBold ? 18 : 14,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
+            color: isBold ? colors.accent : colors.textPrimary,
+          ),
+        ),
       ],
     );
   }
