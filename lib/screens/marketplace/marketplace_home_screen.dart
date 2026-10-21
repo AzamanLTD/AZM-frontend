@@ -1362,6 +1362,25 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
 
     if (state.isLoading) return _listShimmer(colors);
 
+    // TRUTHFUL FAILURE (Workstream F): a DEAD search request is never
+    // "No businesses found" — an empty result and a failed request are
+    // different facts; the failure gets its own state and a real retry.
+    if (state.error != null && state.results.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 60),
+          AzamanEmptyState(
+            key: const Key('marketplace-search-failure'),
+            icon: Icons.wifi_off_outlined,
+            title: 'Couldn\'t load businesses',
+            subtitle: 'Check your connection and try again.',
+            actionLabel: 'Retry',
+            onAction: _fireSearch,
+          ),
+        ],
+      );
+    }
+
     final results = _applySortFilter(state.results);
 
     if (results.isEmpty) {
