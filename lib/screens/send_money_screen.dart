@@ -821,41 +821,51 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                   padding: EdgeInsets.fromLTRB(4, compact ? 4 : 10, 4, 0),
                   child: SizedBox(
                     width: double.infinity,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // GHANA-FIRST: the inline currency wheel rides
-                          // immediately before the amount. It chooses the
-                          // denomination the digits represent (LOCAL to
-                          // this transaction — never the global display
-                          // preference) and a switch CONVERTS the amount.
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: CurrencyWheelToggle(
-                              key: const ValueKey('send-amount-currency'),
-                              options: CurrencyCatalog.sendEntryUnits,
-                              selectedIndex: _entryIndex,
-                              onChanged: _onEntryUnitChanged,
+                    // GHANA-FIRST: the inline currency wheel rides
+                    // immediately before the amount. It chooses the
+                    // denomination the digits represent (LOCAL to
+                    // this transaction — never the global display
+                    // preference) and a switch CONVERTS the amount.
+                    //
+                    // VERTICAL roller: the selected chip sits fully
+                    // visible with the neighbour units peeking above/
+                    // below, never cropped by the row. The wheel rides
+                    // OUTSIDE the amount's scale-down box so its 44dp
+                    // touch target and published 74×72 geometry hold at
+                    // every width — only the FIGURE ever shrinks to fit.
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 2),
+                          child: CurrencyWheelToggle(
+                            key: const ValueKey('send-amount-currency'),
+                            axis: CurrencyWheelAxis.vertical,
+                            options: CurrencyCatalog.sendEntryUnits,
+                            selectedIndex: _entryIndex,
+                            onChanged: _onEntryUnitChanged,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: OdometerNumber(
+                              value: _amountDisplay,
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: compact ? 48 : 60,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -1.0,
+                                height: 1.0,
+                              ),
+                              semanticsLabel:
+                                  '$_amountDisplay ${_entryUnit.symbol}',
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          OdometerNumber(
-                            value: _amountDisplay,
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: compact ? 48 : 60,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -1.0,
-                              height: 1.0,
-                            ),
-                            semanticsLabel:
-                                '$_amountDisplay ${_entryUnit.symbol}',
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
