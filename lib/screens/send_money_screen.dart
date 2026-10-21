@@ -797,6 +797,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     // (USDC) alongside its equivalent when the rate is valid.
     final pref = ref.watch(currencyProvider);
     final chipRate = _liveRate();
+    final osKeyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,14 +957,25 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
         // Keypad + CTA anchored to the bottom; never scrolls, never hides
         // behind the bottom navigation (safe-area inset included).
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: AmountKeypad(
-            onKey: _onKeypadKey,
-            enabled: _stage != _SendStage.sending,
-            rowHeight: compact ? 46 : 54,
+        //
+        // WORKSTREAM C — short-viewport rebalance: while the OS keyboard
+        // (a text field: recipient/reference input) holds the lower screen,
+        // the amount keypad is NOT the active input and the two surfaces
+        // cannot both own the bottom — on 320×540+300dp inset the anchored
+        // pair overflowed by ~125dp. The keypad therefore steps aside for
+        // the OS keyboard (input surface handoff, 44dp targets untouched
+        // on both) and returns the instant the keyboard closes. The amount
+        // stays editable the moment the OS keyboard is dismissed; the CTA
+        // and scrollable compose column always remain reachable.
+        if (!osKeyboardUp)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: AmountKeypad(
+              onKey: _onKeypadKey,
+              enabled: _stage != _SendStage.sending,
+              rowHeight: compact ? 46 : 54,
+            ),
           ),
-        ),
         Padding(
           padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + bottomInset),
           child: _PrimaryAction(

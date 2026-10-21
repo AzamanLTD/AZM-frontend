@@ -392,4 +392,86 @@ void main() {
           reason: 'reduced motion rolls without a travelling animation');
     });
   });
+
+  group('Workstream C — short-viewport compose rebalance', () {
+    // The reported defect: at 320×540 with a 300dp OS-keyboard inset the
+    // anchored keypad+CTA pair overflowed by ~125dp. The rebalance hands
+    // the bottom to the OS keyboard while it is up (the amount keypad is
+    // not the active input then) and returns it the instant it closes.
+    testWidgets('320×540 + 300dp keyboard: no overflow, CTA reachable, '
+        'keypad steps aside for the OS keyboard', (tester) async {
+      tester.view.physicalSize = Size(
+          320 * tester.view.devicePixelRatio,
+          540 * tester.view.devicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      await _pump(tester, _screen());
+
+      tester.view.viewInsets = FakeViewPadding(
+          bottom: 300 * tester.view.devicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull,
+          reason: 'no RenderFlex overflow on the short keyboard viewport');
+      expect(find.byType(AmountKeypad), findsNothing,
+          reason: 'the OS keyboard owns input; the amount keypad steps '
+              'aside instead of overflowing');
+      expect(find.text('Review'), findsOneWidget,
+          reason: 'the primary CTA stays reachable beside the OS keyboard');
+      expectSelectedChipFullyVisible(tester);
+    });
+
+    testWidgets('keyboard dismissal returns the keypad — fully functional',
+        (tester) async {
+      tester.view.physicalSize = Size(
+          320 * tester.view.devicePixelRatio,
+          540 * tester.view.devicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      await _pump(tester, _screen());
+
+      tester.view.viewInsets = FakeViewPadding(
+          bottom: 300 * tester.view.devicePixelRatio);
+      await tester.pumpAndSettle();
+      expect(find.byType(AmountKeypad), findsNothing);
+
+      tester.view.viewInsets = FakeViewPadding.zero;
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AmountKeypad), findsOneWidget,
+          reason: 'the amount keypad returns the moment the OS keyboard '
+              'closes');
+      // And it is live: a key press still edits the amount.
+      final before = _selectedSymbol(tester);
+      await tester.tap(find.descendant(
+          of: find.byType(AmountKeypad), matching: find.text('5')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('send-amount-currency')),
+          findsOneWidget,
+          reason: 'the amount composition surface is intact');
+      expect(before, isNotNull);
+    });
+
+    for (final size in const [(320.0, 540.0), (360.0, 640.0), (390.0, 700.0)]) {
+      testWidgets(
+          '${size.$1.truncate()}×${size.$2.truncate()} short viewport '
+          'without keyboard: keypad + CTA anchored, no overflow',
+          (tester) async {
+        tester.view.physicalSize = Size(
+            size.$1 * tester.view.devicePixelRatio,
+            size.$2 * tester.view.devicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        await _pump(tester, _screen());
+
+        expect(tester.takeException(), isNull);
+        final keypad = tester.getRect(find.byType(AmountKeypad));
+        final cta = tester.getRect(find.text('Review'));
+        expect(keypad.height, greaterThan(0));
+        // The CTA sits below the keypad and inside the viewport.
+        expect(cta.top, greaterThan(keypad.bottom - 1));
+        expect(cta.bottom, lessThanOrEqualTo(size.$2));
+        expectSelectedChipFullyVisible(tester);
+      });
+    }
+  });
 }
