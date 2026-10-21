@@ -235,6 +235,17 @@ class _CapDashboardService extends BusinessService {
     totalRevenue: 12345.67,
     avgOrderValue: 617.28,
     recentOrders: [],
+    // Backend revenueByDay: dated completed-order buckets (zero-filled).
+    // Fixed dates keep the goldens clock-independent.
+    revenueByDay: [
+      DailyRevenue(date: '2026-10-15', label: 'Oct 15', revenue: 12.5),
+      DailyRevenue(date: '2026-10-16', label: 'Oct 16', revenue: 0),
+      DailyRevenue(date: '2026-10-17', label: 'Oct 17', revenue: 40.25),
+      DailyRevenue(date: '2026-10-18', label: 'Oct 18', revenue: 88),
+      DailyRevenue(date: '2026-10-19', label: 'Oct 19', revenue: 0),
+      DailyRevenue(date: '2026-10-20', label: 'Oct 20', revenue: 6.75),
+      DailyRevenue(date: '2026-10-21', label: 'Oct 21', revenue: 133.5),
+    ],
   );
 
   @override

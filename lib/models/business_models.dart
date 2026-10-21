@@ -1184,6 +1184,15 @@ class BusinessStats {
   final double avgOrderValue;
   final List<BusinessOrder> recentOrders;
 
+  /// Completed-order revenue per UTC day over the last 30 days, straight
+  /// from the backend's `revenueByDay` (businessOrderService._getRevenueByDay:
+  /// status = COMPLETED only, zero-filled, date + label + revenue).
+  ///
+  /// `recentOrders` is the five most recent orders of ANY status, so it is
+  /// never a revenue source: the dashboard chart must aggregate this dated
+  /// series instead. Defaults to empty so older backend responses still parse.
+  final List<DailyRevenue> revenueByDay;
+
   const BusinessStats({
     required this.totalOrders,
     required this.completedOrders,
@@ -1193,7 +1202,23 @@ class BusinessStats {
     required this.totalRevenue,
     required this.avgOrderValue,
     required this.recentOrders,
+    this.revenueByDay = const [],
   });
+
+  BusinessStats copyWith({
+    List<BusinessOrder>? recentOrders,
+    List<DailyRevenue>? revenueByDay,
+  }) => BusinessStats(
+    totalOrders: totalOrders,
+    completedOrders: completedOrders,
+    pendingOrders: pendingOrders,
+    disputedOrders: disputedOrders,
+    cancelledOrders: cancelledOrders,
+    totalRevenue: totalRevenue,
+    avgOrderValue: avgOrderValue,
+    recentOrders: recentOrders ?? this.recentOrders,
+    revenueByDay: revenueByDay ?? this.revenueByDay,
+  );
 
   factory BusinessStats.fromJson(Map<String, dynamic> json) {
     final recent = (json['recentOrders'] as List? ?? const [])
@@ -1209,8 +1234,31 @@ class BusinessStats {
       totalRevenue: _toDouble(json['totalRevenue']),
       avgOrderValue: _toDouble(json['avgOrderValue']),
       recentOrders: recent,
+      revenueByDay: (json['revenueByDay'] as List? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(DailyRevenue.fromJson)
+          .toList(),
     );
   }
+}
+
+/// One UTC-day bucket of completed-order revenue (USDC).
+///
+/// `date` is 'YYYY-MM-DD'; `label` is the backend-rendered short date
+/// ('Oct 21', Intl en, UTC); `revenue` is the summed amountUsdc of
+/// COMPLETED BusinessOrders for that day (0 when none).
+class DailyRevenue {
+  final String date;
+  final String label;
+  final double revenue;
+
+  const DailyRevenue({required this.date, required this.label, required this.revenue});
+
+  factory DailyRevenue.fromJson(Map<String, dynamic> json) => DailyRevenue(
+        date: (json['date'] ?? '').toString(),
+        label: (json['label'] ?? '').toString(),
+        revenue: _toDouble(json['revenue']),
+      );
 }
 
 

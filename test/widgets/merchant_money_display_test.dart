@@ -215,6 +215,19 @@ BusinessProfile _dashboardProfile() => const BusinessProfile(
   username: 'teststore',
 );
 
+// The backend contract's dated series (revenueByDay): seven UTC buckets,
+// zero-revenue days included, backend-rendered labels. Fixed dates keep the
+// goldens and tests independent of the machine clock.
+const List<DailyRevenue> _chartSeries = [
+  DailyRevenue(date: '2026-10-15', label: 'Oct 15', revenue: 12.5),
+  DailyRevenue(date: '2026-10-16', label: 'Oct 16', revenue: 0),
+  DailyRevenue(date: '2026-10-17', label: 'Oct 17', revenue: 40.25),
+  DailyRevenue(date: '2026-10-18', label: 'Oct 18', revenue: 88),
+  DailyRevenue(date: '2026-10-19', label: 'Oct 19', revenue: 0),
+  DailyRevenue(date: '2026-10-20', label: 'Oct 20', revenue: 6.75),
+  DailyRevenue(date: '2026-10-21', label: 'Oct 21', revenue: 133.5),
+];
+
 BusinessStats _dashboardStats() => const BusinessStats(
   totalOrders: 40,
   completedOrders: 20,
@@ -224,6 +237,7 @@ BusinessStats _dashboardStats() => const BusinessStats(
   totalRevenue: 12345.67,
   avgOrderValue: 617.28,
   recentOrders: [],
+  revenueByDay: _chartSeries,
 );
 
 BusinessProduct _dashboardProduct({String? priceGhs}) => BusinessProduct(
@@ -242,9 +256,10 @@ BusinessProduct _dashboardProduct({String? priceGhs}) => BusinessProduct(
 Future<void> _pumpDashboard(
   WidgetTester tester, {
   required FxRateSnapshot snapshot,
+  BusinessStats? stats,
   List<BusinessProduct> products = const [],
 }) async {
-  final service = _FakeDashboardService(_dashboardStats(), (
+  final service = _FakeDashboardService(stats ?? _dashboardStats(), (
     products: products,
     hasMore: false,
     nextCursor: null,
@@ -565,5 +580,151 @@ void main() {
     await tester.pump();
     expect(find.text('GH₵25.50'), findsOneWidget);
     expect(find.textContaining('current estimate'), findsNothing);
+  });
+
+  // ── Revenue chart source of truth (revenueByDay, not recentOrders) ─────────
+
+  test('revenueByDay: typed daily buckets parse with date, label and revenue; '
+      'absent field degrades to empty', () {
+    final stats = BusinessStats.fromJson({
+      'totalOrders': 7,
+      'recentOrders': [],
+      'revenueByDay': [
+        {'date': '2026-10-20', 'label': 'Oct 20', 'revenue': 41.5},
+        {'date': '2026-10-21', 'label': 'Oct 21', 'revenue': '133.25'},
+        {'date': '2026-10-22', 'label': 'Oct 22', 'revenue': 0},
+      ],
+    });
+    expect(stats.revenueByDay, hasLength(3));
+    expect(stats.revenueByDay[0].date, '2026-10-20');
+    expect(stats.revenueByDay[0].label, 'Oct 20');
+    expect(stats.revenueByDay[0].revenue, 41.5);
+    // Numbers may arrive as strings (legacy decimal encoders) — the same
+    // coercion as every other model field.
+    expect(stats.revenueByDay[1].revenue, 133.25);
+    expect(stats.revenueByDay[2].revenue, 0);
+
+    final legacy = BusinessStats.fromJson({'totalOrders': 0});
+    expect(legacy.revenueByDay, isEmpty);
+  });
+
+  test('sevenDayRevenueSeries: latest seven dated buckets, chronological, '
+      'zero-revenue days preserved, shuffled input tolerated', () {
+    final buckets = List.generate(10, (i) {
+      final day = 6 + i; // 2026-10-06 .. 2026-10-15
+      // The backend sends zero-padded ISO dates (toISOString().slice(0,10)).
+      return DailyRevenue(
+        date: '2026-10-${day.toString().padLeft(2, '0')}',
+        label: 'Oct $day',
+        revenue: i == 7 ? 0 : day.toDouble(), // one zero day in the window
+      );
+    });
+    // Simulate an out-of-order transport: the selection must not trust it.
+    final shuffled = [...buckets]..shuffle();
+    final series = BusinessDashboardScreen.sevenDayRevenueSeries(
+      BusinessStats(
+        totalOrders: 0,
+        completedOrders: 0,
+        pendingOrders: 0,
+        disputedOrders: 0,
+        cancelledOrders: 0,
+        totalRevenue: 0,
+        avgOrderValue: 0,
+        recentOrders: [],
+        revenueByDay: shuffled,
+      ),
+    );
+    expect(series, hasLength(7));
+    expect(series.map((b) => b.date).toList(), [
+      '2026-10-09',
+      '2026-10-10',
+      '2026-10-11',
+      '2026-10-12',
+      '2026-10-13',
+      '2026-10-14',
+      '2026-10-15',
+    ], reason: 'the LATEST seven buckets, ascending by date');
+    // 2026-10-13 (i == 7) is the zero-revenue day; it lands at index 4 of
+    // the seven-day window and must NOT be dropped.
+    expect(series[4].revenue, 0, reason: 'zero-revenue days stay in the truth');
+    // Null stats degrade to an empty series (chart hides itself).
+    expect(BusinessDashboardScreen.sevenDayRevenueSeries(null), isEmpty);
+  });
+
+  testWidgets('dashboard: the revenue chart follows the dated revenueByDay '
+      'series and never sums recentOrders', (tester) async {
+    // CONFLICTING FIXTURE: recentOrders carries pending, disputed, refunded
+    // and cancelled money (recentOrders is the five most recent orders of ANY
+    // status — never a revenue source). The dated series says otherwise.
+    final stats = _dashboardStats().copyWith(
+      recentOrders: [
+        BusinessOrder(
+          id: 'o1',
+          businessProfileId: 'biz-001',
+          orderRef: 'ORD-777',
+          title: 'Pending kente order',
+          customerId: 10,
+          status: BusinessOrderStatus.awaitingPayment,
+          amountUsdc: 777.77,
+          createdAt: DateTime(2026, 10, 21),
+        ),
+        BusinessOrder(
+          id: 'o2',
+          businessProfileId: 'biz-001',
+          orderRef: 'ORD-888',
+          title: 'Disputed shipment',
+          customerId: 11,
+          status: BusinessOrderStatus.disputed,
+          amountUsdc: 888.88,
+          createdAt: DateTime(2026, 10, 21),
+        ),
+        BusinessOrder(
+          id: 'o3',
+          businessProfileId: 'biz-001',
+          orderRef: 'ORD-999',
+          title: 'Refunded panel',
+          customerId: 12,
+          status: BusinessOrderStatus.refunded,
+          amountUsdc: 999.99,
+          createdAt: DateTime(2026, 10, 21),
+        ),
+      ],
+    );
+    await _pumpDashboard(tester, snapshot: _freshSnapshot(), stats: stats);
+
+    // Scope is truthful: this is ORDER revenue from completed orders.
+    expect(find.text('7-Day Order Revenue'), findsOneWidget);
+    expect(find.text('USDC  ·  completed orders, last 7 days'), findsOneWidget);
+
+    // All seven dated buckets show the backend-rendered labels, zero-revenue
+    // days included, with no weekday guessing and no clock dependency.
+    for (final label in [
+      'Oct 15',
+      'Oct 16',
+      'Oct 17',
+      'Oct 18',
+      'Oct 19',
+      'Oct 20',
+      'Oct 21',
+    ]) {
+      expect(find.text(label), findsOneWidget,
+          reason: 'each dated bucket label renders once');
+    }
+
+    // The non-completed amounts live ONLY in the lazy RECENT ORDERS list
+    // below the fold. Scroll it into view, then require exactly one copy
+    // of each: if the chart summed recentOrders, 777.77/888.88/999.99 would
+    // render a second time inside the chart card (axis scale or tooltip
+    // text) — and the 999.99 disputed order would tower over the real
+    // 133.50 completed-revenue peak.
+    await tester.dragUntilVisible(
+      find.text('Pending kente order'),
+      find.byType(Scrollable).first,
+      const Offset(0, -300),
+    );
+    await tester.pump();
+    expect(find.text('777.77 USDC'), findsOneWidget);
+    expect(find.text('888.88 USDC'), findsOneWidget);
+    expect(find.text('999.99 USDC'), findsOneWidget);
   });
 }

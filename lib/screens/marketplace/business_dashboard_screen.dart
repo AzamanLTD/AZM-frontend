@@ -50,6 +50,20 @@ class BusinessDashboardScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<BusinessDashboardScreen> createState() =>
       _BusinessDashboardScreenState();
+
+  /// The latest seven dated buckets of the backend revenue series, in
+  /// chronological order. Sorting by `date` ('YYYY-MM-DD', so lexicographic
+  /// order equals chronological order) makes the selection robust even if
+  /// the transport or a cache ever hands the buckets over out of order.
+  /// Zero-revenue buckets are preserved — they are part of the truth.
+  @visibleForTesting
+  static List<DailyRevenue> sevenDayRevenueSeries(BusinessStats? stats) {
+    final all = stats?.revenueByDay;
+    if (all == null || all.isEmpty) return const [];
+    final ordered = [...all]..sort((a, b) => a.date.compareTo(b.date));
+    if (ordered.length <= 7) return ordered;
+    return ordered.sublist(ordered.length - 7);
+  }
 }
 
 class _BusinessDashboardScreenState
@@ -530,57 +544,40 @@ class _BusinessDashboardScreenState
     );
   }
 
-  // 7-day revenue bar chart (Marketplace Premium Upgrade, 2026-06-21).
-  // Aggregates BusinessStats.recentOrders by day-of-week over the last 7 days.
+  // 7-day order-revenue bar chart (Marketplace Premium Upgrade, 2026-06-21).
+  //
+  // Source of truth: BusinessStats.revenueByDay — the backend's
+  // completed-order daily aggregation (status = COMPLETED, zero-filled,
+  // one bucket per UTC day). recentOrders must never be summed here: it is
+  // the five most recent orders of ANY status, so it would admit pending,
+  // disputed and refunded money into a revenue report and would collapse
+  // same-weekday dates into the wrong bar.
   Widget _revenueChart(AzamanColors colors) {
-    final orders = _stats?.recentOrders ?? const [];
-    if (orders.isEmpty) return const SizedBox.shrink();
-    // Build a day-of-week aggregation for the last 7 days.
-    // Key = "Mon", "Tue", etc. Value = sum of order amounts.
-    final now = DateTime.now();
-    final days = List.generate(7, (i) {
-      final d = now.subtract(Duration(days: 6 - i));
-      return d;
-    });
-    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    final Map<String, double> totals = {};
-    for (final d in days) {
-      totals[dayLabels[d.weekday % 7]] = 0;
-    }
-    for (final o in orders) {
-      final key = dayLabels[o.createdAt.weekday % 7];
-      totals[key] = (totals[key] ?? 0) + o.amountUsdc;
-    }
-    final bars = days.asMap().entries.map((entry) {
-      final label = dayLabels[entry.value.weekday % 7];
-      final value = totals[label] ?? 0;
+    final series = BusinessDashboardScreen.sevenDayRevenueSeries(_stats);
+    if (series.isEmpty) return const SizedBox.shrink();
+    final peak = series.fold<double>(
+      0,
+      (max, b) => b.revenue > max ? b.revenue : max,
+    );
+    final bars = series.asMap().entries.map((entry) {
       return BarChartGroupData(
         x: entry.key,
         barRods: [
           BarChartRodData(
-            toY: value,
+            toY: entry.value.revenue,
             color: colors.accent,
             width: 18,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
             backDrawRodData: BackgroundBarChartRodData(
               show: true,
-              toY:
-                  (totals.values.isEmpty
-                      ? 1
-                      : totals.values.reduce((a, b) => a > b ? a : b)) *
-                  1.2,
+              toY: peak * 1.2,
               color: colors.softSurface,
             ),
           ),
         ],
       );
     }).toList();
-    final maxY = totals.values.isEmpty
-        ? 10.0
-        : (totals.values.reduce((a, b) => a > b ? a : b) * 1.3).clamp(
-            1.0,
-            double.infinity,
-          );
+    final maxY = (peak * 1.3).clamp(1.0, double.infinity);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -592,7 +589,7 @@ class _BusinessDashboardScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '7-Day Revenue',
+            '7-Day Order Revenue',
             style: TextStyle(
               color: colors.textPrimary,
               fontSize: 15,
@@ -601,7 +598,7 @@ class _BusinessDashboardScreenState
           ),
           const SizedBox(height: 4),
           Text(
-            'USDC  ·  last 7 days',
+            'USDC  ·  completed orders, last 7 days',
             style: TextStyle(color: colors.textTertiary, fontSize: 11),
           ),
           const SizedBox(height: 16),
@@ -642,16 +639,19 @@ class _BusinessDashboardScreenState
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
+                      reservedSize: 30,
                       getTitlesWidget: (value, _) {
                         final i = value.toInt();
-                        if (i < 0 || i >= days.length) {
+                        if (i < 0 || i >= series.length) {
                           return const SizedBox.shrink();
                         }
+                        // Backend-rendered bucket label ('Oct 21'), not a
+                        // local weekday guess: the dated series is authoritative.
                         return Text(
-                          dayLabels[days[i].weekday % 7],
+                          series[i].label,
                           style: TextStyle(
                             color: colors.textTertiary,
-                            fontSize: 10,
+                            fontSize: 9,
                           ),
                         );
                       },
