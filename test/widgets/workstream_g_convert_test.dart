@@ -280,6 +280,84 @@ void main() {
     );
 
     testWidgets(
+      'live estimate DISCLOSES the rate source and observation age from '
+      'lastExternalSync — never client fetchedAt',
+      (tester) async {
+        // fetchedAt is NOW; the external observation is 5s old. The
+        // disclosure must report the OBSERVATION age (5s), proving it
+        // never substitutes fetchedAt (0s).
+        final snap = _usableSnapshot();
+        expect(snap.lastExternalSync!.isBefore(snap.fetchedAt), isTrue);
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pumpAndSettle();
+
+        final disclosure = tester.widget<Text>(
+            find.byKey(const Key('convert_estimate_source_disclosure')));
+        expect(disclosure.data, contains(snap.source),
+            reason: 'the rate source must be visible next to the rate');
+        expect(disclosure.data, contains('5s ago'),
+            reason: 'freshness derives from the server market '
+                'observation, not from when this client fetched it');
+        expect(disclosure.data, contains('300s'),
+            reason: 'the freshness window must be disclosed');
+      },
+    );
+
+    testWidgets(
+      'STALE observation (past the freshness window) renders the honest '
+      'unavailable state WITH the stale reason',
+      (tester) async {
+        final snap = _usableSnapshot().copyWith(
+          lastExternalSync:
+              DateTime.now().toUtc().subtract(const Duration(minutes: 10)),
+        );
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('convert_estimate_live')), findsNothing,
+            reason: 'a stale rate must never render a numeric estimate');
+        final reason = tester.widget<Text>(find
+            .byKey(const Key('convert_estimate_unavailable_reason')))
+            .data!;
+        expect(reason, contains('older than'),
+            reason: 'staleness is disclosed, not hidden behind a generic '
+                'unavailable');
+        expect(reason, contains('300s'));
+      },
+    );
+
+    testWidgets(
+      'MISSING observation time (no lastExternalSync) discloses the '
+      'missing-metadata reason',
+      (tester) async {
+        final snap = _usableSnapshot().copyWith(lastExternalSync: null);
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pumpAndSettle();
+
+        final reason = tester.widget<Text>(find
+            .byKey(const Key('convert_estimate_unavailable_reason')))
+            .data!;
+        expect(reason, contains('observation time is missing'),
+            reason: 'missing metadata is disclosed honestly');
+      },
+    );
+
+    testWidgets(
+      'CONTRADICTORY server age vs ours discloses the contradiction reason',
+      (tester) async {
+        final snap = _usableSnapshot().copyWith(externalRateAgeSeconds: 4000);
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pumpAndSettle();
+
+        final reason = tester.widget<Text>(find
+            .byKey(const Key('convert_estimate_unavailable_reason')))
+            .data!;
+        expect(reason, contains('contradicts'),
+            reason: 'contradictory metadata is disclosed honestly');
+      },
+    );
+
+    testWidgets(
       'execution CTA is INERT while no conversion contract exists — '
       'tapping mutates nothing and never implies success',
       (tester) async {

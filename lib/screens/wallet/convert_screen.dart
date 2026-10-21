@@ -191,16 +191,24 @@ class _EstimateCard extends StatelessWidget {
     final snap = snapshot;
     if (snap == null || !snap.isUsable) {
       // Honest unavailable state: no rate, no estimate. Never a stale
-      // number dressed up as a quote.
-      return const _Panel(
-        panelKey: Key('convert_estimate_unavailable'),
+      // number dressed up as a quote — and the REASON is disclosed so
+      // the user can tell a missing fact from a stale one.
+      return _Panel(
+        panelKey: const Key('convert_estimate_unavailable'),
         child: Text(
-          'Live rate unavailable right now. Nothing is estimated and '
+          'Live rate unavailable right now '
+          '(${_unavailabilityReason(snap)}). Nothing is estimated and '
           'nothing is converted.',
-          style: TextStyle(fontSize: 13),
+          key: const Key('convert_estimate_unavailable_reason'),
+          style: const TextStyle(fontSize: 13),
         ),
       );
     }
+
+    // RATE-SOURCE + FRESHNESS DISCLOSURE — the observation age derives
+    // from the LAST EXTERNAL SYNC (the server's market observation), never
+    // from `fetchedAt` (when this client merely received the response).
+    final age = DateTime.now().toUtc().difference(snap.lastExternalSync!);
 
     return _Panel(
       panelKey: const Key('convert_estimate_live'),
@@ -224,6 +232,14 @@ class _EstimateCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
+            'Source: ${snap.source} — last market observation '
+            '${_describeAge(age)} (fresh within '
+            '${snap.rateFreshnessMaxAgeSeconds.round()}s)',
+            key: const Key('convert_estimate_source_disclosure'),
+            style: TextStyle(fontSize: 11.5, color: colors.onSurfaceVariant),
+          ),
+          const SizedBox(height: 6),
+          Text(
             'NONBINDING ESTIMATE — not a quote. Display only: no funds '
             'move, nothing is reserved, and this number is not a settled '
             'value.',
@@ -233,6 +249,55 @@ class _EstimateCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+
+  /// Honest human phrasing of WHY the rate is unusable. Mirrors the exact
+  /// checks of [FxRateSnapshot.isUsableAt] so the disclosed reason can
+  /// never disagree with the verdict — including MISSING metadata (no
+  /// observation time) and CONTRADICTORY metadata (server age vs ours).
+  static String _unavailabilityReason(FxRateSnapshot? snap) {
+    if (snap == null) return 'no rate data received yet';
+    if (!snap.isCanonical) {
+      return 'the server did not confirm this as canonical retail '
+          'USDC/GHS metadata';
+    }
+    if (!snap.ghsPerUsdc.isFinite || snap.ghsPerUsdc <= 0) {
+      return 'the rate figure is missing or not a positive number';
+    }
+    if (!snap.serverFresh) return 'the server freshness gate failed';
+    if (snap.lastExternalSync == null) {
+      return 'the last external market observation time is missing, so '
+          'its age cannot be verified';
+    }
+    if (!snap.rateFreshnessMaxAgeSeconds.isFinite ||
+        snap.rateFreshnessMaxAgeSeconds <= 0) {
+      return 'the freshness window is missing or invalid';
+    }
+    final ageSeconds = DateTime.now()
+            .toUtc()
+            .difference(snap.lastExternalSync!)
+            .inSeconds;
+    if (ageSeconds < -FxRateSnapshot.clockSkewAllowance.inSeconds) {
+      return 'the observation timestamp contradicts the device clock '
+          '(it claims to be in the future)';
+    }
+    if (ageSeconds > snap.rateFreshnessMaxAgeSeconds) {
+      return 'the last market observation is older than the '
+          '${snap.rateFreshnessMaxAgeSeconds.round()}s freshness window';
+    }
+    if (snap.externalRateAgeSeconds != null &&
+        (snap.externalRateAgeSeconds! - ageSeconds).abs() >
+            FxRateSnapshot.ageContradictionToleranceSeconds) {
+      return 'the server\'s age observation contradicts ours';
+    }
+    return 'the rate metadata is incomplete';
+  }
+
+  static String _describeAge(Duration age) {
+    if (age.inSeconds < 60) return '${age.inSeconds}s ago';
+    if (age.inMinutes < 60) return '${age.inMinutes} min ago';
+    return '${age.inHours}h ago';
   }
 }
 

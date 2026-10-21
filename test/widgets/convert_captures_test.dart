@@ -155,6 +155,12 @@ void main() {
             findsOneWidget,
           );
           expect(
+            find.byKey(const Key('convert_estimate_source_disclosure')),
+            findsOneWidget,
+            reason: 'the source + freshness disclosure is part of the '
+                'golden contract — it must be VISIBLE in every capture',
+          );
+          expect(
             find.byKey(const Key('convert_execution_unavailable')),
             findsOneWidget,
           );

@@ -55,6 +55,40 @@ class FxRateSnapshot {
     this.rateFreshnessMaxAgeSeconds = 0,
   });
 
+  /// Additive test/diagnostic convenience: derive a snapshot with a few
+  /// fields replaced, preserving the rest verbatim.
+  /// Additive test/diagnostic convenience: derive a snapshot with a few
+  /// fields replaced, preserving the rest verbatim. The two nullable
+  /// metadata fields go through an [Object] sentinel so they CAN also be
+  /// cleared to null by tests.
+  FxRateSnapshot copyWith({
+    Object? lastExternalSync = _sentinel,
+    Object? externalRateAgeSeconds = _sentinel,
+    double? rateFreshnessMaxAgeSeconds,
+    bool? serverFresh,
+    bool? isCanonical,
+    double? ghsPerUsdc,
+  }) =>
+      FxRateSnapshot(
+        ghsPerUsdc: ghsPerUsdc ?? this.ghsPerUsdc,
+        source: source,
+        lastSync: lastSync,
+        fetchedAt: fetchedAt,
+        pair: pair,
+        settlementCurrency: settlementCurrency,
+        displayCurrency: displayCurrency,
+        isCanonical: isCanonical ?? this.isCanonical,
+        serverFresh: serverFresh ?? this.serverFresh,
+        lastExternalSync: identical(lastExternalSync, _sentinel)
+            ? this.lastExternalSync
+            : lastExternalSync as DateTime?,
+        externalRateAgeSeconds: identical(externalRateAgeSeconds, _sentinel)
+            ? this.externalRateAgeSeconds
+            : externalRateAgeSeconds as int?,
+        rateFreshnessMaxAgeSeconds:
+            rateFreshnessMaxAgeSeconds ?? this.rateFreshnessMaxAgeSeconds,
+      );
+
   /// The FULL conversion gate: canonical USDC/GHS retail metadata, a
   /// positive finite rate, AND a genuinely fresh external observation —
   // the backend's `isFresh` verdict plus our own clock check against
@@ -244,3 +278,7 @@ class QuoteRefreshClock {
 /// Invalidates the public FX snapshot. Screens with conversion-sensitive UI
 /// can call `ref.invalidate(fxRateProvider)` after a refresh window expires.
 void refreshFxRate(WidgetRef ref) => ref.invalidate(fxRateProvider);
+
+/// Sentinel distinguishing an omitted copyWith argument from an
+/// explicit null (both nullable metadata fields can be cleared).
+const Object _sentinel = Object();
