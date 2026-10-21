@@ -167,9 +167,22 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     // so this is safe to run inside build. The signature carries rate
     // availability so a rate recovering (or dropping) re-baselines the
     // delta rather than masquerading as balance movement.
-    _trackDelta(primaryValue,
-        signature:
-            '${ghsFirst ? 'ghs' : 'usdc'}|${rateUsable ? rate.toStringAsFixed(4) : 'unavailable'}');
+    // REVIEW §2 — the delta baseline is owned by AUTHORITATIVE data only.
+    // While readiness is unresolved (the default BalanceData's zero fields
+    // are a placeholder, not a fact) or failed (no data at all), no baseline
+    // is kept: `_lastValue` resets so the first authoritative load re-anchors
+    // silently. Without this gate, an unresolved default 0.00 followed by the
+    // real balance would fabricate a false positive "+balance" delta chip.
+    if (balanceReadiness == BalanceReadiness.loaded) {
+      _trackDelta(primaryValue,
+          signature:
+              '${ghsFirst ? 'ghs' : 'usdc'}|${rateUsable ? rate.toStringAsFixed(4) : 'unavailable'}');
+    } else {
+      _lastValue = null;
+      _delta = null;
+      _deltaSignature = null;
+      _deltaTimer?.cancel();
+    }
 
     final chipDelta = _delta;
 
@@ -411,14 +424,31 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                                     ? 'Balance unavailable'
                                     : 'Balance loading',
                                 liveRegion: true,
-                                child: FxTypingDots(
-                                  key: const ValueKey(
-                                      'home-balance-amount-dots'),
-                                  color: colors.textPrimary,
-                                  dotSize: 6,
-                                  rise: 4.5,
-                                  dotGap: 5,
-                                ),
+                                // REVIEW §2 — a terminal failure is a STABLE
+                                // unavailable state (a quiet em-dash figure),
+                                // never an endlessly active loading
+                                // animation. The dots belong only to the
+                                // unresolved (still loading) state.
+                                child: balanceReadiness ==
+                                        BalanceReadiness.failed
+                                    ? Text(
+                                        '—',
+                                        key: const ValueKey(
+                                            'home-balance-amount-unavailable'),
+                                        style: AzText.money(
+                                          colors.textPrimary,
+                                          size: AzText.sizeHero,
+                                          weight: FontWeight.w600,
+                                        ),
+                                      )
+                                    : FxTypingDots(
+                                        key: const ValueKey(
+                                            'home-balance-amount-dots'),
+                                        color: colors.textPrimary,
+                                        dotSize: 6,
+                                        rise: 4.5,
+                                        dotGap: 5,
+                                      ),
                               ),
                             ),
                           ),

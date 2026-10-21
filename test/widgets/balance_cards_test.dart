@@ -851,7 +851,15 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 120));
 
-      expect(heroAmount(), findsOneWidget);
+      // REVIEW §2 — terminal failure is a STABLE unavailable state: a quiet
+      // em-dash figure with an explicit key, NOT the endlessly-active
+      // loading dots (those belong to the unresolved state only).
+      expect(
+          find.byKey(const ValueKey('home-balance-amount-unavailable')),
+          findsOneWidget,
+          reason: 'failure renders a stable unavailable figure');
+      expect(heroAmount(), findsNothing,
+          reason: 'a failed fetch is not an active loading animation');
       expect(
         find.bySemanticsLabel(RegExp('balance unavailable|Balance unavailable')),
         findsOneWidget,
@@ -861,6 +869,76 @@ void main() {
               w is Text && (w.data ?? '').contains('0.00'))
           .evaluate();
       expect(zeroTexts, isEmpty);
+    });
+
+    testWidgets(
+        'REVIEW §2 regression — an unresolved balance NEVER baselines the '
+        'delta: first authoritative load anchors silently, real moves chip',
+        (tester) async {
+      // The default unresolved provider set: readiness starts UNRESOLVED with
+      // the default all-zero BalanceData (exactly the shipped boot state).
+      final container = ProviderContainer(overrides: [
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.unresolved),
+        oracleRateProvider.overrideWith((ref) => 15.0),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+
+      // Unresolved: dots in the slot, and the default 0.00 is NOT a baseline.
+      expect(heroAmount(), findsOneWidget);
+
+      // The real balance arrives: readiness flips to loaded with 150 USDC.
+      container.read(balanceDataProvider.notifier).state =
+          const BalanceData(availableBalance: 150);
+      container.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.loaded;
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // The FIRST authoritative amount anchors the baseline silently —
+      // no chip: the default-zero → real-value transition is hydration,
+      // not balance movement.
+      expect(
+          find.byWidgetPredicate((w) =>
+              w is Text &&
+              (w.data ?? '').contains('+') &&
+              (w.data ?? '').contains('GH')),
+          findsNothing,
+          reason: 'hydration is never a fabricated delta chip');
+      expect(
+          tester.widget<OdometerNumber>(find.byType(OdometerNumber)).value,
+          '2,250.00',
+          reason: '150 USDC * 15.00 = 2,250.00 GHS renders truthfully');
+
+      // A SUBSEQUENT genuine balance change DOES chip, from the anchored
+      // baseline.
+      container.read(balanceDataProvider.notifier).state =
+          const BalanceData(availableBalance: 200);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('+GH₵ 750.00'), findsOneWidget,
+          reason: 'a real +50 USDC move at rate 15 chips as +750 GHS');
+
+      // Failed refresh (terminal) between loads resets the baseline: the
+      // next authoritative load re-anchors silently, never fabricating a
+      // negative chip for the failure gap.
+      container.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.failed;
+      await tester.pump(const Duration(milliseconds: 200));
+      container.read(balanceDataProvider.notifier).state =
+          const BalanceData(availableBalance: 200);
+      container.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.loaded;
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('+GH₵ 750.00'), findsNothing,
+          reason: 'failed -> loaded re-anchors without a chip');
+      expect(find.text('-GH₵ 750.00'), findsNothing,
+          reason: 'the failure gap never fabricates a negative delta');
     });
 
     testWidgets('loaded balance with FX unresolved: USDC value + FX dots',
@@ -985,7 +1063,12 @@ void main() {
 
       expect(container.read(balanceReadinessProvider),
           BalanceReadiness.failed);
-      expect(heroAmount(), findsOneWidget);
+      // REVIEW §2 — terminal failure is a stable unavailable figure, not
+      // an endlessly active loading animation.
+      expect(
+          find.byKey(const ValueKey('home-balance-amount-unavailable')),
+          findsOneWidget);
+      expect(heroAmount(), findsNothing);
     });
   });
 }
