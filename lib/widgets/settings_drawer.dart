@@ -72,7 +72,6 @@ import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/accounts_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
-import 'package:azaman/screens/share_profile_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -166,23 +165,11 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
                             ),
                           ),
 
-                          // ── QUICK ACTIONS ──────────────────────────────
-                          // Actions live here; management lives in the
-                          // groups below and everything else in Settings.
-                          SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                            sliver: SliverList(
-                              delegate: SliverChildListDelegate([
-                                _animatedWrapper(
-                                  context,
-                                  delay: 3,
-                                  child: _buildQuickActions(context, colors),
-                                ),
-                              ]),
-                            ),
-                          ),
-
                           // ── GROUPS ─────────────────────────────────────
+                          // (Stage 2: the quick-action pills are gone —
+                          // Withdraw/Deposit live as rows in Money and
+                          // Refer lives in the profile group; QR remains
+                          // in the hero.)
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
                             sliver: SliverList(
@@ -212,6 +199,14 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
                                         destination:
                                             const KycVerificationScreen(),
                                       ),
+                                      _buildMenuItem(
+                                        context,
+                                        Icons.card_giftcard_outlined,
+                                        'Refer & Earn',
+                                        colors,
+                                        destination:
+                                            const ReferralScreen(),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -224,6 +219,24 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
                                     colors,
                                     label: 'Money',
                                     rows: [
+                                      _buildMenuItem(
+                                        context,
+                                        Icons.arrow_downward,
+                                        'Deposit',
+                                        colors,
+                                        // The canonical deposit experience
+                                        // (STK-push MoMo) — the same screen
+                                        // /deposit routes to.
+                                        destination: const DepositScreen(),
+                                      ),
+                                      _buildMenuItem(
+                                        context,
+                                        Icons.arrow_outward,
+                                        'Withdraw',
+                                        colors,
+                                        destination:
+                                            const WithdrawalScreen(),
+                                      ),
                                       _savedAccountsCard(context, colors),
                                       const SizedBox(height: 4),
                                       _buildMenuItem(
@@ -329,77 +342,6 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
   // QUICK ACTIONS — the four things people actually open the drawer for.
   // Circular glass buttons, icon-first, labels underneath. These are
   // ACTIONS; management rows live in the groups below.
-  Widget _buildQuickActions(BuildContext context, AzamanColors colors) {
-    Widget action(
-      IconData icon,
-      String label,
-      VoidCallback onTap,
-    ) {
-      return Expanded(
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () {
-            HapticFeedback.lightImpact();
-            Navigator.of(context).pop();
-            onTap();
-          },
-          child: Column(
-            children: [
-              // Mockup contract: clean bare icons — no boxes.
-              Icon(icon, color: colors.accent, size: 24),
-              const SizedBox(height: 7),
-              Text(
-                label,
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.1,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        action(
-          Icons.arrow_outward,
-          'Withdraw',
-          () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const WithdrawalScreen()),
-          ),
-        ),
-        action(
-          Icons.arrow_downward,
-          'Deposit',
-          // The canonical deposit experience (STK-push MoMo deposits,
-          // the same screen /deposit routes to). AccountsScreen is the
-          // saved-accounts surface — not what "Deposit" promises.
-          () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const DepositScreen()),
-          ),
-        ),
-        action(
-          Icons.qr_code_2,
-          'QR',
-          () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ShareProfileScreen()),
-          ),
-        ),
-        action(
-          Icons.card_giftcard_outlined,
-          'Refer',
-          () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ReferralScreen()),
-          ),
-        ),
-      ],
-    );
-  }
-
   /// Sentence-case group: a small muted label above the rows. No caps, no
   /// enterprise shouting — the rows are the hierarchy.
   Widget _buildGroup(
@@ -990,27 +932,128 @@ class _ProfileHeroDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    final t = (shrinkOffset / (_maxExtent - _minExtent)).clamp(0.0, 1.0);
-    return _ProfileHeroBody(username: username, user: user, t: t);
+    final f = (shrinkOffset / (_maxExtent - _minExtent)).clamp(0.0, 1.0);
+    // STAGE 2: the body receives the scroll FRACTION; its own threshold +
+    // hysteresis logic decides when to run the short collapse/expand.
+    return _ProfileHeroBody(
+      username: username,
+      user: user,
+      scrollFraction: f,
+    );
   }
 
   @override
   bool shouldRebuild(_ProfileHeroDelegate oldDelegate) =>
-      oldDelegate.username != username || oldDelegate.user != user;
+      // STAGE 2: the delegate's build output depends on shrinkOffset
+      // (the scroll fraction feeds the threshold state), so the child
+      // MUST rebuild on every scroll tick — the previous continuous
+      // design had the same rebuild profile, and the body itself is a
+      // cheap Stack + LayoutBuilder.
+      true;
 }
 
-class _ProfileHeroBody extends ConsumerWidget {
+class _ProfileHeroBody extends ConsumerStatefulWidget {
   final String username;
   final User? user;
 
-  /// 0 = fully expanded, 1 = fully collapsed. Scroll-linked, not animated.
-  final double t;
+  /// How far the drawer content is scrolled through the hero's travel
+  /// (0 = top, 1 = fully scrolled past the expanded extent). This is the
+  /// STAGE 2 contract input: the presentation is NOT scroll-linked —
+  /// crossing a threshold (with hysteresis) triggers a short expand or
+  /// collapse animation instead.
+  final double scrollFraction;
 
   const _ProfileHeroBody({
     required this.username,
     required this.user,
-    required this.t,
+    required this.scrollFraction,
   });
+
+  @override
+  ConsumerState<_ProfileHeroBody> createState() => _ProfileHeroBodyState();
+}
+
+class _ProfileHeroBodyState extends ConsumerState<_ProfileHeroBody>
+    with SingleTickerProviderStateMixin {
+  /// 0 = fully expanded, 1 = fully collapsed. Threshold-driven, animated.
+  double _t = 0;
+
+  bool _collapsed = false;
+
+  static const double _collapseAt = 0.66;
+  static const double _expandAt = 0.33;
+  static const Duration _collapseDuration = Duration(milliseconds: 220);
+
+  @override
+  void didUpdateWidget(covariant _ProfileHeroBody old) {
+    super.didUpdateWidget(old);
+    if (old.scrollFraction != widget.scrollFraction) {
+      _syncThreshold(widget.scrollFraction, animate: true);
+    }
+  }
+
+  /// Hysteresis: collapse only above [_collapseAt], expand only below
+  /// [_expandAt]; inside the dead band the current presentation is kept,
+  /// so slow scrolling near a single threshold can never flicker.
+  void _syncThreshold(double f, {required bool animate}) {
+    final shouldCollapse = f >= _collapseAt;
+    final shouldExpand = f <= _expandAt;
+
+    if (_collapsed) {
+      if (shouldExpand) _setCollapsed(false, animate: animate);
+    } else {
+      if (shouldCollapse) _setCollapsed(true, animate: animate);
+    }
+  }
+
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    value: _t,
+  );
+
+  void _setCollapsed(bool collapsed, {required bool animate}) {
+    if (_collapsed == collapsed) return;
+    _collapsed = collapsed;
+    if (!animate) {
+      _t = collapsed ? 1.0 : 0.0;
+      _ctrl.value = _t;
+      if (mounted) setState(() {});
+      return;
+    }
+    // Short, restrained roll between presentations. Reduced motion →
+    // the state snaps (MotionTokens honors the OS flag).
+    final duration =
+        MotionTokens.accessibleDuration(context, _collapseDuration);
+    if (duration == Duration.zero) {
+      _t = collapsed ? 1.0 : 0.0;
+      _ctrl.value = _t;
+      if (mounted) setState(() {});
+      return;
+    }
+    _ctrl.duration = duration;
+    _ctrl
+        .animateTo(collapsed ? 1.0 : 0.0)
+        .whenComplete(() { if (mounted) setState(() {}); });
+  }
+
+  void _onTick() {
+    setState(() => _t = _ctrl.value);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.addListener(_onTick);
+    _syncThreshold(widget.scrollFraction, animate: false);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.removeListener(_onTick);
+    _ctrl.dispose();
+    super.dispose();
+  }
+
 
   static const double _avatarExpanded = 88;
   static const double _avatarCollapsed = 40;
@@ -1026,9 +1069,9 @@ class _ProfileHeroBody extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final badgeColor = _kycTint(user?.kycStatus);
+    final badgeColor = _kycTint(widget.user?.kycStatus);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1036,13 +1079,13 @@ class _ProfileHeroBody extends ConsumerWidget {
         final h = constraints.maxHeight;
 
         // Interpolated geometry.
-        final avatarSize = lerpDouble(_avatarExpanded, _avatarCollapsed, t)!;
-        final avatarTop = lerpDouble(16, (h - _avatarCollapsed) / 2, t)!;
-        final avatarLeft = lerpDouble((w - _avatarExpanded) / 2, 18, t)!;
+        final avatarSize = lerpDouble(_avatarExpanded, _avatarCollapsed, _t)!;
+        final avatarTop = lerpDouble(16, (h - _avatarCollapsed) / 2, _t)!;
+        final avatarLeft = lerpDouble((w - _avatarExpanded) / 2, 18, _t)!;
         final surfaceHeight = lerpDouble(
           _surfaceExpanded,
           _surfaceCollapsed,
-          t,
+          _t,
         )!;
 
         return Stack(
@@ -1056,9 +1099,9 @@ class _ProfileHeroBody extends ConsumerWidget {
               height: surfaceHeight,
               child: _HeroSurface(
                 colors: colors,
-                username: username,
-                user: user,
-                t: t,
+                username: widget.username,
+                user: widget.user,
+                t: _t,
                 badgeColor: badgeColor,
               ),
             ),
@@ -1086,8 +1129,8 @@ class _ProfileHeroBody extends ConsumerWidget {
 
   Widget _buildAvatar(AzamanColors colors, double size) {
     final hasPhoto =
-        (user?.profilePictureUrl != null &&
-        user!.profilePictureUrl!.isNotEmpty);
+        (widget.user?.profilePictureUrl != null &&
+        widget.user!.profilePictureUrl!.isNotEmpty);
     Widget avatar = Container(
       width: size,
       height: size,
@@ -1110,7 +1153,7 @@ class _ProfileHeroBody extends ConsumerWidget {
       child: hasPhoto
           ? ClipOval(
               child: AzamanNetworkImage(
-                imageUrl: user!.profilePictureUrl!,
+                imageUrl: widget.user!.profilePictureUrl!,
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
@@ -1121,7 +1164,7 @@ class _ProfileHeroBody extends ConsumerWidget {
     );
 
     // Verification ring only when fully verified (preserved affordance).
-    if (user?.kycStatus == KycStatus.verified) {
+    if (widget.user?.kycStatus == KycStatus.verified) {
       avatar = Stack(
         alignment: Alignment.bottomRight,
         children: [
@@ -1148,7 +1191,7 @@ class _ProfileHeroBody extends ConsumerWidget {
   }
 
   Widget _monogram(AzamanColors colors, double size) {
-    final c = username.trim();
+    final c = widget.username.trim();
     final initial = c.isEmpty ? 'A' : c.substring(0, 1).toUpperCase();
     return Text(
       initial,

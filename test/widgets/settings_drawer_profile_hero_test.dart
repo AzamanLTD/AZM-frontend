@@ -52,6 +52,7 @@ Future<ProviderContainer> _pumpDrawer(
   WidgetTester tester, {
   User? user,
   Size surface = const Size(420, 2400),
+  bool disableAnimations = false,
 }) async {
   // Tall mobile surface so the regrouped sections below the hero are
   // actually laid out by the lazy sliver list.
@@ -75,10 +76,19 @@ Future<ProviderContainer> _pumpDrawer(
       container: container,
       child: MaterialApp(
         theme: container.read(themeProvider).themeData,
-        home: Scaffold(
-          key: scaffoldKey,
-          endDrawer: const SettingsDrawer(),
-          body: const SizedBox.expand(),
+        home: Builder(
+          // Scoped above the Scaffold; copies the REAL MediaQuery so only
+          // the reduced-motion flag is overridden (a bare MediaQueryData
+          // has Size.zero and silently broke the drawer).
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(disableAnimations: disableAnimations),
+            child: Scaffold(
+              key: scaffoldKey,
+              endDrawer: const SettingsDrawer(),
+              body: const SizedBox.expand(),
+            ),
+          ),
         ),
       ),
     ),
@@ -230,11 +240,15 @@ void main() {
       expect(find.text('APPEARANCE & PREFERENCES'), findsNothing);
       expect(find.text('AZMAN PROTOCOL V3.0 — THEMED'), findsNothing);
 
-      // Quick actions: the four things the drawer is opened for.
+      // STAGE 2: the quick-action ROW is gone. Its four destinations
+      // live on: Withdraw + Deposit as Money rows, Refer & Earn in the
+      // profile area, QR in the pinned hero.
       expect(find.text('Withdraw'), findsOneWidget);
       expect(find.text('Deposit'), findsOneWidget);
-      expect(find.text('QR'), findsOneWidget);
-      expect(find.text('Refer'), findsOneWidget);
+      expect(find.text('Refer & Earn'), findsOneWidget);
+      expect(find.byKey(const ValueKey('profile_hero_qr')), findsOneWidget);
+      // And the removed row leaves no orphan labels behind.
+      expect(find.text('QR'), findsNothing);
 
       // Account group: identity + verification with the REAL KYC state.
       expect(find.text('Profile'), findsOneWidget);
@@ -257,7 +271,7 @@ void main() {
       expect(find.text('Azaman 3.1'), findsOneWidget);
     });
 
-    testWidgets('the Deposit quick action opens the CANONICAL deposit flow',
+    testWidgets('the Deposit row opens the CANONICAL deposit flow',
         (tester) async {
       await _pumpDrawer(tester, user: _verifiedUser());
 
@@ -311,9 +325,13 @@ void main() {
       // Expanded: hero content visible.
       expect(find.text('AZM-8273941'), findsOneWidget);
 
-      // Scroll the drawer content up — the pinned header must shrink to
-      // its compact bar, not scroll away.
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+      // Scroll the drawer content up — past the collapse threshold the
+      // hero animates to its compact bar (220ms) and stays there.
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+      await tester.pump(const Duration(milliseconds: 50));
       await tester.pumpAndSettle();
 
       expect(
@@ -328,9 +346,83 @@ void main() {
       );
 
       // Scroll back — expanded hero returns.
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, 400));
+      scrollable.position.jumpTo(0);
+      await tester.pump(const Duration(milliseconds: 50));
       await tester.pumpAndSettle();
       expect(find.text('AZM-8273941'), findsOneWidget);
+    });
+
+    testWidgets('threshold + hysteresis: the dead band HOLDS the state', (
+      tester,
+    ) async {
+      await _pumpDrawer(
+        tester,
+        user: _verifiedUser(),
+        surface: const Size(420, 650),
+      );
+
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      // Hero travel = 224 - 64 = 160px. Fractions of the travel.
+      const travel = 160.0;
+
+      // 0.5 — dead band, expanded presentation HOLDS.
+      scrollable.position.jumpTo(0.5 * travel);
+      // animateTo is scheduled during the layout pass — the first pump
+      // starts it, the second runs it to completion (220ms).
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('AZM-8273941'), findsOneWidget,
+          reason: 'mid-band scroll never collapses (hysteresis)');
+
+      // 0.7 — past the collapse threshold → animates collapsed.
+      scrollable.position.jumpTo(0.7 * travel);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const ValueKey('profile_hero_qr_icon')),
+          findsOneWidget);
+      expect(find.text('AZM-8273941'), findsNothing,
+          reason: 'past 0.66 the hero is collapsed');
+
+      // 0.4 — back INSIDE the dead band → stays collapsed (no flicker).
+      scrollable.position.jumpTo(0.4 * travel);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.byKey(const ValueKey('profile_hero_qr_icon')),
+          findsOneWidget,
+          reason: 'mid-band scroll after collapse never expands (hysteresis)');
+
+      // 0.2 — below the expand threshold → animates expanded.
+      scrollable.position.jumpTo(0.2 * travel);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('AZM-8273941'), findsOneWidget,
+          reason: 'below 0.33 the hero expands again');
+    });
+
+    testWidgets('reduced motion: the threshold swap is INSTANT, never '
+        'animated', (tester) async {
+      await _pumpDrawer(
+        tester,
+        user: _verifiedUser(),
+        surface: const Size(420, 650),
+        disableAnimations: true,
+      );
+
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      const travel = 160.0;
+
+      scrollable.position.jumpTo(0.7 * travel);
+      // No animation time given — the snap must already be complete.
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.byKey(const ValueKey('profile_hero_qr_icon')),
+          findsOneWidget,
+          reason: 'with disableAnimations the collapse is instant');
+      expect(find.text('AZM-8273941'), findsNothing);
     });
   });
 }

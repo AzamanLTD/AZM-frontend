@@ -173,6 +173,25 @@ void main() {
       expect(find.text('All settings'), findsOneWidget);
 
       await _capture(tester, '${mode}_drawer');
+
+      // STAGE 2 evidence: the threshold-triggered COLLAPSED hero. The
+      // slimmed-down drawer fits the 900px preview without scrolling, so
+      // the collapsed bar is exercised on a shorter, real-phone viewport.
+      await tester.binding.setSurfaceSize(const Size(400, 650));
+      await tester.pump();
+      final scrollable = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      expect(scrollable.position.maxScrollExtent, greaterThan(0));
+      scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(
+        find.byKey(const ValueKey('profile_hero_qr_icon')),
+        findsOneWidget,
+        reason: 'the collapsed capture must show the compact bar',
+      );
+      await _capture(tester, '${mode}_drawer_collapsed');
     });
 
     testWidgets('settings page preview — $mode', (tester) async {
