@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
@@ -41,7 +42,10 @@ const _kKybTypes = <String, String>{
 };
 
 class BusinessDashboardScreen extends ConsumerStatefulWidget {
-  const BusinessDashboardScreen({super.key});
+  /// Test seam: defaults to the real service; tests inject a subclass
+  /// returning DTO-shaped fixtures. Production call sites are unchanged.
+  final BusinessService? service;
+  const BusinessDashboardScreen({super.key, this.service});
 
   @override
   ConsumerState<BusinessDashboardScreen> createState() =>
@@ -50,7 +54,7 @@ class BusinessDashboardScreen extends ConsumerStatefulWidget {
 
 class _BusinessDashboardScreenState
     extends ConsumerState<BusinessDashboardScreen> {
-  final _service = BusinessService();
+  late final _service = widget.service ?? BusinessService();
   BusinessStats? _stats;
   List<BusinessProduct> _products = const [];
   bool _loading = true;
@@ -111,17 +115,24 @@ class _BusinessDashboardScreenState
         backgroundColor: colors.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        title: Text(profile?.businessName ?? 'My Business',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          profile?.businessName ?? 'My Business',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         actions: [
           if (profile != null)
             IconButton(
-              icon: Icon(Icons.storefront_outlined, color: colors.textSecondary),
+              icon: Icon(
+                Icons.storefront_outlined,
+                color: colors.textSecondary,
+              ),
               // NEW-A: canonical business profile route.
-              onPressed: () => context.push(AzRoutes.businessProfile(profile.bizId)),
+              onPressed: () =>
+                  context.push(AzRoutes.businessProfile(profile.bizId)),
             ),
         ],
       ),
@@ -152,35 +163,63 @@ class _BusinessDashboardScreenState
   }
 
   Widget _workerTiles(AzamanColors colors) {
-    return Consumer(builder: (context, ref, _) {
-      final dashAsync = ref.watch(workerDashboardProvider);
-      return dashAsync.when(
-        loading: () => const SizedBox.shrink(),
-        error: (_, __) => const SizedBox.shrink(),
-        data: (dash) {
-          if (dash?.employee == null) return const SizedBox.shrink();
-          return Row(
-            children: [
-              Expanded(child: _miniStat(colors, 'Accrued',
-                dash!.salaryInfo?.netAccrued.toStringAsFixed(0) ?? "0", Icons.savings)),
-              const SizedBox(width: 8),
-              Expanded(child: _miniStat(colors, 'EWA',
-                dash.ewaAvailable.toStringAsFixed(0), Icons.bolt)),
-              const SizedBox(width: 8),
-              Expanded(child: _miniStat(colors, 'Next',
-                dash.nextShift != null ? '${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h' : '—', Icons.schedule)),
-            ],
-          );
-        },
-      );
-    });
+    return Consumer(
+      builder: (context, ref, _) {
+        final dashAsync = ref.watch(workerDashboardProvider);
+        return dashAsync.when(
+          loading: () => const SizedBox.shrink(),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (dash) {
+            if (dash?.employee == null) return const SizedBox.shrink();
+            return Row(
+              children: [
+                Expanded(
+                  child: _miniStat(
+                    colors,
+                    'Accrued',
+                    dash!.salaryInfo?.netAccrued.toStringAsFixed(0) ?? "0",
+                    Icons.savings,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _miniStat(
+                    colors,
+                    'EWA',
+                    dash.ewaAvailable.toStringAsFixed(0),
+                    Icons.bolt,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _miniStat(
+                    colors,
+                    'Next',
+                    dash.nextShift != null
+                        ? '${dash.nextShift!.startTime.difference(DateTime.now()).inHours}h'
+                        : '—',
+                    Icons.schedule,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
-  Widget _miniStat(AzamanColors colors, String label, String value, IconData icon) {
+  Widget _miniStat(
+    AzamanColors colors,
+    String label,
+    String value,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.surface, borderRadius: BorderRadius.circular(12),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: colors.border, width: 1),
       ),
       child: Column(
@@ -188,8 +227,18 @@ class _BusinessDashboardScreenState
         children: [
           Icon(icon, color: colors.accent, size: 16),
           const SizedBox(height: 6),
-          Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-          Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+          Text(
+            value,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(color: colors.textTertiary, fontSize: 10),
+          ),
         ],
       ),
     );
@@ -213,22 +262,30 @@ class _BusinessDashboardScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Get verified',
-                    style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800)),
-                Text('Submit KYB documents to earn the verified badge.',
-                    style:
-                        TextStyle(color: colors.textTertiary, fontSize: 12)),
+                Text(
+                  'Get verified',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  'Submit KYB documents to earn the verified badge.',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                ),
               ],
             ),
           ),
           TextButton(
             onPressed: _openKybSheet,
-            child: Text('Submit',
-                style: TextStyle(
-                    color: colors.warning, fontWeight: FontWeight.w800)),
+            child: Text(
+              'Submit',
+              style: TextStyle(
+                color: colors.warning,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -238,22 +295,48 @@ class _BusinessDashboardScreenState
   Widget _statsGrid(AzamanColors colors) {
     final s = _stats;
     final cards = [
-      _StatData('Total Orders', '${s?.totalOrders ?? 0}',
-          Icons.shopping_bag_outlined, colors.accent),
-      _StatData('Completed', '${s?.completedOrders ?? 0}',
-          Icons.check_circle_outline, colors.success),
-      _StatData('Revenue', (s?.totalRevenue ?? 0).toStringAsFixed(2),
-          Icons.account_balance_wallet_outlined, colors.success),
-      _StatData('Avg Order', (s?.avgOrderValue ?? 0).toStringAsFixed(2),
-          Icons.show_chart, colors.warning),
+      _StatData(
+        'Total Orders',
+        '${s?.totalOrders ?? 0}',
+        Icons.shopping_bag_outlined,
+        colors.accent,
+      ),
+      _StatData(
+        'Completed',
+        '${s?.completedOrders ?? 0}',
+        Icons.check_circle_outline,
+        colors.success,
+      ),
+      // Currency verified from the backend aggregation contract
+      // (services/businessOrderService.js getBusinessStats): totalRevenue
+      // is _sum.amountUsdc over COMPLETED BusinessOrders and avgOrderValue
+      // is that sum / completedOrders — both USDC-denominated. Rendered
+      // grouped with an explicit denomination, never bare digits.
+      _StatData(
+        'Revenue',
+        '${AzMoney.amount(s?.totalRevenue ?? 0)} USDC',
+        Icons.account_balance_wallet_outlined,
+        colors.success,
+      ),
+      _StatData(
+        'Avg Order',
+        '${AzMoney.amount(s?.avgOrderValue ?? 0)} USDC',
+        Icons.show_chart,
+        colors.warning,
+      ),
     ];
+    // Narrow screens need taller cards: at 320dp the two-column card is
+    // ~138px wide, and a 1.7 ratio gives ~81px — short of the icon +
+    // grouped figure + label stack (it overflowed by 15px). Ratio 1.35
+    // keeps the full financial figure visible without clipping.
+    final cardWidth = (MediaQuery.of(context).size.width - 32 - 12) / 2;
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      childAspectRatio: 1.7,
+      childAspectRatio: cardWidth < 160 ? 1.35 : 1.7,
       children: cards.map((c) => _statCard(colors, c)).toList(),
     );
   }
@@ -275,14 +358,24 @@ class _BusinessDashboardScreenState
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(data.value,
+              // FittedBox keeps grouped figures like '12,345.67 USDC'
+              // fully visible on narrow cards instead of clipping.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  data.value,
                   style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900)),
-              Text(data.label,
-                  style:
-                      TextStyle(color: colors.textTertiary, fontSize: 11.5)),
+                    color: colors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                data.label,
+                style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
+              ),
             ],
           ),
         ],
@@ -297,14 +390,10 @@ class _BusinessDashboardScreenState
         'View Reviews',
         Icons.star_outline,
         // NEW-A: canonical business profile route.
-        () => context.push(AzRoutes.businessProfile(profile.bizId))
+        () => context.push(AzRoutes.businessProfile(profile.bizId)),
       ),
       ('Submit KYB', Icons.shield_outlined, _openKybSheet),
-      (
-        'My Products',
-        Icons.storefront_outlined,
-        () => _loadDashboard(),
-      ),
+      ('My Products', Icons.storefront_outlined, () => _loadDashboard()),
       (
         'Check-In',
         Icons.qr_code_scanner,
@@ -315,41 +404,45 @@ class _BusinessDashboardScreenState
       spacing: 4,
       runSpacing: 12,
       children: actions
-          .map((a) => SizedBox(
-                width: (MediaQuery.of(context).size.width - 48) / 4.5,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    AzamanHaptics.nav();
-                    a.$3();
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: colors.accentSurface,
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child:
-                              Icon(a.$2, color: colors.accent, size: 22),
+          .map(
+            (a) => SizedBox(
+              width: (MediaQuery.of(context).size.width - 48) / 4.5,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  AzamanHaptics.nav();
+                  a.$3();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: colors.accentSurface,
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                        const SizedBox(height: 6),
-                        Text(a.$1,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: colors.textSecondary,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600)),
-                      ],
-                    ),
+                        child: Icon(a.$2, color: colors.accent, size: 22),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        a.$1,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ))
+              ),
+            ),
+          )
           .toList(),
     );
   }
@@ -359,12 +452,15 @@ class _BusinessDashboardScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('RECENT ORDERS',
-            style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8)),
+        Text(
+          'RECENT ORDERS',
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
         const SizedBox(height: 8),
         if (orders.isEmpty)
           Container(
@@ -374,46 +470,62 @@ class _BusinessDashboardScreenState
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: colors.divider),
             ),
-            child: Text('No orders yet.',
-                style: TextStyle(color: colors.textTertiary, fontSize: 13)),
+            child: Text(
+              'No orders yet.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 13),
+            ),
           )
         else
-          ...orders.take(5).map((o) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.divider),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(o.title,
+          ...orders
+              .take(5)
+              .map(
+                (o) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: colors.divider),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              o.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700)),
-                          Text(o.orderRef,
+                                color: colors.textPrimary,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              o.orderRef,
                               style: TextStyle(
-                                  color: colors.textTertiary, fontSize: 11)),
-                        ],
+                                color: colors.textTertiary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text('${o.amountUsdc.toStringAsFixed(2)} USDC',
+                      Text(
+                        '${AzMoney.amount(o.amountUsdc)} USDC',
                         style: TextStyle(
-                            color: colors.accent,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800)),
-                  ],
+                          color: colors.accent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              )),
+              ),
       ],
     );
   }
@@ -452,7 +564,8 @@ class _BusinessDashboardScreenState
             borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
             backDrawRodData: BackgroundBarChartRodData(
               show: true,
-              toY: (totals.values.isEmpty
+              toY:
+                  (totals.values.isEmpty
                       ? 1
                       : totals.values.reduce((a, b) => a > b ? a : b)) *
                   1.2,
@@ -464,8 +577,10 @@ class _BusinessDashboardScreenState
     }).toList();
     final maxY = totals.values.isEmpty
         ? 10.0
-        : (totals.values.reduce((a, b) => a > b ? a : b) * 1.3)
-            .clamp(1.0, double.infinity);
+        : (totals.values.reduce((a, b) => a > b ? a : b) * 1.3).clamp(
+            1.0,
+            double.infinity,
+          );
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -501,24 +616,26 @@ class _BusinessDashboardScreenState
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: maxY / 4,
-                  getDrawingHorizontalLine: (_) => FlLine(
-                    color: colors.divider,
-                    strokeWidth: 1,
-                  ),
+                  getDrawingHorizontalLine: (_) =>
+                      FlLine(color: colors.divider, strokeWidth: 1),
                 ),
                 titlesData: FlTitlesData(
-                  topTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles:
-                      const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 36,
                       getTitlesWidget: (value, meta) => Text(
-                        value.toStringAsFixed(0),
+                        AzMoney.amount(value, decimals: 0),
                         style: TextStyle(
-                            color: colors.textTertiary, fontSize: 10),
+                          color: colors.textTertiary,
+                          fontSize: 10,
+                        ),
                       ),
                     ),
                   ),
@@ -533,7 +650,9 @@ class _BusinessDashboardScreenState
                         return Text(
                           dayLabels[days[i].weekday % 7],
                           style: TextStyle(
-                              color: colors.textTertiary, fontSize: 10),
+                            color: colors.textTertiary,
+                            fontSize: 10,
+                          ),
                         );
                       },
                     ),
@@ -542,7 +661,7 @@ class _BusinessDashboardScreenState
                 barTouchData: BarTouchData(
                   touchTooltipData: BarTouchTooltipData(
                     getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-                      '${rod.toY.toStringAsFixed(2)} USDC',
+                      '${AzMoney.amount(rod.toY)} USDC',
                       TextStyle(
                         color: colors.isDark ? Colors.black : Colors.white,
                         fontSize: 12,
@@ -565,20 +684,26 @@ class _BusinessDashboardScreenState
       children: [
         Row(
           children: [
-            Text('MY PRODUCTS',
-                style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8)),
+            Text(
+              'MY PRODUCTS',
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
             const Spacer(),
             GestureDetector(
               onTap: () => _openProductEditor(),
-              child: Text('+ Add',
-                  style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800)),
+              child: Text(
+                '+ Add',
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ],
         ),
@@ -591,51 +716,96 @@ class _BusinessDashboardScreenState
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: colors.divider),
             ),
-            child: Text('No products yet. Tap “Add” to create one.',
-                style: TextStyle(color: colors.textTertiary, fontSize: 13)),
+            child: Text(
+              'No products yet. Tap “Add” to create one.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 13),
+            ),
           )
         else
-          ..._products.map((p) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.divider),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(p.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+          ..._products.map(
+            (p) => Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: colors.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: colors.divider),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          p.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        // Listing-price contract (backend BusinessPrice,
+                        // BE PR #359): priceGhs is the authoritative
+                        // server-confirmed GHS price — an exact 2dp string
+                        // shown verbatim. It is NEVER derived from
+                        // priceUsdc; when no eligible row exists there is
+                        // no GHS claim, only the labelled USDC payable.
+                        // Wrap, not Row: at 320dp the authoritative GHS
+                        // figure plus the USDC payable label exceed the
+                        // row and clipped (23px overflow). Wrapping moves
+                        // the payable label to its own line instead of
+                        // truncating either amount.
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 2,
+                          children: [
+                            if (p.priceGhs != null)
+                              Text(
+                                'GH₵${p.priceGhs}',
+                                style: TextStyle(
+                                  color: colors.accent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            Text(
+                              '${AzMoney.amount(p.priceUsdc)} USDC payable',
                               style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w700)),
-                          Text('${p.priceUsdc.toStringAsFixed(2)} USDC',
-                              style: TextStyle(
-                                  color: colors.accent, fontSize: 12)),
-                        ],
-                      ),
+                                color: p.priceGhs != null
+                                    ? colors.textTertiary
+                                    : colors.accent,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    IconButton(
-                      icon: Icon(Icons.edit_outlined,
-                          size: 18, color: colors.textSecondary),
-                      onPressed: () => _openProductEditor(existing: p),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: colors.textSecondary,
                     ),
-                    IconButton(
-                      icon: Icon(Icons.delete_forever_outlined,
-                          size: 18, color: colors.danger),
-                      onPressed: () => _deleteProduct(p),
+                    onPressed: () => _openProductEditor(existing: p),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_forever_outlined,
+                      size: 18,
+                      color: colors.danger,
                     ),
-                  ],
-                ),
-              )),
+                    onPressed: () => _deleteProduct(p),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -653,15 +823,18 @@ class _BusinessDashboardScreenState
     try {
       await _service.deleteProduct(p.id);
       if (mounted) {
-        setState(() => _products =
-            _products.where((x) => x.id != p.id).toList());
+        setState(
+          () => _products = _products.where((x) => x.id != p.id).toList(),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Delete failed: $e'),
-          backgroundColor: ref.read(themeProvider).colors.danger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Delete failed: $e'),
+            backgroundColor: ref.read(themeProvider).colors.danger,
+          ),
+        );
       }
     }
   }
@@ -684,10 +857,12 @@ class _BusinessDashboardScreenState
       builder: (_) => const _KybSubmitSheet(),
     );
     if (submitted == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('KYB documents submitted for review.'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('KYB documents submitted for review.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 }
@@ -729,8 +904,9 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
     super.initState();
     final e = widget.existing;
     _nameCtrl = TextEditingController(text: e?.name ?? '');
-    _priceCtrl =
-        TextEditingController(text: e?.priceUsdc.toStringAsFixed(2) ?? '');
+    _priceCtrl = TextEditingController(
+      text: e?.priceUsdc.toStringAsFixed(2) ?? '',
+    );
     _descCtrl = TextEditingController(text: e?.description ?? '');
     _deliveryCtrl = TextEditingController(text: e?.estimatedDelivery ?? '');
     _imageUrl = e?.primaryImage;
@@ -746,8 +922,10 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
   }
 
   Future<void> _pickImage() async {
-    final picked = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     setState(() {
       _imageFile = File(picked.path);
@@ -772,6 +950,11 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
+    // CONTRACT GAP (documented, not worked around): the seller editor can
+    // only manage priceUsdc. The authoritative merchant GHS price
+    // (BusinessPrice, BE PR #359) has NO merchant write surface in the
+    // products API — it arrives from admin/migration configuration, and
+    // this payload deliberately does not invent a GHS write.
     final data = <String, dynamic>{
       'name': _nameCtrl.text.trim(),
       'priceUsdc': double.tryParse(_priceCtrl.text.trim()) ?? 0,
@@ -794,10 +977,12 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Save failed: $e'),
-        backgroundColor: ref.read(themeProvider).colors.danger,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Save failed: $e'),
+          backgroundColor: ref.read(themeProvider).colors.danger,
+        ),
+      );
     }
   }
 
@@ -805,7 +990,9 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: colors.surface,
@@ -830,11 +1017,14 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Text(widget.existing == null ? 'Add Product' : 'Edit Product',
-                    style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800)),
+                Text(
+                  widget.existing == null ? 'Add Product' : 'Edit Product',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 14),
                 Center(
                   child: GestureDetector(
@@ -848,20 +1038,25 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
                         image: _imageFile != null
                             ? DecorationImage(
                                 image: FileImage(_imageFile!),
-                                fit: BoxFit.cover)
+                                fit: BoxFit.cover,
+                              )
                             : (_imageUrl != null
-                                ? DecorationImage(
-                                    image: NetworkImage(_imageUrl!),
-                                    fit: BoxFit.cover)
-                                : null),
+                                  ? DecorationImage(
+                                      image: NetworkImage(_imageUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null),
                       ),
                       alignment: Alignment.center,
                       child: _uploading
                           ? const CircularProgressIndicator(strokeWidth: 2)
                           : (_imageFile == null && _imageUrl == null
-                              ? Icon(Icons.image_outlined,
-                                  color: colors.textTertiary, size: 26)
-                              : null),
+                                ? Icon(
+                                    Icons.image_outlined,
+                                    color: colors.textTertiary,
+                                    size: 26,
+                                  )
+                                : null),
                     ),
                   ),
                 ),
@@ -876,11 +1071,13 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _priceCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*\.?\d{0,2}')),
+                      RegExp(r'^\d*\.?\d{0,2}'),
+                    ),
                   ],
                   style: TextStyle(color: colors.textPrimary),
                   decoration: _dec(colors, 'Price (USDC)'),
@@ -901,8 +1098,7 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
                 TextFormField(
                   controller: _deliveryCtrl,
                   style: TextStyle(color: colors.textPrimary),
-                  decoration:
-                      _dec(colors, 'Estimated delivery (optional)'),
+                  decoration: _dec(colors, 'Estimated delivery (optional)'),
                 ),
                 const SizedBox(height: 18),
                 SizedBox(
@@ -911,8 +1107,9 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
                     onPressed: _saving ? null : _save,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -923,11 +1120,15 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
-                        : Text(widget.existing == null
-                            ? 'Create Product'
-                            : 'Save Changes'),
+                        : Text(
+                            widget.existing == null
+                                ? 'Create Product'
+                                : 'Save Changes',
+                          ),
                   ),
                 ),
               ],
@@ -939,15 +1140,15 @@ class _ProductEditorSheetState extends ConsumerState<_ProductEditorSheet> {
   }
 
   InputDecoration _dec(AzamanColors colors, String label) => InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: colors.textTertiary, fontSize: 14),
-        filled: true,
-        fillColor: colors.card,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      );
+    labelText: label,
+    labelStyle: TextStyle(color: colors.textTertiary, fontSize: 14),
+    filled: true,
+    fillColor: colors.card,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide.none,
+    ),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -968,8 +1169,10 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
   bool _submitting = false;
 
   Future<void> _pick(String type) async {
-    final picked = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     setState(() => _uploadingType = type);
     try {
@@ -1002,10 +1205,12 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Submit failed: $e'),
-        backgroundColor: ref.read(themeProvider).colors.danger,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Submit failed: $e'),
+          backgroundColor: ref.read(themeProvider).colors.danger,
+        ),
+      );
     }
   }
 
@@ -1013,7 +1218,9 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: colors.surface,
@@ -1035,14 +1242,19 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
               ),
             ),
             const SizedBox(height: 14),
-            Text('Submit KYB Documents',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              'Submit KYB Documents',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Upload at least one document. Add more for faster review.',
-                style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+            Text(
+              'Upload at least one document. Add more for faster review.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
             const SizedBox(height: 14),
             ..._kKybTypes.entries.map((e) {
               final done = _uploaded.containsKey(e.key);
@@ -1073,25 +1285,30 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(e.value,
-                              style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.w600)),
+                          child: Text(
+                            e.value,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                         if (busy)
                           const SizedBox(
                             width: 16,
                             height: 16,
-                            child:
-                                CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         else
-                          Text(done ? 'Replace' : 'Upload',
-                              style: TextStyle(
-                                  color: colors.accent,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700)),
+                          Text(
+                            done ? 'Replace' : 'Upload',
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -1102,8 +1319,7 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
             SizedBox(
               height: 50,
               child: ElevatedButton(
-                onPressed:
-                    _submitting || _uploaded.isEmpty ? null : _submit,
+                onPressed: _submitting || _uploaded.isEmpty ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
                   foregroundColor: colors.isDark ? Colors.black : Colors.white,
@@ -1117,7 +1333,9 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       )
                     : Text('Submit ${_uploaded.length} document(s)'),
               ),
@@ -1128,7 +1346,6 @@ class _KybSubmitSheetState extends ConsumerState<_KybSubmitSheet> {
     );
   }
 }
-
 
 class _DashboardSkeleton extends StatelessWidget {
   final AzamanColors colors;
@@ -1141,27 +1358,60 @@ class _DashboardSkeleton extends StatelessWidget {
       child: Column(
         children: [
           // Header skeleton
-          SkeletonBlock(width: 200, height: 28, borderRadius: BorderRadius.circular(8)),
+          SkeletonBlock(
+            width: 200,
+            height: 28,
+            borderRadius: BorderRadius.circular(8),
+          ),
           const SizedBox(height: 20),
           // Stats row skeleton
           Row(
             children: [
-              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+              Expanded(
+                child: SkeletonBlock(
+                  width: double.infinity,
+                  height: 90,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+              Expanded(
+                child: SkeletonBlock(
+                  width: double.infinity,
+                  height: 90,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: SkeletonBlock(width: double.infinity, height: 90, borderRadius: BorderRadius.circular(12))),
+              Expanded(
+                child: SkeletonBlock(
+                  width: double.infinity,
+                  height: 90,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
           // Chart skeleton
-          SkeletonBlock(width: double.infinity, height: 180, borderRadius: BorderRadius.circular(16)),
+          SkeletonBlock(
+            width: double.infinity,
+            height: 180,
+            borderRadius: BorderRadius.circular(16),
+          ),
           const SizedBox(height: 24),
           // List items skeleton
-          ...List.generate(4, (i) => Padding(
-            padding: EdgeInsets.only(bottom: i == 3 ? 0 : 12),
-            child: SkeletonBlock(width: double.infinity, height: 56, borderRadius: BorderRadius.circular(12)),
-          )),
+          ...List.generate(
+            4,
+            (i) => Padding(
+              padding: EdgeInsets.only(bottom: i == 3 ? 0 : 12),
+              child: SkeletonBlock(
+                width: double.infinity,
+                height: 56,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
         ],
       ),
     );

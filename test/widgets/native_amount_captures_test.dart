@@ -37,8 +37,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/currency_model.dart';
+import 'package:azaman/models/business_models.dart';
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/models/susu_model.dart';
+import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/providers/auth_provider.dart' show currentUserProvider;
 import 'package:azaman/providers/currency_provider.dart';
 import 'package:azaman/providers/smart_route_provider.dart';
@@ -53,6 +55,12 @@ import 'package:azaman/providers/susu_provider.dart'
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/vault_provider.dart'
     show Vault, VaultDeposit, vaultDepositsProvider, vaultDetailProvider;
+import 'package:azaman/providers/business_provider.dart';
+import 'package:azaman/screens/marketplace/business_dashboard_screen.dart';
+import 'package:azaman/screens/marketplace/cart_screen.dart';
+import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
+import 'package:azaman/screens/marketplace/receipt_screen.dart';
+import 'package:azaman/services/business_service.dart';
 import 'package:azaman/screens/smart_route/smart_route_create_screen.dart';
 import 'package:azaman/screens/susu/susu_config_screen.dart';
 import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
@@ -67,6 +75,7 @@ import 'package:azaman/widgets/vault/vault_progress_card.dart';
 const _storageChannel = MethodChannel(
   'plugins.it_nomads.com/flutter_secure_storage',
 );
+const _pathProviderChannel = MethodChannel('plugins.flutter.io/path_provider');
 
 // ── Real fonts (FontLoader pattern; see test/goldens/README.md) ─────────────
 
@@ -176,6 +185,124 @@ SusuMemberView _capMember(String id, int userId, String name, int slot) =>
       status: SusuMemberStatus.active,
       role: 'member',
     );
+
+// ── D2 merchant fixtures (USDC settlement surfaces) ────────────────────────
+
+// Unpaid (sent) invoice — the payment-preparation state where wording
+// must say PAYABLE, never settled.
+BusinessInvoice _capUnpaidInvoice() => BusinessInvoice(
+  id: 'inv_cap2',
+  businessProfileId: 'biz_cap',
+  customerId: 10,
+  invoiceRef: 'AZ-INV-2001',
+  status: InvoiceStatus.sent,
+  subtotalUsdc: 1234.56,
+  taxTotalUsdc: 0,
+  tipUsdc: 0,
+  billTotalUsdc: 1234.56,
+  feeUsdc: 1.23,
+  customerCoveredFee: false,
+  customerPaidUsdc: null,
+  paidAt: null,
+  createdAt: _kGoldenNow,
+  lineItems: [
+    const InvoiceLineItem(
+      id: 'li_1',
+      description: 'Adinkra wall panel',
+      quantity: 1,
+      unitPriceUsdc: 1234.56,
+      lineTotalUsdc: 1234.56,
+    ),
+  ],
+  taxLines: [],
+  businessName: 'Makola Trading Co.',
+);
+
+class _CapInvoiceService extends BusinessService {
+  @override
+  Future<BusinessInvoice> getInvoice(String invoiceId) async =>
+      _capUnpaidInvoice();
+}
+
+class _CapDashboardService extends BusinessService {
+  @override
+  Future<BusinessStats> getBusinessStats() async => const BusinessStats(
+    totalOrders: 40,
+    completedOrders: 20,
+    pendingOrders: 5,
+    disputedOrders: 0,
+    cancelledOrders: 0,
+    totalRevenue: 12345.67,
+    avgOrderValue: 617.28,
+    recentOrders: [],
+  );
+
+  @override
+  Future<ProductPage> getMyProducts({int limit = 20, String? cursor}) async => (
+    products: [
+      const BusinessProduct(
+        id: 'p1',
+        businessProfileId: 'biz_cap',
+        name: 'Adinkra wall panel',
+        slug: 'adinkra-panel',
+        priceUsdc: 1234.56,
+        priceGhs: '18983.93',
+        totalRevenue: 0,
+        imageUrls: [],
+        isActive: true,
+        totalOrders: 0,
+      ),
+      const BusinessProduct(
+        id: 'p2',
+        businessProfileId: 'biz_cap',
+        name: 'Kente tote (no GHS price set)',
+        slug: 'kente-tote',
+        priceUsdc: 42.5,
+        priceGhs: null,
+        totalRevenue: 0,
+        imageUrls: [],
+        isActive: true,
+        totalOrders: 0,
+      ),
+    ],
+    hasMore: false,
+    nextCursor: null,
+  );
+}
+
+class _CapBusinessNotifier extends MyBusinessNotifier {
+  _CapBusinessNotifier(super.service, MyBusinessState preset) {
+    state = preset;
+  }
+}
+
+BusinessInvoice _capInvoice() => BusinessInvoice(
+  id: 'inv_cap',
+  businessProfileId: 'biz_cap',
+  customerId: 10,
+  invoiceRef: 'AZ-RC-1001',
+  status: InvoiceStatus.paid,
+  subtotalUsdc: 1234.56,
+  taxTotalUsdc: 0,
+  tipUsdc: 0,
+  billTotalUsdc: 1234.56,
+  feeUsdc: 0,
+  customerCoveredFee: true,
+  customerPaidUsdc: 1234.56,
+  paidAt: _kGoldenNow,
+  createdAt: _kGoldenNow.subtract(const Duration(hours: 2)),
+  lineItems: [
+    const InvoiceLineItem(
+      id: 'li_1',
+      description: 'Adinkra wall panel',
+      quantity: 1,
+      unitPriceUsdc: 1234.56,
+      lineTotalUsdc: 1234.56,
+    ),
+  ],
+  taxLines: [],
+  businessName: 'Makola Trading Co.',
+);
 
 /// Pinned golden clock: the wheel countdown, the vault 'days left' and
 /// deposit-history captions all render from this instant, so the goldens
@@ -309,10 +436,24 @@ Future<void> _pumpSubject(
   required Size size,
   required bool dark,
   List<Override> extraOverrides = const [],
+  void Function(ProviderContainer)? onContainer,
 }) async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
         if (call.method == 'read') return 'mock-token';
+        return null;
+      });
+  // Cached network images reach flutter_cache_manager, which asks
+  // path_provider for a cache directory; stub it so merchant captures
+  // with imagery render deterministically without a platform plugin.
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(_pathProviderChannel, (call) async {
+        switch (call.method) {
+          case 'getTemporaryDirectory':
+          case 'getApplicationSupportDirectory':
+          case 'getApplicationDocumentsDirectory':
+            return '/tmp/azm_golden_cache';
+        }
         return null;
       });
   SharedPreferences.setMockInitialValues({'azaman_theme': dark ? 1 : 0});
@@ -332,6 +473,7 @@ Future<void> _pumpSubject(
       ...extraOverrides,
     ],
   );
+  onContainer?.call(container);
   container.read(currencyProvider.notifier).state = DisplayCurrency.ghs;
 
   await tester.pumpWidget(
@@ -406,6 +548,7 @@ Future<void> _capture(
   required Size size,
   required bool dark,
   List<Override> extraOverrides = const [],
+  void Function(ProviderContainer)? onContainer,
   Future<void> Function(WidgetTester)? afterPump,
 }) async {
   await _pumpSubject(
@@ -414,6 +557,7 @@ Future<void> _capture(
     size: size,
     dark: dark,
     extraOverrides: extraOverrides,
+    onContainer: onContainer,
   );
   if (afterPump != null) await afterPump(tester);
   await expectLater(
@@ -552,6 +696,147 @@ void main() {
               findsWidgets,
               reason: 'GH\u2085 246.08 estimate must be on screen',
             );
+            expect(t.takeException(), isNull);
+          },
+        );
+      });
+    }
+
+    // ── D2 FULL-SCREEN: merchant settlement surfaces ────────────────────
+    void seedCart(ProviderContainer c) {
+      final cart = c.read(cartProvider.notifier);
+      cart.startNewCart(
+        businessProfileId: 'biz_cap',
+        businessName: 'Makola Trading Co.',
+      );
+      cart.addItem(
+        businessProfileId: 'biz_cap',
+        businessName: 'Makola Trading Co.',
+        productId: 'p1',
+        name: 'Adinkra wall panel',
+        unitPrice: 1234.56,
+      );
+    }
+
+    for (final e in {'320': sizes['320']!, '390': sizes['390']!}.entries) {
+      testWidgets('cart ${e.key} $mode', (tester) async {
+        await _capture(
+          tester,
+          name: 'merchant_cart_${e.key}_$mode',
+          child: const CartScreen(),
+          size: e.value,
+          dark: dark,
+          onContainer: seedCart,
+          afterPump: (t) async {
+            // Meaning: grouped 1,234.56 USDC payable figure AND the
+            // labelled estimate at the pinned rate (1,234.56 x 15.38).
+            expect(find.textContaining('1,234.56 USDC'), findsWidgets);
+            expect(find.textContaining('current estimate'), findsOneWidget);
+            expect(t.takeException(), isNull);
+          },
+        );
+      });
+    }
+
+    for (final e in {'320': sizes['320']!, '390': sizes['390']!}.entries) {
+      testWidgets('receipt ${e.key} $mode', (tester) async {
+        await _capture(
+          tester,
+          name: 'merchant_receipt_${e.key}_$mode',
+          child: ReceiptScreen(
+            invoice: _capInvoice(),
+            businessName: 'Makola Trading Co.',
+          ),
+          size: e.value,
+          dark: dark,
+          afterPump: (t) async {
+            // The receipt runs a 500ms elastic entrance; settle it.
+            await t.pumpAndSettle();
+            // Meaning: grouped line and bill totals, labelled estimate.
+            expect(find.textContaining('1,234.56 USDC'), findsWidgets);
+            expect(find.textContaining('current estimate'), findsOneWidget);
+            expect(t.takeException(), isNull);
+          },
+        );
+      });
+    }
+
+    // ── D2 FULL-SCREEN: invoice detail (UNPAID — payment preparation) ──
+    for (final e in {'320': sizes['320']!, '390': sizes['390']!}.entries) {
+      testWidgets('invoice ${e.key} $mode', (tester) async {
+        await _capture(
+          tester,
+          name: 'merchant_invoice_${e.key}_$mode',
+          child: InvoiceDetailScreen(
+            invoiceId: 'inv_cap2',
+            service: _CapInvoiceService(),
+          ),
+          size: e.value,
+          dark: dark,
+          afterPump: (t) async {
+            // Meaning: the unpaid bill renders grouped totals and says
+            // PAYABLE — settlement wording must never appear pre-payment.
+            expect(find.textContaining('1,234.56 USDC'), findsWidgets);
+            expect(find.textContaining('payable in USDC'), findsWidgets);
+            expect(find.textContaining('settled in USDC'), findsNothing);
+            expect(find.textContaining('current estimate'), findsWidgets);
+            expect(t.takeException(), isNull);
+          },
+        );
+      });
+    }
+
+    // ── D2 FULL-SCREEN: business dashboard (financial summaries + rows) ──
+    for (final e in {'320': sizes['320']!, '390': sizes['390']!}.entries) {
+      testWidgets('dashboard ${e.key} $mode', (tester) async {
+        await _capture(
+          tester,
+          name: 'merchant_dashboard_${e.key}_$mode',
+          child: BusinessDashboardScreen(service: _CapDashboardService()),
+          size: e.value,
+          dark: dark,
+          extraOverrides: [
+            myBusinessProvider.overrideWith(
+              (ref) => _CapBusinessNotifier(
+                _CapDashboardService(),
+                const MyBusinessState(
+                  profile: BusinessProfile(
+                    id: 'biz_cap',
+                    bizId: 'BIZ-TEST0001',
+                    businessName: 'Makola Trading Co.',
+                    category: 'RETAIL',
+                    isVerified: true,
+                    isSuspended: false,
+                    kybStatus: 'APPROVED',
+                    totalEscrows: 3,
+                    completedEscrows: 3,
+                    userId: 10,
+                    totalVolume: 0,
+                    averageRating: 4.6,
+                    username: 'makola',
+                  ),
+                  hasLoaded: true,
+                ),
+              ),
+            ),
+          ],
+          afterPump: (t) async {
+            // Meaning: verified-USDC aggregates render grouped with an
+            // explicit denomination, never bare digits.
+            expect(find.text('12,345.67 USDC'), findsOneWidget);
+            expect(find.text('617.28 USDC'), findsOneWidget);
+            // Scroll the product rows into the built window, then pin the
+            // truthful mixed state: one authoritative GHS price, one
+            // product with NO GHS price (no invented conversion).
+            await t.dragUntilVisible(
+              find.text('MY PRODUCTS'),
+              find.byType(Scrollable).first,
+              const Offset(0, -300),
+            );
+            await t.pump();
+            expect(find.text('GH₵18983.93'), findsOneWidget);
+            expect(find.text('1,234.56 USDC payable'), findsOneWidget);
+            expect(find.text('42.50 USDC payable'), findsOneWidget);
             expect(t.takeException(), isNull);
           },
         );

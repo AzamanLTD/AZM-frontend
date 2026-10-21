@@ -12,8 +12,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/screens/marketplace/receipt_screen.dart';
@@ -27,7 +28,11 @@ import 'package:azaman/widgets/nav_transitions.dart';
 
 class InvoiceDetailScreen extends ConsumerStatefulWidget {
   final String invoiceId;
-  const InvoiceDetailScreen({super.key, required this.invoiceId});
+
+  /// Test seam: defaults to the real service; tests inject a subclass
+  /// returning DTO-shaped fixtures. Production call sites are unchanged.
+  final BusinessService? service;
+  const InvoiceDetailScreen({super.key, required this.invoiceId, this.service});
 
   @override
   ConsumerState<InvoiceDetailScreen> createState() =>
@@ -35,7 +40,7 @@ class InvoiceDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
-  final _service = BusinessService();
+  late final _service = widget.service ?? BusinessService();
   final _slideKey = GlobalKey<SlideToConfirmState>();
   final _tipCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
@@ -97,8 +102,9 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           final updated = await _service.payInvoice(
             invoiceId: inv.id,
             tipUsdc: _tip,
-            customerNote:
-                _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+            customerNote: _noteCtrl.text.trim().isEmpty
+                ? null
+                : _noteCtrl.text.trim(),
             customerCoveredFee: _coverFee,
           );
           if (!mounted) return;
@@ -108,42 +114,49 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
             _invoice = updated;
             _paying = false;
           });
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Invoice paid. Thank you!'),
-            behavior: SnackBarBehavior.floating,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invoice paid. Thank you!'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
           Future.delayed(const Duration(milliseconds: 600), () {
             if (!mounted) return;
-            LeaveReviewSheet.show(context, business: BusinessProfile(
-              id: inv.businessProfileId,
-              bizId: inv.businessBizId ?? '',
-              businessName: inv.businessName ?? '',
-              category: '',
-              isVerified: false,
-              isSuspended: false,
-              kybStatus: 'UNVERIFIED',
-              totalEscrows: 0,
-              completedEscrows: 0,
-              userId: 0,
-              totalVolume: 0,
-              averageRating: 0,
-              reviews: const [],
-              reviewCount: 0,
-              amenities: [],
-              cuisineTypes: [],
-              username: '',
-              logoUrl: inv.businessLogoUrl,
-            ));
+            LeaveReviewSheet.show(
+              context,
+              business: BusinessProfile(
+                id: inv.businessProfileId,
+                bizId: inv.businessBizId ?? '',
+                businessName: inv.businessName ?? '',
+                category: '',
+                isVerified: false,
+                isSuspended: false,
+                kybStatus: 'UNVERIFIED',
+                totalEscrows: 0,
+                completedEscrows: 0,
+                userId: 0,
+                totalVolume: 0,
+                averageRating: 0,
+                reviews: const [],
+                reviewCount: 0,
+                amenities: [],
+                cuisineTypes: [],
+                username: '',
+                logoUrl: inv.businessLogoUrl,
+              ),
+            );
           });
         } catch (e) {
           if (!mounted) return;
           setState(() => _paying = false);
           _slideKey.currentState?.reset();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Payment failed: $e'),
-            backgroundColor: ref.read(themeProvider).colors.danger,
-            behavior: SnackBarBehavior.floating,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Payment failed: $e'),
+              backgroundColor: ref.read(themeProvider).colors.danger,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       },
       reason: 'Authenticate to pay invoice',
@@ -160,33 +173,54 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
         backgroundColor: colors.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        title: Text('Invoice',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          'Invoice',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: _loading
           ? Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                SkeletonBlock(height: 100, width: double.infinity, borderRadius: BorderRadius.circular(16)),
-                const SizedBox(height: 16),
-                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
-                const SizedBox(height: 12),
-                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
-                const SizedBox(height: 12),
-                SkeletonBlock(height: 50, width: double.infinity, borderRadius: BorderRadius.circular(12)),
-              ],
-            ),
-          )
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  SkeletonBlock(
+                    height: 100,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  const SizedBox(height: 16),
+                  SkeletonBlock(
+                    height: 50,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  const SizedBox(height: 12),
+                  SkeletonBlock(
+                    height: 50,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  const SizedBox(height: 12),
+                  SkeletonBlock(
+                    height: 50,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ],
+              ),
+            )
           : _invoice == null
-              ? Center(
-                  child: Text(_error ?? 'Invoice not found',
-                      style: TextStyle(color: colors.textTertiary)),
-                )
-              : _body(colors, _invoice!),
+          ? Center(
+              child: Text(
+                _error ?? 'Invoice not found',
+                style: TextStyle(color: colors.textTertiary),
+              ),
+            )
+          : _body(colors, _invoice!),
     );
   }
 
@@ -225,7 +259,11 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 ? CachedNetworkImageProvider(inv.businessLogoUrl!)
                 : null,
             child: inv.businessLogoUrl == null
-                ? Icon(Icons.storefront_outlined, color: colors.accent, size: 22)
+                ? Icon(
+                    Icons.storefront_outlined,
+                    color: colors.accent,
+                    size: 22,
+                  )
                 : null,
           ),
           const SizedBox(width: 12),
@@ -234,12 +272,15 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('BILL FROM',
-                    style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2)),
+                Text(
+                  'BILL FROM',
+                  style: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 3),
                 Text(
                   inv.businessName ?? 'Business',
@@ -250,16 +291,19 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(inv.invoiceRef,
-                    style:
-                        TextStyle(color: colors.textTertiary, fontSize: 12)),
+                Text(
+                  inv.invoiceRef,
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                ),
                 if (inv.locationLabel != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       '${inv.locationLabel}${inv.tableLabel != null ? ' · ${inv.tableLabel}' : ''}',
-                      style:
-                          TextStyle(color: colors.textTertiary, fontSize: 11),
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
               ],
@@ -274,13 +318,15 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title.toUpperCase(),
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            )),
+        Text(
+          title.toUpperCase(),
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
         const SizedBox(height: 8),
         child,
       ],
@@ -307,30 +353,39 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(item.description,
-                            style: TextStyle(
-                                color: colors.textPrimary, fontSize: 13.5)),
                         Text(
-                          '${item.quantity} × ${item.unitPriceUsdc.toStringAsFixed(2)}',
+                          item.description,
                           style: TextStyle(
-                              color: colors.textTertiary, fontSize: 11),
+                            color: colors.textPrimary,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                        Text(
+                          '${item.quantity} × ${AzMoney.amount(item.unitPriceUsdc)}',
+                          style: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Text(
-                    '${item.lineTotalUsdc.toStringAsFixed(2)} USDC',
+                    '${AzMoney.amount(item.lineTotalUsdc)} USDC',
                     style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700),
+                      color: colors.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
             ),
           if (inv.lineItems.isEmpty)
-            Text('No line items',
-                style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+            Text(
+              'No line items',
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
         ],
       ),
     );
@@ -356,30 +411,56 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           if (inv.tipUsdc > 0) _totalRow(colors, 'Tip', inv.tipUsdc),
           Divider(color: colors.divider, height: 18),
           _totalRow(colors, 'Bill total', inv.billTotalUsdc, emphasize: true),
+          // D2 merchant honesty: the bill is settled USDC-native; a live
+          // labelled GHS estimate gives cedi context. Never a guess when
+          // the rate is stale — the line is simply absent.
+          Align(
+            alignment: Alignment.centerRight,
+            child: AmountEntryEquivalent(
+              amountUsdc: inv.billTotalUsdc,
+              // The totals breakdown renders in every status, so the
+              // rail note must follow the DTO's own evidence: an unpaid
+              // (sent) bill is payable, a paid one has settled, a
+              // voided one is denominated-only.
+              railNote: switch (inv.status) {
+                InvoiceStatus.paid => 'settled in USDC',
+                InvoiceStatus.sent => 'payable in USDC',
+                _ => 'denominated in USDC',
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _totalRow(AzamanColors colors, String label, double value,
-      {bool emphasize = false}) {
+  Widget _totalRow(
+    AzamanColors colors,
+    String label,
+    double value, {
+    bool emphasize = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(
-                color: emphasize ? colors.textPrimary : colors.textSecondary,
-                fontSize: 13,
-                fontWeight: emphasize ? FontWeight.w800 : FontWeight.w500,
-              )),
-          Text('${value.toStringAsFixed(2)} USDC',
-              style: TextStyle(
-                color: emphasize ? colors.textPrimary : colors.textSecondary,
-                fontSize: 13,
-                fontWeight: emphasize ? FontWeight.w800 : FontWeight.w600,
-              )),
+          Text(
+            label,
+            style: TextStyle(
+              color: emphasize ? colors.textPrimary : colors.textSecondary,
+              fontSize: 13,
+              fontWeight: emphasize ? FontWeight.w800 : FontWeight.w500,
+            ),
+          ),
+          Text(
+            '${AzMoney.amount(value)} USDC',
+            style: TextStyle(
+              color: emphasize ? colors.textPrimary : colors.textSecondary,
+              fontSize: 13,
+              fontWeight: emphasize ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -389,13 +470,15 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('PAY THIS INVOICE',
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            )),
+        Text(
+          'PAY THIS INVOICE',
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
         const SizedBox(height: 10),
         // Tip
         TextField(
@@ -409,8 +492,11 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           decoration: InputDecoration(
             labelText: 'Tip (optional)',
             labelStyle: TextStyle(color: colors.textTertiary),
-            prefixIcon: Icon(Icons.widgets_outlined,
-                size: 18, color: colors.textTertiary),
+            prefixIcon: Icon(
+              Icons.widgets_outlined,
+              size: 18,
+              color: colors.textTertiary,
+            ),
             filled: true,
             fillColor: colors.card,
             border: OutlineInputBorder(
@@ -426,21 +512,30 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
             color: colors.card,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: SwitchListTile(
-            value: _coverFee,
-            onChanged: (v) {
-              AzamanHaptics.toggle();
-              setState(() => _coverFee = v);
-            },
-            activeThumbColor: colors.success,
-            title: Text('Cover platform fee',
+          child: Material(
+            // Material host for the tile's ink: the decorated Container
+            // would otherwise swallow state painting and ripples — the
+            // framework asserts on this exact nesting.
+            type: MaterialType.transparency,
+            child: SwitchListTile(
+              value: _coverFee,
+              onChanged: (v) {
+                AzamanHaptics.toggle();
+                setState(() => _coverFee = v);
+              },
+              activeThumbColor: colors.success,
+              title: Text(
+                'Cover platform fee',
                 style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600)),
-            subtitle: Text(
-              'Add ${inv.feeUsdc.toStringAsFixed(2)} USDC so the business receives the full amount',
-              style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
+                  color: colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: Text(
+                'Add ${AzMoney.amount(inv.feeUsdc)} USDC so the business receives the full amount',
+                style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
+              ),
             ),
           ),
         ),
@@ -465,15 +560,30 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Total to pay',
-                style: TextStyle(
-                    color: colors.textSecondary, fontSize: 13)),
-            Text('${_totalToPay.toStringAsFixed(2)} USDC',
-                style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900)),
+            Text(
+              'Total to pay',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+            Text(
+              '${AzMoney.amount(_totalToPay)} USDC',
+              style: TextStyle(
+                color: colors.accent,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           ],
+        ),
+        const SizedBox(height: 2),
+        // Cedi context for the payable figure, labelled as an estimate
+        // and absent entirely when no usable live rate exists.
+        Align(
+          alignment: Alignment.centerRight,
+          child: AmountEntryEquivalent(
+            amountUsdc: _totalToPay,
+            // The pay sheet renders only while the bill is unpaid.
+            railNote: 'payable in USDC',
+          ),
         ),
         const SizedBox(height: 12),
         SlideToConfirm(
@@ -498,17 +608,19 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.check_circle_outline,
-              color: colors.success, size: 40),
+          Icon(Icons.check_circle_outline, color: colors.success, size: 40),
           const SizedBox(height: 8),
-          Text('Paid',
-              style: TextStyle(
-                  color: colors.success,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            'Paid',
+            style: TextStyle(
+              color: colors.success,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
-            'You paid ${(inv.customerPaidUsdc ?? inv.billTotalUsdc).toStringAsFixed(2)} USDC',
+            'You paid ${AzMoney.amount(inv.customerPaidUsdc ?? inv.billTotalUsdc)} USDC',
             style: TextStyle(color: colors.textSecondary, fontSize: 13),
           ),
           if (inv.paidAt != null)
@@ -529,13 +641,19 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
                 ),
               );
             },
-            icon: Icon(Icons.insert_drive_file_outlined,
-                size: 16, color: colors.accent),
-            label: Text('View Full Receipt',
-                style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700)),
+            icon: Icon(
+              Icons.insert_drive_file_outlined,
+              size: 16,
+              color: colors.accent,
+            ),
+            label: Text(
+              'View Full Receipt',
+              style: TextStyle(
+                color: colors.accent,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -554,8 +672,10 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
           Icon(Icons.cancel_outlined, color: colors.textTertiary),
           const SizedBox(width: 10),
           Expanded(
-            child: Text('This invoice was voided by the business.',
-                style: TextStyle(color: colors.textTertiary, fontSize: 13)),
+            child: Text(
+              'This invoice was voided by the business.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 13),
+            ),
           ),
         ],
       ),
@@ -564,8 +684,18 @@ class _InvoiceDetailScreenState extends ConsumerState<InvoiceDetailScreen> {
 
   String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }

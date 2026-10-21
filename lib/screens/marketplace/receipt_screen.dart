@@ -5,6 +5,8 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -38,10 +40,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
       vsync: this,
       duration: const Duration(milliseconds: 500),
     );
-    _scaleAnim = CurvedAnimation(
-      parent: _animCtrl,
-      curve: Curves.elasticOut,
-    );
+    _scaleAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.elasticOut);
     _animCtrl.forward();
   }
 
@@ -61,16 +60,18 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
     buf.writeln('Ref: ${inv.invoiceRef}');
     buf.writeln('---');
     for (final item in inv.lineItems) {
-      buf.writeln('${item.description}  ${item.lineTotalUsdc.toStringAsFixed(2)} USDC');
+      buf.writeln(
+        '${item.description}  ${AzMoney.amount(item.lineTotalUsdc)} USDC',
+      );
     }
     if (inv.taxLines.isNotEmpty) {
       buf.writeln('---');
       for (final tax in inv.taxLines) {
-        buf.writeln('${tax.label}  ${tax.amountUsdc.toStringAsFixed(2)} USDC');
+        buf.writeln('${tax.label}  ${AzMoney.amount(tax.amountUsdc)} USDC');
       }
     }
     buf.writeln('---');
-    buf.writeln('Total: ${inv.billTotalUsdc.toStringAsFixed(2)} USDC');
+    buf.writeln('Total: ${AzMoney.amount(inv.billTotalUsdc)} USDC');
     if (inv.paidAt != null) {
       buf.writeln('Paid: ${inv.paidAt.toString()}');
     }
@@ -116,11 +117,14 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
         backgroundColor: colors.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        title: Text('Receipt',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          'Receipt',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
@@ -136,16 +140,22 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                   color: colors.success.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.check_circle_outline,
-                    color: colors.success, size: 40),
+                child: Icon(
+                  Icons.check_circle_outline,
+                  color: colors.success,
+                  size: 40,
+                ),
               ),
             ),
             const SizedBox(height: 8),
-            Text('Payment Successful',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              'Payment Successful',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 24),
 
             // Receipt card
@@ -164,8 +174,7 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                   Divider(color: colors.divider),
                   const SizedBox(height: 12),
                   // Ref + date
-                  _infoRow(
-                      colors, 'Reference', _invoiceRef),
+                  _infoRow(colors, 'Reference', _invoiceRef),
                   const SizedBox(height: 6),
                   if (inv.paidAt != null)
                     _infoRow(colors, 'Date', _fmtDate(inv.paidAt!)),
@@ -180,10 +189,31 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                   Divider(color: colors.divider, thickness: 1.5),
                   const SizedBox(height: 8),
                   _totalRow(colors, 'Subtotal', inv.subtotalUsdc),
-                  if (inv.tipUsdc > 0)
-                    _totalRow(colors, 'Tip', inv.tipUsdc),
-                  _totalRow(colors, 'Total', inv.billTotalUsdc,
-                      emphasize: true),
+                  if (inv.tipUsdc > 0) _totalRow(colors, 'Tip', inv.tipUsdc),
+                  _totalRow(
+                    colors,
+                    'Total',
+                    inv.billTotalUsdc,
+                    emphasize: true,
+                  ),
+                  // D2 merchant honesty: cedi context for the settled
+                  // USDC total — a labelled live estimate, or nothing.
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: AmountEntryEquivalent(
+                      amountUsdc: inv.billTotalUsdc,
+                      // Settlement wording only where the DTO proves it:
+                      // a paid status, or a recorded paid amount with a
+                      // settlement timestamp. Otherwise the receipt stays
+                      // denominated-only — no implied settlement.
+                      railNote:
+                          (inv.status == InvoiceStatus.paid ||
+                              (inv.customerPaidUsdc != null &&
+                                  inv.paidAt != null))
+                          ? 'settled in USDC'
+                          : 'denominated in USDC',
+                    ),
+                  ),
                   const SizedBox(height: 20),
 
                   // QR Code
@@ -208,9 +238,10 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text('Scan to verify receipt',
-                      style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11)),
+                  Text(
+                    'Scan to verify receipt',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                  ),
                 ],
               ),
             ),
@@ -258,16 +289,20 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(widget.businessName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800)),
-              Text('Azaman Marketplace',
-                  style: TextStyle(
-                      color: colors.textTertiary, fontSize: 11.5)),
+              Text(
+                widget.businessName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                'Azaman Marketplace',
+                style: TextStyle(color: colors.textTertiary, fontSize: 11.5),
+              ),
             ],
           ),
         ),
@@ -279,13 +314,15 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: TextStyle(color: colors.textTertiary, fontSize: 12)),
-        Text(value,
-            style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w700)),
+        Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+        Text(
+          value,
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ],
     );
   }
@@ -300,20 +337,25 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.description,
-                    style: TextStyle(
-                        color: colors.textPrimary, fontSize: 13)),
-                Text('${item.quantity} × ${item.unitPriceUsdc.toStringAsFixed(2)}',
-                    style: TextStyle(
-                        color: colors.textTertiary, fontSize: 11)),
+                Text(
+                  item.description,
+                  style: TextStyle(color: colors.textPrimary, fontSize: 13),
+                ),
+                Text(
+                  '${item.quantity} × ${AzMoney.amount(item.unitPriceUsdc)}',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                ),
               ],
             ),
           ),
-          Text('${item.lineTotalUsdc.toStringAsFixed(2)} USDC',
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700)),
+          Text(
+            '${AzMoney.amount(item.lineTotalUsdc)} USDC',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -329,37 +371,46 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
             '${tax.label} (${tax.isPercentage ? '${tax.value.toStringAsFixed(1)}%' : 'flat'})',
             style: TextStyle(color: colors.textSecondary, fontSize: 12),
           ),
-          Text('${tax.amountUsdc.toStringAsFixed(2)} USDC',
-              style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
+          Text(
+            '${AzMoney.amount(tax.amountUsdc)} USDC',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _totalRow(AzamanColors colors, String label, double value,
-      {bool emphasize = false}) {
+  Widget _totalRow(
+    AzamanColors colors,
+    String label,
+    double value, {
+    bool emphasize = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: TextStyle(
-                color:
-                    emphasize ? colors.textPrimary : colors.textSecondary,
-                fontSize: 13,
-                fontWeight: emphasize ? FontWeight.w800 : FontWeight.w500,
-              )),
-          Text('${value.toStringAsFixed(2)} USDC',
-              style: TextStyle(
-                color:
-                    emphasize ? colors.textPrimary : colors.textSecondary,
-                fontSize: 13,
-                fontWeight: emphasize ? FontWeight.w800 : FontWeight.w600,
-              )),
+          Text(
+            label,
+            style: TextStyle(
+              color: emphasize ? colors.textPrimary : colors.textSecondary,
+              fontSize: 13,
+              fontWeight: emphasize ? FontWeight.w800 : FontWeight.w500,
+            ),
+          ),
+          Text(
+            '${AzMoney.amount(value)} USDC',
+            style: TextStyle(
+              color: emphasize ? colors.textPrimary : colors.textSecondary,
+              fontSize: 13,
+              fontWeight: emphasize ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -367,8 +418,18 @@ class _ReceiptScreenState extends ConsumerState<ReceiptScreen>
 
   String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
