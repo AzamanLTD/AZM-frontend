@@ -21,7 +21,6 @@
 // =============================================================================
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -96,7 +95,7 @@ Future<void> _pump(WidgetTester tester, Size size, {required bool dark}) async {
       overrides: [
         themeProvider.overrideWith((ref) => tp),
         balanceDataProvider.overrideWith(
-          (ref) => BalanceData(availableBalance: 100),
+          (ref) => const BalanceData(availableBalance: 100),
         ),
       ],
       child: MediaQuery(
@@ -104,7 +103,7 @@ Future<void> _pump(WidgetTester tester, Size size, {required bool dark}) async {
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: _harnessTheme(dark),
-          home: RepaintBoundary(
+          home: const RepaintBoundary(
             child: CardTransferScreen(fxRateOverride: 15.38),
           ),
         ),
