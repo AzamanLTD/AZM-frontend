@@ -156,10 +156,13 @@ Future<void> _pump(
 /// Rolls the entry wheel to USDC so the legacy harness amounts keep
 /// meaning '5.00 USDC'. (The wheel's production default is GHS-first;
 /// the GHS conversion path is covered by its own tests below.)
+///
+/// Send's roller is VERTICAL: a deliberate upward flick (against the
+/// reading direction) advances the unit, GHS -> USDC.
 Future<void> _selectUsdcEntry(WidgetTester tester) async {
   final wheel = find.byKey(const ValueKey('send-amount-currency'));
   expect(wheel, findsOneWidget);
-  await tester.drag(wheel, const Offset(-80, 0));
+  await tester.drag(wheel, const Offset(0, -80));
   await tester.pumpAndSettle();
 }
 
@@ -868,9 +871,11 @@ void main() {
       );
 
       await enterGhs(tester);
+      // The Send roller is VERTICAL: a deliberate upward flick advances
+      // GHS -> USDC; the amount converts numerically with the digits.
       await tester.drag(
           find.byKey(const ValueKey('send-amount-currency')),
-          const Offset(-80, 0));
+          const Offset(0, -80));
       await tester.pumpAndSettle();
 
       // 5.00 GHS -> 0.33 USDC (half-up): the digits THEMSELVES convert.

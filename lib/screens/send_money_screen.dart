@@ -797,6 +797,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     // (USDC) alongside its equivalent when the rate is valid.
     final pref = ref.watch(currencyProvider);
     final chipRate = _liveRate();
+    final osKeyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -821,41 +822,51 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                   padding: EdgeInsets.fromLTRB(4, compact ? 4 : 10, 4, 0),
                   child: SizedBox(
                     width: double.infinity,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          // GHANA-FIRST: the inline currency wheel rides
-                          // immediately before the amount. It chooses the
-                          // denomination the digits represent (LOCAL to
-                          // this transaction — never the global display
-                          // preference) and a switch CONVERTS the amount.
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: CurrencyWheelToggle(
-                              key: const ValueKey('send-amount-currency'),
-                              options: CurrencyCatalog.sendEntryUnits,
-                              selectedIndex: _entryIndex,
-                              onChanged: _onEntryUnitChanged,
+                    // GHANA-FIRST: the inline currency wheel rides
+                    // immediately before the amount. It chooses the
+                    // denomination the digits represent (LOCAL to
+                    // this transaction — never the global display
+                    // preference) and a switch CONVERTS the amount.
+                    //
+                    // VERTICAL roller: the selected chip sits fully
+                    // visible with the neighbour units peeking above/
+                    // below, never cropped by the row. The wheel rides
+                    // OUTSIDE the amount's scale-down box so its 44dp
+                    // touch target and published 74×72 geometry hold at
+                    // every width — only the FIGURE ever shrinks to fit.
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 2),
+                          child: CurrencyWheelToggle(
+                            key: const ValueKey('send-amount-currency'),
+                            axis: CurrencyWheelAxis.vertical,
+                            options: CurrencyCatalog.sendEntryUnits,
+                            selectedIndex: _entryIndex,
+                            onChanged: _onEntryUnitChanged,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: OdometerNumber(
+                              value: _amountDisplay,
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: compact ? 48 : 60,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -1.0,
+                                height: 1.0,
+                              ),
+                              semanticsLabel:
+                                  '$_amountDisplay ${_entryUnit.symbol}',
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          OdometerNumber(
-                            value: _amountDisplay,
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: compact ? 48 : 60,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -1.0,
-                              height: 1.0,
-                            ),
-                            semanticsLabel:
-                                '$_amountDisplay ${_entryUnit.symbol}',
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -946,14 +957,25 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
         // Keypad + CTA anchored to the bottom; never scrolls, never hides
         // behind the bottom navigation (safe-area inset included).
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: AmountKeypad(
-            onKey: _onKeypadKey,
-            enabled: _stage != _SendStage.sending,
-            rowHeight: compact ? 46 : 54,
+        //
+        // WORKSTREAM C — short-viewport rebalance: while the OS keyboard
+        // (a text field: recipient/reference input) holds the lower screen,
+        // the amount keypad is NOT the active input and the two surfaces
+        // cannot both own the bottom — on 320×540+300dp inset the anchored
+        // pair overflowed by ~125dp. The keypad therefore steps aside for
+        // the OS keyboard (input surface handoff, 44dp targets untouched
+        // on both) and returns the instant the keyboard closes. The amount
+        // stays editable the moment the OS keyboard is dismissed; the CTA
+        // and scrollable compose column always remain reachable.
+        if (!osKeyboardUp)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: AmountKeypad(
+              onKey: _onKeypadKey,
+              enabled: _stage != _SendStage.sending,
+              rowHeight: compact ? 46 : 54,
+            ),
           ),
-        ),
         Padding(
           padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + bottomInset),
           child: _PrimaryAction(

@@ -31,6 +31,12 @@ import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
+/// Which direction the roller strips along. Horizontal is the default and
+/// stays the presentation for existing callers (display surfaces, Card
+/// Transfer); Send opts into the vertical roller so the selected chip is
+/// never cropped by the surrounding page row.
+enum CurrencyWheelAxis { horizontal, vertical }
+
 /// A swipeable inline currency wheel. [options] is the surface's real
 /// supported set; [selected] is the current index; [onChanged] fires with
 /// the new index whenever the user rolls, taps-picks or semantically
@@ -42,6 +48,7 @@ class CurrencyWheelToggle extends ConsumerStatefulWidget {
     required this.options,
     required this.selectedIndex,
     required this.onChanged,
+    this.axis = CurrencyWheelAxis.horizontal,
     this.enabled = true,
     this.semanticLabelPrefix = 'Input currency',
   }) : assert(options.length >= 1);
@@ -49,6 +56,11 @@ class CurrencyWheelToggle extends ConsumerStatefulWidget {
   final List<AzCurrency> options;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
+
+  /// The roll direction of the roller. Same chips, same semantics, same
+  /// deliberate-gesture threshold; only the strip's orientation differs.
+  /// Horizontal stays the default so existing callers are unchanged.
+  final CurrencyWheelAxis axis;
   final bool enabled;
 
   /// What the control chooses on this surface ('Input currency' on amount
@@ -64,13 +76,49 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
   static const _chipWidth = 74.0;
   static const _chipHeight = 44.0; // ≥44dp touch target
   static const _peek = 14.0; // neighbour visibility per side
-  static const _kSlotTotal = _chipWidth + 2 * _peek; // full wheel slot
   static const _dragThreshold = 24.0;
 
   late final AnimationController _controller;
-  double _dragDx = 0;
+
+  /// Primary-axis drag offset (dx horizontal, dy vertical). Reset to 0
+  /// by a cancelled gesture — a graze or a lost arena battle never
+  /// changes money denominations.
+  double _drag = 0;
   int _animFrom = 0;
   int _animTo = 0;
+
+  // ── Axis-aware geometry ──────────────────────────────────────────────
+  //
+  // The wheel's box spans the selected chip plus a [peek] gutter on each
+  // side. The selected chip must sit EXACTLY CENTRED in that box — never
+  // cropped by the wheel's own peek geometry — with the neighbour chips
+  // peeking precisely `peek` into each gutter, fading under the shader.
+  //
+  // VERTICAL (Send): chips are adjacent, the pitch equals the chip height
+  // (44dp), and the strip is offset by half a pitch so the selected chip
+  // lands on the box centreline. Verified geometrically by
+  // send_vertical_currency_wheel_test.dart.
+  //
+  // HORIZONTAL (Card Transfer): the legacy pitch (chip + 2*peek gap) and
+  // unshifted offset are kept BYTE-IDENTICAL for now — they carry a KNOWN
+  // defect (the selected chip centres on the box EDGE, half-cropped by
+  // the gutter). Correcting it changes rendered pixels on existing
+  // callers, so it belongs to its own reviewable PR with golden
+  // regeneration, not to this axis extension.
+  double get _chipExtent =>
+      widget.axis == CurrencyWheelAxis.vertical ? _chipHeight : _chipWidth;
+
+  double get _pitch => widget.axis == CurrencyWheelAxis.vertical
+      ? _chipHeight
+      : _chipWidth + 2 * _peek;
+
+  double get _slotTotal => _chipExtent + 2 * _peek;
+
+  /// Where the strip's origin sits along the roll axis: the selected
+  /// chip's centre is pinned on the box centreline (vertical) or keeps
+  /// the legacy unshifted origin (horizontal, see the geometry note).
+  double get _originShift =>
+      widget.axis == CurrencyWheelAxis.vertical ? _chipHeight / 2 : 0.0;
 
   @override
   void initState() {
@@ -91,7 +139,7 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     // External selection change (e.g. a11y action elsewhere, or the caller
     // resetting the surface): roll to it unless we're mid-drag.
     if (oldWidget.selectedIndex != widget.selectedIndex &&
-        _dragDx == 0 &&
+        _drag == 0 &&
         _animTo != widget.selectedIndex) {
       _rollTo(widget.selectedIndex, haptic: false);
     }
@@ -104,14 +152,14 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
   }
 
   void _rollTo(int index, {bool haptic = true}) {
-    if (index == _animTo && _dragDx == 0) {
+    if (index == _animTo && _drag == 0) {
       if (widget.selectedIndex != index) widget.onChanged(index);
       return;
     }
     setState(() {
       _animFrom = _animTo;
       _animTo = index.clamp(0, widget.options.length - 1);
-      _dragDx = 0;
+      _drag = 0;
     });
     if (haptic) AzamanHaptics.toggle();
     final duration = MotionTokens.accessibleDuration(
@@ -128,18 +176,20 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
   }
 
   void _onDragEnd(DragEndDetails details) {
-    final dx = _dragDx;
+    final delta = _drag;
     final velocity = details.primaryVelocity ?? 0;
     // A deliberate roll needs either a real drag past the threshold or a
     // decisive fling velocity — an accidental graze never changes money
-    // denominations.
+    // denominations. (Vertical mirrors horizontal: rolling against the
+    // reading direction — up — advances; either way the gesture must be
+    // DELIBERATE, and a cancelled gesture resets to 0 without a change.)
     final decisive =
-        dx.abs() >= _dragThreshold || velocity.abs() >= 200;
+        delta.abs() >= _dragThreshold || velocity.abs() >= 200;
     if (!decisive) {
-      setState(() => _dragDx = 0);
+      setState(() => _drag = 0);
       return;
     }
-    _rollTo((dx < 0 ? _animTo + 1 : _animTo - 1)
+    _rollTo((delta < 0 ? _animTo + 1 : _animTo - 1)
         .clamp(0, widget.options.length - 1));
   }
 
@@ -147,10 +197,17 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     final colors = ref.read(themeProvider).colors;
     final RenderBox box = context.findRenderObject()! as RenderBox;
     final position = box.localToGlobal(Offset.zero);
+    // Horizontal: menu drops below the chip. Vertical: menu opens to the
+    // wheel's right so it never covers the roller itself.
+    final left = widget.axis == CurrencyWheelAxis.vertical
+        ? position.dx + _chipWidth
+        : position.dx;
+    final top = widget.axis == CurrencyWheelAxis.vertical
+        ? position.dy
+        : position.dy + _chipHeight;
     showMenu<int>(
       context: context,
-      position: RelativeRect.fromLTRB(position.dx,
-          position.dy + _chipHeight, position.dx + 200, 0),
+      position: RelativeRect.fromLTRB(left, top, left + 200, 0),
       items: [
         for (var i = 0; i < widget.options.length; i++)
           PopupMenuItem(
@@ -180,10 +237,11 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     final selected = widget.options[widget.selectedIndex.clamp(
         0, widget.options.length - 1)];
 
-    const slot = _kSlotTotal;
+    final pitch = _pitch;
     final rollT = Curves.easeOutCubic.transform(_controller.value);
     final base = _animFrom + (_animTo - _animFrom) * rollT;
-    final offset = -base * slot + _dragDx;
+    final offset = -base * pitch + _originShift + _drag;
+    final vertical = widget.axis == CurrencyWheelAxis.vertical;
 
     final chipRadius = BorderRadius.circular(AzRadius.sm + 2);
 
@@ -213,24 +271,42 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
       );
     }
 
+    // The strip's box spans exactly the selected chip plus the two peek
+    // gutters along the roll axis; across the axis it is exactly the
+    // chip — so the SELECTED chip is never cropped by the wheel's own
+    // geometry, only the neighbours fade at the gutters.
     final roller = SizedBox(
-      width: _chipWidth + 2 * _peek,
-      height: _chipHeight,
+      width: vertical ? _chipWidth : _chipWidth + 2 * _peek,
+      height: vertical ? _chipHeight + 2 * _peek : _chipHeight,
       child: ClipRect(
         child: OverflowBox(
-          maxWidth: double.infinity,
+          maxWidth: vertical ? _chipWidth : double.infinity,
+          maxHeight: vertical ? double.infinity : _chipHeight,
           alignment: Alignment.center,
           child: Transform.translate(
-            offset: Offset(offset, 0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < widget.options.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 2 * _peek),
-                  chip(widget.options[i], i == widget.selectedIndex),
-                ],
-              ],
-            ),
+            offset:
+                vertical ? Offset(0, offset) : Offset(offset, 0),
+            child: vertical
+                ? Column(
+                    // Adjacent chips: the pitch IS the chip height, so
+                    // the neighbour peeks exactly [peek] into each
+                    // gutter, under the fade. (The horizontal strip
+                    // keeps its legacy gap — see the geometry note.)
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < widget.options.length; i++)
+                        chip(widget.options[i], i == widget.selectedIndex),
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0; i < widget.options.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 2 * _peek),
+                        chip(widget.options[i], i == widget.selectedIndex),
+                      ],
+                    ],
+                  ),
           ),
         ),
       ),
@@ -241,17 +317,17 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     // rendered at FULL opacity — the shader never touches its label or
     // accent border — while the neighbours genuinely peek through the
     // fading edges. Computed from the geometry constants, not eyeballed.
-    const edgeFade = _peek / _kSlotTotal;
+    final edgeFade = _peek / _slotTotal;
+    final shaderColors = vertical
+        ? const [Color(0x00000000), Color(0xFF000000),
+            Color(0xFF000000), Color(0x00000000)]
+        : const [Color(0x00000000), Color(0xFF000000),
+            Color(0xFF000000), Color(0x00000000)];
     final fader = ShaderMask(
-      shaderCallback: (bounds) => const LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [
-          Color(0x00000000),
-          Color(0xFF000000),
-          Color(0xFF000000),
-          Color(0x00000000),
-        ],
+      shaderCallback: (bounds) => LinearGradient(
+        begin: vertical ? Alignment.topCenter : Alignment.centerLeft,
+        end: vertical ? Alignment.bottomCenter : Alignment.centerRight,
+        colors: shaderColors,
         stops: [0.0, edgeFade, 1.0 - edgeFade, 1.0],
       ).createShader(bounds),
       blendMode: BlendMode.dstIn,
@@ -290,12 +366,24 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
         behavior: HitTestBehavior.opaque,
         onTap:
             widget.enabled && widget.options.length > 1 ? _openPicker : null,
-        onHorizontalDragUpdate: widget.enabled
-            ? (d) => setState(() => _dragDx += d.delta.dx)
+        // Only the roll axis is draggable: on Send (vertical) the wheel
+        // claims vertical gestures within its own bounds and CANCELS
+        // cleanly if the surrounding scrollable wins the arena — a
+        // scroll that happens to start on the wheel never changes the
+        // currency.
+        onHorizontalDragUpdate: widget.enabled && !vertical
+            ? (d) => setState(() => _drag += d.delta.dx)
             : null,
-        onHorizontalDragEnd: widget.enabled ? _onDragEnd : null,
-        onHorizontalDragCancel: widget.enabled
-            ? () => setState(() => _dragDx = 0)
+        onHorizontalDragEnd: widget.enabled && !vertical ? _onDragEnd : null,
+        onHorizontalDragCancel: widget.enabled && !vertical
+            ? () => setState(() => _drag = 0)
+            : null,
+        onVerticalDragUpdate: widget.enabled && vertical
+            ? (d) => setState(() => _drag += d.delta.dy)
+            : null,
+        onVerticalDragEnd: widget.enabled && vertical ? _onDragEnd : null,
+        onVerticalDragCancel: widget.enabled && vertical
+            ? () => setState(() => _drag = 0)
             : null,
         child: fader,
       ),
