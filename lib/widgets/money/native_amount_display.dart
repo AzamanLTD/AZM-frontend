@@ -426,11 +426,15 @@ class AmountEntryEquivalent extends ConsumerWidget {
     super.key,
     required this.amountUsdc,
     this.snapshotOverride,
-    this.railNote = 'entered and settled in USDC',
+    this.railNote = 'denominated in USDC',
   });
 
   final double amountUsdc;
   final FxRateSnapshot? snapshotOverride;
+  /// Context note appended after the estimate. MUST be supplied by the
+  /// caller for any context with settlement meaning (escrow panels,
+  /// receipts) — settlement wording is only truthful with DTO evidence.
+  /// The neutral default cannot imply a completed payment.
   final String railNote;
 
   @override

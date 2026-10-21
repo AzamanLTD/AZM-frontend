@@ -217,7 +217,20 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
               alignment: Alignment.centerLeft,
               child: AmountEntryEquivalent(
                 amountUsdc: escrow.amountUsdc,
-                railNote: 'held in USDC',
+                // Settlement wording is only truthful where the STATUS is
+                // evidence for it: a draft is not held yet, a settled or
+                // released escrow has moved. Never one phrase for all
+                // lifecycle states.
+                railNote: switch (escrow.status) {
+                  EscrowStatus.settled ||
+                  EscrowStatus.released =>
+                    'settled in USDC',
+                  EscrowStatus.draft ||
+                  EscrowStatus.refunded ||
+                  EscrowStatus.expired =>
+                    'denominated in USDC',
+                  _ => 'held in USDC',
+                },
               ),
             ),
           ),
@@ -263,7 +276,10 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       ghsPerUsdc: snapshot.ghsPerUsdc,
     );
     if (ghs == null) return '';
-    return '\n≈ ${AzMoney.ghs(ghs)} · current estimate (settled in USDC)';
+    // At confirmation time nothing has settled yet — the sheet's own copy
+    // ('Lock X USDC into escrow?') carries the denomination, so the
+    // suffix stays a pure labelled estimate with no settlement claim.
+    return '\n≈ ${AzMoney.ghs(ghs)} · current estimate';
   }
 
   Future<void> _confirmFund() async {

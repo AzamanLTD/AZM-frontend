@@ -172,7 +172,10 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
             // submits a USDC-denominated amount; the reviewed GHS-authority
             // contract that would make a GHS principal authoritative does not
             // exist yet, so a wheel is deliberately deferred (Workstream D1).
-            AmountEntryEquivalent(amountUsdc: _parsedAmount),
+            AmountEntryEquivalent(
+              amountUsdc: _parsedAmount,
+              railNote: 'planned amount denominated in USDC',
+            ),
             const SizedBox(height: 14),
             _label(colors, 'Frequency'),
             Wrap(

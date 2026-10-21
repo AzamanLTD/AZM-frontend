@@ -172,7 +172,10 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
                 // field still submits USDC. No wheel: an authoritative GHS
                 // principal awaits the reviewed GHS-authority contract
                 // (Workstream D1: display, not authority).
-                AmountEntryEquivalent(amountUsdc: _parsedTarget),
+                AmountEntryEquivalent(
+                  amountUsdc: _parsedTarget,
+                  railNote: 'target denominated in USDC',
+                ),
                 const SizedBox(height: 14),
                 _label(colors, 'Maturity Date'),
                 _DatePill(
@@ -241,7 +244,7 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
                           ),
                           AmountEntryEquivalent(
                             amountUsdc: _parsedAutoAmount,
-                            railNote: 'deposit rule stays in USDC',
+                            railNote: 'auto-deposit amount denominated in USDC',
                           ),
                           const SizedBox(height: 8),
                           Wrap(

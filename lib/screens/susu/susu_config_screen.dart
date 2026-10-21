@@ -107,7 +107,10 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
               // so no currency wheel is offered here: a wheel would imply an
               // authoritative GHS principal, and the reviewed GHS-authority
               // backend contract (plan v3) is design-only (Workstream D1).
-              AmountEntryEquivalent(amountUsdc: _parsedAmount),
+              AmountEntryEquivalent(
+                amountUsdc: _parsedAmount,
+                railNote: 'contribution amount denominated in USDC',
+              ),
               const SizedBox(height: 14),
               _label(colors, 'Frequency'),
               Wrap(

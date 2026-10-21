@@ -80,6 +80,20 @@ Widget _host(Widget child, {FxRateSnapshot? snapshot}) => ProviderScope(
       ),
     );
 
+/// The Semantics label of the first AmountEntryEquivalent's wrapper —
+/// the a11y tree must carry the same truthful context as the pixels.
+String _semanticsLabel(WidgetTester tester) {
+  final props = tester
+      .widgetList<Semantics>(find.descendant(
+        of: find.byType(AmountEntryEquivalent),
+        matching: find.byType(Semantics),
+      ))
+      .map((s) => s.properties.label ?? '')
+      .where((l) => l.isNotEmpty)
+      .join(' ');
+  return props;
+}
+
 /// All Text data inside the first AmountEntryEquivalent on the surface.
 String _equivalentText(WidgetTester tester) {
   final texts = tester
@@ -185,7 +199,15 @@ void main() {
       expect(_equivalentText(tester), contains('estimate'));
       // 20 USDC × 15.38 — the estimate tracks typing at the pinned rate.
       expect(_equivalentText(tester), contains('307.60'));
-      expect(_equivalentText(tester), contains('settled in USDC'));
+      // Configuration context, NOT a settlement claim: the note says the
+      // contribution is DENOMINATED in USDC — nothing has settled yet.
+      expect(_equivalentText(tester),
+          contains('contribution amount denominated in USDC'));
+      expect(_equivalentText(tester), isNot(contains('settled')));
+      // Accessibility semantics carry the same truthful context.
+      final semantics = _semanticsLabel(tester);
+      expect(semantics, contains('contribution amount denominated in USDC'));
+      expect(semantics, isNot(contains('settled')));
     });
 
     testWidgets('honestly omits the estimate when the rate is stale',
@@ -224,6 +246,12 @@ void main() {
       // 100 USDC × 15.38.
       expect(_equivalentText(tester), contains('1,538'));
       expect(_equivalentText(tester), contains('estimate'));
+      // Planned route, not a settlement: the note is denominated-only.
+      expect(_equivalentText(tester),
+          contains('planned amount denominated in USDC'));
+      expect(_equivalentText(tester), isNot(contains('settled')));
+      expect(_semanticsLabel(tester),
+          contains('planned amount denominated in USDC'));
       expect(find.byType(CurrencyWheelToggle), findsNothing);
     });
 
@@ -313,7 +341,32 @@ void main() {
       // 500 USDC × 15.38.
       expect(_equivalentText(tester), contains('7,690'));
       expect(_equivalentText(tester), contains('estimate'));
+      // Entry context: the target note is denominated-only — no
+      // settlement claim at creation time.
+      expect(_equivalentText(tester), contains('target denominated in USDC'));
+      expect(_equivalentText(tester), isNot(contains('settled')));
+      expect(_semanticsLabel(tester), contains('target denominated in USDC'));
       expect(find.byType(CurrencyWheelToggle), findsNothing);
+
+      // The auto-deposit rule sits behind its enable switch and below
+      // the fold: flip the rule on, bring the amount field on-screen,
+      // and give it a value so its own estimate line builds.
+      final ruleSwitch = find.byType(Switch);
+      expect(ruleSwitch, findsOneWidget);
+      await tester.ensureVisible(ruleSwitch);
+      await tester.tap(ruleSwitch);
+      await tester.pump();
+      final autoField = find.byWidgetPredicate((w) => w is TextField &&
+          (w.decoration?.hintText ?? '') == 'Amount per deposit (USDC)');
+      expect(autoField, findsOneWidget);
+      await tester.ensureVisible(autoField);
+      await tester.pump();
+      await tester.enterText(autoField, '50');
+      await tester.pump();
+      expect(find.byType(AmountEntryEquivalent), findsAtLeast(2));
+      expect(_equivalentText(tester),
+          contains('auto-deposit amount denominated in USDC'));
+      expect(_equivalentText(tester), isNot(contains('settled')));
     });
 
     testWidgets('honestly omits the estimate when the rate is stale',
