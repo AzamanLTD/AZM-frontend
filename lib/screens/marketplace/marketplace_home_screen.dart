@@ -23,6 +23,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
@@ -1362,6 +1363,25 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
 
     if (state.isLoading) return _listShimmer(colors);
 
+    // TRUTHFUL FAILURE (Workstream F): a DEAD search request is never
+    // "No businesses found" — an empty result and a failed request are
+    // different facts; the failure gets its own state and a real retry.
+    if (state.error != null && state.results.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 60),
+          AzamanEmptyState(
+            key: const Key('marketplace-search-failure'),
+            icon: Icons.wifi_off_outlined,
+            title: 'Couldn\'t load businesses',
+            subtitle: 'Check your connection and try again.',
+            actionLabel: 'Retry',
+            onAction: _fireSearch,
+          ),
+        ],
+      );
+    }
+
     final results = _applySortFilter(state.results);
 
     if (results.isEmpty) {
@@ -1422,10 +1442,34 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
         8,
         navBandClearance(context) + kNavBandGap,
       ),
-      itemCount: results.length + (state.hasMore ? 1 : 0),
+      // REVIEW §5 — the tail sentinel renders while more pages exist OR a
+      // later-page fetch failed (the inline retry replaces the spinner).
+      itemCount: results.length +
+          ((state.hasMore || state.loadMoreError != null) ? 1 : 0),
       itemBuilder: (ctx, i) {
-        // Infinite-scroll loader sentinel
+        // Tail sentinel: inline accessible retry when a later-page fetch
+        // failed; the infinite-scroll spinner while a page is in flight.
         if (i >= results.length) {
+          if (state.loadMoreError != null) {
+            return Semantics(
+              label: 'Couldn\'t load more businesses. Retry.',
+              button: true,
+              liveRegion: true,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: TextButton.icon(
+                    key: const Key('marketplace-load-more-retry'),
+                    onPressed: () => ref
+                        .read(businessSearchProvider.notifier)
+                        .loadMore(),
+                    icon: const Icon(Icons.refresh, size: 16),
+                    label: const Text('Couldn\'t load more — retry'),
+                  ),
+                ),
+              ),
+            );
+          }
           return const Center(
             child: Padding(
               padding: EdgeInsets.all(20),
