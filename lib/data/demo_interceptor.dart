@@ -320,9 +320,12 @@ class DemoInterceptor {
       return {'group': grp};
     }
 
-    // /group-chats/{groupId}/susu/status
+    // /group-chats/{groupId}/susu/status — honest per group: only the
+    // susu group reports an active susu; plain groups report none.
     if (path.contains('/group-chats/') && path.endsWith('/susu/status')) {
-      return {'status': 'ACTIVE', 'cycle': 2, 'totalCycles': 4};
+      final groupId = path.split('/')[2];
+      if (groupId == 'grp-2') return DemoSeedData.susuGroupStatus();
+      return {};
     }
 
     // /vaults/{vaultId}
@@ -343,13 +346,15 @@ class DemoInterceptor {
       };
     }
 
-    // /susu/{susuId}
+    // /susu/{susuId} — the Phase-4 detail envelope the service unwraps.
     if (RegExp(r'^/susu/[^/]+$').hasMatch(path)) {
-      final groups = DemoSeedData.susuGroups()['data'] as List;
-      return {'data': groups.first};
+      return {'susu': DemoSeedData.susuDetail()};
     }
 
-    // /susu/{susuId}/members, /cycles, /contract
+    // /susu/{susuId}/members, /cycles, /contract — same deterministic
+    // Susu as the detail: the roster and schedule are served under the
+    // keys the real backend uses, never empty-plate responses that
+    // contradict the detail above them.
     if (path.contains('/susu/') &&
         (path.endsWith('/members') ||
             path.endsWith('/cycles') ||
@@ -359,7 +364,10 @@ class DemoInterceptor {
           'data': {'signed': true},
         };
       }
-      return DemoSeedData.emptyData();
+      if (path.endsWith('/members')) {
+        return {'members': DemoSeedData.susuMembers()};
+      }
+      return {'cycles': DemoSeedData.susuCycles()};
     }
 
     // /susu/groups/{susuId}

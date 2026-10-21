@@ -198,6 +198,147 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byKey(const ValueKey('susu-wheel-canvas')), findsOneWidget);
     });
+
+    // ── Wheel alignment: 3/4/5/8 slots ─────────────────────────────
+    // These are the configurations real groups actually use, where a
+    // misaligned slot is immediately visible to the eye. The invariant:
+    // the DRAWN dots sit exactly where susuSlotAngle says they should —
+    // uniformly spaced, slot 1 dead at 12 o'clock. The measurements come
+    // from the painted canvas and the Positioned dots themselves, never
+    // from assumed layout coordinates.
+
+    for (final n in [3, 4, 5, 8]) {
+      testWidgets("aligns all $n slots uniformly with slot 1 at 12 "
+          "o'clock", (tester) async {
+        final t = DateTime.utc(2026, 6, 21, 12);
+        final roster = List.generate(
+            n,
+            (i) => SusuMemberView(
+                  susuMemberId: 'm${i + 1}',
+                  userId: (i + 1) * 10,
+                  displayName: 'M${i + 1}',
+                  avatar: null,
+                  cycleSlot: i + 1,
+                  status: SusuMemberStatus.active,
+                  role: 'MEMBER',
+                ));
+        final schedule = [
+          SusuCycleView(
+            id: 'c1',
+            cycleNumber: 1,
+            scheduledRunAt: t.subtract(const Duration(days: 7)),
+            status: SusuCycleStatus.paidOut,
+            payoutUserId: 10,
+            paidOutAt: t.subtract(const Duration(days: 6)),
+            escrowDivertedAt: null,
+            payoutAmount: 100,
+          ),
+          for (var c = 2; c <= n; c++)
+            SusuCycleView(
+              id: 'c$c',
+              cycleNumber: c,
+              scheduledRunAt: t.add(Duration(days: c)),
+              status: SusuCycleStatus.pending,
+              payoutUserId: c * 10,
+              paidOutAt: null,
+              escrowDivertedAt: null,
+              payoutAmount: null,
+            ),
+        ];
+
+        await tester.pumpWidget(host(wheel(
+          members: roster,
+          cycles: schedule,
+          totalSlots: n,
+        )));
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // The canvas proves the wheel's own frame; dots are Positioned
+        // siblings (the 12-o'clock indicator is an Align, so every
+        // Positioned in this tree is a slot dot).
+        final canvas =
+            tester.getRect(find.byKey(const ValueKey('susu-wheel-canvas')));
+        final center = canvas.center;
+        const dotSize = 44.0, dotPad = 5.0;
+        final radius = canvas.width / 2 - dotSize / 2 - dotPad - 2;
+
+        final dots = tester.widgetList<Positioned>(find.byType(Positioned));
+        expect(dots.length, n, reason: 'expected $n slot dots');
+        // Positioned left/top are in the Stack's coordinates — the
+        // canvas occupies the exact same frame, so the canvas origin
+        // is the Stack origin.
+        final drawn = dots
+            .map((d) => Offset(canvas.left + d.left! + dotSize / 2,
+                canvas.top + d.top! + dotSize / 2))
+            .toList();
+
+        // Each slot's drawn dot sits on the circle at susuSlotAngle.
+        for (var slot = 1; slot <= n; slot++) {
+          final angle = susuSlotAngle(slot, n);
+          final expected = Offset(
+            center.dx + radius * math.cos(angle),
+            center.dy + radius * math.sin(angle),
+          );
+          final err = drawn
+              .map((p) => (p - expected).distance)
+              .reduce(math.min);
+          expect(err, lessThan(0.5),
+              reason:
+                  'slot $slot of $n drifted ${err.toStringAsFixed(2)}px');
+        }
+
+        // Uniform pitch, measured on the drawn dots: every dot's nearest
+        // neighbour sits exactly one step around the circle (the chord
+        // of 2*pi/n).
+        final stepChord =
+            2 * radius * math.sin((2 * math.pi / n) / 2);
+        for (final p in drawn) {
+          final nearest = drawn
+              .map((q) => (q - p).distance)
+              .where((d) => d > 0.01)
+              .reduce(math.min);
+          expect((nearest - stepChord).abs(), lessThan(1.0),
+              reason: 'a dot in the $n-slot wheel is off-pitch');
+        }
+
+        // The upcoming slot's ringed dot is the one at slot 2's angle.
+        // The next dot renders taller than 44 (slot tag below the dot), so
+        // measure through its Positioned ancestor's left/top — the dot
+        // center — not the widget rect.
+        final nextEl = find
+            .byKey(const ValueKey('susu-wheel-next-dot'))
+            .evaluate()
+            .single;
+        Positioned? pd;
+        nextEl.visitAncestorElements((ancestor) {
+          final w = ancestor.widget;
+          if (w is Positioned) {
+            pd = w;
+            return false;
+          }
+          return true;
+        });
+        expect(pd, isNotNull,
+            reason: 'next dot must be laid out by a Positioned');
+        final a2 = susuSlotAngle(2, n);
+        final expectedNext = Offset(
+          center.dx + radius * math.cos(a2),
+          center.dy + radius * math.sin(a2),
+        );
+        final nextCenter = Offset(canvas.left + pd!.left! + dotSize / 2,
+            canvas.top + pd!.top! + dotSize / 2);
+        expect((nextCenter - expectedNext).distance, lessThan(0.5));
+
+        // Pure geometry agrees with the drawing for this configuration.
+        expect(susuSlotAngle(1, n), -math.pi / 2);
+        for (var slot = 2; slot <= n; slot++) {
+          expect((susuSlotAngle(slot, n) - susuSlotAngle(slot - 1, n)) -
+                  2 * math.pi / n,
+              lessThan(1e-12));
+        }
+        expect(susuSlotAngle(n + 1, n), susuSlotAngle(1, n));
+      });
+    }
   });
 
   group('SusuPositionWheel', () {

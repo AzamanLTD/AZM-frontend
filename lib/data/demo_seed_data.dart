@@ -781,6 +781,120 @@ class DemoSeedData {
     ],
   };
 
+  // ── Susu detail fixtures ────────────────────────────────────────────
+  // ONE deterministic Susu, internally consistent across EVERY route that
+  // serves it: the /susu/me summary, the Phase-4 detail, the member roster,
+  // the cycle schedule and the group-chat status route all agree on the
+  // roster (grp-2's members), the slots, the cycle position (2 of 4) and
+  // the payout order. Dates derive from the same relative helpers so the
+  // demo drifts with the wall clock but never contradicts itself:
+  //   • cycle 1 paid adwoa_boateng 7 days ago (slot 1, PAID_OUT)
+  //   • cycle 2 collects now, pays Lamar in 7 days (slot 2, COLLECTING)
+  //   • cycles 3 and 4 are pending — me (slot 3), then Alfred (slot 4)
+  static Map<String, dynamic> susuDetail() => {
+        'id': 'susu-1',
+        'name': 'Susu Circle - August',
+        'status': 'ACTIVE',
+        'contributionUsdc': 200.00,
+        'frequency': 'WEEKLY',
+        'totalCycles': 4,
+        'contractVersion': 'v1.0',
+        'contractHash': 'demo-contract-hash',
+        'activatedAt': _daysAgo(21),
+        'initiator': {'id': 1, 'displayName': demoUsername},
+        'members': susuMembers(),
+        'cycles': susuCycles(),
+      };
+
+  static List<Map<String, dynamic>> susuMembers() => [
+        {
+          'susuMemberId': 'sm-1',
+          'userId': 1,
+          'displayName': demoUsername,
+          'avatar':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/e11bc3235_generated_image.png',
+          'cycleSlot': 3,
+          'status': 'ACTIVE',
+          'role': 'ADMIN',
+        },
+        {
+          'susuMemberId': 'sm-3',
+          'userId': 3,
+          'displayName': 'Lamar',
+          'avatar':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/657e2a11c_generated_image.png',
+          'cycleSlot': 2,
+          'status': 'ACTIVE',
+          'role': 'MEMBER',
+        },
+        {
+          'susuMemberId': 'sm-5',
+          'userId': 5,
+          'displayName': 'Alfred',
+          'avatar':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/218d589c3_generated_image.png',
+          'cycleSlot': 4,
+          'status': 'ACTIVE',
+          'role': 'MEMBER',
+        },
+        {
+          'susuMemberId': 'sm-6',
+          'userId': 6,
+          'displayName': 'adwoa_boateng',
+          'avatar':
+              'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/f0c3891b6_generated_image.png',
+          'cycleSlot': 1,
+          'status': 'ACTIVE',
+          'role': 'MEMBER',
+        },
+      ];
+
+  static List<Map<String, dynamic>> susuCycles() => [
+        {
+          'id': 'sc-1',
+          'cycleNumber': 1,
+          'scheduledRunAt': _daysAgo(7),
+          'status': 'PAID_OUT',
+          'payoutUserId': 6,
+          'paidOutAt': _hoursAgo(156),
+          'payoutAmount': 800.00,
+        },
+        {
+          'id': 'sc-2',
+          'cycleNumber': 2,
+          'scheduledRunAt': _daysFromNow(7),
+          'status': 'COLLECTING',
+          'payoutUserId': 3,
+        },
+        {
+          'id': 'sc-3',
+          'cycleNumber': 3,
+          'scheduledRunAt': _daysFromNow(14),
+          'status': 'PENDING',
+          'payoutUserId': 1,
+        },
+        {
+          'id': 'sc-4',
+          'cycleNumber': 4,
+          'scheduledRunAt': _daysFromNow(21),
+          'status': 'PENDING',
+          'payoutUserId': 5,
+        },
+      ];
+
+  // The group-chat susu status payload — same Susu, seen from the group
+  // profile. The roster / contribution / cadence match the detail above.
+  static Map<String, dynamic> susuGroupStatus() => {
+        'susuGroupId': 'susu-1',
+        'status': 'ACTIVE',
+        'contributionUsdc': 200.00,
+        'frequency': 'WEEKLY',
+        'totalCycles': 4,
+        'memberCount': 4,
+        'readyCount': 4,
+        'members': const [],
+      };
+
   // ── /azm/summary ─────────────────────────────────────────────────────
   static Map<String, dynamic> azmSummary() => {
     'data': {
