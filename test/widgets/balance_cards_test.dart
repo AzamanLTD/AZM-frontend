@@ -111,6 +111,8 @@ Future<ProviderContainer> _pumpFrontFace(
     balanceDataProvider.overrideWith(
       (ref) => BalanceData(availableBalance: balance),
     ),
+    balanceReadinessProvider.overrideWith(
+        (ref) => BalanceReadiness.loaded),
     oracleRateProvider.overrideWith((ref) => rate),
   ]);
   addTearDown(container.dispose);
@@ -140,6 +142,8 @@ Future<void> _pumpFlipCard(
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final overrides = [
     balanceDataProvider.overrideWith((ref) => balance),
+    balanceReadinessProvider.overrideWith(
+        (ref) => BalanceReadiness.loaded),
     oracleRateProvider.overrideWith((ref) => 1.0),
   ];
   if (susuNotifier != null) {
@@ -683,6 +687,8 @@ void main() {
               balanceDataProvider.overrideWith(
                 (ref) => const BalanceData(availableBalance: 123.45),
               ),
+              balanceReadinessProvider.overrideWith(
+                  (ref) => BalanceReadiness.loaded),
               oracleRateProvider.overrideWith((ref) => rate),
             ]);
             addTearDown(container.dispose);
@@ -727,6 +733,259 @@ void main() {
         }
       }
       await tester.binding.setSurfaceSize(null);
+    });
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // WORKSTREAM B — explicit balance readiness states
+  // ═════════════════════════════════════════════════════════════════════════
+  group('Workstream B — balance readiness states', () {
+    /// The primary amount slot's waiting indicator (Workstream B).
+    Finder heroAmount() =>
+        find.byKey(const ValueKey('home-balance-amount-dots'));
+
+    testWidgets('initial state: waiting dots, never a fabricated 0.00',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        // Pin the rate: the real OracleRatesClient starts polling timers
+        // that leak past this test's disposal window.
+        oracleRateProvider.overrideWith((ref) => 0.0),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+
+      // The primary amount slot holds the waiting indicator…
+      expect(heroAmount(), findsOneWidget);
+
+      // …and never a formatted zero masquerading as a confirmed balance.
+      final zeroTexts = find
+          .byWidgetPredicate((w) =>
+              w is Text &&
+              (w.data ?? '').contains('0.00'))
+          .evaluate();
+      expect(zeroTexts, isEmpty,
+          reason: 'unresolved must not print USDC 0.00');
+
+      // Semantics tell the truth: loading, not zero.
+      expect(
+        find.bySemanticsLabel(RegExp('balance loading|Balance loading')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('hydration: balance + readiness arriving shows the figure',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        oracleRateProvider.overrideWith((ref) => 0.0),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(heroAmount(), findsOneWidget);
+
+      // The canonical refresh lands: balance AND readiness together.
+      container.read(balanceDataProvider.notifier).state =
+          const BalanceData(availableBalance: 87.5);
+      container.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.loaded;
+      await tester.pump(const Duration(milliseconds: 120));
+
+      expect(heroAmount(), findsNothing);
+      // The odometer renders rolling digits, so the confirmed value is
+      // asserted through its semantics label.
+      expect(
+        find.bySemanticsLabel(RegExp(r'87\.5.*available')),
+        findsOneWidget,
+        reason: 'loaded positive balance renders its figure',
+      );
+    });
+
+    testWidgets('genuine loaded zero stays a real 0.00', (tester) async {
+      final container = ProviderContainer(overrides: [
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.loaded),
+        oracleRateProvider.overrideWith((ref) => 0.0),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+
+      expect(heroAmount(), findsNothing,
+          reason: 'a loaded zero is a VALUE, not an unresolved slot');
+      expect(
+        find.bySemanticsLabel(RegExp(r'0\.00 available')),
+        findsOneWidget,
+        reason: 'genuine zero balance displays 0.00',
+      );
+    });
+
+    testWidgets('failed fetch with no usable value: dots, never fake zero',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.failed),
+        oracleRateProvider.overrideWith((ref) => 0.0),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+
+      expect(heroAmount(), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp('balance unavailable|Balance unavailable')),
+        findsOneWidget,
+      );
+      final zeroTexts = find
+          .byWidgetPredicate((w) =>
+              w is Text && (w.data ?? '').contains('0.00'))
+          .evaluate();
+      expect(zeroTexts, isEmpty);
+    });
+
+    testWidgets('loaded balance with FX unresolved: USDC value + FX dots',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        balanceDataProvider.overrideWith(
+            (ref) => const BalanceData(availableBalance: 42.25)),
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.loaded),
+        oracleRateProvider.overrideWith((ref) => 0.0),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+
+      // The native USDC balance is confirmed — it renders as a value…
+      expect(heroAmount(), findsNothing);
+      expect(find.bySemanticsLabel(RegExp(r'42\.25 available')),
+          findsOneWidget);
+      // …while the optional cedi equivalent waits: dots in the FX slot.
+      expect(find.byKey(const ValueKey('home-balance-fx-dots')),
+          findsOneWidget);
+    });
+
+    testWidgets('FX recovery: dots resolve into a cedi equivalent',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        balanceDataProvider.overrideWith(
+            (ref) => const BalanceData(availableBalance: 10)),
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.loaded),
+        oracleRateProvider.overrideWith((ref) => 0.0),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(find.byKey(const ValueKey('home-balance-fx-dots')),
+          findsOneWidget);
+
+      // The rate lands.
+      container.read(oracleRateProvider.notifier).state = 15.5;
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(find.byKey(const ValueKey('home-balance-fx-dots')),
+          findsNothing);
+      // GHS-first default: the recovered rate makes the cedi figure the
+      // primary (odometer → semantics), with the USDC pair visible as text.
+      expect(find.bySemanticsLabel(RegExp(r'155.*available')),
+          findsOneWidget,
+          reason: '10 USDC at 15.5 = GH\u20B5 155.00 primary');
+      expect(find.textContaining('10'), findsWidgets,
+          reason: 'the native USDC pair stays visible as the secondary');
+    });
+
+    testWidgets('failed refresh AFTER a loaded balance keeps the figure',
+        (tester) async {
+      // The provider's own contract: markFailed() must not demote a
+      // loaded readiness. Drive refreshCanonicalBalance in the sandbox —
+      // the secure-storage read throws (no plugin), landing in the
+      // catch-all, which is exactly the failure path under test.
+      final container = ProviderContainer(overrides: [
+        oracleRateProvider.overrideWith((ref) => 0.0),
+      ]);
+      addTearDown(container.dispose);
+
+      container.read(balanceDataProvider.notifier).state =
+          const BalanceData(availableBalance: 64.0);
+      container.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.loaded;
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(find.bySemanticsLabel(RegExp(r'64\.0.*available')),
+          findsOneWidget);
+
+      // A refresh attempt fails (no secure storage in the test sandbox).
+      await tester.runAsync(
+          () => refreshCanonicalBalance(container));
+      await tester.pump(const Duration(milliseconds: 120));
+
+      expect(
+        container.read(balanceReadinessProvider),
+        BalanceReadiness.loaded,
+        reason: 'a failed refresh never demotes a usable loaded value',
+      );
+      expect(find.bySemanticsLabel(RegExp(r'64\.0.*available')),
+          findsOneWidget,
+          reason: 'the last confirmed figure stays on the card');
+    });
+
+    testWidgets('failed refresh BEFORE any load marks readiness failed',
+        (tester) async {
+      final container = ProviderContainer(overrides: [
+        oracleRateProvider.overrideWith((ref) => 0.0),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: _wrap(const HologramBalanceCard()),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+
+      await tester.runAsync(
+          () => refreshCanonicalBalance(container));
+      await tester.pump(const Duration(milliseconds: 120));
+
+      expect(container.read(balanceReadinessProvider),
+          BalanceReadiness.failed);
+      expect(heroAmount(), findsOneWidget);
     });
   });
 }

@@ -59,6 +59,26 @@ class BalanceData {
 }
 
 final balanceDataProvider = StateProvider<BalanceData>((ref) => const BalanceData());
+
+/// WORKSTREAM B — an explicit hydration state for the canonical balance.
+/// The provider's default [BalanceData] is all zeros, and a default object
+/// with 0.00 values is NOT evidence that the server confirmed a zero
+/// balance. Until an authoritative fetch completes, the amount slot must
+/// not print a number at all.
+///
+/// * [unresolved] — no authoritative balance has arrived yet (initial
+///   state; the amount slot shows the waiting indicator, never "0.00").
+/// * [loaded] — the server confirmed a balance, INCLUDING a genuine zero.
+/// * [failed] — the request failed and NO usable value has ever been
+///   loaded. A failure AFTER a successful load keeps [loaded]: the last
+///   confirmed figure is still the honest number, and a later refresh
+///   can update it.
+enum BalanceReadiness { unresolved, loaded, failed }
+
+/// The canonical balance readiness, driven by [refreshCanonicalBalance]
+/// and the login-path balance seeding in auth_provider.
+final balanceReadinessProvider =
+    StateProvider<BalanceReadiness>((ref) => BalanceReadiness.unresolved);
 final userUsdcBalanceProvider = StateProvider<double>((ref) => 0.0);
 
 Future<void>? _balanceRefreshFuture;
@@ -69,10 +89,24 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
 
   final future = () async {
     if (AppConfig.demoMode) return;
+    // WORKSTREAM B — an early return or thrown error means no balance came
+    // back from this attempt. That is only a FAILURE if nothing usable has
+    // ever loaded; after a successful load the last confirmed figure stays
+    // authoritative and readiness remains `loaded`.
+    void markFailed() {
+      final notifier = ref.read(balanceReadinessProvider.notifier);
+      if (notifier.state != BalanceReadiness.loaded) {
+        notifier.state = BalanceReadiness.failed;
+      }
+    }
+
     try {
       const storage = FlutterSecureStorage();
       final token = await storage.read(key: 'auth_token');
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        markFailed();
+        return;
+      }
 
       final response = await http
           .get(
@@ -84,19 +118,32 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
             },
           )
           .timeout(AppConfig.requestTimeout);
-      if (response.statusCode < 200 || response.statusCode >= 300) return;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        markFailed();
+        return;
+      }
 
       final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic>) return;
+      if (decoded is! Map<String, dynamic>) {
+        markFailed();
+        return;
+      }
       final rawData = decoded['data'];
-      if (rawData is! Map<String, dynamic>) return;
+      if (rawData is! Map<String, dynamic>) {
+        markFailed();
+        return;
+      }
 
       final balances = BalanceData.fromJson(rawData);
       ref.read(balanceDataProvider.notifier).state = balances;
       ref.read(userUsdcBalanceProvider.notifier).state = balances.totalBalance;
+      // The server has confirmed a balance — a genuine 0.00 included.
+      ref.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.loaded;
     } catch (_) {
       // Realtime convergence is best-effort. Keep the last known canonical
       // balance and let the next event or foreground refresh retry.
+      markFailed();
     }
   }();
 

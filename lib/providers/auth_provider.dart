@@ -120,6 +120,13 @@ class AuthProvider with ChangeNotifier {
         disputeEscrowBalance: _user!.disputeEscrowBalance,
         azmBalance: _user!.azmBalance,
       );
+      // WORKSTREAM B — the login payload carries server-confirmed
+      // balances, so this is an authoritative hydration point too: the
+      // card may print the figure (a genuine zero included) instead of
+      // the unresolved waiting indicator.
+      ref
+          ?.read(balanceReadinessProvider.notifier)
+          .state = BalanceReadiness.loaded;
     } on ApiException catch (e) {
       if (generation != _hydrationGeneration) return;
       if (e.statusCode == 404) {

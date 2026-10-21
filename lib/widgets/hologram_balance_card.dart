@@ -129,6 +129,12 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     // database id) — empty/unprovisioned renders "AZM-ID pending".
     final azmId = (ref.watch(authProvider).user?.azamanId ?? '').trim();
     final balance = ref.watch(balanceDataProvider);
+    // WORKSTREAM B — readiness is explicit: a default all-zero
+    // BalanceData is NOT a confirmed balance. Until an authoritative
+    // fetch (login payload or canonical refresh) completes, the primary
+    // amount slot shows the waiting indicator and never prints a
+    // fabricated "0.00". A genuine, loaded zero renders as 0.00.
+    final balanceReadiness = ref.watch(balanceReadinessProvider);
     final rate = ref.watch(oracleRateProvider);
     // GHANA-FIRST (2026-10-20): the Home hero follows the user's global
     // display preference — GHS primary by default, USDC primary only when
@@ -378,15 +384,44 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                   // and its internal scale-down guard engages exactly as it
                   // did when it sat directly in the Column.
                   Flexible(
-                    child: OdometerNumber(
-                      value: AzMoney.amount(primaryValue),
-                      style: AzText.money(
-                        colors.textPrimary,
-                        size: AzText.sizeHero,
-                        weight: FontWeight.w600,
-                      ),
-                      semanticsLabel: '$primaryLabel available',
-                    ),
+                    // WORKSTREAM B — unresolved/failed: the slot holds the
+                    // three-dot waiting indicator instead of a fabricated
+                    // 0.00 figure. The unit label stays (identity, not a
+                    // value); the slot height matches the hero line so
+                    // the card geometry never moves when the balance
+                    // lands. A loaded value — a genuine 0.00 included —
+                    // rolls through the odometer as before.
+                    child: balanceReadiness == BalanceReadiness.loaded
+                        ? OdometerNumber(
+                            value: AzMoney.amount(primaryValue),
+                            style: AzText.money(
+                              colors.textPrimary,
+                              size: AzText.sizeHero,
+                              weight: FontWeight.w600,
+                            ),
+                            semanticsLabel: '$primaryLabel available',
+                          )
+                        : SizedBox(
+                            height: AzText.sizeHero * 1.25,
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Semantics(
+                                label: balanceReadiness ==
+                                        BalanceReadiness.failed
+                                    ? 'Balance unavailable'
+                                    : 'Balance loading',
+                                liveRegion: true,
+                                child: FxTypingDots(
+                                  key: const ValueKey(
+                                      'home-balance-amount-dots'),
+                                  color: colors.textPrimary,
+                                  dotSize: 6,
+                                  rise: 4.5,
+                                  dotGap: 5,
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 ],
               ),
