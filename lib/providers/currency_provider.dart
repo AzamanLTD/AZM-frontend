@@ -18,6 +18,28 @@ class FxRateSnapshot {
   final String displayCurrency;
   final bool isCanonical;
 
+  // ── The backend's rate-freshness contract (PR #165 review §2) ─────────
+  // The backend's /api/oracle/rates freshness gate (271C) is anchored to
+  // the LAST EXTERNAL market observation (lastExternalSync), bounded by
+  // rateFreshnessMaxAgeSeconds. `fetchedAt` is when THIS client received
+  // the HTTP response — it is informational only and can NEVER make an
+  // old server observation appear fresh: every usability check recomputes
+  // the observation age from lastExternalSync against the caller's clock.
+  final bool serverFresh;
+  final DateTime? lastExternalSync;
+  final int? externalRateAgeSeconds;
+  final double rateFreshnessMaxAgeSeconds;
+
+  /// Mirrors the backend's own tiny skew allowance: an external
+  /// observation further in the future than 5s is untrusted, never
+  /// "infinitely fresh" (rateFreshness.js — RATE_FRESHNESS_CLOCK_SKEW_).
+  static const clockSkewAllowance = Duration(seconds: 5);
+
+  /// Contradiction tolerance between the server's observed age and ours
+  /// (response travel time + minor clock skew). A wildly contradictory
+  /// server age means the metadata is not trustworthy.
+  static const ageContradictionToleranceSeconds = 30;
+
   const FxRateSnapshot({
     required this.ghsPerUsdc,
     required this.source,
@@ -27,14 +49,54 @@ class FxRateSnapshot {
     this.settlementCurrency = 'USDC',
     this.displayCurrency = 'GHS',
     this.isCanonical = true,
+    this.serverFresh = false,
+    this.lastExternalSync,
+    this.externalRateAgeSeconds,
+    this.rateFreshnessMaxAgeSeconds = 0,
   });
 
-  bool get isUsable =>
-      ghsPerUsdc > 0 &&
-      pair == 'USDC/GHS' &&
-      settlementCurrency == 'USDC' &&
-      displayCurrency == 'GHS' &&
-      isCanonical;
+  /// The FULL conversion gate: canonical USDC/GHS retail metadata, a
+  /// positive finite rate, AND a genuinely fresh external observation —
+  // the backend's `isFresh` verdict plus our own clock check against
+  /// lastExternalSync (fetchedAt never substitutes for it).
+  bool isUsableAt(DateTime now) {
+    if (!isCanonical) return false;
+    if (!ghsPerUsdc.isFinite || ghsPerUsdc <= 0) return false;
+    if (!serverFresh) return false;
+    if (lastExternalSync == null) return false;
+    if (!rateFreshnessMaxAgeSeconds.isFinite ||
+        rateFreshnessMaxAgeSeconds <= 0) {
+      return false;
+    }
+
+    final ageSeconds =
+        now.difference(lastExternalSync!).inMilliseconds / 1000.0;
+    // Future-invalid: beyond the backend's own skew allowance an
+    // observation in the future is untrusted, never infinitely fresh.
+    if (ageSeconds < -clockSkewAllowance.inSeconds) return false;
+    // Stale: the observation aged past the backend's own threshold.
+    if (ageSeconds > rateFreshnessMaxAgeSeconds) return false;
+    // The server's own age observation must not contradict ours.
+    if (externalRateAgeSeconds != null &&
+        (externalRateAgeSeconds! - ageSeconds).abs() >
+            ageContradictionToleranceSeconds) {
+      return false;
+    }
+    return true;
+  }
+
+  /// Usability at the caller's current clock. Callers holding a snapshot
+  /// across time (a retained provider value) get a truthful verdict:
+  /// an observation that has aged past the threshold stops converting
+  /// even though the snapshot object still exists.
+  bool get isUsable => isUsableAt(DateTime.now().toUtc());
+
+  /// Honest countdown target for freshness-sensitive UI: the moment this
+  /// observation becomes stale under the backend's threshold.
+  DateTime? get staleAt => lastExternalSync == null
+      ? null
+      : lastExternalSync!
+          .add(Duration(seconds: rateFreshnessMaxAgeSeconds.round()));
 
   double usdcToGhs(double usdc) => usdc * ghsPerUsdc;
 
@@ -48,13 +110,34 @@ double _positiveRate(dynamic value) {
   return number > 0 && number.isFinite ? number : 0;
 }
 
+double _positiveFiniteDouble(dynamic value) {
+  final number = value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
+  return number.isFinite && number > 0 ? number : 0;
+}
+
+int? _intOrNull(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse(value?.toString() ?? '');
+}
+
 /// Converts a backend oracle payload into the typed client snapshot.
 ///
-/// The canonical path requires an explicit positive `liveRetailRate` plus
-/// explicit USDC/GHS rail metadata. Older `liveUsdToGhs` / `rate` values remain
-/// readable for compatibility, but are marked non-canonical and therefore are
-/// not safe for current conversion UI (`isUsable == false`).
-FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data) {
+/// The canonical path requires an explicit positive `liveRetailRate`, the
+/// USDC/GHS rail metadata, AND the backend's full freshness contract:
+/// `isFresh == true`, a parseable `lastExternalSync` within
+/// `rateFreshnessMaxAgeSeconds` of [now] (bounded by the backend's clock
+/// skew allowance on the future side), and a `rateFreshnessMaxAgeSeconds`
+/// the backend actually sent. Missing, stale, future-invalid, non-finite
+/// or contradictory metadata yields a snapshot whose `isUsable` is false —
+/// it is never silently treated as a live rate (PR #165 review §2).
+///
+/// Older `liveUsdToGhs` / `rate` values remain readable for compatibility,
+/// but are marked non-canonical and therefore are never usable.
+FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data,
+    {DateTime? now}) {
   final retail = _positiveRate(data['liveRetailRate']);
   final headline = _positiveRate(data['liveUsdToGhs']);
   final legacy = _positiveRate(data['rate']);
@@ -69,6 +152,18 @@ FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data) {
 
   final hasCanonicalRetail = retail > 0;
   final rate = hasCanonicalRetail ? retail : headline > 0 ? headline : legacy;
+
+  final lastExternalSync =
+      DateTime.tryParse(data['lastExternalSync']?.toString() ?? '')?.toUtc();
+  final serverFresh = data['isFresh'] == true;
+  final externalRateAgeSeconds = _intOrNull(data['externalRateAgeSeconds']);
+  final rateFreshnessMaxAgeSeconds =
+      _positiveFiniteDouble(data['rateFreshnessMaxAgeSeconds']);
+
+  final freshnessMetadataPresent = serverFresh &&
+      lastExternalSync != null &&
+      rateFreshnessMaxAgeSeconds > 0;
+
   if (rate <= 0) {
     return FxRateSnapshot(
       ghsPerUsdc: 0,
@@ -90,7 +185,12 @@ FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data) {
     pair: pair,
     settlementCurrency: settlementCurrency,
     displayCurrency: displayCurrency,
-    isCanonical: hasCanonicalRetail && canonicalMetadata,
+    isCanonical:
+        hasCanonicalRetail && canonicalMetadata && freshnessMetadataPresent,
+    serverFresh: serverFresh,
+    lastExternalSync: lastExternalSync,
+    externalRateAgeSeconds: externalRateAgeSeconds,
+    rateFreshnessMaxAgeSeconds: rateFreshnessMaxAgeSeconds,
   );
 }
 
@@ -108,9 +208,11 @@ final fxRateProvider = FutureProvider<FxRateSnapshot?>((ref) async {
     final data = body['data'];
     if (data is! Map<String, dynamic>) return null;
 
-    final snapshot = parseFxRateSnapshot(data);
-    if (!snapshot.isUsable) return null;
-    return snapshot;
+    // The snapshot is returned even when its freshness verdict is false:
+    // callers gate on `isUsable` (recomputed against the caller's clock)
+    // and can distinguish "stale but described" from "no data at all".
+    // Nothing downstream can mistake it for a live rate.
+    return parseFxRateSnapshot(data);
   } catch (_) {
     return null;
   }

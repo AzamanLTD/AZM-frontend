@@ -38,6 +38,8 @@ class PremiumChatInput extends ConsumerStatefulWidget {
   final TextEditingController? controller;
   final FocusNode? focusNode;
   final VoidCallback? onTransfer;
+  final VoidCallback? onSendMoney;
+  final VoidCallback? onRequestMoney;
   final VoidCallback? onTickets;
 
   const PremiumChatInput({
@@ -50,6 +52,8 @@ class PremiumChatInput extends ConsumerStatefulWidget {
     this.controller,
     this.focusNode,
     this.onTransfer,
+    this.onSendMoney,
+    this.onRequestMoney,
     this.onTickets,
   });
 
@@ -242,6 +246,22 @@ class _State extends ConsumerState<PremiumChatInput> {
                       label: 'Document',
                       onTap: _pickDocument,
                     ),
+                    // Unified Send (2026-10-20): Send routes to the
+                    // shared composer; Request keeps the audited
+                    // transfer-modal request rail. Legacy onTransfer is
+                    // retained for other callers.
+                    if (widget.onSendMoney != null)
+                      LiquidDropdownItem(
+                        icon: Icons.north_east_rounded,
+                        label: 'Send Money',
+                        onTap: widget.onSendMoney!,
+                      ),
+                    if (widget.onRequestMoney != null)
+                      LiquidDropdownItem(
+                        icon: Icons.call_received_rounded,
+                        label: 'Request Money',
+                        onTap: widget.onRequestMoney!,
+                      ),
                     if (widget.onTransfer != null)
                       LiquidDropdownItem(
                         icon: Icons.compare_arrows_rounded,

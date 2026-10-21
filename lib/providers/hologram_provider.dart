@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:http/http.dart' as http;
+import 'package:azaman/providers/currency_provider.dart' show parseFxRateSnapshot;
 import 'package:azaman/services/oracle_rates_client.dart';
 
 class BalanceData {
@@ -170,8 +171,14 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
       if (decoded is! Map<String, dynamic>) return;
 
       final payload = _unwrapOraclePayload(decoded);
-      final rate = parseOracleGhsRate(decoded);
-      if (rate <= 0) return;
+      // §5: the Home equivalent now uses the SAME canonical freshness
+      // rule as the Send path — parseFxRateSnapshot requires the
+      // backend's isFresh/lastExternalSync/threshold contract. An old
+      // server observation (or missing metadata) keeps the rate at 0 =
+      // "unavailable", never a silent live-looking figure.
+      final snapshot = parseFxRateSnapshot(payload);
+      if (!snapshot.isUsable) return;
+      final rate = snapshot.ghsPerUsdc;
 
       final configuredSecondsRaw =
           payload['refreshIntervalSeconds'] ?? payload['quoteValiditySeconds'];
@@ -189,6 +196,12 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
         refreshInterval: interval,
         stale: false,
       );
+      // A usable snapshot still carries its true expiry: surface the
+      // moment it ages out so the card's countdown stays honest.
+      final staleAt = snapshot.staleAt;
+      if (staleAt != null) {
+        ref.read(oracleRateStaleAtProvider.notifier).state = staleAt;
+      }
     } catch (_) {
       final current = ref.read(oracleRateMetadataProvider);
       ref.read(oracleRateMetadataProvider.notifier).state = OracleRateMetadata(
@@ -208,6 +221,11 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
   // unavailable while USDC stays authoritative.
   return 0.0;
 });
+
+/// The moment the CURRENT oracle observation ages out under the
+/// backend's freshness threshold — informational for UI countdowns.
+final StateProvider<DateTime?> oracleRateStaleAtProvider =
+    StateProvider<DateTime?>((ref) => null);
 
 final hologramBalanceProvider = Provider<double>((ref) {
   final balances = ref.watch(balanceDataProvider);

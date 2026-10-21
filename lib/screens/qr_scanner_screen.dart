@@ -26,11 +26,26 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/recipient_discovery_service.dart' show personalQrUsername;
 import 'package:azaman/widgets/azaman_sheet.dart';
 
 
 class QrScannerScreen extends ConsumerStatefulWidget {
-  const QrScannerScreen({super.key});
+  /// Default mode: the audited add-friend flow (search → confirm sheet →
+  /// friend request), unchanged.
+  const QrScannerScreen({super.key}) : pickUsername = false;
+
+  /// pickUsername mode: the SAME audited person-identity payload contract
+  /// (`azaman://user/{username}` / `@username`), but the scanner pops with
+  /// the parsed username instead of running the add-friend flow. Used by
+  /// the Send composer's recipient selector, which then resolves the
+  /// username through /friends/search and requires EXPLICIT selection —
+  /// no friend request is created as a side effect. Reservation check-in
+  /// codes and dine-in table codes are rejected exactly as in add-friend
+  /// mode: they are not a person-identity payload.
+  const QrScannerScreen.pickUsername({super.key}) : pickUsername = true;
+
+  final bool pickUsername;
 
   @override
   ConsumerState<QrScannerScreen> createState() => _QrScannerScreenState();
@@ -84,24 +99,22 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       return;
     }
 
+    if (widget.pickUsername) {
+      // Sender-flow: hand the parsed username to the caller's explicit
+      // resolve-and-select step. No automatic search, no friend request.
+      Navigator.of(context).pop(username);
+      return;
+    }
+
     setState(() => _isProcessing = true);
     _controller.stop();
     _searchAndConfirm(username);
   }
 
-  /// Parse azaman://user/{username} URI. Returns username or null.
-  String? _parseAzamanUri(String raw) {
-    // Support both azaman://user/username and plain @username
-    if (raw.startsWith('azaman://user/')) {
-      final username = raw.substring('azaman://user/'.length).trim();
-      return username.isNotEmpty ? username : null;
-    }
-    // Fallback: if raw is just a username (no URI), accept it
-    if (raw.startsWith('@')) {
-      return raw.substring(1).trim();
-    }
-    return null;
-  }
+  /// The audited person-identity contract lives in ONE place:
+  /// recipient_discovery_service.personalQrUsername. This screen must
+  /// never grow its own variant.
+  String? _parseAzamanUri(String raw) => personalQrUsername(raw);
 
   Future<void> _searchAndConfirm(String username) async {
     final colors = ref.read(themeProvider).colors;

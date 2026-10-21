@@ -78,6 +78,7 @@ class _RequestsApiClient extends ApiClient {
     FinancialOperationRef? ref,
     bool requireAuth = true,
     Map<String, String>? headers,
+    bool failClosedOnPendingFingerprintChange = false,
   }) async {
     postCount++;
     lastEndpoint = path;

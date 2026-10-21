@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/dual_currency_text.dart';
@@ -190,14 +191,37 @@ class _TransactionHistoryScreenState
                 ? _buildErrorState(colors, state.error!)
                 : state.isLoading && state.items.isEmpty
                 ? _buildShimmer(colors)
-                : _buildGroupedList(colors, state),
+                : _buildGroupedList(colors, state, ghsFirst: _isGhsFirst()),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildGroupedList(AzamanColors colors, TransactionHistoryState state) {
+  /// GHANA-FIRST row presentation: the global display preference decides
+  /// which RECORDED amount (amountGhs / amountUsdc, both stored at
+  /// initiation alongside rateAtInitiation) is primary. No live
+  /// conversion — a transaction's recorded truth never follows today's
+  /// rate, and the secondary line is the OTHER recorded value.
+  /// Resolved ONCE per build (itemBuilder runs during layout, where
+  /// ref.watch is illegal) and threaded into the row helpers.
+  bool _isGhsFirst() =>
+      ref.watch(currencyProvider) == DisplayCurrency.ghs;
+
+  String _primaryAmount(dynamic txn, bool ghsFirst) {
+    final sign = txn.category == 'WITHDRAWAL' ? "-" : "+";
+    return ghsFirst
+        ? '$sign GH\u{20B5}${txn.amountGhs.toStringAsFixed(2)}'
+        : '$sign${txn.amountUsdc.toStringAsFixed(2)} USDC';
+  }
+
+  String _secondaryLine(dynamic txn, bool ghsFirst) {
+    return ghsFirst
+        ? '${txn.amountUsdc.toStringAsFixed(2)} USDC'
+        : 'GH\u{20B5} ${txn.amountGhs.toStringAsFixed(2)}';
+  }
+
+  Widget _buildGroupedList(AzamanColors colors, TransactionHistoryState state, {required bool ghsFirst}) {
     final allTxns = state.items;
     final filtered = _searchQuery.isEmpty
         ? allTxns
@@ -325,7 +349,7 @@ class _TransactionHistoryScreenState
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    '${txn.provider.isNotEmpty ? txn.provider : 'Azaman'}  ·  GH₵ ${txn.amountGhs.toStringAsFixed(2)}',
+                                    '${txn.provider.isNotEmpty ? txn.provider : 'Azaman'}  ·  ${_secondaryLine(txn, ghsFirst)}',
                                     style: TextStyle(
                                       color: colors.textSecondary,
                                       fontSize: 11,
@@ -346,7 +370,7 @@ class _TransactionHistoryScreenState
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '${txn.category == 'WITHDRAWAL' ? "-" : "+"}${txn.amountUsdc.toStringAsFixed(2)} USDC',
+                                  _primaryAmount(txn, ghsFirst),
                                   style: TextStyle(
                                     color: txn.category == 'WITHDRAWAL'
                                         ? colors.danger

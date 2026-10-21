@@ -86,17 +86,25 @@ Widget _wrap(Widget child, {bool reduceMotion = false}) {
   );
 }
 
+/// Seeds the display-currency preference BEFORE any provider in this
+/// test reads SharedPreferences (CurrencyNotifier loads at construction).
+Future<void> _seedCurrency(String? value) async {
+  SharedPreferences.setMockInitialValues(
+      value == null ? {} : {'display_currency': value});
+}
+
 /// Pumps the front face with a container the test can mutate providers on.
 Future<ProviderContainer> _pumpFrontFace(
   WidgetTester tester, {
   required double balance,
+  double rate = 1.0,
   bool reduceMotion = false,
 }) async {
   final container = ProviderContainer(overrides: [
     balanceDataProvider.overrideWith(
       (ref) => BalanceData(availableBalance: balance),
     ),
-    oracleRateProvider.overrideWith((ref) => 1.0),
+    oracleRateProvider.overrideWith((ref) => rate),
   ]);
   addTearDown(container.dispose);
   await tester.pumpWidget(
@@ -156,6 +164,115 @@ void main() {
 
 
 
+  group('GHANA-FIRST (2026-10-20) — GHS is the default primary', () {
+
+testWidgets(
+      'PR #165 §5 — an unavailable rate keeps the USDC ledger balance visible '
+      'and names the cedi equivalent unavailable (never GH₵ 0.00)',
+      (tester) async {
+    final handle = tester.ensureSemantics();
+    await _pumpFrontFace(tester, balance: 50.0, rate: 0);
+
+    // The REAL ledger balance stays primary and visible. The hero
+    // renders the balance as per-digit odometer cells, so the assertion
+    // targets the card's own semantics label — the full formatted amount.
+    expect(find.bySemanticsLabel(RegExp('USDC.50.00\\savailable')),
+        findsOneWidget,
+        reason: 'the funded USDC ledger balance must stay visible');
+    expect(find.text('GH\u20B5 equivalent unavailable'), findsOneWidget,
+        reason: 'the cedi equivalent is named unavailable');
+    expect(find.byKey(const ValueKey('hologram-rate-unavailable')),
+        findsOneWidget,
+        reason: 'the rate row says FX unavailable, never 1 USDC = GH₵ 0.00');
+    expect(find.text('1 USDC = GH\u20B5\u00A00.00'), findsNothing,
+        reason: 'a fabricated live-looking zero rate must never render');
+    handle.dispose();
+  });
+
+    testWidgets('the un-seeded preference renders GHS-primary with the '
+        'USDC ledger equivalent as the secondary figure', (tester) async {
+      await _seedCurrency(null);
+      await _pumpFrontFace(tester, balance: 123.45);
+
+      // GHS-primary: the hero figure is the GHS equivalent of the ledger
+      // balance (123.45 * 1.0) and the secondary line is the USDC ledger
+      // truth ('USDC\u00A0123.45'), so the user always knows what they hold.
+      final odometer =
+          tester.widget<OdometerNumber>(find.byType(OdometerNumber));
+      expect(odometer.value, '123.45',
+          reason: 'the hero shows the GHS-equivalent figure');
+      expect(find.text('USDC\u00A0123.45'), findsOneWidget,
+          reason: 'the secondary line is the USDC ledger equivalent');
+      expect(find.text('GH\u20B5'), findsOneWidget,
+          reason: 'the wheel renders the GHS chip');
+      expect(find.text('USDC'), findsOneWidget,
+          reason: 'the wheel renders the USDC chip');
+    });
+
+    testWidgets('a distinct rate proves the figure is CONVERTED, not '
+        'relabeled — and the wheel converts the value back', (tester) async {
+      await _seedCurrency(null);
+      await _pumpFrontFace(tester, balance: 123.45, rate: 15.38);
+
+      // 123.45 USDC * 15.38 = 1898.66 GHS (half-up at 2 decimals).
+      final odometer =
+          tester.widget<OdometerNumber>(find.byType(OdometerNumber));
+      expect(odometer.value, '1,898.66');
+      expect(find.text('USDC\u00A0123.45'), findsOneWidget);
+
+      // Rotating the display wheel to USDC converts the SAME balance back
+      // through the SAME rate — a numeric conversion, never a label swap.
+      await tester.drag(
+          find.byKey(const ValueKey('home-balance-currency-wheel')),
+          const Offset(-60, 0));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final after = tester.widget<OdometerNumber>(find.byType(OdometerNumber));
+      expect(after.value, '123.45',
+          reason: 'the figure converts back to the ledger unit');
+      expect(find.text('GH\u20B5\u00A01,898.66'), findsOneWidget,
+          reason: 'GHS becomes the secondary equivalent');
+    });
+
+    testWidgets('the wheel writes the GLOBAL preference — not a '
+        'screen-local label', (tester) async {
+      await _seedCurrency(null);
+      await _pumpFrontFace(tester, balance: 100);
+
+      await tester.drag(
+          find.byKey(const ValueKey('home-balance-currency-wheel')),
+          const Offset(-60, 0));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('display_currency'), 'usdc',
+          reason: 'the display surface persists the global preference');
+    });
+
+    testWidgets('a unit switch re-baselines the delta chip silently — an '
+        'FX/unit change never masquerades as balance movement', (tester) async {
+      await _seedCurrency(null);
+      await _pumpFrontFace(tester, balance: 100);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // A real balance move shows the chip, denominated in the PRIMARY unit.
+      await _pumpFrontFace(tester, balance: 120);
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('+GH\u20B5\u00A020.00'), findsOneWidget,
+          reason: 'a genuine +20 GHS move is surfaced');
+
+      // Rotating the wheel changes the figure's MEANING, not the balance:
+      // the chip must vanish (re-baselined) instead of showing a fake move.
+      await tester.drag(
+          find.byKey(const ValueKey('home-balance-currency-wheel')),
+          const Offset(-60, 0));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('+GH\u20B5\u00A020.00'), findsNothing);
+      expect(find.text('+USDC\u00A020.00'), findsNothing,
+          reason: 'a unit switch is not balance movement');
+    });
+  });
+
   group('EXPERIENCE PASS §1 — USDC-first hero', () {
     testWidgets('the front face shows no wallet/user-id line', (tester) async {
       await _pumpFrontFace(tester, balance: 100);
@@ -166,7 +283,11 @@ void main() {
     });
 
     testWidgets('the primary figure reads USDC-first', (tester) async {
+      await _seedCurrency('usdc');
       await _pumpFrontFace(tester, balance: 123.45);
+      // The preference load is async: one bounded pump lets the seeded
+      // 'usdc' land before the contract is asserted.
+      await tester.pump(const Duration(milliseconds: 100));
       // RICHTEXT CORRECTIONS §2A: the hero is the AMOUNT. The figure
       // renders through OdometerNumber's per-slot cells, so the amount
       // contract is pinned on the odometer's own value; the "USDC" unit
@@ -182,7 +303,11 @@ void main() {
 
     testWidgets('the USDC unit label is substantially smaller than the '
         'amount, and the amount is not ultra-heavy', (tester) async {
+      await _seedCurrency('usdc');
       await _pumpFrontFace(tester, balance: 123.45);
+      // The preference load is async: one bounded pump lets the seeded
+      // 'usdc' land before the contract is asserted.
+      await tester.pump(const Duration(milliseconds: 100));
 
       final unitStyle = tester.widget<Text>(find.text('USDC')).style!;
       final odometer =

@@ -95,6 +95,22 @@ class DurableOperationNotFoundException extends DurableOperationException {
       '"$operationId" in this account namespace';
 }
 
+/// A caller asked to change the request of a financial flow that still has
+/// an UNRESOLVED durable instance (PR #165 review finding 2). The caller may
+/// opt into this via postFinancial's `failClosedOnPendingFingerprintChange`:
+/// starting a NEW financial operation while a prior one of the same flow is
+/// still pending is refused — the existing operation must be resolved first
+/// (retry it unchanged, or await its outcome). Nothing was sent on the wire.
+class PendingFinancialOperationException implements Exception {
+  final String operationId;
+  const PendingFinancialOperationException(this.operationId);
+  @override
+  String toString() =>
+      'PendingFinancialOperationException: an unresolved financial '
+      'operation "$operationId" is still pending for this flow — resolve '
+      'it before starting a materially different one';
+}
+
 /// The instance's stored snapshot is NOT the exact wire request (it is a
 /// synthetic fingerprint body): generic replay is invalid. Resume from the
 /// operation's own flow, which reconstructs the exact request. The

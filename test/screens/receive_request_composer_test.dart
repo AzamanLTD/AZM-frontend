@@ -29,6 +29,7 @@ class _RequestApiClient extends ApiClient {
     FinancialOperationRef? ref,
     bool requireAuth = true,
     Map<String, String>? headers,
+    bool failClosedOnPendingFingerprintChange = false,
   }) async {
     endpoint = path;
     body = Map<String, dynamic>.from(requestBody);

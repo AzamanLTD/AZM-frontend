@@ -6,12 +6,23 @@
 // =============================================================================
 
 import 'dart:convert';
+
+import 'package:meta/meta.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 
 class FriendService {
   static final FriendService _instance = FriendService._internal();
   factory FriendService() => _instance;
+
+  /// Test-only injection point: the singleton keeps the global ApiClient;
+  /// tests construct instances pinned to a MockClient so wire assertions
+  /// can inspect exact requests. No behavior change for the app.
+  @visibleForTesting
+  FriendService.forTesting(ApiClient api) : _api = api;
+
+  final ApiClient _api;
+  FriendService._internal() : _api = apiClient;
 
   // r42 key lifecycle: per-friend transfer keys, held on this singleton so
   // a re-tap after a lost response reuses the SAME key (the server may
@@ -29,7 +40,6 @@ class FriendService {
   String _sendAction(String friendshipId) => 'friend.transfer.send.$friendshipId';
   String _requestAction(String friendshipId) => 'friend.transfer.request.$friendshipId';
   final Map<String, FinancialOperationRef> _flowRefs = {};
-  FriendService._internal();
 
   // ===========================================================================
   // USER DISCOVERY
@@ -38,7 +48,7 @@ class FriendService {
   /// Search users by username or user ID
   Future<List<Map<String, dynamic>>> searchUsers(
       String query, String token) async {
-    final response = await apiClient.get('/friends/search?q=$query');
+    final response = await _api.get('/friends/search?q=$query');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -54,7 +64,7 @@ class FriendService {
   /// Send a friend request to another user
   Future<Map<String, dynamic>> sendFriendRequest(
       int addresseeId, String message, String token) async {
-    final response = await apiClient.post('/friends/request', {
+    final response = await _api.post('/friends/request', {
       'addresseeId': addresseeId,
       'message': message,
     });
@@ -67,7 +77,7 @@ class FriendService {
 
   /// Get pending incoming friend requests
   Future<List<Map<String, dynamic>>> getPendingRequests(String token) async {
-    final response = await apiClient.get('/friends/requests');
+    final response = await _api.get('/friends/requests');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -79,7 +89,7 @@ class FriendService {
   /// Accept a friend request
   Future<Map<String, dynamic>> acceptFriendRequest(
       String id, String token) async {
-    final response = await apiClient.put('/friends/request/$id/accept', {});
+    final response = await _api.put('/friends/request/$id/accept', {});
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -90,7 +100,7 @@ class FriendService {
   /// Reject a friend request
   Future<Map<String, dynamic>> rejectFriendRequest(
       String id, String token) async {
-    final response = await apiClient.put('/friends/request/$id/reject', {});
+    final response = await _api.put('/friends/request/$id/reject', {});
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -104,7 +114,7 @@ class FriendService {
 
   /// Get all friends with chat preview info
   Future<List<Map<String, dynamic>>> getFriends(String token) async {
-    final response = await apiClient.get('/friends');
+    final response = await _api.get('/friends');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -115,7 +125,7 @@ class FriendService {
 
   /// Remove a friend
   Future<bool> removeFriend(String id, String token) async {
-    final response = await apiClient.delete('/friends/$id');
+    final response = await _api.delete('/friends/$id');
     return response.statusCode == 200;
   }
 
@@ -127,7 +137,7 @@ class FriendService {
   Future<Map<String, dynamic>> getMessages(
       String friendshipId, String token,
       {int page = 1}) async {
-    final response = await apiClient.get(
+    final response = await _api.get(
         '/friends/chat/$friendshipId/messages?page=$page');
 
     if (response.statusCode == 200) {
@@ -167,7 +177,7 @@ class FriendService {
         'mediaWaveformPeaks': mediaWaveformPeaks,
       if (linkPreview != null) 'linkPreview': linkPreview,
     };
-    final response = await apiClient.post(
+    final response = await _api.post(
       '/friends/chat/$friendshipId/messages',
       body,
     );
@@ -180,12 +190,12 @@ class FriendService {
 
   /// Mark all messages as read in a conversation
   Future<void> markAsRead(String friendshipId, String token) async {
-    await apiClient.put('/friends/chat/$friendshipId/read', {});
+    await _api.put('/friends/chat/$friendshipId/read', {});
   }
 
   /// Get total unread message count across all conversations
   Future<int> getUnreadCount(String token) async {
-    final response = await apiClient.get('/friends/chat/unread-count');
+    final response = await _api.get('/friends/chat/unread-count');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -220,14 +230,21 @@ class FriendService {
     // the same identity and the backend's legacy txHash derivation stays
     // consistent. Lifecycle (retire on answered outcomes, retain on 409 /
     // network loss) is owned by the helper.
-    final response = await apiClient.postFinancial('/friends/transfer/send', {
+    final response = await _api.postFinancial('/friends/transfer/send', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
       'clientRequestId': '', // auto-filled from the durable registry
     }, operationType: _sendAction(friendshipId),
         ref: _flowRefs.putIfAbsent(
-            'send.$friendshipId', () => FinancialOperationRef()));
+            'send.$friendshipId', () => FinancialOperationRef()),
+        // PR #165 review finding 2: an unresolved send of THIS friendship
+        // must never be silently replaced by a materially different send
+        // while the prior outcome is unknown. A changed request while the
+        // flow ref holds a pending instance fails CLOSED here (zero wire);
+        // the caller shows the honest resolution path. Other operation
+        // types keep the legacy begin-a-new-instance semantics.
+        failClosedOnPendingFingerprintChange: true);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
@@ -249,7 +266,7 @@ class FriendService {
     // instance and the old record stays recoverable).
     final requestRef = _flowRefs.putIfAbsent(
         'request.$friendshipId', () => FinancialOperationRef());
-    final account = await apiClient.operationAccount(failClosed: true);
+    final account = await _api.operationAccount(failClosed: true);
     DurableOperation op;
     final retryId = requestRef.operationId;
     if (retryId != null) {
@@ -303,7 +320,7 @@ class FriendService {
     }
     requestRef.operationId = op.operationId;
     final requestId = op.key;
-    final response = await apiClient.post('/friends/transfer/request', {
+    final response = await _api.post('/friends/transfer/request', {
       'friendshipId': friendshipId,
       'amount': amount,
       if (reference != null && reference.isNotEmpty) 'reference': reference,
@@ -323,7 +340,7 @@ class FriendService {
   /// Fulfill a pending transfer request (pay it)
   Future<Map<String, dynamic>> fulfillTransfer(
       String transferId, String token) async {
-    final response = await apiClient.put('/friends/transfer/$transferId/fulfill', {});
+    final response = await _api.put('/friends/transfer/$transferId/fulfill', {});
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -334,7 +351,7 @@ class FriendService {
   /// Decline a pending transfer request
   Future<Map<String, dynamic>> declineTransfer(
       String transferId, String token) async {
-    final response = await apiClient.put('/friends/transfer/$transferId/decline', {});
+    final response = await _api.put('/friends/transfer/$transferId/decline', {});
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -345,7 +362,7 @@ class FriendService {
   /// Get details of a specific transfer
   Future<Map<String, dynamic>> getTransferDetails(
       String transferId, String token) async {
-    final response = await apiClient.get('/friends/transfer/$transferId');
+    final response = await _api.get('/friends/transfer/$transferId');
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -355,7 +372,7 @@ class FriendService {
 
   /// Get all pending transfer requests (incoming)
   Future<Map<String, dynamic>> getPendingTransferRequests(String token) async {
-    final response = await apiClient.get('/friends/transfer/pending');
+    final response = await _api.get('/friends/transfer/pending');
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);

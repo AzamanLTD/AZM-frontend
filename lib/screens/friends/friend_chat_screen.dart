@@ -26,6 +26,8 @@ import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/screens/friends/transfer_modal.dart';
+import 'package:azaman/screens/send_money_screen.dart';
+import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
 import 'package:azaman/providers/premium_chat_provider.dart';
 import 'package:azaman/models/chat_message.dart';
@@ -87,6 +89,18 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
 
   Timer? _typingTimer;
 
+  // PR #165 review finding 3 — SCOPED socket listener lifecycle. The
+  // chat screen stores the EXACT callbacks it registered so dispose can
+  // remove ONLY them (`socket.off(event, handler)`). A bare
+  // `socket.off(event)` would also strip FriendProvider's own
+  // `friend_message` listener (shared unread/message state) and any other
+  // component's listener — one closed chat screen must never deafen the
+  // rest of the app.
+  void Function(dynamic)? _onFriendMessage;
+  void Function(dynamic)? _onFriendTyping;
+  void Function(dynamic)? _onTicketPresence;
+  void Function(dynamic)? _onTicketStatus;
+
   @override
   void initState() {
     super.initState();
@@ -120,9 +134,15 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     _typingTimer?.cancel();
     _presenceTimeout?.cancel();
     final socket = SocketService.instance.rawSocket;
-    socket?.off('friend_typing');
-    socket?.off('ticket_presence_update');
-    socket?.off('ticket_status_changed');
+    // Scoped removal: only the callbacks THIS screen registered come off.
+    // FriendProvider's friend_message listener (shared unread/message
+    // state) and any other component's listener stay attached.
+    if (socket != null) {
+      if (_onFriendTyping != null) socket.off('friend_typing', _onFriendTyping);
+      if (_onFriendMessage != null) socket.off('friend_message', _onFriendMessage);
+      if (_onTicketPresence != null) socket.off('ticket_presence_update', _onTicketPresence);
+      if (_onTicketStatus != null) socket.off('ticket_status_changed', _onTicketStatus);
+    }
     super.dispose();
   }
 
@@ -134,8 +154,32 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     final socket = SocketService.instance.rawSocket;
     if (socket == null) return;
 
+    // ── Realtime message convergence (unified Send, 2026-10-20) ────────
+    // The backend emits `friend_message` to the receiver's user room the
+    // moment a transfer (or text) commits. Deduped by canonical message
+    // id: an already-rendered message (API reload vs socket echo race,
+    // retry replay, reconnect replay) is never inserted twice, so one
+    // committed transfer renders exactly once.
+    _onFriendMessage = (data) {
+      if (!mounted || data is! Map<String, dynamic>) return;
+      if (data['friendshipId']?.toString() != widget.friendshipId) return;
+      final id = data['id']?.toString();
+      if (id == null || id.isEmpty) return;
+      if (_messages.any((m) => m['id']?.toString() == id)) return;
+      setState(() {
+        _messages.insert(0, Map<String, dynamic>.from(data));
+        // Newest-first list (the API returns createdAt desc); the socket
+        // payload carries the same DirectMessage shape.
+        _messages.sort((a, b) =>
+            (b['createdAt']?.toString() ?? '').compareTo(a['createdAt']?.toString() ?? ''));
+      });
+      _markAsRead();
+      _scrollToBottom();
+    };
+    socket.on('friend_message', _onFriendMessage!);
+
     // Listen for typing indicator
-    socket.on('friend_typing', (data) {
+    _onFriendTyping = (data) {
       if (data is Map<String, dynamic> &&
           data['friendshipId']?.toString() == widget.friendshipId) {
         setState(() => _friendTyping = true);
@@ -144,14 +188,15 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           if (mounted) setState(() => _friendTyping = false);
         });
       }
-    });
+    };
+    socket.on('friend_typing', _onFriendTyping!);
 
     // Phase UI-4: Tickets Engine presence updates. Fired when the
     // counterparty opens or closes any ticket workspace under this
     // friendship. We only react if the event is scoped to OUR friendship
     // and the user reported is NOT us (we shouldn't see our own banner).
     final myUserId = ref.read(authProvider).user?.id;
-    socket.on('ticket_presence_update', (data) {
+    _onTicketPresence = (data) {
       if (!mounted) return;
       if (data is! Map<String, dynamic>) return;
       if (data['friendshipId']?.toString() != widget.friendshipId) return;
@@ -171,21 +216,23 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           if (mounted) setState(() => _ticketPresenceTicketId = null);
         });
       }
-    });
+    };
+    socket.on('ticket_presence_update', _onTicketPresence!);
 
     // Phase UI-6: refresh trust metrics whenever a ticket lifecycle
     // transition lands. CLOSED is the only one that bumps the count, but
     // a CANCELLED → REOPENED → CLOSED cycle is legal and we don't want
     // to maintain that bookkeeping client-side. One refresh per status
     // change is cheap and always correct.
-    socket.on('ticket_status_changed', (data) {
+    _onTicketStatus = (data) {
       if (!mounted) return;
       if (data is! Map<String, dynamic>) return;
       if (data['friendshipId']?.toString() != widget.friendshipId) return;
       ref
           .read(chatTrustMetricsProvider(widget.friendshipId).notifier)
           .refresh();
-    });
+    };
+    socket.on('ticket_status_changed', _onTicketStatus!);
   }
 
   // ===========================================================================
@@ -218,6 +265,11 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         });
       }
 
+      // The request is async — the user may have already left the chat
+      // when it answers (found by the socket-scoping regression suite:
+      // setState-after-dispose on a slow/failing response). Never touch
+      // state for a dead screen.
+      if (!mounted) return;
       setState(() {
         if (loadMore) {
           _messages.addAll(msgs);
@@ -228,7 +280,7 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       debugPrint('FriendChat._loadMessages error: $e');
     }
   }
@@ -433,7 +485,36 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   // TRANSFER ACTIONS
   // ===========================================================================
 
-  void _openTransferModal() {
+  /// Unified Send (2026-10-20): Send from a chat opens the SAME shared
+  /// SendMoneyScreen composer used from Home — seeded with this
+  /// conversation's authoritative participant identity (friendshipId is
+  /// the financial key the canonical rail requires; friendUsername is
+  /// the conversation's participant handle, never a derived display
+  /// name). Successful completion refreshes the conversation + account
+  /// state; the transfer message arrives exactly once through the
+  /// backend-created TRANSFER_SENT record.
+  Future<void> _openSendComposer() async {
+    final sent = await pushWithVerticalTransition(
+      context,
+      SendMoneyScreen.toFriend(
+        recipient: SendRecipient.friend(
+          username: widget.friendUsername,
+          friendshipId: widget.friendshipId,
+        ),
+      ),
+    );
+    if (sent == true && mounted) {
+      // One canonical refresh — the backend owns the chat record; no
+      // client-side completion event is fabricated.
+      _loadMessages();
+      ref.read(friendProvider).fetchFriends();
+    }
+  }
+
+  /// Request-funds rail: unchanged endpoint, signed-intent confirmation,
+  /// biometric/2FA safeguards, fulfill/decline flows. The modal now opens
+  /// directly on Request; Send lives in the shared composer.
+  void _openRequestModal() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -441,10 +522,11 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       builder: (_) => TransferModal(
         friendshipId: widget.friendshipId,
         friendUsername: widget.friendUsername,
+        initialSendMode: false,
       ),
     ).then((result) {
       if (result == true) {
-        // Refresh messages to show the transfer
+        // Refresh messages to show the request
         _loadMessages();
         ref.read(friendProvider).fetchFriends();
       }
@@ -682,7 +764,8 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           PremiumChatInput(
             replyTo: _replyTo,
             onClearReply: () => setState(() => _replyTo = null),
-            onTransfer: _openTransferModal,
+            onSendMoney: () => _openSendComposer(),
+            onRequestMoney: _openRequestModal,
             onTickets: () {
               showModalBottomSheet(
                 context: context,

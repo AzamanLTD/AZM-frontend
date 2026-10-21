@@ -26,14 +26,22 @@ class TransferModal extends ConsumerStatefulWidget {
     super.key,
     required this.friendshipId,
     required this.friendUsername,
+    this.initialSendMode = true,
   });
+
+  /// Unified Send (2026-10-20): Send from a chat now opens the shared
+  /// SendMoneyScreen composer. This modal remains the Request-funds
+  /// surface (its endpoint, signed-intent confirmation, biometric/2FA
+  /// gates, fulfill/decline flows unchanged) — chat entry points pass
+  /// [initialSendMode] false so the modal lands directly on Request.
+  final bool initialSendMode;
 
   @override
   ConsumerState<TransferModal> createState() => _TransferModalState();
 }
 
 class _TransferModalState extends ConsumerState<TransferModal> {
-  bool _isSendMode = true; // true = Send, false = Request
+  late bool _isSendMode = widget.initialSendMode; // true = Send, false = Request
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _referenceController = TextEditingController();
   final FriendService _service = FriendService();
