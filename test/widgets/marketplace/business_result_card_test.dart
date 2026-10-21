@@ -96,8 +96,12 @@ BusinessProduct _product(String name) => BusinessProduct(
       totalOrders: 5,
     );
 
-BusinessProfile _business({String category = 'FOOD_BEVERAGE'}) =>
+BusinessProfile _business({
+  String category = 'FOOD_BEVERAGE',
+  List<String> offeredCategories = const [],
+}) =>
     BusinessProfile(
+      offeredCategories: offeredCategories,
       id: 'bp-1',
       bizId: 'BIZ-1',
       businessName: 'Palm Court Kitchen',
@@ -313,6 +317,114 @@ void main() {
       // restaurant icon beside its name.
       expect(find.byIcon(Icons.restaurant_outlined), findsNothing);
       expect(find.byIcon(Icons.restaurant_rounded), findsNothing);
+    });
+
+    testWidgets('Workstream D: the visual category text label is GONE '
+        '(primary category lives only in the circular badge)', (tester) async {
+      await _pumpCard(tester, _business(category: 'HOSPITALITY'));
+
+      // The old textual label beside the name must not render…
+      expect(find.text('Hotels'), findsNothing);
+      expect(find.text('Restaurants'), findsNothing);
+
+      // …but the screen-reader contract is PRESERVED: the card still
+      // announces the category in its semantics labels.
+      final semantics = find.bySemanticsLabel(
+        RegExp('Category: Hotels|Hotels'),
+      );
+      expect(semantics, findsWidgets);
+    });
+
+    testWidgets('Workstream D: the primary category badge icon is accurate '
+        'for the category', (tester) async {
+      await _pumpCard(tester, _business(category: 'HOSPITALITY'));
+      // Scoped to the BADGE container: the avatar placeholder legitimately
+      // renders the same category icon, so the badge key is the precise
+      // assertion target.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('business-avatar-badge-BIZ-1')),
+          matching: find.byIcon(Icons.hotel_outlined),
+        ),
+        findsOneWidget,
+      );
+
+      // And no additional-offering icon renders when none are declared.
+      expect(find.byIcon(Icons.restaurant_outlined), findsNothing);
+    });
+
+    testWidgets('Workstream D: offering icons render ONLY from declared '
+        'offeredCategories data', (tester) async {
+      await _pumpCard(
+        tester,
+        _business(
+          category: 'HOSPITALITY',
+          offeredCategories: const ['FOOD_BEVERAGE'],
+        ),
+      );
+
+      // Declared offering → the chip icon renders (declared, not inferred:
+      // the fixture's primary is HOSPITALITY, so a restaurant icon can only
+      // come from offeredCategories).
+      expect(find.byIcon(Icons.restaurant_outlined), findsOneWidget);
+      // The PRIMARY category icon renders in the badge (plus the avatar
+      // placeholder's copy), not as an offering chip: exactly two, both
+      // owned by the primary HOSPITALITY identity.
+      expect(find.byIcon(Icons.hotel_outlined), findsNWidgets(2));
+    });
+
+    testWidgets('Workstream D: an EMPTY offeredCategories list renders no '
+        'chips and no fake icons', (tester) async {
+      await _pumpCard(
+        tester,
+        _business(category: 'HOSPITALITY', offeredCategories: const []),
+      );
+
+      // Nothing inferred: no restaurant chip for a hotel with no declared
+      // food offering, no generic fallback chip for an empty list.
+      expect(find.byIcon(Icons.restaurant_outlined), findsNothing);
+      expect(find.byIcon(Icons.category_outlined), findsNothing);
+    });
+
+    testWidgets('Workstream D: offering chips cap at 3 with a +N counter',
+        (tester) async {
+      await _pumpCard(
+        tester,
+        _business(
+          category: 'RETAIL',
+          offeredCategories: const [
+            'FOOD_BEVERAGE', 'LOGISTICS', 'EDUCATION', 'TECHNOLOGY',
+          ],
+        ),
+      );
+
+      expect(find.byIcon(Icons.restaurant_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.directions_bus_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.school_outlined), findsOneWidget);
+      // The 4th offering is counted, not drawn.
+      expect(find.byIcon(Icons.laptop_mac_outlined), findsNothing);
+      expect(find.text('+1'), findsOneWidget);
+    });
+
+    testWidgets('Workstream D: the card announces offerings in ONE '
+        'semantics utterance (also offers …)', (tester) async {
+      await _pumpCard(
+        tester,
+        _business(
+          category: 'HOSPITALITY',
+          offeredCategories: const ['FOOD_BEVERAGE', 'LOGISTICS'],
+        ),
+      );
+
+      // The body's single semantics node carries name + primary category +
+      // declared offerings in one coherent utterance (the chips themselves
+      // are visual-only; the body excludes descendant semantics).
+      expect(
+        find.bySemanticsLabel(
+          'Open Palm Court Kitchen, Hotels, also offers Restaurants, Transit',
+        ),
+        findsOneWidget,
+      );
     });
 
     for (final width in const [320.0, 360.0, 390.0]) {

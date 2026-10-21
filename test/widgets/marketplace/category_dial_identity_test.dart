@@ -188,4 +188,40 @@ void main() {
             'spaceBetween — no flex Spacer inside the scrollable strip');
     expect(controlRowFinder.evaluate().single.widget is Row, true);
   });
+
+  // ── Workstream D selector pass (2026-10-21) ──────────────────────────────
+
+  testWidgets('open fan: the selected category is announced EXACTLY ONCE '
+      '— the goo ghost pill never duplicates the anchor semantics',
+      (tester) async {
+    final notifier = _RecordingSearchNotifier();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [businessSearchProvider.overrideWith((ref) => notifier)],
+        child: MaterialApp(home: MarketplaceHomeScreen()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+
+    // Open the fan.
+    await tester.tap(find.byKey(const ValueKey('marketplace-category-dial')));
+    await tester.pump(const Duration(milliseconds: 700));
+
+    // Semantics assertions need an enabled, built semantics tree.
+    final semanticsHandle = tester.ensureSemantics();
+    await tester.pump();
+
+    // Exactly ONE semantics node carries the anchor's utterance — the
+    // ghost pill on the blob is excluded, so TalkBack never hears the
+    // selected category twice (pre-fix the ghost duplicated a bare
+    // 'All' node alongside the anchor).
+    expect(
+      find.bySemanticsLabel(RegExp('Category: All')),
+      findsOneWidget,
+    );
+    expect(find.bySemanticsLabel('All'), findsNothing,
+        reason: 'the goo ghost is a visual echo, not a second node');
+
+    semanticsHandle.dispose();
+  });
 }

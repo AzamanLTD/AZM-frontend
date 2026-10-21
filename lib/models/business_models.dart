@@ -447,6 +447,14 @@ class BusinessProfile {
   final List<String> amenities;
   final List<String> cuisineTypes;
   final Map<String, dynamic>? businessMeta;
+  // WORKSTREAM D (2026-10-21) — the business's ADDITIONAL declared
+  // offerings, from the backend offeredCategories contract
+  // (AZM-backend PR #366). Canonical BusinessCategory wire values only;
+  // NEVER inferred from amenities/cuisine/description. Empty list = no
+  // additional offerings — a valid state that renders NO extra icons.
+  // The PRIMARY category stays in `category` and renders in the circular
+  // avatar badge, not this list.
+  final List<String> offeredCategories;
   // Ad appearance customization (2026-07-06): set from the business portal.
   // Hex string like "#FFAA00"; null falls back to the category-default tint
   // used in business_result_card.dart.
@@ -500,6 +508,7 @@ class BusinessProfile {
     this.priceRange,
     this.amenities = const [],
     this.cuisineTypes = const [],
+    this.offeredCategories = const [],
     this.businessMeta,
     this.adAccentColor,
     required this.username,
@@ -566,6 +575,7 @@ class BusinessProfile {
       priceRange: _toInt(json['priceRange']).let((v) => v == 0 ? null : v),
       amenities: _toStringList(json['amenities']),
       cuisineTypes: _toStringList(json['cuisineTypes']),
+      offeredCategories: _toStringList(json['offeredCategories']),
       businessMeta: json['businessMeta'] as Map<String, dynamic>?,
       adAccentColor: json['adAccentColor'] as String?,
       username: (user['username'] ?? '').toString(),
