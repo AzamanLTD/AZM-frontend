@@ -416,6 +416,13 @@ void main() {
   setUpAll(() {
     final goldenDir = Directory('test/goldens/native_amount');
     if (!goldenDir.existsSync()) goldenDir.createSync(recursive: true);
+    // Typed-field goldens (susu config, vault create) must not depend on
+    // the caret's blink phase: which 16ms frame focus lands on shifts with
+    // machine warm-up, and the caret drifts from mid-fade to solid
+    // between environments. debugDeterministicCursor freezes the caret
+    // full-opacity visible on EVERY frame — the field text stays the
+    // only variable content. (Flutter's own flag for exactly this.)
+    EditableText.debugDeterministicCursor = true;
   });
 
   const sizes = {
