@@ -373,6 +373,39 @@ void main() {
       expect(find.byIcon(Icons.hotel_outlined), findsNWidgets(2));
     });
 
+    testWidgets('Workstream D REGRESSION: a LEGACY payload repeating the '
+        'primary category in offeredCategories never renders it twice',
+        (tester) async {
+      await _pumpCard(
+        tester,
+        _business(
+          category: 'HOSPITALITY',
+          // Malformed/legacy shape: the primary (HOSPITALITY) repeats
+          // inside the additional-offerings list alongside a genuine
+          // additional offering. The backend now rejects this shape, but
+          // the card must still defend against records written before
+          // the contract tightened (additive defense, not trust).
+          offeredCategories: const ['HOSPITALITY', 'FOOD_BEVERAGE', 'HOSPITALITY'],
+        ),
+      );
+
+      // The PRIMARY category renders exactly twice: once in the avatar
+      // badge + once in the placeholder copy — NEVER as an offering chip.
+      expect(find.byIcon(Icons.hotel_outlined), findsNWidgets(2));
+      // The genuine additional offering still renders its chip.
+      expect(find.byIcon(Icons.restaurant_outlined), findsOneWidget);
+      // The semantics utterance mirrors the visual: primary spoken once,
+      // the additional offering listed — no 'Hospitality' in the
+      // also-offers section.
+      final semantics = find.bySemanticsLabel(RegExp('also offers.*Restaurant'));
+      expect(semantics, findsOneWidget);
+      expect(
+        find.bySemanticsLabel(
+            RegExp('also offers.*Hospitality')),
+        findsNothing,
+      );
+    });
+
     testWidgets('Workstream D: an EMPTY offeredCategories list renders no '
         'chips and no fake icons', (tester) async {
       await _pumpCard(

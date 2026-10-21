@@ -531,6 +531,19 @@ class BusinessProfile {
       createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
   String get categoryLabel => BusinessCategories.labelFor(category);
+
+  /// Workstream D defense (PR #174 review item): malformed or LEGACY
+  /// payloads may repeat the PRIMARY category inside offeredCategories.
+  /// Additional-offering surfaces (chips, semantics) must never render
+  /// the primary a second time — this getter is the single filter point:
+  /// deduped, primary-excluded, declaration order kept. An empty result
+  /// is the valid no-additional-offerings state.
+  List<String> get additionalOfferedCategories {
+    final seen = <String>{};
+    return offeredCategories
+        .where((w) => w.isNotEmpty && w != category && seen.add(w))
+        .toList(growable: false);
+  }
   bool get isKybVerified => kybStatus.toUpperCase() == 'VERIFIED';
 
   factory BusinessProfile.fromJson(Map<String, dynamic> json) {

@@ -277,9 +277,12 @@ class BusinessResultCard extends ConsumerWidget {
 /// Mirrors exactly what is visually on the card: badge icon only for the
 /// primary, chips only for declared offerings.
 String _bodySemanticsLabel(BusinessProfile business, BusinessCategory cat) {
-  final seen = <String>{};
-  final offerings = business.offeredCategories
-      .where((w) => w.isNotEmpty && seen.add(w))
+  // LEGACY-PAYLOAD DEFENSE: a malformed/legacy record may repeat the
+  // primary category inside offeredCategories — the getter excludes it
+  // (and dedupes), so the utterance mirrors the visual exactly: the
+  // primary is spoken once via the badge label, never again as an
+  // additional offering.
+  final offerings = business.additionalOfferedCategories
       .map((w) => BusinessCategories.fromWire(w).label)
       .toList(growable: false);
   final base = 'Open ${business.businessName}, ${cat.label}';
@@ -351,10 +354,14 @@ class _Body extends StatelessWidget {
             // offeredCategories renders NO chips — that is a valid state.
             Row(
               children: [
-                if (business.offeredCategories.isNotEmpty) ...[
+                // LEGACY-PAYLOAD DEFENSE: chips render only ADDITIONAL
+                // owner-declared offerings; a payload repeating the
+                // primary category inside offeredCategories renders that
+                // value ONLY as the avatar badge, never as a chip.
+                if (business.additionalOfferedCategories.isNotEmpty) ...[
                   Flexible(
                     child: _OfferingChips(
-                      wires: business.offeredCategories,
+                      wires: business.additionalOfferedCategories,
                       colors: colors,
                     ),
                   ),
