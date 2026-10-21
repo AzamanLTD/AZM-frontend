@@ -28,6 +28,7 @@ import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/currency_provider.dart';
+import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/screens/deposit_screen.dart';
@@ -306,6 +307,79 @@ void main() {
           reason: 'the explicit capability gate is the single switch a '
               'future backend implementation flips',
         );
+      },
+    );
+
+    testWidgets(
+      '§6 amount entry computes a live estimate at the displayed rate — '
+      'and none without one',
+      (tester) async {
+        await tester.pumpWidget(_convertHarness(snapshot: _usableSnapshot()));
+        await tester.pumpAndSettle();
+
+        // The amount panel is real entry, not a static display.
+        final field = find.byKey(const Key('convert_amount_field'));
+        expect(field, findsOneWidget);
+        expect(find.byKey(const Key('convert_amount_estimate')), findsNothing,
+            reason: 'no estimate before an amount is entered');
+
+        await tester.enterText(field, '2');
+        await tester.pump();
+
+        expect(find.text('≈ GH₵ 25.00 GHS'), findsOneWidget,
+            reason: '2 USDC at the displayed 12.50 rate');
+        expect(
+            find.byKey(const Key('convert_amount_estimate')), findsOneWidget);
+        expect(
+            find
+                .byKey(const Key('convert_amount_estimate_disclaimer'))
+                .evaluate()
+                .isNotEmpty,
+            isTrue,
+            reason: 'the computed estimate is labeled nonbinding');
+
+        // Fresh entry resets cleanly.
+        await tester.enterText(field, '0');
+        await tester.pump();
+        expect(find.byKey(const Key('convert_amount_estimate')), findsNothing,
+            reason: 'a zero amount renders no estimate');
+      },
+    );
+
+    testWidgets(
+      '§6 no usable rate → no fabricated estimate from amount entry',
+      (tester) async {
+        await tester.pumpWidget(_convertHarness(snapshot: null));
+        await tester.pumpAndSettle();
+
+        final field = find.byKey(const Key('convert_amount_field'));
+        expect(field, findsOneWidget);
+        await tester.enterText(field, '5');
+        await tester.pump();
+
+        expect(find.byKey(const Key('convert_amount_estimate')), findsNothing,
+            reason: 'arithmetic on an unusable rate would be a fabricated '
+                'number');
+        expect(
+          tester
+              .widget<Text>(
+                  find.byKey(const Key('convert_amount_estimate_pending')))
+              .data!
+              .contains('usable rate'),
+          isTrue,
+        );
+      },
+    );
+
+    testWidgets(
+      '§6 Convert is a pull-down-dismissible transient surface',
+      (tester) async {
+        await tester.pumpWidget(_convertHarness(snapshot: _usableSnapshot()));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(PullDownDismissibleSurface), findsOneWidget,
+            reason: 'the screen must be dismissible the same way as '
+                'Receive, per the §6 review');
       },
     );
 

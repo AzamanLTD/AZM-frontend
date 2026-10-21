@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/currency_provider.dart';
+import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 
 /// ============================================================================
 /// CONVERT — an honest shell, not a fake converter.
@@ -39,16 +41,36 @@ bool get convertExecutionAvailable => kConvertExecutionSupported;
 ///   Global display preference (GHS-first) and executing a conversion
 ///   remain different concepts — this screen never writes the
 ///   preference, and the preference never debits a wallet.
-class ConvertScreen extends ConsumerWidget {
+class ConvertScreen extends ConsumerStatefulWidget {
   const ConvertScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConvertScreen> createState() => _ConvertScreenState();
+}
+
+class _ConvertScreenState extends ConsumerState<ConvertScreen> {
+  // Amount entry is LOCAL, uncommitted state — typing never touches a
+  // provider and never mutates anything.
+  final TextEditingController _amountCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final snapshot = ref.watch(fxRateProvider);
 
-    return Scaffold(
+    return PullDownDismissibleSurface(
+      // §6: Convert is a transient surface like Receive — a committed
+      // downward pull closes it. Nothing is pending on this screen, so
+      // the pull is always accepted.
+      onDismiss: () => Navigator.of(context).maybePop(),
+      child: Scaffold(
       appBar: AppBar(
         backgroundColor: colors.surface,
         elevation: 0,
@@ -75,12 +97,19 @@ class ConvertScreen extends ConsumerWidget {
               loading: snapshot.isLoading,
             ),
             const SizedBox(height: 18),
+            _AmountPanel(
+              controller: _amountCtrl,
+              snapshot: snapshot.valueOrNull,
+              loading: snapshot.isLoading,
+            ),
+            const SizedBox(height: 18),
             _ExecutionGate(
               colors: colors,
               supported: convertExecutionAvailable,
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -207,6 +236,129 @@ class _EstimateCard extends StatelessWidget {
   }
 }
 
+/// §6 — real amount entry with a live, NONBINDING estimate at the
+/// canonical fxRateProvider rate. Display-only by construction:
+/// • typing mutates nothing but this local controller;
+/// • the estimate is arithmetic on the DISPLAYED rate, never a quote,
+///   never reserved, never settled;
+/// • no usable rate (or a zero/blank amount) renders NO estimate —
+///   an honest blank beats a fabricated number.
+class _AmountPanel extends StatelessWidget {
+  const _AmountPanel({
+    required this.controller,
+    required this.snapshot,
+    required this.loading,
+  });
+
+  final TextEditingController controller;
+  final FxRateSnapshot? snapshot;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    // The controller drives the estimate, so the panel REBUILDS on every
+    // keystroke — the estimate is always consistent with the field.
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) => _build(context, value.text),
+    );
+  }
+
+  Widget _build(BuildContext context, String raw) {
+    final colors = Theme.of(context).colorScheme;
+    final rate = (snapshot != null && snapshot!.isUsable)
+        ? snapshot!.ghsPerUsdc
+        : null;
+    final amount = double.tryParse(raw.trim());
+    final estimate =
+        (rate != null && amount != null && amount > 0 && !loading)
+            ? amount * rate
+            : null;
+
+    return _Panel(
+      panelKey: const Key('convert_amount_panel'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Amount (USDC)',
+            key: const Key('convert_amount_label'),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            key: const Key('convert_amount_field'),
+            controller: controller,
+            enabled: !loading,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(
+                  RegExp(r'^\d*\.?\d{0,2}')),
+            ],
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: colors.onSurface,
+            ),
+            decoration: InputDecoration(
+              hintText: '0.00',
+              hintStyle: TextStyle(color: colors.onSurfaceVariant),
+              suffixText: 'USDC',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colors.outlineVariant),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: colors.outlineVariant),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (estimate != null)
+            Text(
+              '≈ GH₵ ${estimate.toStringAsFixed(2)} GHS',
+              key: const Key('convert_amount_estimate'),
+              semanticsLabel:
+                  'Nonbinding estimate, ${estimate.toStringAsFixed(2)} '
+                  'cedis. Not a quote; nothing is converted.',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: colors.onSurface,
+              ),
+            )
+          else if (!loading)
+            Text(
+              rate == null
+                  ? 'Enter an amount for a live estimate — requires a '
+                      'usable rate.'
+                  : 'Enter an amount for a live estimate.',
+              key: const Key('convert_amount_estimate_pending'),
+              style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+            ),
+          if (estimate != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'ESTIMATE ONLY — computed from the displayed rate. Not a '
+                'quote, not reserved, nothing converts.',
+                key: const Key('convert_amount_estimate_disclaimer'),
+                style: TextStyle(
+                    fontSize: 11, color: colors.onSurfaceVariant),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ExecutionGate extends StatelessWidget {
   const _ExecutionGate({required this.colors, required this.supported});
 
@@ -246,7 +398,9 @@ class _ExecutionGate extends StatelessWidget {
               // CAPABILITY GATE: while the backend has no conversion
               // contract the CTA is inert — onPressed is null, so no
               // handler runs, no provider is touched, no data mutates.
-              onPressed: supported ? () {} : null,
+              // Never a no-op enabled callback: an enabled-looking
+              // button that does nothing is a lie.
+              onPressed: null,
               child: Text(
                 supported ? 'Continue' : 'Unavailable',
                 style: const TextStyle(fontWeight: FontWeight.w700),
