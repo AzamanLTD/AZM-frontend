@@ -435,6 +435,10 @@ class BusinessProfile {
   final int userId;
   final double totalVolume;
   final double averageRating;
+  /// Backend record creation time — sent by /business/search
+  /// (raw Prisma row, no select prune). Grounds the discovery
+  /// list's honest "Newest" ordering.
+  final DateTime? createdAt;
   final int reviewCount;
   final List<BusinessReview> reviews;
   // Marketplace hierarchy additions (2026-06-24)
@@ -489,6 +493,7 @@ class BusinessProfile {
     required this.userId,
     required this.totalVolume,
     required this.averageRating,
+    this.createdAt,
     this.reviewCount = 0,
     this.reviews = const [],
     this.subcategory,
@@ -511,6 +516,11 @@ class BusinessProfile {
     this.locations = const [],
   });
 
+  /// Sort key for the discovery list's honest "Newest" ordering: the
+  /// backend row time, epoch only for legacy payloads that omit it.
+  DateTime get createdOrEpoch =>
+      createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+
   String get categoryLabel => BusinessCategories.labelFor(category);
   bool get isKybVerified => kybStatus.toUpperCase() == 'VERIFIED';
 
@@ -527,6 +537,7 @@ class BusinessProfile {
         .map(BusinessLocation.fromJson)
         .toList();
     return BusinessProfile(
+      createdAt: _toDateOr0(json['createdAt']),
       id: json['id'].toString(),
       bizId: (json['bizId'] ?? '').toString(),
       businessName: (json['businessName'] ?? '').toString(),

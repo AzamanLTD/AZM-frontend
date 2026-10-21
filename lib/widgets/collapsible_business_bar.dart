@@ -31,7 +31,6 @@ import 'package:azaman/providers/saved_businesses_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
-import 'package:azaman/widgets/animated_rating_stars.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
@@ -326,27 +325,24 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Subtitle row: rating stars + verified
+                    // Subtitle row: category + verified + open-now.
+                    // 2026-10-20 discovery refinement: the prominent star
+                    // rating is REMOVED from the listing card. Rating and
+                    // review RECORDS are untouched — they surface on the
+                    // business detail / review surfaces. The freed space
+                    // carries grounded facts only: the category label,
+                    // the verified badge and the live open status.
                     Row(
                       children: [
-                        if (business.averageRating > 0) ...[
-                          AnimatedRatingStars(
-                            rating: business.averageRating,
-                            size: 11,
-                            filledColor: const Color(0xFFF59E0B),
-                            emptyColor: colors.divider,
+                        Text(
+                          BusinessCategories.fromWire(business.category).label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: colors.textSecondary,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            business.averageRating.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: colors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
+                        ),
+                        const SizedBox(width: 6),
                         if (business.isVerified)
                           Icon(Icons.verified_rounded,
                               size: 13, color: colors.accent),
@@ -702,28 +698,20 @@ class CollapsibleBusinessBar extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      if (business.averageRating > 0) ...[
+                      // 2026-10-20: star rating removed from the card (kept
+                      // on detail/review surfaces). completedEscrows is a
+                      // real completed-transaction count — labelled
+                      // "orders", not "reviews" (an escrow is not a review).
+                      if (business.completedEscrows > 0) ...[
                         const SizedBox(width: 10),
-                        const Icon(Icons.star_rounded,
-                            size: 13,
-                            color: Color(0xFFF59E0B)),
-                        const SizedBox(width: 3),
                         Text(
-                          business.averageRating.toStringAsFixed(1),
+                          '· ${business.completedEscrows} orders',
                           style: TextStyle(
                             fontSize: 12,
-                            color: colors.textSecondary,
-                            fontWeight: FontWeight.w700,
+                            color: colors.textTertiary,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (business.completedEscrows > 0)
-                          Text(
-                            '  ·  ${business.completedEscrows} reviews',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colors.textTertiary,
-                            ),
-                          ),
                       ],
                     ],
                   ),

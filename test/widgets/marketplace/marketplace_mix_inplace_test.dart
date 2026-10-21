@@ -23,6 +23,7 @@ import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_mix_screen.dart';
+import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/services/business_service.dart';
 
 class _FakeGateway implements MarketplaceMixGateway {
@@ -305,5 +306,65 @@ void main() {
     expect(_dieController(tester).isAnimating, isFalse);
     expect(_dieController(tester).value, 1.0);
     await tester.pumpAndSettle();
+  });
+
+  // ── 2026-10-20 discovery refinement ────────────────────────────────────────
+
+  testWidgets('Stories stay in their normal position while Mix is active',
+      (tester) async {
+    await _pumpHome(tester);
+
+    // Stories visible in normal (non-Mix) mode.
+    expect(find.byType(MarketplaceExpandedStories), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('marketplace-mix-entry')));
+    await tester.pumpAndSettle();
+
+    // Mix mode is active IN PLACE (feed surface present)...
+    expect(find.byKey(const ValueKey('marketplace-mix-entry')), findsOneWidget);
+    // ...and the story rail is STILL there above the selectors/feed.
+    expect(find.byType(MarketplaceExpandedStories), findsOneWidget);
+  });
+
+  testWidgets('the divider separates the dial from the Mix control — not '
+      'inside the Mix pill', (tester) async {
+    await _pumpHome(tester);
+
+    final divider = find.byKey(const ValueKey('marketplace-dial-mix-divider'));
+    expect(divider, findsOneWidget);
+
+    final dialRight = tester
+        .getTopRight(find.byKey(const ValueKey('marketplace-category-dial')))
+        .dx;
+    final dividerDx = tester.getTopLeft(divider).dx;
+    final mixLeft = tester
+        .getTopLeft(find.byKey(const ValueKey('marketplace-mix-entry')))
+        .dx;
+
+    expect(dividerDx > dialRight, isTrue,
+        reason: 'the divider must sit AFTER the category dial');
+    expect(dividerDx < mixLeft, isTrue,
+        reason: 'the divider must sit BEFORE the Mix control');
+  });
+
+  testWidgets('the whole Mix button dips on press and springs back on release',
+      (tester) async {
+    await _pumpHome(tester);
+
+    final entry = find.byKey(const ValueKey('marketplace-mix-entry'));
+    AnimatedScale scaleOf() => tester.widget<AnimatedScale>(
+        find.descendant(of: entry, matching: find.byType(AnimatedScale)));
+
+    expect(scaleOf().scale, 1.0);
+
+    // Hold: the whole pill (die + label) dips.
+    final gesture = await tester.startGesture(tester.getCenter(entry));
+    await tester.pumpAndSettle();
+    expect(scaleOf().scale, lessThan(1.0));
+
+    // Release: springs back; the completed tap still toggles the mode.
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(scaleOf().scale, 1.0);
   });
 }
