@@ -31,6 +31,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart';
+import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 
 http.Response _json(int status, Map<String, dynamic> body) =>
     http.Response(jsonEncode(body), status,
@@ -278,6 +279,46 @@ void main() {
       // provider the profile screen uses — the row reflects the flip.
       expect(find.text('Remove bookmark'), findsOneWidget,
           reason: 'the bookmark toggle flipped the real saved set');
+    });
+
+    testWidgets('SEPARATION: an avatar tap NEVER navigates to the '
+        'business route, and a body tap NEVER opens the action panel',
+        (tester) async {
+      final recorder = _RouteRecorder();
+      await _pumpCard(tester, _business(),
+          observer: recorder, client: _RecordingClient());
+
+      // Avatar tap: panel opens, and the body route callback is NOT fired.
+      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await tester.pumpAndSettle();
+      expect(recorder.routes.where((r) => r.startsWith('/business/')),
+          isEmpty,
+          reason: 'the avatar opens the action panel; it must never '
+              'navigate to the business route as well');
+
+      // Close the panel, then body tap: route fires, no panel appears.
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('business-card-body-BIZ-1')));
+      await tester.pumpAndSettle();
+      expect(recorder.routes.any((r) => r.startsWith('/business/')), isTrue,
+          reason: 'the body navigates');
+      expect(
+          find.byKey(const ValueKey('business-action-follow')), findsNothing,
+          reason: 'the body tap must not have opened the action panel');
+    });
+
+    testWidgets('the panel review action opens the REAL LeaveReviewSheet '
+        'with this business', (tester) async {
+      await _pumpCard(tester, _business(), client: _RecordingClient());
+
+      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('business-action-review')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LeaveReviewSheet), findsOneWidget,
+          reason: 'review routes to the real review sheet — no stub');
     });
 
     testWidgets('no bookmark control renders on the card body itself',
