@@ -271,6 +271,22 @@ class BusinessResultCard extends ConsumerWidget {
 
 // ── Card body (name + grounded signals + subtitle) ──────────────────────────
 
+/// Workstream D: one coherent screen-reader utterance for the whole card
+/// body — name, PRIMARY category, then the owner-DECLARED additional
+/// offerings (from the offeredCategories contract, AZM-backend PR #366).
+/// Mirrors exactly what is visually on the card: badge icon only for the
+/// primary, chips only for declared offerings.
+String _bodySemanticsLabel(BusinessProfile business, BusinessCategory cat) {
+  final seen = <String>{};
+  final offerings = business.offeredCategories
+      .where((w) => w.isNotEmpty && seen.add(w))
+      .map((w) => BusinessCategories.fromWire(w).label)
+      .toList(growable: false);
+  final base = 'Open ${business.businessName}, ${cat.label}';
+  if (offerings.isEmpty) return base;
+  return '$base, also offers ${offerings.join(', ')}';
+}
+
 class _Body extends StatelessWidget {
   const _Body({
     required this.business,
@@ -296,7 +312,7 @@ class _Body extends StatelessWidget {
       onTap: onTap,
       child: Semantics(
         button: true,
-        label: 'Open ${business.businessName}, ${cat.label}',
+        label: _bodySemanticsLabel(business, cat),
         excludeSemantics: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -326,23 +342,23 @@ class _Body extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            // Grounded signals only: category label, verified, live open
-            // status, distance. NO star rating (records live on the
-            // business surfaces), NO offering icons (no authoritative
-            // DTO field — documented backend gap).
+            // Grounded signals only: OFFERING ICONS from the owner-declared
+            // offeredCategories contract (AZM-backend PR #366), verified,
+            // live open status, distance. Workstream D: the PRIMARY category
+            // is communicated ONLY by the circular avatar badge (icon +
+            // semantics label) — no redundant text label here. NO star
+            // rating (records live on the business surfaces). Empty
+            // offeredCategories renders NO chips — that is a valid state.
             Row(
               children: [
-                Flexible(
-                  child: Text(
-                    cat.label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colors.textSecondary,
-                      fontWeight: FontWeight.w600,
+                if (business.offeredCategories.isNotEmpty) ...[
+                  Flexible(
+                    child: _OfferingChips(
+                      wires: business.offeredCategories,
+                      colors: colors,
                     ),
                   ),
-                ),
+                ],
                 if (business.isVerified) ...[
                   const SizedBox(width: 5),
                   Icon(Icons.verified_rounded, size: 13, color: colors.accent),
@@ -382,6 +398,107 @@ class _Body extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ── Offering chips (Workstream D) ────────────────────────────────────────────
+// Rendered from the owner-DECLARED offeredCategories wire values only —
+// never inferred from amenities/cuisine/description. The map covers every
+// canonical backend BusinessCategory (AZM-backend PR #366); a wire value
+// outside the map still renders via the generic OTHER glyph so a future
+// backend enum addition can never blank the row.
+const Map<String, IconData> _offeringIcons = {
+  'FREELANCE_SERVICES': Icons.design_services_outlined,
+  'RETAIL': Icons.shopping_bag_outlined,
+  'FOOD_BEVERAGE': Icons.restaurant_outlined,
+  'TECHNOLOGY': Icons.laptop_mac_outlined,
+  'REAL_ESTATE': Icons.home_work_outlined,
+  'EDUCATION': Icons.school_outlined,
+  'HEALTH_WELLNESS': Icons.spa_outlined,
+  'ENTERTAINMENT': Icons.theater_comedy_outlined,
+  'LOGISTICS': Icons.directions_bus_outlined,
+  'FINANCIAL_SERVICES': Icons.account_balance_outlined,
+  'OTHER': Icons.category_outlined,
+  'HOSPITALITY': Icons.hotel_outlined,
+};
+
+const Map<String, Color> _offeringTints = {
+  'FREELANCE_SERVICES': Color(0xFF7B7B9A),
+  'RETAIL': Color(0xFF00D97E),
+  'FOOD_BEVERAGE': Color(0xFFF59E0B),
+  'TECHNOLOGY': Color(0xFF4F8EF7),
+  'REAL_ESTATE': Color(0xFF34D399),
+  'EDUCATION': Color(0xFF60A5FA),
+  'HEALTH_WELLNESS': Color(0xFFF472B6),
+  'ENTERTAINMENT': Color(0xFFC084FC),
+  'LOGISTICS': Color(0xFF4F8EF7),
+  'FINANCIAL_SERVICES': Color(0xFFFBBF24),
+  'OTHER': Color(0xFF7B7B9A),
+  'HOSPITALITY': Color(0xFFA78BFA),
+};
+
+/// Compact, non-interactive row of offering chips. Shows at most
+/// [_OfferingChips.maxVisible] icons, then a "+N" text for the rest —
+/// the Row it lives in is Flexible so long lists ellipsize, never
+/// overflow. Wrapped in ONE semantics node so screen readers announce
+/// "Also offers: Restaurants, Transit" instead of per-icon noise.
+class _OfferingChips extends StatelessWidget {
+  const _OfferingChips({required this.wires, required this.colors});
+
+  static const int maxVisible = 3;
+
+  final List<String> wires;
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    // De-duped defensively (backend already dedupes) and order-preserving.
+    final seen = <String>{};
+    final unique =
+        wires.where((w) => seen.add(w) && w.isNotEmpty).toList(growable: false);
+    if (unique.isEmpty) return const SizedBox.shrink();
+
+    final visible = unique.take(maxVisible).toList(growable: false);
+    final overflowCount = unique.length - visible.length;
+
+    // NOTE: no Semantics wrapper here. The card body's semantics node
+    // (excludeSemantics: true) already swallows descendant semantics, so
+    // the OFFERINGS are announced in the body label itself
+    // ('…, also offers Restaurants, Transit') — one coherent utterance,
+    // never per-icon noise.
+    return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final wire in visible) ...[
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: (_offeringTints[wire] ?? const Color(0xFF7B7B9A))
+                    .withValues(alpha: 0.16),
+              ),
+              child: Icon(
+                _offeringIcons[wire] ?? Icons.category_outlined,
+                size: 12,
+                color: _offeringTints[wire] ?? colors.textSecondary,
+              ),
+            ),
+            if (wire != visible.last) const SizedBox(width: 4),
+          ],
+          if (overflowCount > 0) ...[
+            const SizedBox(width: 4),
+            Text(
+              '+$overflowCount',
+              style: TextStyle(
+                fontSize: 10,
+                color: colors.textTertiary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      );
   }
 }
 
