@@ -37,7 +37,6 @@ import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/collapsible_business_bar.dart';
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/marketplace_mix_provider.dart';
@@ -46,6 +45,7 @@ import 'package:azaman/widgets/marketplace/discovery/mix_dice.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_feed_surface.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_taxonomy_bubble_rail.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
+import 'package:azaman/widgets/marketplace/nearby_outcome.dart';
 
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -1555,17 +1555,11 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
     }
 
     final locations = state.locations;
+    // TRUTHFUL FAILURE (Workstream E): a failed nearby search is a FAILURE,
+    // never "No businesses nearby" — an empty result and a dead request are
+    // different facts; NearbyOutcome decides the two in ONE place.
     if (locations.isEmpty) {
-      return ListView(
-        children: const [
-          SizedBox(height: 60),
-          AzamanEmptyState(
-            icon: Icons.location_off_outlined,
-            title: 'No businesses nearby',
-            subtitle: 'Try expanding your search area.',
-          ),
-        ],
-      );
+      return NearbyOutcome(error: state.error, onRetry: _fireNearby);
     }
 
     // §1: Real embedded GoogleMap instead of a list view
