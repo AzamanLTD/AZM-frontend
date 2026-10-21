@@ -24,10 +24,11 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:azaman/widgets/azaman_network_image.dart';
 // EXPERIENCE PASS §16 — the marketplace rail speaks the SAME story
 // grammar as chat: metrics come from the shared StoryRailMetrics, and
 // the collapse math lives in StoryRailCollapse.
+import 'package:azaman/widgets/stories/story_rail_compact.dart'
+    show CompactStoryItem, CompactStoryRail;
 import 'package:azaman/widgets/stories/story_rail_strip.dart'
     show StoryRailMetrics;
 import 'package:azaman/theme/az_space.dart';
@@ -39,32 +40,69 @@ class MarketplaceCollapsedAvatars extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
     final followingState = ref.watch(followingListProvider);
 
-    return followingState.when(
-      loading: () => const SizedBox.shrink(),
-      error: (err, st) {
-        // Fallback to empty dummy state on error
-        return GestureDetector(
-          onTap: onTap,
-          child: _StackedSquircles(
-            following: const [{'businessName': '?'}, {'businessName': '?'}, {'businessName': '?'},],
-            colors: colors,
-          ),
-        );
-      },
-      data: (following) {
-        final list = following.isEmpty
-            ? [{'businessName': '?'}, {'businessName': '?'}, {'businessName': '?'}]
-            : following;
+    // Workstream A (2026-10-21): the collapsed marketplace stories affordance
+    // is the SAME design language as chat's StoryRailCompact — overlapping
+    // circular StoryRings, caption label, chevron — via the shared
+    // CompactStoryRail. The old stacked-squircle treatment is gone: it read
+    // as a detached stack of business logos, not the story grammar.
+    //
+    // Loading/error/empty keep the affordance present with the shared
+    // label-only presentation — honest (no invented avatars) and no layout
+    // jump when real data arrives.
+    final following = followingState.valueOrNull ?? const [];
+    final unseen = following
+        .where(businessHasUnseenStory)
+        .length;
 
-        return GestureDetector(
-          onTap: onTap,
-          child: _StackedSquircles(following: list, colors: colors),
-        );
-      },
+    return Semantics(
+      button: true,
+      label: unseen > 0
+          ? '$unseen businesses with new stories. Tap to expand stories'
+          : 'Stories. Tap to expand',
+      child: CompactStoryRail(
+        stripKey: const ValueKey('marketplace_story_rail_compact'),
+        labelKey: const ValueKey('marketplace_story_rail_compact_label'),
+        items: [
+          for (final biz in following.take(3))
+            CompactStoryItem(
+              avatarUrl: biz['logoUrl']?.toString(),
+              // Count-less source (§9): the business feed carries only
+              // lastStoryAt/lastViewedAt — the dash renders, the numeric
+              // badge does NOT (never a manufactured count).
+              counts: StoryRingCounts.fromUnseenFlag(
+                  businessHasUnseenStory(biz)),
+              isBoosted: biz['isVerified'] == true,
+            ),
+        ],
+        label: unseen > 0 ? '$unseen new' : 'Stories',
+        onTap: onTap,
+        // The header row already carries the screen's horizontal padding
+        // and the action icons own the row's right edge: the chevron sits
+        // directly beside the label instead of floating to the far edge.
+        chevronAtEnd: false,
+        padding: EdgeInsets.zero,
+      ),
     );
+  }
+}
+
+/// Real-data unseen test for a followed-business map: a story exists and
+/// has not been viewed. Shared by the expanded rail and the collapsed
+/// affordance so the two presentations can never disagree.
+bool businessHasUnseenStory(Map<String, dynamic> biz) {
+  final lastStoryAt = biz['lastStoryAt'];
+  final lastViewedAt = biz['lastViewedAt'];
+  if (lastStoryAt == null) return false;
+  try {
+    final story = DateTime.parse(lastStoryAt.toString());
+    final viewed = lastViewedAt == null
+        ? null
+        : DateTime.parse(lastViewedAt.toString());
+    return viewed == null || story.isAfter(viewed);
+  } on FormatException {
+    return false;
   }
 }
 
@@ -114,11 +152,7 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                   final logoUrl = biz['logoUrl']?.toString();
                   final isVerified = biz['isVerified'] == true;
 
-                  final lastStoryAt = biz['lastStoryAt'];
-                  final lastViewedAt = biz['lastViewedAt'];
-                  final hasUnseen = lastStoryAt != null &&
-                      (lastViewedAt == null ||
-                       DateTime.parse(lastStoryAt.toString()).isAfter(DateTime.parse(lastViewedAt.toString())));
+                  final hasUnseen = businessHasUnseenStory(biz);
 
                   return GestureDetector(
                     onTap: () => onOpenBusiness(id),
@@ -270,71 +304,6 @@ class MarketplaceExpandedStories extends ConsumerWidget {
         ),
         const SizedBox(height: 4),
       ],
-    );
-  }
-}
-
-// Three stacked squircle avatars (first 3 followed businesses)
-class _StackedSquircles extends StatelessWidget {
-  final List following;
-  final AzamanColors colors;
-  const _StackedSquircles({required this.following, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    final count = following.length.clamp(0, 3);
-    const size = 28.0;
-    const overlap = 16.0;
-
-    return SizedBox(
-      width: size + (count - 1) * overlap,
-      height: size,
-      child: Stack(
-        children: List.generate(count, (i) {
-          final biz = following[i];
-          final logoUrl = biz['logoUrl']?.toString();
-          final name = biz['businessName']?.toString() ?? '';
-
-          return Positioned(
-            left: i * overlap,
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: colors.background, width: 1.5),
-                color: colors.card,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(6.5),
-                child: logoUrl != null && logoUrl.isNotEmpty
-                    ? AzamanNetworkImage(imageUrl: logoUrl, fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => _initial(name, colors))
-                    : _initial(name, colors),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _initial(String name, AzamanColors colors) {
-    if (name == '?') {
-      return Container(
-        color: colors.softSurface,
-        alignment: Alignment.center,
-        child: Icon(Icons.storefront_outlined, color: colors.textTertiary.withValues(alpha: 0.4), size: 14),
-      );
-    }
-    return Container(
-      color: colors.accentSurface,
-      alignment: Alignment.center,
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'B',
-        style: TextStyle(
-            color: colors.accent, fontSize: 12, fontWeight: FontWeight.w700),
-      ),
     );
   }
 }

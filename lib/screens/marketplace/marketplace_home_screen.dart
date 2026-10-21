@@ -551,6 +551,11 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                         //    page; the story rail keeps its browse role and its
                         //    scroll-collapse behavior in both modes.
                         SizedBox(
+                            // Testable seam: this box's height IS the rail's
+                            // collapsed extent — the child inside the
+                            // OverflowBox always lays out at full height and
+                            // is clipped away, so assertions must read HERE.
+                            key: const ValueKey('marketplace_story_rail_extent'),
                             height:
                                 StoryRailCollapse.extentPx * storyExpandRatio,
                             width: double.infinity,
