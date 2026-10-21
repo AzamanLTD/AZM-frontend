@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:azaman/providers/currency_provider.dart' show parseFxRateSnapshot;
 import 'package:azaman/services/oracle_rates_client.dart';
@@ -81,6 +82,20 @@ final balanceReadinessProvider =
     StateProvider<BalanceReadiness>((ref) => BalanceReadiness.unresolved);
 final userUsdcBalanceProvider = StateProvider<double>((ref) => 0.0);
 
+/// IDENTITY BOUNDARIES (review follow-up) — an in-flight balance refresh
+/// belongs to the session identity that started it. AuthProvider bumps
+/// this epoch at every identity boundary (logout, invalid-profile
+/// teardown, user switch). A refresh captured under a stale epoch must
+/// not write balance data, readiness, or a failure mark for the new
+/// identity: "preserve the last confirmed balance on refresh failure"
+/// holds ONLY for the same identity.
+final balanceEpochProvider = StateProvider<int>((ref) => 0);
+
+/// Test seam: lets integration tests stub the network without hitting a
+/// real endpoint. Production code never sets it.
+@visibleForTesting
+http.Client? balanceRefreshClientOverride;
+
 Future<void>? _balanceRefreshFuture;
 
 Future<void> refreshCanonicalBalance(dynamic ref) {
@@ -89,11 +104,15 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
 
   final future = () async {
     if (AppConfig.demoMode) return;
+    // IDENTITY BOUNDARIES — capture the epoch this attempt belongs to.
+    final epoch = ref.read(balanceEpochProvider);
+    bool isStale() => ref.read(balanceEpochProvider) != epoch;
     // WORKSTREAM B — an early return or thrown error means no balance came
     // back from this attempt. That is only a FAILURE if nothing usable has
     // ever loaded; after a successful load the last confirmed figure stays
     // authoritative and readiness remains `loaded`.
     void markFailed() {
+      if (isStale()) return; // never write failure for another identity
       final notifier = ref.read(balanceReadinessProvider.notifier);
       if (notifier.state != BalanceReadiness.loaded) {
         notifier.state = BalanceReadiness.failed;
@@ -108,7 +127,7 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
         return;
       }
 
-      final response = await http
+      final response = await (balanceRefreshClientOverride ?? http.Client())
           .get(
             Uri.parse('${AppConfig.apiUrl}/users/balance'),
             headers: {
@@ -135,6 +154,7 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
       }
 
       final balances = BalanceData.fromJson(rawData);
+      if (isStale()) return; // never write data for another identity
       ref.read(balanceDataProvider.notifier).state = balances;
       ref.read(userUsdcBalanceProvider.notifier).state = balances.totalBalance;
       // The server has confirmed a balance — a genuine 0.00 included.

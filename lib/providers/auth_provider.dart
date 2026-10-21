@@ -73,8 +73,35 @@ class AuthProvider with ChangeNotifier {
     super.dispose();
   }
 
+  /// IDENTITY BOUNDARIES (review follow-up) — every point where the
+  /// session identity ends or changes must clear the canonical balance
+  /// surface for the OLD identity: readiness back to `unresolved` (the
+  /// waiting indicator, never a stale figure), empty BalanceData, zero
+  /// USDC projection, and a bumped [balanceEpochProvider] so an in-flight
+  /// refresh started by the previous identity can no longer write
+  /// balance data, readiness, or a failure mark. The delta baseline in
+  /// the hologram card re-anchors automatically because it only keeps a
+  /// baseline while readiness is `loaded`.
+  void _resetBalanceStateForIdentityBoundary() {
+    ref?.read(balanceEpochProvider.notifier).state =
+        (ref?.read(balanceEpochProvider) ?? 0) + 1;
+    ref?.read(balanceReadinessProvider.notifier).state =
+        BalanceReadiness.unresolved;
+    ref?.read(balanceDataProvider.notifier).state = const BalanceData();
+    ref?.read(userUsdcBalanceProvider.notifier).state = 0.0;
+  }
+
   Future<AuthStatus> setSessionFromLogin(User loginUser) async {
+    // IDENTITY BOUNDARIES — a switch to a DIFFERENT user inside one app
+    // session must not let the new identity inherit (or briefly render)
+    // the previous user's confirmed balance. A SAME-identity call keeps
+    // the last confirmed figure so a transient refresh failure does not
+    // blank the card.
+    final previousIdentity = _user?.id;
     _user = loginUser;
+    if (previousIdentity != null && previousIdentity != loginUser.id) {
+      _resetBalanceStateForIdentityBoundary();
+    }
     _status = AuthStatus.loading;
     _error = null;
     _publish();
@@ -133,6 +160,9 @@ class AuthProvider with ChangeNotifier {
         debugPrint('[Auth] Profile not found in DB — forcing setup flow.');
         await _api.clearAuthData();
         _user = null;
+        // IDENTITY BOUNDARIES — the profile no longer exists; its
+        // confirmed balance is no longer renderable.
+        _resetBalanceStateForIdentityBoundary();
         _status = AuthStatus.profileNotFound;
         AuthGuard.isAuthenticated = false;
         _error = 'Profile not found. Please complete registration.';
@@ -140,6 +170,8 @@ class AuthProvider with ChangeNotifier {
         debugPrint('[Auth] JWT rejected — clearing session.');
         await _api.clearAuthData();
         _user = null;
+        // IDENTITY BOUNDARIES — the session identity is dead.
+        _resetBalanceStateForIdentityBoundary();
         _status = AuthStatus.unauthenticated;
         AuthGuard.isAuthenticated = false;
         _error = 'Session expired. Please log in again.';
@@ -184,6 +216,10 @@ class AuthProvider with ChangeNotifier {
     _hydrationGeneration++;
     await _api.logout();
     _user = null;
+    // IDENTITY BOUNDARIES — logout ends the session identity: the next
+    // session must start from `unresolved`, never the previous user's
+    // figure.
+    _resetBalanceStateForIdentityBoundary();
     _status = AuthStatus.unauthenticated;
     AuthGuard.isAuthenticated = false;
     _error = null;
