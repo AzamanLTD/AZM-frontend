@@ -449,7 +449,7 @@ class BusinessProfile {
   final Map<String, dynamic>? businessMeta;
   // Ad appearance customization (2026-07-06): set from the business portal.
   // Hex string like "#FFAA00"; null falls back to the category-default tint
-  // used in collapsible_business_bar.dart.
+  // used in business_result_card.dart.
   final String? adAccentColor;
 
   List<String> get showcaseUrls {
