@@ -38,15 +38,23 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/susu_service.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/widgets/susu/susu_wheel.dart';
 
 
 class SusuDashboardScreen extends ConsumerWidget {
   final String susuId;
-  const SusuDashboardScreen({super.key, required this.susuId});
+
+  /// Injectable clock, forwarded to the payout wheel so golden captures
+  /// are deterministic. Production always leaves it null (wall clock).
+  final DateTime Function()? nowFn;
+
+  const SusuDashboardScreen(
+      {super.key, required this.susuId, this.nowFn});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final nowFn = this.nowFn;
     final colors = ref.watch(themeProvider).colors;
     final detail = ref.watch(susuDetailV2Provider(susuId));
     final members = ref.watch(susuMembersProvider(susuId));
@@ -123,6 +131,7 @@ class SusuDashboardScreen extends ConsumerWidget {
                   cycles: cycles.valueOrNull ?? const [],
                   totalSlots: susu.totalCycles,
                   meUserId: me?.id,
+                  nowFn: nowFn,
                 ),
                 if (susu.status == SusuStatus.completed)
                   Padding(
@@ -202,13 +211,13 @@ class SusuDashboardScreen extends ConsumerWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _Hero extends StatelessWidget {
+class _Hero extends ConsumerWidget {
   final SusuDetail susu;
   final AzamanColors colors;
   const _Hero({required this.susu, required this.colors});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final pool = susu.contributionUsdc * susu.totalCycles;
     final (label, color) = switch (susu.status) {
       SusuStatus.configuring => ('PENDING', colors.warning),
@@ -268,9 +277,15 @@ class _Hero extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Text(
-            '\$${pool.toStringAsFixed(2)}',
-            style: TextStyle(
+          // The susu pool is a native-USDC record: GHS leads only as an
+          // honestly-labelled current estimate at the fresh oracle rate.
+          // Stacked (not inline) because a 28px two-part line would
+          // truncate its own honesty; the support line sits below at
+          // reading size, where the caveat can never be cut off.
+          NativeAmountDisplay(
+            key: const ValueKey('susu-pool-amount'),
+            amountUsdc: pool,
+            primaryStyle: TextStyle(
               color: colors.textPrimary,
               fontSize: 28,
               fontWeight: FontWeight.w900,
@@ -279,7 +294,7 @@ class _Hero extends StatelessWidget {
           ),
           Text(
             'Pool · ${susu.totalCycles} cycles · '
-            '\$${susu.contributionUsdc.toStringAsFixed(2)} per cycle',
+            '${susu.contributionUsdc.toStringAsFixed(2)} USDC per cycle',
             style: TextStyle(color: colors.textTertiary, fontSize: 11),
           ),
         ],
@@ -1086,8 +1101,14 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
                 color: colors.textSecondary, fontSize: 12, height: 1.4),
           ),
           const SizedBox(height: 8),
-          SwitchListTile.adaptive(
-            value: _enabled,
+          // Material host: this Container paints a background, so a bare
+          // ListTile here fires the debug assertion and its ink splash is
+          // painted UNDER the panel (invisible on device). Transparency
+          // keeps the look identical while giving the switch its own ink.
+          Material(
+            type: MaterialType.transparency,
+            child: SwitchListTile.adaptive(
+              value: _enabled,
             onChanged: _busy
                 ? null
                 : (v) async {
@@ -1109,18 +1130,19 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
                       if (mounted) setState(() => _busy = false);
                     }
                   },
-            activeColor: colors.accent,
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              'Auto-retain next contribution',
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700),
-            ),
-            subtitle: Text(
-              'Reserve my next cycle amount from my balance after each payout.',
-              style: TextStyle(color: colors.textTertiary, fontSize: 11),
+              activeColor: colors.accent,
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                'Auto-retain next contribution',
+                style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700),
+              ),
+              subtitle: Text(
+                'Reserve my next cycle amount from my balance after each payout.',
+                style: TextStyle(color: colors.textTertiary, fontSize: 11),
+              ),
             ),
           ),
         ],

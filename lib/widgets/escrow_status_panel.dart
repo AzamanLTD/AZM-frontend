@@ -23,6 +23,11 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
 import 'package:azaman/widgets/escrow_vault_rail.dart';
+import 'package:azaman/models/currency_catalog.dart';
+import 'package:azaman/providers/currency_provider.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/utils/currency_math.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
 class EscrowStatusPanel extends ConsumerStatefulWidget {
@@ -143,15 +148,40 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'Escrow · ${escrow.amountUsdc.toStringAsFixed(2)} USDC',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                'Escrow · ',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              // The collapsed title keeps the native USDC
+                              // amount of record (a conversion here would
+                              // truncate its label in this tight row); the
+                              // labelled estimate gets its own line below.
+                              Flexible(
+                                child: NativeAmountText(
+                                  key: const ValueKey(
+                                      'escrow-panel-collapsed-amount'),
+                                  amountUsdc: escrow.amountUsdc,
+                                  forceNative: true,
+                                  showEquivalent: false,
+                                  style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 1),
                           Text(
@@ -173,6 +203,34 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          // ── Labelled GHS estimate strip ─────────────────────────────────────
+          // Lives OUTSIDE the fixed 60px header so the collapsed row keeps
+          // its geometry: the estimate is its own first-class line, never a
+          // truncatable suffix of the tight title row.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 9),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: AmountEntryEquivalent(
+                amountUsdc: escrow.amountUsdc,
+                // Settlement wording is only truthful where the STATUS is
+                // evidence for it: a draft is not held yet, a settled or
+                // released escrow has moved. Never one phrase for all
+                // lifecycle states.
+                railNote: switch (escrow.status) {
+                  EscrowStatus.settled ||
+                  EscrowStatus.released =>
+                    'settled in USDC',
+                  EscrowStatus.draft ||
+                  EscrowStatus.refunded ||
+                  EscrowStatus.expired =>
+                    'denominated in USDC',
+                  _ => 'held in USDC',
+                },
               ),
             ),
           ),
@@ -203,6 +261,27 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
+
+  /// The honest live-equivalent suffix for a money confirmation: never a
+  /// settlement claim, always labelled a current estimate, absent when the
+  /// rate is not usable.
+  String _ghsEstimateSuffix(double amountUsdc) {
+    final snapshot = ref.read(fxRateProvider).valueOrNull;
+    final now = DateTime.now().toUtc();
+    if (snapshot == null || !snapshot.isUsableAt(now)) return '';
+    final ghs = CurrencyMath.convert(
+      amount: amountUsdc,
+      from: CurrencyCatalog.usdc,
+      to: CurrencyCatalog.ghs,
+      ghsPerUsdc: snapshot.ghsPerUsdc,
+    );
+    if (ghs == null) return '';
+    // At confirmation time nothing has settled yet — the sheet's own copy
+    // ('Lock X USDC into escrow?') carries the denomination, so the
+    // suffix stays a pure labelled estimate with no settlement claim.
+    return '\n≈ ${AzMoney.ghs(ghs)} · current estimate';
+  }
+
   Future<void> _confirmFund() async {
     final escrow = widget.escrow;
     if (escrow == null) return;
@@ -210,7 +289,8 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       context,
       title: 'Fund Escrow',
       message:
-          'Lock ${escrow.totalLocked.toStringAsFixed(2)} USDC (incl. ${escrow.feeUsdc.toStringAsFixed(2)} fee) into escrow?',
+          'Lock ${escrow.totalLocked.toStringAsFixed(2)} USDC (incl. ${escrow.feeUsdc.toStringAsFixed(2)} fee) into escrow?'
+          '${_ghsEstimateSuffix(escrow.totalLocked)}',
       confirmLabel: 'Fund',
       icon: Icons.key_outlined,
     );
@@ -521,12 +601,14 @@ class _ExpandedBody extends StatelessWidget {
             isLoading: false,
           ),
           const SizedBox(height: 12),
-          _row('Amount', '${escrow.amountUsdc.toStringAsFixed(2)} USDC'),
+          _amountRow('Amount', escrow.amountUsdc,
+              key: const ValueKey('escrow-detail-amount')),
           const SizedBox(height: 6),
-          _row('Platform fee', '${escrow.feeUsdc.toStringAsFixed(2)} USDC'),
+          _amountRow('Platform fee', escrow.feeUsdc,
+              key: const ValueKey('escrow-detail-fee')),
           const SizedBox(height: 6),
-          _row('Total locked', '${escrow.totalLocked.toStringAsFixed(2)} USDC',
-              emphasize: true),
+          _amountRow('Total locked', escrow.totalLocked,
+              emphasize: true, key: const ValueKey('escrow-detail-total')),
           if (escrow.dueDate != null) ...[
             const SizedBox(height: 6),
             _row('Due date', _fmtDate(escrow.dueDate!)),
@@ -778,6 +860,42 @@ class _ExpandedBody extends StatelessWidget {
       ],
     );
   }
+
+
+
+  /// Amount-of-record row: the native USDC figure plus the honest GHS line
+  /// (a recorded principal when one exists, otherwise a current estimate at
+  /// the fresh #165 oracle rate, otherwise a named unavailability). The
+  /// stored amount itself is only ever read.
+  Widget _amountRow(String label, double amountUsdc,
+      {bool emphasize = false, Key? key}) {
+    return Row(
+      key: key,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(label,
+            style: TextStyle(color: colors.textTertiary, fontSize: 12.5)),
+        Flexible(
+          child: NativeAmountDisplay(
+            amountUsdc: amountUsdc,
+            primaryStyle: TextStyle(
+              color: emphasize ? colors.textPrimary : colors.textSecondary,
+              fontSize: 13,
+              fontWeight: emphasize ? FontWeight.w800 : FontWeight.w600,
+            ),
+            secondaryStyle: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+            ),
+            crossAxisAlignment: CrossAxisAlignment.end,
+          ),
+        ),
+      ],
+    );
+  }
+
 
   Widget _satisfactionChip(String who, bool satisfied) {
     return Expanded(

@@ -12,12 +12,13 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
 
-class SmartRouteCard extends StatelessWidget {
+class SmartRouteCard extends ConsumerWidget {
   final SmartRoute route;
   final AzamanColors colors;
   const SmartRouteCard({super.key, required this.route, required this.colors});
@@ -61,7 +62,7 @@ class SmartRouteCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final accent = _accent();
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
@@ -106,7 +107,7 @@ class SmartRouteCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '\$${route.amountUsdc.toStringAsFixed(2)} · ${route.frequency.toLowerCase()} → ${_destLabel()}',
+                      '${route.amountUsdc.toStringAsFixed(2)} USDC · ${route.frequency.toLowerCase()} → ${_destLabel()}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(color: colors.textTertiary, fontSize: 11),

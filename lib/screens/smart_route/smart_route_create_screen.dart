@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 
 
 class SmartRouteCreateScreen extends ConsumerStatefulWidget {
@@ -22,6 +23,10 @@ class SmartRouteCreateScreen extends ConsumerStatefulWidget {
 class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen> {
   final _name = TextEditingController(text: 'My Auto Payment');
   final _amount = TextEditingController();
+
+  /// The amount as typed, USDC-denominated — the denomination the route
+  /// contract submits.
+  double get _parsedAmount => double.tryParse(_amount.text.trim()) ?? 0;
   final _momoNumber = TextEditingController();
   String _action = 'WITHDRAW_MOMO';
   String _frequency = 'MONTHLY';
@@ -163,6 +168,14 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
               hint: '100.00',
               keyboard: const TextInputType.numberWithOptions(decimal: true),
             ),
+            // GHS reading of the typed amount, honestly labelled. The route
+            // submits a USDC-denominated amount; the reviewed GHS-authority
+            // contract that would make a GHS principal authoritative does not
+            // exist yet, so a wheel is deliberately deferred (Workstream D1).
+            AmountEntryEquivalent(
+              amountUsdc: _parsedAmount,
+              railNote: 'planned amount denominated in USDC',
+            ),
             const SizedBox(height: 14),
             _label(colors, 'Frequency'),
             Wrap(
@@ -267,6 +280,10 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: TextField(
         controller: c,
+        // Rebuild on every keystroke so the honest GHS estimate line
+        // tracks typing (measured: without this the equivalent froze at the
+        // field's initial value — native-amount surface suite, Workstream D1).
+        onChanged: (_) => setState(() {}),
         keyboardType: keyboard,
         style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
         decoration: InputDecoration(

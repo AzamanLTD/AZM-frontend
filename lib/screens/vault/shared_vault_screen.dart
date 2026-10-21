@@ -18,6 +18,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'dart:convert';
 
 import 'package:azaman/services/api_client.dart';
@@ -269,7 +270,7 @@ class _SharedVaultScreenState extends ConsumerState<SharedVaultScreen> {
 
 // ── Shared Vault Card ────────────────────────────────────────────────────────
 
-class _SharedVaultCard extends StatelessWidget {
+class _SharedVaultCard extends ConsumerWidget {
   final SharedVault vault;
   final AzamanColors colors;
   final VoidCallback onTap;
@@ -277,7 +278,7 @@ class _SharedVaultCard extends StatelessWidget {
   const _SharedVaultCard({required this.vault, required this.colors, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final progress = vault.progress;
     final remaining = vault.targetAmountUsdc - vault.currentAmountUsdc;
     final memberAvatars = vault.members.take(4).toList();
@@ -374,8 +375,14 @@ class _SharedVaultCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${vault.currentAmountUsdc.toStringAsFixed(2)} USDC',
+                // Same-unit comparison: both slots stay USDC so the
+                // row never mixes denominations; the labelled estimate
+                // is its own line below.
+                NativeAmountText(
+                  key: const ValueKey('shared-vault-current'),
+                  amountUsdc: vault.currentAmountUsdc,
+                  forceNative: true,
+                  showEquivalent: false,
                   style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
                 ),
                 Text(
@@ -383,6 +390,14 @@ class _SharedVaultCard extends StatelessWidget {
                   style: TextStyle(color: colors.textTertiary, fontSize: 11),
                 ),
               ],
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AmountEntryEquivalent(
+                amountUsdc: vault.currentAmountUsdc,
+                railNote: 'vault balance held in USDC',
+              ),
             ),
             const SizedBox(height: 14),
 

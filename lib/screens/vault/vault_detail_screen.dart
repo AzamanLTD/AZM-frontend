@@ -7,7 +7,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/providers/currency_provider.dart';
+import 'package:azaman/models/currency_catalog.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/utils/currency_math.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
@@ -16,7 +21,14 @@ import 'package:azaman/widgets/nav_transitions.dart';
 
 class VaultDetailScreen extends ConsumerStatefulWidget {
   final String vaultId;
-  const VaultDetailScreen({super.key, required this.vaultId});
+
+  /// Injectable clock for golden tests. Production always leaves it null
+  /// (wall clock); pinned now makes 'days left' and deposit-history
+  /// captions byte-identical across runs.
+  final DateTime Function()? nowFn;
+
+  const VaultDetailScreen(
+      {super.key, required this.vaultId, this.nowFn});
 
   @override
   ConsumerState<VaultDetailScreen> createState() => _VaultDetailScreenState();
@@ -66,8 +78,8 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
             style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
         content: Text(
           'You will pay a ${(v.earlyBreakPenaltyPct * 100).toStringAsFixed(1)}% penalty on '
-          '\$${v.currentAmountUsdc.toStringAsFixed(2)}. The remainder returns to your wallet. '
-          'AZM already earned stays.',
+          '${v.currentAmountUsdc.toStringAsFixed(2)} USDC${_estimateSuffix(v.currentAmountUsdc)}. '
+          'The remainder returns to your wallet. AZM already earned stays.',
           style: TextStyle(color: colors.textSecondary),
         ),
         actions: [
@@ -92,6 +104,23 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// The honest live-equivalent suffix for money confirmations: labelled a
+  /// current estimate, absent when the rate is not usable — never a claim of
+  /// GHS settlement on the native-USDC record.
+  String _estimateSuffix(double amountUsdc) {
+    final snapshot = ref.read(fxRateProvider).valueOrNull;
+    final now = (widget.nowFn?.call() ?? DateTime.now()).toUtc();
+    if (snapshot == null || !snapshot.isUsableAt(now)) return '';
+    final ghs = CurrencyMath.convert(
+      amount: amountUsdc,
+      from: CurrencyCatalog.usdc,
+      to: CurrencyCatalog.ghs,
+      ghsPerUsdc: snapshot.ghsPerUsdc,
+    );
+    if (ghs == null) return '';
+    return ' (≈ ${AzMoney.ghs(ghs)} · current estimate)';
   }
 
   @override
@@ -123,7 +152,9 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
           if (v == null) return const Center(child: Text('Vault not found'));
           final isActive = v.status == 'ACTIVE';
           final progress = v.progressFraction;
-          final daysLeft = v.maturityDate.difference(DateTime.now()).inDays;
+          final daysLeft = v.maturityDate
+              .difference(widget.nowFn?.call() ?? DateTime.now())
+              .inDays;
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
@@ -196,7 +227,10 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                       )
                     : Column(
                         children: list
-                            .map((d) => _DepositTile(d: d, colors: colors))
+                            .map((d) => _DepositTile(
+                                d: d,
+                                colors: colors,
+                                nowFn: widget.nowFn))
                             .toList(),
                       ),
               ),
@@ -278,18 +312,29 @@ class _Hero extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('\$${v.currentAmountUsdc.toStringAsFixed(2)}',
+              // The headline comparison keeps both slots in the native
+              // USDC denomination (current / target must be same-unit);
+              // the labelled GHS estimate of the balance sits under the
+              // progress bar, never inside the comparison.
+              Flexible(
+                child: NativeAmountText(
+                  key: const ValueKey('vault-detail-balance'),
+                  amountUsdc: v.currentAmountUsdc,
+                  forceNative: true,
+                  showEquivalent: false,
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontSize: 30,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -1,
-                  )),
+                  ),
+                ),
+              ),
               const SizedBox(width: 6),
               Padding(
                 padding: const EdgeInsets.only(bottom: 5),
                 child: Text(
-                  '/ \$${v.targetAmountUsdc.toStringAsFixed(2)}',
+                  '/ ${v.targetAmountUsdc.toStringAsFixed(2)} USDC',
                   style: TextStyle(color: colors.textTertiary, fontSize: 13),
                 ),
               ),
@@ -309,6 +354,11 @@ class _Hero extends StatelessWidget {
           Text(
             '${(progress * 100).toStringAsFixed(1)}% to goal',
             style: TextStyle(color: colors.textSecondary, fontSize: 11),
+          ),
+          const SizedBox(height: 4),
+          AmountEntryEquivalent(
+            amountUsdc: v.currentAmountUsdc,
+            railNote: 'vault balance held in USDC',
           ),
         ],
       ),
@@ -438,7 +488,9 @@ class _DepositCard extends StatelessWidget {
 class _DepositTile extends StatelessWidget {
   final VaultDeposit d;
   final AzamanColors colors;
-  const _DepositTile({required this.d, required this.colors});
+  final DateTime Function()? nowFn;
+  const _DepositTile(
+      {required this.d, required this.colors, this.nowFn});
 
   IconData get _icon => switch (d.type) {
         'AUTO_RULE' => Icons.refresh,
@@ -480,13 +532,31 @@ class _DepositTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '\$${d.amountUsdc.toStringAsFixed(2)} · ${d.type}',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  children: [
+                    // Settled USDC movement: native amount only — a
+                    // truncated estimate in this tight row would be worse
+                    // than none. The header line carries the estimate.
+                    NativeAmountText(
+                      key: const ValueKey('vault-deposit-amount'),
+                      amountUsdc: d.amountUsdc,
+                      forceNative: true,
+                      showEquivalent: false,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      ' · ${d.type}',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   d.failureReason ?? '+${d.azmAwarded.toStringAsFixed(2)} AZM',
@@ -507,7 +577,7 @@ class _DepositTile extends StatelessWidget {
   }
 
   String _short(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
+    final diff = (nowFn?.call() ?? DateTime.now()).difference(dt);
     if (diff.inMinutes < 60) return '${diff.inMinutes}m';
     if (diff.inHours < 24) return '${diff.inHours}h';
     return '${diff.inDays}d';
