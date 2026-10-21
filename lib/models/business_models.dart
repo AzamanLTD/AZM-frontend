@@ -668,6 +668,16 @@ class BusinessLocation {
   final bool isPrimary;
   final bool isActive;
   final double? distanceKm; // only present in searchNearby results
+  // ── Embedded profile facts (the /business/search/nearby payload ships the
+  // owning profile as a slim nested object on every row; the plain
+  // /business/locations payloads do NOT). These power the Near You list
+  // rows and the category-correct map markers WITHOUT a second per-row
+  // fetch. Absent on legacy rows → nulls, never guesses.
+  final String? businessCategory;
+  final String? bizId;
+  final String? businessName;
+  final String? businessLogoUrl;
+  final bool? businessVerified;
 
   const BusinessLocation({
     required this.id,
@@ -685,6 +695,11 @@ class BusinessLocation {
     this.phoneNumber,
     this.operatingHours,
     this.distanceKm,
+    this.businessCategory,
+    this.bizId,
+    this.businessName,
+    this.businessLogoUrl,
+    this.businessVerified,
   });
 
   factory BusinessLocation.fromJson(Map<String, dynamic> json) {
@@ -706,7 +721,29 @@ class BusinessLocation {
       isPrimary: json['isPrimary'] == true,
       isActive: json['isActive'] != false,
       distanceKm: _toDoubleOrNull(json['distanceKm']),
+      businessCategory: _embeddedString(json, 'category'),
+      bizId: _embeddedString(json, 'bizId') ?? (json['bizId']?.toString()),
+      businessName: _embeddedString(json, 'businessName'),
+      businessLogoUrl: _embeddedString(json, 'logoUrl'),
+      businessVerified: _embeddedBool(json, 'isVerified'),
     );
+  }
+
+  /// Reads a field from the row's slim embedded `businessProfile` object.
+  /// Legacy payloads without the embedding → null, never a guess.
+  static String? _embeddedString(Map<String, dynamic> json, String key) {
+    final profile = json['businessProfile'];
+    if (profile is! Map<String, dynamic>) return null;
+    final v = profile[key];
+    if (v == null) return null;
+    final s = v.toString();
+    return s.isEmpty ? null : s;
+  }
+
+  static bool? _embeddedBool(Map<String, dynamic> json, String key) {
+    final profile = json['businessProfile'];
+    if (profile is! Map<String, dynamic>) return null;
+    return profile[key] == true ? true : (profile[key] == false ? false : null);
   }
 }
 

@@ -312,6 +312,16 @@ class NearbySearchNotifier extends StateNotifier<NearbySearchState> {
   final BusinessService _service;
   NearbySearchNotifier(this._service) : super(const NearbySearchState());
 
+  // NEAR-YOU STALE-RESPONSE GUARD (Programme G3): every searchNearby()
+  // bumps the generation. A response carries the generation of the request
+  // that produced it and is DISCARDED unless it is still current — the
+  // user can change the category, the query or the position while a slow
+  // request is in flight, and the LAST-ARRIVING stale response must never
+  // overwrite the newer authoritative one. (Same identity pattern as the
+  // canonical businessSearchProvider, REVIEW §5.) clear() bumps too, so
+  // in-flight responses for a cleared feed die instead of resurrecting it.
+  int _generation = 0;
+
   Future<void> searchNearby({
     required double lat,
     required double lng,
@@ -320,6 +330,7 @@ class NearbySearchNotifier extends StateNotifier<NearbySearchState> {
     String? q,
     bool? verified,
   }) async {
+    final generation = ++_generation;
     state = NearbySearchState(
       isLoading: true,
       lat: lat,
@@ -339,7 +350,9 @@ class NearbySearchNotifier extends StateNotifier<NearbySearchState> {
         verified: verified,
         page: 0,
       );
-      if (!mounted) return;
+      // STALE — a newer searchNearby (or a clear) already superseded this
+      // request. Its page is dropped whole, never spliced into new state.
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         locations: page.locations,
         hasMore: page.hasMore,
@@ -347,13 +360,14 @@ class NearbySearchNotifier extends StateNotifier<NearbySearchState> {
         isLoading: false,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   Future<void> loadMore() async {
     if (state.isLoadingMore || !state.hasMore || state.nextPage == null) return;
+    final generation = _generation;
     state = state.copyWith(isLoadingMore: true);
     try {
       final page = await _service.searchNearby(
@@ -365,7 +379,10 @@ class NearbySearchNotifier extends StateNotifier<NearbySearchState> {
         verified: state.verified,
         page: state.nextPage!,
       );
-      if (!mounted) return;
+      // STALE — a fresh searchNearby superseded the page this tail fetch
+      // belonged to. Splicing its rows in would duplicate or resurrect
+      // the old feed, so it is dropped whole.
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(
         locations: [...state.locations, ...page.locations],
         hasMore: page.hasMore,
@@ -373,12 +390,15 @@ class NearbySearchNotifier extends StateNotifier<NearbySearchState> {
         isLoadingMore: false,
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       state = state.copyWith(isLoadingMore: false, error: e.toString());
     }
   }
 
-  void clear() => state = const NearbySearchState();
+  void clear() {
+    _generation++;
+    state = const NearbySearchState();
+  }
 }
 
 final nearbySearchProvider =

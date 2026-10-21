@@ -27,7 +27,8 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
-import 'package:azaman/services/marketplace_booking_service.dart' show marketplaceBookingServiceProvider;
+import 'package:azaman/services/marketplace_booking_service.dart'
+    show marketplaceBookingServiceProvider;
 import 'package:azaman/providers/marketplace_search_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/nav_band_clearance.dart';
@@ -47,6 +48,10 @@ import 'package:azaman/widgets/marketplace/discovery/mix_feed_surface.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_taxonomy_bubble_rail.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/marketplace/nearby_outcome.dart';
+import 'package:azaman/widgets/marketplace/nearby_map_markers.dart';
+import 'package:azaman/widgets/marketplace/nearby_business_row.dart';
+import 'package:azaman/services/nearby_location_tracker.dart';
+import 'package:azaman/services/nearby_location_resolver.dart';
 
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -63,7 +68,11 @@ enum _ViewMode { list, map }
 enum _SortMode { topRated, mostPopular, nearest, newest }
 
 class MarketplaceHomeScreen extends ConsumerStatefulWidget {
-  const MarketplaceHomeScreen({super.key, this.initialCategory});
+  const MarketplaceHomeScreen({
+    super.key,
+    this.initialCategory,
+    this.locationResolver = const PlatformNearbyLocationResolver(),
+  });
 
   /// Wire value of the vertical to open with: `'RETAIL'`, `'FOOD_BEVERAGE'`,
   /// `'LOGISTICS'`, `'HOSPITALITY'` or `'REAL_ESTATE'` (the wire the in-app
@@ -73,12 +82,18 @@ class MarketplaceHomeScreen extends ConsumerStatefulWidget {
   /// Added for the TASK-010b vertical launcher and future deep links.
   final String? initialCategory;
 
+  /// One-shot location resolution (services check + permission dance +
+  /// current position). Injectable so the resolve STATE MACHINE is
+  /// widget-testable — the geolocator futures hang forever in tests.
+  final NearbyLocationResolver locationResolver;
+
   @override
   ConsumerState<MarketplaceHomeScreen> createState() =>
       _MarketplaceHomeScreenState();
 }
 
-class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
+class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
+    with WidgetsBindingObserver {
   final _scrollCtrl = ScrollController();
   double _scrollOffset = 0;
   // Live results while typing: debounce the already-updated provider text
@@ -93,8 +108,26 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
 
   // Story height is driven by scroll offset — no manual toggle needed.
   // At offset 0: fully expanded (96px). At offset 96: fully collapsed (0px).
-  // Location permission requested flag
-  bool _locationRequested = false;
+
+  // ── NEAR YOU / MAP SPLIT (Programme G2/G3) ────────────────────────────────
+  // Near You and Map are SEPARATE controls with SEPARATE state:
+  //   • `_nearYouActive` governs the proximity FEED — the list renders the
+  //     distance-ordered nearby results while it is on, and returns to the
+  //     untouched normal search list when it goes off (the plain list keeps
+  //     its provider state: nothing re-fires, nothing is lost).
+  //   • `_viewMode` (list/map, the view segmented control) governs the
+  //     GEOGRAPHIC surface. The pill no longer switches the view.
+  bool _nearYouActive = false;
+
+  /// Foreground-only position stream (started only while a proximity
+  /// consumer is active and the app is foregrounded; stopped on exit,
+  /// toggle-off and app pause — late events are dropped by the tracker's
+  /// generation guard).
+  NearbyLocationTracker? _nearbyTracker;
+
+  /// The position the last nearby request was fired from — the
+  /// significant-move re-fire baseline.
+  Position? _lastFiredPosition;
 
   // View / sort / filter state
   _ViewMode _viewMode = _ViewMode.list;
@@ -159,17 +192,32 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
       if (!biz.hasLoaded && !biz.isLoading) {
         ref.read(myBusinessProvider.notifier).load();
       }
-      // Request location permission but don't
-      // block the UI — demo data still shows regardless of permission.
-      if (!_locationRequested) {
-        _locationRequested = true;
-        _requestLocationPermission();
-      }
     });
+    // FOREGROUND-ONLY LOCATION (G3): no location permission is requested at
+    // Marketplace open. The permission ask happens in context — when the
+    // user engages Near You (or the map resolves its camera) — and the
+    // position stream that follows runs only while the consuming surface is
+    // active and the app is foregrounded.
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  // ── App lifecycle: the location stream is FOREGROUND-ONLY ────────────────
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final streamConsumerActive = _nearYouActive || _viewMode == _ViewMode.map;
+    if (state == AppLifecycleState.resumed) {
+      if (streamConsumerActive) _startNearbyUpdates();
+    } else if (state != AppLifecycleState.inactive) {
+      // paused / hidden / detached — never keep a location stream alive
+      // outside the foreground.
+      _nearbyTracker?.stop();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _nearbyTracker?.dispose();
     _debounce?.cancel();
     _scrollCtrl.dispose();
     super.dispose();
@@ -217,7 +265,11 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
     if (_viewMode == _ViewMode.list &&
         _scrollCtrl.position.pixels >=
             _scrollCtrl.position.maxScrollExtent - 320) {
-      ref.read(businessSearchProvider.notifier).loadMore();
+      if (_nearYouActive) {
+        ref.read(nearbySearchProvider.notifier).loadMore();
+      } else {
+        ref.read(businessSearchProvider.notifier).loadMore();
+      }
     }
 
     // Story expand/collapse is now handled via NotificationListener
@@ -240,7 +292,10 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
   }
 
   void _fireSearch() {
-    if (_viewMode == _ViewMode.map) {
+    // The proximity feed follows the SAME committed query + category —
+    // a typed search inside Near You re-fires the nearby search, it does
+    // not silently drop the user back to the plain list.
+    if (_nearYouActive || _viewMode == _ViewMode.map) {
       _fireNearby();
       return;
     }
@@ -255,6 +310,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
       await _resolveLocation();
       return;
     }
+    _lastFiredPosition = pos;
     ref
         .read(nearbySearchProvider.notifier)
         .searchNearby(
@@ -271,24 +327,13 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
       _locationError = null;
     });
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw 'Location services are disabled.';
-      }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) {
-        throw 'Location permission denied.';
-      }
-      final pos = await Geolocator.getCurrentPosition();
+      final pos = await widget.locationResolver.resolve();
       if (!mounted) return;
       setState(() {
         _position = pos;
         _resolvingLocation = false;
       });
+      _lastFiredPosition = pos;
       ref
           .read(nearbySearchProvider.notifier)
           .searchNearby(
@@ -306,25 +351,59 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
     }
   }
 
-  /// Request location permission without blocking — still shows demo data.
-  Future<void> _requestLocationPermission() async {
-    try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) return;
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-      }
-      if (permission != LocationPermission.denied &&
-          permission != LocationPermission.deniedForever) {
-        final pos = await Geolocator.getCurrentPosition();
-        if (mounted) {
-          setState(() => _position = pos);
-        }
-      }
-    } catch (_) {
-      // Silently fail — demo data shows regardless
+  // ── Near You control (G2): a SEPARATE toggle from the map ──────────────────
+
+  /// Toggles the proximity feed. ON: resolves location (asking permission
+  /// in context if needed), starts the foreground-only significant-move
+  /// stream and fires the nearby search with the CURRENT query + category.
+  /// OFF: stops the stream and returns to the normal search list, which
+  /// kept its own provider state the whole time — no re-fetch, no lost
+  /// scroll, no lost filters.
+  void _toggleNearYou() {
+    AzamanHaptics.toggle();
+    final enabling = !_nearYouActive;
+    setState(() => _nearYouActive = enabling);
+    if (enabling) {
+      _startNearbyUpdates();
+      _fireNearby();
+    } else {
+      _stopNearbyUpdates();
     }
+  }
+
+  /// Starts the foreground-only position stream. Idempotent.
+  void _startNearbyUpdates() {
+    _nearbyTracker ??= NearbyLocationTracker(
+      onPosition: _onNearbyPositionUpdate,
+    );
+    _nearbyTracker!.start();
+  }
+
+  /// Stops the stream unless the map (a still-active position consumer)
+  /// is on screen.
+  void _stopNearbyUpdates() {
+    if (_viewMode == _ViewMode.map) return;
+    _nearbyTracker?.stop();
+  }
+
+  /// Significant-move handler: each event the tracker delivers already
+  /// passed its 100 m distanceFilter — re-fire the nearby search from the
+  /// NEW position. The provider's generation guard makes the in-flight
+  /// response of the previous position irrelevant.
+  void _onNearbyPositionUpdate(Position position) {
+    if (!mounted) return;
+    if (!_nearYouActive && _viewMode != _ViewMode.map) return;
+    if (_lastFiredPosition != null) {
+      final moved = Geolocator.distanceBetween(
+        _lastFiredPosition!.latitude,
+        _lastFiredPosition!.longitude,
+        position.latitude,
+        position.longitude,
+      );
+      if (moved < 100) return; // not a significant move
+    }
+    setState(() => _position = position);
+    _fireNearby();
   }
 
   void _setViewMode(_ViewMode mode) {
@@ -334,7 +413,15 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
       _viewMode = mode;
       if (mode == _ViewMode.map) _sort = _SortMode.nearest;
     });
-    if (mode == _ViewMode.map) _fireNearby();
+    if (mode == _ViewMode.map) {
+      // The map is the geographic surface — it keeps the nearby
+      // machinery (position + radius-bounded markers) and now also holds
+      // the position stream while it is on screen.
+      _startNearbyUpdates();
+      _fireNearby();
+    } else {
+      _stopNearbyUpdates();
+    }
   }
 
   // ── Sort + filter (client-side) ─────────────────────────────────────────────
@@ -495,7 +582,9 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
           child: AzPullToRefresh(
             onRefresh: () => _mixActive
                 ? ref.read(marketplaceMixProvider.notifier).retry()
-                : (_viewMode == _ViewMode.list ? _refresh() : _fireNearby()),
+                : (_viewMode == _ViewMode.list
+                      ? (_nearYouActive ? _fireNearby() : _refresh())
+                      : _fireNearby()),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -552,33 +641,32 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                         //    page; the story rail keeps its browse role and its
                         //    scroll-collapse behavior in both modes.
                         SizedBox(
-                            // Testable seam: this box's height IS the rail's
-                            // collapsed extent — the child inside the
-                            // OverflowBox always lays out at full height and
-                            // is clipped away, so assertions must read HERE.
-                            key: const ValueKey('marketplace_story_rail_extent'),
-                            height:
-                                StoryRailCollapse.extentPx * storyExpandRatio,
-                            width: double.infinity,
-                            child: ClipRect(
-                              child: OverflowBox(
-                                alignment: Alignment.topCenter,
-                                minHeight: StoryRailCollapse.extentPx,
-                                maxHeight: StoryRailCollapse.extentPx,
-                                child: Opacity(
-                                  opacity: storyExpandRatio.clamp(0.0, 1.0),
-                                  child: MarketplaceExpandedStories(
-                                    onOpenBusiness: (bizId) {
-                                      _openBusinessStories(context, bizId);
-                                    },
-                                    onBrowsePressed: () {
-                                      setState(() => _selectedCategory = null);
-                                    },
-                                  ),
+                          // Testable seam: this box's height IS the rail's
+                          // collapsed extent — the child inside the
+                          // OverflowBox always lays out at full height and
+                          // is clipped away, so assertions must read HERE.
+                          key: const ValueKey('marketplace_story_rail_extent'),
+                          height: StoryRailCollapse.extentPx * storyExpandRatio,
+                          width: double.infinity,
+                          child: ClipRect(
+                            child: OverflowBox(
+                              alignment: Alignment.topCenter,
+                              minHeight: StoryRailCollapse.extentPx,
+                              maxHeight: StoryRailCollapse.extentPx,
+                              child: Opacity(
+                                opacity: storyExpandRatio.clamp(0.0, 1.0),
+                                child: MarketplaceExpandedStories(
+                                  onOpenBusiness: (bizId) {
+                                    _openBusinessStories(context, bizId);
+                                  },
+                                  onBrowsePressed: () {
+                                    setState(() => _selectedCategory = null);
+                                  },
                                 ),
                               ),
                             ),
                           ),
+                        ),
                         // ── §11: the category SPEED DIAL is the category
                         // system (radial fan grammar) + Near You as the only
                         // additional control. §12: no star/featured surface.
@@ -964,7 +1052,8 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
   // ONLY additional control, with a location icon in the same visual
   // language, driving the existing near-you map machinery.
   Widget _controlRow(AzamanColors colors) {
-    final nearYou = _viewMode == _ViewMode.map;
+    // G2 — the pill reads the PROXIMITY FEED state, never the view mode.
+    final nearYou = _nearYouActive;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       // MARKETPLACE MIX overflow fix (rebase audit): the Mix entry pill made
@@ -1060,48 +1149,48 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                           duration: const Duration(milliseconds: 110),
                           curve: Curves.easeOutCubic,
                           child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _mixActive
-                                ? colors.accent.withValues(alpha: 0.12)
-                                : colors.card,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
                               color: _mixActive
-                                  ? colors.accent
-                                  : colors.divider,
-                              width: _mixActive ? 1.2 : 0.5,
+                                  ? colors.accent.withValues(alpha: 0.12)
+                                  : colors.card,
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: _mixActive
+                                    ? colors.accent
+                                    : colors.divider,
+                                width: _mixActive ? 1.2 : 0.5,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // The die: breathing space around it, then
+                                // the label. (The vertical divider used to
+                                // sit here, inside the pill — it now separates
+                                // the dial from this control.)
+                                Padding(
+                                  padding: const EdgeInsets.all(2),
+                                  child: MixDie(active: _mixActive),
+                                ),
+                                const SizedBox(width: 7),
+                                Text(
+                                  'Mix',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: _mixActive
+                                        ? colors.accent
+                                        : colors.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // The die: breathing space around it, then
-                              // the label. (The vertical divider used to
-                              // sit here, inside the pill — it now separates
-                              // the dial from this control.)
-                              Padding(
-                                padding: const EdgeInsets.all(2),
-                                child: MixDie(active: _mixActive),
-                              ),
-                              const SizedBox(width: 7),
-                              Text(
-                                'Mix',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: _mixActive
-                                      ? colors.accent
-                                      : colors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                         ),
                       ),
                     ],
@@ -1119,10 +1208,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                   GestureDetector(
                     key: const ValueKey('marketplace-near-you'),
                     behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      AzamanHaptics.toggle();
-                      _setViewMode(nearYou ? _ViewMode.list : _ViewMode.map);
-                    },
+                    onTap: _toggleNearYou,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(
@@ -1230,34 +1316,15 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
 
   // ── Real map mode (§1) ─────────────────────────────────────────────────────
 
-  Set<Marker> _buildMarkers(List<BusinessLocation> locations) {
-    return locations.map((loc) {
-      final cat = BusinessCategories.fromWire(
-        loc.businessProfileId.isNotEmpty ? 'OTHER' : 'OTHER',
-      );
-      // Use default marker with hue derived from category color as first pass
-      final hue = _hueFromColor(cat.color);
-      return Marker(
-        markerId: MarkerId(loc.id),
-        position: LatLng(loc.latitude, loc.longitude),
-        icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-        onTap: () => _showBusinessPreviewSheet(loc),
-      );
-    }).toSet();
-  }
-
-  double _hueFromColor(Color color) {
-    final hsv = HSVColor.fromColor(color);
-    return hsv.hue;
-  }
-
   void _showBusinessPreviewSheet(BusinessLocation loc) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (sheetCtx) => FutureBuilder(
-        future: BusinessService().getBusinessByBizId(loc.businessProfileId),
+        future: BusinessService().getBusinessByBizId(
+          loc.bizId ?? loc.businessProfileId,
+        ),
         builder: (ctx, snap) {
           if (snap.connectionState != ConnectionState.done) {
             return Container(
@@ -1356,9 +1423,123 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
   ]
   ''';
 
+  // ── Near You proximity feed (G2) ───────────────────────────────────────────
+
+  /// The distance-ordered proximity list. Server-ordered by distance
+  /// (haversine, 0.1 km rounding) — the client NEVER re-sorts it, so the
+  /// list and the map markers can never disagree. Failure and emptiness
+  /// are distinct truthful states, exactly like the search list.
+  Widget _nearYouList(AzamanColors colors) {
+    final state = ref.watch(nearbySearchProvider);
+
+    if (state.isLoading && state.locations.isEmpty) {
+      return _listShimmer(colors);
+    }
+
+    if (state.error != null && state.locations.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 60),
+          AzamanEmptyState(
+            key: const Key('marketplace-nearby-failure'),
+            icon: Icons.wifi_off_outlined,
+            title: 'Couldn\'t load nearby businesses',
+            subtitle: 'Check your connection and try again.',
+            actionLabel: 'Retry',
+            onAction: _fireNearby,
+          ),
+        ],
+      );
+    }
+
+    if (state.locations.isEmpty) {
+      // A failed location resolve is its OWN truthful state — not "no
+      // businesses" and not a search failure. The neighborhood was never
+      // queried because there is no origin to measure from.
+      if (_locationError != null && !_resolvingLocation) {
+        return ListView(
+          children: [
+            const SizedBox(height: 60),
+            AzamanEmptyState(
+              key: const Key('marketplace-nearby-location-error'),
+              icon: Icons.location_disabled_outlined,
+              title: 'Location unavailable',
+              subtitle:
+                  'Turn on location services or grant permission to see '
+                  'what\'s around you.',
+              actionLabel: 'Retry',
+              onAction: _resolveLocation,
+            ),
+          ],
+        );
+      }
+      if (_resolvingLocation) return _listShimmer(colors);
+      return ListView(
+        children: [
+          const SizedBox(height: 60),
+          AzamanEmptyState(
+            key: const Key('marketplace-nearby-empty'),
+            icon: Icons.near_me_outlined,
+            title: 'No businesses nearby yet',
+            subtitle: _selectedCategory != null
+                ? 'No ${_categoryLabel(_selectedCategory)} within range — '
+                      'try another category or clear filters.'
+                : 'Nothing within your range right now. Try again later.',
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      key: const ValueKey('marketplace_nearby_results_list'),
+      controller: _scrollCtrl,
+      padding: EdgeInsets.fromLTRB(
+        8,
+        6,
+        8,
+        navBandClearance(context) + kNavBandGap,
+      ),
+      itemCount: state.locations.length + (state.hasMore ? 1 : 0),
+      itemBuilder: (ctx, i) {
+        if (i >= state.locations.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        final loc = state.locations[i];
+        return NearbyBusinessRow(
+              location: loc,
+              onTap: () {
+                final bizId = loc.bizId ?? loc.businessProfileId;
+                if (bizId.isEmpty) return; // nothing to open — never guess
+                context.push(AzRoutes.businessProfile(bizId));
+              },
+            )
+            .animate()
+            .fadeIn(delay: (i * 50).ms, duration: 250.ms)
+            .move(
+              begin: const Offset(0, 8),
+              end: const Offset(0, 0),
+              duration: 220.ms,
+            );
+      },
+    );
+  }
+
   // ── List mode ──────────────────────────────────────────────────────────────
 
   Widget _listMode(AzamanColors colors) {
+    // G2 — Near You owns the LIST while active: the distance-ordered
+    // proximity feed, an entirely separate provider from the search list.
+    if (_nearYouActive) return _nearYouList(colors);
+
     final state = ref.watch(businessSearchProvider);
 
     if (state.isLoading) return _listShimmer(colors);
@@ -1444,7 +1625,8 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
       ),
       // REVIEW §5 — the tail sentinel renders while more pages exist OR a
       // later-page fetch failed (the inline retry replaces the spinner).
-      itemCount: results.length +
+      itemCount:
+          results.length +
           ((state.hasMore || state.loadMoreError != null) ? 1 : 0),
       itemBuilder: (ctx, i) {
         // Tail sentinel: inline accessible retry when a later-page fetch
@@ -1460,9 +1642,8 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
                 child: Center(
                   child: TextButton.icon(
                     key: const Key('marketplace-load-more-retry'),
-                    onPressed: () => ref
-                        .read(businessSearchProvider.notifier)
-                        .loadMore(),
+                    onPressed: () =>
+                        ref.read(businessSearchProvider.notifier).loadMore(),
                     icon: const Icon(Icons.refresh, size: 16),
                     label: const Text('Couldn\'t load more — retry'),
                   ),
@@ -1627,7 +1808,16 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen> {
             target: LatLng(_position!.latitude, _position!.longitude),
             zoom: 14,
           ),
-          markers: _buildMarkers(locations),
+          markers: markersFromSpecs(
+            buildNearbyMarkerSpecs(locations),
+            onTap: (spec) {
+              final loc = locations.firstWhere(
+                (l) => l.id == spec.id,
+                orElse: () => locations.first,
+              );
+              _showBusinessPreviewSheet(loc);
+            },
+          ),
           myLocationEnabled: true,
           myLocationButtonEnabled: false,
           onMapCreated: (controller) => _mapController = controller,
