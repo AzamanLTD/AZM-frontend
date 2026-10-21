@@ -19,6 +19,7 @@
 // shared with the real backend overlay. The discovery seed validates chips
 // against it instead of inventing taxonomy IDs.
 import 'package:azaman/marketplace/mix/mix_models.dart' show MixTaxonomy;
+import 'dart:math' as math;
 
 // Verified media assets (Base44 public CDN). Reused deterministically —
 // one asset pool per category, no random generators.
@@ -185,17 +186,37 @@ class DemoMarketplaceSeed {
     return _pageOf(filtered, limit, cursor, 'businesses');
   }
 
-  /// Deterministic nearby search over the seeded locations.
+  /// Deterministic nearby search over the seeded locations — a faithful
+  /// mirror of the REAL `/business/search/nearby` contract
+  /// (services/businessLocationService.js in AZM-backend):
+  ///
+  /// • offset pagination (`page`, 0-based) + `hasMore`/`nextPage` (int) —
+  ///   NOT cursors. The real client sends `page`; the previous demo
+  ///   handler read a `cursor` the real client never sends, so page 2 in
+  ///   demo mode silently replayed page 1 (duplicated rows). That drift
+  ///   is gone.
+  /// • every row embeds the slim `businessProfile` object with EXACTLY
+  ///   the field set the real include ships (id, bizId, businessName,
+  ///   category, logoUrl, isVerified, averageRating, totalEscrows) — the
+  ///   embedded facts power the Near You rows and category-correct map
+  ///   markers without a second fetch, identically to production.
+  /// • distanceKm is the real haversine from the request lat/lng,
+  ///   rounded to 0.1 km, and rows are sorted ascending by distance —
+  ///   pagination operates on the globally-ordered list, like the real
+  ///   endpoint.
   static Map<String, dynamic> searchNearby({
+    double? lat,
+    double? lng,
     String? q,
     String? category,
     bool? verified,
     int limit = 20,
-    String? cursor,
+    int page = 0,
   }) {
     final byProfile = {
       for (final b in allBusinesses()) b['id'].toString(): b,
     };
+    final canMeasure = lat != null && lng != null;
     final locations = allBusinesses()
         .expand((b) => (b['locations'] as List).cast<Map<String, dynamic>>())
         .where((loc) {
@@ -205,9 +226,61 @@ class DemoMarketplaceSeed {
           if (verified == true && biz['isVerified'] != true) return false;
           return _queryMatches(biz, q);
         })
+        .map<Map<String, dynamic>>((loc) {
+          final biz = byProfile[loc['businessProfileId']];
+          if (biz == null) {
+            // Unreachable — the where() above filters unknown profiles —
+            // but fail closed rather than fabricate a profile.
+            return {...loc, 'businessProfile': <String, dynamic>{}};
+          }
+          final requestLat = lat;
+          final requestLng = lng;
+          final double? distanceKm =
+              canMeasure && requestLat != null && requestLng != null
+                  ? _haversineKm(
+                      requestLat,
+                      requestLng,
+                      _num(loc['latitude']),
+                      _num(loc['longitude']),
+                    )
+                  : null;
+          return {
+            ...loc,
+            if (distanceKm != null) 'distanceKm': distanceKm,
+            'businessProfile': {
+              'id': biz['id'],
+              'bizId': biz['bizId'],
+              'businessName': biz['businessName'],
+              'category': biz['category'],
+              'logoUrl': biz['logoUrl'],
+              'isVerified': biz['isVerified'] == true,
+              'averageRating': biz['averageRating'],
+              'totalEscrows': biz['totalEscrows'],
+            },
+          };
+        })
         .toList(growable: false);
-    return _pageOf(locations, limit, cursor, 'locations',
-        hasMoreKey: 'hasMore', cursorKey: 'nextPage');
+
+    if (canMeasure) {
+      locations.sort(
+        (a, b) => _num(a['distanceKm']).compareTo(_num(b['distanceKm'])),
+      );
+    }
+
+    final take = limit <= 0 ? 20 : limit;
+    final pageNum = page < 0 ? 0 : page;
+    final start = pageNum * take;
+    final end = (start + take).clamp(0, locations.length);
+    final slice = locations.sublist(
+      start.clamp(0, locations.length),
+      end,
+    );
+    final hasMore = end < locations.length;
+    return {
+      'locations': slice,
+      'hasMore': hasMore,
+      'nextPage': hasMore ? pageNum + 1 : null,
+    };
   }
 
   // ── G1 — Mix discovery feed (GET /discovery/items) ───────────────────
@@ -671,6 +744,26 @@ class DemoMarketplaceSeed {
           nextOffset < filtered.length ? 'off-$nextOffset' : null,
     };
   }
+  /// Real haversine, rounded the way the production endpoint rounds it
+  /// (0.1 km precision).
+  static double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371.0;
+    final dLat = _rad(lat2 - lat1);
+    final dLng = _rad(lng2 - lng1);
+    final a =
+        _sq(_sin(dLat / 2)) +
+        _cos(_rad(lat1)) * _cos(_rad(lat2)) * _sq(_sin(dLng / 2));
+    final km = r * 2 * _atan2(_sqrt(a), _sqrt(1 - a));
+    return (km * 10).roundToDouble() / 10;
+  }
+
+  static double _num(dynamic v) => v is num ? v.toDouble() : 0.0;
+  static double _rad(double deg) => deg * 3.141592653589793 / 180.0;
+  static double _sq(double v) => v * v;
+  static double _sin(double v) => math.sin(v);
+  static double _cos(double v) => math.cos(v);
+  static double _sqrt(double v) => math.sqrt(v);
+  static double _atan2(double y, double x) => math.atan2(y, x);
 
   static List<Map<String, dynamic>> _filterBusinesses(
     List<Map<String, dynamic>> businesses, {
@@ -1214,7 +1307,6 @@ class DemoMarketplaceSeed {
     'latitude': 5.5550, 'longitude': -0.1800,
     'isPrimary': true, 'isActive': true,
     'galleryUrls': [DemoMedia.rCover, DemoMedia.rAlt, DemoMedia.rCover],
-    'distanceKm': 1.2,
   };
 
   static Map<String, dynamic> _restaurant2Location() {
@@ -1224,7 +1316,6 @@ class DemoMarketplaceSeed {
       'latitude': 5.6220, 'longitude': -0.1180,
       'isPrimary': true, 'isActive': true,
       'galleryUrls': [DemoMedia.rThird, DemoMedia.rCover],
-      'distanceKm': 4.6,
     };
   }
 
@@ -1235,7 +1326,6 @@ class DemoMarketplaceSeed {
     'latitude': 5.6400, 'longitude': -0.1680,
     'isPrimary': true, 'isActive': true,
     'galleryUrls': [DemoMedia.hCover, DemoMedia.hAlt, DemoMedia.hThird, DemoMedia.hAlt, DemoMedia.hCover],
-    'distanceKm': 3.8,
   };
 
   static Map<String, dynamic> _hotel2Location() {
@@ -1245,7 +1335,6 @@ class DemoMarketplaceSeed {
       'latitude': 5.1050, 'longitude': -1.2460,
       'isPrimary': true, 'isActive': true,
       'galleryUrls': [DemoMedia.hThird, DemoMedia.hCover, DemoMedia.hAlt],
-      'distanceKm': 9.4,
     };
   }
 
@@ -1256,7 +1345,6 @@ class DemoMarketplaceSeed {
     'latitude': 5.5700, 'longitude': -0.2050,
     'isPrimary': true, 'isActive': true,
     'galleryUrls': [DemoMedia.tCover, DemoMedia.tAlt],
-    'distanceKm': 2.5,
   };
 
   static Map<String, dynamic> _transit2Location() {
@@ -1266,7 +1354,6 @@ class DemoMarketplaceSeed {
       'latitude': 6.6060, 'longitude': 0.4710,
       'isPrimary': true, 'isActive': true,
       'galleryUrls': [DemoMedia.tThird, DemoMedia.tCover],
-      'distanceKm': 6.1,
     };
   }
 
@@ -1277,7 +1364,6 @@ class DemoMarketplaceSeed {
     'latitude': 5.6300, 'longitude': -0.1730,
     'isPrimary': true, 'isActive': true,
     'galleryUrls': [DemoMedia.rtAlt, DemoMedia.rtCover],
-    'distanceKm': 3.1,
   };
 
   static Map<String, dynamic> _retail2Location() {
@@ -1287,7 +1373,6 @@ class DemoMarketplaceSeed {
       'latitude': 5.5620, 'longitude': -0.1810,
       'isPrimary': true, 'isActive': true,
       'galleryUrls': [DemoMedia.rtCover, DemoMedia.rtAlt],
-      'distanceKm': 1.9,
     };
   }
 
