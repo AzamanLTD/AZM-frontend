@@ -64,8 +64,9 @@ import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/widgets/smart_route/smart_route_card.dart';
 import 'package:azaman/widgets/vault/vault_progress_card.dart';
 
-const _storageChannel =
-    MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+const _storageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
 
 // ── Real fonts (FontLoader pattern; see test/goldens/README.md) ─────────────
 
@@ -74,9 +75,9 @@ bool _fontsLoaded = false;
 Future<void> _loadFace(String family, String path) async {
   final bytes = await File(path).readAsBytes();
   final loader = FontLoader(family)
-    ..addFont(Future<ByteData>.value(
-      ByteData.view(Uint8List.fromList(bytes).buffer),
-    ));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
 }
 
@@ -86,7 +87,9 @@ Future<void> _loadAppFonts() async {
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
   await _loadFace(
-      'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+    'MaterialIcons',
+    'test/goldens/fonts/MaterialIcons-Regular.otf',
+  );
   await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
   _fontsLoaded = true;
 }
@@ -117,49 +120,49 @@ FxRateSnapshot _pinnedRate() {
 }
 
 Vault _vault() => Vault(
-      id: 'v1',
-      name: 'Emergency fund',
-      targetAmountUsdc: 1000,
-      currentAmountUsdc: 500,
-      status: 'ACTIVE',
-      startDate: _kGoldenNow.subtract(const Duration(days: 10)),
-      maturityDate: _kGoldenNow.add(const Duration(days: 80)),
-      isLocked: true,
-      earlyBreakPenaltyPct: 5,
-      autoRuleEnabled: false,
-      streakCount: 3,
-      longestStreak: 3,
-      missedCount: 0,
-      consistencyScore: 1,
-      totalAzmEarned: 12,
-    );
+  id: 'v1',
+  name: 'Emergency fund',
+  targetAmountUsdc: 1000,
+  currentAmountUsdc: 500,
+  status: 'ACTIVE',
+  startDate: _kGoldenNow.subtract(const Duration(days: 10)),
+  maturityDate: _kGoldenNow.add(const Duration(days: 80)),
+  isLocked: true,
+  earlyBreakPenaltyPct: 5,
+  autoRuleEnabled: false,
+  streakCount: 3,
+  longestStreak: 3,
+  missedCount: 0,
+  consistencyScore: 1,
+  totalAzmEarned: 12,
+);
 
 SmartEscrow _escrow({double amount = 20}) => SmartEscrow(
-      id: 'esc_1',
-      ticketId: 'tkt_1',
-      payerId: 10,
-      payeeId: 20,
-      amountUsdc: amount,
-      feeUsdc: 0.5,
-      status: EscrowStatus.funded,
-      payerSatisfied: false,
-      payeeSatisfied: false,
-      fundedAt: DateTime.now(),
-      expiresAt: DateTime.now().add(const Duration(days: 3)),
-    );
+  id: 'esc_1',
+  ticketId: 'tkt_1',
+  payerId: 10,
+  payeeId: 20,
+  amountUsdc: amount,
+  feeUsdc: 0.5,
+  status: EscrowStatus.funded,
+  payerSatisfied: false,
+  payeeSatisfied: false,
+  fundedAt: DateTime.now(),
+  expiresAt: DateTime.now().add(const Duration(days: 3)),
+);
 
 SmartRoute _route() => SmartRoute(
-      id: 'sr1',
-      name: 'Rent savings',
-      action: 'TRANSFER',
-      amountUsdc: 20,
-      frequency: 'MONTHLY',
-      status: 'ACTIVE',
-      startDate: DateTime.now(),
-      nextRunAt: DateTime.now().add(const Duration(days: 7)),
-      totalRuns: 3,
-      totalRoutedUsdc: 60,
-    );
+  id: 'sr1',
+  name: 'Rent savings',
+  action: 'TRANSFER',
+  amountUsdc: 20,
+  frequency: 'MONTHLY',
+  status: 'ACTIVE',
+  startDate: DateTime.now(),
+  nextRunAt: DateTime.now().add(const Duration(days: 7)),
+  totalRuns: 3,
+  totalRoutedUsdc: 60,
+);
 
 // ── Full-screen fixtures (susu dashboard / vault detail) ────────────────────
 
@@ -180,41 +183,41 @@ SusuMemberView _capMember(String id, int userId, String name, int slot) =>
 final DateTime _kGoldenNow = DateTime.utc(2026, 10, 20, 12, 0, 0);
 
 SusuCycleView _capCycle(int n, SusuCycleStatus status) => SusuCycleView(
-      id: 'cyc_$n',
-      cycleNumber: n,
-      scheduledRunAt: _kGoldenNow.add(Duration(days: 7 * n)),
-      status: status,
-      payoutUserId: 10 + (n % 2),
-      paidOutAt: null,
-      escrowDivertedAt: null,
-      payoutAmount: null,
-      graceUntil: null,
-    );
+  id: 'cyc_$n',
+  cycleNumber: n,
+  scheduledRunAt: _kGoldenNow.add(Duration(days: 7 * n)),
+  status: status,
+  payoutUserId: 10 + (n % 2),
+  paidOutAt: null,
+  escrowDivertedAt: null,
+  payoutAmount: null,
+  graceUntil: null,
+);
 
 SusuDetail _capSusu() => SusuDetail(
-      id: 's_cap',
-      name: 'Market Traders Circle',
-      status: SusuStatus.active,
-      contributionUsdc: 2,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 8,
-      contractVersion: 'v2',
-      contractHash: 'hash',
-      activatedAt: DateTime.now().subtract(const Duration(days: 14)),
-      completedAt: null,
-      frozenAt: null,
-      frozenReason: null,
-      initiator: null,
-      members: [
-        _capMember('sm_1', 10, 'Ama Serwaa', 1),
-        _capMember('sm_2', 11, 'Kwame Boadi', 2),
-        _capMember('sm_3', 12, 'Efua Mensah', 3),
-      ],
-      cycles: [
-        for (var n = 1; n <= 8; n++)
-          _capCycle(n, n == 1 ? SusuCycleStatus.paidOut : SusuCycleStatus.pending),
-      ],
-    );
+  id: 's_cap',
+  name: 'Market Traders Circle',
+  status: SusuStatus.active,
+  contributionUsdc: 2,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 8,
+  contractVersion: 'v2',
+  contractHash: 'hash',
+  activatedAt: DateTime.now().subtract(const Duration(days: 14)),
+  completedAt: null,
+  frozenAt: null,
+  frozenReason: null,
+  initiator: null,
+  members: [
+    _capMember('sm_1', 10, 'Ama Serwaa', 1),
+    _capMember('sm_2', 11, 'Kwame Boadi', 2),
+    _capMember('sm_3', 12, 'Efua Mensah', 3),
+  ],
+  cycles: [
+    for (var n = 1; n <= 8; n++)
+      _capCycle(n, n == 1 ? SusuCycleStatus.paidOut : SusuCycleStatus.pending),
+  ],
+);
 
 class _CapSusuDetailNotifier extends SusuDetailV2Notifier {
   @override
@@ -231,15 +234,14 @@ class _CapSusuCyclesNotifier extends SusuCyclesNotifier {
   Future<List<SusuCycleView>> build(String susuId) async => _capSusu().cycles;
 }
 
-VaultDeposit _capDeposit(String id, double amount, int daysAgo) =>
-    VaultDeposit(
-      id: id,
-      amountUsdc: amount,
-      type: 'MANUAL',
-      status: 'COMPLETED',
-      azmAwarded: 1,
-      createdAt: _kGoldenNow.subtract(Duration(days: daysAgo)),
-    );
+VaultDeposit _capDeposit(String id, double amount, int daysAgo) => VaultDeposit(
+  id: id,
+  amountUsdc: amount,
+  type: 'MANUAL',
+  status: 'COMPLETED',
+  azmAwarded: 1,
+  createdAt: _kGoldenNow.subtract(Duration(days: daysAgo)),
+);
 
 /// The gallery: every read-side D1 money surface in one scrollable column,
 /// fed the way the real screens feed them (live theme colors).
@@ -249,17 +251,17 @@ class _Gallery extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     Widget section(String label) => Padding(
-          padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
-          child: Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
-          ),
-        );
+      padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: colors.textTertiary,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
@@ -273,11 +275,7 @@ class _Gallery extends ConsumerWidget {
           style: TextStyle(color: colors.textTertiary, fontSize: 11),
         ),
         section('Vault progress (same-unit comparison)'),
-        VaultProgressCard(
-          vault: _vault(),
-          colors: colors,
-          onTap: () {},
-        ),
+        VaultProgressCard(vault: _vault(), colors: colors, onTap: () {}),
         section('Escrow panel (collapsed + estimate strip)'),
         EscrowStatusPanel(
           escrow: _escrow(),
@@ -314,9 +312,9 @@ Future<void> _pumpSubject(
 }) async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
-    if (call.method == 'read') return 'mock-token';
-    return null;
-  });
+        if (call.method == 'read') return 'mock-token';
+        return null;
+      });
   SharedPreferences.setMockInitialValues({'azaman_theme': dark ? 1 : 0});
   tester.view
     ..physicalSize = size * 3.0
@@ -328,10 +326,12 @@ Future<void> _pumpSubject(
   // GHS display preference on the REAL notifier: the reviewer's blockers
   // were about exactly this preference (estimates leading must stay
   // labelled, native amounts must survive).
-  final container = ProviderContainer(overrides: [
-    fxRateProvider.overrideWith((ref) async => _pinnedRate()),
-    ...extraOverrides,
-  ]);
+  final container = ProviderContainer(
+    overrides: [
+      fxRateProvider.overrideWith((ref) async => _pinnedRate()),
+      ...extraOverrides,
+    ],
+  );
   container.read(currencyProvider.notifier).state = DisplayCurrency.ghs;
 
   await tester.pumpWidget(
@@ -344,9 +344,16 @@ Future<void> _pumpSubject(
         // actually read (test/goldens/README.md). Outside MaterialApp it is
         // overwritten, the panel's detent never lands, and gate taps hit a
         // mid-transition surface.
-        home: MediaQuery(
-          data: const MediaQueryData(disableAnimations: true),
-          child: RepaintBoundary(child: child),
+        home: Builder(
+          builder: (context) => MediaQuery(
+            // copyWith, NOT a bare MediaQueryData: a fresh instance zeroes
+            // size, so any surface reading MediaQuery.size (the dashboard's
+            // quick-action chips divide screen width) computed against a
+            // 0-width screen and crashed layout. Disabling animations must
+            // still override the INNER data the widgets actually read.
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: RepaintBoundary(child: child),
+          ),
         ),
       ),
     ),
@@ -385,8 +392,11 @@ Future<void> _acceptRules(WidgetTester tester) async {
     await tester.pump(const Duration(milliseconds: 60));
   }
   // The capture is only meaningful if the gate actually closed.
-  expect(find.text('I Agree — Continue'), findsNothing,
-      reason: 'rules sheet must close before the capture');
+  expect(
+    find.text('I Agree — Continue'),
+    findsNothing,
+    reason: 'rules sheet must close before the capture',
+  );
 }
 
 Future<void> _capture(
@@ -481,7 +491,7 @@ void main() {
     // ── Vault creation: behind the real rules gate, target estimate live ─
     for (final e in {
       '390': sizes['390']!,
-      '320short': sizes['320short']!
+      '320short': sizes['320short']!,
     }.entries) {
       testWidgets('vault create ${e.key} $mode', (tester) async {
         await _capture(
@@ -493,8 +503,10 @@ void main() {
           afterPump: (t) async {
             await _acceptRules(t);
             // Field order: name, TARGET, auto-deposit. Target by hint.
-            final targetField = find.byWidgetPredicate((w) =>
-                w is TextField && (w.decoration?.hintText ?? '') == '500.00');
+            final targetField = find.byWidgetPredicate(
+              (w) =>
+                  w is TextField && (w.decoration?.hintText ?? '') == '500.00',
+            );
             await t.enterText(targetField, '500');
             await t.pump();
             await t.pump(const Duration(milliseconds: 200));
@@ -502,8 +514,11 @@ void main() {
             // labelled estimate at the pinned rate (500 × 15.38).
             expect(find.text('I Agree — Continue'), findsNothing);
             expect(find.byType(TextField).evaluate().isNotEmpty, isTrue);
-            expect(find.textContaining('7,690'), findsOneWidget,
-                reason: 'the GH\u2085 7,690.00 estimate must be on screen');
+            expect(
+              find.textContaining('7,690'),
+              findsOneWidget,
+              reason: 'the GH\u2085 7,690.00 estimate must be on screen',
+            );
           },
         );
       });
@@ -517,18 +532,12 @@ void main() {
       susuCyclesProvider.overrideWith(() => _CapSusuCyclesNotifier()),
       currentUserProvider.overrideWith((ref) => const Stream.empty()),
     ];
-    for (final e in {
-      '390': sizes['390']!,
-      '320': sizes['320']!,
-    }.entries) {
+    for (final e in {'390': sizes['390']!, '320': sizes['320']!}.entries) {
       testWidgets('susu dashboard ${e.key} $mode', (tester) async {
         await _capture(
           tester,
           name: 'susu_dashboard_${e.key}_$mode',
-          child: SusuDashboardScreen(
-            susuId: 's_cap',
-            nowFn: () => _kGoldenNow,
-          ),
+          child: SusuDashboardScreen(susuId: 's_cap', nowFn: () => _kGoldenNow),
           size: e.value,
           dark: dark,
           extraOverrides: susuOverrides,
@@ -538,8 +547,11 @@ void main() {
             // POOL (2.00 × 8 cycles = 16.00) AND the labelled GHS estimate
             // of that pool at the pinned rate (16 × 15.38 = 246.08).
             expect(find.textContaining('16.00 USDC'), findsWidgets);
-            expect(find.textContaining('246.08'), findsWidgets,
-                reason: 'GH\u2085 246.08 estimate must be on screen');
+            expect(
+              find.textContaining('246.08'),
+              findsWidgets,
+              reason: 'GH\u2085 246.08 estimate must be on screen',
+            );
             expect(t.takeException(), isNull);
           },
         );
@@ -549,10 +561,9 @@ void main() {
     // ── FULL-SCREEN: Vault detail (same-unit progress + history rows) ────
     final vaultOverrides = [
       vaultDetailProvider('v_cap').overrideWith((ref) async => _vault()),
-      vaultDepositsProvider('v_cap').overrideWith((ref) async => [
-            _capDeposit('d1', 100, 2),
-            _capDeposit('d2', 250, 6),
-          ]),
+      vaultDepositsProvider('v_cap').overrideWith(
+        (ref) async => [_capDeposit('d1', 100, 2), _capDeposit('d2', 250, 6)],
+      ),
     ];
     for (final e in {
       '390': sizes['390']!,
@@ -562,10 +573,7 @@ void main() {
         await _capture(
           tester,
           name: 'vault_detail_${e.key}_$mode',
-          child: VaultDetailScreen(
-            vaultId: 'v_cap',
-            nowFn: () => _kGoldenNow,
-          ),
+          child: VaultDetailScreen(vaultId: 'v_cap', nowFn: () => _kGoldenNow),
           size: e.value,
           dark: dark,
           extraOverrides: vaultOverrides,
@@ -577,15 +585,21 @@ void main() {
             // renders '/ 1000.00 USDC' — ungrouped, exactly as the screen
             // formats it.
             final balance = tester
-                .widgetList<RichText>(find.descendant(
+                .widgetList<RichText>(
+                  find.descendant(
                     of: find.byKey(const ValueKey('vault-detail-balance')),
-                    matching: find.byType(RichText)))
+                    matching: find.byType(RichText),
+                  ),
+                )
                 .map((r) => r.text.toPlainText())
                 .join(' ');
             expect(balance, contains('500.00'));
             expect(balance, contains('USDC'));
-            expect(find.textContaining('/ 1000.00 USDC'), findsOneWidget,
-                reason: 'the target slot must read / 1000.00 USDC');
+            expect(
+              find.textContaining('/ 1000.00 USDC'),
+              findsOneWidget,
+              reason: 'the target slot must read / 1000.00 USDC',
+            );
             expect(t.takeException(), isNull);
           },
         );
