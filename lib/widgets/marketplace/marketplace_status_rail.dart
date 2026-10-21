@@ -73,16 +73,21 @@ class MarketplaceCollapsedAvatars extends ConsumerWidget {
               // badge does NOT (never a manufactured count).
               counts: StoryRingCounts.fromUnseenFlag(
                   businessHasUnseenStory(biz)),
-              isBoosted: biz['isVerified'] == true,
+              // Business VERIFICATION is not a story boost. The followed
+              // business feed carries no boost field, so the boost ring
+              // treatment stays OFF — verified status never masquerades
+              // as a boosted story (review A4, real data only §9).
             ),
         ],
         label: unseen > 0 ? '$unseen new' : 'Stories',
         onTap: onTap,
-        // The header row already carries the screen's horizontal padding
-        // and the action icons own the row's right edge: the chevron sits
-        // directly beside the label instead of floating to the far edge.
-        chevronAtEnd: false,
-        padding: EdgeInsets.zero,
+        // Review A1/A3 — chat parity with NO marketplace-only styling
+        // variants: the SAME defaults as the chat collapsed strip
+        // (chevron at the affordance's trailing edge, the rail's own
+        // AzSpace.xl horizontal padding). The parent header row
+        // contributes no extra leading padding so the EFFECTIVE ring
+        // position matches the chat strip exactly; see the header
+        // padding note in marketplace_home_screen.dart.
       ),
     );
   }
@@ -150,8 +155,9 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                   final id = biz['id']?.toString() ?? '';
                   final name = biz['businessName']?.toString() ?? '';
                   final logoUrl = biz['logoUrl']?.toString();
-                  final isVerified = biz['isVerified'] == true;
-
+                  // Review A4 — verification is not a story boost; the
+                  // feed carries no boost field, so the expanded ring
+                  // keeps the boost treatment OFF too (honest §9 data).
                   final hasUnseen = businessHasUnseenStory(biz);
 
                   return GestureDetector(
@@ -169,7 +175,6 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                               // dash renders, the numeric badge does NOT
                               // (never a manufactured count).
                               counts: StoryRingCounts.fromUnseenFlag(hasUnseen),
-                              isBoosted: isVerified,
                               size: StoryRailMetrics.ring,
                             ),
                           )

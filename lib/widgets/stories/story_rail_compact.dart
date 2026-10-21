@@ -119,24 +119,42 @@ class CompactStoryRail extends ConsumerWidget {
                   ),
                 ),
               if (avatars.isNotEmpty) const SizedBox(width: AzSpace.sm),
-              // Flexible + ellipsis: when the affordance is squeezed by the
-              // action icons on a 320dp header row, the label gracefully
-              // truncates instead of overflowing — the ring geometry never
-              // scales (parity is the point of this component).
-              Flexible(
-                child: Text(
-                  label,
-                  key: labelKey,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AzText.caption.copyWith(color: colors.textSecondary),
-                ),
-              ),
+              // Review A1 (2026-10-21): with chevronAtEnd the label is an
+              // Expanded+Align(left), NOT a Flexible paired with a Spacer.
+              // The old Flexible+Spacer pair split the row's free space
+              // 1:1, so the chevron never actually reached the trailing
+              // edge — it floated mid-row (measured x≈252 of 360). The
+              // documented grammar ("the chevron floats at the far edge")
+              // is now real on BOTH surfaces: Expanded takes ALL the
+              // remaining space, the label aligns left and still
+              // ellipsizes under the 320dp squeeze, and the chevron lands
+              // at the true trailing edge minus the strip's own padding.
               if (chevronAtEnd) ...[
-                const Spacer(),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      label,
+                      key: labelKey,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AzText.caption.copyWith(color: colors.textSecondary),
+                    ),
+                  ),
+                ),
                 chevron,
-              ] else
+              ] else ...[
+                Flexible(
+                  child: Text(
+                    label,
+                    key: labelKey,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AzText.caption.copyWith(color: colors.textSecondary),
+                  ),
+                ),
                 chevron,
+              ],
             ],
           ),
         ),

@@ -49,6 +49,7 @@ import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/stories/story_rail_collapse.dart';
 import 'package:azaman/widgets/stories/story_rail_compact.dart';
 import 'package:azaman/widgets/story_ring.dart';
+import 'package:azaman/theme/az_space.dart';
 
 // ── Structural stand-in so notifiers satisfy constructors without a
 // network client (all loads are overridden; the client is never used).
@@ -201,7 +202,9 @@ Future<void> _pumpBothCollapsed(WidgetTester tester) async {
             children: [
               // Chat: the full-width collapsed strip.
               StoryRailCompact(onTap: () {}),
-              // Marketplace: the header-row affordance (zero padding variant).
+              // Marketplace: the header-row affordance — the SAME
+              // component defaults as the chat strip (chevron at the
+              // trailing edge, AzSpace.xl horizontal padding).
               MarketplaceCollapsedAvatars(onTap: () {}),
             ],
           ),
@@ -365,19 +368,83 @@ void main() {
       expect(chatLabel.style?.fontWeight, mktLabel.style?.fontWeight);
       expect(chatLabel.style?.color, mktLabel.style?.color);
 
-      // 6. Same chevron affordance on both.
-      expect(
-        find.descendant(
-            of: chatBody,
-            matching: find.byIcon(Icons.keyboard_arrow_down_rounded)),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
+      // 6. Same chevron affordance on both — and the SAME chevron
+      // PLACEMENT (review A1): chat's chevronAtEnd grammar floats the
+      // chevron at the affordance's trailing edge inset by the rail's
+      // own horizontal padding. Marketplace now uses the identical
+      // defaults, so on an equally-wide affordance the chevron rect and
+      // the ring stack's leading offset must match chat EXACTLY.
+      final chatChevron = tester.getRect(find.descendant(
+          of: chatBody,
+          matching: find.byIcon(Icons.keyboard_arrow_down_rounded)));
+      final mktChevron = tester.getRect(find.descendant(
+          of: mktBody,
+          matching: find.byIcon(Icons.keyboard_arrow_down_rounded)));
+      // The two surfaces sit at different offsets in the pumped Column,
+      // so parity is asserted on the chevron's geometry RELATIVE to its
+      // own strip: same trailing inset and same vertical inset.
+      expect(chatChevron.right - chatRect.right,
+          mktChevron.right - mktRect.right,
+          reason: 'chat parity — same trailing inset on both surfaces');
+      expect(chatChevron.top - chatRect.top, mktChevron.top - mktRect.top,
+          reason: 'chat parity — same vertical chevron inset');
+      expect(chatChevron.right - chatRect.right, -AzSpace.xl,
+          reason: 'the chevron floats 20dp inside the affordance\'s '
+              'trailing edge, exactly like the chat strip');
+      expect(chatChevron.left, mktChevron.left);
+
+      // 7. Effective leading padding (review A1): the first ring sits
+      // AzSpace.xl (20) from the affordance's left edge on BOTH surfaces
+      // — combined parent+component padding, not a zero-padding variant.
+      const expectedLeading = AzSpace.xl;
+      final chatFirstRing =
+          tester.getRect(find.byWidget(chatRings.first));
+      final mktFirstRing =
+          tester.getRect(find.byWidget(mktRings.first));
+      expect(chatFirstRing.left - chatRect.left, expectedLeading);
+      expect(mktFirstRing.left - mktRect.left, expectedLeading,
+          reason: 'the marketplace rail carries its own 20dp leading '
+              'padding; the parent header row adds none (combined = chat)');
+      expect(mktFirstRing.left - mktRect.left,
+          chatFirstRing.left - chatRect.left,
+          reason: 'the EFFECTIVE ring position is the same as chat');
+    });
+
+    testWidgets('verified status does NOT masquerade as story boosting '
+        '(review A4)', (tester) async {
+      await _pumpBothCollapsed(tester);
+
+      final mktBody =
+          find.byKey(const ValueKey('marketplace_story_rail_compact'));
+      // The fixture's first business (Adinkra Lounge) is VERIFIED — the
+      // boost treatment must still be OFF on every rendered ring.
+      final mktRings = tester
+          .widgetList<StoryRing>(find.descendant(
             of: mktBody,
-            matching: find.byIcon(Icons.keyboard_arrow_down_rounded)),
-        findsOneWidget,
-      );
+            matching: find.byType(StoryRing),
+          ))
+          .toList();
+      expect(mktRings.length, 3);
+      for (final ring in mktRings) {
+        expect(ring.isBoosted, isFalse,
+            reason: 'the followed-business feed carries no boost field — '
+                'verification must never render the boosted ring');
+      }
+
+      // The expanded rail is equally honest: verification ≠ boost there.
+      // (Asserted via the shared CompactStoryItem contract: the collapsed
+      // item for the verified business was built with isBoosted unset.)
+      final chatBody =
+          find.byKey(const ValueKey('inbox_story_rail_compact_body'));
+      final chatRings = tester
+          .widgetList<StoryRing>(find.descendant(
+            of: chatBody,
+            matching: find.byType(StoryRing),
+          ))
+          .toList();
+      for (final ring in chatRings) {
+        expect(ring.isBoosted, isFalse);
+      }
     });
 
     testWidgets('the marketplace affordance is a button with an accurate '
@@ -426,6 +493,34 @@ void main() {
         // …and strictly to the right of the collapsed story strip.
         expect(icon.left, greaterThanOrEqualTo(affordanceRect.right - 1));
       }
+
+      // Review A1 — EFFECTIVE ring offset matches chat: the first ring
+      // sits exactly AzSpace.xl (20) from the screen's left edge in the
+      // REAL header composition (parent 0 + component 20), the same
+      // offset chat's full-width strip renders at.
+      final rings = tester
+          .widgetList<StoryRing>(find.descendant(
+            of: affordance,
+            matching: find.byType(StoryRing),
+          ))
+          .toList();
+      expect(rings, isNotEmpty);
+      final firstRing = tester.getRect(find.byWidget(rings.first));
+      expect(firstRing.left, closeTo(AzSpace.xl, 0.5),
+          reason: 'combined parent+component leading padding == chat\'s');
+
+      // Review A1 — chevron at the affordance's trailing edge with the
+      // same internal inset chat uses: it floats 20dp inside the
+      // AFFORDANCE's own right edge (the Expanded region that ends at the
+      // row's SizedBox gap before the action icons).
+      final chevron = tester.getRect(find.descendant(
+          of: affordance,
+          matching: find.byIcon(Icons.keyboard_arrow_down_rounded)));
+      expect(chevron.right, closeTo(affordanceRect.right - AzSpace.xl, 0.5),
+          reason: 'the chevron keeps chat\'s trailing-edge grammar beside '
+              'the right-aligned action icons');
+      expect(chevron.right, lessThan(storeIcon.left),
+          reason: 'the chevron stays left of the action cluster');
       await _teardownHome(tester);
     });
 
