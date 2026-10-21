@@ -70,9 +70,7 @@ import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/screens/accounts_screen.dart';
-import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
-import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azaman_store_screen.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -166,10 +164,10 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
                           ),
 
                           // ── GROUPS ─────────────────────────────────────
-                          // (Stage 2: the quick-action pills are gone —
-                          // Withdraw/Deposit live as rows in Money and
-                          // Refer lives in the profile group; QR remains
-                          // in the hero.)
+                          // (Workstream G1: the duplicate Withdraw/Deposit
+                          // rows were removed from Money; their canonical
+                          // home is the Home + launcher. Refer lives in the
+                          // profile group; QR remains in the hero.)
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
                             sliver: SliverList(
@@ -218,25 +216,12 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
                                     context,
                                     colors,
                                     label: 'Money',
-                                    rows: [
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.arrow_downward,
-                                        'Deposit',
-                                        colors,
-                                        // The canonical deposit experience
-                                        // (STK-push MoMo) — the same screen
-                                        // /deposit routes to.
-                                        destination: const DepositScreen(),
-                                      ),
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.arrow_outward,
-                                        'Withdraw',
-                                        colors,
-                                        destination:
-                                            const WithdrawalScreen(),
-                                      ),
+rows: [
+                                      // Workstream G1 — the duplicate Deposit/Withdraw
+                                      // rows are removed: their canonical
+                                      // home is the Home + launcher (Add Cash
+                                      // → /deposit, Withdraw). Saved accounts,
+                                      // Currency and Azaman Store stay.
                                       _savedAccountsCard(context, colors),
                                       const SizedBox(height: 4),
                                       _buildMenuItem(

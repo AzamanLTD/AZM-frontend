@@ -18,13 +18,9 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
 
 import 'package:azaman/screens/home_screen.dart';
-import 'package:azaman/screens/withdrawal_screen.dart';
-import 'package:azaman/screens/send_money_screen.dart';
+import 'package:azaman/widgets/home/home_plus_actions.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
-import 'package:go_router/go_router.dart';
 
-import 'package:azaman/router/route_registry.dart';
-import 'package:azaman/widgets/nav_transitions.dart' as nav_transitions_pkg;
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
 import 'package:azaman/widgets/drawer_peek_hint.dart';
@@ -918,51 +914,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
               Positioned.fill(
                 child: PlusActionLauncher(
                   controller: _plus,
-                  actions: [
-                    PlusLauncherAction(
-                      // PASS F1 — the rounded arrow-head style from the
-                      // existing Hugeicons family: Send points outward
-                      // (up-right, away), Receive points inward (down-left,
-                      // toward you). Immediately understandable, no custom
-                      // SVG arrows. Primary actions (pass E): bright gold.
-                      icon: HugeIconsSolid.arrowUpRight01,
-                      prominent: true,
-                      label: 'Send',
-                      onTap: () =>
-                          nav_transitions_pkg.pushWithVerticalTransition(
-                            context,
-                            const SendMoneyScreen(),
-                          ),
-                    ),
-                    PlusLauncherAction(
-                      icon: HugeIconsSolid.arrowDownLeft01,
-                      prominent: true,
-                      label: 'Receive',
-                      onTap: () => showReceiveSheet(context),
-                    ),
-                    PlusLauncherAction(
-                      // PASS E — gold hierarchy: Add Cash and Withdraw are
-                      // secondary actions, so they carry the NEUTRAL chip;
-                      // bright gold stays reserved for Send/Receive.
-                      icon: HugeIconsSolid.wallet01,
-                      label: 'Add Cash',
-                      // CANONICAL ROUTE: /deposit owns the rise transition at
-                      // the route level (risePage) — the launcher pushes the
-                      // location, never a bare MaterialPageRoute-equivalent.
-                      // The route's builder defaults to the fiat tab, so the
-                      // Add Cash behavior is unchanged.
-                      onTap: () => context.push(AzRoutes.deposit()),
-                    ),
-                    PlusLauncherAction(
-                      icon: HugeIconsSolid.bank,
-                      label: 'Withdraw',
-                      onTap: () =>
-                          nav_transitions_pkg.pushWithVerticalTransition(
-                            context,
-                            const WithdrawalScreen(),
-                          ),
-                    ),
-                  ],
+                  actions: buildHomePlusActions(context),
                 ),
               ),
             ],

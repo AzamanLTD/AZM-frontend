@@ -240,11 +240,12 @@ void main() {
       expect(find.text('APPEARANCE & PREFERENCES'), findsNothing);
       expect(find.text('AZMAN PROTOCOL V3.0 — THEMED'), findsNothing);
 
-      // STAGE 2: the quick-action ROW is gone. Its four destinations
-      // live on: Withdraw + Deposit as Money rows, Refer & Earn in the
-      // profile area, QR in the pinned hero.
-      expect(find.text('Withdraw'), findsOneWidget);
-      expect(find.text('Deposit'), findsOneWidget);
+      // WORKSTREAM G1: the quick-action ROW is gone AND the duplicate
+      // Withdraw/Deposit Money rows are gone too. Their canonical home
+      // is the Home + launcher (pinned by workstream_g_convert_test);
+      // Refer & Earn lives in the profile area, QR in the pinned hero.
+      expect(find.text('Withdraw'), findsNothing);
+      expect(find.text('Deposit'), findsNothing);
       expect(find.text('Refer & Earn'), findsOneWidget);
       expect(find.byKey(const ValueKey('profile_hero_qr')), findsOneWidget);
       // And the removed row leaves no orphan labels behind.
@@ -271,18 +272,20 @@ void main() {
       expect(find.text('Azaman 3.1'), findsOneWidget);
     });
 
-    testWidgets('the Deposit row opens the CANONICAL deposit flow',
-        (tester) async {
-      await _pumpDrawer(tester, user: _verifiedUser());
+    testWidgets(
+      'G1: no duplicate Deposit row — deposits stay canonical on the '
+      'Home + launcher',
+      (tester) async {
+        await _pumpDrawer(tester, user: _verifiedUser());
 
-      // "Deposit" must deliver deposits — the STK-push MoMo screen the
-      // /deposit route serves — not the saved-accounts surface.
-      await tester.tap(find.text('Deposit'));
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
-      expect(find.byType(DepositScreen), findsOneWidget);
-      expect(find.byType(AccountsScreen), findsNothing);
-    });
+        // The drawer must not duplicate the canonical deposit surface;
+        // the launcher's Add Cash action owns it (pinned in
+        // workstream_g_convert_test.dart: it pushes the /deposit route
+        // whose builder serves the STK-push MoMo screen).
+        expect(find.text('Deposit'), findsNothing);
+        expect(find.byType(DepositScreen), findsNothing);
+      },
+    );
 
     testWidgets('unverified user renders no KYC chip (no decoration)', (
       tester,

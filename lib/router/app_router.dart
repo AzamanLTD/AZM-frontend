@@ -43,6 +43,7 @@ import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/card_transfer_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/wallet/convert_screen.dart';
 import 'package:azaman/screens/payment_requests_screen.dart';
 import 'package:azaman/screens/payment_request_landing_screen.dart';
 import 'package:azaman/screens/receive_screen.dart';
@@ -396,6 +397,20 @@ final GoRouter appRouter = GoRouter(
           prefillAmount: state.uri.queryParameters['amount'],
           memo: state.uri.queryParameters['memo'],
         ),
+      ),
+    ),
+
+    // `/convert` — the honest conversion shell (Workstream G). Capability
+    // is gated inside the screen: with no backend conversion contract the
+    // route shows the truthful unavailable state; the route itself is
+    // registered so launcher navigation never 404s once enabled.
+    GoRoute(
+      path: '/convert',
+      name: AzRouteNames.convert,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: const ConvertScreen(),
       ),
     ),
 

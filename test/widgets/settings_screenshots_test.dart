@@ -167,7 +167,7 @@ void main() {
 
       // The redesigned contract is on screen before the capture ships.
       expect(find.text('Account'), findsOneWidget);
-      expect(find.text('Withdraw'), findsOneWidget);
+      // G1: duplicate Withdraw row removed — canonical home is the + launcher.
       expect(find.text('Verified'), findsOneWidget);
       expect(find.text('Biometrics on'), findsOneWidget);
       expect(find.text('All settings'), findsOneWidget);
