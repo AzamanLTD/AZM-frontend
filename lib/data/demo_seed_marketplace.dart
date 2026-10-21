@@ -121,6 +121,7 @@ class DemoMarketplaceSeed {
   /// any of them is missing or throws.
   static const List<String> requiredGetEndpoints = <String>[
     '/business/search?q=jollof&category=FOOD_BEVERAGE&verified=true&limit=20',
+    '/discovery/items?limit=24',
     '/business/search/nearby?lat=5.55&lng=-0.18&category=RETAIL',
     '/business/me',
     '/business/kyb/status',
@@ -202,6 +203,379 @@ class DemoMarketplaceSeed {
         .toList(growable: false);
     return _pageOf(locations, limit, cursor, 'locations',
         hasMoreKey: 'hasMore', cursorKey: 'nextPage');
+  }
+
+  // ── G1 — Mix discovery feed (GET /discovery/items) ───────────────────
+  // The canonical cross-store discovery surface the Mix tab reads. Every
+  // row reuses a REAL seeded business/product identity, seeded media and
+  // a seeded location label. Each offer carries an AUTHORITATIVE GHS
+  // sample price declared as a literal — never computed or converted from
+  // any USDC value (owner rule: discovery renders authoritative GHS only).
+  static const int discoveryDefaultLimit = 24;
+
+  static Map<String, dynamic> _offer({
+    required String productId,
+    required String businessId,
+    required String bizId,
+    required String businessName,
+    required String businessCategory,
+    required String businessLogoUrl,
+    required String name,
+    required String description,
+    required List<String> images,
+    required List<String> tags,
+    required String ghsAmount,
+    required String taxonomy,
+    required String locationLabel,
+    bool orderable = false,
+    bool bookable = false,
+    bool deliverable = false,
+    bool dineIn = false,
+    int? preparationMins,
+    String? deliveryTerms,
+    String? estimatedDelivery,
+  }) =>
+      {
+        'id': productId,
+        'businessId': businessId,
+        'bizId': bizId,
+        'businessName': businessName,
+        'businessCategory': businessCategory,
+        'businessLogoUrl': businessLogoUrl,
+        'item': {
+          'name': name,
+          'description': description,
+          'images': images,
+          'tags': tags,
+        },
+        'pricing': {
+          'currency': 'GHS',
+          'displayCurrency': 'GHS',
+          'amount': ghsAmount,
+        },
+        'availability': {
+          'isAvailable': true,
+          'sectionWindowOpen': true,
+          if (preparationMins != null) 'preparationMins': preparationMins,
+          if (deliveryTerms != null) 'deliveryTerms': deliveryTerms,
+          if (estimatedDelivery != null)
+            'estimatedDelivery': estimatedDelivery,
+        },
+        'location': {'label': locationLabel},
+        'section': {'taxonomy': taxonomy},
+        'action': 'ENQUIRE',
+        'capabilities': {
+          'orderable': orderable,
+          'bookable': bookable,
+          'deliverable': deliverable,
+          'dineIn': dineIn,
+          // payability is USDC-only today — same honest limit as the
+          // real gateway's supportedCapabilities contract.
+          'payableIn': ['USDC'],
+        },
+      };
+
+  /// The full deterministic discovery catalog: FIXED order, stable IDs,
+  /// offers from all four seeded categories.
+  static List<Map<String, dynamic>> _discoveryCatalog() => [
+        // ── FOOD_BEVERAGE ───────────────────────────────────────────────
+        _offer(
+          productId: 'dish-jollof',
+          businessId: 'restaurant-001',
+          bizId: restaurantBizId,
+          businessName: "Chef Abby's",
+          businessCategory: 'FOOD_BEVERAGE',
+          businessLogoUrl: DemoMedia.rLogo,
+          name: 'Jollof Rice',
+          description: 'Smoky one-pot rice in tomato-pepper sauce',
+          images: [DemoMedia.rCover],
+          tags: ['veg', 'signature'],
+          ghsAmount: '45.00',
+          taxonomy: 'food_beverage',
+          locationLabel: "Chef Abby's - Osu, Oxford Street",
+          orderable: true,
+          deliverable: true,
+          dineIn: true,
+          preparationMins: 15,
+          deliveryTerms: 'within 5km',
+          estimatedDelivery: '35 min',
+        ),
+        _offer(
+          productId: 'dish-suya',
+          businessId: 'restaurant-001',
+          bizId: restaurantBizId,
+          businessName: "Chef Abby's",
+          businessCategory: 'FOOD_BEVERAGE',
+          businessLogoUrl: DemoMedia.rLogo,
+          name: 'Beef Suya',
+          description: 'Grilled spiced beef skewers with yaji rub',
+          images: [DemoMedia.rAlt],
+          tags: ['spicy', 'grill'],
+          ghsAmount: '32.00',
+          taxonomy: 'food_beverage',
+          locationLabel: "Chef Abby's - Osu, Oxford Street",
+          orderable: true,
+          deliverable: true,
+          dineIn: true,
+          preparationMins: 10,
+          deliveryTerms: 'within 5km',
+          estimatedDelivery: '30 min',
+        ),
+        _offer(
+          productId: 'dish2-suya',
+          businessId: 'restaurant-002',
+          bizId: restaurant2BizId,
+          businessName: "Mama Titi's Kitchen",
+          businessCategory: 'FOOD_BEVERAGE',
+          businessLogoUrl: DemoMedia.rAlt,
+          name: 'Chicken Suya',
+          description: 'Yaji-rubbed grilled chicken thighs',
+          images: [DemoMedia.rThird],
+          tags: ['spicy', 'grill'],
+          ghsAmount: '38.00',
+          taxonomy: 'food_beverage',
+          locationLabel: "Mama Titi's - Spintex Road",
+          orderable: true,
+          deliverable: true,
+          dineIn: true,
+          preparationMins: 12,
+          deliveryTerms: 'within 8km',
+          estimatedDelivery: '40 min',
+        ),
+        _offer(
+          productId: 'dish2-tilapia',
+          businessId: 'restaurant-002',
+          bizId: restaurant2BizId,
+          businessName: "Mama Titi's Kitchen",
+          businessCategory: 'FOOD_BEVERAGE',
+          businessLogoUrl: DemoMedia.rAlt,
+          name: 'Whole Tilapia',
+          description: 'Stuffed with shito and served with banku',
+          images: [DemoMedia.rCover],
+          tags: ['grill'],
+          ghsAmount: '75.00',
+          taxonomy: 'food_beverage',
+          locationLabel: "Mama Titi's - Spintex Road",
+          orderable: true,
+          dineIn: true,
+          preparationMins: 20,
+        ),
+        // ── HOSPITALITY ─────────────────────────────────────────────────
+        _offer(
+          productId: 'room-hotel-001-101',
+          businessId: 'hotel-001',
+          bizId: hotelBizId,
+          businessName: 'The Gallery',
+          businessCategory: 'HOSPITALITY',
+          businessLogoUrl: DemoMedia.hLogo,
+          name: 'Furnished Studio, East Legon',
+          description:
+              'Fully furnished studio with 24/7 concierge, per night',
+          images: [DemoMedia.hCover],
+          tags: ['studio', 'wifi'],
+          ghsAmount: '350.00',
+          taxonomy: 'hospitality',
+          locationLabel: 'The Gallery - East Legon',
+          bookable: true,
+        ),
+        _offer(
+          productId: 'room-hotel-002-201',
+          businessId: 'hotel-002',
+          bizId: hotel2BizId,
+          businessName: 'Coastline Suites',
+          businessCategory: 'HOSPITALITY',
+          businessLogoUrl: DemoMedia.hAlt,
+          name: 'Sea-View Suite, Cape Coast',
+          description:
+              'Sunrise balcony suite, breakfast included, per night',
+          images: [DemoMedia.hThird],
+          tags: ['suite', 'sea-view'],
+          ghsAmount: '610.00',
+          taxonomy: 'hospitality',
+          locationLabel: 'Coastline Suites - Beach Road, Cape Coast',
+          bookable: true,
+        ),
+        // ── LOGISTICS ───────────────────────────────────────────────────
+        _offer(
+          productId: 'prod-transit-001-std',
+          businessId: 'transit-001',
+          bizId: transitBizId,
+          businessName: 'Advenr',
+          businessCategory: 'LOGISTICS',
+          businessLogoUrl: DemoMedia.tLogo,
+          name: 'Accra → Kumasi Express',
+          description: 'Standard reclining seat, one-way intercity fare',
+          images: [DemoMedia.tCover],
+          tags: ['intercity'],
+          ghsAmount: '90.00',
+          taxonomy: 'logistics',
+          locationLabel: 'Advenr - Accra Terminal',
+          bookable: true,
+        ),
+        _offer(
+          productId: 'prod-transit-002-vip',
+          businessId: 'transit-002',
+          bizId: transit2BizId,
+          businessName: 'Volta Lines',
+          businessCategory: 'LOGISTICS',
+          businessLogoUrl: DemoMedia.tLogo,
+          name: 'Ho Scenic Route (VIP)',
+          description: 'VIP recliner through the Volta corridor',
+          images: [DemoMedia.tAlt],
+          tags: ['intercity', 'vip'],
+          ghsAmount: '120.00',
+          taxonomy: 'logistics',
+          locationLabel: 'Volta Lines - Ho Terminal',
+          bookable: true,
+        ),
+        // ── RETAIL ──────────────────────────────────────────────────────
+        _offer(
+          productId: 'prod-tshirt',
+          businessId: 'retail-001',
+          bizId: retailBizId,
+          businessName: 'Mr. Price',
+          businessCategory: 'RETAIL',
+          businessLogoUrl: DemoMedia.rtLogo,
+          name: 'Linen Summer Shirt',
+          description: 'Breathable everyday linen shirt',
+          images: [DemoMedia.rtCover],
+          tags: ['fashion'],
+          ghsAmount: '180.00',
+          taxonomy: 'retail',
+          locationLabel: "Mr. Price - Accra Mall",
+          orderable: true,
+          deliverable: true,
+        ),
+        _offer(
+          productId: 'prod-throw-pillow',
+          businessId: 'retail-001',
+          bizId: retailBizId,
+          businessName: 'Mr. Price',
+          businessCategory: 'RETAIL',
+          businessLogoUrl: DemoMedia.rtLogo,
+          name: 'Woven Storage Basket',
+          description: 'Handwoven homeware basket',
+          images: [DemoMedia.rtAlt],
+          tags: ['homeware'],
+          ghsAmount: '65.00',
+          taxonomy: 'retail',
+          locationLabel: "Mr. Price - Accra Mall",
+          orderable: true,
+          deliverable: true,
+        ),
+        _offer(
+          productId: 'prod-adinkra-cloth',
+          businessId: 'retail-002',
+          bizId: retail2BizId,
+          businessName: 'Accra Home Goods',
+          businessCategory: 'RETAIL',
+          businessLogoUrl: DemoMedia.rtLogo,
+          name: 'Adinkra Table Cloth',
+          description: 'Locally printed adinkra cotton',
+          images: [DemoMedia.rtThird],
+          tags: ['homeware', 'local'],
+          ghsAmount: '95.00',
+          taxonomy: 'retail',
+          locationLabel: 'Accra Home Goods - Osu',
+          orderable: true,
+        ),
+        _offer(
+          productId: 'prod-ahesi-ceramic',
+          businessId: 'retail-002',
+          bizId: retail2BizId,
+          businessName: 'Accra Home Goods',
+          businessCategory: 'RETAIL',
+          businessLogoUrl: DemoMedia.rtLogo,
+          name: 'Ahesi Ceramic Serving Bowl',
+          description: 'Wheel-thrown ceramic bowl',
+          images: [DemoMedia.rtAlt],
+          tags: ['homeware'],
+          ghsAmount: '110.00',
+          taxonomy: 'retail',
+          locationLabel: 'Accra Home Goods - Osu',
+          orderable: true,
+        ),
+      ];
+
+  /// Deterministic GET /discovery/items over the seeded catalog.
+  /// Supports category, q, repeatable taxonomy chips, city/region,
+  /// limit (clamped to the server's 1..50) and opaque offset cursors
+  /// (`off-<n>`). An unparseable cursor is REFUSED (the demo world never
+  /// fabricates a continuation) — exactly like the real endpoint would
+  /// reject a malformed cursor rather than invent a page.
+  static Map<String, dynamic> discoveryItems({
+    String? category,
+    String? q,
+    List<String>? taxonomies,
+    String? city,
+    String? region,
+    int? limit,
+    String? cursor,
+  }) {
+    var offset = 0;
+    if (cursor != null) {
+      final m = RegExp(r'^off-(\d+)$').firstMatch(cursor.trim());
+      if (m == null) {
+        throw DemoEndpointNotSeededException(
+            'GET', '/discovery/items (bad cursor: "$cursor")');
+      }
+      offset = int.parse(m.group(1)!);
+    }
+
+    final wantedTaxonomies =
+        (taxonomies ?? const <String>[]).map((t) => t.trim()).toSet();
+    final needle = q?.trim().toLowerCase();
+
+    final filtered = _discoveryCatalog().where((row) {
+      if (category != null && category.trim().isNotEmpty) {
+        final cat = category.trim().toUpperCase();
+        final rowCat = row['businessCategory'].toString();
+        if (rowCat != cat && !(cat == 'HOSPITALITY' && rowCat == 'REAL_ESTATE')) {
+          return false;
+        }
+      }
+      if (wantedTaxonomies.isNotEmpty &&
+          !wantedTaxonomies
+              .contains(row['section']['taxonomy'].toString())) {
+        return false;
+      }
+      if (city != null && city.trim().isNotEmpty) {
+        if (!row['location']['label']
+            .toString()
+            .toLowerCase()
+            .contains(city.trim().toLowerCase())) {
+          return false;
+        }
+      }
+      if (region != null && region.trim().isNotEmpty) {
+        if (!row['location']['label']
+            .toString()
+            .toLowerCase()
+            .contains(region.trim().toLowerCase())) {
+          return false;
+        }
+      }
+      if (needle != null && needle.isNotEmpty) {
+        final haystack = [
+          row['businessName'].toString(),
+          row['item']['name'].toString(),
+          row['item']['description'].toString(),
+          (row['item']['tags'] as List).join(' '),
+        ].join(' ').toLowerCase();
+        if (!haystack.contains(needle)) return false;
+      }
+      return true;
+    }).toList(growable: false);
+
+    final effectiveLimit = (limit ?? discoveryDefaultLimit).clamp(1, 50);
+    final page = filtered.skip(offset).take(effectiveLimit).toList();
+    final nextOffset = offset + page.length;
+    return {
+      'success': true,
+      'items': page,
+      'nextCursor':
+          nextOffset < filtered.length ? 'off-$nextOffset' : null,
+    };
   }
 
   static List<Map<String, dynamic>> _filterBusinesses(

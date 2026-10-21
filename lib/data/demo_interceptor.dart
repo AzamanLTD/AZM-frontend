@@ -76,6 +76,21 @@ class DemoInterceptor {
       return DemoSeedData.securityLogs(page, limit);
     }
 
+    // ── G1: Mix discovery feed — the raw query drives deterministic
+    // filtering + cursor pagination (limit clamped server-side 1..50).
+    if (path == '/discovery/items') {
+      final all = Uri.parse(endpoint).queryParametersAll;
+      return DemoMarketplaceSeed.discoveryItems(
+        category: all['category']?.firstOrNull,
+        q: all['q']?.firstOrNull,
+        taxonomies: all['taxonomy'],
+        city: all['city']?.firstOrNull,
+        region: all['region']?.firstOrNull,
+        limit: int.tryParse(all['limit']?.firstOrNull ?? ''),
+        cursor: all['cursor']?.firstOrNull,
+      );
+    }
+
     // ── Exact matches ────────────────────────────────────────────────────
     switch (path) {
       // ── Health/version gate (fail-open in demo) ──────────────────────
