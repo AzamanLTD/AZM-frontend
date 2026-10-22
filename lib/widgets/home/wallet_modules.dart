@@ -29,6 +29,7 @@ import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
+import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
 /// The deterministic SUSU selection — the SAME group the notice used to
@@ -144,6 +145,12 @@ class _WalletPill extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
 
+    // QUIET DEPTH (Home pilot, 2026-10-22): the pill has a raised tactile
+    // state and a nearly-flush quiet state, driven by the scoped
+    // [QuietDepthController]. Only the BACKDROP changes — icon, label,
+    // padding, hit target and semantics are the SAME widget subtree in
+    // both states, and the fade between them is pure decoration.
+
     // FINAL PASS §3 — light-mode depth. Glass at 5% opacity over the
     // near-white #F2F3F5 page is INVISIBLE: the pills (the Home's
     // primary controls) vanished into the canvas (verified by pixel
@@ -185,34 +192,56 @@ class _WalletPill extends ConsumerWidget {
       ),
     );
 
+    // The raised and recessed backdrops: identical geometry, the SAME
+    // content subtree, only the depth recipe moves.
+    Widget backdrop(bool recessed) {
+      if (colors.isDark) {
+        // DARK keeps the premium glass language. Raised = the current
+        // glass; recessed = a whisper-flatter glass (lower opacity, less
+        // blur) so the pill reads as sitting INTO the canvas while its
+        // rim, label and icon keep full contrast.
+        return PremiumGlassContainer(
+          blur: recessed ? 6 : 10,
+          opacity: recessed ? 0.03 : 0.05,
+          borderRadius: 999,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AzSpace.lg,
+            vertical: 12,
+          ),
+          enableShadow: false,
+          border: Border.all(color: colors.divider, width: 0.5),
+          child: content,
+        );
+      }
+      // LIGHT: raised = the card step with the AzElevation contact shadow;
+      // recessed = flush with the plane (no shadow, the surface fill) but
+      // the hairline border stays, so the pill is still visibly a button.
+      return Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AzSpace.lg,
+          vertical: 12,
+        ),
+        decoration: BoxDecoration(
+          color: recessed ? colors.surface : colors.card,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: colors.border, width: 1),
+          boxShadow: recessed ? AzElevation.level0 : AzElevation.level1(false),
+        ),
+        child: content,
+      );
+    }
+
     return ScaleTap(
-      onTap: onTap,
-      child: colors.isDark
-          ? PremiumGlassContainer(
-              blur: 10,
-              opacity: 0.05,
-              borderRadius: 999,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AzSpace.lg,
-                vertical: 12,
-              ),
-              enableShadow: false,
-              border: Border.all(color: colors.divider, width: 0.5),
-              child: content,
-            )
-          : Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AzSpace.lg,
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: colors.border, width: 1),
-                boxShadow: AzElevation.level1(false),
-              ),
-              child: content,
-            ),
+      onTap: () {
+        // A qualifying interaction wakes the quiet-depth cycle. The wake
+        // is pure bookkeeping — it can never delay or swallow the real
+        // action below it.
+        QuietDepthScope.maybeOf(context)?.wake();
+        onTap();
+      },
+      child: QuietDepthSurface(
+        builder: (context, recessed) => backdrop(recessed),
+      ),
     );
   }
 }
