@@ -45,6 +45,7 @@ import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
+import 'package:azaman/widgets/odometer_number.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
@@ -68,15 +69,81 @@ Future<void> _advance(
 }
 
 bool _fontsLoaded = false;
-Future<void> _loadFonts() async {
-  if (_fontsLoaded) return;
-  final inter = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
-  final loader = FontLoader('Inter')
+Future<void> _loadFace(String family, String path) async {
+  final bytes = await File(path).readAsBytes();
+  final loader = FontLoader(family)
     ..addFont(
-      Future<ByteData>.value(ByteData.view(Uint8List.fromList(inter).buffer)),
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
     );
   await loader.load();
+}
+
+/// Loads the app's REAL bundled faces exactly once per test process —
+/// the capture-evidence contract (review finding on the #184 harness):
+///
+///   • Inter — the numeric family (money figures; tabular metrics).
+///   • ComicNeue Regular + Bold — the display/UI family the live theme
+///     actually types the app in. Without them the engine rasterises
+///     Ahem: text captured as blank rectangular bars, which is NOT
+///     product evidence.
+///   • MaterialIcons + HugeIconsSolid/Stroke — the real icon fonts, so
+///     icons render as glyphs, not tofu squares.
+///   • DejaVuSans — glyph-complete fallback wired into the harness
+///     theme (ComicNeue has no cedi glyph ₵ U+20B5; on-device the OS
+///     supplies it). Metrics still come from the app's own faces.
+Future<void> _loadFonts() async {
+  if (_fontsLoaded) return;
+  await _loadFace('Inter', 'assets/fonts/Inter-Variable.ttf');
+  await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
+  await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
+  await _loadFace(
+      'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+  await _loadFace(
+      'HugeIconsSolid', 'test/goldens/fonts/hugeicons-solid.ttf');
+  await _loadFace(
+      'HugeIconsStroke', 'test/goldens/fonts/hugeicons-stroke.ttf');
+  await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
   _fontsLoaded = true;
+}
+
+/// The REAL app theme with a glyph-complete fallback family for the
+/// cedi symbol (same harness pattern as the Send visual-capture suite):
+/// metrics come from the app's committed faces, and only glyphs missing
+/// from ComicNeue (₵) fall through to DejaVuSans exactly as the OS
+/// fallback does on-device.
+ThemeData _harnessTheme(AzamanTheme theme) {
+  final base = ThemeProvider.getThemeData(theme);
+  return base.copyWith(
+    textTheme: base.textTheme.apply(fontFamilyFallback: const ['DejaVuSans']),
+  );
+}
+
+/// Structural truth for every capture that claims to show a CONFIRMED
+/// balance: the seeded figure is present and the primary-amount slot's
+/// waiting indicator is not. A capture PNG alone cannot prove this —
+/// the dots key can sit behind a masked/hidden region while the image
+/// still "looks fine".
+///
+/// Widget-level, not semantics-level: while the deck is tucked the card
+/// subtree stays mounted but its semantics are excluded, so a semantics
+/// label search cannot see the figure even when it IS there. The
+/// OdometerNumber's [OdometerNumber.value] is the authoritative slot
+/// content: 100 USDC at the pinned rate 1.0 under the default GHS-first
+/// preference renders 'GH₵ 100.00' — AzMoney.amount() strips the symbol,
+/// leaving '100.00'.
+void _expectConfirmedBalance() {
+  expect(
+    find.byKey(const ValueKey('home-balance-amount-dots')),
+    findsNothing,
+    reason: 'a confirmed-balance capture must never show the waiting dots',
+  );
+  expect(
+    find.byWidgetPredicate(
+        (w) => w is OdometerNumber && w.value == '100.00'),
+    findsOneWidget,
+    reason: 'the seeded available balance (100 USDC at rate 1.0) '
+        'must be present as the rendered primary figure',
+  );
 }
 
 class _NoopHistoryNotifier extends TransactionHistoryNotifier {
@@ -199,6 +266,12 @@ Future<ProviderContainer> _pumpHome(
       balanceDataProvider.overrideWith(
         (ref) => const BalanceData(availableBalance: 100),
       ),
+      // The seeded amount is a CONFIRMED balance, not a placeholder: the
+      // readiness state must be loaded or the amount slot captures the
+      // waiting dots instead of the figure (review finding on #184).
+      balanceReadinessProvider.overrideWith(
+        (ref) => BalanceReadiness.loaded,
+      ),
       oracleRateProvider.overrideWith((ref) => 1.0),
       azmCardProgrammeProvider.overrideWith(
         (ref) => _PinnedProgramme().._pin = '1234',
@@ -216,7 +289,7 @@ Future<ProviderContainer> _pumpHome(
     UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
-        theme: ThemeProvider.getThemeData(theme),
+        theme: _harnessTheme(theme),
         home: MediaQuery(
           data: MediaQueryData(
             size: surface,
@@ -278,6 +351,7 @@ void main() {
       susu: [_activeSusu(DateTime(2026, 10, 26))],
       intent: _cartIntent,
     );
+    _expectConfirmedBalance();
     expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
     await _capture(tester, 'qd_dark_resting_raised_390');
 
@@ -302,6 +376,7 @@ void main() {
       susu: [_activeSusu(DateTime(2026, 10, 26))],
       intent: _cartIntent,
     );
+    _expectConfirmedBalance();
     await _swipeCommit(tester, const ValueKey('reminder-card-susu-s1'));
     await _swipeCommit(tester, const ValueKey('reminder-card-resume-biz-1'));
     expect(
@@ -343,6 +418,7 @@ void main() {
       susu: [_activeSusu(DateTime(2026, 10, 26))],
       intent: _cartIntent,
     );
+    _expectConfirmedBalance();
     expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
     await _capture(tester, 'qd_light_resting_raised_390');
 
@@ -374,6 +450,7 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 80));
+      _expectConfirmedBalance();
       expect(find.byKey(const ValueKey('quiet-depth-recessed')), findsWidgets);
       await _capture(tester, 'qd_dark_recessed_${w.toInt()}');
       await _flush(tester);
