@@ -166,6 +166,88 @@ void main() {
       expect(resp!.statusCode, 200);
     });
 
+    // ── Chat send routes: the REAL backend contract, not okSuccess ─────
+    // The generic POST fallback once made every demo chat send fail
+    // (the generic Chat failure); these pin the 201 {success, message}
+    // envelope PremiumChatNotifier._sendViaHttp upgrades the optimistic
+    // bubble with.
+    test('tryPost answers a friend-chat send with the 201 message envelope',
+        () {
+      final resp = DemoInterceptor.tryPost('/friends/chat/101/messages', {
+        'content': 'Demo hello',
+        'messageType': 'TEXT',
+        'metadata': {'amount': 25.0, 'currency': 'GHS'},
+      });
+      expect(resp, isNotNull);
+      expect(resp!.statusCode, 201);
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(body['success'], true);
+      final msg = body['message'] as Map<String, dynamic>;
+      expect(msg['id'], isNotEmpty);
+      expect(msg['id'].toString(), startsWith('fm-demo-'));
+      expect(msg['createdAt'], isNotNull);
+      expect(msg['friendshipId'], '101');
+      expect(msg['senderId'], 1);
+      expect(msg['content'], 'Demo hello');
+      expect(msg['messageType'], 'TEXT');
+      final meta = msg['metadata'] as Map<String, dynamic>;
+      expect(meta['amount'], 25.0);
+      // The receiver is the real peer on friendship 101 (Bella), not a
+      // fabricated id.
+      expect(msg['receiverId'], 2);
+    });
+
+    test('tryPost echoes reply metadata for a friend-chat send', () {
+      final resp = DemoInterceptor.tryPost('/friends/chat/102/messages', {
+        'content': 'answering you',
+        'messageType': 'TEXT',
+        'replyToId': 'm102-1',
+        'replyToText': 'earlier',
+        'replyToSenderName': 'Lamar',
+      });
+      final body = jsonDecode(resp!.body) as Map<String, dynamic>;
+      final msg = body['message'] as Map<String, dynamic>;
+      expect(msg['replyToId'], 'm102-1');
+      expect(msg['replyToText'], 'earlier');
+      expect(msg['replyToSenderName'], 'Lamar');
+      // Friendship 102's peer is Lamar (id 3).
+      expect(msg['receiverId'], 3);
+    });
+
+    test('tryPost answers a group-chat send with the 201 message envelope',
+        () {
+      final resp = DemoInterceptor.tryPost('/group-chats/grp-1/messages', {
+        'type': 'TEXT',
+        'content': 'Group hello',
+        'media': {
+          'url': 'https://cdn.example/v.mp4',
+          'type': 'VIDEO',
+          'mimeType': 'video/mp4',
+          'size': 1024,
+          'duration': 8,
+          'waveformPeaks': [1, 2, 3],
+        },
+      });
+      expect(resp, isNotNull);
+      expect(resp!.statusCode, 201);
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      expect(body['success'], true);
+      final msg = body['message'] as Map<String, dynamic>;
+      expect(msg['id'], isNotEmpty);
+      expect(msg['groupId'], 'grp-1');
+      expect(msg['senderId'], 1);
+      expect(msg['type'], 'TEXT');
+      expect(msg['content'], 'Group hello');
+      // The nested media body is flattened exactly the way the real
+      // groupChatService returns it, so a reload parses the same row.
+      expect(msg['mediaUrl'], 'https://cdn.example/v.mp4');
+      expect(msg['mediaType'], 'VIDEO');
+      expect(msg['mediaMimeType'], 'video/mp4');
+      expect(msg['mediaSize'], 1024);
+      expect(msg['mediaDuration'], 8);
+      expect((msg['mediaWaveformPeaks'] as List).length, 3);
+    });
+
     test('tryPut returns 200', () {
       final resp = DemoInterceptor.tryPut('/users/preferences', {});
       expect(resp, isNotNull);

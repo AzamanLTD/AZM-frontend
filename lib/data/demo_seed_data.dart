@@ -1363,6 +1363,111 @@ class DemoSeedData {
     'data': {'ok': true},
   };
 
+  /// The demo user, in the `sender` shape the backend embeds in every
+  /// message payload.
+  static Map<String, dynamic> _demoSender() => {
+        'id': 1,
+        'username': demoUsername,
+        'profilePictureUrl': authMe()['user']['profilePictureUrl'],
+      };
+
+  /// POST /friends/chat/{id}/messages — mirrors the REAL backend contract
+  /// (directMessageController.sendMessage: 201 {success, message}). The
+  /// client's send path reads `message.id` / `message.createdAt` to
+  /// upgrade the optimistic bubble; the generic okSuccess envelope made
+  /// every demo send fail with an unspecific retry state (the generic
+  /// Chat failure). This echoes the sent content back as a
+  /// server-canonical row, exactly like production.
+  static Map<String, dynamic> sentDirectMessage({
+    required String friendshipId,
+    required Map<String, dynamic> body,
+  }) {
+    final now = DateTime.now();
+    return {
+      'success': true,
+      'message': {
+        'id': 'fm-demo-${now.millisecondsSinceEpoch}',
+        'friendshipId': friendshipId,
+        'senderId': 1,
+        'sender': _demoSender(),
+        'receiverId': _friendIdFor(friendshipId),
+        'content': body['content'],
+        'messageType': body['messageType'] ?? 'TEXT',
+        if (body['metadata'] != null) 'metadata': body['metadata'],
+        if (body['mediaUrl'] != null) 'mediaUrl': body['mediaUrl'],
+        if (body['mediaType'] != null) 'mediaType': body['mediaType'],
+        if (body['mediaMimeType'] != null)
+          'mediaMimeType': body['mediaMimeType'],
+        if (body['mediaSize'] != null) 'mediaSize': body['mediaSize'],
+        if (body['mediaDuration'] != null)
+          'mediaDuration': body['mediaDuration'],
+        if (body['mediaWaveformPeaks'] != null)
+          'mediaWaveformPeaks': body['mediaWaveformPeaks'],
+        if (body['linkPreview'] != null) 'linkPreview': body['linkPreview'],
+        if (body['replyToId'] != null) 'replyToId': body['replyToId'],
+        if (body['replyToText'] != null) 'replyToText': body['replyToText'],
+        if (body['replyToSenderName'] != null)
+          'replyToSenderName': body['replyToSenderName'],
+        'isRead': false,
+        'createdAt': now.toUtc().toIso8601String(),
+      },
+    };
+  }
+
+  /// POST /group-chats/{id}/messages — mirrors the REAL backend contract
+  /// (groupChatController.sendMessage: 201 {success, message}) where the
+  /// service flattens the nested `media` body into mediaUrl/mediaType/...
+  /// exactly as the client's ChatMessage.fromJson expects on reload.
+  static Map<String, dynamic> sentGroupMessage({
+    required String groupId,
+    required Map<String, dynamic> body,
+  }) {
+    final now = DateTime.now();
+    final media = body['media'] is Map<String, dynamic>
+        ? body['media'] as Map<String, dynamic>
+        : null;
+    return {
+      'success': true,
+      'message': {
+        'id': 'gm-demo-${now.millisecondsSinceEpoch}',
+        'groupId': groupId,
+        'senderId': 1,
+        'sender': _demoSender(),
+        'type': body['type'] ?? 'TEXT',
+        'content': body['content'],
+        if (body['metadata'] != null) 'metadata': body['metadata'],
+        if (media != null) ...{
+          if (media['url'] != null) 'mediaUrl': media['url'],
+          if (media['type'] != null) 'mediaType': media['type'],
+          if (media['mimeType'] != null) 'mediaMimeType': media['mimeType'],
+          if (media['size'] != null) 'mediaSize': media['size'],
+          if (media['duration'] != null) 'mediaDuration': media['duration'],
+          if (media['waveformPeaks'] != null)
+            'mediaWaveformPeaks': media['waveformPeaks'],
+          if (media['linkPreview'] != null)
+            'linkPreview': media['linkPreview'],
+        },
+        if (body['replyToId'] != null) 'replyToId': body['replyToId'],
+        if (body['replyToText'] != null) 'replyToText': body['replyToText'],
+        if (body['replyToSenderName'] != null)
+          'replyToSenderName': body['replyToSenderName'],
+        'createdAt': now.toUtc().toIso8601String(),
+      },
+    };
+  }
+
+  /// The peer user id on the other side of a demo friendship, used to give
+  /// the sent-direct-message envelope the same `receiverId` the real
+  /// payload carries. Unknown ids fall back to Bella (the 101 peer).
+  static int _friendIdFor(String friendshipId) {
+    for (final f in friends()) {
+      if (f['friendshipId'].toString() == friendshipId) {
+        return (f['friend']['id'] as num).toInt();
+      }
+    }
+    return 2;
+  }
+
   // ── Helper: timestamps ───────────────────────────────────────────────
   static String _hoursAgo(int hours, [int addMinutes = 0]) {
     final now = DateTime.now();

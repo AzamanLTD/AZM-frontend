@@ -35,8 +35,12 @@ class DemoInterceptor {
     final mock = _matchPost(endpoint, body);
     if (mock == null) return null;
     final path = endpoint.split('?').first;
-    // /saved-momo POST expects 201 Created with an 'account' key.
-    final status = path == '/saved-momo' ? 201 : 200;
+    // 201 Created routes — the REAL backend's contract for creates:
+    // /saved-momo and both chat send endpoints.
+    final creates = RegExp(
+            r'^/saved-momo$|^/friends/chat/\d+/messages$|^/group-chats/[^/]+/messages$')
+        .hasMatch(path);
+    final status = creates ? 201 : 200;
     return http.Response(
       jsonEncode(mock),
       status,
@@ -702,6 +706,32 @@ class DemoInterceptor {
     // /deposit/fiat/initiate/moolre/otp — confirm deposit with OTP
     if (path == '/deposit/fiat/initiate/moolre/otp') {
       return DemoSeedData.depositOtpConfirmed();
+    }
+
+    // /friends/chat/{friendshipId}/messages — the send route. MUST answer
+    // with the real 201 {success, message} contract: the client's
+    // PremiumChatNotifier._sendViaHttp reads `message.id`/`createdAt` to
+    // upgrade the optimistic bubble. The generic okSuccess fallback made
+    // every demo send fail (the generic Chat failure).
+    final friendSendMatch = RegExp(
+      r'^/friends/chat/(\d+)/messages$',
+    ).firstMatch(path);
+    if (friendSendMatch != null) {
+      return DemoSeedData.sentDirectMessage(
+        friendshipId: friendSendMatch.group(1)!,
+        body: body,
+      );
+    }
+
+    // /group-chats/{groupId}/messages — same contract, group flavour.
+    final groupSendMatch = RegExp(
+      r'^/group-chats/([^/]+)/messages$',
+    ).firstMatch(path);
+    if (groupSendMatch != null) {
+      return DemoSeedData.sentGroupMessage(
+        groupId: groupSendMatch.group(1)!,
+        body: body,
+      );
     }
 
     // Any other POST — return generic success
