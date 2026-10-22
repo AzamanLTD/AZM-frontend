@@ -55,6 +55,62 @@ class FxRateSnapshot {
     this.rateFreshnessMaxAgeSeconds = 0,
   });
 
+  /// Additive test/diagnostic convenience: derive a snapshot with a few
+  /// fields replaced, preserving the rest verbatim.
+  /// Additive test/diagnostic convenience: derive a snapshot with a few
+  /// fields replaced, preserving the rest verbatim. The two nullable
+  /// metadata fields go through an [Object] sentinel so they CAN also be
+  /// cleared to null by tests.
+  FxRateSnapshot copyWith({
+    Object? lastExternalSync = _sentinel,
+    Object? externalRateAgeSeconds = _sentinel,
+    double? rateFreshnessMaxAgeSeconds,
+    bool? serverFresh,
+    bool? isCanonical,
+    double? ghsPerUsdc,
+  }) => FxRateSnapshot(
+    ghsPerUsdc: ghsPerUsdc ?? this.ghsPerUsdc,
+    source: source,
+    lastSync: lastSync,
+    fetchedAt: fetchedAt,
+    pair: pair,
+    settlementCurrency: settlementCurrency,
+    displayCurrency: displayCurrency,
+    isCanonical: isCanonical ?? this.isCanonical,
+    serverFresh: serverFresh ?? this.serverFresh,
+    lastExternalSync: identical(lastExternalSync, _sentinel)
+        ? this.lastExternalSync
+        : lastExternalSync as DateTime?,
+    externalRateAgeSeconds: identical(externalRateAgeSeconds, _sentinel)
+        ? this.externalRateAgeSeconds
+        : externalRateAgeSeconds as int?,
+    rateFreshnessMaxAgeSeconds:
+        rateFreshnessMaxAgeSeconds ?? this.rateFreshnessMaxAgeSeconds,
+  );
+
+  /// Whether the server's reported observation age contradicts the age
+  /// this client computes from [lastExternalSync] at [now].
+  ///
+  /// The reported age is a POINT-IN-TIME observation captured when the
+  /// response was fetched, so it ages in lockstep with ours: comparing
+  /// the raw stored value against our ever-growing local age would make
+  /// a consistent-at-receipt snapshot "contradictory" after ~30s even
+  /// inside a 300s window. Re-anchoring by the time elapsed since
+  /// [fetchedAt] keeps the discrepancy constant (response travel time
+  /// plus minor clock skew), so a consistent observation stays consistent
+  /// for its whole freshness window while a genuinely contradictory one
+  /// is still rejected. Single source of truth: [isUsableAt] and the
+  /// screen's disclosed reason both call this.
+  bool serverAgeContradictsAt(DateTime now) {
+    final reported = externalRateAgeSeconds;
+    final observed = lastExternalSync;
+    if (reported == null || observed == null) return false;
+    final localAge = now.difference(observed).inMilliseconds / 1000.0;
+    final elapsedSinceFetch = now.difference(fetchedAt).inMilliseconds / 1000.0;
+    return ((reported + elapsedSinceFetch) - localAge).abs() >
+        ageContradictionToleranceSeconds;
+  }
+
   /// The FULL conversion gate: canonical USDC/GHS retail metadata, a
   /// positive finite rate, AND a genuinely fresh external observation —
   // the backend's `isFresh` verdict plus our own clock check against
@@ -77,11 +133,7 @@ class FxRateSnapshot {
     // Stale: the observation aged past the backend's own threshold.
     if (ageSeconds > rateFreshnessMaxAgeSeconds) return false;
     // The server's own age observation must not contradict ours.
-    if (externalRateAgeSeconds != null &&
-        (externalRateAgeSeconds! - ageSeconds).abs() >
-            ageContradictionToleranceSeconds) {
-      return false;
-    }
+    if (serverAgeContradictsAt(now)) return false;
     return true;
   }
 
@@ -92,10 +144,15 @@ class FxRateSnapshot {
   bool get isUsable => isUsableAt(DateTime.now().toUtc());
 
   /// Honest countdown target for freshness-sensitive UI: the moment this
-  /// observation becomes stale under the backend's threshold.
+  /// observation becomes stale under the backend's threshold. The window
+  /// is FLOAT seconds (the exact precision [isUsableAt] compares against),
+  /// so the expiry must preserve its fractional part — rounding to whole
+  /// seconds lets a one-shot re-check timer fire while the snapshot is
+  /// still usable, re-arming a zero-delay timer every frame until the
+  /// true threshold passes (and can equally delay the check past it).
   DateTime? get staleAt => lastExternalSync?.add(
-        Duration(seconds: rateFreshnessMaxAgeSeconds.round()),
-      );
+    Duration(microseconds: (rateFreshnessMaxAgeSeconds * 1e6).round()),
+  );
 
   double usdcToGhs(double usdc) => usdc * ghsPerUsdc;
 
@@ -135,8 +192,14 @@ int? _intOrNull(dynamic value) {
 ///
 /// Older `liveUsdToGhs` / `rate` values remain readable for compatibility,
 /// but are marked non-canonical and therefore are never usable.
-FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data,
-    {DateTime? now}) {
+FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data, {DateTime? now}) {
+  // CLOCK DISCIPLINE — `fetchedAt` (when this client received the
+  // response) and the freshness evaluation instant are ONE moment in
+  // the parser: the injected [now] (tests) or the wall clock (live).
+  // Stamping fetchedAt with the wall clock while evaluating freshness
+  // against an injected clock would make the server-age re-anchoring
+  // see a phantom elapsed-since-fetch and falsely flag contradictions.
+  final fetchedNow = (now ?? DateTime.now()).toUtc();
   final retail = _positiveRate(data['liveRetailRate']);
   final headline = _positiveRate(data['liveUsdToGhs']);
   final legacy = _positiveRate(data['rate']);
@@ -150,25 +213,30 @@ FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data,
       displayCurrency == 'GHS';
 
   final hasCanonicalRetail = retail > 0;
-  final rate = hasCanonicalRetail ? retail : headline > 0 ? headline : legacy;
+  final rate = hasCanonicalRetail
+      ? retail
+      : headline > 0
+      ? headline
+      : legacy;
 
-  final lastExternalSync =
-      DateTime.tryParse(data['lastExternalSync']?.toString() ?? '')?.toUtc();
+  final lastExternalSync = DateTime.tryParse(
+    data['lastExternalSync']?.toString() ?? '',
+  )?.toUtc();
   final serverFresh = data['isFresh'] == true;
   final externalRateAgeSeconds = _intOrNull(data['externalRateAgeSeconds']);
-  final rateFreshnessMaxAgeSeconds =
-      _positiveFiniteDouble(data['rateFreshnessMaxAgeSeconds']);
+  final rateFreshnessMaxAgeSeconds = _positiveFiniteDouble(
+    data['rateFreshnessMaxAgeSeconds'],
+  );
 
-  final freshnessMetadataPresent = serverFresh &&
-      lastExternalSync != null &&
-      rateFreshnessMaxAgeSeconds > 0;
+  final freshnessMetadataPresent =
+      serverFresh && lastExternalSync != null && rateFreshnessMaxAgeSeconds > 0;
 
   if (rate <= 0) {
     return FxRateSnapshot(
       ghsPerUsdc: 0,
       source: 'UNAVAILABLE',
       lastSync: null,
-      fetchedAt: DateTime.now().toUtc(),
+      fetchedAt: fetchedNow,
       pair: pair,
       settlementCurrency: settlementCurrency,
       displayCurrency: displayCurrency,
@@ -180,7 +248,7 @@ FxRateSnapshot parseFxRateSnapshot(Map<String, dynamic> data,
     ghsPerUsdc: rate,
     source: data['rateSource']?.toString() ?? 'UNKNOWN',
     lastSync: DateTime.tryParse(data['lastSync']?.toString() ?? ''),
-    fetchedAt: DateTime.now().toUtc(),
+    fetchedAt: fetchedNow,
     pair: pair,
     settlementCurrency: settlementCurrency,
     displayCurrency: displayCurrency,
@@ -244,3 +312,7 @@ class QuoteRefreshClock {
 /// Invalidates the public FX snapshot. Screens with conversion-sensitive UI
 /// can call `ref.invalidate(fxRateProvider)` after a refresh window expires.
 void refreshFxRate(WidgetRef ref) => ref.invalidate(fxRateProvider);
+
+/// Sentinel distinguishing an omitted copyWith argument from an
+/// explicit null (both nullable metadata fields can be cleared).
+const Object _sentinel = Object();

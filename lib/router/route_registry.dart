@@ -54,6 +54,7 @@ abstract final class AzRouteNames {
   static const marketplace = 'marketplace';
   static const savings = 'savings';
   static const deposit = 'deposit';
+  static const convert = 'convert';
 
   // Susu
   // Balance ↔ Visa card transfer from the Home deck seam.
@@ -186,6 +187,11 @@ abstract final class AzRoutes {
     ];
     return params.isEmpty ? '/deposit' : '/deposit?${params.join('&')}';
   }
+
+  /// `/convert` — the honest conversion shell (Workstream G). The screen
+  /// itself gates execution behind [kConvertExecutionSupported]; the route
+  /// always exists so the launcher/navigation surface is stable.
+  static String convert() => '/convert';
 
   // ── Card transfer ─────────────────────────────────────────────────────────
   static const cardTransfer = '/card-transfer';

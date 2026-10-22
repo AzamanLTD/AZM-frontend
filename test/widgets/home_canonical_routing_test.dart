@@ -366,9 +366,17 @@ void main() {
   });
 
   group('source contracts — no canonical-bypass regressions', () {
-    test('main.dart: the + launcher Add Cash action pushes the canonical '
+    test('the + launcher Add Cash action pushes the canonical '
         'deposit route', () {
-      final source = File('lib/main.dart').readAsStringSync();
+      // (2026-10-21, Workstream G) the launcher wire set moved out of
+      // main.dart into lib/widgets/home/home_plus_actions.dart — an
+      // extracted, testable IA builder. The canonical-route contract is
+      // unchanged; the pin now reads the extracted module AND keeps a
+      // main.dart guard so the wire can never silently drift back into
+      // the bootstrap file.
+      final source = File(
+        'lib/widgets/home/home_plus_actions.dart',
+      ).readAsStringSync();
       expect(
         source,
         contains('context.push(AzRoutes.deposit())'),
@@ -382,6 +390,12 @@ void main() {
           ),
         ),
         reason: 'the old imperative deposit helper is gone',
+      );
+      final bootstrap = File('lib/main.dart').readAsStringSync();
+      expect(
+        bootstrap,
+        isNot(contains('const DepositScreen')),
+        reason: 'main.dart must not construct deposit screen imperatively',
       );
     });
 

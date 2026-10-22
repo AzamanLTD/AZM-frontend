@@ -440,10 +440,15 @@ class ThemeProvider with ChangeNotifier {
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
+        // TYPE-FAMILY EDGE — the title style MUST carry the UI family
+        // explicitly. Without it, AppBar titles resolve the platform's
+        // default family, silently diverging from the app's type scale
+        // (and rendering as solid glyph blocks in font-pinned captures).
         titleTextStyle: TextStyle(
           color: c.textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.bold,
+          fontFamily: AzText.uiFamily,
         ),
         iconTheme: IconThemeData(color: c.textPrimary),
       ),
