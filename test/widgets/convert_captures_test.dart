@@ -30,7 +30,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/currency_model.dart';
-import 'package:azaman/providers/currency_provider.dart' show FxRateSnapshot, fxRateProvider;
+import 'package:azaman/providers/currency_provider.dart'
+    show FxRateSnapshot, fxRateProvider;
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/wallet/convert_screen.dart';
 
@@ -130,49 +131,68 @@ void main() {
     if (!goldenDir.existsSync()) goldenDir.createSync(recursive: true);
   });
 
+  // 320dp keeps a REAL small-viewport width but enough height to show
+  // the whole honest CTA — an earlier 320x692 capture cut the disabled
+  // button's label off, which is not a reviewable CTA state.
   const sizes = {
-    '320': Size(320, 692),
+    '320': Size(320, 800),
     '360': Size(360, 800),
     '390': Size(390, 844),
   };
 
   for (final dark in [false, true]) {
     for (final entry in sizes.entries) {
-      testWidgets(
-        'convert shell — ${entry.key} — ${dark ? 'dark' : 'light'}',
-        (tester) async {
-          await _pumpSubject(
-            tester,
-            size: entry.value,
-            dark: dark,
-          );
+      testWidgets('convert shell — ${entry.key} — ${dark ? 'dark' : 'light'}', (
+        tester,
+      ) async {
+        await _pumpSubject(tester, size: entry.value, dark: dark);
 
-          // The contract the goldens must visibly preserve: a labelled
-          // NONBINDING estimate, a disclosed source, and a DISABLED CTA.
-          expect(
-            find.byKey(const Key('convert_estimate_rate')),
-            findsOneWidget,
-          );
-          expect(
-            find.byKey(const Key('convert_estimate_source_disclosure')),
-            findsOneWidget,
-            reason: 'the source + freshness disclosure is part of the '
-                'golden contract — it must be VISIBLE in every capture',
-          );
-          expect(
-            find.byKey(const Key('convert_execution_unavailable')),
-            findsOneWidget,
-          );
+        // The contract the goldens must visibly preserve: a labelled
+        // NONBINDING estimate, a disclosed source, and a DISABLED CTA.
+        expect(find.byKey(const Key('convert_estimate_rate')), findsOneWidget);
+        expect(
+          find.byKey(const Key('convert_estimate_source_disclosure')),
+          findsOneWidget,
+          reason:
+              'the source + freshness disclosure is part of the '
+              'golden contract — it must be VISIBLE in every capture',
+        );
+        expect(
+          find.byKey(const Key('convert_execution_unavailable')),
+          findsOneWidget,
+        );
 
-          await expectLater(
-            find.byType(RepaintBoundary).first,
-            matchesGoldenFile(
-              '../goldens/convert/shell_${entry.key}_${dark ? 'dark' : 'light'}.png',
-            ),
-          );
-        },
-        timeout: const Timeout(Duration(minutes: 4)),
-      );
+        // VISIBILITY CONTRACT — the disabled CTA must be FULLY inside
+        // the captured viewport: a CTA cut off at the bottom edge is
+        // not a reviewable honesty state.
+        final ctaRect = tester.getRect(
+          find.byKey(const Key('convert_execution_unavailable')),
+        );
+        expect(
+          ctaRect.bottom,
+          lessThanOrEqualTo(entry.value.height),
+          reason:
+              'the disabled CTA (and its label) must be fully '
+              'visible in every capture',
+        );
+        expect(ctaRect.top, greaterThanOrEqualTo(0));
+        // The button's OWN 'Unavailable' label must be fully inside the
+        // viewport too — a cut-off label is not a reviewable CTA state.
+        final labelRect = tester.getRect(find.text('Unavailable'));
+        expect(
+          labelRect.bottom,
+          lessThanOrEqualTo(entry.value.height),
+          reason: 'the CTA label itself must not be clipped',
+        );
+        expect(labelRect.top, greaterThanOrEqualTo(0));
+
+        await expectLater(
+          find.byType(RepaintBoundary).first,
+          matchesGoldenFile(
+            '../goldens/convert/shell_${entry.key}_${dark ? 'dark' : 'light'}.png',
+          ),
+        );
+      }, timeout: const Timeout(Duration(minutes: 4)));
     }
   }
 }
