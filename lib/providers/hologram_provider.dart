@@ -97,15 +97,25 @@ final balanceEpochProvider = StateProvider<int>((ref) => 0);
 http.Client? balanceRefreshClientOverride;
 
 Future<void>? _balanceRefreshFuture;
+// IDENTITY BOUNDARIES — the single-flight slot belongs to the identity
+// (epoch) that started the in-flight refresh. A NEW epoch may always
+// start its own refresh instead of joining the previous identity's
+// pending future: the stale-response guard would correctly discard that
+// old response, but the new identity's request would then never run
+// from this call.
+int _balanceRefreshEpoch = -1;
 
 Future<void> refreshCanonicalBalance(dynamic ref) {
+  // Capture the epoch at entry so coalescing is identity-scoped AND the
+  // attempt below belongs to the identity that initiated it.
+  final epoch = ref.read(balanceEpochProvider);
   final existing = _balanceRefreshFuture;
-  if (existing != null) return existing;
+  if (existing != null && _balanceRefreshEpoch == epoch) return existing;
 
   final future = () async {
     if (AppConfig.demoMode) return;
-    // IDENTITY BOUNDARIES — capture the epoch this attempt belongs to.
-    final epoch = ref.read(balanceEpochProvider);
+    // IDENTITY BOUNDARIES — this attempt belongs to [epoch]; a response
+    // landing after the epoch moved belongs to a different identity.
     bool isStale() => ref.read(balanceEpochProvider) != epoch;
     // WORKSTREAM B — an early return or thrown error means no balance came
     // back from this attempt. That is only a FAILURE if nothing usable has
@@ -127,8 +137,14 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
         return;
       }
 
-      final response = await (balanceRefreshClientOverride ?? http.Client())
-          .get(
+      // Resource lifecycle — production must not own a client here:
+      // package:http's top-level get() opens and closes a one-shot
+      // client per request, so nothing leaks across realtime/
+      // foreground refreshes. The test override stays under TEST
+      // ownership: this code never creates (and so never needs to
+      // close) the injected client.
+      final response = await (balanceRefreshClientOverride != null
+          ? balanceRefreshClientOverride!.get(
             Uri.parse('${AppConfig.apiUrl}/users/balance'),
             headers: {
               'Content-Type': 'application/json',
@@ -136,6 +152,14 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
               'Authorization': 'Bearer $token',
             },
           )
+          : http.get(
+            Uri.parse('${AppConfig.apiUrl}/users/balance'),
+            headers: {
+              'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true',
+              'Authorization': 'Bearer $token',
+            },
+          ))
           .timeout(AppConfig.requestTimeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         markFailed();
@@ -168,8 +192,12 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
   }();
 
   _balanceRefreshFuture = future;
+  _balanceRefreshEpoch = epoch;
   return future.whenComplete(() {
-    if (identical(_balanceRefreshFuture, future)) _balanceRefreshFuture = null;
+    if (identical(_balanceRefreshFuture, future)) {
+      _balanceRefreshFuture = null;
+      _balanceRefreshEpoch = -1;
+    }
   });
 }
 

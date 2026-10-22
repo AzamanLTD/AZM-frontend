@@ -54,13 +54,15 @@ User _loginUser(String id) => User.fromJson({
 /// Storage mock for the auth tests: the socket path must stay inert, so
 /// auth_token reads return null (SocketService._connect bails without a
 /// token). The refresh tests pass [withToken] to arm the refresh path.
-void _mockSecureStorage({String? token}) {
+void _mockSecureStorage({String? token, String? userId}) {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
     switch (call.method) {
       case 'read':
         final key = call.arguments['key'];
-        return key == 'auth_token' ? token : null;
+        if (key == 'auth_token') return token;
+        if (key == 'user_id') return userId;
+        return null;
       case 'delete':
         return null;
       default:
@@ -345,4 +347,210 @@ void main() {
       expect(container.read(balanceDataProvider).availableBalance, 500.0);
     });
   });
+
+  // LEAD REVIEW FOLLOW-UP 1 — checkAuthStatus() must end the balance
+  // identity too: ApiClient.isAuthenticated() also returns false when
+  // the check request itself fails, and setSessionFromLogin sees
+  // `_user == null` afterwards so its different-user guard cannot reset.
+  test('checkAuthStatus()=false resets the balance surface; a new user '
+      'whose hydration fails never sees the old figure, and a late old '
+      'refresh is discarded', () async {
+    _mockSecureStorage(token: 'mock', userId: 'u1');
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ref = container.read(_refProbe);
+
+    var meStatus = 200;
+    final client = MockClient((request) async {
+      if (request.url.path.contains('/auth/me/')) {
+        return meStatus == 200
+            ? http.Response(jsonEncode(_profileJson('u1', 120.5)), 200)
+            : http.Response(jsonEncode({'message': 'nope'}), meStatus);
+      }
+      return http.Response(jsonEncode({'message': 'boom'}), 500);
+    });
+
+    final auth = AuthProvider(ref: ref, client: ApiClient(client: client));
+    await auth.setSessionFromLogin(_loginUser('u1'));
+    await _pump();
+    expect(container.read(balanceReadinessProvider), BalanceReadiness.loaded);
+    expect(container.read(balanceDataProvider).availableBalance, 120.5);
+    final epochBefore = container.read(balanceEpochProvider);
+
+    // The old user's refresh is still in flight when the session dies.
+    final gate = Completer<http.Response>();
+    balanceRefreshClientOverride = MockClient((request) => gate.future);
+    final staleRefresh = refreshCanonicalBalance(ref);
+    await _pump();
+
+    // checkAuthStatus() -> isAuthenticated() false (storage intact but
+    // /auth/me fails here). This is a session end: the surface resets.
+    meStatus = 500;
+    final ok = await auth.checkAuthStatus();
+    expect(ok, false, reason: 'the mock must drive the unauthenticated path');
+    expect(container.read(balanceEpochProvider), epochBefore + 1,
+        reason: 'checkAuthStatus()=false is an identity boundary — the '
+            'epoch must bump');
+    expect(container.read(balanceReadinessProvider),
+        BalanceReadiness.unresolved);
+    expect(container.read(balanceDataProvider).availableBalance, 0.0);
+    expect(container.read(userUsdcBalanceProvider), 0.0);
+
+    // New user logs in on the now-null session and hydration FAILS
+    // transiently: the card must stay unresolved, never u1's 120.5.
+    await auth.setSessionFromLogin(_loginUser('u2'));
+    await _pump();
+    expect(auth.status, AuthStatus.authenticated,
+        reason: 'transient hydration failure keeps the session');
+    expect(container.read(balanceReadinessProvider),
+        BalanceReadiness.unresolved,
+        reason: 'u2 has no confirmed balance — u1\'s figure must not '
+            'survive the checkAuthStatus() boundary');
+    expect(container.read(balanceDataProvider).availableBalance, 0.0);
+
+    // The old identity's refresh resolves last and must be discarded.
+    gate.complete(http.Response(
+        jsonEncode({
+          'data': {'availableBalance': 777.0}
+        }),
+        200));
+    await staleRefresh;
+    expect(container.read(balanceDataProvider).availableBalance, 0.0);
+    expect(container.read(balanceReadinessProvider),
+        BalanceReadiness.unresolved);
+  });
+
+  // LEAD REVIEW FOLLOW-UP 2 — single-flight coalescing is identity
+  // (epoch) scoped: a new identity may start its own refresh while the
+  // previous identity's request is still pending.
+  group('refreshCanonicalBalance identity-scoped single-flight', () {
+    test('an OLD refresh pending at an epoch bump does not swallow the '
+        'new identity\'s refresh — both resolve independently', () async {
+      _mockSecureStorage(token: 'mock');
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ref = container.read(_refProbe);
+      container.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.unresolved;
+
+      // Identity A's refresh hangs on a gate.
+      final gate = Completer<http.Response>();
+      balanceRefreshClientOverride = MockClient((request) => gate.future);
+      final oldRefresh = refreshCanonicalBalance(ref);
+      await _pump();
+
+      // Identity boundary: epoch bumps mid-flight.
+      container.read(balanceEpochProvider.notifier).state++;
+      await _pump();
+
+      // The new identity asks for a refresh: it must START its own
+      // request (the pending old future belongs to the previous epoch).
+      balanceRefreshClientOverride = MockClient((request) async =>
+          http.Response(
+              jsonEncode({
+                'data': {'availableBalance': 55.0}
+              }),
+              200));
+      final newRefresh = refreshCanonicalBalance(ref);
+      await newRefresh; // would never settle on the old (still-gated) future
+
+      expect(container.read(balanceDataProvider).availableBalance, 55.0,
+          reason: 'the new identity\'s refresh must actually run');
+      expect(container.read(balanceReadinessProvider),
+          BalanceReadiness.loaded);
+
+      // A's stale response lands last and is discarded.
+      gate.complete(http.Response(
+          jsonEncode({
+            'data': {'availableBalance': 999.0}
+          }),
+          200));
+      await oldRefresh;
+      expect(container.read(balanceDataProvider).availableBalance, 55.0,
+          reason: 'the old identity\'s response must not overwrite the '
+              'new identity\'s figure');
+    });
+
+    test('SAME epoch still coalesces — concurrent refreshes issue ONE '
+        'request', () async {
+      _mockSecureStorage(token: 'mock');
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ref = container.read(_refProbe);
+      container.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.unresolved;
+
+      var requests = 0;
+      final gate = Completer<http.Response>();
+      balanceRefreshClientOverride =
+          MockClient((request) => requests++ == 0 ? gate.future : gate.future);
+
+      final a = refreshCanonicalBalance(ref);
+      final b = refreshCanonicalBalance(ref);
+      await _pump();
+
+      expect(requests, 1,
+          reason: 'same identity: the second caller must join the '
+              'in-flight request instead of issuing a new one');
+
+      gate.complete(http.Response(
+          jsonEncode({
+            'data': {'availableBalance': 42.0}
+          }),
+          200));
+      await a;
+      await b;
+      expect(container.read(balanceDataProvider).availableBalance, 42.0);
+      expect(container.read(balanceReadinessProvider), BalanceReadiness.loaded);
+    });
+  });
+
+  // LEAD REVIEW FOLLOW-UP 3 — resource lifecycle: the refresh must never
+  // create (or need to close) an owned client; the injected test client
+  // stays under test ownership and is not closed by production code.
+  group('refreshCanonicalBalance resource lifecycle', () {
+    test('the injected test client is never closed by the refresh', () async {
+      _mockSecureStorage(token: 'mock');
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ref = container.read(_refProbe);
+
+      var closeCalls = 0;
+      balanceRefreshClientOverride = _CloseCountingClient(
+        (request) async => http.Response(
+            jsonEncode({
+              'data': {'availableBalance': 10.0}
+            }),
+            200),
+        () => closeCalls++,
+      );
+
+      await refreshCanonicalBalance(ref);
+
+      expect(closeCalls, 0,
+          reason: 'the injected client belongs to the test; the refresh '
+              'must not close it');
+      expect(container.read(balanceReadinessProvider),
+          BalanceReadiness.loaded);
+      expect(container.read(balanceDataProvider).availableBalance, 10.0);
+    });
+  });
+}
+
+/// A [MockClient] that records calls to [close] so tests can prove that
+/// production code never closes a client it does not own.
+class _CloseCountingClient extends MockClient {
+  _CloseCountingClient(super.fn, this.onClose);
+
+  final void Function() onClose;
+
+  @override
+  void close() {
+    onClose();
+    super.close();
+  }
 }

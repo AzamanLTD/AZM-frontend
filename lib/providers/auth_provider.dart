@@ -205,6 +205,14 @@ class AuthProvider with ChangeNotifier {
     final ok = await _api.isAuthenticated();
     if (!ok) {
       _user = null;
+      // IDENTITY BOUNDARIES — the stored identity no longer checks out
+      // (token/user gone, or the check request itself failed and
+      // isAuthenticated returned false). This is a session end: the
+      // balance surface must reset and the epoch must bump, because a
+      // later setSessionFromLogin finds `_user == null` and its
+      // different-user guard will NOT reset — a new user whose hydration
+      // fails must never render this user's confirmed figure.
+      _resetBalanceStateForIdentityBoundary();
       _status = AuthStatus.unauthenticated;
       AuthGuard.isAuthenticated = false;
       _publish();
