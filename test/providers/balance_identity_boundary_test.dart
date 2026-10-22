@@ -421,6 +421,78 @@ void main() {
         BalanceReadiness.unresolved);
   });
 
+  // LEAD REVIEW FOLLOW-UP 1 (race) — the checkAuthStatus() boundary
+  // must also invalidate an in-flight profile hydration: a late
+  // /auth/me success for the cleared identity must not restore the
+  // user, the authenticated status, or the old balance.
+  test('checkAuthStatus()=false invalidates a pending fetchUserDetails — '
+      'a late old-user profile response is discarded completely', () async {
+    // Storage carries NO credentials: isAuthenticated() returns false
+    // without issuing a request, so the only /auth/me traffic is the
+    // hydration itself.
+    _mockSecureStorage(token: null, userId: null);
+
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    final ref = container.read(_refProbe);
+
+    var meCalls = 0;
+    final gate = Completer<http.Response>();
+    final client = MockClient((request) async {
+      if (request.url.path.contains('/auth/me/')) {
+        meCalls++;
+        return meCalls == 1
+            ? http.Response(jsonEncode(_profileJson('u1', 120.5)), 200)
+            : gate.future;
+      }
+      return http.Response(jsonEncode({'message': 'boom'}), 500);
+    });
+
+    final auth = AuthProvider(ref: ref, client: ApiClient(client: client));
+    await auth.setSessionFromLogin(_loginUser('u1'));
+    await _pump();
+    expect(container.read(balanceReadinessProvider), BalanceReadiness.loaded);
+    expect(container.read(balanceDataProvider).availableBalance, 120.5);
+    final epochBefore = container.read(balanceEpochProvider);
+
+    // A profile re-hydration for u1 is in flight when the session dies.
+    final lateHydration = auth.fetchUserDetails();
+    await _pump();
+    expect(meCalls, 2, reason: 'the stale hydration must be in flight');
+
+    // The session ends: checkAuthStatus() reports unauthenticated.
+    final ok = await auth.checkAuthStatus();
+    expect(ok, false);
+    expect(auth.status, AuthStatus.unauthenticated);
+    expect(container.read(balanceEpochProvider), epochBefore + 1,
+        reason: 'the boundary must still bump the epoch');
+    expect(container.read(balanceReadinessProvider),
+        BalanceReadiness.unresolved);
+    expect(container.read(balanceDataProvider).availableBalance, 0.0);
+
+    // The stale u1 profile response lands with a SUCCESS body. It must
+    // be discarded wholesale: no restored user, no authenticated
+    // status, no balance or readiness write.
+    gate.complete(http.Response(jsonEncode(_profileJson('u1', 999.0)), 200));
+    await lateHydration;
+    await _pump();
+
+    expect(auth.user, isNull,
+        reason: 'a late hydration must not restore the cleared user');
+    expect(auth.status, AuthStatus.unauthenticated,
+        reason: 'a late hydration must not flip the session back to '
+            'authenticated');
+    expect(AuthGuard.isAuthenticated, false);
+    expect(container.read(balanceReadinessProvider),
+        BalanceReadiness.unresolved,
+        reason: 'a late hydration must not mark readiness loaded');
+    expect(container.read(balanceDataProvider).availableBalance, 0.0,
+        reason: 'a late hydration must not write the old user\'s '
+            'balance');
+    expect(container.read(userUsdcBalanceProvider), 0.0);
+    expect(container.read(balanceEpochProvider), epochBefore + 1);
+  });
+
   // LEAD REVIEW FOLLOW-UP 2 — single-flight coalescing is identity
   // (epoch) scoped: a new identity may start its own refresh while the
   // previous identity's request is still pending.

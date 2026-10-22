@@ -213,6 +213,13 @@ class AuthProvider with ChangeNotifier {
       // different-user guard will NOT reset — a new user whose hydration
       // fails must never render this user's confirmed figure.
       _resetBalanceStateForIdentityBoundary();
+      // SESSION BOUNDARY RACE — a profile hydration started before this
+      // boundary (same or previous user) may still be in flight; its
+      // generation must be invalidated here so a late /auth/me response
+      // cannot restore the cleared user, flip the session back to
+      // authenticated, or write the old profile's balances/readiness
+      // after the identity has ended.
+      _hydrationGeneration++;
       _status = AuthStatus.unauthenticated;
       AuthGuard.isAuthenticated = false;
       _publish();
