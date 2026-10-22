@@ -96,15 +96,12 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
     if (_stalenessTimer != null && _stalenessArmedFor == staleAt) return;
     _stalenessTimer?.cancel();
     _stalenessArmedFor = staleAt;
-    final delay = staleAt.difference(kConvertNow()) +
-        const Duration(milliseconds: 50);
-    _stalenessTimer = Timer(
-      delay.isNegative ? Duration.zero : delay,
-      () {
-        _stalenessArmedFor = null;
-        if (mounted) setState(() {});
-      },
-    );
+    final delay =
+        staleAt.difference(kConvertNow()) + const Duration(milliseconds: 50);
+    _stalenessTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
+      _stalenessArmedFor = null;
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -121,45 +118,45 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
       // the pull is always accepted.
       onDismiss: () => Navigator.of(context).maybePop(),
       child: Scaffold(
-      appBar: AppBar(
-        backgroundColor: colors.surface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        title: Text(
-          'Convert',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-            color: colors.onSurface,
+        appBar: AppBar(
+          backgroundColor: colors.surface,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          title: Text(
+            'Convert',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: colors.onSurface,
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          children: [
-            _assetRow(colors),
-            const SizedBox(height: 18),
-            _EstimateCard(
-              snapshot: snapshot.valueOrNull,
-              loading: snapshot.isLoading,
-            ),
-            const SizedBox(height: 18),
-            _AmountPanel(
-              controller: _amountCtrl,
-              snapshot: snapshot.valueOrNull,
-              loading: snapshot.isLoading,
-            ),
-            const SizedBox(height: 18),
-            _ExecutionGate(
-              colors: colors,
-              supported: convertExecutionAvailable,
-            ),
-          ],
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            children: [
+              _assetRow(colors),
+              const SizedBox(height: 18),
+              _EstimateCard(
+                snapshot: snapshot.valueOrNull,
+                loading: snapshot.isLoading,
+              ),
+              const SizedBox(height: 18),
+              _AmountPanel(
+                controller: _amountCtrl,
+                snapshot: snapshot.valueOrNull,
+                loading: snapshot.isLoading,
+              ),
+              const SizedBox(height: 18),
+              _ExecutionGate(
+                colors: colors,
+                supported: convertExecutionAvailable,
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -190,8 +187,11 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
     );
   }
 
-  Widget _assetChip(ColorScheme colors,
-      {required String code, required String label}) {
+  Widget _assetChip(
+    ColorScheme colors, {
+    required String code,
+    required String label,
+  }) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,10 +206,7 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
           ),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              color: colors.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
           ),
         ],
       ),
@@ -305,7 +302,6 @@ class _EstimateCard extends StatelessWidget {
     );
   }
 
-
   /// Honest human phrasing of WHY the rate is unusable. Mirrors the exact
   /// checks of [FxRateSnapshot.isUsableAt] so the disclosed reason can
   /// never disagree with the verdict — including MISSING metadata (no
@@ -331,9 +327,8 @@ class _EstimateCard extends StatelessWidget {
     // Float seconds — the exact precision of isUsableAt, so the
     // disclosed reason can never disagree with the verdict near a
     // window boundary (a 6.3s-old observation is NOT 'still fresh').
-    final ageSeconds = kConvertNow()
-        .difference(snap.lastExternalSync!)
-        .inMilliseconds /
+    final ageSeconds =
+        kConvertNow().difference(snap.lastExternalSync!).inMilliseconds /
         1000.0;
     if (ageSeconds < -FxRateSnapshot.clockSkewAllowance.inSeconds) {
       return 'the observation timestamp contradicts the device clock '
@@ -341,14 +336,23 @@ class _EstimateCard extends StatelessWidget {
     }
     if (ageSeconds > snap.rateFreshnessMaxAgeSeconds) {
       return 'the last market observation is older than the '
-          '${snap.rateFreshnessMaxAgeSeconds.round()}s freshness window';
+          '${_windowLabel(snap.rateFreshnessMaxAgeSeconds)} freshness '
+          'window';
     }
-    if (snap.externalRateAgeSeconds != null &&
-        (snap.externalRateAgeSeconds! - ageSeconds).abs() >
-            FxRateSnapshot.ageContradictionToleranceSeconds) {
+    if (snap.serverAgeContradictsAt(kConvertNow())) {
       return 'the server\'s age observation contradicts ours';
     }
     return 'the rate metadata is incomplete';
+  }
+
+  /// The freshness window disclosed to the user, preserving fractional
+  /// seconds: the verdict compares against the exact double, so a 6.6s
+  /// window must not be disclosed as a rounded "7s" (or vice versa).
+  static String _windowLabel(double seconds) {
+    final whole = seconds.roundToDouble();
+    return seconds == whole
+        ? '${whole.toInt()}s'
+        : '${seconds.toStringAsFixed(1)}s';
   }
 
   static String _describeAge(Duration age) {
@@ -397,10 +401,9 @@ class _AmountPanel extends StatelessWidget {
         ? snapshot!.ghsPerUsdc
         : null;
     final amount = double.tryParse(raw.trim());
-    final estimate =
-        (rate != null && amount != null && amount > 0 && !loading)
-            ? amount * rate
-            : null;
+    final estimate = (rate != null && amount != null && amount > 0 && !loading)
+        ? amount * rate
+        : null;
 
     return _Panel(
       panelKey: const Key('convert_amount_panel'),
@@ -421,11 +424,9 @@ class _AmountPanel extends StatelessWidget {
             key: const Key('convert_amount_field'),
             controller: controller,
             enabled: !loading,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
-              FilteringTextInputFormatter.allow(
-                  RegExp(r'^\d*\.?\d{0,2}')),
+              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
             ],
             style: TextStyle(
               fontSize: 20,
@@ -464,7 +465,7 @@ class _AmountPanel extends StatelessWidget {
             Text(
               rate == null
                   ? 'Enter an amount for a live estimate — requires a '
-                      'usable rate.'
+                        'usable rate.'
                   : 'Enter an amount for a live estimate.',
               key: const Key('convert_amount_estimate_pending'),
               style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
@@ -476,8 +477,7 @@ class _AmountPanel extends StatelessWidget {
                 'ESTIMATE ONLY — computed from the displayed rate. Not a '
                 'quote, not reserved, nothing converts.',
                 key: const Key('convert_amount_estimate_disclaimer'),
-                style: TextStyle(
-                    fontSize: 11, color: colors.onSurfaceVariant),
+                style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
               ),
             ),
         ],
@@ -501,19 +501,15 @@ class _ExecutionGate extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.info_outline,
-            size: 22,
-            color: colors.onSurfaceVariant,
-          ),
+          Icon(Icons.info_outline, size: 22, color: colors.onSurfaceVariant),
           const SizedBox(height: 8),
           Text(
             supported
                 ? 'Conversion is available. Review the server quote '
-                    'before confirming.'
+                      'before confirming.'
                 : 'Converting between GHS and USDC balances isn\'t '
-                    'available yet. Your money is safe — nothing can be '
-                    'converted, moved or spent from this screen.',
+                      'available yet. Your money is safe — nothing can be '
+                      'converted, moved or spent from this screen.',
             style: TextStyle(fontSize: 13, color: colors.onSurface),
           ),
           const SizedBox(height: 12),

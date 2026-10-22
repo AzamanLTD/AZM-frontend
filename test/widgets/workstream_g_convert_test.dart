@@ -539,6 +539,219 @@ void main() {
     );
 
     testWidgets(
+      'SERVER-AGE EDGE — a consistent observation stays consistent past '
+      'the contradiction tolerance while inside its window',
+      (tester) async {
+        // The server reported the observation age (5s) at fetch time and
+        // our own clock agrees: everything is coherent at receipt.
+        var now = DateTime.now().toUtc();
+        final realNow = kConvertNow;
+        addTearDown(() => kConvertNow = realNow);
+        kConvertNow = () => now;
+
+        final fetchedAt = now;
+        final snap = FxRateSnapshot(
+          ghsPerUsdc: 12.5,
+          source: 'kotani-retail',
+          lastSync: fetchedAt,
+          fetchedAt: fetchedAt,
+          serverFresh: true,
+          lastExternalSync: fetchedAt.subtract(const Duration(seconds: 5)),
+          externalRateAgeSeconds: 5,
+          rateFreshnessMaxAgeSeconds: 300,
+        );
+
+        // MODEL: usable at receipt...
+        expect(snap.isUsableAt(now), isTrue);
+        // ...and STILL usable 60s later — well past the 30s
+        // contradiction tolerance, far inside the 300s window. The
+        // server's reported age is a POINT-IN-TIME observation: it
+        // ages in lockstep with our own age, so the discrepancy stays
+        // constant instead of turning false merely because time
+        // passes.
+        expect(
+          snap.isUsableAt(now.add(const Duration(seconds: 60))),
+          isTrue,
+          reason: 'a consistent-at-receipt snapshot must not become '
+              '"contradictory" after the tolerance elapses',
+        );
+        // A GENUINELY contradictory reported age is still rejected.
+        final contradictory = snap.copyWith(externalRateAgeSeconds: 60);
+        expect(contradictory.isUsableAt(now), isFalse);
+
+        // SCREEN: the panel agrees with the model for the whole window.
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pump(const Duration(milliseconds: 20));
+        await tester.pump();
+        expect(
+            find.byKey(const Key('convert_estimate_live')), findsOneWidget);
+
+        // 60s pass with the screen open; a rebuild happens (typing in
+        // the amount field). Display and isUsableAt may not diverge:
+        // the estimate is still honestly live.
+        now = now.add(const Duration(seconds: 60));
+        await tester.enterText(find.byType(TextField).first, '5');
+        await tester.pump();
+        expect(
+          find.byKey(const Key('convert_estimate_live')),
+          findsOneWidget,
+          reason: 'past the contradiction tolerance but inside the '
+              'window, the panel must still read fresh — the verdict '
+              'and the display may not disagree',
+        );
+        expect(
+          snap.isUsableAt(now),
+          isTrue,
+          reason: 'and the model agrees with what the screen shows',
+        );
+      },
+    );
+
+    test(
+      'staleAt preserves fractional precision on either side of a '
+      'half-second boundary',
+      () {
+        final sync = DateTime.now().toUtc();
+        FxRateSnapshot withWindow(double window) => FxRateSnapshot(
+              ghsPerUsdc: 12.5,
+              source: 'kotani-retail',
+              lastSync: sync,
+              fetchedAt: sync,
+              serverFresh: true,
+              lastExternalSync: sync,
+              externalRateAgeSeconds: 0,
+              rateFreshnessMaxAgeSeconds: window,
+            );
+
+        // 6.4s rounds DOWN to 6 with a whole-second Duration — the old
+        // defect let the timer fire while the snapshot was still usable.
+        expect(
+          withWindow(6.4).staleAt!.difference(sync).inMilliseconds,
+          6400,
+          reason: 'a 6.4s window expires at exactly 6.4s',
+        );
+        // 6.6s rounds UP to 7 — the old defect delayed the honest flip.
+        expect(
+          withWindow(6.6).staleAt!.difference(sync).inMilliseconds,
+          6600,
+          reason: 'a 6.6s window expires at exactly 6.6s',
+        );
+        // isUsableAt compares against the exact double on both sides
+        // of the boundary, and staleAt must agree with it exactly.
+        expect(withWindow(6.4).isUsableAt(
+            sync.add(const Duration(milliseconds: 6399))), isTrue);
+        expect(withWindow(6.4).isUsableAt(
+            sync.add(const Duration(milliseconds: 6401))), isFalse);
+        expect(withWindow(6.6).isUsableAt(
+            sync.add(const Duration(milliseconds: 6599))), isTrue);
+        expect(withWindow(6.6).isUsableAt(
+            sync.add(const Duration(milliseconds: 6601))), isFalse);
+      },
+    );
+
+    testWidgets(
+      'FRACTIONAL WINDOW — the staleness re-check fires at the exact '
+      'expiry, neither early (re-arming churn) nor late',
+      (tester) async {
+        // Observation made 5s ago with a 6.6s window: whole-second
+        // rounding would arm the timer at 7s, delaying the honest flip
+        // 0.4s PAST the true expiry. The fix arms at 6.6s + slack.
+        var now = DateTime.now().toUtc();
+        final realNow = kConvertNow;
+        addTearDown(() => kConvertNow = realNow);
+        kConvertNow = () => now;
+
+        final fetchedAt = now;
+        final snap = FxRateSnapshot(
+          ghsPerUsdc: 12.5,
+          source: 'kotani-retail',
+          lastSync: fetchedAt,
+          fetchedAt: fetchedAt,
+          serverFresh: true,
+          lastExternalSync: fetchedAt.subtract(const Duration(seconds: 5)),
+          externalRateAgeSeconds: 5,
+          rateFreshnessMaxAgeSeconds: 6.6,
+        );
+
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pump(const Duration(milliseconds: 20));
+        await tester.pump();
+        expect(
+            find.byKey(const Key('convert_estimate_live')), findsOneWidget);
+
+        // The observation expires 1.6s from now; the one-shot timer
+        // was armed at staleAt + 50ms scheduling slack. Advance past
+        // it: the panel flips to unavailable ON TIME.
+        now = now.add(const Duration(milliseconds: 1700));
+        await tester.pump(const Duration(milliseconds: 1700));
+        await tester.pump();
+        expect(
+            find.byKey(const Key('convert_estimate_live')), findsNothing);
+        expect(find.byKey(const Key('convert_estimate_unavailable')),
+            findsOneWidget);
+        final reason = tester
+            .widget<Text>(
+                find.byKey(const Key('convert_estimate_unavailable_reason')))
+            .data!;
+        expect(reason, contains('older than the 6.6s freshness window'),
+            reason: 'the disclosed window preserves its fractional '
+                'precision — never a rounded 7s');
+
+        // No zero-delay re-arm churn after the flip: the panel STAYS
+        // unavailable across subsequent frames.
+        for (var i = 0; i < 5; i++) {
+          now = now.add(const Duration(milliseconds: 100));
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byKey(const Key('convert_estimate_live')), findsNothing);
+        expect(find.byKey(const Key('convert_estimate_unavailable')),
+            findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'TIMER DISPOSAL — popping the screen with a pending expiry timer '
+      'triggers no post-dispose update or error',
+      (tester) async {
+        // A tight window arms the one-shot staleness re-check: the
+        // timer is pending from the moment the estimate renders.
+        var now = DateTime.now().toUtc();
+        final realNow = kConvertNow;
+        addTearDown(() => kConvertNow = realNow);
+        kConvertNow = () => now;
+
+        final fetchedAt = now;
+        final snap = FxRateSnapshot(
+          ghsPerUsdc: 12.5,
+          source: 'kotani-retail',
+          lastSync: fetchedAt,
+          fetchedAt: fetchedAt,
+          serverFresh: true,
+          lastExternalSync: fetchedAt.subtract(const Duration(seconds: 5)),
+          externalRateAgeSeconds: 5,
+          rateFreshnessMaxAgeSeconds: 6,
+        );
+
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pump(const Duration(milliseconds: 20));
+        await tester.pump();
+        expect(find.byKey(const Key('convert_estimate_live')), findsOneWidget,
+            reason: 'the estimate renders — the expiry timer is pending');
+
+        // The screen is popped with the timer still armed...
+        await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+        // ...and the clock runs far past the armed expiry.
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump();
+
+        expect(tester.takeException(), isNull,
+            reason: 'the disposed staleness timer must be cancelled — '
+                'never a post-dispose setState or framework error');
+        expect(find.byKey(const Key('convert_estimate_live')), findsNothing);
+      },
+    );
+
+    testWidgets(
       'CLOCK-SKEW EDGE — a tolerated future observation is disclosed as '
       "'just now', never a negative age",
       (tester) async {
