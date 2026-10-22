@@ -39,6 +39,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/home/wallet_pocket_surface.dart';
+import 'package:azaman/widgets/quiet_depth.dart';
 
 /// The deck's authoritative state.
 enum WalletDeckState { tucked, balanceOut, visaOut }
@@ -503,103 +504,111 @@ class WalletCardDeckState extends State<WalletCardDeck>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        GestureDetector(
-          // GESTURE ARBITRATION: the vertical drag exists ONLY to return an
-          // out card. While tucked the callbacks are NULL (not merely
-          // early-returning): with no recognizers registered the deck never
-          // enters the vertical-drag arena, so a drag over the tucked deck
-          // is won outright by Home's scrollable — the cards can never
-          // swallow a page scroll.
-          behavior: HitTestBehavior.opaque,
-          onVerticalDragStart: tucked ? null : _onDragStart,
-          onVerticalDragUpdate: tucked ? null : _onDragUpdate,
-          onVerticalDragEnd: tucked ? null : _onDragEnd,
-          child: SizedBox(
-            key: const ValueKey('wallet-deck-window'),
-            height: windowH,
-            width: double.infinity,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                // ── The two cards. PER-CARD semantics privacy: a card's
-                //    content is excluded from accessibility whenever THAT
-                //    card is covered — the balance card is covered in
-                //    tucked AND visaOut; the Visa card is covered in
-                //    tucked AND balanceOut. Only the selected, exposed
-                //    card publishes its content, so an obscured amount or
-                //    card face can never leak to a screen reader.
-                Stack(
-                  key: const ValueKey('wallet-deck-card-stack'),
-                  clipBehavior: Clip.none,
-                  // Z-ORDER: state-aware paint order. A Stack paints its
-                  // children in list order, so the SELECTED card is always
-                  // last in the list and therefore always paints over the
-                  // other. In visaOut the Visa card must render above the
-                  // concealed balance card — otherwise the balance card
-                  // (sliding down to its concealed pose) overlaps and
-                  // paints across the lower portion of the selected Visa
-                  // card before the pouch covers it, and the selection
-                  // reads as two broken half-cards instead of one complete
-                  // selected card. In tucked and balanceOut the physical
-                  // hierarchy is unchanged: balance is the foreground
-                  // card, with the Visa header exposed behind it.
-                  children: _state == WalletDeckState.visaOut
-                      ? [_balanceCardSlot(pose, h), _visaCardSlot(pose, h)]
-                      : [_visaCardSlot(pose, h), _balanceCardSlot(pose, h)],
-                ),
-                // ── Tucked balance hit-target: a TRANSPARENT tap +
-                //    semantics layer over the real card's exposed header
-                //    band (the card's own brand row — logo, "Azaman
-                //    Balance", public AZM ID — is what shows above the
-                //    pouch mouth; there is no separately painted header
-                //    to duplicate or obscure its corners). It exists only
-                //    while tucked so a header tap SELECTS the balance card
-                //    (and never flips the card beneath); once the card is
-                //    out, its own gestures own the surface.
-                if (tucked)
+        QuietDepthFocalSurface(
+          id: 'wallet-deck',
+          // Wake arbitration, exactly scoped to the deck window: the
+          // reveal tap and the return swipe are the deck's own gestures
+          // — the scope must not raise the secondary controls during
+          // their recognition. The deck-state callback remains the only
+          // path that makes the deck an ACTIVE focus region.
+          child: GestureDetector(
+            // GESTURE ARBITRATION: the vertical drag exists ONLY to return an
+            // out card. While tucked the callbacks are NULL (not merely
+            // early-returning): with no recognizers registered the deck never
+            // enters the vertical-drag arena, so a drag over the tucked deck
+            // is won outright by Home's scrollable — the cards can never
+            // swallow a page scroll.
+            behavior: HitTestBehavior.opaque,
+            onVerticalDragStart: tucked ? null : _onDragStart,
+            onVerticalDragUpdate: tucked ? null : _onDragUpdate,
+            onVerticalDragEnd: tucked ? null : _onDragEnd,
+            child: SizedBox(
+              key: const ValueKey('wallet-deck-window'),
+              height: windowH,
+              width: double.infinity,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // ── The two cards. PER-CARD semantics privacy: a card's
+                  //    content is excluded from accessibility whenever THAT
+                  //    card is covered — the balance card is covered in
+                  //    tucked AND visaOut; the Visa card is covered in
+                  //    tucked AND balanceOut. Only the selected, exposed
+                  //    card publishes its content, so an obscured amount or
+                  //    card face can never leak to a screen reader.
+                  Stack(
+                    key: const ValueKey('wallet-deck-card-stack'),
+                    clipBehavior: Clip.none,
+                    // Z-ORDER: state-aware paint order. A Stack paints its
+                    // children in list order, so the SELECTED card is always
+                    // last in the list and therefore always paints over the
+                    // other. In visaOut the Visa card must render above the
+                    // concealed balance card — otherwise the balance card
+                    // (sliding down to its concealed pose) overlaps and
+                    // paints across the lower portion of the selected Visa
+                    // card before the pouch covers it, and the selection
+                    // reads as two broken half-cards instead of one complete
+                    // selected card. In tucked and balanceOut the physical
+                    // hierarchy is unchanged: balance is the foreground
+                    // card, with the Visa header exposed behind it.
+                    children: _state == WalletDeckState.visaOut
+                        ? [_balanceCardSlot(pose, h), _visaCardSlot(pose, h)]
+                        : [_visaCardSlot(pose, h), _balanceCardSlot(pose, h)],
+                  ),
+                  // ── Tucked balance hit-target: a TRANSPARENT tap +
+                  //    semantics layer over the real card's exposed header
+                  //    band (the card's own brand row — logo, "Azaman
+                  //    Balance", public AZM ID — is what shows above the
+                  //    pouch mouth; there is no separately painted header
+                  //    to duplicate or obscure its corners). It exists only
+                  //    while tucked so a header tap SELECTS the balance card
+                  //    (and never flips the card beneath); once the card is
+                  //    out, its own gestures own the surface.
+                  if (tucked)
+                    Positioned(
+                      key: const ValueKey('wallet-tucked-balance-header'),
+                      top: _balanceSlot,
+                      left: 0,
+                      right: 0,
+                      height: balanceHeaderBand,
+                      child: _TuckedBalanceHitTarget(
+                        onTap: () => select(WalletDeckState.balanceOut),
+                      ),
+                    ),
+                  // ── The Visa strip selector: the Visa card's exposed
+                  //    header band while tucked.
+                  if (tucked)
+                    Positioned(
+                      key: const ValueKey('wallet-visa-strip'),
+                      top: _visaSlot,
+                      left: 0,
+                      right: 0,
+                      height: visaPeek,
+                      child: _VisaStripSelector(
+                        onTap: () => select(WalletDeckState.visaOut),
+                      ),
+                    ),
+                  // ── THE POUCH — topmost physical layer. Always opaque and
+                  //    always absorbs taps: concealed card content can never
+                  //    be pressed through it (audit §6).
                   Positioned(
-                    key: const ValueKey('wallet-tucked-balance-header'),
-                    top: _balanceSlot,
+                    key: const ValueKey('wallet-pouch-surface'),
+                    // 8px of headroom above the mouth so the painter's
+                    // contact shadow (cast up onto the cards) has room.
+                    top: pose.mouthY - 8,
                     left: 0,
                     right: 0,
-                    height: balanceHeaderBand,
-                    child: _TuckedBalanceHitTarget(
-                      onTap: () => select(WalletDeckState.balanceOut),
+                    bottom: 0,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      // A physical surface: taps on the pocket do nothing —
+                      // concealed card content can never be pressed through.
+                      onTap: () {},
+                      child: WalletPocketSurface(mouthY: 8, dark: dark),
                     ),
                   ),
-                // ── The Visa strip selector: the Visa card's exposed
-                //    header band while tucked.
-                if (tucked)
-                  Positioned(
-                    key: const ValueKey('wallet-visa-strip'),
-                    top: _visaSlot,
-                    left: 0,
-                    right: 0,
-                    height: visaPeek,
-                    child: _VisaStripSelector(
-                      onTap: () => select(WalletDeckState.visaOut),
-                    ),
-                  ),
-                // ── THE POUCH — topmost physical layer. Always opaque and
-                //    always absorbs taps: concealed card content can never
-                //    be pressed through it (audit §6).
-                Positioned(
-                  key: const ValueKey('wallet-pouch-surface'),
-                  // 8px of headroom above the mouth so the painter's
-                  // contact shadow (cast up onto the cards) has room.
-                  top: pose.mouthY - 8,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    // A physical surface: taps on the pocket do nothing —
-                    // concealed card content can never be pressed through.
-                    onTap: () {},
-                    child: WalletPocketSurface(mouthY: 8, dark: dark),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

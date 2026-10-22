@@ -613,12 +613,20 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
       top: _fan,
       left: 0,
       right: 0,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragStart: swipable ? _onDragStart : null,
-        onHorizontalDragUpdate: swipable ? _onDragUpdate : null,
-        onHorizontalDragEnd: swipable ? _onDragEnd : null,
-        child: _frontTransformed(
+      // QUIET DEPTH wake arbitration, exactly scoped to the swipe
+      // surface: a drag that starts here is the deck's own gesture, so
+      // the scope must not raise the secondary Home controls while the
+      // horizontal recognizer is still crossing its slop. Registration
+      // is geometry only — the deck's real interactions remain the only
+      // thing that makes it an active focus region (_enterReminderFocus).
+      child: QuietDepthFocalSurface(
+        id: 'reminder-deck',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: swipable ? _onDragStart : null,
+          onHorizontalDragUpdate: swipable ? _onDragUpdate : null,
+          onHorizontalDragEnd: swipable ? _onDragEnd : null,
+          child: _frontTransformed(
           HomeReminderTicketFace(
             card: frontData,
             colors: colors,
@@ -627,6 +635,7 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
           ),
           t,
           n,
+          ),
         ),
       ),
     );

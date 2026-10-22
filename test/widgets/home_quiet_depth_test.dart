@@ -884,4 +884,124 @@ void main() {
       expect(c[i].speed, a[i].speed);
     }
   });
+
+  testWidgets('21 — a swipe that STARTS on the reminder deck never '
+      'wake-flashes the secondary controls during drag recognition',
+      (tester) async {
+    await _pumpHome(
+      tester,
+      susu: [_activeSusu(DateTime(2026, 10, 26))],
+      intent: _cartIntent,
+    );
+    await _pumpIdleSettle(tester);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+
+    final scope = QuietDepthScope.of(
+      tester.element(find.byKey(_recessedKeys).first),
+    );
+
+    // The frame-by-frame repro the review asked for: the controls have
+    // FULLY settled recessed, then a swipe begins on the reminder card.
+    // Between pointer-down and the recognizer crossing its slop the OLD
+    // wake path raised the pills (a cross-fade that had to reverse as
+    // soon as the deck claimed focus). Now the deck is a registered
+    // focal surface: the suppressed wake means the raised backdrop must
+    // never mount at ANY intermediate frame.
+    final card = find.byKey(const ValueKey('reminder-card-susu-s1'));
+    final gesture = await tester.startGesture(tester.getCenter(card));
+
+    // Frame 1: pointer-down, nothing recognised yet.
+    await tester.pump();
+    expect(find.byKey(_raisedKeys), findsNothing);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+
+    // Frames 2-3: below slop, then past it — the drag claims the deck.
+    await gesture.moveBy(const Offset(8, 0));
+    await tester.pump();
+    expect(find.byKey(_raisedKeys), findsNothing);
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump();
+    expect(find.byKey(_raisedKeys), findsNothing);
+    expect(scope.activeFocusIds, <String>['reminder-deck']);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+
+    // The swipe still COMMITS: the flight completes, the front card
+    // departs and the deck retains its focus the whole way through.
+    // (The deck carries two real cards with the cart intent, so the
+    // full set takes two committed flights to view.)
+    await gesture.moveBy(const Offset(212, -20));
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    expect(scope.activeFocusIds, <String>['reminder-deck']);
+    expect(find.byKey(_raisedKeys), findsNothing);
+
+    // Second card, same suppression contract on its own frames.
+    final second = await tester.startGesture(
+      tester.getCenter(
+        find.byKey(const ValueKey('reminder-card-resume-biz-1')),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(_raisedKeys), findsNothing);
+    await second.moveBy(const Offset(48, 0));
+    await tester.pump();
+    expect(find.byKey(_raisedKeys), findsNothing);
+    await second.moveBy(const Offset(212, -20));
+    await second.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    // Every real card has now departed the front slot: the terminal
+    // appears, focus held the whole time, and the raised backdrop
+    // never mounted on ANY frame of either swipe.
+    expect(
+      find.byKey(const ValueKey('reminder-card-reminders-terminal')),
+      findsOneWidget,
+    );
+    expect(scope.activeFocusIds, <String>['reminder-deck']);
+    expect(find.byKey(_raisedKeys), findsNothing);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+    expect(tester.takeException(), isNull);
+    await _flush(tester);
+  });
+
+  testWidgets('22 — a touch that starts on the WALLET deck never '
+      'wake-flashes the secondary controls either', (tester) async {
+    await _pumpHome(
+      tester,
+      susu: [_activeSusu(DateTime(2026, 10, 26))],
+      intent: _cartIntent,
+    );
+    await _pumpIdleSettle(tester);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+
+    final scope = QuietDepthScope.of(
+      tester.element(find.byKey(_recessedKeys).first),
+    );
+
+    // The reveal tap starts ON the deck window: no raised backdrop may
+    // mount before the deck-state callback claims wallet focus.
+    await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
+    await tester.pump();
+    expect(find.byKey(_raisedKeys), findsNothing);
+    await _advance(tester);
+    expect(_deckState(tester), WalletDeckState.balanceOut);
+    expect(scope.activeFocusIds, <String>['wallet-deck']);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+    expect(find.byKey(_raisedKeys), findsNothing);
+
+    // The deck still works end-to-end with registration in place: the
+    // return swipe tucks the card, releases the LAST focus region and
+    // the controls rise — by the deck's own release, not a flash.
+    await tester.drag(find.byType(WalletCardDeck), const Offset(0, -90));
+    await _advance(tester);
+    expect(_deckState(tester), WalletDeckState.tucked);
+    expect(scope.activeFocusIds, isEmpty);
+    expect(find.byKey(_raisedKeys), findsWidgets);
+    expect(tester.takeException(), isNull);
+    await _flush(tester);
+  });
 }
