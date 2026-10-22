@@ -73,8 +73,35 @@ class AuthProvider with ChangeNotifier {
     super.dispose();
   }
 
+  /// IDENTITY BOUNDARIES (review follow-up) — every point where the
+  /// session identity ends or changes must clear the canonical balance
+  /// surface for the OLD identity: readiness back to `unresolved` (the
+  /// waiting indicator, never a stale figure), empty BalanceData, zero
+  /// USDC projection, and a bumped [balanceEpochProvider] so an in-flight
+  /// refresh started by the previous identity can no longer write
+  /// balance data, readiness, or a failure mark. The delta baseline in
+  /// the hologram card re-anchors automatically because it only keeps a
+  /// baseline while readiness is `loaded`.
+  void _resetBalanceStateForIdentityBoundary() {
+    ref?.read(balanceEpochProvider.notifier).state =
+        (ref?.read(balanceEpochProvider) ?? 0) + 1;
+    ref?.read(balanceReadinessProvider.notifier).state =
+        BalanceReadiness.unresolved;
+    ref?.read(balanceDataProvider.notifier).state = const BalanceData();
+    ref?.read(userUsdcBalanceProvider.notifier).state = 0.0;
+  }
+
   Future<AuthStatus> setSessionFromLogin(User loginUser) async {
+    // IDENTITY BOUNDARIES — a switch to a DIFFERENT user inside one app
+    // session must not let the new identity inherit (or briefly render)
+    // the previous user's confirmed balance. A SAME-identity call keeps
+    // the last confirmed figure so a transient refresh failure does not
+    // blank the card.
+    final previousIdentity = _user?.id;
     _user = loginUser;
+    if (previousIdentity != null && previousIdentity != loginUser.id) {
+      _resetBalanceStateForIdentityBoundary();
+    }
     _status = AuthStatus.loading;
     _error = null;
     _publish();
@@ -120,12 +147,22 @@ class AuthProvider with ChangeNotifier {
         disputeEscrowBalance: _user!.disputeEscrowBalance,
         azmBalance: _user!.azmBalance,
       );
+      // WORKSTREAM B — the login payload carries server-confirmed
+      // balances, so this is an authoritative hydration point too: the
+      // card may print the figure (a genuine zero included) instead of
+      // the unresolved waiting indicator.
+      ref
+          ?.read(balanceReadinessProvider.notifier)
+          .state = BalanceReadiness.loaded;
     } on ApiException catch (e) {
       if (generation != _hydrationGeneration) return;
       if (e.statusCode == 404) {
         debugPrint('[Auth] Profile not found in DB — forcing setup flow.');
         await _api.clearAuthData();
         _user = null;
+        // IDENTITY BOUNDARIES — the profile no longer exists; its
+        // confirmed balance is no longer renderable.
+        _resetBalanceStateForIdentityBoundary();
         _status = AuthStatus.profileNotFound;
         AuthGuard.isAuthenticated = false;
         _error = 'Profile not found. Please complete registration.';
@@ -133,6 +170,8 @@ class AuthProvider with ChangeNotifier {
         debugPrint('[Auth] JWT rejected — clearing session.');
         await _api.clearAuthData();
         _user = null;
+        // IDENTITY BOUNDARIES — the session identity is dead.
+        _resetBalanceStateForIdentityBoundary();
         _status = AuthStatus.unauthenticated;
         AuthGuard.isAuthenticated = false;
         _error = 'Session expired. Please log in again.';
@@ -166,6 +205,21 @@ class AuthProvider with ChangeNotifier {
     final ok = await _api.isAuthenticated();
     if (!ok) {
       _user = null;
+      // IDENTITY BOUNDARIES — the stored identity no longer checks out
+      // (token/user gone, or the check request itself failed and
+      // isAuthenticated returned false). This is a session end: the
+      // balance surface must reset and the epoch must bump, because a
+      // later setSessionFromLogin finds `_user == null` and its
+      // different-user guard will NOT reset — a new user whose hydration
+      // fails must never render this user's confirmed figure.
+      _resetBalanceStateForIdentityBoundary();
+      // SESSION BOUNDARY RACE — a profile hydration started before this
+      // boundary (same or previous user) may still be in flight; its
+      // generation must be invalidated here so a late /auth/me response
+      // cannot restore the cleared user, flip the session back to
+      // authenticated, or write the old profile's balances/readiness
+      // after the identity has ended.
+      _hydrationGeneration++;
       _status = AuthStatus.unauthenticated;
       AuthGuard.isAuthenticated = false;
       _publish();
@@ -177,6 +231,10 @@ class AuthProvider with ChangeNotifier {
     _hydrationGeneration++;
     await _api.logout();
     _user = null;
+    // IDENTITY BOUNDARIES — logout ends the session identity: the next
+    // session must start from `unresolved`, never the previous user's
+    // figure.
+    _resetBalanceStateForIdentityBoundary();
     _status = AuthStatus.unauthenticated;
     AuthGuard.isAuthenticated = false;
     _error = null;

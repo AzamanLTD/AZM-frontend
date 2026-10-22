@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:azaman/providers/currency_provider.dart' show parseFxRateSnapshot;
 import 'package:azaman/services/oracle_rates_client.dart';
@@ -59,23 +60,91 @@ class BalanceData {
 }
 
 final balanceDataProvider = StateProvider<BalanceData>((ref) => const BalanceData());
+
+/// WORKSTREAM B — an explicit hydration state for the canonical balance.
+/// The provider's default [BalanceData] is all zeros, and a default object
+/// with 0.00 values is NOT evidence that the server confirmed a zero
+/// balance. Until an authoritative fetch completes, the amount slot must
+/// not print a number at all.
+///
+/// * [unresolved] — no authoritative balance has arrived yet (initial
+///   state; the amount slot shows the waiting indicator, never "0.00").
+/// * [loaded] — the server confirmed a balance, INCLUDING a genuine zero.
+/// * [failed] — the request failed and NO usable value has ever been
+///   loaded. A failure AFTER a successful load keeps [loaded]: the last
+///   confirmed figure is still the honest number, and a later refresh
+///   can update it.
+enum BalanceReadiness { unresolved, loaded, failed }
+
+/// The canonical balance readiness, driven by [refreshCanonicalBalance]
+/// and the login-path balance seeding in auth_provider.
+final balanceReadinessProvider =
+    StateProvider<BalanceReadiness>((ref) => BalanceReadiness.unresolved);
 final userUsdcBalanceProvider = StateProvider<double>((ref) => 0.0);
 
+/// IDENTITY BOUNDARIES (review follow-up) — an in-flight balance refresh
+/// belongs to the session identity that started it. AuthProvider bumps
+/// this epoch at every identity boundary (logout, invalid-profile
+/// teardown, user switch). A refresh captured under a stale epoch must
+/// not write balance data, readiness, or a failure mark for the new
+/// identity: "preserve the last confirmed balance on refresh failure"
+/// holds ONLY for the same identity.
+final balanceEpochProvider = StateProvider<int>((ref) => 0);
+
+/// Test seam: lets integration tests stub the network without hitting a
+/// real endpoint. Production code never sets it.
+@visibleForTesting
+http.Client? balanceRefreshClientOverride;
+
 Future<void>? _balanceRefreshFuture;
+// IDENTITY BOUNDARIES — the single-flight slot belongs to the identity
+// (epoch) that started the in-flight refresh. A NEW epoch may always
+// start its own refresh instead of joining the previous identity's
+// pending future: the stale-response guard would correctly discard that
+// old response, but the new identity's request would then never run
+// from this call.
+int _balanceRefreshEpoch = -1;
 
 Future<void> refreshCanonicalBalance(dynamic ref) {
+  // Capture the epoch at entry so coalescing is identity-scoped AND the
+  // attempt below belongs to the identity that initiated it.
+  final epoch = ref.read(balanceEpochProvider);
   final existing = _balanceRefreshFuture;
-  if (existing != null) return existing;
+  if (existing != null && _balanceRefreshEpoch == epoch) return existing;
 
   final future = () async {
     if (AppConfig.demoMode) return;
+    // IDENTITY BOUNDARIES — this attempt belongs to [epoch]; a response
+    // landing after the epoch moved belongs to a different identity.
+    bool isStale() => ref.read(balanceEpochProvider) != epoch;
+    // WORKSTREAM B — an early return or thrown error means no balance came
+    // back from this attempt. That is only a FAILURE if nothing usable has
+    // ever loaded; after a successful load the last confirmed figure stays
+    // authoritative and readiness remains `loaded`.
+    void markFailed() {
+      if (isStale()) return; // never write failure for another identity
+      final notifier = ref.read(balanceReadinessProvider.notifier);
+      if (notifier.state != BalanceReadiness.loaded) {
+        notifier.state = BalanceReadiness.failed;
+      }
+    }
+
     try {
       const storage = FlutterSecureStorage();
       final token = await storage.read(key: 'auth_token');
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        markFailed();
+        return;
+      }
 
-      final response = await http
-          .get(
+      // Resource lifecycle — production must not own a client here:
+      // package:http's top-level get() opens and closes a one-shot
+      // client per request, so nothing leaks across realtime/
+      // foreground refreshes. The test override stays under TEST
+      // ownership: this code never creates (and so never needs to
+      // close) the injected client.
+      final response = await (balanceRefreshClientOverride != null
+          ? balanceRefreshClientOverride!.get(
             Uri.parse('${AppConfig.apiUrl}/users/balance'),
             headers: {
               'Content-Type': 'application/json',
@@ -83,26 +152,52 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
               'Authorization': 'Bearer $token',
             },
           )
+          : http.get(
+            Uri.parse('${AppConfig.apiUrl}/users/balance'),
+            headers: {
+              'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true',
+              'Authorization': 'Bearer $token',
+            },
+          ))
           .timeout(AppConfig.requestTimeout);
-      if (response.statusCode < 200 || response.statusCode >= 300) return;
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        markFailed();
+        return;
+      }
 
       final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic>) return;
+      if (decoded is! Map<String, dynamic>) {
+        markFailed();
+        return;
+      }
       final rawData = decoded['data'];
-      if (rawData is! Map<String, dynamic>) return;
+      if (rawData is! Map<String, dynamic>) {
+        markFailed();
+        return;
+      }
 
       final balances = BalanceData.fromJson(rawData);
+      if (isStale()) return; // never write data for another identity
       ref.read(balanceDataProvider.notifier).state = balances;
       ref.read(userUsdcBalanceProvider.notifier).state = balances.totalBalance;
+      // The server has confirmed a balance — a genuine 0.00 included.
+      ref.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.loaded;
     } catch (_) {
       // Realtime convergence is best-effort. Keep the last known canonical
       // balance and let the next event or foreground refresh retry.
+      markFailed();
     }
   }();
 
   _balanceRefreshFuture = future;
+  _balanceRefreshEpoch = epoch;
   return future.whenComplete(() {
-    if (identical(_balanceRefreshFuture, future)) _balanceRefreshFuture = null;
+    if (identical(_balanceRefreshFuture, future)) {
+      _balanceRefreshFuture = null;
+      _balanceRefreshEpoch = -1;
+    }
   });
 }
 
