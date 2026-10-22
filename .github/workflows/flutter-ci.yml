@@ -5,6 +5,12 @@ on:
     branches: [main]
   merge_group:
   workflow_dispatch:
+    inputs:
+      update_goldens:
+        description: 'Regenerate the native_amount goldens on this runner and upload them as an artifact (the runner image glyph rasterisation differs from dev machines — goldens must be regenerated ON CI, never locally)'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -45,7 +51,19 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Test with coverage
+        if: ${{ !inputs.update_goldens }}
         run: flutter test --coverage
+
+      - name: Regenerate native_amount goldens on the runner
+        if: ${{ inputs.update_goldens }}
+        run: flutter test --update-goldens test/widgets/native_amount_captures_test.dart
+
+      - name: Upload regenerated goldens
+        if: ${{ inputs.update_goldens }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-amount-goldens
+          path: test/goldens/native_amount/
 
       - name: Upload coverage
         if: always()
