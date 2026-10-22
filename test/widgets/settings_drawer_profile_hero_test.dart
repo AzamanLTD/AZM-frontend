@@ -23,7 +23,6 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/accounts_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:azaman/widgets/qr_profile_popup.dart';

@@ -475,5 +475,102 @@ void main() {
         expect(prefs.getKeys(), isEmpty);
       },
     );
+
+    testWidgets(
+      'FRESHNESS EDGE — a usable estimate EXPIRES HONESTLY while the '
+      'screen stays open',
+      (tester) async {
+        // Tight window: the observation was made 5s ago and is only
+        // considered fresh for 6s — it lapses ~1s after the screen has
+        // fully rendered and is sitting idle.
+        final snap = FxRateSnapshot(
+          ghsPerUsdc: 12.5,
+          source: 'kotani-retail',
+          lastSync: DateTime.now().toUtc(),
+          fetchedAt: DateTime.now().toUtc(),
+          serverFresh: true,
+          lastExternalSync:
+              DateTime.now().toUtc().subtract(const Duration(seconds: 5)),
+          externalRateAgeSeconds: 5,
+          rateFreshnessMaxAgeSeconds: 6,
+        );
+
+        // The screen's freshness verdicts derive from kConvertNow, so
+        // the test OWNS the wall clock: the observation ages only when
+        // this test advances it, exactly as the device clock would.
+        var now = DateTime.now().toUtc();
+        final realNow = kConvertNow;
+        addTearDown(() => kConvertNow = realNow);
+        kConvertNow = () => now;
+
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pump(const Duration(milliseconds: 20));
+        await tester.pump();
+        expect(find.byKey(const Key('convert_estimate_live')), findsOneWidget,
+            reason: 'the estimate is live while the observation is fresh');
+
+        // The screen stays open with no interaction. 1.3s passes: the
+        // clock advances past the 6s window and the one-shot staleness
+        // re-check fires (fake timers advance with the pump). The clock
+        // moves FIRST so the rebuild the timer triggers already sees
+        // the expired observation.
+        now = now.add(const Duration(milliseconds: 1300));
+        await tester.pump(const Duration(milliseconds: 1300));
+        await tester.pump();
+
+        // The panel stops LOOKING fresh at the moment the observation
+        // expires — the honest unavailable state with the real reason,
+        // never a stale number dressed up as a live estimate.
+        expect(find.byKey(const Key('convert_estimate_live')), findsNothing);
+        expect(
+            find.byKey(const Key('convert_estimate_unavailable')),
+            findsOneWidget);
+        expect(
+          find.byKey(const Key('convert_estimate_unavailable_reason')).last,
+          isNotNull,
+        );
+        final reason = tester
+            .widget<Text>(
+                find.byKey(const Key('convert_estimate_unavailable_reason')))
+            .data!;
+        expect(reason, contains('older than the 6s freshness window'),
+            reason: 'the disclosed reason names the lapsed window');
+      },
+    );
+
+    testWidgets(
+      'CLOCK-SKEW EDGE — a tolerated future observation is disclosed as '
+      "'just now', never a negative age",
+      (tester) async {
+        // The observation timestamp sits 2s in the FUTURE — inside the
+        // model's 5s clock-skew allowance, so the rate is usable.
+        final snap = FxRateSnapshot(
+          ghsPerUsdc: 12.5,
+          source: 'kotani-retail',
+          lastSync: DateTime.now().toUtc(),
+          fetchedAt: DateTime.now().toUtc(),
+          serverFresh: true,
+          lastExternalSync:
+              DateTime.now().toUtc().add(const Duration(seconds: 2)),
+          externalRateAgeSeconds: 0,
+          rateFreshnessMaxAgeSeconds: 300,
+        );
+
+        await tester.pumpWidget(_convertHarness(snapshot: snap));
+        await tester.pump(const Duration(milliseconds: 20));
+        await tester.pump();
+
+        expect(find.byKey(const Key('convert_estimate_live')), findsOneWidget);
+        final disclosure = tester
+            .widget<Text>(
+                find.byKey(const Key('convert_estimate_source_disclosure')))
+            .data!;
+        expect(disclosure, contains('just now'),
+            reason: 'a tolerated future observation reads as fresh, never '
+                'as a negative age');
+        expect(RegExp(r'-\d+s? ago| -').hasMatch(disclosure), isFalse,
+            reason: 'no negative "seconds ago" may appear anywhere');
+      },
+    );
   });
 }

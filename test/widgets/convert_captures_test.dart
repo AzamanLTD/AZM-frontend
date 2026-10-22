@@ -22,7 +22,6 @@
 // =============================================================================
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -115,7 +114,7 @@ Future<void> _pumpSubject(
         home: Builder(
           builder: (context) => MediaQuery(
             data: MediaQuery.of(context).copyWith(disableAnimations: true),
-            child: RepaintBoundary(child: const ConvertScreen()),
+            child: const RepaintBoundary(child: ConvertScreen()),
           ),
         ),
       ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,6 +30,14 @@ const bool kConvertExecutionSupported = false;
 /// a verified conversion contract may flip it.
 bool get convertExecutionAvailable => kConvertExecutionSupported;
 
+/// The wall clock this screen's freshness verdicts derive from.
+/// Production uses the device clock. Tests substitute a controllable
+/// clock so a rate can be made to AGE (and expire) deterministically —
+/// the same seam pattern as debugDefaultTargetPlatformOverride. Every
+/// freshness computation on this screen goes through it: the estimate
+/// verdict, the staleness re-arm and the disclosed ages.
+DateTime Function() kConvertNow = () => DateTime.now().toUtc();
+
 /// The Convert screen shell.
 ///
 /// Truthful by construction:
@@ -53,10 +63,48 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
   // provider and never mutates anything.
   final TextEditingController _amountCtrl = TextEditingController();
 
+  // FRESHNESS EDGE — a nonbinding estimate must not keep LOOKING fresh
+  // after its observation window has lapsed. The estimate panel's
+  // verdict is computed against the CURRENT clock, but nothing rebuilds
+  // while the screen sits open, so a screen that outlives its rate's
+  // freshness window would keep rendering the live panel. This one-shot
+  // timer fires at the snapshot's own staleAt (+50ms scheduling slack)
+  // and forces a re-evaluation, flipping the panel to the honest
+  // unavailable state at the moment the observation expires. No polling:
+  // exactly one armed timer per usable snapshot; disarmed whenever there
+  // is nothing left to expire; cancelled on dispose.
+  Timer? _stalenessTimer;
+  DateTime? _stalenessArmedFor;
+
   @override
   void dispose() {
+    _stalenessTimer?.cancel();
     _amountCtrl.dispose();
     super.dispose();
+  }
+
+  /// Arms/keeps the one-shot staleness re-check for [snap]. Idempotent
+  /// per distinct expiry moment so rebuilds never stack timers.
+  void _armStalenessRecheck(FxRateSnapshot? snap) {
+    final staleAt = snap?.staleAt;
+    if (snap == null || staleAt == null || !snap.isUsableAt(kConvertNow())) {
+      _stalenessTimer?.cancel();
+      _stalenessTimer = null;
+      _stalenessArmedFor = null;
+      return;
+    }
+    if (_stalenessTimer != null && _stalenessArmedFor == staleAt) return;
+    _stalenessTimer?.cancel();
+    _stalenessArmedFor = staleAt;
+    final delay = staleAt.difference(kConvertNow()) +
+        const Duration(milliseconds: 50);
+    _stalenessTimer = Timer(
+      delay.isNegative ? Duration.zero : delay,
+      () {
+        _stalenessArmedFor = null;
+        if (mounted) setState(() {});
+      },
+    );
   }
 
   @override
@@ -64,6 +112,8 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final snapshot = ref.watch(fxRateProvider);
+
+    _armStalenessRecheck(snapshot.valueOrNull);
 
     return PullDownDismissibleSurface(
       // §6: Convert is a transient surface like Receive — a committed
@@ -189,7 +239,11 @@ class _EstimateCard extends StatelessWidget {
     }
 
     final snap = snapshot;
-    if (snap == null || !snap.isUsable) {
+    // The verdict is evaluated against the CURRENT clock on every
+    // build — combined with the staleness re-arm timer above, an
+    // observation that expires while the screen is open flips this
+    // panel the moment its window lapses.
+    if (snap == null || !snap.isUsableAt(kConvertNow())) {
       // Honest unavailable state: no rate, no estimate. Never a stale
       // number dressed up as a quote — and the REASON is disclosed so
       // the user can tell a missing fact from a stale one.
@@ -208,7 +262,7 @@ class _EstimateCard extends StatelessWidget {
     // RATE-SOURCE + FRESHNESS DISCLOSURE — the observation age derives
     // from the LAST EXTERNAL SYNC (the server's market observation), never
     // from `fetchedAt` (when this client merely received the response).
-    final age = DateTime.now().toUtc().difference(snap.lastExternalSync!);
+    final age = kConvertNow().difference(snap.lastExternalSync!);
 
     return _Panel(
       panelKey: const Key('convert_estimate_live'),
@@ -274,10 +328,13 @@ class _EstimateCard extends StatelessWidget {
         snap.rateFreshnessMaxAgeSeconds <= 0) {
       return 'the freshness window is missing or invalid';
     }
-    final ageSeconds = DateTime.now()
-            .toUtc()
-            .difference(snap.lastExternalSync!)
-            .inSeconds;
+    // Float seconds — the exact precision of isUsableAt, so the
+    // disclosed reason can never disagree with the verdict near a
+    // window boundary (a 6.3s-old observation is NOT 'still fresh').
+    final ageSeconds = kConvertNow()
+        .difference(snap.lastExternalSync!)
+        .inMilliseconds /
+        1000.0;
     if (ageSeconds < -FxRateSnapshot.clockSkewAllowance.inSeconds) {
       return 'the observation timestamp contradicts the device clock '
           '(it claims to be in the future)';
@@ -295,6 +352,11 @@ class _EstimateCard extends StatelessWidget {
   }
 
   static String _describeAge(Duration age) {
+    // CLOCK-SKEW EDGE — an observation timestamp a few seconds in the
+    // future is tolerated by the model (within its skew allowance), so
+    // the age can be NEGATIVE here. It is a fresh observation, never a
+    // "-3s ago" disclosure.
+    if (age <= Duration.zero) return 'just now';
     if (age.inSeconds < 60) return '${age.inSeconds}s ago';
     if (age.inMinutes < 60) return '${age.inMinutes} min ago';
     return '${age.inHours}h ago';
@@ -331,7 +393,7 @@ class _AmountPanel extends StatelessWidget {
 
   Widget _build(BuildContext context, String raw) {
     final colors = Theme.of(context).colorScheme;
-    final rate = (snapshot != null && snapshot!.isUsable)
+    final rate = (snapshot != null && snapshot!.isUsableAt(kConvertNow()))
         ? snapshot!.ghsPerUsdc
         : null;
     final amount = double.tryParse(raw.trim());
