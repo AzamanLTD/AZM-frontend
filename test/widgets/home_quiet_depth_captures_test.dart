@@ -98,10 +98,14 @@ Future<void> _loadFonts() async {
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
   await _loadFace(
       'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
-  await _loadFace(
-      'HugeIconsSolid', 'test/goldens/fonts/hugeicons-solid.ttf');
-  await _loadFace(
-      'HugeIconsStroke', 'test/goldens/fonts/hugeicons-stroke.ttf');
+  // Package icons (IconData(fontFamily: 'HugeIconsSolid',
+  // fontPackage: 'hugeicons_pro')) resolve through the engine under the
+  // PACKAGE-QUALIFIED family key. Registering the bare name left every
+  // HugeIcons glyph unresolved → tofu squares in the captures.
+  await _loadFace('packages/hugeicons_pro/HugeIconsSolid',
+      'test/goldens/fonts/hugeicons-solid.ttf');
+  await _loadFace('packages/hugeicons_pro/HugeIconsStroke',
+      'test/goldens/fonts/hugeicons-stroke.ttf');
   await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
   _fontsLoaded = true;
 }
@@ -296,12 +300,37 @@ Future<ProviderContainer> _pumpHome(
             textScaler: TextScaler.linear(textScale),
             disableAnimations: reduceMotion,
           ),
-          child: const Scaffold(
-            backgroundColor: Colors.transparent,
-            body: RepaintBoundary(
-              key: _rootKey,
-              child: AzamanHomePage(),
-            ),
+          // OPAQUE themed background — capture-evidence contract fix.
+          //
+          // The production app mounts AzamanHomePage on main.dart's
+          // Scaffold, which paints colors.surface. This harness
+          // previously used Colors.transparent, so every semi-transparent
+          // paint (the Quiet Depth glass pills) composited over a CLEAR
+          // buffer: the committed PNGs were ~60% alpha<128 pixels. On a
+          // white viewer background (GitHub's PR review) those read as
+          // WHITE pills with invisible labels — a pure harness artifact,
+          // not the product's rendering. The Scaffold must paint the
+          // same opaque surface production paints.
+          child: Consumer(
+            builder: (context, ref, _) {
+              final surface =
+                  ref.watch(themeProvider.select((t) => t.colors.surface));
+              return Scaffold(
+                backgroundColor: surface,
+                body: RepaintBoundary(
+                  key: _rootKey,
+                  // The opaque surface must be INSIDE the captured
+                  // boundary: toImage() rasterises only this subtree,
+                  // so a Scaffold-level background never reaches the
+                  // PNG and semi-transparent paints composite over
+                  // nothing again.
+                  child: ColoredBox(
+                    color: surface,
+                    child: const AzamanHomePage(),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
