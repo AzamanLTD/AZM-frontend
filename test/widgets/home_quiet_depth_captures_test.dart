@@ -348,11 +348,155 @@ Future<ProviderContainer> _pumpHome(
 
 const _rootKey = ValueKey('qd-capture-root');
 
+// ─────────────────────────────────────────────────────────────────────────
+// PIXEL-TRUTH REGRESSION ASSERTIONS (review finding on #184: widget
+// presence alone proved nothing — the committed evidence once showed
+// white-on-white pills and tofu icons while every widget check passed).
+//
+// The two regression classes this guards against, both taken from the
+// real failure history of this very suite:
+//
+//   1. TRANSPARENT-BUFFER CAPTURES: the opaque surface must reach the
+//      rasterised pixels. Every pixel of every capture must be opaque
+//      (alpha == 255). The original defect composited 5% glass over a
+//      clear buffer → white pills on a white viewer.
+//   2. TOFU / BLANK CONTENT: a real filled glyph has gold pixels INSIDE
+//      its bounding box; a missing-font tofu square is a hollow outline
+//      (inner gold == 0). Real labels produce multiple text-coloured
+//      runs along their row; a blank or bar-shaped placeholder does not.
+// ─────────────────────────────────────────────────────────────────────────
+
+const _goldR = 140, _goldG = 90, _goldB = 110;
+
+bool _isGold(int r, int g, int b) => r > _goldR && g > _goldG && b < _goldB;
+
+/// Asserts every pixel of the capture is fully opaque.
+void _expectOpaque(String name, Uint8List rgba, int width, int height) {
+  for (var i = 3; i < rgba.length; i += 4) {
+    if (rgba[i] != 0xFF) {
+      fail('$name: capture has non-opaque pixels (alpha=${rgba[i]} at '
+          'offset $i). The themed surface must be composited INSIDE the '
+          'captured boundary — a transparent capture reads as white pills '
+          'on a white viewer (the original #184 evidence defect).');
+    }
+  }
+}
+
+/// The three quick-action pill rects (Save / P2P / Susu) in IMAGE pixel
+/// coordinates (rasterised at pixelRatio 2.0). The depth-state key sits
+/// on each pill's backdrop, which is Positioned.fill of the pill's own
+/// stack, so its rect IS the pill.
+List<Rect> _pillRects(WidgetTester tester) {
+  var f = find.byKey(const ValueKey('quiet-depth-raised'));
+  if (!tester.any(f)) {
+    f = find.byKey(const ValueKey('quiet-depth-recessed'));
+  }
+  expect(f, findsExactly(3), reason: 'the three quick-action pills');
+  final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
+  final origin = boundary.localToGlobal(Offset.zero);
+  // logical → image pixels: translate to the boundary's frame, then
+  // scale by the raster pixelRatio (2.0).
+  Rect toImagePx(Rect r) => Rect.fromLTWH(
+        (r.left - origin.dx) * 2.0,
+        (r.top - origin.dy) * 2.0,
+        r.width * 2.0,
+        r.height * 2.0,
+      );
+  return [for (var i = 0; i < 3; i++) toImagePx(tester.getRect(f.at(i)))];
+}
+
+/// Asserts each pill renders a real icon glyph and a real label:
+/// per pill — filled-gold interior (tofu is hollow: 0 inner pixels),
+/// a minimum gold body, and text-coloured pixels forming >= 2 runs.
+void _expectRealGlyphsAndLabels(
+  String name,
+  Uint8List rgba,
+  int width,
+  Rect pillRect, {
+  required bool lightLabels,
+}) {
+  final px0 = pillRect.left.round(), py0 = pillRect.top.round();
+  final px1 = pillRect.right.round(), py1 = pillRect.bottom.round();
+
+  bool isLabelPx(int r, int g, int b) => lightLabels
+      ? (r < 80 && g < 80 && b < 80) // dark text on the light surface
+      : (r > 190 && g > 190 && b > 190); // white text on the dark glass
+
+  var gold = 0, labelPx = 0;
+  var gx0 = -1, gy0 = -1, gx1 = -1, gy1 = -1;
+  final labelRows = <int, int>{}; // row → label pixel count
+  for (var y = py0; y < py1 && y >= 0 && y * width < rgba.length; y++) {
+    for (var x = px0; x < px1; x++) {
+      final i = (y * width + x) * 4;
+      final r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+      if (_isGold(r, g, b)) {
+        gold++;
+        if (gx0 < 0 || x < gx0) gx0 = x;
+        if (gy0 < 0 || y < gy0) gy0 = y;
+        if (x > gx1) gx1 = x;
+        if (y > gy1) gy1 = y;
+      } else if (isLabelPx(r, g, b)) {
+        labelPx++;
+        labelRows[y] = (labelRows[y] ?? 0) + 1;
+      }
+    }
+  }
+  final which = '$name pill [${pillRect.left.round()}]';
+  expect(gold, greaterThan(200),
+      reason: '$which: no real icon glyph rendered (gold pixels: $gold). '
+          'A missing icon font falls back to tofu.');
+  expect(gx0, greaterThanOrEqualTo(0), reason: '$which: no gold pixels');
+
+  // Hollow-tofu discriminator: gold inside the shrunken glyph bbox.
+  var inner = 0;
+  final ix0 = gx0 + (gx1 - gx0) ~/ 4, ix1 = gx1 - (gx1 - gx0) ~/ 4;
+  final iy0 = gy0 + (gy1 - gy0) ~/ 4, iy1 = gy1 - (gy1 - gy0) ~/ 4;
+  for (var y = iy0; y <= iy1; y++) {
+    for (var x = ix0; x <= ix1; x++) {
+      final i = (y * width + x) * 4;
+      if (_isGold(rgba[i], rgba[i + 1], rgba[i + 2])) inner++;
+    }
+  }
+  expect(inner, greaterThan(60),
+      reason: '$which: icon glyph is HOLLOW (inner gold: $inner) — this is '
+          'the tofu-square signature (hollow outline, 0 inner pixels). The '
+          'package-qualified HugeIcons families must be registered.');
+
+  // Label truth: enough text pixels AND separated runs (a bar is 1 run,
+  // a blank label is 0 pixels).
+  expect(labelPx, greaterThan(120),
+      reason: '$which: label is blank (text pixels: $labelPx)');
+  var bestRow = labelRows.entries.reduce((a, b) => a.value >= b.value ? a : b);
+  var runs = 0;
+  var prevIn = false;
+  for (var x = px0; x < px1; x++) {
+    final i = (bestRow.key * width + x) * 4;
+    final inRun = isLabelPx(rgba[i], rgba[i + 1], rgba[i + 2]);
+    if (inRun && !prevIn) runs++;
+    prevIn = inRun;
+  }
+  expect(runs, greaterThan(1),
+      reason: '$which: label row has $runs text run(s) — real type has '
+          'letter gaps; a single contiguous bar is the missing-font '
+          'placeholder signature.');
+}
+
 /// Captures the RepaintBoundary around the Home page to a PNG on disk.
-Future<void> _capture(WidgetTester tester, String name) async {
+/// With [verifyPills] the capture is ALSO pixel-verified (the three
+/// quick-action pills must show real gold glyphs and real labels) and
+/// every pixel must be opaque.
+Future<void> _capture(
+  WidgetTester tester,
+  String name, {
+  bool verifyPills = false,
+  bool lightLabels = false,
+}) async {
   var ok = false;
   await tester.runAsync(() async {
     final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
+    // Rects are read BEFORE the rasterisation awaits: the tree stays
+    // settled here, but reads are cheap to hoist.
+    final rects = verifyPills ? _pillRects(tester) : const <Rect>[];
     final image = await boundary.toImage(pixelRatio: 2.0);
     final data = (await image.toByteData(format: ImageByteFormat.png))!;
     final dir = Directory('.screenshots/quiet_depth')
@@ -360,6 +504,16 @@ Future<void> _capture(WidgetTester tester, String name) async {
     final file = File('${dir.path}/$name.png');
     await file.writeAsBytes(data.buffer.asUint8List());
     ok = file.lengthSync() > 1000;
+    if (verifyPills) {
+      final rgba = (await image.toByteData(format: ImageByteFormat.rawRgba))!
+          .buffer
+          .asUint8List();
+      _expectOpaque(name, rgba, image.width, image.height);
+      for (final r in rects) {
+        _expectRealGlyphsAndLabels(name, rgba, image.width, r,
+            lightLabels: lightLabels);
+      }
+    }
   });
   expect(ok, isTrue, reason: '$name.png must contain real image bytes');
 }
@@ -382,7 +536,7 @@ void main() {
     );
     _expectConfirmedBalance();
     expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
-    await _capture(tester, 'qd_dark_resting_raised_390');
+    await _capture(tester, 'qd_dark_resting_raised_390', verifyPills: true);
 
     // Sequential pumps (a single pump(d) runs ONE frame at its end, which
     // would freeze the depth fade at its first tick).
@@ -390,7 +544,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 80));
     expect(find.byKey(const ValueKey('quiet-depth-recessed')), findsWidgets);
-    await _capture(tester, 'qd_dark_recessed_390');
+    await _capture(tester, 'qd_dark_recessed_390', verifyPills: true);
 
     await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
     await _advance(tester);
@@ -449,7 +603,7 @@ void main() {
     );
     _expectConfirmedBalance();
     expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
-    await _capture(tester, 'qd_light_resting_raised_390');
+    await _capture(tester, 'qd_light_resting_raised_390', verifyPills: true, lightLabels: true);
 
     // Sequential pumps (a single pump(d) runs ONE frame at its end, which
     // would freeze the depth fade at its first tick).
@@ -457,7 +611,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 80));
     expect(find.byKey(const ValueKey('quiet-depth-recessed')), findsWidgets);
-    await _capture(tester, 'qd_light_recessed_390');
+    await _capture(tester, 'qd_light_recessed_390', verifyPills: true, lightLabels: true);
 
     await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
     await _advance(tester);
@@ -481,7 +635,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 80));
       _expectConfirmedBalance();
       expect(find.byKey(const ValueKey('quiet-depth-recessed')), findsWidgets);
-      await _capture(tester, 'qd_dark_recessed_${w.toInt()}');
+      await _capture(tester, 'qd_dark_recessed_${w.toInt()}', verifyPills: true);
       await _flush(tester);
     }
   });
