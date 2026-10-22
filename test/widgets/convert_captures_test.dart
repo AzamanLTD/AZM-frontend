@@ -34,6 +34,7 @@ import 'package:azaman/providers/currency_provider.dart'
     show FxRateSnapshot, fxRateProvider;
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/wallet/convert_screen.dart';
+import 'package:azaman/theme/az_text.dart';
 
 bool _fontsLoaded = false;
 const _storageChannel = MethodChannel(
@@ -150,6 +151,22 @@ void main() {
         // The contract the goldens must visibly preserve: a labelled
         // NONBINDING estimate, a disclosed source, and a DISABLED CTA.
         expect(find.byKey(const Key('convert_estimate_rate')), findsOneWidget);
+        // GLYPH CONTRACT — the rate line carries U+2248 (≈) and the
+        // estimate carries U+20B5 (₵). The UI family (Comic Neue) ships
+        // NEITHER glyph (tofu boxes in the committed captures); the
+        // numeric family (Inter) ships both. The estimate lines are money
+        // figures and MUST render in the numeric family — asserting the
+        // style pins the glyph source for every capture.
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('convert_estimate_rate')))
+              .style!
+              .fontFamily,
+          AzText.numericFamily,
+          reason:
+              'the ≈ glyph must come from a family that ships it — the UI '
+              'family renders it as a missing-glyph box',
+        );
         expect(
           find.byKey(const Key('convert_estimate_source_disclosure')),
           findsOneWidget,

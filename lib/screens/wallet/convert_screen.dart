@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/currency_provider.dart';
+import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 
 /// ============================================================================
@@ -272,10 +273,15 @@ class _EstimateCard extends StatelessWidget {
                 child: Text(
                   '1 USDC ≈ ${snap.ghsPerUsdc.toStringAsFixed(2)} GHS',
                   key: const Key('convert_estimate_rate'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: colors.onSurface,
+                  // MONEY CONTRACT (az_text): figures live in the numeric
+                  // family. This also carries the U+2248 (≈) and U+20B5 (₵)
+                  // glyphs the UI family does not ship — before this fix the
+                  // ≈ fell out of Comic Neue as a tofu box in captures.
+                  style: AzText.money(
+                    colors.onSurface,
+                    size: 16,
+                    weight: FontWeight.w700,
+                    tracking: 0,
                   ),
                 ),
               ),
@@ -400,10 +406,27 @@ class _AmountPanel extends StatelessWidget {
     final rate = (snapshot != null && snapshot!.isUsableAt(kConvertNow()))
         ? snapshot!.ghsPerUsdc
         : null;
+    // DISPLAY-ONLY ARITHMETIC GUARDS — an arbitrarily long digit string can
+    // parse as `Infinity` (and a finite amount times a large rate can
+    // overflow). Nothing numeric and non-finite may ever render: a too-large
+    // input shows an honest non-numeric state instead of `Infinity`.
     final amount = double.tryParse(raw.trim());
-    final estimate = (rate != null && amount != null && amount > 0 && !loading)
+    final amountEligible = amount != null && amount.isFinite && amount > 0;
+    final estimate = (rate != null && amountEligible && !loading)
         ? amount * rate
         : null;
+    // The parsed figure can be finite while the product with the rate
+    // overflows; both sides of the estimate are guarded. A figure is only
+    // "too large" when a usable rate existed and something positive was
+    // entered — otherwise the honest state is the ordinary pending one.
+    final estimateUsable = estimate != null && estimate.isFinite;
+    final amountTooLarge =
+        !loading &&
+        !estimateUsable &&
+        rate != null &&
+        amount != null &&
+        amount > 0 &&
+        (!amount.isFinite || estimate != null);
 
     return _Panel(
       panelKey: const Key('convert_amount_panel'),
@@ -426,16 +449,28 @@ class _AmountPanel extends StatelessWidget {
             enabled: !loading,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
+              // DOCUMENTED BOUND — 16 characters caps the field at
+              // 9999999999999.99 USDC: sensible for a wallet, and the
+              // figure times any realistic rate can never overflow a
+              // double. Programmatic controller writes bypass formatters,
+              // which is why the isFinite guards above are also enforced.
+              LengthLimitingTextInputFormatter(16),
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
             ],
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: colors.onSurface,
+            style: AzText.money(
+              colors.onSurface,
+              size: 20,
+              weight: FontWeight.w800,
+              tracking: 0,
             ),
             decoration: InputDecoration(
               hintText: '0.00',
-              hintStyle: TextStyle(color: colors.onSurfaceVariant),
+              hintStyle: AzText.money(
+                colors.onSurfaceVariant,
+                size: 20,
+                weight: FontWeight.w800,
+                tracking: 0,
+              ),
               suffixText: 'USDC',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -448,18 +483,27 @@ class _AmountPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          if (estimate != null)
+          if (estimateUsable)
             Text(
               '≈ GH₵ ${estimate.toStringAsFixed(2)} GHS',
               key: const Key('convert_amount_estimate'),
               semanticsLabel:
                   'Nonbinding estimate, ${estimate.toStringAsFixed(2)} '
                   'cedis. Not a quote; nothing is converted.',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: colors.onSurface,
+              // MONEY CONTRACT: the numeric family carries the ≈ and ₵
+              // glyphs the UI family does not ship (see the rate line).
+              style: AzText.money(
+                colors.onSurface,
+                size: 16,
+                weight: FontWeight.w700,
+                tracking: 0,
               ),
+            )
+          else if (!loading && amountTooLarge)
+            const Text(
+              'Amount is too large to estimate — enter a smaller figure.',
+              key: Key('convert_amount_estimate_too_large'),
+              style: TextStyle(fontSize: 12),
             )
           else if (!loading)
             Text(
@@ -470,7 +514,7 @@ class _AmountPanel extends StatelessWidget {
               key: const Key('convert_amount_estimate_pending'),
               style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
             ),
-          if (estimate != null)
+          if (estimateUsable)
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
