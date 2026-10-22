@@ -94,31 +94,35 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
   // cropped by the wheel's own peek geometry — with the neighbour chips
   // peeking precisely `peek` into each gutter, fading under the shader.
   //
-  // VERTICAL (Send): chips are adjacent, the pitch equals the chip height
-  // (44dp), and the strip is offset by half a pitch so the selected chip
-  // lands on the box centreline. Verified geometrically by
-  // send_vertical_currency_wheel_test.dart.
+  // ONE geometry, both axes: chips are ADJACENT (the pitch IS the chip
+  // extent), the strip's origin is pinned to the box's roll-axis edge,
+  // and [_originShift] seats the selected chip's leading edge exactly one
+  // [peek] into the box — so its centre is the box centreline. The
+  // neighbour peeks precisely [peek] through the trailing gutter, under
+  // the fade. Chip visibility is pinned in the box's OWN coordinates, so
+  // it holds for ANY option count — one chip, two, or more.
   //
-  // HORIZONTAL (Card Transfer): the legacy pitch (chip + 2*peek gap) and
-  // unshifted offset are kept BYTE-IDENTICAL for now — they carry a KNOWN
-  // defect (the selected chip centres on the box EDGE, half-cropped by
-  // the gutter). Correcting it changes rendered pixels on existing
-  // callers, so it belongs to its own reviewable PR with golden
-  // regeneration, not to this axis extension.
+  // VERTICAL (Send) is byte-identical to the pre-fix rendering at two
+  // options (verified: the send goldens do not move). HORIZONTAL (Card
+  // Transfer, the home balance card) previously centred the whole strip
+  // in the box with a chip+2*peek pitch — the selected chip sat on the
+  // box EDGE, half-cropped. It now rides the same centred geometry the
+  // vertical axis proved. Verified geometrically by
+  // currency_wheel_alignment_test.dart (both axes).
   double get _chipExtent =>
       widget.axis == CurrencyWheelAxis.vertical ? _chipHeight : _chipWidth;
 
-  double get _pitch => widget.axis == CurrencyWheelAxis.vertical
-      ? _chipHeight
-      : _chipWidth + 2 * _peek;
+  double get _pitch => _chipExtent;
 
   double get _slotTotal => _chipExtent + 2 * _peek;
 
-  /// Where the strip's origin sits along the roll axis: the selected
-  /// chip's centre is pinned on the box centreline (vertical) or keeps
-  /// the legacy unshifted origin (horizontal, see the geometry note).
-  double get _originShift =>
-      widget.axis == CurrencyWheelAxis.vertical ? _chipHeight / 2 : 0.0;
+  /// Where the strip sits along the roll axis: the strip's leading edge
+  /// is pinned at the box's roll-axis edge, and this shift seats the
+  /// SELECTED chip exactly one [peek] in — dead-centred on the box
+  /// centreline, gutter for gutter. (The pre-fix vertical shift of half
+  /// a chip height produced the same box coordinates at two options and
+  /// is superseded by this n-independent form.)
+  double get _originShift => _peek;
 
   @override
   void initState() {
@@ -282,16 +286,21 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
         child: OverflowBox(
           maxWidth: vertical ? _chipWidth : double.infinity,
           maxHeight: vertical ? double.infinity : _chipHeight,
-          alignment: Alignment.center,
+          // The strip's leading edge is pinned at the box's roll-axis
+          // edge so [_originShift] alone seats the selected chip dead
+          // centre — independent of how many chips the strip carries
+          // (centre-aligning the whole strip made visibility depend on
+          // the option count). The cross axis is exactly the chip, so
+          // topLeft positions it identically to center.
+          alignment: Alignment.topLeft,
           child: Transform.translate(
             offset:
                 vertical ? Offset(0, offset) : Offset(offset, 0),
             child: vertical
                 ? Column(
-                    // Adjacent chips: the pitch IS the chip height, so
+                    // Adjacent chips: the pitch IS the chip extent, so
                     // the neighbour peeks exactly [peek] into each
-                    // gutter, under the fade. (The horizontal strip
-                    // keeps its legacy gap — see the geometry note.)
+                    // gutter, under the fade. Same on both axes.
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       for (var i = 0; i < widget.options.length; i++)
@@ -299,12 +308,13 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
                     ],
                   )
                 : Row(
+                    // Adjacent chips — the pre-fix chip+2*peek gap pushed
+                    // the neighbour clear past the gutter, so nothing
+                    // ever peeked; the strip is now the vertical's twin.
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (var i = 0; i < widget.options.length; i++) ...[
-                        if (i > 0) const SizedBox(width: 2 * _peek),
+                      for (var i = 0; i < widget.options.length; i++)
                         chip(widget.options[i], i == widget.selectedIndex),
-                      ],
                     ],
                   ),
           ),
