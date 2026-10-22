@@ -253,7 +253,8 @@ Future<void> _capture(WidgetTester tester, String name) async {
     final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
     final image = await boundary.toImage(pixelRatio: 2.0);
     final data = (await image.toByteData(format: ImageByteFormat.png))!;
-    final dir = Directory('.screenshots/quiet_depth')..createSync();
+    final dir = Directory('.screenshots/quiet_depth')
+      ..createSync(recursive: true);
     final file = File('${dir.path}/$name.png');
     await file.writeAsBytes(data.buffer.asUint8List());
     ok = file.lengthSync() > 1000;
