@@ -318,6 +318,13 @@ void main() {
     expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
     await _capture(tester, 'qd_dark_terminal_celebration_390');
 
+    // Late-burst confetti at a SECOND fixed t: with the precomputed
+    // particle system the piece positions follow one smooth trajectory,
+    // and two independent suite runs must produce byte-identical PNGs.
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.byKey(const ValueKey('reminder-confetti')), findsOneWidget);
+    await _capture(tester, 'qd_dark_confetti_late_390');
+
     // The real Home loops ambient animations forever — fixed pumps, never
     // pumpAndSettle. The burst is ~900ms; 1.5s drains it.
     for (var i = 0; i < 5; i++) {

@@ -996,6 +996,13 @@ class _ReminderConfettiState extends State<_ReminderConfetti>
     duration: const Duration(milliseconds: 1100),
   )..forward();
 
+  // The particle SYSTEM is precomputed ONCE per burst from a fixed
+  // seed. paint(t) is then a PURE function of t: every frame renders
+  // the same immutable particles along stable, smooth trajectories —
+  // no per-frame randomness, no jitter, fully capture-deterministic.
+  final List<ConfettiParticle> particles =
+      ConfettiSystem.generate(seed: 7341, count: 26);
+
   @override
   void initState() {
     super.initState();
@@ -1017,6 +1024,7 @@ class _ReminderConfettiState extends State<_ReminderConfetti>
       builder: (context, _) => CustomPaint(
         painter: _ConfettiPainter(
           t: _burst.value,
+          particles: particles,
           accent: Theme.of(context).colorScheme.primary,
         ),
         size: Size.infinite,
@@ -1025,14 +1033,63 @@ class _ReminderConfettiState extends State<_ReminderConfetti>
   }
 }
 
+/// One immutable confetti piece. All trajectory parameters are fixed at
+/// generation; only time moves a piece.
+@immutable
+class ConfettiParticle {
+  const ConfettiParticle({
+    required this.angle,
+    required this.speed,
+    required this.size,
+    required this.spin,
+    required this.colorIndex,
+    required this.round,
+  });
+
+  factory ConfettiParticle.generate(math.Random rng, int index) =>
+      ConfettiParticle(
+        angle: -math.pi / 2 + (rng.nextDouble() - 0.5) * 1.9,
+        speed: 0.22 + rng.nextDouble() * 0.30,
+        size: 3.0 + rng.nextDouble() * 3.0,
+        spin: rng.nextDouble() * 6.28,
+        colorIndex: index,
+        round: index % 3 == 0,
+      );
+
+  final double angle;
+  final double speed;
+  final double size;
+  final double spin;
+  final int colorIndex;
+  final bool round;
+}
+
+/// Deterministic particle system: the same [seed] always produces the
+/// same particle list, in the same order, on every platform and run.
+class ConfettiSystem {
+  static List<ConfettiParticle> generate({
+    required int seed,
+    required int count,
+  }) {
+    final rng = math.Random(seed);
+    return List.generate(
+      count,
+      (i) => ConfettiParticle.generate(rng, i),
+      growable: false,
+    );
+  }
+}
+
 class _ConfettiPainter extends CustomPainter {
-  _ConfettiPainter({required this.t, required this.accent});
+  _ConfettiPainter({
+    required this.t,
+    required this.particles,
+    required this.accent,
+  });
 
   final double t;
+  final List<ConfettiParticle> particles;
   final Color accent;
-
-  static const _particles = 26;
-  static final _rng = math.Random(7341);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1046,27 +1103,32 @@ class _ConfettiPainter extends CustomPainter {
     ];
     // Late particles fade out — the burst dissolves, it never blinks.
     final fade = (1 - (t - 0.75) / 0.25).clamp(0.0, 1.0);
+    final progress = Curves.easeOut.transform(t.clamp(0.0, 1.0));
+    final gravity = 0.14 * progress * progress;
 
-    for (var i = 0; i < _particles; i++) {
-      final angle = -math.pi / 2 + (_rng.nextDouble() - 0.5) * 1.9;
-      final speed = 0.22 + _rng.nextDouble() * 0.30;
-      final progress = Curves.easeOut.transform(t.clamp(0.0, 1.0));
-      final gravity = 0.14 * progress * progress;
-      final dx = math.cos(angle) * speed * progress * size.width * 0.9;
-      final dy =
-          math.sin(angle) * speed * progress * size.height + gravity * size.height * 0.5;
-      final color = palette[i % palette.length].withValues(alpha: fade);
-      final piece = 3.0 + _rng.nextDouble() * 3.0;
-      final rotation = _rng.nextDouble() * 6.28 + t * 9;
+    for (final p in particles) {
+      // Position and rotation are DERIVED from t only — the immutable
+      // particle parameters never change between frames, so each piece
+      // follows one smooth trajectory.
+      final dx = math.cos(p.angle) * p.speed * progress * size.width * 0.9;
+      final dy = math.sin(p.angle) * p.speed * progress * size.height +
+          gravity * size.height * 0.5;
+      final color =
+          palette[p.colorIndex % palette.length].withValues(alpha: fade);
+      final rotation = p.spin + t * 9;
       final paint = Paint()..color = color;
       canvas.save();
       canvas.translate(origin.dx + dx, origin.dy + dy);
       canvas.rotate(rotation);
-      if (i % 3 == 0) {
-        canvas.drawCircle(Offset.zero, piece * 0.5, paint);
+      if (p.round) {
+        canvas.drawCircle(Offset.zero, p.size * 0.5, paint);
       } else {
         canvas.drawRect(
-          Rect.fromCenter(center: Offset.zero, width: piece, height: piece * 0.6),
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: p.size,
+            height: p.size * 0.6,
+          ),
           paint,
         );
       }
@@ -1075,5 +1137,6 @@ class _ConfettiPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ConfettiPainter old) => old.t != t;
+  bool shouldRepaint(_ConfettiPainter old) =>
+      old.t != t || old.particles != particles;
 }

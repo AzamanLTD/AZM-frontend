@@ -67,26 +67,30 @@ class QuietDepthController extends ChangeNotifier {
 
   QuietDepthState _depth = QuietDepthState.raised;
   Timer? _idleTimer;
-  _QuietFocusRegion? _focus;
+  final Map<String, _QuietFocusRegion> _focusRegions = {};
   bool _disposed = false;
 
-  /// What registered surfaces render: recessed while any focal region is
+  /// What registered surfaces render: recessed while ANY focal region is
   /// active, otherwise the settled idle state.
   QuietDepthState get depth =>
-      _focus != null ? QuietDepthState.recessed : _depth;
+      _focusRegions.isNotEmpty ? QuietDepthState.recessed : _depth;
 
-  /// The id of the active focal region, if any.
-  String? get focusId => _focus?.id;
+  /// The id of the most recently entered focal region, if any.
+  String? get focusId =>
+      _focusRegions.isEmpty ? null : _focusRegions.keys.last;
 
-  /// True while the user is inside a designated focal region.
-  bool get isFocused => _focus != null;
+  /// True while the user is inside at least one designated focal region.
+  bool get isFocused => _focusRegions.isNotEmpty;
+
+  /// The registered focal region ids, in entry order.
+  List<String> get activeFocusIds => List.unmodifiable(_focusRegions.keys);
 
   /// A qualifying interaction wakes the controls: raise them and restart
   /// the idle cycle. While a focal region is active this is a no-op — the
   /// region system owns elevation during focus, so a stray pointer event
   /// can never cancel a focus state out from under the user.
   void wake() {
-    if (_disposed || _focus != null) return;
+    if (_disposed || _focusRegions.isNotEmpty) return;
     _depth = QuietDepthState.raised;
     _restartIdle();
     notifyListeners();
@@ -100,53 +104,77 @@ class QuietDepthController extends ChangeNotifier {
     bool exitOnOutsideTap = false,
   }) {
     if (_disposed) return;
-    if (_focus?.id == id) return;
-    _focus = _QuietFocusRegion(
+    final existing = _focusRegions[id];
+    if (existing != null) {
+      // Already active: refresh the registration context only. Concurrent
+      // regions NEVER evict each other — the map holds them all.
+      if (context == null || identical(existing.context, context)) return;
+      _focusRegions[id] = _QuietFocusRegion(
+        id: id,
+        exitOnOutsideTap: exitOnOutsideTap,
+        context: context,
+      );
+      notifyListeners();
+      return;
+    }
+    _focusRegions[id] = _QuietFocusRegion(
       id: id,
       exitOnOutsideTap: exitOnOutsideTap,
-      context: context ?? _focus?.context,
+      context: context,
     );
     _idleTimer?.cancel();
     _idleTimer = null;
     notifyListeners();
   }
 
-  /// The focal region releases the stage: controls rise and the idle cycle
-  /// restarts. Only the ACTIVE region can release; stale exits are ignored.
+  /// The focal region releases the stage. Only regions that are actually
+  /// active can release, and releasing one never disturbs the others —
+  /// the controls rise only when the LAST active region is gone.
   void exitFocus(String id) {
-    if (_disposed || _focus?.id != id) return;
-    _focus = null;
-    _depth = QuietDepthState.raised;
-    _restartIdle();
+    if (_disposed || !_focusRegions.containsKey(id)) return;
+    _focusRegions.remove(id);
+    if (_focusRegions.isEmpty) {
+      _depth = QuietDepthState.raised;
+      _restartIdle();
+    }
     notifyListeners();
   }
 
-  /// Root pointer handler (translucent — gestures are untouched). A tap
-  /// OUTSIDE the active focal region releases focus; taps inside are the
-  /// region's own business.
+  /// Root pointer handler (translucent — gestures are untouched).
+  ///
+  /// • While a focal region with [exitOnOutsideTap] is active, a tap
+  ///   OUTSIDE that region releases IT (other regions keep the stage).
+  /// • While NO focal region is active, ordinary pointer activity wakes
+  ///   the settled controls and restarts the idle cycle — touch and
+  ///   scroll across the whole scope raise them again.
   void handlePointerDown(Offset globalPosition) {
-    final focus = _focus;
-    if (focus == null || !focus.exitOnOutsideTap) return;
-    final ctx = focus.context;
-    if (ctx == null || !ctx.mounted) {
-      exitFocus(focus.id);
-      return;
+    if (_disposed) return;
+    var released = false;
+    for (final region in List.of(_focusRegions.values)) {
+      if (!region.exitOnOutsideTap) continue;
+      final ctx = region.context;
+      var outside = true;
+      if (ctx != null && ctx.mounted) {
+        final box = ctx.findRenderObject();
+        if (box is RenderBox) {
+          outside = !box.size.contains(box.globalToLocal(globalPosition));
+        }
+      }
+      if (outside) {
+        exitFocus(region.id);
+        released = true;
+      }
     }
-    final box = ctx.findRenderObject();
-    if (box is! RenderBox) {
-      exitFocus(focus.id);
-      return;
-    }
-    final local = box.globalToLocal(globalPosition);
-    if (!box.size.contains(local)) {
-      exitFocus(focus.id);
+    // No focal region involved in this touch: ordinary wake.
+    if (!released && _focusRegions.isEmpty) {
+      wake();
     }
   }
 
   void _restartIdle() {
     _idleTimer?.cancel();
     _idleTimer = Timer(idleDelay, () {
-      if (_disposed || _focus != null) return;
+      if (_disposed || _focusRegions.isNotEmpty) return;
       _depth = QuietDepthState.recessed;
       notifyListeners();
     });
@@ -307,19 +335,31 @@ class _QuietDepthRegionState extends State<QuietDepthRegion> {
   Widget build(BuildContext context) => widget.child;
 }
 
-/// An opt-in quiet-depth surface: builds a raised and a recessed backdrop
-/// around the SAME content and cross-fades between them when the scoped
-/// depth changes. Content (icon, label, hit target, semantics) is never
-/// scaled, moved or hidden — only the backdrop decoration animates.
+/// An opt-in quiet-depth surface.
+///
+/// The surface is split in two layers:
+/// • [content] — icon, label, semantics, hit target. Mounted EXACTLY
+///   ONCE, above the backdrop, never scaled, moved, faded or duplicated
+///   (assistive tech sees one control, also mid-transition).
+/// • [backdrop] — the decorative depth recipe. This is the ONLY thing
+///   that cross-fades between raised and recessed.
+///
+/// The stack is sized by the content, so both backdrop variants occupy
+/// the same box and the hit target never moves.
 class QuietDepthSurface extends ConsumerWidget {
   const QuietDepthSurface({
     super.key,
-    required this.builder,
+    required this.content,
+    required this.backdrop,
   });
 
-  /// Builds the full surface for the given depth state. Both variants
-  /// must share identical geometry.
-  final Widget Function(BuildContext context, bool recessed) builder;
+  /// The stable, interactive subtree. Sits ON TOP of the backdrop.
+  final Widget content;
+
+  /// Builds the decorative backdrop for the given depth state. It must
+  /// fill the surface (wrap in [Positioned.fill]/[SizedBox.expand] as
+  /// needed) and stay pointer-transparent or let the content win.
+  final Widget Function(BuildContext context, bool recessed) backdrop;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -335,29 +375,39 @@ class QuietDepthSurface extends ConsumerWidget {
       const Duration(milliseconds: 180),
     );
 
-    return AnimatedSwitcher(
-      duration: duration,
-      // No scale/slide — a pure depth cross-fade. Both children occupy
-      // the same box, so the hit target never moves.
-      switchInCurve: Curves.easeOut,
-      switchOutCurve: Curves.easeIn,
-      transitionBuilder: (child, animation) =>
-          FadeTransition(opacity: animation, child: child),
-      layoutBuilder: (currentChild, previousChildren) => Stack(
-        alignment: Alignment.center,
-        children: [
-          ...previousChildren,
-          if (currentChild != null) currentChild,
-        ],
-      ),
-      // Named keys: the switcher swaps on them AND tests/captures can
-      // pin which depth state is mounted.
-      child: KeyedSubtree(
-        key: ValueKey<String>(
-          recessed ? 'quiet-depth-recessed' : 'quiet-depth-raised',
+    return Stack(
+      children: [
+        Positioned.fill(
+          // Only the DECORATIVE layer is switched: the content subtree
+          // is mounted once, above this point.
+          child: AnimatedSwitcher(
+            duration: duration,
+            // No scale/slide — a pure depth cross-fade. Both variants
+            // occupy the same box, so the backdrop never shifts geometry.
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (child, animation) =>
+                FadeTransition(opacity: animation, child: child),
+            layoutBuilder: (currentChild, previousChildren) => Stack(
+              alignment: Alignment.center,
+              children: [
+                ...previousChildren,
+                if (currentChild != null) currentChild,
+              ],
+            ),
+            // Named keys: the switcher swaps on them AND tests/captures
+            // can pin which depth state is mounted.
+            child: KeyedSubtree(
+              key: ValueKey<String>(
+                recessed ? 'quiet-depth-recessed' : 'quiet-depth-raised',
+              ),
+              child: backdrop(context, recessed),
+            ),
+          ),
         ),
-        child: builder(context, recessed),
-      ),
+        // Sizing child: determines the stack's size, painted on top.
+        content,
+      ],
     );
   }
 }

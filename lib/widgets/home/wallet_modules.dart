@@ -192,8 +192,21 @@ class _WalletPill extends ConsumerWidget {
       ),
     );
 
-    // The raised and recessed backdrops: identical geometry, the SAME
-    // content subtree, only the depth recipe moves.
+    // The stable content layer: mounted EXACTLY ONCE, above the
+    // backdrops. It carries the padding that sizes the pill, so both
+    // backdrop variants occupy the same box.
+    final paddedContent = Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AzSpace.lg,
+        vertical: 12,
+      ),
+      child: content,
+    );
+
+    // The raised and recessed backdrops: decorative only. The content
+    // subtree is NEVER inside them, so the depth cross-fade animates
+    // shadows and glass alone — icon, label and semantics stay mounted
+    // and fully opaque through the whole transition.
     Widget backdrop(bool recessed) {
       if (colors.isDark) {
         // DARK keeps the premium glass language. Raised = the current
@@ -204,30 +217,23 @@ class _WalletPill extends ConsumerWidget {
           blur: recessed ? 6 : 10,
           opacity: recessed ? 0.03 : 0.05,
           borderRadius: 999,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AzSpace.lg,
-            vertical: 12,
-          ),
+          padding: EdgeInsets.zero,
           enableShadow: false,
           border: Border.all(color: colors.divider, width: 0.5),
-          child: content,
+          child: const SizedBox.expand(),
         );
       }
       // LIGHT: raised = the card step with the AzElevation contact shadow;
       // recessed = flush with the plane (no shadow, the surface fill) but
       // the hairline border stays, so the pill is still visibly a button.
       return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AzSpace.lg,
-          vertical: 12,
-        ),
         decoration: BoxDecoration(
           color: recessed ? colors.surface : colors.card,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: colors.border, width: 1),
           boxShadow: recessed ? AzElevation.level0 : AzElevation.level1(false),
         ),
-        child: content,
+        child: const SizedBox.expand(),
       );
     }
 
@@ -240,7 +246,8 @@ class _WalletPill extends ConsumerWidget {
         onTap();
       },
       child: QuietDepthSurface(
-        builder: (context, recessed) => backdrop(recessed),
+        content: paddedContent,
+        backdrop: (context, recessed) => backdrop(recessed),
       ),
     );
   }

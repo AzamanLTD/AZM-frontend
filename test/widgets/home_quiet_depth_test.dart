@@ -46,6 +46,7 @@ import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
+import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
 
 import 'package:flutter/material.dart';
@@ -734,5 +735,153 @@ void main() {
     expect(find.byKey(_raisedKeys), findsNothing);
     expect(tester.takeException(), isNull);
     await _flush(tester);
+  });
+
+  testWidgets('17 — the depth fade animates ONLY the backdrop: content '
+      'mounts once and semantics never duplicate mid-transition',
+      (tester) async {
+    await _pumpHome(
+      tester,
+      susu: [_activeSusu(DateTime(2026, 10, 26))],
+      intent: _cartIntent,
+    );
+
+    // Enter the transition and stop HALFWAY: the idle timer fires at the
+    // end of this frame's window and the backdrop cross-fade begins.
+    await tester.pump(_idleDelay);
+    await tester.pump(const Duration(milliseconds: 90));
+
+    // Mid-fade: both BACKDROP variants are mounted (that is the
+    // cross-fade) — but the CONTENT (icon, label, semantics) exists
+    // exactly ONCE. This is the rule: only the decoration animates.
+    expect(find.byKey(_raisedKeys), findsWidgets);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('P2P'), findsOneWidget);
+    expect(find.text('Susu'), findsOneWidget);
+
+    final handle = tester.ensureSemantics();
+    // Assistive tech sees exactly one Save/P2P/Susu action — never the
+    // doubled subtree of a content-fading cross-fade.
+    expect(find.bySemanticsLabel('Save'), findsOneWidget);
+    expect(find.bySemanticsLabel('P2P'), findsOneWidget);
+    expect(find.bySemanticsLabel('Susu'), findsOneWidget);
+    handle.dispose();
+
+    // The transition completes: raised backdrops gone, content intact.
+    await tester.pump(const Duration(milliseconds: 120));
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(find.byKey(_raisedKeys), findsNothing);
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.text('P2P'), findsOneWidget);
+    expect(find.text('Susu'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await _flush(tester);
+  });
+
+  testWidgets('18 — concurrent focal regions: releasing the reminder deck '
+      'never disturbs wallet focus', (tester) async {
+    await _pumpHome(
+      tester,
+      susu: [_activeSusu(DateTime(2026, 10, 26))],
+      intent: _cartIntent,
+    );
+
+    // Region 1: the wallet deck holds the stage.
+    await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
+    await _advance(tester);
+    expect(_deckState(tester), WalletDeckState.balanceOut);
+
+    // Region 2: the reminder deck joins WITHOUT evicting region 1.
+    await _swipeCommit(tester, const ValueKey('reminder-card-susu-s1'));
+    final scope = QuietDepthScope.of(
+      tester.element(find.byKey(_recessedKeys).first),
+    );
+    expect(scope.activeFocusIds, containsAll(<String>['wallet-deck', 'reminder-deck']));
+    expect(scope.activeFocusIds.length, 2);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+    expect(find.byKey(_raisedKeys), findsNothing);
+
+    // A tap OUTSIDE the reminder deck releases ONLY the reminder region.
+    // The wallet card is still out, so the actions must STAY recessed.
+    await tester.tapAt(const Offset(100, 100));
+    await tester.pump();
+    expect(_deckState(tester), WalletDeckState.balanceOut);
+    expect(scope.activeFocusIds, <String>['wallet-deck']);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+    expect(find.byKey(_raisedKeys), findsNothing);
+
+    // Only tucking the wallet releases the LAST region and raises them.
+    await tester.drag(find.byType(WalletCardDeck), const Offset(0, -90));
+    await _advance(tester);
+    expect(_deckState(tester), WalletDeckState.tucked);
+    expect(scope.activeFocusIds, isEmpty);
+    expect(find.byKey(_raisedKeys), findsWidgets);
+    expect(tester.takeException(), isNull);
+    await _flush(tester);
+  });
+
+  testWidgets('19 — ordinary touch and SCROLL wake the settled controls '
+      'without interrupting the gesture', (tester) async {
+    await _pumpHome(
+      tester,
+      susu: [_activeSusu(DateTime(2026, 10, 26))],
+      intent: _cartIntent,
+    );
+    await _pumpIdleSettle(tester);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+
+    // An ordinary tap on a NON-pill area (the greeting) wakes them.
+    // The raised backdrops mount at once; the old recessed ones fade out
+    // over the same 180ms as any other depth change.
+    await tester.tapAt(const Offset(100, 100));
+    await tester.pump();
+    expect(find.byKey(_raisedKeys), findsWidgets);
+    await tester.pump(_transition);
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(find.byKey(_recessedKeys), findsNothing);
+
+    // Let them settle again, then scroll the page.
+    await _pumpIdleSettle(tester);
+    expect(find.byKey(_recessedKeys), findsWidgets);
+
+    final scrollable = find.byType(Scrollable).first;
+    final state = tester.state<ScrollableState>(scrollable);
+    final before = state.position.pixels;
+    await tester.drag(scrollable, const Offset(0, -400));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    // The gesture itself completed: the page actually scrolled...
+    expect(state.position.pixels, greaterThan(before));
+    // ...and the controls rose at the drag's first contact and stayed up.
+    expect(find.byKey(_raisedKeys), findsWidgets);
+    expect(tester.takeException(), isNull);
+    await _flush(tester);
+  });
+
+  test('20 — the confetti particle system is deterministic: the same seed '
+      'produces the same immutable trajectories', () {
+    final a = ConfettiSystem.generate(seed: 7341, count: 26);
+    final b = ConfettiSystem.generate(seed: 7341, count: 26);
+    // A different count consumes the rng stream differently: evidence
+    // the parameters come from ONE precomputed pass, not per-frame calls.
+    final c = ConfettiSystem.generate(seed: 7341, count: 13);
+
+    expect(a.length, 26);
+    for (var i = 0; i < a.length; i++) {
+      expect(a[i].angle, b[i].angle);
+      expect(a[i].speed, b[i].speed);
+      expect(a[i].size, b[i].size);
+      expect(a[i].spin, b[i].spin);
+      expect(a[i].colorIndex, b[i].colorIndex);
+      expect(a[i].round, b[i].round);
+      expect(a[i].colorIndex, i);
+    }
+    // A truncated stream shares its prefix — stable ordering, not noise.
+    for (var i = 0; i < c.length; i++) {
+      expect(c[i].angle, a[i].angle);
+      expect(c[i].speed, a[i].speed);
+    }
   });
 }
