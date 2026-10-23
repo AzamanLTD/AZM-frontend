@@ -37,11 +37,12 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
 import 'package:azaman/providers/theme_provider.dart' show AzamanColors;
-import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/fx_typing_dots.dart';
+import 'package:azaman/widgets/home/balance_card_pair.dart'
+    show FlipGuardMarker;
 
 /// The redesigned Home balance card front face.
 class BalanceCardFx extends StatelessWidget {
@@ -50,6 +51,7 @@ class BalanceCardFx extends StatelessWidget {
     required this.valuation,
     required this.colors,
     this.trailingRefresh,
+    this.flipGuard,
   });
 
   /// The typed valuation the card renders.
@@ -61,6 +63,11 @@ class BalanceCardFx extends StatelessWidget {
   /// The right-edge refresh affordance (the card's width contract pins it
   /// flush right, e.g. the Home wiring passes the live RateRefreshIndicator).
   final Widget? trailingRefresh;
+
+  /// The shared frame's nested-gesture guard. Marked on pointer-down by
+  /// this face's interactive affordances (the disclosure button, the
+  /// refresh slot) so operating them never also flips the card.
+  final ValueNotifier<bool>? flipGuard;
 
   String _observedAtLabel() {
     final at = valuation.rate.observedAt;
@@ -213,20 +220,20 @@ class BalanceCardFx extends StatelessWidget {
           // not by the GHS headline, not at the right edge by refresh.
           if (rate.isFallback) ...[
             const SizedBox(width: AzSpace.xs),
-            _DisclosureIconButton(
-              onTap: () => _showDisclosure(context),
-              semanticLabel: 'About the USDC equivalent and saved rate',
+            FlipGuardMarker(
+              flipGuard: flipGuard,
+              child: _DisclosureIconButton(
+                onTap: () => _showDisclosure(context),
+                semanticLabel: 'About the USDC equivalent and saved rate',
+              ),
             ),
           ],
         ],
       );
-    } else if (valuationIncomplete) {
-      equivalent = Text(
-        'USDC equivalent unavailable — no valid FX rate',
-        key: const ValueKey('balance-fx-equivalent-unavailable'),
-        style: AzText.bodyS.copyWith(color: colors.textSecondary),
-      );
     } else {
+      // When the equivalent is unavailable the incomplete NOTE above
+      // already states exactly that, in user terms — a second caption
+      // would only repeat the same sentence inside a fixed footprint.
       equivalent = null;
     }
 
@@ -271,13 +278,13 @@ class BalanceCardFx extends StatelessWidget {
       );
     }
 
-    return Container(
+    // CONTENT ONLY — the shared frame (BalanceCardPair) owns the material,
+    // corner radius, rim and edge. This face supplies content inside the
+    // fixed footprint; the rate row pins flush to the card's bottom edge
+    // (the same proportions as the live Home card), and nothing here can
+    // influence the card's layout size.
+    return Padding(
       key: const ValueKey('balance-fx-card'),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: AzRadius.brXl,
-        border: Border.all(color: colors.border, width: 0.75),
-      ),
       padding: const EdgeInsets.all(AzSpace.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -289,20 +296,34 @@ class BalanceCardFx extends StatelessWidget {
           ),
           const SizedBox(height: AzSpace.sm),
           headline,
-          if (valuationIncomplete) ...[
-            const SizedBox(height: AzSpace.xs),
-            Text(
-              'GHS wallet only — the combined value with the USDC held '
-              'cannot be shown without a valid FX rate',
-              key: const ValueKey('balance-fx-valuation-incomplete'),
-              style: AzText.bodyS.copyWith(color: colors.textSecondary),
+          // The middle block lives in the REMAINING space of the fixed
+          // footprint: whatever the FX state renders (the incomplete
+          // note, the equivalent row), it can never push the rate row
+          // past the card's bottom edge — the note caps at two lines and
+          // the rate row stays pinned flush to the bottom.
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (valuationIncomplete) ...[
+                  const SizedBox(height: AzSpace.xs),
+                  Text(
+                    'GHS wallet only — the combined value with the USDC '
+                    'held cannot be shown without a valid FX rate',
+                    key: const ValueKey('balance-fx-valuation-incomplete'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AzText.bodyS.copyWith(color: colors.textSecondary),
+                  ),
+                ],
+                if (equivalent != null) ...[
+                  const SizedBox(height: AzSpace.xs),
+                  equivalent,
+                ],
+              ],
             ),
-          ],
-          if (equivalent != null) ...[
-            const SizedBox(height: AzSpace.xs),
-            equivalent,
-          ],
-          const SizedBox(height: AzSpace.sm),
+          ),
           // The rate/status row spans the card: status anchored bottom
           // LEFT, the refresh affordance flush RIGHT.
           Row(
@@ -320,10 +341,13 @@ class BalanceCardFx extends StatelessWidget {
               ),
               const SizedBox(width: AzSpace.xs),
               if (trailingRefresh != null)
-                Semantics(
-                  key: const ValueKey('balance-fx-refresh-slot'),
-                  label: 'Refresh FX rate',
-                  child: trailingRefresh!,
+                FlipGuardMarker(
+                  flipGuard: flipGuard,
+                  child: Semantics(
+                    key: const ValueKey('balance-fx-refresh-slot'),
+                    label: 'Refresh FX rate',
+                    child: trailingRefresh!,
+                  ),
                 ),
             ],
           ),

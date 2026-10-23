@@ -1,31 +1,40 @@
 // =============================================================================
 // AZAMAN — BALANCE CARD (ICON-LED BREAKDOWN BACK FACE)
-// Final Balance Card Redesign §8: replaces the hard-to-scan text grid with
-// a polished icon-led breakdown — small recognizable icons, readable
-// labels, right-aligned amounts and explicit native units.
 //
-// Sections:
-//   Available assets      GHS wallet (native GHS) · USDC held (actual
-//                          liquid USDC — a REAL holding, never the
-//                          equivalent figure)
-//   Locked or committed   Escrow & disputes (grouped visually, distinct
-//                          underlying fields preserved) · Vaults ·
-//                          Savings (withdrawable sub-caption when the
-//                          backend provides the net) · Susu (dash while
-//                          unknown) · Vendor/unallocated (only when
-//                          relevant, labelled with its availability state)
-//   Non-cash              AZM points — never part of any monetary rail
+// The REVERSE of the shared physical card (BalanceCardPair). This face
+// supplies CONTENT only — the shared frame owns the material, corner
+// radius, rim and edge. There is deliberately no second decorated
+// container, no second border, no second rim: the back reads as the matte
+// reverse side of the same card, and internal dividers separate
+// information rows only.
+//
+// HIERARCHY (top → bottom):
+//   BALANCE BREAKDOWN            compact header + a "return to balance"
+//                                  affordance (guarded, accessible)
+//   AVAILABLE                    GHS wallet · USDC held (right-aligned
+//                                  amounts, explicit native units)
+//   LOCKED OR COMMITTED          Escrow & disputes (grouped visually, the
+//                                  two underlying values preserved) ·
+//                                  Vaults · Savings (withdrawable detail
+//                                  only when the data supplies it) · Susu
+//                                  (a dash while unknown — never zero) ·
+//                                  Vendor (only when relevant, with its
+//                                  availability state)
+//   NON-CASH                     AZM points — never part of any monetary
+//                                  total or rail
+//
+// The rows live in an inner scroll region clipped to the shared rounded
+// boundary: the card's fixed footprint never grows, and vertical drags
+// scroll the breakdown without flipping the card.
 //
 // LAWS:
-//   • Raw GHS and USDC amounts are NEVER added together. The share rail
-//     (when shown) normalizes every USDC bucket into GHS with the one
-//     valid valuation rate; without a valid rate there is no rail — only
-//     a clearly neutral unavailable presentation.
-//   • AZM points are excluded from every rail and every total.
-//   • Only backend-confirmed immediately withdrawable funds count toward
-//     the front headline; nothing here feeds the headline.
+//   • Raw GHS and USDC amounts are NEVER added together or substituted
+//     for one another — "USDC held" is the real holding, never the
+//     equivalent figure.
+//   • Unknown is rendered as unknown (a dash), never as zero.
+//   • AZM points are excluded from every monetary context.
 //   • Icons supplement text — every icon carries an accessible semantic
-//     label, and labels are never replaced by icons.
+//     label, and no label is ever replaced by an icon. No emojis.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -33,296 +42,296 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
 import 'package:azaman/providers/theme_provider.dart' show AzamanColors;
-import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/widgets/home/balance_card_pair.dart'
+    show FlipGuardMarker;
 
-/// One icon-led breakdown row.
-class _BreakdownRow {
+/// One icon-led breakdown row: a crisp 16dp glyph in the single restrained
+/// tone (the meaning lives in the text, not in colour-coded tiles), a
+/// clear label, an optional one-line secondary detail, and the amount
+/// right-aligned with its explicit native unit.
+class _BreakdownRow extends StatelessWidget {
   const _BreakdownRow({
+    super.key,
     required this.label,
     required this.icon,
     required this.iconSemantic,
     required this.amount,
     required this.unit,
-    required this.color,
-    this.subCaption,
-    this.value,
+    required this.colors,
+    this.detail,
   });
 
   final String label;
   final IconData icon;
   final String iconSemantic;
-  final double? value; // null = unknown (dash), excluded from rails
   final String amount;
   final String unit;
-  final Color color;
-  final String? subCaption;
+  final AzamanColors colors;
+  final String? detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Semantics(
+                label: iconSemantic,
+                excludeSemantics: true,
+                child: Icon(icon, size: 16, color: colors.textSecondary),
+              ),
+              const SizedBox(width: AzSpace.sm),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: AzText.bodyS.copyWith(color: colors.textPrimary),
+                ),
+              ),
+              const SizedBox(width: AzSpace.sm),
+              // Right-aligned amount with its explicit native unit — GHS
+              // rows read "GH₵ 1,234.56", USDC rows read "12.00 USDC".
+              // No cross-currency sums anywhere.
+              Expanded(
+                child: Text.rich(
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  TextSpan(
+                    text: amount,
+                    style: AzText.money(
+                      colors.textPrimary,
+                      size: 13,
+                      weight: FontWeight.w600,
+                      tracking: 0,
+                    ),
+                    children: [
+                      if (unit.isNotEmpty)
+                        TextSpan(
+                          text: ' $unit',
+                          style: AzText.caption.copyWith(
+                            color: colors.textTertiary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (detail != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 16 + AzSpace.sm),
+              child: Text(
+                detail!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AzText.caption.copyWith(color: colors.textTertiary),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-/// The redesigned icon-led breakdown back face.
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.title, this.colors);
+
+  final String title;
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AzSpace.sm, bottom: 2),
+      child: Text(
+        title,
+        style: AzText.eyebrow.copyWith(color: colors.textTertiary),
+      ),
+    );
+  }
+}
+
+/// The redesigned icon-led breakdown back face (content of the shared frame).
 class BalanceCardBreakdown extends StatelessWidget {
   const BalanceCardBreakdown({
     super.key,
     required this.valuation,
     required this.colors,
+    this.flipGuard,
+    this.onFlipBackRequested,
   });
 
   final BalanceCardValuation valuation;
   final AzamanColors colors;
 
-  List<_BreakdownRow> _availableRows() => [
-    _BreakdownRow(
-      label: 'GHS wallet',
-      icon: HugeIconsSolid.wallet01,
-      iconSemantic: 'GHS wallet icon',
-      value: valuation.nativeGhsAvailable,
-      amount: AzMoney.ghs(valuation.nativeGhsAvailable),
-      unit: 'GHS',
-      color: colors.success,
-    ),
-    _BreakdownRow(
-      label: 'USDC held',
-      icon: HugeIconsSolid.coins01,
-      iconSemantic: 'USDC wallet icon',
-      value: valuation.availableUsdc,
-      amount: AzMoney.amount(valuation.availableUsdc),
-      unit: 'USDC',
-      color: colors.accent,
-      subCaption: 'actual USDC held — not the equivalent figure',
-    ),
-  ];
+  /// The shared frame's nested-gesture guard (see [FlipGuardMarker]).
+  final ValueNotifier<bool>? flipGuard;
 
-  List<_BreakdownRow> _lockedRows() => [
-    // Escrow & disputes: grouped visually, distinct fields preserved.
-    _BreakdownRow(
-      label: 'Escrow & disputes',
-      icon: HugeIconsSolid.lock,
-      iconSemantic: 'Escrow lock icon',
-      value: valuation.escrowLocked + valuation.disputeEscrow,
-      amount: AzMoney.amount(valuation.escrowLocked + valuation.disputeEscrow),
-      unit: 'USDC',
-      color: colors.warning,
-      subCaption:
-          'Escrow ${AzMoney.amount(valuation.escrowLocked)} · '
-          'Disputes ${AzMoney.amount(valuation.disputeEscrow)} USDC',
-    ),
-    _BreakdownRow(
-      label: 'Vaults',
-      icon: HugeIconsSolid.shield01,
-      iconSemantic: 'Vault shield icon',
-      value: valuation.vaultLocked,
-      amount: AzMoney.amount(valuation.vaultLocked),
-      unit: 'USDC',
-      color: colors.accentSecondary,
-    ),
-    _BreakdownRow(
-      label: 'Savings',
-      icon: HugeIconsSolid.piggyBank,
-      iconSemantic: 'Savings piggy bank icon',
-      value: valuation.savingsLocked,
-      amount: AzMoney.amount(valuation.savingsLocked),
-      unit: 'USDC',
-      color: colors.success,
-      subCaption: valuation.savingsWithdrawable != null
-          ? 'net withdrawable today '
-                '${AzMoney.amount(valuation.savingsWithdrawable!)} USDC'
-          : null,
-    ),
-    _BreakdownRow(
-      label: 'Susu',
-      icon: HugeIconsSolid.userGroup,
-      iconSemantic: 'Susu group icon',
-      // Unknown (still loading / failed fetch) is a DASH, never a
-      // zero: unknown must not read as "nothing".
-      value: valuation.susuCommitted,
-      amount: valuation.susuCommitted != null
-          ? AzMoney.amount(valuation.susuCommitted!)
-          : '—',
-      unit: valuation.susuCommitted != null ? 'USDC' : '',
-      color: colors.warning,
-      subCaption: valuation.susuCommitted == null
-          ? 'amount not loaded yet'
-          : null,
-    ),
-    if (valuation.vendorRowRelevant)
-      _BreakdownRow(
-        label: 'Vendor balance',
-        icon: HugeIconsSolid.store01,
-        iconSemantic: 'Vendor storefront icon',
-        value: valuation.vendorUnallocated,
-        amount: AzMoney.amount(valuation.vendorUnallocated),
-        unit: 'USDC',
-        color: colors.accent,
-        subCaption: valuation.vendorUnallocatedEligible
-            ? 'unallocated, withdrawable'
-            : 'unallocated — not currently withdrawable',
-      ),
-  ];
-
-  Widget _sectionHeader(String title, {Widget? trailing}) => Padding(
-    padding: const EdgeInsets.only(top: AzSpace.md, bottom: AzSpace.xs),
-    child: Row(
-      children: [
-        Text(title, style: AzText.eyebrow.copyWith(color: colors.textTertiary)),
-        if (trailing != null) ...[const Spacer(), trailing],
-      ],
-    ),
-  );
-
-  Widget _row(_BreakdownRow row) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Semantics(
-              label: row.iconSemantic,
-              excludeSemantics: true,
-              child: Icon(row.icon, size: 14, color: row.color),
-            ),
-            const SizedBox(width: AzSpace.sm),
-            Flexible(
-              child: Text(
-                row.label,
-                style: AzText.bodyS.copyWith(color: colors.textSecondary),
-              ),
-            ),
-            const Spacer(),
-            // Right-aligned monetary amount with its explicit native
-            // unit — GHS rows read "GH₵ 1,234.56", USDC rows read
-            // "12.00 USDC". No cross-currency sums anywhere.
-            Text.rich(
-              TextSpan(
-                text: row.amount,
-                style: AzText.money(
-                  colors.textPrimary,
-                  size: 14,
-                  weight: FontWeight.w600,
-                  tracking: 0,
-                ),
-                children: [
-                  if (row.unit.isNotEmpty)
-                    TextSpan(
-                      text: ' ${row.unit}',
-                      style: AzText.bodyS.copyWith(color: colors.textTertiary),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (row.subCaption != null)
-          Padding(
-            padding: const EdgeInsets.only(left: 14 + AzSpace.sm),
-            child: Text(
-              row.subCaption!,
-              style: AzText.caption.copyWith(color: colors.textTertiary),
-            ),
-          ),
-      ],
-    ),
-  );
+  /// Invoked by the header's "return to balance" affordance. The frame
+  /// supplies the actual flip; the affordance marks [flipGuard] so the
+  /// tap never also lands in the frame's tap-to-flip listener.
+  final VoidCallback? onFlipBackRequested;
 
   @override
   Widget build(BuildContext context) {
     final v = valuation;
-    final rate = v.rate.hasRate ? v.rate.ghsPerUsdc! : null;
 
-    // Share rail: every monetary bucket normalized into GHS with the ONE
-    // valid rate. No valid rate → no rail (a neutral note instead); AZM
-    // points are NEVER a rail segment.
-    final railBuckets = <(double, Color)>[
-      (v.nativeGhsAvailable, colors.success),
-      (v.availableUsdc, colors.accent),
-      (v.escrowLocked, colors.warning),
-      (v.disputeEscrow, colors.warning),
-      (v.vaultLocked, colors.accentSecondary),
-      (v.savingsLocked, colors.success),
-      if (v.susuCommitted != null) (v.susuCommitted!, colors.warning),
-      if (v.vendorRowRelevant) (v.vendorUnallocated, colors.accent),
-    ];
-    // GHS-normalized segment sizes (USDC buckets convert at the rate).
-    final segments = rate == null
-        ? const <(double, Color)>[]
-        : [
-            for (final (raw, color) in railBuckets)
-              (raw.isFinite && raw > 0 ? raw * rate : 0.0, color),
-          ];
-    final railTotal = segments.fold<double>(
-      0,
-      (sum, s) => sum + (s.$1 > 0 ? s.$1 : 0),
-    );
-
-    return Container(
+    return Padding(
       key: const ValueKey('balance-fx-breakdown-card'),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: AzRadius.brXl,
-        border: Border.all(color: colors.border, width: 0.75),
+      padding: const EdgeInsets.fromLTRB(
+        AzSpace.lg, AzSpace.md, AzSpace.lg, AzSpace.sm,
       ),
-      padding: const EdgeInsets.all(AzSpace.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'BREAKDOWN',
+          // ── Compact header + return affordance ─────────────────────
+          Row(
             key: const ValueKey('balance-fx-breakdown-header'),
-            style: AzText.eyebrow.copyWith(color: colors.textTertiary),
-          ),
-
-          // ── Share rail (GHS-normalized, only with a valid rate) ─────
-          if (rate != null && railTotal > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: AzSpace.sm),
-              child: ClipRRect(
-                borderRadius: AzRadius.brPill,
-                child: SizedBox(
-                  height: 10,
-                  key: const ValueKey('balance-fx-share-rail'),
-                  child: Row(
-                    children: [
-                      for (final (size, color) in segments)
-                        if (size > 0)
-                          Expanded(
-                            flex: (size / railTotal * 1000).round().clamp(
-                              1,
-                              1000,
-                            ),
-                            child: Container(color: color),
-                          ),
-                    ],
-                  ),
+            children: [
+              Expanded(
+                child: Text(
+                  'BALANCE BREAKDOWN',
+                  style: AzText.eyebrow.copyWith(color: colors.textTertiary),
                 ),
               ),
-            )
-          else if (rate == null)
-            Padding(
-              padding: const EdgeInsets.only(top: AzSpace.sm),
-              child: Text(
-                'Share view unavailable — it needs a valid FX rate',
-                key: const ValueKey('balance-fx-share-rail-unavailable'),
-                style: AzText.caption.copyWith(color: colors.textTertiary),
-              ),
-            ),
-
-          _sectionHeader('Available assets'),
-          for (final row in _availableRows()) _row(row),
-          _sectionHeader('Locked or committed'),
-          for (final row in _lockedRows()) _row(row),
-          _sectionHeader('Non-cash'),
-          _row(
-            _BreakdownRow(
-              label: 'AZM points',
-              icon: HugeIconsSolid.flash,
-              iconSemantic: 'AZM points icon',
-              value: v.azmPoints,
-              amount: AzMoney.amount(v.azmPoints, decimals: 0),
-              unit: 'AZM',
-              color: colors.accentSecondary,
-              subCaption: 'loyalty points — not money, never in a total',
+              if (onFlipBackRequested != null)
+                FlipGuardMarker(
+                  flipGuard: flipGuard,
+                  child: Semantics(
+                    label: 'Back to balance',
+                    button: true,
+                    child: Tooltip(
+                      message: 'Back to balance',
+                      child: SizedBox(
+                        width: 32,
+                        height: 32,
+                        key: const ValueKey('bc-flip-back'),
+                        child: IconButton(
+                          padding: EdgeInsets.zero,
+                          iconSize: 18,
+                          onPressed: onFlipBackRequested,
+                          icon: Icon(
+                            HugeIconsSolid.arrowLeft01,
+                            size: 18,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          // ── Scrollable rows, clipped to the shared rounded frame ────
+          // The fixed footprint never grows: genuinely additional detail
+          // scrolls INSIDE the card. Vertical drags belong to this region;
+          // only a deliberate tap (< 8px travel) flips the card back.
+          Expanded(
+            child: ListView(
+              key: const ValueKey('bc-breakdown-scroll'),
+              padding: EdgeInsets.zero,
+              physics: const ClampingScrollPhysics(),
+              children: [
+                _SectionLabel('AVAILABLE', colors),
+                _BreakdownRow(
+                  key: const ValueKey('bc-row-ghs-wallet'),
+                  label: 'GHS wallet',
+                  icon: HugeIconsSolid.wallet01,
+                  iconSemantic: 'GHS wallet icon',
+                  amount: AzMoney.ghs(v.nativeGhsAvailable),
+                  unit: '',
+                  colors: colors,
+                ),
+                _BreakdownRow(
+                  key: const ValueKey('bc-row-usdc-held'),
+                  label: 'USDC held',
+                  icon: HugeIconsSolid.coins01,
+                  iconSemantic: 'USDC wallet icon',
+                  amount: AzMoney.amount(v.availableUsdc),
+                  unit: 'USDC',
+                  colors: colors,
+                ),
+                _SectionLabel('LOCKED OR COMMITTED', colors),
+                _BreakdownRow(
+                  key: const ValueKey('bc-row-escrow'),
+                  label: 'Escrow & disputes',
+                  icon: HugeIconsSolid.lock,
+                  iconSemantic: 'Escrow lock icon',
+                  amount: AzMoney.amount(v.escrowLocked + v.disputeEscrow),
+                  unit: 'USDC',
+                  colors: colors,
+                  // Grouped visually, distinct values preserved.
+                  detail: 'Escrow ${AzMoney.amount(v.escrowLocked)} · '
+                      'Disputes ${AzMoney.amount(v.disputeEscrow)} USDC',
+                ),
+                _BreakdownRow(
+                  key: const ValueKey('bc-row-vaults'),
+                  label: 'Vaults',
+                  icon: HugeIconsSolid.shield01,
+                  iconSemantic: 'Vault shield icon',
+                  amount: AzMoney.amount(v.vaultLocked),
+                  unit: 'USDC',
+                  colors: colors,
+                ),
+                _BreakdownRow(
+                  key: const ValueKey('bc-row-savings'),
+                  label: 'Savings',
+                  icon: HugeIconsSolid.piggyBank,
+                  iconSemantic: 'Savings piggy bank icon',
+                  amount: AzMoney.amount(v.savingsLocked),
+                  unit: 'USDC',
+                  colors: colors,
+                  // Shown only when the authoritative data supplies it.
+                  detail: v.savingsWithdrawable != null
+                      ? 'withdrawable today '
+                          '${AzMoney.amount(v.savingsWithdrawable!)} USDC'
+                      : null,
+                ),
+                _BreakdownRow(
+                  key: const ValueKey('bc-row-susu'),
+                  label: 'Susu',
+                  icon: HugeIconsSolid.userGroup,
+                  iconSemantic: 'Susu group icon',
+                  // Unknown (still loading / failed fetch) is a DASH,
+                  // never a zero: unknown must not read as "nothing".
+                  amount: v.susuCommitted != null
+                      ? AzMoney.amount(v.susuCommitted!)
+                      : '—',
+                  unit: v.susuCommitted != null ? 'USDC' : '',
+                  colors: colors,
+                  detail: v.susuCommitted == null ? 'not loaded yet' : null,
+                ),
+                if (v.vendorRowRelevant)
+                  _BreakdownRow(
+                    key: const ValueKey('bc-row-vendor'),
+                    label: 'Vendor balance',
+                    icon: HugeIconsSolid.store01,
+                    iconSemantic: 'Vendor storefront icon',
+                    amount: AzMoney.amount(v.vendorUnallocated),
+                    unit: 'USDC',
+                    colors: colors,
+                    detail: v.vendorUnallocatedEligible
+                        ? 'unallocated · withdrawable'
+                        : 'unallocated · not withdrawable now',
+                  ),
+                _SectionLabel('NON-CASH', colors),
+                _BreakdownRow(
+                  key: const ValueKey('bc-row-azm-points'),
+                  label: 'AZM points',
+                  icon: HugeIconsSolid.flash,
+                  iconSemantic: 'AZM points icon',
+                  amount: AzMoney.amount(v.azmPoints, decimals: 0),
+                  unit: 'pts',
+                  colors: colors,
+                ),
+              ],
             ),
           ),
         ],
