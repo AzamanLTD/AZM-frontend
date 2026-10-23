@@ -15,6 +15,11 @@
 // the interceptor — it can never masquerade as a successful empty dataset.
 // =============================================================================
 
+// The canonical Mix taxonomy vocabulary — the wire-exact chip contract
+// shared with the real backend overlay. The discovery seed validates chips
+// against it instead of inventing taxonomy IDs.
+import 'package:azaman/marketplace/mix/mix_models.dart' show MixTaxonomy;
+
 // Verified media assets (Base44 public CDN). Reused deterministically —
 // one asset pool per category, no random generators.
 const String _mp = 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/';
@@ -121,6 +126,7 @@ class DemoMarketplaceSeed {
   /// any of them is missing or throws.
   static const List<String> requiredGetEndpoints = <String>[
     '/business/search?q=jollof&category=FOOD_BEVERAGE&verified=true&limit=20',
+    '/discovery/items?limit=24',
     '/business/search/nearby?lat=5.55&lng=-0.18&category=RETAIL',
     '/business/me',
     '/business/kyb/status',
@@ -202,6 +208,468 @@ class DemoMarketplaceSeed {
         .toList(growable: false);
     return _pageOf(locations, limit, cursor, 'locations',
         hasMoreKey: 'hasMore', cursorKey: 'nextPage');
+  }
+
+  // ── G1 — Mix discovery feed (GET /discovery/items) ───────────────────
+  // The canonical cross-store discovery surface the Mix tab reads. Every
+  // row reuses a REAL seeded business/product identity, seeded media and
+  // a seeded location label. Each offer carries an AUTHORITATIVE GHS
+  // sample price declared as a literal — never computed or converted from
+  // any USDC value (owner rule: discovery renders authoritative GHS only).
+  static const int discoveryDefaultLimit = 24;
+
+  static Map<String, dynamic> _offer({
+    required String productId,
+    required String businessId,
+    required String bizId,
+    required String businessName,
+    required String businessCategory,
+    required String businessLogoUrl,
+    required String name,
+    required String description,
+    required List<String> images,
+    required List<String> tags,
+    required String ghsAmount,
+    required String taxonomy,
+    required String locationLabel,
+    required String city,
+    required String region,
+    bool orderable = false,
+    bool bookable = false,
+    bool deliverable = false,
+    bool dineIn = false,
+    int? preparationMins,
+    String? deliveryTerms,
+    String? estimatedDelivery,
+  }) =>
+      {
+        'id': productId,
+        'businessId': businessId,
+        'bizId': bizId,
+        'businessName': businessName,
+        'businessCategory': businessCategory,
+        'businessLogoUrl': businessLogoUrl,
+        'item': {
+          'name': name,
+          'description': description,
+          'images': images,
+          'tags': tags,
+        },
+        'pricing': {
+          'currency': 'GHS',
+          'displayCurrency': 'GHS',
+          'amount': ghsAmount,
+        },
+        'availability': {
+          'isAvailable': true,
+          'sectionWindowOpen': true,
+          if (preparationMins != null) 'preparationMins': preparationMins,
+          if (deliveryTerms != null) 'deliveryTerms': deliveryTerms,
+          if (estimatedDelivery != null)
+            'estimatedDelivery': estimatedDelivery,
+        },
+        // Structured location: the label is the established display DTO;
+        // city/region carry the seeded metadata that drives the city and
+        // region filters (never a text search over the label).
+        'location': {
+          'label': locationLabel,
+          'city': city,
+          'region': region,
+          'country': 'Ghana',
+        },
+        'section': {'taxonomy': taxonomy},
+        'action': 'ENQUIRE',
+        'capabilities': {
+          'orderable': orderable,
+          'bookable': bookable,
+          'deliverable': deliverable,
+          'dineIn': dineIn,
+          // payability is USDC-only today — same honest limit as the
+          // real gateway's supportedCapabilities contract.
+          'payableIn': ['USDC'],
+        },
+      };
+
+  /// The full deterministic discovery catalog: FIXED order, stable IDs,
+  /// offers from all four seeded categories. EVERY row is DERIVED from the
+  /// seed's own ground truth (menus, hotel rooms, transit tickets, retail
+  /// products, business records, seeded locations) — an offer cannot drift
+  /// from its source item, and its displayed identity is coherent with
+  /// that source by construction.
+  static List<Map<String, dynamic>> _discoveryCatalog() => [
+        // ── FOOD_BEVERAGE — real seeded menu dishes ─────────────────────
+        _menuDishOffer(
+          bizId: restaurantBizId,
+          dishId: 'dish-jollof',
+          ghsAmount: '45.00',
+          deliverable: true,
+          dineIn: true,
+          preparationMins: 15,
+          deliveryTerms: 'within 5km',
+          estimatedDelivery: '35 min',
+        ),
+        _menuDishOffer(
+          bizId: restaurantBizId,
+          dishId: 'drink-sobo',
+          ghsAmount: '12.00',
+          deliverable: true,
+          dineIn: true,
+          preparationMins: 5,
+        ),
+        _menuDishOffer(
+          bizId: restaurantBizId,
+          dishId: 'dessert-bofrot',
+          ghsAmount: '18.00',
+          deliverable: true,
+          dineIn: true,
+          preparationMins: 8,
+        ),
+        _menuDishOffer(
+          bizId: restaurant2BizId,
+          dishId: 'dish2-suya',
+          ghsAmount: '38.00',
+          deliverable: true,
+          dineIn: true,
+          preparationMins: 12,
+          deliveryTerms: 'within 8km',
+          estimatedDelivery: '40 min',
+        ),
+        // ── HOSPITALITY — real seeded hotel rooms ──────────────────────
+        _roomOffer(bizId: hotelBizId, roomNumber: 101, ghsAmount: '350.00'),
+        _roomOffer(bizId: hotel2BizId, roomNumber: 201, ghsAmount: '610.00'),
+        // ── LOGISTICS — real seeded transit tickets ────────────────────
+        _ticketOffer(
+          bizId: transitBizId,
+          ticketId: 'prod-transit-001-std',
+          ghsAmount: '90.00',
+        ),
+        _ticketOffer(
+          bizId: transit2BizId,
+          ticketId: 'prod-transit-002-vip',
+          ghsAmount: '120.00',
+        ),
+        // ── RETAIL — real seeded retail products ────────────────────────
+        _retailOffer(
+          bizId: retailBizId,
+          productId: 'prod-tshirt',
+          ghsAmount: '180.00',
+          deliverable: true,
+        ),
+        _retailOffer(
+          bizId: retailBizId,
+          productId: 'prod-throw-pillow',
+          ghsAmount: '65.00',
+          deliverable: true,
+        ),
+        _retailOffer(
+          bizId: retail2BizId,
+          productId: 'prod-adinkra-cloth',
+          ghsAmount: '95.00',
+        ),
+        _retailOffer(
+          bizId: retail2BizId,
+          productId: 'prod-ahesi-ceramic',
+          ghsAmount: '110.00',
+        ),
+      ];
+
+  /// The seeded menu section → canonical taxonomy mapping. Wire-exact
+  /// with [MixTaxonomy.canonical]: a section without a mapping is a seed
+  /// error (never an invented taxonomy ID).
+  static const Map<String, String> _menuSectionTaxonomy = {
+    'Starters': 'STARTERS',
+    'Light Bites': 'STARTERS',
+    'Main Courses': 'MEALS',
+    'From the Grill': 'MEALS',
+    'Beverages': 'DRINKS',
+    'Desserts': 'DESSERTS',
+  };
+
+  /// The seeded business record for a bizId (its locations included).
+  static Map<String, dynamic> _seededBusiness(String bizId) {
+    final business =
+        getBusinessByBizId(bizId)['business'] as Map<String, dynamic>;
+    if (business['bizId'] != bizId) {
+      throw StateError('discovery seed: $bizId is not a seeded business');
+    }
+    return business;
+  }
+
+  /// The business's primary seeded location (the structured source for
+  /// label/city/region truth).
+  static Map<String, dynamic> _seededLocation(Map<String, dynamic> business) {
+    final locations = business['locations'] as List;
+    if (locations.isEmpty) {
+      throw StateError(
+          'discovery seed: ${business['id']} has no seeded location');
+    }
+    return locations.first as Map<String, dynamic>;
+  }
+
+  /// A discovery offer for a REAL seeded menu dish. Item identity (id,
+  /// name, description, images, tags) and owning business come from the
+  /// seeded menu itself; the taxonomy is derived from the dish's seeded
+  /// section via [_menuSectionTaxonomy]. The GHS price is an authored
+  /// authoritative literal (never converted from any USDC value).
+  static Map<String, dynamic> _menuDishOffer({
+    required String bizId,
+    required String dishId,
+    required String ghsAmount,
+    bool orderable = true,
+    bool deliverable = false,
+    bool dineIn = false,
+    int? preparationMins,
+    String? deliveryTerms,
+    String? estimatedDelivery,
+  }) {
+    Map<String, dynamic>? dish;
+    String? sectionName;
+    for (final section in getMenu(bizId)['sections'] as List) {
+      for (final product in section['products'] as List) {
+        if (product['id'] == dishId) {
+          dish = product as Map<String, dynamic>;
+          sectionName = section['name'] as String;
+          break;
+        }
+      }
+      if (dish != null) break;
+    }
+    if (dish == null) {
+      throw StateError('discovery seed: $dishId is not a seeded menu item '
+          'of $bizId');
+    }
+    final taxonomy = _menuSectionTaxonomy[sectionName!];
+    if (taxonomy == null) {
+      throw StateError('discovery seed: menu section "$sectionName" has no '
+          'canonical taxonomy — do not invent IDs');
+    }
+    final business = _seededBusiness(bizId);
+    final location = _seededLocation(business);
+    return _offer(
+      productId: dish['id'] as String,
+      businessId: business['id'] as String,
+      bizId: bizId,
+      businessName: business['businessName'] as String,
+      businessCategory: business['category'] as String,
+      businessLogoUrl: business['logoUrl'] as String,
+      name: dish['name'] as String,
+      description: dish['description'] as String,
+      images: (dish['imageUrls'] as List).cast<String>(),
+      tags: (dish['tags'] as List).cast<String>(),
+      ghsAmount: ghsAmount,
+      taxonomy: taxonomy,
+      locationLabel: location['label'] as String,
+      city: location['city'] as String,
+      region: location['region'] as String,
+      orderable: orderable,
+      deliverable: deliverable,
+      dineIn: dineIn,
+      preparationMins: preparationMins,
+      deliveryTerms: deliveryTerms,
+      estimatedDelivery: estimatedDelivery,
+    );
+  }
+
+  /// A discovery offer for a REAL seeded hotel room, identified by the
+  /// deterministic seeded room numbering (floor*100+room).
+  static Map<String, dynamic> _roomOffer({
+    required String bizId,
+    required int roomNumber,
+    required String ghsAmount,
+    bool bookable = true,
+  }) {
+    final business = _seededBusiness(bizId);
+    final profileId = business['id'] as String;
+    final room = _hotelRooms(profileId)
+        .where((r) => r['id'] == 'room-$profileId-$roomNumber')
+        .toList(growable: false);
+    if (room.isEmpty) {
+      throw StateError('discovery seed: room $roomNumber is not a seeded '
+          'room of $profileId');
+    }
+    final source = room.first;
+    final location = _seededLocation(business);
+    return _offer(
+      productId: source['id'] as String,
+      businessId: profileId,
+      bizId: bizId,
+      businessName: business['businessName'] as String,
+      businessCategory: business['category'] as String,
+      businessLogoUrl: business['logoUrl'] as String,
+      name: source['name'] as String,
+      description: source['description'] as String,
+      images: (source['imageUrls'] as List).cast<String>().take(1).toList(),
+      tags: (source['tags'] as List).cast<String>(),
+      ghsAmount: ghsAmount,
+      taxonomy: 'ROOMS',
+      locationLabel: location['label'] as String,
+      city: location['city'] as String,
+      region: location['region'] as String,
+      bookable: bookable,
+    );
+  }
+
+  /// A discovery offer for a REAL seeded transit ticket or retail
+  /// product, verified against the public seeded catalogue — including
+  /// that the item belongs to the named business.
+  static Map<String, dynamic> _catalogProductOffer({
+    required String bizId,
+    required String productId,
+    required String ghsAmount,
+    required String taxonomy,
+    bool orderable = false,
+    bool bookable = false,
+    bool deliverable = false,
+  }) {
+    final business = _seededBusiness(bizId);
+    final product = getProductById(productId)['product'] as Map<String, dynamic>;
+    if (product['businessProfileId'] != business['id']) {
+      throw StateError('discovery seed: $productId is not owned by '
+          '${business['id']}');
+    }
+    final location = _seededLocation(business);
+    return _offer(
+      productId: product['id'] as String,
+      businessId: business['id'] as String,
+      bizId: bizId,
+      businessName: business['businessName'] as String,
+      businessCategory: business['category'] as String,
+      businessLogoUrl: business['logoUrl'] as String,
+      name: product['name'] as String,
+      description: product['description'] as String,
+      images: (product['imageUrls'] as List).cast<String>(),
+      tags: (product['tags'] as List).cast<String>(),
+      ghsAmount: ghsAmount,
+      taxonomy: taxonomy,
+      locationLabel: location['label'] as String,
+      city: location['city'] as String,
+      region: location['region'] as String,
+      orderable: orderable,
+      bookable: bookable,
+      deliverable: deliverable,
+    );
+  }
+
+  /// A discovery offer for a real seeded transit ticket (RIDES).
+  static Map<String, dynamic> _ticketOffer({
+    required String bizId,
+    required String ticketId,
+    required String ghsAmount,
+  }) =>
+      _catalogProductOffer(
+        bizId: bizId,
+        productId: ticketId,
+        ghsAmount: ghsAmount,
+        taxonomy: 'RIDES',
+        bookable: true,
+      );
+
+  /// A discovery offer for a real seeded retail product (RETAIL_ITEMS).
+  static Map<String, dynamic> _retailOffer({
+    required String bizId,
+    required String productId,
+    required String ghsAmount,
+    bool deliverable = false,
+  }) =>
+      _catalogProductOffer(
+        bizId: bizId,
+        productId: productId,
+        ghsAmount: ghsAmount,
+        taxonomy: 'RETAIL_ITEMS',
+        orderable: true,
+        deliverable: deliverable,
+      );
+
+  /// Deterministic GET /discovery/items over the seeded catalog.
+  /// Supports category, q, repeatable taxonomy chips, city/region,
+  /// limit (clamped to the server's 1..50) and opaque offset cursors
+  /// (`off-<n>`). An unparseable cursor is REFUSED (the demo world never
+  /// fabricates a continuation) — exactly like the real endpoint would
+  /// reject a malformed cursor rather than invent a page.
+  static Map<String, dynamic> discoveryItems({
+    String? category,
+    String? q,
+    List<String>? taxonomies,
+    String? city,
+    String? region,
+    int? limit,
+    String? cursor,
+  }) {
+    var offset = 0;
+    if (cursor != null) {
+      final m = RegExp(r'^off-(\d+)$').firstMatch(cursor.trim());
+      if (m == null) {
+        throw DemoEndpointNotSeededException(
+            'GET', '/discovery/items (bad cursor: "$cursor")');
+      }
+      offset = int.parse(m.group(1)!);
+    }
+
+    // Taxonomy chips are wire-exact with the backend overlay: the server
+    // answers an unknown chip with a 422, so the demo refuses one the same
+    // way it refuses a malformed cursor — never a fabricated result set.
+    // A CANONICAL chip with no seeded items is different: that is an
+    // honest empty success (the documented unmapped behaviour).
+    final wantedTaxonomies = (taxonomies ?? const <String>[]).toSet();
+    final canonicalIds = MixTaxonomy.canonical.map((t) => t.id).toSet();
+    for (final chip in wantedTaxonomies) {
+      if (!canonicalIds.contains(chip)) {
+        throw DemoEndpointNotSeededException(
+            'GET', '/discovery/items (unknown taxonomy: "$chip")');
+      }
+    }
+    final needle = q?.trim().toLowerCase();
+
+    final filtered = _discoveryCatalog().where((row) {
+      if (category != null && category.trim().isNotEmpty) {
+        final cat = category.trim().toUpperCase();
+        final rowCat = row['businessCategory'].toString();
+        if (rowCat != cat && !(cat == 'HOSPITALITY' && rowCat == 'REAL_ESTATE')) {
+          return false;
+        }
+      }
+      if (wantedTaxonomies.isNotEmpty &&
+          !wantedTaxonomies
+              .contains(row['section']['taxonomy'].toString())) {
+        return false;
+      }
+      // City and region filter on the seeded STRUCTURED metadata, never a
+      // text search over the display label: an offer whose real location
+      // is Accra must match city=Accra even when its label reads
+      // "Spintex Road".
+      if (city != null && city.trim().isNotEmpty) {
+        if (row['location']['city'].toString().trim().toLowerCase() !=
+            city.trim().toLowerCase()) {
+          return false;
+        }
+      }
+      if (region != null && region.trim().isNotEmpty) {
+        if (row['location']['region'].toString().trim().toLowerCase() !=
+            region.trim().toLowerCase()) {
+          return false;
+        }
+      }
+      if (needle != null && needle.isNotEmpty) {
+        final haystack = [
+          row['businessName'].toString(),
+          row['item']['name'].toString(),
+          row['item']['description'].toString(),
+          (row['item']['tags'] as List).join(' '),
+        ].join(' ').toLowerCase();
+        if (!haystack.contains(needle)) return false;
+      }
+      return true;
+    }).toList(growable: false);
+
+    final effectiveLimit = (limit ?? discoveryDefaultLimit).clamp(1, 50);
+    final page = filtered.skip(offset).take(effectiveLimit).toList();
+    final nextOffset = offset + page.length;
+    return {
+      'success': true,
+      'items': page,
+      'nextCursor':
+          nextOffset < filtered.length ? 'off-$nextOffset' : null,
+    };
   }
 
   static List<Map<String, dynamic>> _filterBusinesses(
@@ -383,8 +851,12 @@ class DemoMarketplaceSeed {
 
   /// Public single-product lookup across the seeded catalogue.
   static Map<String, dynamic> getProductById(String productId) {
+    // The FULL seeded catalogue: transit-002's tickets are seeded too —
+    // an endpoint that answers "not seeded" for a genuinely seeded product
+    // is a truthfulness bug, not a scoping decision.
     final catalogue = [
       ..._transitProducts('transit-001'),
+      ..._transitProducts('transit-002'),
       ..._retailProducts('retail-001'),
       ..._retailProducts('retail-002'),
     ];
