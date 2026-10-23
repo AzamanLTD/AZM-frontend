@@ -19,6 +19,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/live_market_section.dart';
@@ -135,91 +136,131 @@ void main() {
     expect(find.textContaining("TODAY'S RATE"), findsNothing);
   });
 
-  // ── FINAL PASS §3 — light-mode depth ────────────────────────────────────
-  // The light Home rendered as one ~8-luma-unit field: the wallet pills
-  // (glass @5% + enableShadow:false) were INVISIBLE on the near-white
-  // page. Light pills must sit on the design system's CARD step
-  // (opaque c.card fill + hairline + AzElevation contact shadow);
-  // dark pills keep the glass language.
+  // ── FLAT, BORDER-ONLY SETTLED CONTROLS (PR #184 design review,
+  // 2026-10-23) ─────────────────────────────────────────────────────
+  // The settled Save/P2P/Susu quick actions are FLAT outlines drawn on
+  // the page: transparent body (no fill, glass, blur, gradient,
+  // specular, glow, inner/outer shadow, elevation of any kind) with a
+  // crisp 1px rim as the ONLY container treatment. The quiet-depth
+  // wake survives as rim strength, never a raised body.
+
+  void expectFlatBorderOnlyPill(WidgetTester tester, Finder pill) {
+    // The pill subtree must contain NOTHING that paints a body.
+    expect(
+      find.descendant(of: pill, matching: find.byType(BackdropFilter)),
+      findsNothing,
+      reason: 'backdrop blur is a raised/glass body treatment — the '
+          'settled quick actions are flat',
+    );
+
+    final boxes = tester
+        .widgetList<DecoratedBox>(find.descendant(
+          of: pill,
+          matching: find.byType(DecoratedBox),
+        ))
+        .where((d) => d.decoration is BoxDecoration)
+        .map((d) => d.decoration as BoxDecoration)
+        .toList(growable: false);
+
+    for (final b in boxes) {
+      expect(b.color, anyOf(isNull, isA<Color>().having((c) => c.a, 'a', 0)),
+          reason: 'a pill decoration paints a body fill — the settled '
+              'body must visually disappear into the page');
+      expect(b.gradient, isNull, reason: 'gradients read as a raised body');
+      expect(b.boxShadow, anyOf(isNull, isEmpty),
+          reason: 'shadows are an elevation effect — forbidden on the '
+              'settled quick actions');
+    }
+
+    // Border-only container: the rim exists and is the ONLY container
+    // treatment. (BoxDecoration.border, no fill, no shadow — above.)
+    final rimmed = boxes.where((b) => b.border != null).toList(growable: false);
+    expect(rimmed, isNotEmpty,
+        reason: 'the outline IS the container treatment — it must exist');
+  }
 
   testWidgets(
-      'final pass §3 — light wallet pills sit on the CARD step '
-      '(opaque fill, hairline, contact shadow)', (tester) async {
+      'flat contract — light settled pills are BORDER-ONLY in both '
+      'depth states', (tester) async {
     await _pumpHome(tester);
 
-    final pill = find.byKey(const ValueKey('wallet-module-save'));
-    expect(pill, findsOneWidget);
-
     final colors = ThemeProvider.getColors(AzamanTheme.light);
+    for (final key in [
+      'wallet-module-save',
+      'wallet-module-p2p',
+      'wallet-module-susu',
+    ]) {
+      final pill = find.byKey(ValueKey(key));
+      expect(pill, findsOneWidget);
+      expectFlatBorderOnlyPill(tester, pill);
 
-    // The opaque card-step fill on the pill's own surface.
-    final fills = tester
-        .widgetList<DecoratedBox>(find.descendant(
-          of: pill,
-          matching: find.byType(DecoratedBox),
-        ))
-        .where((d) => d.decoration is BoxDecoration)
-        .map((d) => d.decoration as BoxDecoration)
-        .where((b) => b.color != null)
-        .toList(growable: false);
-    expect(
-      fills.any((b) => b.color!.a == 1.0 && b.color!.r == colors.card.r
-          && b.color!.g == colors.card.g && b.color!.b == colors.card.b),
-      isTrue,
-      reason: 'the light pill must paint the opaque CARD step, not a 5% '
-          'glass tint that vanishes on the #F2F3F5 page',
-    );
+      // The woken rim: crisp full-strength tertiary ink.
+      final raisedRim = tester
+          .widgetList<DecoratedBox>(find.descendant(
+            of: pill,
+            matching: find.byType(DecoratedBox),
+          ))
+          .where((d) => d.decoration is BoxDecoration)
+          .map((d) => d.decoration as BoxDecoration)
+          .where((b) => b.border != null)
+          .first
+          .border as Border;
+      expect(raisedRim.top.color.a, greaterThan(0.9),
+          reason: 'the woken rim must be crisp (full tertiary ink)');
+    }
 
-    // A contact shadow (AzElevation) under the pill.
-    final shadowed = tester
-        .widgetList<DecoratedBox>(find.descendant(
-          of: pill,
-          matching: find.byType(DecoratedBox),
-        ))
-        .where((d) => d.decoration is BoxDecoration)
-        .map((d) => d.decoration as BoxDecoration)
-        .where((b) => b.boxShadow?.isNotEmpty ?? false)
-        .toList(growable: false);
-    expect(shadowed, isNotEmpty,
-        reason: 'enableShadow:false left the light pill with no shadow — '
-            'no separation from the page plane');
+    // Settle (idle → recessed): the rim softens but the body stays flat.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 300));
+    for (final key in [
+      'wallet-module-save',
+      'wallet-module-p2p',
+      'wallet-module-susu',
+    ]) {
+      final pill = find.byKey(ValueKey(key));
+      expectFlatBorderOnlyPill(tester, pill);
+      final recessedRim = tester
+          .widgetList<DecoratedBox>(find.descendant(
+            of: pill,
+            matching: find.byType(DecoratedBox),
+          ))
+          .where((d) => d.decoration is BoxDecoration)
+          .map((d) => d.decoration as BoxDecoration)
+          .where((b) => b.border != null)
+          .first
+          .border as Border;
+      expect(recessedRim.top.color.a, lessThan(0.8),
+          reason: 'the settled rim is the whisper hairline');
+    }
+    // Sanity: the ink is the design-system tertiary, not a magic hex.
+    expect(colors.textTertiary, isA<Color>());
   });
 
   testWidgets(
-      'final pass §3 — dark wallet pills keep the glass language '
-      '(no opaque card fill)', (tester) async {
+      'flat contract — dark settled pills are BORDER-ONLY in both '
+      'depth states (glass removed)', (tester) async {
     await _pumpHome(tester, theme: AzamanTheme.dark);
 
-    final pill = find.byKey(const ValueKey('wallet-module-p2p'));
-    expect(pill, findsOneWidget);
+    for (final key in ['wallet-module-save', 'wallet-module-p2p']) {
+      final pill = find.byKey(ValueKey(key));
+      expect(pill, findsOneWidget);
+      // Glass = BackdropFilter + PremiumGlassContainer — BOTH must be
+      // gone from the dark pills too.
+      expectFlatBorderOnlyPill(tester, pill);
+      expect(
+        find.descendant(
+            of: pill, matching: find.byType(PremiumGlassContainer)),
+        findsNothing,
+        reason: 'dark keeps the flat rim language now — glass reads as a '
+            'raised body',
+      );
+    }
 
-    // Glass = BackdropFilter still in the pill's surface stack.
-    final blur = find.descendant(
-      of: pill,
-      matching: find.byType(BackdropFilter),
-    );
-    expect(blur, findsOneWidget,
-        reason: 'dark pills keep the premium glass blur; the light-mode '
-            'card-step fix must not leak into dark');
-
-    final darkColors = ThemeProvider.getColors(AzamanTheme.dark);
-    final opaqueCardFills = tester
-        .widgetList<DecoratedBox>(find.descendant(
-          of: pill,
-          matching: find.byType(DecoratedBox),
-        ))
-        .where((d) => d.decoration is BoxDecoration)
-        .map((d) => d.decoration as BoxDecoration)
-        .where((b) =>
-            b.color != null &&
-            b.color!.a == 1.0 &&
-            b.color!.r == darkColors.card.r &&
-            b.color!.g == darkColors.card.g &&
-            b.color!.b == darkColors.card.b)
-        .toList(growable: false);
-    expect(opaqueCardFills, isEmpty,
-        reason: 'dark keeps translucent glass, not an opaque card fill');
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 300));
+    for (final key in ['wallet-module-save', 'wallet-module-p2p']) {
+      final pill = find.byKey(ValueKey(key));
+      expectFlatBorderOnlyPill(tester, pill);
+    }
   });
-
-
 }

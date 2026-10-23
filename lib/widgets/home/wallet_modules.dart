@@ -26,9 +26,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
-import 'package:azaman/theme/az_elevation.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
@@ -167,88 +165,106 @@ class _WalletPill extends ConsumerWidget {
     final content = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 20),
       child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // PASS E — the wallet module icons are SUPPORTING feature
-            // icons: muted gold, so bright gold stays reserved for the
-            // primary actions and selected navigation.
-            Icon(icon, size: 18, color: colors.mutedAccent),
-            const SizedBox(width: AzSpace.sm),
-            Flexible(
-              child: Text(
+        // DESIGN REVIEW (PR #184, 2026-10-23): full labels, always —
+        // down to 320dp. No ellipsis, no clipped letters: the content
+        // row (icon, gap, type together) scales down proportionally
+        // instead of dropping characters, and the horizontal padding
+        // tightens on narrow pills FIRST so default-scale labels at
+        // 320dp still render essentially at full size. The hit target
+        // is the pill box (padding preserved), never the scaled type.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // PASS E — the wallet module icons are SUPPORTING feature
+              // icons: muted gold, so bright gold stays reserved for the
+              // primary actions and selected navigation.
+              Icon(icon, size: 18, color: colors.mutedAccent),
+              const SizedBox(width: AzSpace.sm),
+              Text(
                 label,
                 style: AzText.title.copyWith(
                   color: colors.textPrimary,
                   fontWeight: FontWeight.w800,
                 ),
                 maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                overflow: TextOverflow.visible,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
 
-    // The stable content layer: mounted EXACTLY ONCE, above the
-    // backdrops. It carries the padding that sizes the pill, so both
-    // backdrop variants occupy the same box.
-    final paddedContent = Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AzSpace.lg,
-        vertical: 12,
-      ),
-      child: content,
-    );
-
     // The raised and recessed backdrops: decorative only. The content
-    // subtree is NEVER inside them, so the depth cross-fade animates
-    // shadows and glass alone — icon, label and semantics stay mounted
-    // and fully opaque through the whole transition.
+    // subtree is NEVER inside them, so the depth cross-fade animates the
+    // rim alone — icon, label and semantics stay mounted and fully
+    // opaque through the whole transition.
+    //
+    // DESIGN REVIEW (PR #184, 2026-10-23): the settled quick actions are
+    // FLAT, BORDER-ONLY controls. The body must visually disappear into
+    // the page: NO fill, glass, blur, gradient, specular highlight,
+    // glow, inner or outer shadow — nothing that reads as a raised or
+    // inset body. The outline alone is the container treatment.
+    //
+    // The quiet-depth states survive as a gentle RIM-STRENGTH
+    // difference — woken = the crisp full rim; settled = a whisper
+    // hairline — never as a body. The rim colour is the design system's
+    // tertiary ink, which already reads on both page planes (white38 on
+    // the dark ramp; #6B7280 on the light page), softened for the
+    // recessed state.
     Widget backdrop(bool recessed) {
-      if (colors.isDark) {
-        // DARK keeps the premium glass language. Raised = the current
-        // glass; recessed = a whisper-flatter glass (lower opacity, less
-        // blur) so the pill reads as sitting INTO the canvas while its
-        // rim, label and icon keep full contrast.
-        return PremiumGlassContainer(
-          blur: recessed ? 6 : 10,
-          opacity: recessed ? 0.03 : 0.05,
-          borderRadius: 999,
-          padding: EdgeInsets.zero,
-          enableShadow: false,
-          border: Border.all(color: colors.divider, width: 0.5),
-          child: const SizedBox.expand(),
-        );
-      }
-      // LIGHT: raised = the card step with the AzElevation contact shadow;
-      // recessed = flush with the plane (no shadow, the surface fill) but
-      // the hairline border stays, so the pill is still visibly a button.
-      return Container(
+      // textTertiary carries its own ink strength per theme (white38 on
+      // the dark ramp, opaque #6B7280 on the light page). The settled
+      // rim softens to ~55% OF that ink; the woken rim is the full
+      // tertiary ink. (withValues replaces alpha — keep the base ink.)
+      final ink = colors.textTertiary;
+      final rim =
+          recessed ? ink.withValues(alpha: ink.a * 0.55) : ink;
+      return DecoratedBox(
+        key: ValueKey<bool>(recessed),
         decoration: BoxDecoration(
-          color: recessed ? colors.surface : colors.card,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: colors.border, width: 1),
-          boxShadow: recessed ? AzElevation.level0 : AzElevation.level1(false),
+          border: Border.all(color: rim, width: 1),
         ),
         child: const SizedBox.expand(),
       );
     }
 
-    return ScaleTap(
-      onTap: () {
-        // A qualifying interaction wakes the quiet-depth cycle. The wake
-        // is pure bookkeeping — it can never delay or swallow the real
-        // action below it.
-        QuietDepthScope.maybeOf(context)?.wake();
-        onTap();
+    // The stable content layer: mounted EXACTLY ONCE, above the
+    // backdrops. It carries the padding that sizes the pill, so both
+    // backdrop variants occupy the same box.
+    //
+    // 320dp row math: each pill gets ≈85dp; the lg (16) horizontal
+    // padding alone eats the label budget at that width. Tighten the
+    // padding FIRST on narrow pills (sm + 2), so default-scale labels
+    // at 320dp render essentially at full size; the FittedBox above is
+    // only the safety net.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tight = constraints.maxWidth < 100;
+        return ScaleTap(
+          onTap: () {
+            // A qualifying interaction wakes the quiet-depth cycle. The
+            // wake is pure bookkeeping — it can never delay or swallow
+            // the real action below it.
+            QuietDepthScope.maybeOf(context)?.wake();
+            onTap();
+          },
+          child: QuietDepthSurface(
+            content: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: tight ? AzSpace.sm + 2 : AzSpace.lg,
+                vertical: 12,
+              ),
+              child: content,
+            ),
+            backdrop: (context, recessed) => backdrop(recessed),
+          ),
+        );
       },
-      child: QuietDepthSurface(
-        content: paddedContent,
-        backdrop: (context, recessed) => backdrop(recessed),
-      ),
     );
   }
 }

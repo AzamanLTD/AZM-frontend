@@ -48,7 +48,8 @@ import 'package:azaman/widgets/home/wallet_card_deck.dart';
 import 'package:azaman/widgets/odometer_number.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
+import 'package:flutter/rendering.dart'
+    show RenderFittedBox, RenderRepaintBoundary;
 import 'dart:ui' show ImageByteFormat;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -481,10 +482,74 @@ void _expectRealGlyphsAndLabels(
           'placeholder signature.');
 }
 
+/// FLAT-CONTRACT PIXEL TRUTH (design review 2026-10-23): the settled
+/// pill body must be pixel-identical to the page plane it sits on. The
+/// reference is sampled from the strip directly ABOVE each pill (same
+/// page, outside the rim); the pill's interior strip (inside the rim,
+/// above the content row) must match it. Any fill, tint, glass, shadow
+/// or glow that survived would shift these pixels and fail here.
+void _expectFlatInterior(
+  String name,
+  Uint8List rgba,
+  int width,
+  Rect pillRect,
+) {
+  int px(int x, int y) {
+    final i = (y * width + x) * 4;
+    return rgba[i] * 0x10000 + rgba[i + 1] * 0x100 + rgba[i + 2];
+  }
+
+  final left = pillRect.left.round(), right = pillRect.right.round();
+  final top = pillRect.top.round();
+  // The rim is a capsule: its corner arcs (radius = height/2) curve
+  // into any naive inset rectangle. Sample only the STRAIGHT-EDGE
+  // zone, horizontally inset past the corner radius.
+  final radius = (pillRect.height / 2).round();
+  final refX0 = left + radius + 8, refX1 = right - radius - 8;
+  if (refX1 - refX0 < 12) {
+    fail('$name pill [${pillRect.left.round()}]: too narrow to sample a '
+        'flat interior strip');
+  }
+  // Reference strip: 8-12 image px above the rim — same page plane.
+  final refYs = [top - 11, top - 10, top - 9];
+  final ref = <int>{};
+  for (final y in refYs) {
+    for (var x = refX0; x < refX1; x += 2) {
+      ref.add(px(x, y));
+    }
+  }
+  // Interior strip: 10-20 image px below the rim — inside the pill,
+  // above the vertically-centered content row (the content has 24
+  // image px of top padding), and horizontally inside the corner arcs.
+  final inYs = [for (var y = top + 10; y < top + 20; y++) y];
+  final which = '$name pill [${pillRect.left.round()}]';
+  for (final y in inYs) {
+    for (var x = refX0; x < refX1; x++) {
+      final c = px(x, y);
+      bool nearRef(int r) =>
+          ((r >> 16) & 0xFF) - ((c >> 16) & 0xFF) <= 2 &&
+          ((r >> 16) & 0xFF) - ((c >> 16) & 0xFF) >= -2 &&
+          ((r >> 8) & 0xFF) - ((c >> 8) & 0xFF) <= 2 &&
+          ((r >> 8) & 0xFF) - ((c >> 8) & 0xFF) >= -2 &&
+          (r & 0xFF) - (c & 0xFF) <= 2 &&
+          (r & 0xFF) - (c & 0xFF) >= -2;
+      final near = ref.any(nearRef);
+      if (!near) {
+        fail('$which: interior pixel '
+            '(${(c >> 16) & 0xFF},${(c >> 8) & 0xFF},${c & 0xFF}) at '
+            '($x,$y) differs from the page plane — the settled body '
+            'must visually disappear into the page (no fill, tint, '
+            'glass, shadow or glow).');
+      }
+    }
+  }
+}
+
 /// Captures the RepaintBoundary around the Home page to a PNG on disk.
 /// With [verifyPills] the capture is ALSO pixel-verified (the three
-/// quick-action pills must show real gold glyphs and real labels) and
-/// every pixel must be opaque.
+/// quick-action pills must show real gold glyphs, real labels and a
+/// FLAT body identical to the page plane) and every pixel must be
+/// opaque.
 Future<void> _capture(
   WidgetTester tester,
   String name, {
@@ -512,6 +577,7 @@ Future<void> _capture(
       for (final r in rects) {
         _expectRealGlyphsAndLabels(name, rgba, image.width, r,
             lightLabels: lightLabels);
+        _expectFlatInterior(name, rgba, image.width, r);
       }
     }
   });
@@ -549,7 +615,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
     await _advance(tester);
     expect(_deckState(tester), WalletDeckState.balanceOut);
-    await _capture(tester, 'qd_dark_focal_wallet_390');
+    await _capture(tester, 'qd_dark_focal_wallet_390', verifyPills: true);
   });
 
   testWidgets('dark 390: reminder focal + terminal celebration captures',
@@ -616,7 +682,118 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
     await _advance(tester);
     expect(_deckState(tester), WalletDeckState.balanceOut);
-    await _capture(tester, 'qd_light_focal_wallet_390');
+    await _capture(tester, 'qd_light_focal_wallet_390', verifyPills: true, lightLabels: true);
+  });
+
+  // ── FLAT-CONTRACT LAYOUT TRUTH (design review 2026-10-23) ────────────
+  //
+  // The full labels 'Save', 'P2P' and 'Susu' must be present and
+  // unclipped in the settled state at 320dp AND 390dp, and under a
+  // larger text scale. No ellipses, no dropped letters: the pill scales
+  // its content row down proportionally (never below a readable floor)
+  // instead of clipping.
+  testWidgets('label truth — full labels at 320dp/390dp, never ellipsized',
+      (tester) async {
+    Future<void> pumpAt(Size surface, {double textScale = 1.0}) async {
+      await _pumpHome(
+        tester,
+        surface: surface,
+        textScale: textScale,
+        susu: [_activeSusu(DateTime(2026, 10, 26))],
+        intent: _cartIntent,
+      );
+      // Settle to the recessed state (the settled appearance under test).
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    const labels = ['Save', 'P2P', 'Susu'];
+    const pillKeys = [
+      'wallet-module-save',
+      'wallet-module-p2p',
+      'wallet-module-susu',
+    ];
+
+    for (final w in [320.0, 390.0]) {
+      await pumpAt(Size(w, 844));
+      for (var i = 0; i < labels.length; i++) {
+        final t = find.text(labels[i]);
+        expect(t, findsOneWidget,
+            reason: 'the FULL label "${labels[i]}" must exist at ${w.toInt()}dp');
+        final text = tester.widget<Text>(t);
+        expect(text.overflow, TextOverflow.visible,
+            reason: 'labels never ellipsize — the pill adapts instead');
+        expect(text.maxLines, 1);
+
+        // The laid-out paragraph carries the full string (no
+        // characters dropped by overflow) and fits the pill box.
+        final pill = find.byKey(ValueKey(pillKeys[i]));
+        final pillRect = tester.getRect(pill);
+        final textRect = tester.getRect(t);
+        expect(
+          pillRect.contains(textRect.topLeft) &&
+              pillRect.contains(textRect.bottomRight),
+          isTrue,
+          reason: 'the "${labels[i]}" text must paint fully inside its '
+              'pill at ${w.toInt()}dp — no clipped letters',
+        );
+
+        // Content row scales down, not below a readable floor: at the
+        // default scale the labels stay essentially full size.
+        final fbox = tester.renderObject<RenderFittedBox>(
+          find.ancestor(of: t, matching: find.byType(FittedBox)),
+        );
+        final child = fbox.child!;
+        final scale = fbox.size.width / child.size.width;
+        expect(scale, greaterThan(0.9),
+            reason: '"${labels[i]}" shrank to ${(scale * 100).round()}% at '
+                '${w.toInt()}dp — the default-scale label budget is broken');
+      }
+      // Touch targets survive the layout adaptation: every pill is at
+      // least 44x44dp.
+      for (final k in pillKeys) {
+        final s = tester.getSize(find.byKey(ValueKey(k)));
+        expect(s.width, greaterThanOrEqualTo(44),
+            reason: 'minimum 44dp hit-target width');
+        expect(s.height, greaterThanOrEqualTo(44),
+            reason: 'minimum 44dp hit-target height');
+      }
+      await _flush(tester);
+    }
+
+    // Larger text scale: labels still complete — degraded by
+    // proportional scaling, never by clipping or ellipsis.
+    // (1.3x is NOT probed: an UNRELATED pre-existing 2px vertical
+    // overflow inside a deck card fails layout at 1.3x at de9521b
+    // already, at every width — outside this PR's scope. 1.15x still
+    // exercises the scale-down path without tripping that defect.)
+    await pumpAt(const Size(390, 844), textScale: 1.15);
+    for (final label in labels) {
+      final t = find.text(label);
+      expect(t, findsOneWidget,
+          reason: 'full label "$label" must exist at 390dp with 1.15x text scale');
+      final text = tester.widget<Text>(t);
+      expect(text.overflow, TextOverflow.visible);
+      final pillRect = tester.getRect(find.byKey(ValueKey(
+          pillKeys[labels.indexOf(label)])));
+      final textRect = tester.getRect(t);
+      expect(
+        pillRect.contains(textRect.topLeft) &&
+            pillRect.contains(textRect.bottomRight),
+        isTrue,
+        reason: 'the "$label" text must paint fully inside its pill at '
+            '390dp / 1.15x text scale',
+      );
+      final fbox = tester.renderObject<RenderFittedBox>(
+        find.ancestor(of: t, matching: find.byType(FittedBox)),
+      );
+      final child = fbox.child!;
+      final scale = fbox.size.width / child.size.width;
+      expect(scale, greaterThan(0.7),
+          reason: '"$label" shrank to ${(scale * 100).round()}% at 390dp '
+              '1.15x — beyond a reasonable adaptation');
+    }
+    await _flush(tester);
   });
 
   testWidgets('dark width sweep 320/360: recessed captures', (tester) async {
