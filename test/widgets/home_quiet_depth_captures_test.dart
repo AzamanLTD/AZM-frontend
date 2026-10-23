@@ -675,6 +675,68 @@ void main() {
     // at exactly the 1.25x height, not larger (and never overflow).
     expect(h140, h125);
   }, timeout: const Timeout(Duration(minutes: 2)));
+
+  // ACCESSIBILITY CONTRACT (#186 review): the text-scale clamps bound the
+  // VISUAL scale only — MediaQuery.withClampedTextScaling changes layout
+  // and paint, never semantics. Screen-reader users at the OS's largest
+  // settings still hear the FULL, untruncated money information: the
+  // balance figure announces its complete value and the reminder ticket
+  // announces its full title and subtitle. The visible faces hold at
+  // their measured maxima (front 1.25x, ticket 1.8x), so nothing
+  // overflows, but nothing is lost to assistive tech either.
+  testWidgets(
+      'SEMANTICS READ AT 2.0x — the clamp bounds visual scale only; '
+      'screen readers get full, unscaled money content',
+      (tester) async {
+    await _pumpHome(
+      tester,
+      // 390x844 keeps the reminder deck on-screen so the swipe below
+      // actually commits (at 320x540 the deck sits below the fold and
+      // the drag misses).
+      surface: const Size(390, 844),
+      textScale: 2.0,
+      susu: [_activeSusu(DateTime(2026, 10, 26))],
+      intent: _cartIntent,
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+
+
+
+    // (a) The reminder ticket face: the susu card is first in the deck;
+    // commit it so the resume card face is showing, then read the
+    // FULL title and subtitle through semantics.
+    await _swipeCommit(tester, const ValueKey('reminder-card-susu-s1'));
+    expect(
+      find.bySemanticsLabel(RegExp("Finish your order at Maame's Kitchen")),
+      findsOneWidget,
+      reason: 'the ticket title must be readable in full at 2.0x — '
+          'the 1.8x visual clamp may compress the paint, never the '
+          'semantic content',
+    );
+    expect(
+      find.bySemanticsLabel(RegExp('2 items')),
+      findsOneWidget,
+      reason: 'the ticket subtitle must be readable in full at 2.0x',
+    );
+
+    // (b) The hero balance figure announces its FULL value at 2.0x. The
+    // deck intentionally ExcludeSemantics the backgrounded card slots —
+    // only the FOCUSED card is readable (a real a11y choice, not an
+    // accident) — so reveal the balance card first, exactly like the
+    // focal captures do, then read the figure. The 1.25x visual clamp
+    // does not shorten what the reader announces.
+    await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
+    await _advance(tester);
+    expect(_deckState(tester), WalletDeckState.balanceOut);
+    expect(
+      find.bySemanticsLabel(RegExp(r'GH₵.100\.00.available')),
+      findsOneWidget,
+      reason: 'the balance semantics must carry the complete figure at '
+          'the OS\'s largest text setting',
+    );
+
+  }, timeout: const Timeout(Duration(minutes: 2)));
   testWidgets('dark 390: resting → recessed → focal wallet captures',
       (tester) async {
     await _pumpHome(
