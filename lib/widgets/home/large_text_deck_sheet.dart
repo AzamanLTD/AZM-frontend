@@ -312,49 +312,43 @@ class LargeTextDeckButton extends ConsumerWidget {
   /// the sheet renders at. See [showLargeTextDeckSheet].
   final TextScaler? ambientScaler;
 
+  /// The interactive/semantic target: 48dp — the Material minimum —
+  /// because this control is the ONLY route into the enlarged visual
+  /// alternative. It is a TRANSPARENT overlay riding the flip card's
+  /// front-face stack (see [FlippableBalanceCard]); it paints nothing.
+  ///
+  /// It cannot live inside the header row: a Positioned region escaping
+  /// its layout slot is only hit-tested while the pointer stays inside
+  /// every ANCESTOR box's bounds (RenderBox.hitTest gates on its own
+  /// size), and the row is 24px tall — an escaping region would be
+  /// dead outside it. Mounted at the card level, the whole face is the
+  /// ancestor box and the full 48x48 is live.
+  static const double hitExtent = 48;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
     return Listener(
-      behavior: HitTestBehavior.opaque,
+      key: const ValueKey('deck-large-text-hit-region'),
+      // The flip-ceding guard: marked on pointer-down, read by the
+      // card's Listener on pointer-up. Child listeners fire BEFORE the
+      // parent's, so the flip card always sees the mark and cedes.
       onPointerDown: (_) {
         if (flipGuard != null) flipGuard!.value = true;
       },
-      // A 24px box, centered on the 16px glyph: the header row's height
-      // is already 24px at the clamped scale (its own text), so this
-      // box rides inside the row without adding a single pixel — but
-      // the HAND gets a 24px target, not the glyph's 16.
-      child: SizedBox(
-        width: 24,
-        height: 24,
-        child: IconButton(
-        key: const ValueKey('deck-large-text-button'),
-        onPressed: () =>
+      behavior: HitTestBehavior.opaque,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () =>
             showLargeTextDeckSheet(context, ambientScaler: ambientScaler),
-        tooltip: 'View deck details in large text',
-        // GEOMETRY BUDGET: the balance card's face is a fixed 165px slot
-        // with zero slack — the header row's height must stay exactly the
-        // height its TEXT already gives it. A default 48px tap target
-        // (or even 28px) inflates the row and overflows the face at the
-        // 1.25x clamped scale. So: a 24px affordance, sitting neatly
-        // inside the row's existing line box. The card itself remains
-        // the large tap target; this button is a pointer, and the sheet
-        // it opens is the accessibility surface.
-        visualDensity: VisualDensity.compact,
-        padding: EdgeInsets.zero,
-        style: IconButton.styleFrom(
-          minimumSize: const Size(24, 24),
-          // shrinkWrap is the load-bearing half: without it the 48px
-          // a11y tap-target floor inflates the button to 40px even at
-          // density compact, the header row grows, and the 165px face
-          // overflows at the clamped scale.
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-          icon: Icon(
-            HugeIconsStroke.expand,
-            size: 16,
-            color: colors.textSecondary,
-          ),
+        // container: true makes the annotations own this exact 48x48
+        // node — a screen reader user gets the same large target a
+        // sighted low-vision user does.
+        child: Semantics(
+          container: true,
+          button: true,
+          enabled: true,
+          label: 'View deck details in large text',
+          child: const SizedBox.expand(),
         ),
       ),
     );

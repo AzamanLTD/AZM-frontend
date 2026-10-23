@@ -41,6 +41,7 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
+import 'package:azaman/widgets/home/large_text_deck_sheet.dart';
 import 'package:azaman/widgets/premium_card_rim.dart';
 
 class FlippableBalanceCard extends ConsumerStatefulWidget {
@@ -284,6 +285,36 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                   // perimeter as the Visa card. NOT wrapped in
                   // PremiumCardSurface: only the rim is shared.
                   const Positioned.fill(child: PremiumCardRim(radius: 20)),
+                  // LARGE-TEXT HIT TARGET (review requirement): the deck's
+                  // 16px expand glyph paints in the card's header row, but
+                  // its INTERACTIVE + SEMANTIC target is this transparent
+                  // 48x48 overlay — topmost, so it owns the whole rect and
+                  // no near-miss tap flips the card instead of opening the
+                  // sheet. It MUST live here, at card level: a hit region
+                  // escaping the 24px header row would be dead outside it
+                  // (RenderBox.hitTest gates on its own size). Geometry:
+                  // the glyph's slot sits at the face's top padding (12)
+                  // and ends 20px from the right edge; this 48x48 rides
+                  // it with the same bias the review asked for — 18px
+                  // into the right padding, down over the non-interactive
+                  // figure space, 2px only over the AZM-ID box's trailing
+                  // slack — and its top-right corner stays ~19.7px from
+                  // the 20px rounded-clip circle's center, i.e. fully
+                  // inside the clip so every pixel is live. Front face
+                  // only: the back face keeps its own gestures.
+                  Positioned(
+                    top: 12,
+                    right: 2,
+                    width: LargeTextDeckButton.hitExtent,
+                    height: LargeTextDeckButton.hitExtent,
+                    child: LargeTextDeckButton(
+                      flipGuard: _flipGuard,
+                      // The AMBIENT scale — this widget tree sits above
+                      // the balance card's 1.25x clamp, so the sheet the
+                      // target opens renders at the user's real scale.
+                      ambientScaler: MediaQuery.textScalerOf(context),
+                    ),
+                  ),
                 ],
               ),
           );

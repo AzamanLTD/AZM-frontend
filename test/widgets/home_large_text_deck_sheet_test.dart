@@ -30,7 +30,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/rendering.dart'
+    show RenderBox, RenderParagraph;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,6 +50,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
+import 'package:azaman/widgets/hologram_balance_card.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
 
 bool _fontsLoaded = false;
@@ -229,7 +231,9 @@ double _sheetUnitHeight(WidgetTester tester) {
 }
 
 Future<void> _openSheet(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey('deck-large-text-button')));
+  // The affordance's interactive half — the 48x48 region mounted on
+  // the flip card — owns the tap; the glyph slot is purely visual.
+  await tester.tap(find.byKey(const ValueKey('deck-large-text-hit-region')));
   // Fixed pumps, never pumpAndSettle: the Home runs ambient
   // micro-animations (deck fan, delta tracker) that never settle — the
   // capture suite's contract too. The bottom-sheet entrance is a
@@ -250,6 +254,118 @@ void main() {
       '(a low-vision user must be able to find it)', (tester) async {
     await _pumpHome(tester, textScale: 2.0);
     expect(find.byKey(const ValueKey('deck-large-text-button')), findsOneWidget);
+  });
+
+  // ── THE HIT-TARGET CONTRACT (review requirement) ─────────────────
+  //
+  // The visible glyph is compact; the INTERACTIVE and SEMANTIC target
+  // must both be a true 48x48dp, and taps anywhere in that region must
+  // open the sheet — not flip the card.
+
+  testWidgets('THE HIT-TARGET CONTRACT: the interactive region measures '
+      '48x48dp at 1.0x while the painted glyph stays compact', (tester) async {
+    await _pumpHome(tester);
+
+    // The interactive region's render box — measured, not assumed.
+    final region = tester.renderObject<RenderBox>(
+      find.byKey(const ValueKey('deck-large-text-hit-region')),
+    );
+    expect(region.size.width, 48.0);
+    expect(region.size.height, 48.0);
+
+    // The painted slot stays 24x24 — the affordance did not grow.
+    final slot = tester.renderObject<RenderBox>(
+      find.byKey(const ValueKey('deck-large-text-button')),
+    );
+    expect(slot.size.width, 24.0);
+    expect(slot.size.height, 24.0);
+  });
+
+  testWidgets('THE HIT-TARGET CONTRACT: the region still measures 48x48dp '
+      'at 2.0x and stays inside the card face', (tester) async {
+    await _pumpHome(tester, textScale: 2.0);
+
+    final region = tester.renderObject<RenderBox>(
+      find.byKey(const ValueKey('deck-large-text-hit-region')),
+    );
+    expect(region.size.width, 48.0);
+    expect(region.size.height, 48.0);
+
+    // The region's global rect must lie INSIDE the card face (the
+    // rounded clip would otherwise kill hit tests at the edges).
+    // The card's render object is its rounded-clip face.
+    final face = tester.renderObject<RenderBox>(
+      find.byType(HologramBalanceCard),
+    );
+    final faceRect = Rect.fromPoints(
+      face.localToGlobal(Offset.zero),
+      face.localToGlobal(Offset(face.size.width, face.size.height)),
+    );
+    final regionRect = Rect.fromPoints(
+      region.localToGlobal(Offset.zero),
+      region.localToGlobal(Offset(region.size.width, region.size.height)),
+    );
+    expect(faceRect.contains(regionRect.topLeft), isTrue,
+        reason: 'the hit region must not escape the card face');
+    expect(faceRect.contains(regionRect.bottomRight), isTrue,
+        reason: 'the hit region must not escape the card face');
+  });
+
+  testWidgets('THE HIT-TARGET CONTRACT: the SEMANTIC node measures 48x48dp '
+      'and owns the expand label', (tester) async {
+    final semanticsHandle = tester.ensureSemantics();
+    await _pumpHome(tester);
+
+    // Resolve the node the way a screen reader reaches it: by label.
+    final labelFinder =
+        find.bySemanticsLabel('View deck details in large text');
+    expect(labelFinder, findsOneWidget);
+    final node = tester.getSemantics(labelFinder);
+    // The semantic target rides the 48px overlay region — a screen
+    // reader user gets the same large target, not a 24px one.
+    expect(node.rect.width, greaterThanOrEqualTo(48.0));
+    expect(node.rect.height, greaterThanOrEqualTo(48.0));
+    expect(node.flagsCollection.isButton, isTrue,
+        reason: 'the affordance must be announced as a button');
+    expect(
+      find.bySemanticsLabel('View deck details in large text'),
+      findsOneWidget,
+    );
+
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('THE HIT-TARGET CONTRACT: a tap at the REGION CORNER — far '
+      'outside the 24px glyph — opens the sheet without flipping',
+      (tester) async {
+    await _pumpHome(tester);
+
+    // Tap the region's BOTTOM-LEFT corner: ~6px left of the glyph slot
+    // and ~20px BELOW its bottom edge. The old 24px target missed this
+    // tap entirely and the card would flip instead.
+    final region = tester.renderObject<RenderBox>(
+      find.byKey(const ValueKey('deck-large-text-hit-region')),
+    );
+    // ~20px BELOW the glyph slot's bottom edge and ~6px LEFT of its
+    // left edge — far outside the 24px visual slot, deep inside the
+    // 48x48 target (inset 4px from the region's own bottom edge so the
+    // point is unambiguously live). The old 24px target missed this tap
+    // entirely and the card would flip instead.
+    final farPoint = region.localToGlobal(
+      const Offset(2, 44),
+    );
+    await tester.tapAt(farPoint);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 350));
+    // The sheet opened…
+    expect(
+      find.byKey(const ValueKey('deck-sheet-heading')),
+      findsOneWidget,
+    );
+    // …and the card did NOT flip to its back face.
+    expect(find.text('Azaman Balance'), findsOneWidget);
+    expect(find.text('BREAKDOWN'), findsNothing);
   });
 
   testWidgets('tapping the affordance opens the deck detail sheet WITHOUT '

@@ -41,7 +41,6 @@ import 'package:azaman/widgets/fx_typing_dots.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
 import 'package:azaman/widgets/odometer_number.dart';
-import 'package:azaman/widgets/home/large_text_deck_sheet.dart';
 
 class HologramBalanceCard extends ConsumerStatefulWidget {
   /// WALLET POUCH (2026-10-16): the balance-visibility eye is REMOVED from
@@ -190,12 +189,12 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     // LARGE-TEXT DECK SHEET (2026-10-23): the deck's faces clamp their
     // text below, and the clamp is correct for the fixed geometry — but
     // the deck's large-text detail sheet must render at the user's REAL
-    // system scale. That scale is captured HERE, above the clamp, and
-    // handed to the affordance so the sheet never inherits a clamped
-    // scaler by accident (bottom-sheet routes resolve their MediaQuery
-    // at the navigator, but this makes the contract explicit and
-    // testable instead of relying on route plumbing).
-    final ambientScaler = MediaQuery.textScalerOf(context);
+    // system scale. That scale is captured by the flip card (ABOVE the
+    // clamp) and handed to the 48x48 hit target it mounts, so the sheet
+    // never inherits a clamped scaler by accident (bottom-sheet routes
+    // resolve their MediaQuery at the navigator, but this makes the
+    // contract explicit and testable instead of relying on route
+    // plumbing).
 
     // Reduced motion: the chip appears without sliding. `accessibleDuration`
     // collapses to zero, and a zero-duration AnimatedSlide is an instant
@@ -312,13 +311,28 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
               ),
               // The deck's large-text affordance — ALWAYS visible, at
               // every scale (a low-vision user must be able to FIND it,
-              // not have it appear only once they are struggling). The
-              // nested-gesture mark keeps this tap from flipping the
-              // card; the sheet itself renders at the AMBIENT scale.
+              // not have it appear only once they are struggling). This
+              // is the VISUAL half: a compact 24px slot with a 16px
+              // glyph, inside the row's own line box so the 165px face
+              // geometry never moves. The INTERACTIVE half — a real
+              // 48x48dp tap/semantic target — is a transparent overlay
+              // mounted on the flip card's front-face stack
+              // (FlippableBalanceCard), where the whole face is the
+              // ancestor box: a hit region cannot escape a 24px row
+              // (RenderBox.hitTest gates on its own size), so the
+              // target lives at the card level instead.
               const SizedBox(width: AzSpace.xs),
-              LargeTextDeckButton(
-                flipGuard: widget.flipGuard,
-                ambientScaler: ambientScaler,
+              SizedBox(
+                key: const ValueKey('deck-large-text-button'),
+                width: 24,
+                height: 24,
+                child: Center(
+                  child: Icon(
+                    HugeIconsStroke.expand,
+                    size: 16,
+                    color: colors.textSecondary,
+                  ),
+                ),
               ),
             ],
           ),
