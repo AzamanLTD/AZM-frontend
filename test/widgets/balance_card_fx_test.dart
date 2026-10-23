@@ -361,6 +361,58 @@ void main() {
       expect(find.byKey(const ValueKey('balance-fx-valuation-incomplete')),
           findsOneWidget);
     });
+
+    testWidgets('GHS-only wallet, no usable rate: known GHS headline, '
+        'NO fabricated zero equivalent', (tester) async {
+      // The distinction this pins down: the GHS headline CAN be fully
+      // known while its USDC equivalent is unknown. A "≈ 0.00 USDC
+      // equivalent" row would be a fabricated conversion, not an honest
+      // one.
+      final v = const BalanceCardValuation(
+        nativeGhsAvailable: 250,
+        availableUsdc: 0,
+        balanceConfirmed: true,
+        rate: FxRateView(kind: FxRateKind.none),
+      ).compute();
+      await _pumpPair(tester, valuation: v);
+
+      // The GHS headline IS shown — no rate was ever needed for it.
+      expect(find.byKey(const ValueKey('balance-fx-headline')),
+          findsOneWidget);
+      // No equivalent row at all — and specifically no zero figure.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-row')),
+          findsNothing);
+      expect(find.textContaining('0.00 USDC'), findsNothing);
+      // Not an incomplete valuation: there is nothing missing from the
+      // GHS total, only from its USDC translation.
+      expect(find.byKey(const ValueKey('balance-fx-valuation-incomplete')),
+          findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-rate-unavailable')),
+          findsOneWidget);
+    });
+
+    testWidgets('GHS-only wallet WITH a fresh rate: the equivalent is '
+        'native GHS ÷ rate, shown beside the known GHS headline',
+        (tester) async {
+      final v = const BalanceCardValuation(
+        nativeGhsAvailable: 250,
+        availableUsdc: 0,
+        balanceConfirmed: true,
+        rate: FxRateView(ghsPerUsdc: 12.5, kind: FxRateKind.fresh),
+      ).compute();
+      await _pumpPair(tester, valuation: v);
+
+      expect(find.byKey(const ValueKey('balance-fx-headline')),
+          findsOneWidget);
+      final equiv = find.byKey(const ValueKey('balance-fx-equivalent'));
+      expect(equiv, findsOneWidget);
+      expect(
+        tester.widget<Text>(equiv).data ?? tester.widget<Text>(equiv).textSpan!
+            .toPlainText(),
+        contains('20.00'),
+        reason: '250 GHS ÷ 12.5 = 20 USDC — not a fabricated zero',
+      );
+    });
   });
 
   group('back face — compact icon-led breakdown', () {

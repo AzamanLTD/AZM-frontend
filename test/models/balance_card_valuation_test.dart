@@ -27,7 +27,8 @@ void main() {
       );
     });
 
-    test('a zero-USDC wallet needs no rate: GHS alone is the total', () {
+    test('a zero-USDC wallet needs no rate: GHS alone is the total — but '
+        'without a rate its USDC equivalent is unknown, never zero', () {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 250,
         availableUsdc: 0,
@@ -35,8 +36,41 @@ void main() {
         rate: FxRateView(), // no rate at all
       ).compute();
 
+      // The GHS headline is fully known without any rate.
       expect(v.availableGhsValue, 250);
-      expect(v.availableUsdcEquivalent, 0);
+      expect(v.headlineKnown, isTrue);
+      expect(v.valuationIncomplete, isFalse);
+      // The equivalent CANNOT be derived without a rate — a zero here would
+      // be a fabricated conversion, not an honest one.
+      expect(v.availableUsdcEquivalent, isNull);
+    });
+
+    test('a zero-USDC wallet WITH a valid rate: the equivalent is native '
+        'GHS divided by the rate, not zero', () {
+      final v = const BalanceCardValuation(
+        nativeGhsAvailable: 250,
+        availableUsdc: 0,
+        balanceConfirmed: true,
+        rate: FxRateView(ghsPerUsdc: 12.5, kind: FxRateKind.fresh),
+      ).compute();
+
+      expect(v.availableGhsValue, 250);
+      expect(v.availableUsdcEquivalent, closeTo(250 / 12.5, 1e-9));
+      expect(v.headlineKnown, isTrue);
+      expect(v.valuationIncomplete, isFalse);
+    });
+
+    test('a zero-zero wallet without a rate keeps an honest null '
+        'equivalent — zero GHS converts to zero USDC only under a rate', () {
+      final v = const BalanceCardValuation(
+        nativeGhsAvailable: 0,
+        availableUsdc: 0,
+        balanceConfirmed: true,
+        rate: FxRateView(), // no rate at all
+      ).compute();
+
+      expect(v.availableGhsValue, 0);
+      expect(v.availableUsdcEquivalent, isNull);
       expect(v.valuationIncomplete, isFalse);
     });
 
