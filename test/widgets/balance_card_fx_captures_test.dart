@@ -80,7 +80,6 @@ class _RefreshStub extends StatelessWidget {
 }
 
 BalanceCardValuation _saved({
-  double? savingsWithdrawable,
   bool vendor = false,
   double? susu = 5,
 }) =>
@@ -91,13 +90,11 @@ BalanceCardValuation _saved({
       escrowLocked: 4,
       disputeEscrow: 1,
       vaultLocked: 10,
-      savingsLocked: 20,
-      savingsWithdrawable: savingsWithdrawable,
+      savingsLockedGhs: 20,
       susuCommitted: susu,
       azmPoints: 1200,
       vendorRowRelevant: vendor,
-      vendorUnallocated: 7.5,
-      vendorUnallocatedEligible: true,
+      vendorUnallocatedUsdc: 7.5,
       rate: FxRateView(
         ghsPerUsdc: 12.03,
         kind: FxRateKind.saved,

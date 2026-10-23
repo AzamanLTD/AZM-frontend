@@ -71,7 +71,6 @@ Future<void> _loadFonts() async {
 }
 
 BalanceCardValuation _saved({
-  double? savingsWithdrawable,
   bool vendor = false,
   double? susu,
 }) =>
@@ -82,13 +81,11 @@ BalanceCardValuation _saved({
       escrowLocked: 4,
       disputeEscrow: 1,
       vaultLocked: 10,
-      savingsLocked: 20,
-      savingsWithdrawable: savingsWithdrawable,
+      savingsLockedGhs: 20,
       susuCommitted: susu,
       azmPoints: 1200,
       vendorRowRelevant: vendor,
-      vendorUnallocated: 7.5,
-      vendorUnallocatedEligible: true,
+      vendorUnallocatedUsdc: 7.5,
       rate: FxRateView(
         ghsPerUsdc: 12.03,
         kind: FxRateKind.saved,
@@ -492,31 +489,48 @@ void main() {
       expect(find.textContaining('5.00 USDC'), findsOneWidget);
     });
 
-    testWidgets('savings withdrawal detail appears ONLY when the '
-        'authoritative data supplies it', (tester) async {
+    testWidgets('savings renders GHS-denominated, with NO withdrawable '
+        'detail — the backend publishes no such field', (tester) async {
       await _pumpPair(tester, valuation: _saved());
       await _flipToBack(tester);
       await _scrollUntilVisible(
           tester, find.byKey(const ValueKey('bc-row-savings')));
-      expect(find.textContaining('withdrawable today'), findsNothing);
 
-      await tester.pumpWidget(const SizedBox());
-      await _pumpPair(tester, valuation: _saved(savingsWithdrawable: 12.5));
-      await _flipToBack(tester);
-      await _scrollUntilVisible(
-          tester, find.byKey(const ValueKey('bc-row-savings')));
-      expect(find.textContaining('withdrawable today 12.50'), findsOneWidget);
+      // GHS denomination, never USDC — scoped to the savings ROW: other
+      // rows (USDC held, vaults) legitimately show their own units.
+      final savingsRow =
+          find.ancestor(of: find.text('Savings'), matching: find.byKey(const ValueKey('bc-row-savings')));
+      // The amount+unit render as one rich text ("20.00 GHS").
+      expect(
+          find.descendant(
+              of: savingsRow, matching: find.textContaining('GHS')),
+          findsOneWidget,
+          reason: 'savings is cedi-denominated (SavingsGoal '
+              '.currentAmountGhs)');
+      expect(
+          find.descendant(
+              of: savingsRow, matching: find.textContaining('USDC')),
+          findsNothing,
+          reason: 'no savings amount may ever render as USDC');
+      // The withdrawable detail is absent — not fabricated from the total.
+      expect(find.descendant(
+              of: savingsRow, matching: find.textContaining('withdrawable')),
+          findsNothing);
     });
 
-    testWidgets('vendor variants: present with its availability state, '
-        'absent when irrelevant', (tester) async {
+    testWidgets('vendor variants: present with a truthful restricted '
+        'description, absent when irrelevant', (tester) async {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
       await _scrollUntilVisible(
           tester, find.byKey(const ValueKey('bc-row-vendor')));
       expect(find.byKey(const ValueKey('bc-row-vendor')), findsOneWidget);
-      expect(find.textContaining('unallocated · withdrawable'),
+      // The backend publishes no eligibility field, so the row describes
+      // a fact — restricted — and claims nothing about withdrawability.
+      expect(find.textContaining('unallocated · restricted'),
           findsOneWidget);
+      expect(find.textContaining('withdrawable'), findsNothing,
+          reason: 'withdrawability is never invented or denied');
     });
 
     testWidgets('icons carry accessible semantic labels and supplement, '
@@ -627,7 +641,7 @@ void main() {
 
     testWidgets('no RenderFlex overflow at any width with long content',
         (tester) async {
-      final long = _saved(vendor: true, susu: 5, savingsWithdrawable: 12.5);
+      final long = _saved(vendor: true, susu: 5);
       for (final width in [320.0, 360.0, 390.0]) {
         await _pumpPair(tester, valuation: long, width: width);
         await _flipToBack(tester);

@@ -133,23 +133,30 @@ class BalanceCardValuation {
   /// fetch failed — unknown must never render as a zero.
   final double? susuCommitted;
 
-  /// Savings total as held (locked). Withdrawability is separate.
-  final double savingsLocked;
+  /// Savings total as held (locked), in GHS — the savings goal is
+  /// denominated in cedis (backend: SavingsGoal.currentAmountGhs →
+  /// locked.savingsGhs), NOT in USDC. The GHS-suffixed name exists so a
+  /// cross-currency mapping error fails loudly at the call site instead
+  /// of silently rendering a cedi amount as USDC.
+  final double savingsLockedGhs;
 
-  /// The specific net savings amount currently withdrawable after all
-  /// restrictions and penalties, when the backend provides it. Null when
-  /// it does not — a null means savings CANNOT be included in the front
-  /// headline, never that it counts as zero.
-  final double? savingsWithdrawable;
+  // NOTE (contract gap, deliberate): there is NO savings-withdrawable
+  // field. The backend balance valuation does not publish a verified
+  // withdrawable amount, and withdrawability must never be derived from
+  // the savings total. When an authoritative field is contracted it will
+  // arrive typed and GHS-denominated (e.g. savingsWithdrawableGhs); until
+  // then the UI keeps that detail absent — not fabricated, not zero.
 
-  /// Vendor/unallocated balance, when relevant (vendor role).
-  final double vendorUnallocated;
+  /// Vendor/unallocated balance, when relevant (vendor role). USDC
+  /// units — matches the backend field locked.vendorUnallocatedUsdc.
+  final double vendorUnallocatedUsdc;
 
-  /// Whether the vendor row applies to this account, and whether the
-  /// unallocated amount is withdrawable. Vendor funds are INELIGIBLE for
-  /// the headline unless the backend confirms immediate withdrawability.
+  /// Whether the vendor row applies to this account. There is
+  /// deliberately NO eligibility/withdrawability flag: the backend does
+  /// not publish one, withdrawability is never inferred from the amount,
+  /// and an omitted field is never read as a confirmed status. The row
+  /// describes the balance as unallocated and restricted — nothing more.
   final bool vendorRowRelevant;
-  final bool vendorUnallocatedEligible;
 
   // ── Non-cash ──────────────────────────────────────────────────────────
   /// AZM loyalty points. Never money: excluded from every monetary rail
@@ -184,11 +191,9 @@ class BalanceCardValuation {
     this.disputeEscrow = 0,
     this.vaultLocked = 0,
     this.susuCommitted,
-    this.savingsLocked = 0,
-    this.savingsWithdrawable,
-    this.vendorUnallocated = 0,
+    this.savingsLockedGhs = 0,
+    this.vendorUnallocatedUsdc = 0,
     this.vendorRowRelevant = false,
-    this.vendorUnallocatedEligible = false,
     this.azmPoints = 0,
     this.rate = const FxRateView(),
     this.availableGhsValue,
@@ -230,11 +235,9 @@ class BalanceCardValuation {
       disputeEscrow: disputeEscrow,
       vaultLocked: vaultLocked,
       susuCommitted: susuCommitted,
-      savingsLocked: savingsLocked,
-      savingsWithdrawable: savingsWithdrawable,
-      vendorUnallocated: vendorUnallocated,
+      savingsLockedGhs: savingsLockedGhs,
+      vendorUnallocatedUsdc: vendorUnallocatedUsdc,
       vendorRowRelevant: vendorRowRelevant,
-      vendorUnallocatedEligible: vendorUnallocatedEligible,
       azmPoints: azmPoints,
       rate: rate,
       availableGhsValue: ghs,
@@ -266,11 +269,9 @@ class BalanceCardValuation {
           other.disputeEscrow == disputeEscrow &&
           other.vaultLocked == vaultLocked &&
           other.susuCommitted == susuCommitted &&
-          other.savingsLocked == savingsLocked &&
-          other.savingsWithdrawable == savingsWithdrawable &&
-          other.vendorUnallocated == vendorUnallocated &&
+          other.savingsLockedGhs == savingsLockedGhs &&
+          other.vendorUnallocatedUsdc == vendorUnallocatedUsdc &&
           other.vendorRowRelevant == vendorRowRelevant &&
-          other.vendorUnallocatedEligible == vendorUnallocatedEligible &&
           other.azmPoints == azmPoints &&
           other.rate == rate &&
           other.availableGhsValue == availableGhsValue &&
@@ -286,11 +287,9 @@ class BalanceCardValuation {
     disputeEscrow,
     vaultLocked,
     susuCommitted,
-    savingsLocked,
-    savingsWithdrawable,
-    vendorUnallocated,
+    savingsLockedGhs,
+    vendorUnallocatedUsdc,
     vendorRowRelevant,
-    vendorUnallocatedEligible,
     azmPoints,
     rate,
     availableGhsValue,
