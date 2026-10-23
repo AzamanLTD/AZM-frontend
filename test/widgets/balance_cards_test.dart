@@ -38,6 +38,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/widgets/currency_wheel_toggle.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/widgets/fx_typing_dots.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/odometer_number.dart';
@@ -196,17 +197,32 @@ void main() {
     // indicator, named for screen readers as a loading state.
     expect(find.byKey(const ValueKey('home-balance-fx-dots')),
         findsOneWidget,
-        reason: 'the unresolved cedi equivalent shows the waiting dots');
+        reason: 'the unresolved rate shows the waiting dots in the '
+            'bottom-left FX-status slot');
     expect(find.text('GH₵ equivalent unavailable'), findsNothing,
         reason: 'WORKSTREAM B removed the unavailable caption');
     expect(find.bySemanticsLabel('Exchange rate loading'), findsOneWidget,
-        reason: 'the waiting slot announces what is loading');
+        reason: 'the FX-status slot announces what is loading');
     expect(find.text('GH\u20B5\u00A00.00'), findsNothing,
         reason: 'a fabricated live-looking zero equivalent must never render');
+    // FX-STATUS CONTRACT (#184 review follow-up): the bottom-left rate row
+    // carries the waiting dots — the 'FX rate unavailable' literal is gone,
+    // and the caption can never read '1 USDC = GH₵ 0.00' either.
     expect(find.byKey(const ValueKey('hologram-rate-unavailable')),
-        findsOneWidget,
-        reason: 'the rate row still says FX unavailable, never '
-            '1 USDC = GH₵ 0.00');
+        findsNothing,
+        reason: 'the dots replace the FX-unavailable caption; the literal '
+            'status text is retired');
+    expect(find.text('FX rate unavailable'), findsNothing,
+        reason: 'no FX-unavailable copy remains anywhere on the card');
+    // Under the GHS-first preference with an unusable rate the hero falls
+    // back to the USDC ledger balance — so the unit mark MUST read USDC.
+    expect(
+        tester
+            .widget<Text>(
+                find.byKey(const ValueKey('home-balance-primary-unit')))
+            .data,
+        'USDC',
+        reason: 'the unit never mislabels a USDC figure as GHS');
     handle.dispose();
   });
 
@@ -418,6 +434,139 @@ void main() {
       // pending-timer invariant proves it at test end.
       await tester.pumpWidget(const SizedBox());
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // FX-STATUS CONTRACT (#184 review follow-up) — the focused balance/FX
+  // layout contract the #184 review pinned for this separate PR:
+  //   * the loaded available ledger balance and its true unit stay visible
+  //     while the FX rate is unusable (the unit never mislabels USDC as
+  //     GHS under a GHS-first preference);
+  //   * no fabricated GHS amount anywhere;
+  //   * the waiting dots occupy ONLY the bottom-left FX-status slot;
+  //   * the right-side refresh affordance stays in place;
+  //   * a balance move while FX is unusable is denominated in USDC, the
+  //     unit the figure is actually showing.
+  // ═════════════════════════════════════════════════════════════════════════
+  group('FX-STATUS CONTRACT (#184 review follow-up)', () {
+    testWidgets(
+        'unusable FX: the loaded balance and its USDC unit stay visible; '
+        'no fabricated GHS anywhere',
+        (tester) async {
+      await _seedCurrency(null); // global default: GHS-first
+      await _pumpFrontFace(tester, balance: 50.0, rate: 0);
+      await tester.pump(const Duration(milliseconds: 120));
+
+      // The loaded ledger balance renders as a real figure (odometer), not
+      // dots, and announces itself in USDC.
+      expect(find.byKey(const ValueKey('home-balance-amount-dots')),
+          findsNothing,
+          reason: 'a loaded balance is never displaced by a loading '
+              'indicator');
+      expect(find.bySemanticsLabel(RegExp('USDC.50.00\\savailable')),
+          findsOneWidget,
+          reason: 'the available USDC ledger balance stays primary and '
+              'visible');
+      expect(
+          tester
+              .widget<Text>(
+                  find.byKey(const ValueKey('home-balance-primary-unit')))
+              .data,
+          'USDC',
+          reason: 'the GHS-first preference cannot mislabel the USDC '
+              'fallback figure as GHS');
+      expect(find.textContaining('GH₵'), findsNothing,
+          reason: 'with an unusable rate no cedi figure exists anywhere on '
+              'the card — fabricated or otherwise');
+    });
+
+    testWidgets(
+        'the waiting dots occupy ONLY the bottom-left FX-status slot, '
+        'left of the refresh affordance and below the figure',
+        (tester) async {
+      await _seedCurrency(null);
+      await _pumpFrontFace(tester, balance: 50.0, rate: 0);
+      await tester.pump(const Duration(milliseconds: 120));
+
+      final dots = find.byKey(const ValueKey('home-balance-fx-dots'));
+      // ONLY: exactly one typing indicator on the whole card — the
+      // secondary pair slot holds nothing while FX is unresolved.
+      expect(find.byType(FxTypingDots), findsOneWidget,
+          reason: 'the loading state exists exactly once — no second dot '
+              'site under the figure');
+      expect(dots, findsOneWidget);
+
+      final dotsRect = tester.getRect(dots);
+      final refreshRect =
+          tester.getRect(find.byType(RateRefreshIndicator));
+      final odometerRect = tester.getRect(find.byType(OdometerNumber));
+
+      expect(dotsRect.center.dy, closeTo(refreshRect.center.dy, 8.0),
+          reason: 'the dots sit in the BOTTOM rate row, on the same line '
+              'as the refresh affordance — never in the secondary pair '
+              'slot above');
+      expect(dotsRect.right, lessThan(refreshRect.left),
+          reason: 'the dots own the LEFT of the rate row');
+      expect(dotsRect.top, greaterThan(odometerRect.bottom),
+          reason: 'the dots are below the primary figure');
+      expect(find.byType(RateRefreshIndicator), findsOneWidget,
+          reason: 'the right-side refresh affordance stays in place while '
+              'the rate is unresolved');
+    });
+
+    testWidgets(
+        'a balance move while FX is unusable is denominated in USDC, '
+        'never mislabeled as GHS',
+        (tester) async {
+      await _seedCurrency(null); // GHS-first, rate unusable
+      await _pumpFrontFace(tester, balance: 100, rate: 0);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await _pumpFrontFace(tester, balance: 120, rate: 0);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // +20 USDC on a figure showing USDC prints "+USDC 20.00" — the old
+      // code printed "+GH₵ 300.00" (a fabricated conversion at a phantom
+      // rate) purely because the global preference said GHS-first.
+      expect(find.text('+USDC\u00A020.00'), findsOneWidget,
+          reason: 'the delta chip follows the unit the figure actually '
+              'shows');
+      expect(find.textContaining('GH₵'), findsNothing,
+          reason: 'no phantom-rate cedi conversion rides the chip');
+    });
+
+    testWidgets(
+        'the rate arriving replaces the dots with the true caption and '
+        'converts the hero — the card height never moved',
+        (tester) async {
+      final container =
+          await _pumpFrontFace(tester, balance: 123.45, rate: 0);
+      await tester.pump(const Duration(milliseconds: 120));
+      final before = tester.getRect(find.byType(HologramBalanceCard));
+      expect(find.byKey(const ValueKey('home-balance-fx-dots')),
+          findsOneWidget);
+
+      container.read(oracleRateProvider.notifier).state = 15.38;
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byKey(const ValueKey('home-balance-fx-dots')), findsNothing,
+          reason: 'the waiting dots leave once a rate lands');
+      expect(find.textContaining('1 USDC ='), findsOneWidget,
+          reason: 'the true rate caption takes the bottom-left slot');
+      // GHS-first + usable rate: the hero converts and the unit follows.
+      expect(
+          tester
+              .widget<Text>(
+                  find.byKey(const ValueKey('home-balance-primary-unit')))
+              .data,
+          'GH₵');
+      expect(tester.widget<OdometerNumber>(find.byType(OdometerNumber)).value,
+          '1,898.66');
+      final after = tester.getRect(find.byType(HologramBalanceCard));
+      expect(after.height, before.height,
+          reason: 'the empty pair slot keeps its height: the card geometry '
+              'is identical across the rate landing');
     });
   });
 
