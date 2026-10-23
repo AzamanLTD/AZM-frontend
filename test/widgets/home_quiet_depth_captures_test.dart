@@ -30,6 +30,7 @@
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
@@ -687,24 +688,40 @@ void main() {
 
   // ── FLAT-CONTRACT LAYOUT TRUTH (design review 2026-10-23) ────────────
   //
-  // The full labels 'Save', 'P2P' and 'Susu' must be present and
-  // unclipped in the settled state at 320dp AND 390dp, and under a
-  // larger text scale. No ellipses, no dropped letters: the pill scales
-  // its content row down proportionally (never below a readable floor)
-  // instead of clipping.
-  testWidgets('label truth — full labels at 320dp/390dp, never ellipsized',
+  // The FULL labels 'Save', 'P2P' and 'Susu' must be present and
+  // unclipped at 320dp AND 390dp, in BOTH themes and BOTH depth
+  // states (woken and settled), and under a larger text scale. No
+  // ellipses, no clipped letters: the pill scales its content row
+  // down proportionally (never below a readable floor) instead of
+  // clipping.
+  testWidgets('label truth — full labels at 320/390dp, both themes, both depth states',
       (tester) async {
-    Future<void> pumpAt(Size surface, {double textScale = 1.0}) async {
+    Future<void> pumpAt(
+      AzamanTheme theme,
+      Size surface, {
+      bool settle = true,
+      double textScale = 1.0,
+    }) async {
       await _pumpHome(
         tester,
         surface: surface,
+        theme: theme,
         textScale: textScale,
         susu: [_activeSusu(DateTime(2026, 10, 26))],
         intent: _cartIntent,
       );
-      // Settle to the recessed state (the settled appearance under test).
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pump(const Duration(milliseconds: 300));
+      if (settle) {
+        // Settle to the recessed state (the settled appearance).
+        await tester.pump(const Duration(seconds: 3));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byKey(const ValueKey('quiet-depth-recessed')),
+            findsWidgets,
+            reason: 'precondition: the pills must be settled');
+      } else {
+        expect(find.byKey(const ValueKey('quiet-depth-raised')),
+            findsWidgets,
+            reason: 'precondition: the pills must be woken');
+      }
     }
 
     const labels = ['Save', 'P2P', 'Susu'];
@@ -714,28 +731,28 @@ void main() {
       'wallet-module-susu',
     ];
 
-    for (final w in [320.0, 390.0]) {
-      await pumpAt(Size(w, 844));
+    void expectFullLabels(double w, AzamanTheme theme, String state,
+        {double scaleFloor = 0.9}) {
       for (var i = 0; i < labels.length; i++) {
         final t = find.text(labels[i]);
         expect(t, findsOneWidget,
-            reason: 'the FULL label "${labels[i]}" must exist at ${w.toInt()}dp');
+            reason: 'the FULL label "${labels[i]}" must exist at '
+                '${w.toInt()}dp (${theme.name} / $state)');
         final text = tester.widget<Text>(t);
         expect(text.overflow, TextOverflow.visible,
-            reason: 'labels never ellipsize — the pill adapts instead');
+            reason: 'labels never ellipsize — the pill adapts instead '
+                '(${theme.name} / $state)');
         expect(text.maxLines, 1);
 
-        // The laid-out paragraph carries the full string (no
-        // characters dropped by overflow) and fits the pill box.
-        final pill = find.byKey(ValueKey(pillKeys[i]));
-        final pillRect = tester.getRect(pill);
+        // The laid-out text fits the pill box — no clipped letters.
+        final pillRect = tester.getRect(find.byKey(ValueKey(pillKeys[i])));
         final textRect = tester.getRect(t);
         expect(
           pillRect.contains(textRect.topLeft) &&
               pillRect.contains(textRect.bottomRight),
           isTrue,
           reason: 'the "${labels[i]}" text must paint fully inside its '
-              'pill at ${w.toInt()}dp — no clipped letters',
+              'pill at ${w.toInt()}dp (${theme.name} / $state)',
         );
 
         // Content row scales down, not below a readable floor: at the
@@ -745,20 +762,35 @@ void main() {
         );
         final child = fbox.child!;
         final scale = fbox.size.width / child.size.width;
-        expect(scale, greaterThan(0.9),
+        expect(scale, greaterThan(scaleFloor),
             reason: '"${labels[i]}" shrank to ${(scale * 100).round()}% at '
-                '${w.toInt()}dp — the default-scale label budget is broken');
+                '${w.toInt()}dp (${theme.name} / $state) — the '
+                'default-scale label budget is broken');
       }
       // Touch targets survive the layout adaptation: every pill is at
-      // least 44x44dp.
+      // least 44x44dp in every combination.
       for (final k in pillKeys) {
         final s = tester.getSize(find.byKey(ValueKey(k)));
         expect(s.width, greaterThanOrEqualTo(44),
-            reason: 'minimum 44dp hit-target width');
+            reason: 'minimum 44dp hit-target width (${theme.name} / $state)');
         expect(s.height, greaterThanOrEqualTo(44),
-            reason: 'minimum 44dp hit-target height');
+            reason: 'minimum 44dp hit-target height (${theme.name} / $state)');
       }
-      await _flush(tester);
+    }
+
+    // The review matrix: both themes × both depth states, at 320dp AND
+    // 390dp.
+    for (final theme in AzamanTheme.values) {
+      for (final settle in [false, true]) {
+        final state = settle ? 'settled' : 'woken';
+        await pumpAt(theme, const Size(320, 844), settle: settle);
+        expectFullLabels(320, theme, state);
+        await _flush(tester);
+
+        await pumpAt(theme, const Size(390, 844), settle: settle);
+        expectFullLabels(390, theme, state);
+        await _flush(tester);
+      }
     }
 
     // Larger text scale: labels still complete — degraded by
@@ -767,33 +799,92 @@ void main() {
     // overflow inside a deck card fails layout at 1.3x at de9521b
     // already, at every width — outside this PR's scope. 1.15x still
     // exercises the scale-down path without tripping that defect.)
-    await pumpAt(const Size(390, 844), textScale: 1.15);
-    for (final label in labels) {
-      final t = find.text(label);
-      expect(t, findsOneWidget,
-          reason: 'full label "$label" must exist at 390dp with 1.15x text scale');
-      final text = tester.widget<Text>(t);
-      expect(text.overflow, TextOverflow.visible);
-      final pillRect = tester.getRect(find.byKey(ValueKey(
-          pillKeys[labels.indexOf(label)])));
-      final textRect = tester.getRect(t);
-      expect(
-        pillRect.contains(textRect.topLeft) &&
-            pillRect.contains(textRect.bottomRight),
-        isTrue,
-        reason: 'the "$label" text must paint fully inside its pill at '
-            '390dp / 1.15x text scale',
-      );
-      final fbox = tester.renderObject<RenderFittedBox>(
-        find.ancestor(of: t, matching: find.byType(FittedBox)),
-      );
-      final child = fbox.child!;
-      final scale = fbox.size.width / child.size.width;
-      expect(scale, greaterThan(0.7),
-          reason: '"$label" shrank to ${(scale * 100).round()}% at 390dp '
-              '1.15x — beyond a reasonable adaptation');
-    }
+    await pumpAt(AzamanTheme.dark, const Size(390, 844), textScale: 1.15);
+    expectFullLabels(390, AzamanTheme.dark, 'settled, 1.15x text scale',
+        scaleFloor: 0.7);
     await _flush(tester);
+  });
+
+  // ── DEPTH SEPARATION TRUTH (review blocker 1) ──────────────────────
+  //
+  // A REAL visual separation between the woken and settled rims — not
+  // just "some pixels changed". The rim's CONTRAST against the page
+  // plane is measured from the actual captures: the woken rim must be
+  // measurably stronger than the settled rim (and than the
+  // wallet-focus rim, which is settled-family), in BOTH themes.
+  Future<double> rimContrast(String name, Rect pillRect) async {
+    final data =
+        await File('.screenshots/quiet_depth/$name.png').readAsBytes();
+    final codec = await ui.instantiateImageCodec(data);
+    final frame = await codec.getNextFrame();
+    final bytes = (await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba))!
+        .buffer
+        .asUint8List();
+    final w = frame.image.width;
+    int px(int x, int y) {
+      final i = (y * w + x) * 4;
+      return (bytes[i] * 299 + bytes[i + 1] * 587 + bytes[i + 2] * 114) ~/ 1000;
+    }
+
+    final x = ((pillRect.left + pillRect.right) / 2).round();
+    final top = pillRect.top.round();
+    final rim = px(x, top + 1); // inside the 1dp rim
+    final page = px(x, top + 12); // the flat body = the page plane
+    return (rim - page).abs().toDouble();
+  }
+
+  testWidgets('depth separation — woken vs settled vs wallet-focus rims differ measurably',
+      (tester) async {
+    const themes = [
+      (AzamanTheme.dark, 'dark'),
+      (AzamanTheme.light, 'light'),
+    ];
+    for (final (theme, prefix) in themes) {
+      await _pumpHome(
+        tester,
+        theme: theme,
+        susu: [_activeSusu(DateTime(2026, 10, 26))],
+        intent: _cartIntent,
+      );
+      expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
+      final rects = _pillRects(tester);
+      final p0 = rects.first;
+      await _capture(tester, '${prefix}_sep_raised');
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 80));
+      expect(find.byKey(const ValueKey('quiet-depth-recessed')), findsWidgets);
+      await _capture(tester, '${prefix}_sep_recessed');
+
+      await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
+      await _advance(tester);
+      expect(_deckState(tester), WalletDeckState.balanceOut);
+      await _capture(tester, '${prefix}_sep_focal');
+
+      var ratios = <double>[];
+      await tester.runAsync(() async {
+        final woken = await rimContrast('${prefix}_sep_raised', p0);
+        final settled = await rimContrast('${prefix}_sep_recessed', p0);
+        final focus = await rimContrast('${prefix}_sep_focal', p0);
+        // The woken rim is the STRONGER edge in both themes (in light
+        // the softened rim blends TOWARD the near-white page, so its
+        // contrast drops there too — same direction, different luma).
+        ratios = [woken / settled, woken / focus];
+        expect(settled, greaterThan(3),
+            reason: '$prefix: the settled rim must still be VISIBLE '
+                '(contrast $settled luma-steps), not fully erased');
+        expect(ratios[0], greaterThan(1.25),
+            reason: '$prefix: woken-vs-settled rim separation is too '
+                'subtle (${(ratios[0] * 100).round()}%) — the depth story '
+                'must be readable, not just measurable');
+        expect(ratios[1], greaterThan(1.25),
+            reason: '$prefix: the wallet-focus pills must read as '
+                'settled-quiet (woken/focus = '
+                '${(ratios[1] * 100).round()}%)');
+      });
+      await _flush(tester);
+    }
   });
 
   testWidgets('dark width sweep 320/360: recessed captures', (tester) async {
