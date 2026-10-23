@@ -33,6 +33,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/susu_model.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
@@ -80,6 +81,141 @@ SusuSummary _susu({
   );
 }
 
+
+// ── Capture-evidence font contract (review finding on this PR) ──────────
+//
+// The real app types its surfaces in ComicNeue (UI) and Inter (money
+// figures), with HugeIconsSolid icons and the cedi glyph falling through
+// to the OS on-device. A capture harness that registers only some faces
+// rasterises the rest as Ahem placeholder bars — which is NOT product
+// evidence. Every family the card types in must be registered here, and
+// the FONT CONTRACT test below fails if the two lists drift apart.
+bool _fontsLoaded = false;
+final Set<String> _loadedFontFamilies = {};
+
+Future<void> _loadFace(String family, String path) async {
+  final bytes = await File(path).readAsBytes();
+  final loader = FontLoader(family)
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
+  await loader.load();
+  _loadedFontFamilies.add(family);
+}
+
+/// Registers a family exactly as the engine resolves it for package
+/// icons: `IconData(fontFamily, fontPackage: p)` resolves under
+/// `packages/p/fontFamily` (the #184 harness lesson — the bare name
+/// leaves every glyph as tofu).
+String _familyKey(String family, {String? package}) =>
+    package == null ? family : 'packages/$package/$family';
+
+/// Registers the app's REAL bundled faces exactly once per test process
+/// (same contract as the Quiet Depth and native-amount harnesses):
+///
+///   • Inter — the numeric family (money figures; tabular metrics).
+///   • ComicNeue Regular + Bold — the display/UI family the live theme
+///     types the app in. Without them the engine rasterises Ahem:
+///     text captured as blank rectangular bars (this PR's review
+///     finding on the committed evidence).
+///   • MaterialIcons + HugeIconsSolid/Stroke — the real icon fonts, so
+///     icons render as glyphs, not tofu squares. Package icons resolve
+///     under the PACKAGE-QUALIFIED family key (the #184 lesson).
+///   • DejaVuSans — glyph-complete fallback wired through the harness
+///     theme; ComicNeue has no cedi glyph (U+20B5), the OS supplies it
+///     on-device. Metrics still come from the app's own faces.
+Future<void> _loadFonts() async {
+  if (_fontsLoaded) return;
+  await _loadFace('Inter', 'assets/fonts/Inter-Variable.ttf');
+  await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
+  await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
+  await _loadFace(
+      'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+  await _loadFace('packages/hugeicons_pro/HugeIconsSolid',
+      'test/goldens/fonts/hugeicons-solid.ttf');
+  await _loadFace('packages/hugeicons_pro/HugeIconsStroke',
+      'test/goldens/fonts/hugeicons-stroke.ttf');
+  await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
+  _fontsLoaded = true;
+}
+
+/// The families a card tree actually types in, resolved the way the
+/// engine resolves them: every RichText span with an explicit family,
+/// every icon's (package-qualified) family, and the harness theme's
+/// fallback chain.
+Set<String> _usedFontFamilies(WidgetTester tester, ThemeData theme) {
+  final used = <String>{};
+  for (final text in find.byType(RichText).evaluate()) {
+    final rich = text.widget as RichText;
+    // Walk the span tree explicitly (visitChildrenDirectly is not on
+    // InlineSpan in all channels; a manual recursive walk is stable).
+    // A span may be shared/reentrant (e.g. a style-resolving span that
+    // wraps itself); the visited set keeps the walk finite.
+    final visited = <InlineSpan>{};
+    void walk(InlineSpan span) {
+      if (!visited.add(span)) return;
+      final style = span.style;
+      final family = style?.fontFamily;
+      if (family != null) {
+        used.add(family);
+      }
+      span.visitChildren((child) {
+        walk(child);
+        return true;
+      });
+    }
+
+    walk(rich.text);
+  }
+  for (final icon in find.byType(Icon).evaluate()) {
+    final data = (icon.widget as Icon).icon;
+    if (data != null) {
+      used.add(_familyKey(data.fontFamily ?? '', package: data.fontPackage));
+    }
+  }
+  // The harness theme's fallback chain is typed into every span that
+  // does not override it (DefaultTextStyle inheritance).
+  // TextTheme has no styles iterator on this channel; visit the slots.
+  for (final style in [
+    theme.textTheme.displayLarge,
+    theme.textTheme.displayMedium,
+    theme.textTheme.displaySmall,
+    theme.textTheme.headlineLarge,
+    theme.textTheme.headlineMedium,
+    theme.textTheme.headlineSmall,
+    theme.textTheme.titleLarge,
+    theme.textTheme.titleMedium,
+    theme.textTheme.titleSmall,
+    theme.textTheme.bodyLarge,
+    theme.textTheme.bodyMedium,
+    theme.textTheme.bodySmall,
+    theme.textTheme.labelLarge,
+    theme.textTheme.labelMedium,
+    theme.textTheme.labelSmall,
+  ]) {
+    if (style == null) continue;
+    if (style.fontFamily != null) used.add(style.fontFamily!);
+    used.addAll(style.fontFamilyFallback ?? const <String>[]);
+  }
+  used.remove('');
+  return used;
+}
+
+/// The contract: every used family must be registered in the harness.
+/// Returns the used families with no registered face — the missing-font
+/// defect this PR's review found (Inter-only harness → every ComicNeue
+/// run and every HugeIcons glyph rasterised as placeholder bars).
+Set<String> _missingFontFamilies(
+    Set<String> used, Set<String> loaded) {
+  return used.difference(loaded);
+}
+
+ThemeData _harnessTheme(AzamanTheme theme) {
+  final base = ThemeProvider.getThemeData(theme);
+  return base.copyWith(
+    textTheme: base.textTheme.apply(fontFamilyFallback: const ['DejaVuSans']),
+  );
+}
 
 Widget _wrap(Widget child, {bool reduceMotion = false}) {
   return MaterialApp(
@@ -790,18 +926,6 @@ void main() {
   group('WORKSTREAM B — captures (light/dark × 320/360/390 × FX states)',
       () {
     const rootKey = Key('balance-card-capture-root');
-    bool fontsLoaded = false;
-
-    Future<void> loadFonts() async {
-      if (fontsLoaded) return;
-      final inter =
-          await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
-      final loader = FontLoader('Inter')
-        ..addFont(Future<ByteData>.value(
-            ByteData.view(Uint8List.fromList(inter).buffer)));
-      await loader.load();
-      fontsLoaded = true;
-    }
 
     Future<void> capture(WidgetTester tester, String name) async {
       var ok = false;
@@ -821,7 +945,7 @@ void main() {
 
     testWidgets('front face, both FX states, both themes, three widths',
         (tester) async {
-      await tester.runAsync(loadFonts);
+      await tester.runAsync(_loadFonts);
       for (final themeName in ['light', 'dark']) {
         for (final width in [320.0, 360.0, 390.0]) {
           for (final state in ['waiting', 'resolved']) {
@@ -845,6 +969,12 @@ void main() {
               UncontrolledProviderScope(
                 container: container,
                 child: MaterialApp(
+                  // REAL theme + glyph-complete fallback: metrics come
+                  // from the app's committed faces; only the cedi glyph
+                  // (missing from ComicNeue) falls through to DejaVuSans
+                  // exactly as the OS supplies it on-device.
+                  theme: _harnessTheme(
+                      themeName == 'dark' ? AzamanTheme.dark : AzamanTheme.light),
                   home: Scaffold(
                     backgroundColor: themeName == 'dark'
                         ? const Color(0xFF0A0C12)
@@ -882,6 +1012,124 @@ void main() {
         }
       }
       await tester.binding.setSurfaceSize(null);
+    });
+
+    testWidgets('CAPTURE-EVIDENCE FONT CONTRACT — every family the card '
+        'types in is registered in the harness (no placeholder-bar text)',
+        (tester) async {
+      await tester.runAsync(_loadFonts);
+      // One representative configuration (dark, 390dp, resolved — the
+      // richest text surface: caption + unit + delta + figure + icons).
+      SharedPreferences.setMockInitialValues({'azaman_theme': 1});
+      await tester.binding.setSurfaceSize(const Size(390, 260));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      Widget host(ProviderContainer c) => UncontrolledProviderScope(
+            container: c,
+            child: MaterialApp(
+              // REAL theme + glyph-complete fallback: metrics come
+              // from the app's committed faces; only the cedi glyph
+              // (missing from ComicNeue) falls through to DejaVuSans
+              // exactly as the OS supplies it on-device.
+              theme: _harnessTheme(AzamanTheme.dark),
+              home: const Scaffold(
+                body: Center(
+                  child: RepaintBoundary(
+                    key: rootKey,
+                    child: HologramBalanceCard(),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+      // Stage 1: the authoritative first load anchors the delta
+      // baseline silently (no chip yet).
+      final container = ProviderContainer(overrides: [
+        balanceDataProvider.overrideWith(
+          (ref) => const BalanceData(availableBalance: 100),
+        ),
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.loaded),
+        oracleRateProvider.overrideWith((ref) => 15.38),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(host(container));
+      for (var i = 0; i < 14; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      // Stage 2: a REAL balance move mounts the delta chip with its
+      // HugeIcons direction icon — the richest text+icon surface.
+      final moved = ProviderContainer(overrides: [
+        balanceDataProvider.overrideWith(
+          (ref) => const BalanceData(availableBalance: 123.45),
+        ),
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.loaded),
+        oracleRateProvider.overrideWith((ref) => 15.38),
+      ]);
+      addTearDown(moved.dispose);
+      await tester.pumpWidget(host(moved));
+      for (var i = 0; i < 14; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.byIcon(HugeIconsSolid.arrowUp01), findsOneWidget,
+          reason: 'the delta chip must be mounted for this contract to '
+              'cover the icon families too — the chip text itself is '
+              'unit-dependent (GH₵ under the usable rate here), the '
+              'direction ICON is the stable marker');
+
+      final used = _usedFontFamilies(
+          tester, _harnessTheme(AzamanTheme.dark));
+      expect(
+          used,
+          containsAll([
+            'ComicNeue',
+            'Inter',
+            'packages/hugeicons_pro/HugeIconsSolid',
+          ]),
+          reason: 'the card types in both live theme families and the '
+              'delta chip mounts a HugeIconsSolid icon — the collector '
+              'must see all three (a broken collector that finds '
+              'nothing would make this contract vacuous)');
+      final missing = _missingFontFamilies(used, _loadedFontFamilies);
+      expect(missing, isEmpty,
+          reason: 'families typed in by the card but not registered by '
+              'the capture harness rasterise as placeholder bars — the '
+              'committed evidence defect this review found. Missing: '
+              '${missing.join(', ')}');
+    });
+
+    test('CAPTURE-EVIDENCE FONT CONTRACT (negative) — the pre-fix '
+        'Inter-only harness is caught by the detector', () {
+      // The families the card tree really types in (see the contract
+      // test above). The harness as committed on the review head
+      // registered ONLY Inter:
+      const preFixLoaded = {'Inter'};
+      const usedByCard = {
+        'ComicNeue', // every AzText UI style (labels, captions, deltas)
+        'Inter', // money figures (AzText.money/delta)
+        'packages/hugeicons_pro/HugeIconsSolid', // delta-direction icons
+      };
+      final missing = _missingFontFamilies(usedByCard, preFixLoaded);
+      expect(missing,
+          containsAll(['ComicNeue', 'packages/hugeicons_pro/HugeIconsSolid']),
+          reason: 'with only Inter registered, every ComicNeue run and '
+              'every HugeIcons glyph rasterised as placeholder bars — '
+              'the committed-evidence defect. The detector must name '
+              'exactly these.');
+      const fixedHarness = {
+        'Inter',
+        'ComicNeue',
+        'packages/hugeicons_pro/HugeIconsSolid',
+        'packages/hugeicons_pro/HugeIconsStroke',
+        'MaterialIcons',
+        'DejaVuSans',
+      };
+      expect(_missingFontFamilies(usedByCard, fixedHarness), isEmpty,
+          reason: 'with the fixed harness all card families resolve '
+              '(the live testWidgets contract proves the real registry '
+              'is this set)');
     });
   });
 
