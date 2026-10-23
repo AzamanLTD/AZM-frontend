@@ -144,7 +144,16 @@ class AzmVisaCard extends ConsumerWidget {
     // in the product must share one visual grammar. Every Visa datum,
     // the SAMPLE/Futterwave marks, the card-programme abstraction and
     // the PIN gate are UNTOUCHED — this is a surface change only.
-    return PremiumCardFrame(
+    // TEXT-SCALE CLAMP (1.4x-overflow fix): the deck fixes this card's
+    // height at 165px (home_screen.dart `_cardHeight`), so the interior
+    // Column has a hard ~133px budget. Text scales freely up to 1.3x —
+    // the largest scale the budget provably accommodates — and is clamped
+    // beyond it, matching the hologram front face's geometry-bounded
+    // treatment (the deck card is one physical object; neither face may
+    // spill out of it).
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.3,
+      child: PremiumCardFrame(
       radius: 22,
       child: Stack(
         children: [
@@ -291,6 +300,7 @@ class AzmVisaCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

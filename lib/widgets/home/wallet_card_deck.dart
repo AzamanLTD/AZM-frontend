@@ -39,6 +39,8 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/home/wallet_pocket_surface.dart';
+import 'package:azaman/widgets/home/large_text_deck_sheet.dart'
+    show LargeTextDeckButton;
 import 'package:azaman/widgets/quiet_depth.dart';
 
 /// The deck's authoritative state.
@@ -564,6 +566,26 @@ class WalletCardDeckState extends State<WalletCardDeck>
                   //    while tucked so a header tap SELECTS the balance card
                   //    (and never flips the card beneath); once the card is
                   //    out, its own gestures own the surface.
+                  //
+                  //    LARGE-TEXT AFFORDANCE, TUCKED STATE (PR #186 review):
+                  //    the expand glyph in the exposed header is the ONLY
+                  //    route to the enlarged visual alternative, and the
+                  //    card's own 48x48 overlay (FlippableBalanceCard) is
+                  //    shadowed by this band and semantically excluded
+                  //    with the rest of the concealed card. So the band
+                  //    carves the affordance out as its topmost zone: the
+                  //    SAME shared region widget the extracted card uses
+                  //    — same 48x48 extent, same semantics node, same
+                  //    sheet — mounted above the extraction target but
+                  //    below the pouch. Its bottom edge stops exactly at
+                  //    the pouch's absorbent surface (mouthY - 8 = 48px
+                  //    down from the card top), so every pixel of the
+                  //    tucked zone is live and the pouch privacy contract
+                  //    is untouched: the concealed figures stay concealed
+                  //    until the user INTENTIONALLY opens the large-text
+                  //    sheet. The card is unscaled and full-width while
+                  //    tucked (balanceScale: 1.0), so the zone's
+                  //    coordinates are the card's own.
                   if (tucked)
                     Positioned(
                       key: const ValueKey('wallet-tucked-balance-header'),
@@ -571,8 +593,31 @@ class WalletCardDeckState extends State<WalletCardDeck>
                       left: 0,
                       right: 0,
                       height: balanceHeaderBand,
-                      child: _TuckedBalanceHitTarget(
-                        onTap: () => select(WalletDeckState.balanceOut),
+                      child: Stack(
+                        fit: StackFit.passthrough,
+                        children: [
+                          Positioned.fill(
+                            child: _TuckedBalanceHitTarget(
+                              onTap: () =>
+                                  select(WalletDeckState.balanceOut),
+                            ),
+                          ),
+                          Positioned(
+                            key: const ValueKey(
+                              'deck-large-text-hit-region-tucked',
+                            ),
+                            top: 0,
+                            right: 2,
+                            width: LargeTextDeckButton.hitExtent,
+                            height: LargeTextDeckButton.hitExtent,
+                            child: LargeTextDeckButton(
+                              // The AMBIENT text scale — this deck sits
+                              // above the card's 1.25x clamp.
+                              ambientScaler:
+                                  MediaQuery.textScalerOf(context),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   // ── The Visa strip selector: the Visa card's exposed

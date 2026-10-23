@@ -186,6 +186,16 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
 
     final chipDelta = _delta;
 
+    // LARGE-TEXT DECK SHEET (2026-10-23): the deck's faces clamp their
+    // text below, and the clamp is correct for the fixed geometry — but
+    // the deck's large-text detail sheet must render at the user's REAL
+    // system scale. That scale is captured by the flip card (ABOVE the
+    // clamp) and handed to the 48x48 hit target it mounts, so the sheet
+    // never inherits a clamped scaler by accident (bottom-sheet routes
+    // resolve their MediaQuery at the navigator, but this makes the
+    // contract explicit and testable instead of relying on route
+    // plumbing).
+
     // Reduced motion: the chip appears without sliding. `accessibleDuration`
     // collapses to zero, and a zero-duration AnimatedSlide is an instant
     // position change — nothing moves.
@@ -194,7 +204,17 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
       MotionTokens.control,
     );
 
-    return HolographicSurface(
+    // TEXT-SCALE CLAMP (1.3x-overflow fix): the deck fixes this card's
+    // height at 165px (home_screen.dart `_cardHeight`, a deck-geometry
+    // constant the cradle/pouch positioning depends on), so the interior
+    // Column has a hard ~141px content budget. Text scales freely up to
+    // 1.25x — the largest scale the budget provably accommodates at every
+    // width — and is clamped beyond it. The card's figure is a 40px hero:
+    // a hard geometry bound beats shrinking or silently losing the FX/rate
+    // row, and the rest of the page keeps scaling past the card.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.25,
+      child: HolographicSurface(
       // RICHTEXT CORRECTIONS §2C: the base stays `colors.card` — the
       // palette's neutral near-black graphite — but the iridescence tint
       // is no longer the accent. Tinting the whole material with the
@@ -287,6 +307,31 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                         color: colors.textTertiary,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
+                ),
+              ),
+              // The deck's large-text affordance — ALWAYS visible, at
+              // every scale (a low-vision user must be able to FIND it,
+              // not have it appear only once they are struggling). This
+              // is the VISUAL half: a compact 24px slot with a 16px
+              // glyph, inside the row's own line box so the 165px face
+              // geometry never moves. The INTERACTIVE half — a real
+              // 48x48dp tap/semantic target — is a transparent overlay
+              // mounted on the flip card's front-face stack
+              // (FlippableBalanceCard), where the whole face is the
+              // ancestor box: a hit region cannot escape a 24px row
+              // (RenderBox.hitTest gates on its own size), so the
+              // target lives at the card level instead.
+              const SizedBox(width: AzSpace.xs),
+              SizedBox(
+                key: const ValueKey('deck-large-text-button'),
+                width: 24,
+                height: 24,
+                child: Center(
+                  child: Icon(
+                    HugeIconsStroke.expand,
+                    size: 16,
+                    color: colors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -531,6 +576,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
             ],
           ),
         ],
+      ),
       ),
     );
   }

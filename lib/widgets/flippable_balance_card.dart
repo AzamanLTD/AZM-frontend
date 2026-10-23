@@ -41,6 +41,7 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
+import 'package:azaman/widgets/home/large_text_deck_sheet.dart';
 import 'package:azaman/widgets/premium_card_rim.dart';
 
 class FlippableBalanceCard extends ConsumerStatefulWidget {
@@ -56,6 +57,13 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
   late final AnimationController _ctrl;
   late final Animation<double> _flip;
   bool _isBack = false;
+
+  // NESTED-GESTURE MARK (returned 2026-10-23): the large-text deck
+  // affordance (`LargeTextDeckButton`) marks this guard on pointer-down,
+  // exactly like the retired balance-visibility eye did. The flip
+  // Listener reads the mark on pointer-up and cedes the gesture, so
+  // tapping the affordance opens the detail sheet WITHOUT flipping.
+  final ValueNotifier<bool> _flipGuard = ValueNotifier<bool>(false);
 
   /// NESTED-GESTURE CONTRACT (2026-10-12 refresh): the front face hosts the
   /// relocated balance-visibility eye. The eye's own raw Listener marks this
@@ -81,6 +89,7 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
   @override
   @override
   void dispose() {
+    _flipGuard.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -205,10 +214,32 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
     // tolerance and do not add a long-press to "fix" it — the separation is
     // correct.
     Offset? downAt;
+    // NESTED-GESTURE MARK (returned 2026-10-23): the large-text deck
+    // affordance (`LargeTextDeckButton`) marks this guard on
+    // pointer-down, exactly like the retired balance-visibility eye did.
+    // This card's flip Listener reads the mark on pointer-up and cedes
+    // the gesture, so tapping the affordance opens the detail sheet
+    // WITHOUT flipping the card.
+    bool? downOnAffordance;
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (e) => downAt = e.position,
+      onPointerDown: (e) {
+        downAt = e.position;
+        // The child's raw Listener fires BEFORE this one (deeper in the
+        // hit-test dispatch), so if the press began on the affordance the
+        // mark is already set by the time we see the pointer-down.
+        downOnAffordance = _flipGuard.value;
+      },
+      onPointerCancel: (e) {
+        downAt = null;
+        downOnAffordance = null;
+        _flipGuard.value = false;
+      },
       onPointerUp: (e) {
+        final guarded = downOnAffordance ?? false;
+        downOnAffordance = null;
+        _flipGuard.value = false;
+        if (guarded) return;
         if (downAt == null) return;
         final dist = (e.position - downAt!).distance;
         downAt = null;
@@ -245,15 +276,45 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                       ],
                     ),
                   )
-                : const Stack(
+                : Stack(
                 fit: StackFit.passthrough,
                 children: [
-                  HologramBalanceCard(),
+                  HologramBalanceCard(flipGuard: _flipGuard),
                   // §4 EDGE LANGUAGE — the balance card's own graphite/
                   // hologram material, wearing the same crisp metallic
                   // perimeter as the Visa card. NOT wrapped in
                   // PremiumCardSurface: only the rim is shared.
-                  Positioned.fill(child: PremiumCardRim(radius: 20)),
+                  const Positioned.fill(child: PremiumCardRim(radius: 20)),
+                  // LARGE-TEXT HIT TARGET (review requirement): the deck's
+                  // 16px expand glyph paints in the card's header row, but
+                  // its INTERACTIVE + SEMANTIC target is this transparent
+                  // 48x48 overlay — topmost, so it owns the whole rect and
+                  // no near-miss tap flips the card instead of opening the
+                  // sheet. It MUST live here, at card level: a hit region
+                  // escaping the 24px header row would be dead outside it
+                  // (RenderBox.hitTest gates on its own size). Geometry:
+                  // the glyph's slot sits at the face's top padding (12)
+                  // and ends 20px from the right edge; this 48x48 rides
+                  // it with the same bias the review asked for — 18px
+                  // into the right padding, down over the non-interactive
+                  // figure space, 2px only over the AZM-ID box's trailing
+                  // slack — and its top-right corner stays ~19.7px from
+                  // the 20px rounded-clip circle's center, i.e. fully
+                  // inside the clip so every pixel is live. Front face
+                  // only: the back face keeps its own gestures.
+                  Positioned(
+                    top: 12,
+                    right: 2,
+                    width: LargeTextDeckButton.hitExtent,
+                    height: LargeTextDeckButton.hitExtent,
+                    child: LargeTextDeckButton(
+                      flipGuard: _flipGuard,
+                      // The AMBIENT scale — this widget tree sits above
+                      // the balance card's 1.25x clamp, so the sheet the
+                      // target opens renders at the user's real scale.
+                      ambientScaler: MediaQuery.textScalerOf(context),
+                    ),
+                  ),
                 ],
               ),
           );

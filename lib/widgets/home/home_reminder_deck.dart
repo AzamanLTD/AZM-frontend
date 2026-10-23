@@ -90,6 +90,148 @@ class HomeReminderCardData {
 /// The deck. Real signals render as the fanned, swipeable deck; a
 /// signal-less production build renders the honest PLACEHOLDER (the
 /// slot is never blank); a demo build seeds from the demo data.
+
+// ── SHARED DECK DATA (deck + large-text sheet: one derivation) ─────
+//
+// The deck's reminder cards are derived ONCE here. Both the deck
+// itself and the large-text deck detail sheet (see
+// large_text_deck_sheet.dart) render from this function, so the two
+// surfaces can never drift apart.
+/// §4 data: existing signals only.─────────────────────────────────────
+
+List<HomeReminderCardData> homeReminderCards(WidgetRef ref, BuildContext context) {
+  final list = <HomeReminderCardData>[];
+
+  // 1. The soonest pending Susu cycle across the caller's ACTIVE Susus.
+  final mine =
+      ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];
+  SusuSummary? due;
+  for (final s in mine) {
+    if (s.status != SusuStatus.active) continue;
+    final c = s.nextCycle;
+    if (c == null) continue;
+    final best = due?.nextCycle?.scheduledRunAt;
+    if (best == null || best.isAfter(c.scheduledRunAt)) due = s;
+  }
+  if (due != null) {
+    final cycle = due.nextCycle!;
+    final dueGroup = due;
+    final when =
+        '${_homeReminderMonths[cycle.scheduledRunAt.month - 1]} ${cycle.scheduledRunAt.day}';
+    list.add(
+      HomeReminderCardData(
+        id: 'susu-${dueGroup.id}',
+        eyebrow: 'SUSU',
+        title: cycle.isMe
+            ? 'Your payout cycle runs $when'
+            : 'Susu contribution due $when',
+        subtitle: dueGroup.name,
+        icon: HugeIconsSolid.wallet01,
+        onTap: () => context.push('/susu/${dueGroup.id}'),
+      ),
+    );
+  }
+
+  // 2. The marketplace resume intent — a live cart, or a fresh world
+  //    memory of what they were browsing. Both are real signals; the
+  //    intent provider already guarantees freshness and honesty.
+  final intent = ref.watch(marketplaceResumeProvider);
+  if (intent != null) {
+    final isCart = intent.kind == ResumeKind.cart;
+    list.add(
+      HomeReminderCardData(
+        id: 'resume-${intent.worldWire ?? intent.businessProfileId ?? 'cart'}',
+        eyebrow: 'MARKETPLACE',
+        title: intent.title,
+        subtitle: intent.subtitle,
+        icon: isCart ? HugeIconsSolid.shoppingCart01 : HugeIconsSolid.store01,
+        onTap: () => context.push(
+          intent.kind == ResumeKind.cart
+              ? AzRoutes.cart
+              : AzRoutes.marketplace,
+        ),
+      ),
+    );
+  }
+
+  // 3. Marketplace relevance — a REAL store in the category they most
+  //    recently visited (world memory + existing discovery data, both
+  //    already real). Suppressed when the resume card above already
+  //    speaks for the same world: one memory, one card, never two.
+  final relevance = ref.watch(marketplaceRelevanceProvider);
+  if (relevance != null && intent?.worldWire != relevance.worldWire) {
+    list.add(
+      HomeReminderCardData(
+        id: 'relevance-${relevance.business.id}',
+        eyebrow: 'MARKETPLACE',
+        title: relevance.business.businessName,
+        subtitle: 'Relevant in ${relevance.categoryLabel}',
+        icon: HugeIconsSolid.store01,
+        onTap: () => context.push(
+          AzRoutes.storefront(
+            relevance.business.id,
+            name: relevance.business.businessName,
+          ),
+        ),
+      ),
+    );
+  }
+  return list;
+}
+
+
+const _homeReminderMonths = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
+
+
+/// DEMO SEEDS (§4 honesty preserved: DemoGuard-gated) ──────────────────
+//
+// Demo mode exists to demo. When the demo build carries no live signal
+// (no susu cycle in the seed, nothing browsed yet), the deck seeds from
+// the SAME demo data the rest of the app serves — the seeded susu group
+// and the seeded marketplace businesses — so the Home reads lived-in.
+// DemoGuard.enabled is false in every real build, so a real user can
+// never see a seeded card.
+List<HomeReminderCardData> _demoReminderCards(BuildContext context) => [
+  HomeReminderCardData(
+    id: 'demo-susu-susu-1',
+    eyebrow: 'SUSU',
+    title: 'Susu Circle - August',
+    subtitle: 'Monthly rotation · Next payout in 7 days',
+    icon: HugeIconsSolid.userGroup,
+    onTap: () => context.push('/susu/susu-1'),
+  ),
+  HomeReminderCardData(
+    id: 'demo-store-chef-abby',
+    eyebrow: 'MARKETPLACE',
+    title: "Chef Abby's",
+    subtitle: 'Restaurants in the Marketplace',
+    icon: HugeIconsSolid.store01,
+    onTap: () => context.push(AzRoutes.marketplace),
+  ),
+  HomeReminderCardData(
+    id: 'demo-store-coastline',
+    eyebrow: 'MARKETPLACE',
+    title: 'Coastline Suites',
+    subtitle: 'Hotels in the Marketplace',
+    icon: HugeIconsSolid.building01,
+    onTap: () => context.push(AzRoutes.marketplace),
+  ),
+];
+
+
 class HomeReminderDeck extends ConsumerStatefulWidget {
   /// The measured FILL height (owner direction, 2026-10-05): Home hands
   /// the deck the empty band between the wallet modules and the Recent
@@ -181,137 +323,8 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
     super.dispose();
   }
 
-  // ── §4 data: existing signals only ──────────────────────────────────────
 
-  List<HomeReminderCardData> _realCards() {
-    final list = <HomeReminderCardData>[];
 
-    // 1. The soonest pending Susu cycle across the caller's ACTIVE Susus.
-    final mine =
-        ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];
-    SusuSummary? due;
-    for (final s in mine) {
-      if (s.status != SusuStatus.active) continue;
-      final c = s.nextCycle;
-      if (c == null) continue;
-      final best = due?.nextCycle?.scheduledRunAt;
-      if (best == null || best.isAfter(c.scheduledRunAt)) due = s;
-    }
-    if (due != null) {
-      final cycle = due.nextCycle!;
-      final dueGroup = due;
-      final when =
-          '${_months[cycle.scheduledRunAt.month - 1]} ${cycle.scheduledRunAt.day}';
-      list.add(
-        HomeReminderCardData(
-          id: 'susu-${dueGroup.id}',
-          eyebrow: 'SUSU',
-          title: cycle.isMe
-              ? 'Your payout cycle runs $when'
-              : 'Susu contribution due $when',
-          subtitle: dueGroup.name,
-          icon: HugeIconsSolid.wallet01,
-          onTap: () => context.push('/susu/${dueGroup.id}'),
-        ),
-      );
-    }
-
-    // 2. The marketplace resume intent — a live cart, or a fresh world
-    //    memory of what they were browsing. Both are real signals; the
-    //    intent provider already guarantees freshness and honesty.
-    final intent = ref.watch(marketplaceResumeProvider);
-    if (intent != null) {
-      final isCart = intent.kind == ResumeKind.cart;
-      list.add(
-        HomeReminderCardData(
-          id: 'resume-${intent.worldWire ?? intent.businessProfileId ?? 'cart'}',
-          eyebrow: 'MARKETPLACE',
-          title: intent.title,
-          subtitle: intent.subtitle,
-          icon: isCart ? HugeIconsSolid.shoppingCart01 : HugeIconsSolid.store01,
-          onTap: () => context.push(
-            intent.kind == ResumeKind.cart
-                ? AzRoutes.cart
-                : AzRoutes.marketplace,
-          ),
-        ),
-      );
-    }
-
-    // 3. Marketplace relevance — a REAL store in the category they most
-    //    recently visited (world memory + existing discovery data, both
-    //    already real). Suppressed when the resume card above already
-    //    speaks for the same world: one memory, one card, never two.
-    final relevance = ref.watch(marketplaceRelevanceProvider);
-    if (relevance != null && intent?.worldWire != relevance.worldWire) {
-      list.add(
-        HomeReminderCardData(
-          id: 'relevance-${relevance.business.id}',
-          eyebrow: 'MARKETPLACE',
-          title: relevance.business.businessName,
-          subtitle: 'Relevant in ${relevance.categoryLabel}',
-          icon: HugeIconsSolid.store01,
-          onTap: () => context.push(
-            AzRoutes.storefront(
-              relevance.business.id,
-              name: relevance.business.businessName,
-            ),
-          ),
-        ),
-      );
-    }
-    return list;
-  }
-
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
-  // ── DEMO SEEDS (§4 honesty preserved: DemoGuard-gated) ──────────────────
-  //
-  // Demo mode exists to demo. When the demo build carries no live signal
-  // (no susu cycle in the seed, nothing browsed yet), the deck seeds from
-  // the SAME demo data the rest of the app serves — the seeded susu group
-  // and the seeded marketplace businesses — so the Home reads lived-in.
-  // DemoGuard.enabled is false in every real build, so a real user can
-  // never see a seeded card.
-  List<HomeReminderCardData> _demoCards() => [
-    HomeReminderCardData(
-      id: 'demo-susu-susu-1',
-      eyebrow: 'SUSU',
-      title: 'Susu Circle - August',
-      subtitle: 'Monthly rotation · Next payout in 7 days',
-      icon: HugeIconsSolid.userGroup,
-      onTap: () => context.push('/susu/susu-1'),
-    ),
-    HomeReminderCardData(
-      id: 'demo-store-chef-abby',
-      eyebrow: 'MARKETPLACE',
-      title: "Chef Abby's",
-      subtitle: 'Restaurants in the Marketplace',
-      icon: HugeIconsSolid.store01,
-      onTap: () => context.push(AzRoutes.marketplace),
-    ),
-    HomeReminderCardData(
-      id: 'demo-store-coastline',
-      eyebrow: 'MARKETPLACE',
-      title: 'Coastline Suites',
-      subtitle: 'Hotels in the Marketplace',
-      icon: HugeIconsSolid.building01,
-      onTap: () => context.push(AzRoutes.marketplace),
-    ),
-  ];
 
   // ── §5 trajectory ───────────────────────────────────────────────────────
 
@@ -388,9 +401,9 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
   /// The deck's card list: real signals, demo seeds in a demo build with
   /// none, or empty (front becomes the placeholder).
   List<HomeReminderCardData> _cards() {
-    final real = _realCards();
+    final real = homeReminderCards(ref, context);
     if (real.isNotEmpty) return real;
-    if (DemoGuard.enabled) return _demoCards();
+    if (DemoGuard.enabled) return _demoReminderCards(context);
     return const <HomeReminderCardData>[];
   }
 
