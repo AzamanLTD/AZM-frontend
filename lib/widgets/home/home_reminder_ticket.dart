@@ -312,12 +312,21 @@ class HomeReminderTicketFace extends StatelessWidget {
       ),
     );
 
-    return SizedBox(
-      key: ValueKey('reminder-card-${card.id}'),
-      height: height,
-      child: card.onTap != null
-          ? ScaleTap(onTap: card.onTap, child: ticket)
-          : ticket,
+    // TEXT-SCALE CLAMP (2.0x-overflow fix): the deck hands this face a
+    // FIXED height (the placeholder and short cards sit at 100px), so
+    // large accessibility text scales can outgrow the ticket body. Text
+    // scales freely up to 1.8x — the largest scale the short-face budget
+    // provably accommodates — and is held beyond it, matching the deck's
+    // other fixed-geometry furniture (both balance-card faces).
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.8,
+      child: SizedBox(
+        key: ValueKey('reminder-card-${card.id}'),
+        height: height,
+        child: card.onTap != null
+            ? ScaleTap(onTap: card.onTap, child: ticket)
+            : ticket,
+      ),
     );
   }
 }

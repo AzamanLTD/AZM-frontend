@@ -194,7 +194,17 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
       MotionTokens.control,
     );
 
-    return HolographicSurface(
+    // TEXT-SCALE CLAMP (1.3x-overflow fix): the deck fixes this card's
+    // height at 165px (home_screen.dart `_cardHeight`, a deck-geometry
+    // constant the cradle/pouch positioning depends on), so the interior
+    // Column has a hard ~141px content budget. Text scales freely up to
+    // 1.25x — the largest scale the budget provably accommodates at every
+    // width — and is clamped beyond it. The card's figure is a 40px hero:
+    // a hard geometry bound beats shrinking or silently losing the FX/rate
+    // row, and the rest of the page keeps scaling past the card.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.25,
+      child: HolographicSurface(
       // RICHTEXT CORRECTIONS §2C: the base stays `colors.card` — the
       // palette's neutral near-black graphite — but the iridescence tint
       // is no longer the accent. Tinting the whole material with the
@@ -531,6 +541,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
             ],
           ),
         ],
+      ),
       ),
     );
   }

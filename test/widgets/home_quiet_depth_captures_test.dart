@@ -594,6 +594,87 @@ WalletDeckState _deckState(WidgetTester tester) =>
     tester.state<WalletCardDeckState>(find.byType(WalletCardDeck)).state;
 
 void main() {
+  // ── Deck-card text-scale budget (1.3x-overflow fix) ──────────────────
+  //
+  // The deck fixes the balance card at 165px (home_screen.dart
+  // `_cardHeight`); before the clamp the interior Column overflowed by
+  // 2px at 1.3x (measured: the front face fits only up to 1.25x, the
+  // Visa back face up to 1.3x). Both faces now clamp their interior
+  // text at those geometry-bounded maxima. This guards:
+  // (a) no face ever overflows the 165px slot, even at the OS's
+  //     largest accessibility scales (2.0x), narrowest width, both
+  //     themes — any RenderFlex overflow surfaces as a test failure;
+  // (b) text still scales FREELY below the clamp (a 1.2x user gets
+  //     proportionally larger text), and the clamp holds the front
+  //     face steady at 1.25x beyond it.
+  for (final scale in [1.3, 1.4, 1.6, 2.0]) {
+    for (final theme in AzamanTheme.values) {
+      testWidgets(
+          'deck card never overflows its 165px slot at ${scale}x text '
+          '(${theme.name}, 320dp)', (tester) async {
+        await _pumpHome(
+          tester,
+          surface: const Size(320, 540),
+          theme: theme,
+          textScale: scale,
+        );
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump();
+      }, timeout: const Timeout(Duration(minutes: 2)));
+    }
+  }
+
+  // One pump per testWidgets: the home tree schedules real timers (delta
+  // tracker, deck fan) that must drain per test like the capture tests do.
+  final headerHeightByScale = <double, double>{};
+
+  Future<void> measureHeader(WidgetTester tester, double scale) async {
+    await _pumpHome(
+      tester,
+      surface: const Size(320, 540),
+      textScale: scale,
+    );
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump();
+    headerHeightByScale[scale] = tester
+        .renderObject<RenderBox>(find.text('Azaman Balance'))
+        .size
+        .height;
+  }
+
+  testWidgets('deck card header measured at 1.0x', (tester) async {
+    await measureHeader(tester, 1.0);
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  testWidgets('deck card header measured at 1.2x', (tester) async {
+    await measureHeader(tester, 1.2);
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  testWidgets('deck card header measured at 1.25x (the clamp level)',
+      (tester) async {
+    await measureHeader(tester, 1.25);
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  testWidgets('deck card header measured at 1.4x (beyond the clamp)',
+      (tester) async {
+    await measureHeader(tester, 1.4);
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  testWidgets('deck card text scaled freely below the clamp and holds at it '
+      'beyond', (tester) async {
+    // No pump needed — this test only asserts the measurements the four
+    // tests above recorded (same file, same process, run in order).
+    final h100 = headerHeightByScale[1.0]!;
+    final h120 = headerHeightByScale[1.2]!;
+    final h125 = headerHeightByScale[1.25]!;
+    final h140 = headerHeightByScale[1.4]!;
+    // Free scaling: 1.2x text is measurably larger than 1.0x (the
+    // header's line box grows ~1.15x — assert with margin below that).
+    expect(h120, greaterThan(h100 * 1.1));
+    // The clamp holds the front face at 1.25x beyond it: 1.4x must render
+    // at exactly the 1.25x height, not larger (and never overflow).
+    expect(h140, h125);
+  }, timeout: const Timeout(Duration(minutes: 2)));
   testWidgets('dark 390: resting → recessed → focal wallet captures',
       (tester) async {
     await _pumpHome(
