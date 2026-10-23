@@ -321,10 +321,35 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface>
   // timers, no endless loops — the controller runs ONCE on entry and
   // completes. Rows built later (cursor pagination) find it already
   // finished and render at their final state immediately.
-  late final AnimationController _entrance = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
+  // EAGER (teardown-defect fix): constructed in initState, never lazily.
+  // As a `late final` field initializer its first construction could land in
+  // dispose() itself — on a surface that mounted inactive with empty history
+  // and never built a row — and creating the controller on a deactivated
+  // element does the deactivated-element ticker-mode lookup: an assertion on
+  // Flutter 3.44.x, and a silent attach to the constant FALLBACK notifier
+  // (instead of the subtree's real TickerMode) on 3.47.x. Constructing in
+  // initState is the lifecycle Flutter's own TickerMode.getValuesNotifier
+  // comment prescribes for exactly this pattern.
+  late final AnimationController _entrance;
+
+  @override
+  void initState() {
+    super.initState();
+    // Constructed HERE — while the element is live — so the controller can
+    // never be lazily first-constructed inside dispose() (see field comment).
+    _entrance = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+  }
+
+  @override
+  void dispose() {
+    _listScroll.dispose();
+    // Safe unconditionally now: the controller exists from initState.
+    _entrance.dispose();
+    super.dispose();
+  }
 
   // Reverse-pull accumulation. Two coordinated sources feed the SAME
   // controller: a drag on the header (outside the list, never a scroll
@@ -349,13 +374,6 @@ class _HomeActivitySurfaceState extends ConsumerState<HomeActivitySurface>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _maybeEnter(); // first mount (when opened directly into the active state)
-  }
-
-  @override
-  void dispose() {
-    _listScroll.dispose();
-    _entrance.dispose();
-    super.dispose();
   }
 
   @override
