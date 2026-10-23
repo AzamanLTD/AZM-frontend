@@ -203,7 +203,10 @@ class BalanceCardValuation {
   ///
   /// A combined GHS value exists when the USDC component is zero (native
   /// GHS alone is the whole total — no rate needed) or a valid rate exists.
-  /// With available USDC and no usable rate, the combined total is honestly
+  /// The USDC equivalent, however, ALWAYS needs a usable rate: with zero
+  /// USDC held it is nativeGhsAvailable / rate, and without a usable rate it
+  /// is honestly unavailable (null) — never a fabricated zero. With USDC
+  /// held and no usable rate, the combined total itself is honestly
   /// unavailable (null) even though native GHS is known.
   BalanceCardValuation compute() {
     final hasUsdc = availableUsdc > 0;
@@ -213,7 +216,8 @@ class BalanceCardValuation {
     double? usdcEquiv;
     if (!hasUsdc) {
       ghs = nativeGhsAvailable;
-      usdcEquiv = 0;
+      // hasRate guarantees a positive, finite rate.
+      usdcEquiv = r != null ? nativeGhsAvailable / r : null;
     } else if (r != null) {
       ghs = nativeGhsAvailable + availableUsdc * r;
       usdcEquiv = ghs / r;
