@@ -139,6 +139,10 @@ Future<ProviderContainer> _pumpHome(
   BalanceReadiness readiness = BalanceReadiness.loaded,
   List<SusuSummary> susu = const [],
   ResumeIntent? intent,
+  // The REAL default Home state is TUCKED — the pouch closed over the
+  // cards. Contract tests for the tucked state pass false; everything
+  // that needs the full face keeps the default extraction.
+  bool extractBalance = true,
 }) async {
   // pumpWidget reuses the element tree when the root widget type
   // matches, and the Navigator is STATEFUL: a bottom-sheet route pushed
@@ -195,13 +199,15 @@ Future<ProviderContainer> _pumpHome(
   await tester.pump(const Duration(milliseconds: 600));
   await tester.pump(const Duration(milliseconds: 1400));
   await tester.pump(const Duration(milliseconds: 300));
-  // Extract the balance card from the tucked pouch so its full face —
-  // including the header affordance — is visible and hittable.
-  tester
-      .state<WalletCardDeckState>(find.byType(WalletCardDeck))
-      .select(WalletDeckState.balanceOut);
-  await tester.pump(const Duration(milliseconds: 500));
-  await tester.pump(const Duration(milliseconds: 100));
+  if (extractBalance) {
+    // Extract the balance card from the tucked pouch so its full face —
+    // including the header affordance — is visible and hittable.
+    tester
+        .state<WalletCardDeckState>(find.byType(WalletCardDeck))
+        .select(WalletDeckState.balanceOut);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 100));
+  }
   return container;
 }
 
@@ -495,5 +501,180 @@ void main() {
     expect(find.byKey(const ValueKey('deck-sheet-heading')), findsNothing);
     // The card is still on the front face after the round trip.
     expect(find.text('Azaman Balance'), findsOneWidget);
+  });
+
+  // ── THE TUCKED-STATE CONTRACT (PR #186 review, round 2) ─────────────
+  // The real default Home state: the pouch is closed over the cards and
+  // only the balance card's brand header is exposed. The visible expand
+  // glyph must follow its advertised behavior there too — it must NOT
+  // silently substitute card extraction.
+
+  testWidgets('THE TUCKED CONTRACT: the tucked affordance zone measures '
+      '48x48dp and stops at the pouch surface', (tester) async {
+    await _pumpHome(tester, extractBalance: false);
+
+    final deckState = tester
+        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
+    expect(deckState.state, WalletDeckState.tucked);
+
+    final zone = tester.renderObject<RenderBox>(
+      find.byKey(const ValueKey('deck-large-text-hit-region-tucked')),
+    );
+    expect(zone.size.width, 48.0);
+    expect(zone.size.height, 48.0);
+
+    // The zone's bottom edge stops exactly where the pouch's absorbent
+    // surface begins (mouthY - 8 = 48px down from the balance card
+    // top): the affordance never reaches into the pocket's territory.
+    final cardTop = tester
+        .renderObject<RenderBox>(
+          find.byKey(const ValueKey('wallet-deck-balance-slot')),
+        )
+        .localToGlobal(Offset.zero)
+        .dy;
+    final zoneBottom = zone.localToGlobal(const Offset(0, 48)).dy;
+    expect(zoneBottom, closeTo(cardTop + 48, 0.1));
+  });
+
+  testWidgets('THE TUCKED CONTRACT: tapping the affordance while tucked '
+      'opens the large-text sheet WITHOUT extracting the card',
+      (tester) async {
+    await _pumpHome(tester, extractBalance: false);
+
+    final deckState = tester
+        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
+    expect(deckState.state, WalletDeckState.tucked);
+
+    await tester
+        .tap(find.byKey(const ValueKey('deck-large-text-hit-region-tucked')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    // The sheet opened — the user's INTENTIONAL disclosure of the
+    // figures — and nothing else moved.
+    expect(
+      find.byKey(const ValueKey('deck-sheet-heading')),
+      findsOneWidget,
+    );
+    // The card was NOT silently extracted.
+    expect(deckState.state, WalletDeckState.tucked);
+    // And it never flipped.
+    expect(find.text('BREAKDOWN'), findsNothing);
+  });
+
+  testWidgets('THE TUCKED CONTRACT: a far-corner tap on the tucked zone — '
+      'outside the glyph slot — opens the sheet without extracting',
+      (tester) async {
+    await _pumpHome(tester, extractBalance: false);
+
+    final zone = tester.renderObject<RenderBox>(
+      find.byKey(const ValueKey('deck-large-text-hit-region-tucked')),
+    );
+    // 2px in from the zone's left edge, ~8px below the glyph slot's
+    // bottom — far outside the 24px visual glyph, deep inside the
+    // target, just above the pouch surface.
+    final farPoint = zone.localToGlobal(const Offset(2, 44));
+
+    await tester.tapAt(farPoint);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final deckState = tester
+        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
+    expect(
+      find.byKey(const ValueKey('deck-sheet-heading')),
+      findsOneWidget,
+    );
+    expect(deckState.state, WalletDeckState.tucked);
+    expect(find.text('BREAKDOWN'), findsNothing);
+  });
+
+  testWidgets('THE TUCKED CONTRACT: a header tap OUTSIDE the affordance '
+      'still extracts the balance card', (tester) async {
+    await _pumpHome(tester, extractBalance: false);
+
+    final band = tester.renderObject<RenderBox>(
+      find.byKey(const ValueKey('wallet-tucked-balance-header')),
+    );
+    // Well left of the 48px affordance zone, mid-band.
+    final tapPoint = band.localToGlobal(
+      Offset(24, band.size.height / 2),
+    );
+
+    await tester.tapAt(tapPoint);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final deckState = tester
+        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
+    expect(deckState.state, WalletDeckState.balanceOut);
+    // And no sheet: extraction is extraction, the affordance is the
+    // affordance — the two never silently substitute.
+    expect(
+      find.byKey(const ValueKey('deck-sheet-heading')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('THE TUCKED CONTRACT: taps below the zone — the pouch mouth — '
+      'are absorbed and nothing happens', (tester) async {
+    await _pumpHome(tester, extractBalance: false);
+
+    final zone = tester.renderObject<RenderBox>(
+      find.byKey(const ValueKey('deck-large-text-hit-region-tucked')),
+    );
+    // 6px BELOW the zone's bottom edge, inside the pouch's absorbent
+    // territory: the privacy contract holds.
+    final pouchPoint = zone.localToGlobal(
+      Offset(zone.size.width / 2, zone.size.height + 6),
+    );
+
+    await tester.tapAt(pouchPoint);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pump(const Duration(milliseconds: 350));
+
+    final deckState = tester
+        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
+    expect(deckState.state, WalletDeckState.tucked);
+    expect(
+      find.byKey(const ValueKey('deck-sheet-heading')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('THE TUCKED CONTRACT: the affordance keeps its semantics node '
+      'while tucked — and the concealed card keeps its privacy',
+      (tester) async {
+    await _pumpHome(tester, extractBalance: false);
+    final semanticsHandle = tester.ensureSemantics();
+
+    // The affordance is reachable by screen readers in the tucked
+    // state, at the same large rect.
+    final labelFinder =
+        find.bySemanticsLabel('View deck details in large text');
+    expect(labelFinder, findsOneWidget);
+    final node = tester.getSemantics(labelFinder);
+    expect(node.rect.width, greaterThanOrEqualTo(48.0));
+    expect(node.rect.height, greaterThanOrEqualTo(48.0));
+    expect(node.flagsCollection.isButton, isTrue);
+
+    // The extraction selector keeps its own node. The band's Semantics
+    // is not container-scoped (unlike the affordance's), so its label
+    // merges up into the extraction GestureDetector's node — assert on
+    // the merged NODE, not the element count.
+    final revealFinder = find.bySemanticsLabel('Reveal balance card');
+    expect(revealFinder, findsAtLeastNWidgets(1));
+    final revealNode = tester.getSemantics(revealFinder.first);
+    expect(revealNode.label, 'Reveal balance card');
+
+    // The concealed card's content is NOT exposed: the brand row that
+    // the excluded card paints behind the band has no semantics while
+    // tucked.
+    expect(find.bySemanticsLabel('Azaman Balance'), findsNothing);
+    semanticsHandle.dispose();
   });
 }
