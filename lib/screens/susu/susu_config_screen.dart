@@ -13,7 +13,13 @@ import 'package:azaman/widgets/money/native_amount_display.dart';
 
 class SusuConfigScreen extends ConsumerStatefulWidget {
   final String groupChatId;
-  const SusuConfigScreen({super.key, required this.groupChatId});
+
+  /// Clock seam: production defaults to the real clock; golden tests
+  /// pass a fixed date so the default start-date label is stable
+  /// across midnights (the goldens must not silently roll over).
+  final DateTime Function()? now;
+
+  const SusuConfigScreen({super.key, required this.groupChatId, this.now});
 
   @override
   ConsumerState<SusuConfigScreen> createState() => _SusuConfigScreenState();
@@ -26,7 +32,8 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
   /// GHS estimate line beneath the field — display, never authority.
   double get _parsedAmount => double.tryParse(_amount.text.trim()) ?? 0;
   String _frequency = 'WEEKLY';
-  DateTime _startDate = DateTime.now().add(const Duration(days: 1));
+  late DateTime _startDate =
+      (widget.now ?? DateTime.now)().add(const Duration(days: 1));
   bool _busy = false;
 
   @override
@@ -140,8 +147,9 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
                   final picked = await showDatePicker(
                     context: context,
                     initialDate: _startDate,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    firstDate: (widget.now ?? DateTime.now)(),
+                    lastDate: (widget.now ?? DateTime.now)()
+                        .add(const Duration(days: 365)),
                   );
                   if (picked != null) setState(() => _startDate = picked);
                 },

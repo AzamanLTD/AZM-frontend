@@ -618,7 +618,13 @@ void main() {
       await _capture(
         tester,
         name: 'susu_config_390_$mode',
-        child: const SusuConfigScreen(groupChatId: 'gc_1'),
+        // Fixed clock: _startDate defaults to now+1d, and the goldens
+        // must not silently roll over at midnight. The seam defaults to
+        // the real clock in production.
+        child: SusuConfigScreen(
+          groupChatId: 'gc_1',
+          now: () => DateTime(2026, 10, 22),
+        ),
         size: const Size(390, 844),
         dark: dark,
         afterPump: (t) async {
@@ -652,7 +658,8 @@ void main() {
         await _capture(
           tester,
           name: 'vault_create_${e.key}_$mode',
-          child: const VaultCreateScreen(),
+          // Fixed clock: _maturity defaults to now+30d.
+        child: VaultCreateScreen(now: () => DateTime(2026, 10, 22)),
           size: e.value,
           dark: dark,
           afterPump: (t) async {
