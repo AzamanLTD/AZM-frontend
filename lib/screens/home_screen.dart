@@ -38,6 +38,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
@@ -669,7 +670,14 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                               parent: ClampingScrollPhysics(),
                             ),
                             padding: AzSpace.navClearance,
-                            child: Column(
+                            // QUIET DEPTH (Home pilot): the scoped
+                            // focus/depth system lives around the Home
+                            // content only. Controls opt in individually;
+                            // the scope's Listener observes pointer-downs
+                            // for the focused-region tap-outside rule and
+                            // never competes with real gestures.
+                            child: QuietDepthScope(
+                              child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: AzSpace.sm),
@@ -808,6 +816,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                   ),
                                 ),
                               ],
+                              ),
                             ),
                           ),
                         ),
@@ -994,6 +1003,16 @@ class _DeckHostState extends ConsumerState<_DeckHost>
   Future<void> _onDeckStateChanged(WalletDeckState next) async {
     if (_deckState != next) {
       setState(() => _deckState = next);
+    }
+    // QUIET DEPTH: the out card is a designated focal surface. While it
+    // is out the secondary Home controls recess; when the deck tucks the
+    // controls rise and the idle cycle restarts. This rides the REAL
+    // deck-state callback — never inferred coordinates or timing.
+    final quiet = QuietDepthScope.maybeOf(context);
+    if (next == WalletDeckState.tucked) {
+      quiet?.exitFocus('wallet-deck');
+    } else {
+      quiet?.enterFocus('wallet-deck');
     }
     switch (next) {
       case WalletDeckState.tucked:

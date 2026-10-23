@@ -21,7 +21,12 @@ import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
 class VaultCreateScreen extends ConsumerStatefulWidget {
-  const VaultCreateScreen({super.key});
+  /// Clock seam: production defaults to the real clock; golden tests
+  /// pass a fixed date so the default maturity label is stable across
+  /// midnights (the goldens must not silently roll over).
+  final DateTime Function()? now;
+
+  const VaultCreateScreen({super.key, this.now});
 
   @override
   ConsumerState<VaultCreateScreen> createState() => _VaultCreateScreenState();
@@ -32,7 +37,8 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
   bool _rulesPromptShown = false;
   final _name = TextEditingController(text: 'My Vault');
   final _target = TextEditingController();
-  DateTime _maturity = DateTime.now().add(const Duration(days: 30));
+  late DateTime _maturity =
+      (widget.now ?? DateTime.now)().add(const Duration(days: 30));
 
   bool _autoRule = false;
   String _autoFreq = 'WEEKLY';
@@ -185,7 +191,8 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: _maturity,
-                      firstDate: DateTime.now().add(const Duration(days: 1)),
+                      firstDate: (widget.now ?? DateTime.now)()
+                          .add(const Duration(days: 1)),
                       lastDate: DateTime.now().add(
                         const Duration(days: 365 * 3),
                       ),

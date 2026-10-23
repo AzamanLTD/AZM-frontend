@@ -65,6 +65,7 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/home/home_deck_separator.dart';
 import 'package:azaman/widgets/home/home_reminder_ticket.dart';
+import 'package:azaman/widgets/quiet_depth.dart';
 
 /// A single reminder card's honest content + its destination. `onTap` is
 /// null for the placeholder — it is informational, not a destination.
@@ -120,6 +121,19 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
   // committed swipe rotates the order by one.
   int _front = 0;
   int? _frontIdHash;
+
+  // QUIET DEPTH (Home pilot, 2026-10-22) — the viewed-terminal cycle.
+  // A card counts as VIEWED once it has DEPARTED the front slot (a fully
+  // seen card, not merely one that happened to be front at mount). Once
+  // every card in the CURRENT set has departed at least once, the deck
+  // appends exactly ONE terminal "all seen" card; the provider's id set
+  // reconciles the viewed set so a changed feed can never inherit a
+  // stale completion.
+  static const _terminalId = 'reminders-terminal';
+  final Set<String> _viewedIds = <String>{};
+  int? _baseIdHash;
+  bool _celebrated = false;
+  bool _celebrating = false;
 
   // §5 — one coherent trajectory. The SAME controller drives either the
   // committed flight (card arcs out behind the deck) or the settle (drag
@@ -301,6 +315,13 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
 
   // ── §5 trajectory ───────────────────────────────────────────────────────
 
+  void _onDragStart(DragStartDetails d) {
+    // Starting a swipe makes the deck the focal surface. The gesture
+    // recognisers are untouched — focus is pure bookkeeping.
+    if (_travel.isAnimating) return;
+    _enterReminderFocus();
+  }
+
   void _onDragUpdate(DragUpdateDetails d) {
     if (_travel.isAnimating) return;
     setState(() => _dragDx += d.delta.dx);
@@ -315,7 +336,7 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
       if (!_travelAllowed) {
         // Reduced motion: instant reorder/settle, same hierarchy.
         setState(() {
-          _advanceOrder(_cards().length);
+          _commitAdvance();
           _dragDx = 0;
         });
         return;
@@ -344,14 +365,24 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
     }
   }
 
-  void _advanceOrder(int n) {
-    if (n > 0) _front = (_front + 1) % n;
-  }
-
-  /// Accessibility: the semantic equivalent of a committed swipe.
+  /// Accessibility: the semantic equivalent of a committed swipe. It is
+  /// also a reminder-deck interaction: it enters reminder focus exactly
+  /// like a swipe would.
   void _advance() {
     AzamanHaptics.confirm();
-    setState(() => _advanceOrder(_cards().length));
+    _enterReminderFocus();
+    setState(() => _commitAdvance());
+  }
+
+  /// A deck interaction makes the deck the focal surface: the scoped
+  /// quiet-depth controller recesses the secondary Home controls until
+  /// the deck is exited (terminal tap, or a tap outside the deck).
+  void _enterReminderFocus() {
+    QuietDepthScope.maybeOf(context)?.enterFocus(
+          'reminder-deck',
+          context: context,
+          exitOnOutsideTap: true,
+        );
   }
 
   /// The deck's card list: real signals, demo seeds in a demo build with
@@ -363,9 +394,63 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
     return const <HomeReminderCardData>[];
   }
 
+  /// The full rotation the deck renders: the current reminder set, plus
+  /// the single terminal card once the user has viewed the whole set in
+  /// this cycle.
+  List<HomeReminderCardData> _deckCards() {
+    final base = _cards();
+    if (base.isEmpty || !_viewedIds.containsAll(base.map((c) => c.id))) {
+      return base;
+    }
+    return [...base, _terminalCard()];
+  }
+
+  /// Honest completion copy: seeing every card is exactly that — it never
+  /// claims an outstanding contribution or action was completed.
+  HomeReminderCardData _terminalCard() => HomeReminderCardData(
+        id: _terminalId,
+        eyebrow: 'REMINDERS',
+        title: "You've seen all your reminders",
+        subtitle: _celebrated
+            ? "That's the full deck for now"
+            : 'Tap to head back to your actions',
+        icon: HugeIconsSolid.checkmarkCircle01,
+        onTap: _onTerminalTap,
+      );
+
+  void _onTerminalTap() {
+    AzamanHaptics.confirm();
+    // Tapping the terminal exits reminder focus and raises the quick
+    // actions (the scoped controller owns that transition).
+    QuietDepthScope.maybeOf(context)?.exitFocus('reminder-deck');
+    // One-shot celebration per viewing cycle; rebuilds never replay it,
+    // and reduced motion never animates it (the settled completion copy
+    // IS the nonanimated completion state).
+    if (_celebrated) return;
+    final motionAllowed = AzMotion.of(context).travel;
+    setState(() {
+      _celebrated = true;
+      _celebrating = motionAllowed;
+    });
+  }
+
+  /// The single committed-advance path: the departing front is now fully
+  /// VIEWED; once that completes the current set, the terminal card joins
+  /// the rotation (exactly once) and the advance lands on the next card.
+  void _commitAdvance() {
+    final base = _cards();
+    if (base.isEmpty) return;
+    final departing = _deckCards()[_front.clamp(0, _deckCards().length - 1)];
+    if (departing.id != _terminalId) {
+      _viewedIds.add(departing.id);
+    }
+    final n = _deckCards().length;
+    if (n > 0) _front = (_front + 1) % n;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cards = _cards();
+    final cards = _deckCards();
     _travelAllowed = AzMotion.of(context).travel;
 
     // PLACEHOLDER PASS — the slot is never blank (owner direction,
@@ -391,11 +476,25 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
       );
     }
 
-    // Keep the front index honest across data changes.
-    final idHash = Object.hashAll(cards.map((c) => c.id));
-    if (_frontIdHash != idHash) {
-      _frontIdHash = idHash;
-      _front = cards.isEmpty ? 0 : _front % cards.length;
+    // Keep the front index honest across data changes — and reconcile
+    // the viewed set against the CURRENT provider ids: a card that no
+    // longer exists cannot stay "viewed", and a changed set starts a
+    // fresh viewing cycle (no stale terminal, no replayed celebration).
+    final base = _cards();
+    final baseHash = Object.hashAll(base.map((c) => c.id));
+    if (_baseIdHash != baseHash) {
+      _baseIdHash = baseHash;
+      final ids = base.map((c) => c.id).toSet();
+      _viewedIds.removeWhere((id) => !ids.contains(id));
+      _celebrated = false;
+      _front = base.isEmpty ? 0 : _front % base.length;
+      _frontIdHash = Object.hashAll(cards.map((c) => c.id));
+    } else {
+      final deckHash = Object.hashAll(cards.map((c) => c.id));
+      if (_frontIdHash != deckHash) {
+        _frontIdHash = deckHash;
+        _front = cards.isEmpty ? 0 : _front % cards.length;
+      }
     }
 
     final swipable = cards.length > 1;
@@ -409,20 +508,41 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
             ? {const CustomSemanticsAction(label: 'Next reminder'): _advance}
             : null,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          // The small premium section separator immediately above the
-          // deck — kept from the PR #142 visual pass (review-protected).
-          HomeDeckSeparator(colors: ref.watch(themeProvider).colors),
-          SizedBox(
-            height: _bandH,
-            child: AnimatedBuilder(
-              animation: _travel,
-              builder: (context, _) =>
-                  _buildStack(context, cards, swipable, _travel.value),
-            ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // The small premium section separator immediately above the
+              // deck — kept from the PR #142 visual pass (review-protected).
+              HomeDeckSeparator(colors: ref.watch(themeProvider).colors),
+              SizedBox(
+                height: _bandH,
+                child: AnimatedBuilder(
+                  animation: _travel,
+                  builder: (context, _) =>
+                      _buildStack(context, cards, swipable, _travel.value),
+                ),
+              ),
+            ],
           ),
+          // One-shot celebration burst (never loops, never replays on
+          // rebuild; absent entirely under reduced motion — the terminal
+          // card's settled copy is the completion state).
+          if (_celebrating)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: _ReminderConfetti(
+                  key: const ValueKey('reminder-confetti'),
+                  onFinished: () {
+                    if (mounted) {
+                      setState(() => _celebrating = false);
+                    }
+                  },
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -493,11 +613,20 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
       top: _fan,
       left: 0,
       right: 0,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onHorizontalDragUpdate: swipable ? _onDragUpdate : null,
-        onHorizontalDragEnd: swipable ? _onDragEnd : null,
-        child: _frontTransformed(
+      // QUIET DEPTH wake arbitration, exactly scoped to the swipe
+      // surface: a drag that starts here is the deck's own gesture, so
+      // the scope must not raise the secondary Home controls while the
+      // horizontal recognizer is still crossing its slop. Registration
+      // is geometry only — the deck's real interactions remain the only
+      // thing that makes it an active focus region (_enterReminderFocus).
+      child: QuietDepthFocalSurface(
+        id: 'reminder-deck',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragStart: swipable ? _onDragStart : null,
+          onHorizontalDragUpdate: swipable ? _onDragUpdate : null,
+          onHorizontalDragEnd: swipable ? _onDragEnd : null,
+          child: _frontTransformed(
           HomeReminderTicketFace(
             card: frontData,
             colors: colors,
@@ -506,6 +635,7 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
           ),
           t,
           n,
+          ),
         ),
       ),
     );
@@ -579,7 +709,7 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && _travelKind == _TravelKind.flight) {
               setState(() {
-                _advanceOrder(n);
+                _commitAdvance();
                 _dragDx = 0;
                 _travelKind = _TravelKind.none;
                 _travel.value = 0;
@@ -844,4 +974,178 @@ class _PositionDots extends StatelessWidget {
       ),
     );
   }
+}
+
+
+// ── ONE-SHOT CELEBRATION (Quiet Depth pilot) ───────────────────────────────
+//
+// A small, restrained confetti burst over the deck when the terminal card
+// is tapped. Rules from the brief:
+//   • ONE-SHOT: the controller plays forward once per viewing cycle and
+//     never loops; rebuilds cannot replay it (the deck's _celebrated
+//     flag gates mounting this widget at all).
+//   • Reduced motion never mounts it — the terminal card's settled copy
+//     is the nonanimated completion state.
+//   • Deterministic particles (fixed seed) so captures and goldens are
+//     reproducible.
+
+class _ReminderConfetti extends StatefulWidget {
+  const _ReminderConfetti({super.key, required this.onFinished});
+
+  final VoidCallback onFinished;
+
+  @override
+  State<_ReminderConfetti> createState() => _ReminderConfettiState();
+}
+
+class _ReminderConfettiState extends State<_ReminderConfetti>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _burst = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..forward();
+
+  // The particle SYSTEM is precomputed ONCE per burst from a fixed
+  // seed. paint(t) is then a PURE function of t: every frame renders
+  // the same immutable particles along stable, smooth trajectories —
+  // no per-frame randomness, no jitter, fully capture-deterministic.
+  final List<ConfettiParticle> particles =
+      ConfettiSystem.generate(seed: 7341, count: 26);
+
+  @override
+  void initState() {
+    super.initState();
+    _burst.addStatusListener((status) {
+      if (status == AnimationStatus.completed) widget.onFinished();
+    });
+  }
+
+  @override
+  void dispose() {
+    _burst.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _burst,
+      builder: (context, _) => CustomPaint(
+        painter: _ConfettiPainter(
+          t: _burst.value,
+          particles: particles,
+          accent: Theme.of(context).colorScheme.primary,
+        ),
+        size: Size.infinite,
+      ),
+    );
+  }
+}
+
+/// One immutable confetti piece. All trajectory parameters are fixed at
+/// generation; only time moves a piece.
+@immutable
+class ConfettiParticle {
+  const ConfettiParticle({
+    required this.angle,
+    required this.speed,
+    required this.size,
+    required this.spin,
+    required this.colorIndex,
+    required this.round,
+  });
+
+  factory ConfettiParticle.generate(math.Random rng, int index) =>
+      ConfettiParticle(
+        angle: -math.pi / 2 + (rng.nextDouble() - 0.5) * 1.9,
+        speed: 0.22 + rng.nextDouble() * 0.30,
+        size: 3.0 + rng.nextDouble() * 3.0,
+        spin: rng.nextDouble() * 6.28,
+        colorIndex: index,
+        round: index % 3 == 0,
+      );
+
+  final double angle;
+  final double speed;
+  final double size;
+  final double spin;
+  final int colorIndex;
+  final bool round;
+}
+
+/// Deterministic particle system: the same [seed] always produces the
+/// same particle list, in the same order, on every platform and run.
+class ConfettiSystem {
+  static List<ConfettiParticle> generate({
+    required int seed,
+    required int count,
+  }) {
+    final rng = math.Random(seed);
+    return List.generate(
+      count,
+      (i) => ConfettiParticle.generate(rng, i),
+      growable: false,
+    );
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter({
+    required this.t,
+    required this.particles,
+    required this.accent,
+  });
+
+  final double t;
+  final List<ConfettiParticle> particles;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final origin = Offset(size.width / 2, size.height * 0.35);
+    final palette = <Color>[
+      accent,
+      const Color(0xFF34D399),
+      const Color(0xFFFBBF24),
+      const Color(0xFF60A5FA),
+      const Color(0xFFF472B6),
+    ];
+    // Late particles fade out — the burst dissolves, it never blinks.
+    final fade = (1 - (t - 0.75) / 0.25).clamp(0.0, 1.0);
+    final progress = Curves.easeOut.transform(t.clamp(0.0, 1.0));
+    final gravity = 0.14 * progress * progress;
+
+    for (final p in particles) {
+      // Position and rotation are DERIVED from t only — the immutable
+      // particle parameters never change between frames, so each piece
+      // follows one smooth trajectory.
+      final dx = math.cos(p.angle) * p.speed * progress * size.width * 0.9;
+      final dy = math.sin(p.angle) * p.speed * progress * size.height +
+          gravity * size.height * 0.5;
+      final color =
+          palette[p.colorIndex % palette.length].withValues(alpha: fade);
+      final rotation = p.spin + t * 9;
+      final paint = Paint()..color = color;
+      canvas.save();
+      canvas.translate(origin.dx + dx, origin.dy + dy);
+      canvas.rotate(rotation);
+      if (p.round) {
+        canvas.drawCircle(Offset.zero, p.size * 0.5, paint);
+      } else {
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: p.size,
+            height: p.size * 0.6,
+          ),
+          paint,
+        );
+      }
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) =>
+      old.t != t || old.particles != particles;
 }
