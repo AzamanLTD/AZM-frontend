@@ -41,6 +41,7 @@ import 'package:azaman/widgets/fx_typing_dots.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/rate_refresh_indicator.dart';
 import 'package:azaman/widgets/odometer_number.dart';
+import 'package:azaman/widgets/home/large_text_deck_sheet.dart';
 
 class HologramBalanceCard extends ConsumerStatefulWidget {
   /// WALLET POUCH (2026-10-16): the balance-visibility eye is REMOVED from
@@ -186,6 +187,16 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
 
     final chipDelta = _delta;
 
+    // LARGE-TEXT DECK SHEET (2026-10-23): the deck's faces clamp their
+    // text below, and the clamp is correct for the fixed geometry — but
+    // the deck's large-text detail sheet must render at the user's REAL
+    // system scale. That scale is captured HERE, above the clamp, and
+    // handed to the affordance so the sheet never inherits a clamped
+    // scaler by accident (bottom-sheet routes resolve their MediaQuery
+    // at the navigator, but this makes the contract explicit and
+    // testable instead of relying on route plumbing).
+    final ambientScaler = MediaQuery.textScalerOf(context);
+
     // Reduced motion: the chip appears without sliding. `accessibleDuration`
     // collapses to zero, and a zero-duration AnimatedSlide is an instant
     // position change — nothing moves.
@@ -298,6 +309,16 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                 ),
+              ),
+              // The deck's large-text affordance — ALWAYS visible, at
+              // every scale (a low-vision user must be able to FIND it,
+              // not have it appear only once they are struggling). The
+              // nested-gesture mark keeps this tap from flipping the
+              // card; the sheet itself renders at the AMBIENT scale.
+              const SizedBox(width: AzSpace.xs),
+              LargeTextDeckButton(
+                flipGuard: widget.flipGuard,
+                ambientScaler: ambientScaler,
               ),
             ],
           ),

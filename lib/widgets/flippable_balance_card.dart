@@ -57,6 +57,13 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
   late final Animation<double> _flip;
   bool _isBack = false;
 
+  // NESTED-GESTURE MARK (returned 2026-10-23): the large-text deck
+  // affordance (`LargeTextDeckButton`) marks this guard on pointer-down,
+  // exactly like the retired balance-visibility eye did. The flip
+  // Listener reads the mark on pointer-up and cedes the gesture, so
+  // tapping the affordance opens the detail sheet WITHOUT flipping.
+  final ValueNotifier<bool> _flipGuard = ValueNotifier<bool>(false);
+
   /// NESTED-GESTURE CONTRACT (2026-10-12 refresh): the front face hosts the
   /// relocated balance-visibility eye. The eye's own raw Listener marks this
   /// guard on pointer-down; this card's flip Listener consumes the mark on
@@ -81,6 +88,7 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
   @override
   @override
   void dispose() {
+    _flipGuard.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -205,10 +213,32 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
     // tolerance and do not add a long-press to "fix" it — the separation is
     // correct.
     Offset? downAt;
+    // NESTED-GESTURE MARK (returned 2026-10-23): the large-text deck
+    // affordance (`LargeTextDeckButton`) marks this guard on
+    // pointer-down, exactly like the retired balance-visibility eye did.
+    // This card's flip Listener reads the mark on pointer-up and cedes
+    // the gesture, so tapping the affordance opens the detail sheet
+    // WITHOUT flipping the card.
+    bool? downOnAffordance;
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (e) => downAt = e.position,
+      onPointerDown: (e) {
+        downAt = e.position;
+        // The child's raw Listener fires BEFORE this one (deeper in the
+        // hit-test dispatch), so if the press began on the affordance the
+        // mark is already set by the time we see the pointer-down.
+        downOnAffordance = _flipGuard.value;
+      },
+      onPointerCancel: (e) {
+        downAt = null;
+        downOnAffordance = null;
+        _flipGuard.value = false;
+      },
       onPointerUp: (e) {
+        final guarded = downOnAffordance ?? false;
+        downOnAffordance = null;
+        _flipGuard.value = false;
+        if (guarded) return;
         if (downAt == null) return;
         final dist = (e.position - downAt!).distance;
         downAt = null;
@@ -245,15 +275,15 @@ class _FlippableBalanceCardState extends ConsumerState<FlippableBalanceCard>
                       ],
                     ),
                   )
-                : const Stack(
+                : Stack(
                 fit: StackFit.passthrough,
                 children: [
-                  HologramBalanceCard(),
+                  HologramBalanceCard(flipGuard: _flipGuard),
                   // §4 EDGE LANGUAGE — the balance card's own graphite/
                   // hologram material, wearing the same crisp metallic
                   // perimeter as the Visa card. NOT wrapped in
                   // PremiumCardSurface: only the rim is shared.
-                  Positioned.fill(child: PremiumCardRim(radius: 20)),
+                  const Positioned.fill(child: PremiumCardRim(radius: 20)),
                 ],
               ),
           );
