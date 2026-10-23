@@ -4,8 +4,10 @@
 // The Home resting surface shows three compact pill controls — [icon] Save,
 // [icon] P2P, [icon] Susu — and NOTHING else. The educational/progress
 // sentence no longer occupies Home space: the pill communicates the product
-// name only. Icon identity, accent colors and the AZM glass language are
-// preserved exactly; only the description is gone.
+// name only. Icon identity and accent colors are preserved exactly; the
+// container treatment is the accepted #184 design: a FLAT, BORDER-ONLY
+// outline (tertiary-ink rim, woken vs settled rim strength) with no
+// painted body in either theme.
 //
 // Real-data behaviour is preserved where it already existed:
 //   SAVE → /savings                       (unchanged destination)
@@ -125,8 +127,9 @@ class _SusuPill extends ConsumerWidget {
   }
 }
 
-/// One compact pill: [icon] label — the AZM glass language in a pill
-/// silhouette. The pill communicates the product name only.
+/// One compact pill: [icon] label — a flat, border-only outline whose rim
+/// carries the quiet-depth woken/settled states. The pill communicates the
+/// product name only.
 class _WalletPill extends ConsumerWidget {
   const _WalletPill({
     super.key,
@@ -143,21 +146,18 @@ class _WalletPill extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
 
-    // QUIET DEPTH (Home pilot, 2026-10-22): the pill has a raised tactile
-    // state and a nearly-flush quiet state, driven by the scoped
-    // [QuietDepthController]. Only the BACKDROP changes — icon, label,
+    // QUIET DEPTH (Home pilot, 2026-10-22): the pill is a FLAT
+    // border-only control with a gentle rim-strength difference between
+    // its woken and settled states, driven by the scoped
+    // [QuietDepthController]. Only the RIM changes — icon, label,
     // padding, hit target and semantics are the SAME widget subtree in
     // both states, and the fade between them is pure decoration.
 
-    // FINAL PASS §3 — light-mode depth. Glass at 5% opacity over the
-    // near-white #F2F3F5 page is INVISIBLE: the pills (the Home's
-    // primary controls) vanished into the canvas (verified by pixel
-    // capture — the whole lower page sat inside one ~8-luma-unit band).
-    // In LIGHT the pill therefore sits on the design system's CARD
-    // step: opaque c.card fill + hairline + the AzElevation contact
-    // shadow — exactly the "existing elevation, surface, text, spacing
-    // primitives" the brief allows. DARK keeps the premium glass
-    // language untouched: glass reads on the black ramp.
+    // HISTORY NOTE (superseded by the DESIGN REVIEW comment below): an
+    // earlier pass gave LIGHT pills an opaque card fill + contact shadow
+    // and kept glass in DARK. The accepted #184 design is FLAT and
+    // BORDER-ONLY in BOTH themes — the outline alone is the container
+    // treatment; see the DESIGN REVIEW block at the backdrop builder.
     // PR #154: guarantee the 44dp minimum pill hit target even under
     // reduced text scales. The pill box = this content + the container's
     // 24px vertical padding, so a 20px content floor keeps the tappable
