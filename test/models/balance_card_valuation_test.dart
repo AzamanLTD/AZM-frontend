@@ -114,9 +114,9 @@ void main() {
         escrowLocked: 999,
         disputeEscrow: 999,
         vaultLocked: 999,
-        savingsLocked: 999,
+        savingsLockedGhs: 999,
         susuCommitted: 999,
-        vendorUnallocated: 999,
+        vendorUnallocatedUsdc: 999,
         vendorRowRelevant: true,
         azmPoints: 999999,
         rate: FxRateView(ghsPerUsdc: 10, kind: FxRateKind.fresh),
@@ -131,18 +131,36 @@ void main() {
       );
     });
 
-    test('savings without a backend-provided withdrawable net is excluded '
-        'from the headline', () {
+    test('savings is excluded from the headline — there is no '
+        'savings-withdrawable concept in the contract', () {
       final noNet = const BalanceCardValuation(
         nativeGhsAvailable: 0,
         availableUsdc: 10,
         balanceConfirmed: true,
-        savingsLocked: 500,
-        savingsWithdrawable: null,
+        savingsLockedGhs: 500,
         rate: FxRateView(ghsPerUsdc: 10, kind: FxRateKind.fresh),
       ).compute();
 
       expect(noNet.availableGhsValue, 100, reason: '10 USDC x 10 only');
+    });
+
+    test('savings is GHS-denominated: it passes through the model '
+        'untouched by any rate and never enters USDC rails', () {
+      final v = const BalanceCardValuation(
+        nativeGhsAvailable: 40,
+        availableUsdc: 0,
+        balanceConfirmed: true,
+        savingsLockedGhs: 75.50,
+        rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
+      ).compute();
+
+      // The GHS-denominated savings value is preserved exactly: no rate
+      // is ever applied to it, and it never appears as a USDC amount.
+      expect(v.savingsLockedGhs, 75.50);
+      expect(v.availableGhsValue, 40,
+          reason: 'savings is locked, never in the headline');
+      expect(v.availableUsdcEquivalent, 40 / 12.03,
+          reason: 'the equivalent covers headline funds only');
     });
   });
 
@@ -166,7 +184,7 @@ void main() {
       expect(b.nativeGhsAvailable, a.nativeGhsAvailable);
       expect(b.availableUsdc, a.availableUsdc);
       expect(b.escrowLocked, a.escrowLocked);
-      expect(b.savingsLocked, a.savingsLocked);
+      expect(b.savingsLockedGhs, a.savingsLockedGhs);
       // ...and only the GHS valuation of the USDC component moved.
       expect(
         b.availableGhsValue! - a.availableGhsValue!,

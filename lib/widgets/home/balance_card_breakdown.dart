@@ -285,14 +285,14 @@ class BalanceCardBreakdown extends StatelessWidget {
                   label: 'Savings',
                   icon: HugeIconsSolid.piggyBank,
                   iconSemantic: 'Savings piggy bank icon',
-                  amount: AzMoney.amount(v.savingsLocked),
-                  unit: 'USDC',
+                  // The savings goal is GHS-denominated (SavingsGoal
+                  // .currentAmountGhs). Explicit GHS unit — never USDC.
+                  amount: AzMoney.amount(v.savingsLockedGhs),
+                  unit: 'GHS',
                   colors: colors,
-                  // Shown only when the authoritative data supplies it.
-                  detail: v.savingsWithdrawable != null
-                      ? 'withdrawable today '
-                          '${AzMoney.amount(v.savingsWithdrawable!)} USDC'
-                      : null,
+                  // No withdrawable detail: the backend publishes no
+                  // verified savings-withdrawable amount, and it must not
+                  // be derived from the total. Absent, not fabricated.
                 ),
                 _BreakdownRow(
                   key: const ValueKey('bc-row-susu'),
@@ -314,12 +314,15 @@ class BalanceCardBreakdown extends StatelessWidget {
                     label: 'Vendor balance',
                     icon: HugeIconsSolid.store01,
                     iconSemantic: 'Vendor storefront icon',
-                    amount: AzMoney.amount(v.vendorUnallocated),
+                    amount: AzMoney.amount(v.vendorUnallocatedUsdc),
                     unit: 'USDC',
                     colors: colors,
-                    detail: v.vendorUnallocatedEligible
-                        ? 'unallocated · withdrawable'
-                        : 'unallocated · not withdrawable now',
+                    // Truthful, capability-free description: the backend
+                    // publishes no eligibility field, and withdrawability
+                    // is never inferred from the amount. Restricted states
+                    // a fact (these funds are held unallocated, outside
+                    // the headline), not a prediction of access.
+                    detail: 'unallocated · restricted',
                   ),
                 _SectionLabel('NON-CASH', colors),
                 _BreakdownRow(
