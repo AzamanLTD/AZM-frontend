@@ -10,19 +10,94 @@ import 'package:azaman/models/notification_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
+import 'package:azaman/theme/motion_tokens.dart';
 import 'package:go_router/go_router.dart';
+
+/// WORKSTREAM A (2026-10-24) — the driven reveal hand-off.
+///
+/// The Home header's bounded pull-down progressively reveals this panel:
+/// the finger owns the panel's position through [update]; on release the
+/// session issues a single [commit] (the panel settles open) or [cancel]
+/// (it animates back to closed and removes itself). The controller is a
+/// dumb command channel — every piece of panel positioning, animation and
+/// entry lifecycle stays inside [NotificationOverlay]'s state, so there
+/// is exactly one owner per stage of the interaction.
+class NotificationRevealController extends ChangeNotifier {
+  NotificationRevealController();
+
+  double _reveal = 0;
+  double get reveal => _reveal;
+
+  int _command = 0; // 0 none, 1 commit, 2 cancel
+  int get command => _command;
+
+  /// The finger moved: [t] is the 0..1 reveal progress. Clamped — the
+  /// panel never renders beyond fully open, and a reversed drag below
+  /// zero simply holds it closed.
+  void update(double t) {
+    final clamped = t.clamp(0.0, 1.0);
+    if (clamped == _reveal) return;
+    _reveal = clamped;
+    notifyListeners();
+  }
+
+  /// Release past the opening threshold: settle open.
+  void commit() {
+    _command = 1;
+    notifyListeners();
+  }
+
+  /// Release below the threshold (or an interrupted/cancelled gesture):
+  /// settle closed and remove the entry.
+  void cancel() {
+    _command = 2;
+    notifyListeners();
+  }
+}
 
 class NotificationOverlay extends ConsumerStatefulWidget {
   final VoidCallback onClose;
-  const NotificationOverlay({super.key, required this.onClose});
+
+  /// When non-null the panel is DRIVEN: it mounts hidden and its on-screen
+  /// position follows [drivenReveal] instead of its own entrance animation.
+  final NotificationRevealController? drivenReveal;
+
+  const NotificationOverlay({
+    super.key,
+    required this.onClose,
+    this.drivenReveal,
+  });
+
+  /// One panel at a time, ever. A second `show` while the centre is open
+  /// (or mid-reveal) is a bounce, not a stacked second entry.
+  static bool _panelMounted = false;
 
   static void show(BuildContext context) {
+    if (_panelMounted) return;
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
     entry = OverlayEntry(
       builder: (_) => NotificationOverlay(onClose: () => entry.remove()),
     );
     overlay.insert(entry);
+  }
+
+  /// Begins the finger-driven reveal: mounts the panel hidden above the
+  /// top edge and returns the controller the caller drags. Returns null
+  /// if a panel is already mounted (the bell tap handles that case).
+  static NotificationRevealController? beginReveal(BuildContext context) {
+    if (_panelMounted) return null;
+    final overlay = Overlay.of(context);
+    final controller = NotificationRevealController();
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => NotificationOverlay(
+        onClose: () => entry.remove(),
+        drivenReveal: controller,
+      ),
+    );
+    overlay.insert(entry);
+    return controller;
   }
 
   @override
@@ -37,6 +112,27 @@ class _State extends ConsumerState<NotificationOverlay>
   late Animation<double> _bobAnim;
   int _tab = 0;
   double _drag = 0;
+
+  // WORKSTREAM A — driven reveal state. In driven mode the panel's
+  // vertical fraction (dy of screen height; 0 = open, negative = above
+  // the top edge) is derived from the controller's reveal value. On
+  // commit/cancel a short settle animation takes over FROM THE LIVE
+  // FRACTION so the hand-off is continuous — never a jump to a canned
+  // position.
+  bool _drivenMode = false;
+  bool _entranceStarted = false;
+  NotificationRevealController? _driver;
+
+  /// The continuous settle from a driven state (or the downward
+  /// dismissal): animates a raw dy fraction from → to. The CONTROLLER is
+  /// persistent (one per State — the panel's rebuild listener watches it,
+  /// so it must never be swapped mid-flight); the TWEEN is re-created per
+  /// settle with the live from/to fractions.
+  late final AnimationController _settleCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
+  Animation<double>? _settleAnim;
   bool _quietHoursEnabled = false;
   TimeOfDay _quietStart = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _quietEnd = const TimeOfDay(hour: 7, minute: 0);
@@ -44,10 +140,24 @@ class _State extends ConsumerState<NotificationOverlay>
   @override
   void initState() {
     super.initState();
+    NotificationOverlay._panelMounted = true;
     _slideCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
+    _driver = widget.drivenReveal;
+    _drivenMode = _driver != null;
+    if (_drivenMode) {
+      _driver!.addListener(_onDriverCommand);
+      // Driven panels mount HIDDEN — the entrance animation never runs;
+      // the finger supplies the position.
+      _slideCtrl.value = 1.0;
+    }
+    // The non-driven entrance starts in didChangeDependencies: forward()
+    // captures the controller's duration at call time, and the accessible
+    // (reduced-motion) duration is only resolvable once the inherited
+    // MediaQuery is available — starting it here would lock in the 420ms
+    // default and animate under reduced motion.
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
@@ -125,9 +235,81 @@ class _State extends ConsumerState<NotificationOverlay>
 
   @override
   void dispose() {
+    _driver?.removeListener(_onDriverCommand);
+    NotificationOverlay._panelMounted = false;
+    _settleCtrl.dispose();
     _slideCtrl.dispose();
     _bobCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // WORKSTREAM A: reduced motion receives direct state transitions — the
+    // entrance/dismissal slide collapses to zero duration. MediaQuery is
+    // not readable in initState, so the duration lands here (the first
+    // build happens after dependencies resolve, before any animation can
+    // matter — the same pattern the notification bell documents).
+    _slideCtrl.duration = MotionTokens.accessibleDuration(
+        context, const Duration(milliseconds: 420));
+    _settleCtrl.duration = MotionTokens.accessibleDuration(
+        context, const Duration(milliseconds: 260));
+    if (!_entranceStarted && !_drivenMode) {
+      _entranceStarted = true;
+      _slideCtrl.forward();
+    }
+  }
+
+  /// The driven command channel: every controller notification lands
+  /// here. A reveal update is a plain position change; commit/cancel are
+  /// consumed once and hand the panel to a continuous settle from the
+  /// live fraction.
+  void _onDriverCommand() {
+    if (!mounted) return;
+    switch (_driver!.command) {
+      case 1: // commit
+        _driver!.update(_driver!.reveal); // keep position; clear command
+        _startSettle(from: _currentDrivenDy(), to: 0.0, thenRemove: false);
+        break;
+      case 2: // cancel
+        _driver!.update(_driver!.reveal);
+        _startSettle(
+          from: _currentDrivenDy(),
+          to: -0.92,
+          thenRemove: true,
+        );
+        break;
+      default:
+        setState(() {});
+    }
+  }
+
+  /// The live dy fraction while driven.
+  double _currentDrivenDy() => -(1 - (_driver?.reveal ?? 0)) * 0.92;
+
+  /// Animates the raw dy fraction [from] → [to]; when [thenRemove] the
+  /// entry is removed at the end (settle-closed). Continuous with the
+  /// live position — the settle always starts from where the panel
+  /// actually is (the finger's last reveal, or the drag offset), never
+  /// from a canned position.
+  void _startSettle({
+    required double from,
+    required double to,
+    required bool thenRemove,
+  }) {
+    _drivenMode = false;
+    _settleAnim = Tween<double>(begin: from, end: to).animate(
+      CurvedAnimation(parent: _settleCtrl, curve: Curves.easeOutCubic),
+    );
+    if (thenRemove) {
+      _settleCtrl.forward(from: 0).then((_) {
+        if (mounted) widget.onClose();
+      });
+    } else {
+      _settleCtrl.forward(from: 0);
+    }
+    setState(() {});
   }
 
   void _dismiss() => _slideCtrl.reverse().then((_) => widget.onClose());
@@ -388,22 +570,65 @@ class _State extends ConsumerState<NotificationOverlay>
           child: Container(color: Colors.transparent),
         ),
         AnimatedBuilder(
-          animation: _slideAnim,
+          // The settle controller carries the driven reveal hand-off and
+          // the downward dismissal — without it in the listenable the
+          // panel would freeze at the hand-off position (the controller
+          // ticks but nobody rebuilds).
+          animation: Listenable.merge([_slideAnim, _settleCtrl]),
           builder: (_, __) {
-            final off = _drag != 0
-                ? Offset(0, _drag / screenH)
-                : _slideAnim.value;
+            // WORKSTREAM A — one priority order for the panel's vertical
+            // fraction: an in-flight settle (driven hand-off or downward
+            // dismissal) wins; then the live driven reveal; then the
+            // legacy finger drag; then the canned entrance animation.
+            final double dy;
+            if (_settleAnim != null) {
+              dy = _settleAnim!.value;
+            } else if (_drivenMode) {
+              dy = _currentDrivenDy();
+            } else if (_drag != 0) {
+              dy = _drag / screenH;
+            } else {
+              dy = _slideAnim.value.dy;
+            }
+            final off = Offset(0, dy);
             return Transform.translate(
               offset: Offset(0, off.dy * screenH),
               child: GestureDetector(
+                // WORKSTREAM A — the chrome's drag is BIDIRECTIONAL and
+                // finger-attached. Upward stays the legacy dismissal;
+                // downward now follows the finger too (the panel hangs
+                // from the top edge — dragging it back down toward its
+                // origin dismisses it, matching how it arrived). Drags
+                // that START on the notification list itself are claimed
+                // by the list's own scrollable and never reach this
+                // recognizer, so list scrolling stays a normal scroll.
+                onVerticalDragStart: (d) {
+                  setState(() => _drag = 0);
+                },
                 onVerticalDragUpdate: (d) {
-                  if ((d.primaryDelta ?? 0) < 0) {
-                    setState(() => _drag += d.primaryDelta!);
+                  final delta = d.primaryDelta ?? 0;
+                  if (delta != 0) {
+                    setState(() => _drag += delta);
                   }
                 },
+                onVerticalDragCancel: () {
+                  setState(() => _drag = 0);
+                },
                 onVerticalDragEnd: (d) {
-                  if ((d.primaryVelocity ?? 0) < -350 || _drag < -80) {
+                  final v = d.primaryVelocity ?? 0;
+                  if (v < -350 || _drag < -80) {
+                    // Legacy upward dismissal.
+                    _drag = 0;
                     _dismiss();
+                  } else if (_drag > 90 || v > 700) {
+                    // Downward dismissal: the panel settles DOWN past
+                    // its origin and the entry is removed.
+                    _drag = 0;
+                    _startSettle(
+                      from: 0,
+                      to: 0.92,
+                      thenRemove: true,
+                    );
                   } else {
                     setState(() => _drag = 0);
                   }
@@ -437,13 +662,26 @@ class _State extends ConsumerState<NotificationOverlay>
                                 ),
                                 child: Row(
                                   children: [
-                                    Text(
-                                      'Notifications',
-                                      style: TextStyle(
-                                        color: colors.textPrimary,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                        decoration: TextDecoration.none,
+                                    // Overflow-safe title (pre-existing
+                                    // defect surfaced by the Workstream A
+                                    // tests): at 400dp and below — and at
+                                    // large text scales — the trailing
+                                    // controls (quiet-hours chip, gear,
+                                    // Read all) alone can exceed the row.
+                                    // The title yields first, with a clean
+                                    // ellipsis fallback; at normal widths
+                                    // nothing changes.
+                                    Flexible(
+                                      child: Text(
+                                        'Notifications',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: colors.textPrimary,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.none,
+                                        ),
                                       ),
                                     ),
                                     const Spacer(),
