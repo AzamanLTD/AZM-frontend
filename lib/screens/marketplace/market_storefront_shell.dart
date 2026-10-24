@@ -47,7 +47,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
-import 'package:azaman/widgets/collapsible_business_bar.dart'
+import 'package:azaman/widgets/marketplace/business_result_card.dart'
     show OpenStatus, currentOpenStatus;
 
 /// Sheet extents as a fraction of the available height. Design-tunable;

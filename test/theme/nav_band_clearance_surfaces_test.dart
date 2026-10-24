@@ -17,7 +17,7 @@ import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/theme/nav_band_clearance.dart';
-import 'package:azaman/widgets/collapsible_business_bar.dart';
+import 'package:azaman/widgets/marketplace/business_result_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -235,7 +235,7 @@ void main() {
 
       final band = tester.getRect(find.byType(_FixedBand));
       final lastBar = tester.getRect(
-        find.byType(CollapsibleBusinessBar).last,
+        find.byType(BusinessResultCard).last,
       );
 
       // Reachability contract: after bottoming out, the last card's end

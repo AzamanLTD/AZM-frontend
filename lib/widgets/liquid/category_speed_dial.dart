@@ -626,12 +626,17 @@ class _DialOverlay extends StatelessWidget {
             onPick: onPick,
           ),
 
-        // trigger ghost: keep the selected-category pill visible on top of goo
+        // trigger ghost: keep the selected-category pill visible on top of
+        // the goo. ExcludeSemantics: the real anchor pill underneath ALREADY
+        // announces 'Category: X' with its open/close hint — the ghost is a
+        // pure visual echo on the blob and must not duplicate the label to
+        // screen readers (Workstream D selector pass, 2026-10-21).
         CompositedTransformFollower(
           link: link,
           showWhenUnlinked: false,
           offset: Offset.zero,
-          child: AnimatedBuilder(
+          child: ExcludeSemantics(
+            child: AnimatedBuilder(
             animation: controller,
             builder: (_, __) {
               final t = reduced ? 1.0 : controller.value;
@@ -685,6 +690,7 @@ class _DialOverlay extends StatelessWidget {
                 ),
               );
             },
+          ),
           ),
         ),
       ],
