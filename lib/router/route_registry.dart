@@ -55,6 +55,7 @@ abstract final class AzRouteNames {
   static const savings = 'savings';
   static const deposit = 'deposit';
   static const convert = 'convert';
+  static const send = 'send';
 
   // Susu
   // Balance ↔ Visa card transfer from the Home deck seam.
@@ -192,6 +193,18 @@ abstract final class AzRoutes {
   /// itself gates execution behind [kConvertExecutionSupported]; the route
   /// always exists so the launcher/navigation surface is stable.
   static String convert() => '/convert';
+
+  /// `/send?to=&name=` — the Send surface (Workstream B). `to` is the
+  /// recipient's AZM ID for the activity "Send Again" seed; the composer
+  /// re-validates it against the backend identity contract before any
+  /// money moves — the route carries the seed, never an assumption.
+  static String send({String? to, String? name}) {
+    final params = <String>[
+      if (to != null) 'to=${_encode(to)}',
+      if (name != null) 'name=${_encode(name)}',
+    ];
+    return params.isEmpty ? '/send' : '/send?${params.join('&')}';
+  }
 
   // ── Card transfer ─────────────────────────────────────────────────────────
   static const cardTransfer = '/card-transfer';

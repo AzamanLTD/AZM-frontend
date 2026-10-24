@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/router/route_registry.dart';
-import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 import 'package:azaman/widgets/nav_transitions.dart' as nav_transitions_pkg;
@@ -29,10 +28,11 @@ List<PlusLauncherAction> buildHomePlusActions(BuildContext context) {
       icon: HugeIconsSolid.arrowUpRight01,
       prominent: true,
       label: 'Send',
-      onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
-        context,
-        const SendMoneyScreen(),
-      ),
+      // WORKSTREAM B — Send routes by LOCATION (the /send rise route),
+      // the same family as Add Cash/Receive/Convert: rising entrance,
+      // X close, deliberate pull-to-dismiss. Never an imperative
+      // construction over the router.
+      onTap: () => context.push(AzRoutes.send()),
     ),
     PlusLauncherAction(
       icon: HugeIconsSolid.arrowDownLeft01,

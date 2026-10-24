@@ -9,7 +9,6 @@
 //   rebuilds from the animation controller — mid-flight rotation ticks
 //   prove the tree tracks _rot itself, not incidental parent rebuilds.
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -418,9 +417,11 @@ void main() {
         isNot(contains('const DepositScreen(')),
         reason: 'the deposit screen is reached by location too',
       );
-      // SendMoney and Withdrawal still genuinely have no canonical
-      // routes — their imperative navigation is the sanctioned exception.
-      expect(source, contains('SendMoneyScreen'));
+      // WORKSTREAM B — Send is now a canonical location (/send, the
+      // rise family): the activity row routes by location, never by
+      // constructing the screen over the router. Withdrawal remains the
+      // sanctioned imperative exception until Workstream C redesigns it.
+      expect(source, contains('AzRoutes.send('));
       expect(source, contains('WithdrawalScreen'));
     });
 
