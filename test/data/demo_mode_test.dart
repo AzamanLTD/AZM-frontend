@@ -132,6 +132,73 @@ void main() {
       expect((body['messages'] as List).length, 4);
     });
 
+    // ── Susu routes: one susu, served consistently everywhere ──────────
+    test('tryGet serves the susu detail envelope for /susu/susu-1', () {
+      final resp = DemoInterceptor.tryGet('/susu/susu-1');
+      expect(resp, isNotNull);
+      expect(resp!.statusCode, 200);
+      final body = jsonDecode(resp.body) as Map<String, dynamic>;
+      final susu = body['susu'] as Map<String, dynamic>;
+      expect(susu['id'], 'susu-1');
+      expect(susu['status'], 'ACTIVE');
+      expect(susu['contributionUsdc'], 200.0);
+      // Detail carries the roster + schedule inline, matching the
+      // dedicated routes below.
+      expect((susu['members'] as List).length, 4);
+      expect((susu['cycles'] as List).length, 4);
+    });
+
+    test('tryGet serves members and cycles under the real keys', () {
+      final members = DemoInterceptor.tryGet('/susu/susu-1/members');
+      expect(members, isNotNull);
+      final mBody = jsonDecode(members!.body);
+      expect((mBody['members'] as List).length, 4);
+
+      final cycles = DemoInterceptor.tryGet('/susu/susu-1/cycles');
+      expect(cycles, isNotNull);
+      final cBody = jsonDecode(cycles!.body);
+      final cycleList = (cBody['cycles'] as List);
+      expect(cycleList.length, 4);
+      // The detail's inline schedule is the SAME list the dedicated
+      // route serves — no drift between the two surfaces (dates are
+      // computed per call from the wall clock, so compared with a
+      // tolerance rather than string equality).
+      final detail = jsonDecode(
+          DemoInterceptor.tryGet('/susu/susu-1')!.body)['susu'];
+      final inline = detail['cycles'] as List;
+      expect(inline.length, cycleList.length);
+      for (var i = 0; i < inline.length; i++) {
+        final a = inline[i] as Map<String, dynamic>;
+        final b = cycleList[i] as Map<String, dynamic>;
+        expect(a['id'], b['id']);
+        expect(a['cycleNumber'], b['cycleNumber']);
+        expect(a['status'], b['status']);
+        expect(a['payoutUserId'], b['payoutUserId']);
+        expect(
+          DateTime.parse(a['scheduledRunAt'] as String)
+              .difference(DateTime.parse(b['scheduledRunAt'] as String))
+              .abs(),
+          lessThan(const Duration(seconds: 1)),
+        );
+      }
+    });
+
+    test('tryGet reports an active susu ONLY for the susu group', () {
+      final susuStatus =
+          jsonDecode(DemoInterceptor.tryGet('/group-chats/grp-2/susu/status')!.body);
+      expect(susuStatus['susuGroupId'], 'susu-1');
+      expect(susuStatus['status'], 'ACTIVE');
+      expect(susuStatus['memberCount'], 4);
+
+      final plainStatus =
+          DemoInterceptor.tryGet('/group-chats/grp-1/susu/status');
+      expect(plainStatus, isNotNull);
+      final plain = jsonDecode(plainStatus!.body);
+      // A plain group must NOT claim a phantom active susu.
+      expect(plain['susuGroupId'], isNull);
+      expect(plain['status'], isNull);
+    });
+
     test('tryGet returns 200 for /group-chats/grp-1/messages', () {
       final resp = DemoInterceptor.tryGet('/group-chats/grp-1/messages');
       expect(resp, isNotNull);

@@ -9,9 +9,12 @@
 //   • "Initiate Susu" control (admin) for plain groups → opens the config
 //     sheet with dynamic pool math
 //   • initiation summary + cancel (admin) while a Susu is configuring
+//   • an active payout-wheel PREVIEW (live from the susu providers) that
+//     deep-links the Susu dashboard — replaces the old static text badge
 //
 // Reuses group_chat_provider (groupDetailProvider, susuInitiationStatusProvider,
-// groupActionsProvider) and susuSuppliedRateProvider for cedis conversion.
+// groupActionsProvider), susuSuppliedRateProvider for cedis conversion, and
+// the same susuDetail/members/cycles providers the dashboard renders from.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -19,9 +22,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/group_chat_provider.dart';
+import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/susu/susu_dashboard_screen.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/susu/initiate_susu_sheet.dart';
+import 'package:azaman/widgets/susu/susu_wheel.dart';
 import 'package:azaman/widgets/susu/verification_chip.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
@@ -93,7 +101,13 @@ class GroupProfileScreen extends ConsumerWidget {
                       colors: colors,
                     )
                   else if (init?.isActive == true)
-                    _ActiveSusuBadge(colors: colors)
+                    _ActiveSusuPreview(
+                      susuGroupId: init?.susuGroupId ??
+                          group.susuGroupId ??
+                          '',
+                      meUserId: me?.id,
+                      colors: colors,
+                    )
                   else if (iAmAdmin)
                     _InitiateCta(
                       colors: colors,
@@ -573,6 +587,8 @@ class _InitiationSummary extends ConsumerWidget {
   }
 }
 
+/// Static, honest fallback for the rare case where the group is active
+/// but no susu id is reachable — keep the promise, skip the preview.
 class _ActiveSusuBadge extends StatelessWidget {
   final AzamanColors colors;
   const _ActiveSusuBadge({required this.colors});
@@ -597,6 +613,132 @@ class _ActiveSusuBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Active payout-wheel preview ─────────────────────────────────────────────
+// The live wheel, in miniature, fed by the same susuDetail/members/cycles
+// providers the dashboard renders from — so the profile can never show a
+// preview that contradicts the dashboard it deep-links to. Tap-through
+// opens the real dashboard for this susu.
+class _ActiveSusuPreview extends ConsumerWidget {
+  final String susuGroupId;
+  final dynamic meUserId;
+  final AzamanColors colors;
+
+  const _ActiveSusuPreview({
+    required this.susuGroupId,
+    required this.meUserId,
+    required this.colors,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (susuGroupId.isEmpty) return _ActiveSusuBadge(colors: colors);
+
+    final detail = ref.watch(susuDetailV2Provider(susuGroupId));
+    final members = ref.watch(susuMembersProvider(susuGroupId));
+    final cycles = ref.watch(susuCyclesProvider(susuGroupId));
+
+    Widget body;
+    if (detail.isLoading) {
+      body = const SkeletonBlock(
+        key: ValueKey('susu-preview-skeleton'),
+        height: 220,
+        width: double.infinity,
+      );
+    } else {
+      body = detail.when(
+        loading: () => const SizedBox.shrink(),
+        error: (e, _) => _ActiveSusuBadge(colors: colors),
+        data: (susu) {
+          final roster = members.valueOrNull ?? const <SusuMemberView>[];
+          final schedule = cycles.valueOrNull ?? const <SusuCycleView>[];
+          final upcoming = schedule.firstWhere(
+            (c) =>
+                c.status == SusuCycleStatus.pending ||
+                c.status == SusuCycleStatus.collecting ||
+                c.status == SusuCycleStatus.collectingGrace,
+            orElse: () => schedule.isEmpty
+                ? susu.cycles.first
+                : schedule.first,
+          );
+          final payee = roster
+              .where((m) =>
+                  m.userId.toString() == upcoming.payoutUserId.toString())
+              .firstOrNull;
+
+          return Column(
+            children: [
+              SusuWheel(
+                key: const ValueKey('susu-preview-wheel'),
+                members: roster,
+                cycles: schedule.isEmpty ? susu.cycles : schedule,
+                totalSlots: susu.totalCycles,
+                meUserId: meUserId,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                payee == null
+                    ? 'Next payout · slot ${upcoming.cycleNumber}'
+                    : 'Next payout · ${payee.displayName} · slot ${upcoming.cycleNumber}',
+                key: const ValueKey('susu-preview-next'),
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
+    return InkWell(
+      key: const ValueKey('susu-preview-card'),
+      borderRadius: BorderRadius.circular(16),
+      onTap: susuGroupId.isEmpty
+          ? null
+          : () => pushWithVerticalTransition(
+                context,
+                SusuDashboardScreen(susuId: susuGroupId),
+              ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
+        decoration: BoxDecoration(
+          color: colors.success.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.success.withValues(alpha: 0.30)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Icon(Icons.workspaces_outline,
+                    color: colors.success, size: 16),
+                const SizedBox(width: 8),
+                Text(
+                  'ACTIVE SUSU',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const Spacer(),
+                Icon(Icons.chevron_right,
+                    color: colors.textTertiary, size: 18),
+              ],
+            ),
+            const SizedBox(height: 12),
+            body,
+          ],
+        ),
       ),
     );
   }
