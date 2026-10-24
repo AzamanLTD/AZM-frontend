@@ -12,6 +12,16 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+
+    <!-- NEAR YOU (foreground-only location, Programme G3): the position
+         stream runs ONLY while the consuming surface is active and the app
+         is foregrounded. FOREGROUND_SERVICE_LOCATION is required by
+         Android 14+ for the geolocator foreground-notification stream;
+         background location is never requested. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <application
         android:label="Azaman"
         android:name="${applicationName}"

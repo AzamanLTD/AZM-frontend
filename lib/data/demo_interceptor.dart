@@ -481,17 +481,28 @@ class DemoInterceptor {
       return DemoMarketplaceSeed.getBusinessByBizId(businessMatch.group(1)!);
     }
 
-    // /business/search/nearby — query-aware (category/verified/q/limit/cursor).
+    // /business/search/nearby — the REAL contract (Programme G2/G3): the
+    // real client sends `page` (0-based offset pagination), `lat` and
+    // `lng` for the haversine distance ordering. The demo previously read
+    // a `cursor` the real client never sends — page 2 silently replayed
+    // page 1 in demo mode. Now the seed mirrors the production endpoint:
+    // same params in, same shape out (offset-paginated rows, distanceKm
+    // computed from the request coordinates, slim embedded
+    // businessProfile on every row).
     if (path == '/business/search/nearby') {
       final q = _queryOf(endpoint);
+      final requestLat = double.tryParse(q['lat'] ?? '');
+      final requestLng = double.tryParse(q['lng'] ?? '');
       return DemoMarketplaceSeed.searchNearby(
+        lat: requestLat,
+        lng: requestLng,
         q: q['q'],
         category: q['category'],
         verified: q['verified'] == 'true'
             ? true
             : (q['verified'] == 'false' ? false : null),
         limit: int.tryParse(q['limit'] ?? '') ?? 20,
-        cursor: q['cursor'],
+        page: int.tryParse(q['page'] ?? '') ?? 0,
       );
     }
 
