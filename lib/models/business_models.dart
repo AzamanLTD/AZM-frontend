@@ -447,9 +447,17 @@ class BusinessProfile {
   final List<String> amenities;
   final List<String> cuisineTypes;
   final Map<String, dynamic>? businessMeta;
+  // WORKSTREAM D (2026-10-21) — the business's ADDITIONAL declared
+  // offerings, from the backend offeredCategories contract
+  // (AZM-backend PR #366). Canonical BusinessCategory wire values only;
+  // NEVER inferred from amenities/cuisine/description. Empty list = no
+  // additional offerings — a valid state that renders NO extra icons.
+  // The PRIMARY category stays in `category` and renders in the circular
+  // avatar badge, not this list.
+  final List<String> offeredCategories;
   // Ad appearance customization (2026-07-06): set from the business portal.
   // Hex string like "#FFAA00"; null falls back to the category-default tint
-  // used in collapsible_business_bar.dart.
+  // used in business_result_card.dart.
   final String? adAccentColor;
 
   List<String> get showcaseUrls {
@@ -500,6 +508,7 @@ class BusinessProfile {
     this.priceRange,
     this.amenities = const [],
     this.cuisineTypes = const [],
+    this.offeredCategories = const [],
     this.businessMeta,
     this.adAccentColor,
     required this.username,
@@ -522,6 +531,19 @@ class BusinessProfile {
       createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
   String get categoryLabel => BusinessCategories.labelFor(category);
+
+  /// Workstream D defense (PR #174 review item): malformed or LEGACY
+  /// payloads may repeat the PRIMARY category inside offeredCategories.
+  /// Additional-offering surfaces (chips, semantics) must never render
+  /// the primary a second time — this getter is the single filter point:
+  /// deduped, primary-excluded, declaration order kept. An empty result
+  /// is the valid no-additional-offerings state.
+  List<String> get additionalOfferedCategories {
+    final seen = <String>{};
+    return offeredCategories
+        .where((w) => w.isNotEmpty && w != category && seen.add(w))
+        .toList(growable: false);
+  }
   bool get isKybVerified => kybStatus.toUpperCase() == 'VERIFIED';
 
   factory BusinessProfile.fromJson(Map<String, dynamic> json) {
@@ -566,6 +588,7 @@ class BusinessProfile {
       priceRange: _toInt(json['priceRange']).let((v) => v == 0 ? null : v),
       amenities: _toStringList(json['amenities']),
       cuisineTypes: _toStringList(json['cuisineTypes']),
+      offeredCategories: _toStringList(json['offeredCategories']),
       businessMeta: json['businessMeta'] as Map<String, dynamic>?,
       adAccentColor: json['adAccentColor'] as String?,
       username: (user['username'] ?? '').toString(),

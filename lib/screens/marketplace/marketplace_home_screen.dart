@@ -12,8 +12,9 @@
 //
 // Category selection now lives entirely in the horizontal _categoryStrip()
 // (the old side endDrawer was removed as redundant, 2026-07-06).
-// All list items are CollapsibleBusinessBar — no BusinessCard in the main feed.
-// Accordion: only one bar expanded at a time via _expandedBizId.
+// All list items are BusinessResultCard (Workstream D): the body opens
+// the business profile directly; the avatar opens the action panel. There
+// is no inline accordion in the feed.
 // =============================================================================
 
 import 'dart:async';
@@ -39,7 +40,8 @@ import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/collapsible_business_bar.dart';
+import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/widgets/marketplace/business_result_card.dart';
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/marketplace_mix_provider.dart';
 import 'package:azaman/widgets/liquid/category_speed_dial.dart';
@@ -102,9 +104,6 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
 
   // Category filter — wire value string (null = All)
   String? _selectedCategory;
-
-  // Accordion — which bar is currently expanded
-  String? _expandedBizId;
 
   // Story height is driven by scroll offset — no manual toggle needed.
   // At offset 0: fully expanded (96px). At offset 96: fully collapsed (0px).
@@ -1365,11 +1364,9 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                     color: colors.surface,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: CollapsibleBusinessBar(
+                  child: BusinessResultCard(
                     key: const ValueKey('map-preview-\${loc.id}'),
                     business: business,
-                    isExpanded: true,
-                    onToggle: () => Navigator.of(ctx2).pop(),
                   ),
                 );
               },
@@ -1663,15 +1660,9 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
           );
         }
         final b = results[i];
-        return CollapsibleBusinessBar(
+        return BusinessResultCard(
               key: ValueKey(b.bizId),
               business: b,
-              isExpanded: _expandedBizId == b.bizId,
-              onToggle: () {
-                setState(() {
-                  _expandedBizId = _expandedBizId == b.bizId ? null : b.bizId;
-                });
-              },
               distanceKm: b.locations.isNotEmpty
                   ? b.locations.first.distanceKm
                   : null,

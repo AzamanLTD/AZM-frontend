@@ -88,7 +88,7 @@ class StoreActionRow extends ConsumerWidget {
   }
 }
 
-/// Bookmark bound to `savedBusinessesProvider` (collapsible_business_bar is
+/// Bookmark bound to `savedBusinessesProvider` (the result card is
 /// gone; nothing to reuse).
 class StoreBookmarkToggle extends ConsumerWidget {
   final String bizId;
