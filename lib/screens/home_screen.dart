@@ -29,6 +29,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
@@ -38,6 +39,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/widgets/home/balance_card_preview_section.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/notification_bell.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
@@ -982,6 +984,16 @@ class _DeckHostState extends ConsumerState<_DeckHost>
               ),
             ),
           ),
+        // WORKSTREAM E PREVIEW — the redesigned BalanceCardPair, visible
+        // ONLY in demo builds and explicitly labelled as fixture data
+        // (never real funds). The real deck keeps FlippableBalanceCard
+        // until the backend valuation contract (#367 → GET /api/users
+        // /balance, additive data.valuation) lands and the production
+        // adapter is wired. Non-demo builds render nothing here.
+        BalanceCardPreviewSection(
+          colors: colors,
+          visible: AppConfig.demoMode,
+        ),
       ],
     );
   }
