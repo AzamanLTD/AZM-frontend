@@ -152,6 +152,14 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     final primaryLabel = ghsFirst && rateUsable
         ? AzMoney.ghs(primaryValue)
         : AzMoney.usdcFirst(primaryValue);
+    // FX-STATUS CONTRACT (#184 review follow-up): the unit mark follows the
+    // figure's MEANING, not the preference alone. Under a GHS-first
+    // preference with an unusable rate the hero falls back to the raw USDC
+    // ledger balance — so the unit MUST read USDC. It must never mislabel
+    // USDC as GHS; the preference only moves the presentation order once a
+    // usable rate makes a cedi figure real.
+    final primaryIsGhs = ghsFirst && rateUsable;
+    final primaryUnitLabel = primaryIsGhs ? 'GH₵' : 'USDC';
     // WORKSTREAM B: while the FX rate is unresolved (or zero), the cedi
     // equivalent is NOT a value — it is pending. The slot renders a
     // restrained three-dot waiting indicator instead of "unavailable"
@@ -176,7 +184,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
     if (balanceReadiness == BalanceReadiness.loaded) {
       _trackDelta(primaryValue,
           signature:
-              '${ghsFirst ? 'ghs' : 'usdc'}|${rateUsable ? rate.toStringAsFixed(4) : 'unavailable'}');
+              '${primaryIsGhs ? 'ghs' : 'usdc'}|${rateUsable ? rate.toStringAsFixed(4) : 'unavailable'}');
     } else {
       _lastValue = null;
       _delta = null;
@@ -374,9 +382,13 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                               Text(
                                 AzMoney.delta(
                                   chipDelta,
-                                  // The chip is denominated in the PRIMARY
-                                  // display unit — it follows the wheel.
-                                  symbol: ghsFirst
+                                  // The chip is denominated in the
+                                  // PRIMARY unit the figure is ACTUALLY
+                                  // showing (see primaryUnitLabel): under
+                                  // GHS-first with an unusable rate the
+                                  // figure is USDC, so a +20 USDC move must
+                                  // print "+USDC 20.00", never "+GH₵ 300.00".
+                                  symbol: primaryIsGhs
                                       ? AzMoney.ghsSymbol
                                       : AzMoney.usdcSymbol,
                                 ),
@@ -421,7 +433,7 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                   Padding(
                     padding: const EdgeInsets.only(right: AzSpace.sm),
                     child: Text(
-                      ghsFirst ? 'GH₵' : 'USDC',
+                      primaryUnitLabel,
                       key: const ValueKey('home-balance-primary-unit'),
                       style: AzText.label.copyWith(
                         color: colors.textTertiary,
@@ -505,23 +517,15 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
 
               // Secondary figure: the other side of the pair, so the user
               // always knows what they actually hold. While FX is
-              // unresolved the slot shows the three-dot waiting indicator
-              // (WORKSTREAM B) — fixed at the bodyS line height so the card
-              // never changes height when the rate lands.
+              // unresolved the slot holds NOTHING (FX-STATUS CONTRACT, #184
+              // review follow-up): the waiting dots belong ONLY to the
+              // bottom-left rate-status row, so the pair slot stays empty
+              // instead of duplicating the loading state next to the real
+              // ledger balance. The slot keeps its fixed bodyS line height
+              // so the card never changes height when the rate lands.
               secondaryLabel == null
-                  ? Semantics(
-                      label: 'Exchange rate loading',
-                      liveRegion: true,
-                      child: SizedBox(
-                        height: 12 * 1.45, // AzText.bodyS line height
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FxTypingDots(
-                            key: const ValueKey('home-balance-fx-dots'),
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ),
+                  ? const SizedBox(
+                      height: 12 * 1.45, // AzText.bodyS line height
                     )
                   : Text(
                       secondaryLabel,
@@ -555,17 +559,31 @@ class _HologramBalanceCardState extends ConsumerState<HologramBalanceCard>
                       child: FittedBox(
                         alignment: Alignment.centerLeft,
                         fit: BoxFit.scaleDown,
-                        child: Text(
-                          rateUsable
-                              ? '1 USDC = ${AzMoney.ghs(rate)}'
-                              : 'FX rate unavailable',
-                          key: rateUsable
-                              ? null
-                              : const ValueKey('hologram-rate-unavailable'),
-                          style: AzText.caption.copyWith(
-                            color: colors.textTertiary,
-                          ),
-                        ),
+                        child: rateUsable
+                            ? Text(
+                                '1 USDC = ${AzMoney.ghs(rate)}',
+                                style: AzText.caption.copyWith(
+                                  color: colors.textTertiary,
+                                ),
+                              )
+                            // FX-STATUS CONTRACT (#184 review follow-up):
+                            // while the rate is unresolved the bottom-left
+                            // slot carries the restrained three-dot waiting
+                            // indicator — the loading state replaces the
+                            // old 'FX rate unavailable' caption, never a
+                            // live-looking '1 USDC = GH₵ 0.00'. The dots
+                            // live ONLY here: the loaded ledger balance
+                            // stays fully visible above, and a real rate
+                            // caption arrives the moment a usable rate does.
+                            : Semantics(
+                                label: 'Exchange rate loading',
+                                liveRegion: true,
+                                child: FxTypingDots(
+                                  key: const ValueKey(
+                                      'home-balance-fx-dots'),
+                                  color: colors.textTertiary,
+                                ),
+                              ),
                       ),
                     ),
                   ),

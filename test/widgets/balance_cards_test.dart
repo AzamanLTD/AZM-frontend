@@ -33,11 +33,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/susu_model.dart';
+import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/widgets/currency_wheel_toggle.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
+import 'package:azaman/widgets/fx_typing_dots.dart';
 import 'package:azaman/widgets/hologram_balance_card.dart';
 import 'package:azaman/widgets/holographic_surface.dart';
 import 'package:azaman/widgets/odometer_number.dart';
@@ -79,6 +81,141 @@ SusuSummary _susu({
   );
 }
 
+
+// ── Capture-evidence font contract (review finding on this PR) ──────────
+//
+// The real app types its surfaces in ComicNeue (UI) and Inter (money
+// figures), with HugeIconsSolid icons and the cedi glyph falling through
+// to the OS on-device. A capture harness that registers only some faces
+// rasterises the rest as Ahem placeholder bars — which is NOT product
+// evidence. Every family the card types in must be registered here, and
+// the FONT CONTRACT test below fails if the two lists drift apart.
+bool _fontsLoaded = false;
+final Set<String> _loadedFontFamilies = {};
+
+Future<void> _loadFace(String family, String path) async {
+  final bytes = await File(path).readAsBytes();
+  final loader = FontLoader(family)
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
+  await loader.load();
+  _loadedFontFamilies.add(family);
+}
+
+/// Registers a family exactly as the engine resolves it for package
+/// icons: `IconData(fontFamily, fontPackage: p)` resolves under
+/// `packages/p/fontFamily` (the #184 harness lesson — the bare name
+/// leaves every glyph as tofu).
+String _familyKey(String family, {String? package}) =>
+    package == null ? family : 'packages/$package/$family';
+
+/// Registers the app's REAL bundled faces exactly once per test process
+/// (same contract as the Quiet Depth and native-amount harnesses):
+///
+///   • Inter — the numeric family (money figures; tabular metrics).
+///   • ComicNeue Regular + Bold — the display/UI family the live theme
+///     types the app in. Without them the engine rasterises Ahem:
+///     text captured as blank rectangular bars (this PR's review
+///     finding on the committed evidence).
+///   • MaterialIcons + HugeIconsSolid/Stroke — the real icon fonts, so
+///     icons render as glyphs, not tofu squares. Package icons resolve
+///     under the PACKAGE-QUALIFIED family key (the #184 lesson).
+///   • DejaVuSans — glyph-complete fallback wired through the harness
+///     theme; ComicNeue has no cedi glyph (U+20B5), the OS supplies it
+///     on-device. Metrics still come from the app's own faces.
+Future<void> _loadFonts() async {
+  if (_fontsLoaded) return;
+  await _loadFace('Inter', 'assets/fonts/Inter-Variable.ttf');
+  await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
+  await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
+  await _loadFace(
+      'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+  await _loadFace('packages/hugeicons_pro/HugeIconsSolid',
+      'test/goldens/fonts/hugeicons-solid.ttf');
+  await _loadFace('packages/hugeicons_pro/HugeIconsStroke',
+      'test/goldens/fonts/hugeicons-stroke.ttf');
+  await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
+  _fontsLoaded = true;
+}
+
+/// The families a card tree actually types in, resolved the way the
+/// engine resolves them: every RichText span with an explicit family,
+/// every icon's (package-qualified) family, and the harness theme's
+/// fallback chain.
+Set<String> _usedFontFamilies(WidgetTester tester, ThemeData theme) {
+  final used = <String>{};
+  for (final text in find.byType(RichText).evaluate()) {
+    final rich = text.widget as RichText;
+    // Walk the span tree explicitly (visitChildrenDirectly is not on
+    // InlineSpan in all channels; a manual recursive walk is stable).
+    // A span may be shared/reentrant (e.g. a style-resolving span that
+    // wraps itself); the visited set keeps the walk finite.
+    final visited = <InlineSpan>{};
+    void walk(InlineSpan span) {
+      if (!visited.add(span)) return;
+      final style = span.style;
+      final family = style?.fontFamily;
+      if (family != null) {
+        used.add(family);
+      }
+      span.visitChildren((child) {
+        walk(child);
+        return true;
+      });
+    }
+
+    walk(rich.text);
+  }
+  for (final icon in find.byType(Icon).evaluate()) {
+    final data = (icon.widget as Icon).icon;
+    if (data != null) {
+      used.add(_familyKey(data.fontFamily ?? '', package: data.fontPackage));
+    }
+  }
+  // The harness theme's fallback chain is typed into every span that
+  // does not override it (DefaultTextStyle inheritance).
+  // TextTheme has no styles iterator on this channel; visit the slots.
+  for (final style in [
+    theme.textTheme.displayLarge,
+    theme.textTheme.displayMedium,
+    theme.textTheme.displaySmall,
+    theme.textTheme.headlineLarge,
+    theme.textTheme.headlineMedium,
+    theme.textTheme.headlineSmall,
+    theme.textTheme.titleLarge,
+    theme.textTheme.titleMedium,
+    theme.textTheme.titleSmall,
+    theme.textTheme.bodyLarge,
+    theme.textTheme.bodyMedium,
+    theme.textTheme.bodySmall,
+    theme.textTheme.labelLarge,
+    theme.textTheme.labelMedium,
+    theme.textTheme.labelSmall,
+  ]) {
+    if (style == null) continue;
+    if (style.fontFamily != null) used.add(style.fontFamily!);
+    used.addAll(style.fontFamilyFallback ?? const <String>[]);
+  }
+  used.remove('');
+  return used;
+}
+
+/// The contract: every used family must be registered in the harness.
+/// Returns the used families with no registered face — the missing-font
+/// defect this PR's review found (Inter-only harness → every ComicNeue
+/// run and every HugeIcons glyph rasterised as placeholder bars).
+Set<String> _missingFontFamilies(
+    Set<String> used, Set<String> loaded) {
+  return used.difference(loaded);
+}
+
+ThemeData _harnessTheme(AzamanTheme theme) {
+  final base = ThemeProvider.getThemeData(theme);
+  return base.copyWith(
+    textTheme: base.textTheme.apply(fontFamilyFallback: const ['DejaVuSans']),
+  );
+}
 
 Widget _wrap(Widget child, {bool reduceMotion = false}) {
   return MaterialApp(
@@ -196,17 +333,32 @@ void main() {
     // indicator, named for screen readers as a loading state.
     expect(find.byKey(const ValueKey('home-balance-fx-dots')),
         findsOneWidget,
-        reason: 'the unresolved cedi equivalent shows the waiting dots');
+        reason: 'the unresolved rate shows the waiting dots in the '
+            'bottom-left FX-status slot');
     expect(find.text('GH₵ equivalent unavailable'), findsNothing,
         reason: 'WORKSTREAM B removed the unavailable caption');
     expect(find.bySemanticsLabel('Exchange rate loading'), findsOneWidget,
-        reason: 'the waiting slot announces what is loading');
+        reason: 'the FX-status slot announces what is loading');
     expect(find.text('GH\u20B5\u00A00.00'), findsNothing,
         reason: 'a fabricated live-looking zero equivalent must never render');
+    // FX-STATUS CONTRACT (#184 review follow-up): the bottom-left rate row
+    // carries the waiting dots — the 'FX rate unavailable' literal is gone,
+    // and the caption can never read '1 USDC = GH₵ 0.00' either.
     expect(find.byKey(const ValueKey('hologram-rate-unavailable')),
-        findsOneWidget,
-        reason: 'the rate row still says FX unavailable, never '
-            '1 USDC = GH₵ 0.00');
+        findsNothing,
+        reason: 'the dots replace the FX-unavailable caption; the literal '
+            'status text is retired');
+    expect(find.text('FX rate unavailable'), findsNothing,
+        reason: 'no FX-unavailable copy remains anywhere on the card');
+    // Under the GHS-first preference with an unusable rate the hero falls
+    // back to the USDC ledger balance — so the unit mark MUST read USDC.
+    expect(
+        tester
+            .widget<Text>(
+                find.byKey(const ValueKey('home-balance-primary-unit')))
+            .data,
+        'USDC',
+        reason: 'the unit never mislabels a USDC figure as GHS');
     handle.dispose();
   });
 
@@ -418,6 +570,139 @@ void main() {
       // pending-timer invariant proves it at test end.
       await tester.pumpWidget(const SizedBox());
       expect(tester.takeException(), isNull);
+    });
+  });
+
+  // ═════════════════════════════════════════════════════════════════════════
+  // FX-STATUS CONTRACT (#184 review follow-up) — the focused balance/FX
+  // layout contract the #184 review pinned for this separate PR:
+  //   * the loaded available ledger balance and its true unit stay visible
+  //     while the FX rate is unusable (the unit never mislabels USDC as
+  //     GHS under a GHS-first preference);
+  //   * no fabricated GHS amount anywhere;
+  //   * the waiting dots occupy ONLY the bottom-left FX-status slot;
+  //   * the right-side refresh affordance stays in place;
+  //   * a balance move while FX is unusable is denominated in USDC, the
+  //     unit the figure is actually showing.
+  // ═════════════════════════════════════════════════════════════════════════
+  group('FX-STATUS CONTRACT (#184 review follow-up)', () {
+    testWidgets(
+        'unusable FX: the loaded balance and its USDC unit stay visible; '
+        'no fabricated GHS anywhere',
+        (tester) async {
+      await _seedCurrency(null); // global default: GHS-first
+      await _pumpFrontFace(tester, balance: 50.0, rate: 0);
+      await tester.pump(const Duration(milliseconds: 120));
+
+      // The loaded ledger balance renders as a real figure (odometer), not
+      // dots, and announces itself in USDC.
+      expect(find.byKey(const ValueKey('home-balance-amount-dots')),
+          findsNothing,
+          reason: 'a loaded balance is never displaced by a loading '
+              'indicator');
+      expect(find.bySemanticsLabel(RegExp('USDC.50.00\\savailable')),
+          findsOneWidget,
+          reason: 'the available USDC ledger balance stays primary and '
+              'visible');
+      expect(
+          tester
+              .widget<Text>(
+                  find.byKey(const ValueKey('home-balance-primary-unit')))
+              .data,
+          'USDC',
+          reason: 'the GHS-first preference cannot mislabel the USDC '
+              'fallback figure as GHS');
+      expect(find.textContaining('GH₵'), findsNothing,
+          reason: 'with an unusable rate no cedi figure exists anywhere on '
+              'the card — fabricated or otherwise');
+    });
+
+    testWidgets(
+        'the waiting dots occupy ONLY the bottom-left FX-status slot, '
+        'left of the refresh affordance and below the figure',
+        (tester) async {
+      await _seedCurrency(null);
+      await _pumpFrontFace(tester, balance: 50.0, rate: 0);
+      await tester.pump(const Duration(milliseconds: 120));
+
+      final dots = find.byKey(const ValueKey('home-balance-fx-dots'));
+      // ONLY: exactly one typing indicator on the whole card — the
+      // secondary pair slot holds nothing while FX is unresolved.
+      expect(find.byType(FxTypingDots), findsOneWidget,
+          reason: 'the loading state exists exactly once — no second dot '
+              'site under the figure');
+      expect(dots, findsOneWidget);
+
+      final dotsRect = tester.getRect(dots);
+      final refreshRect =
+          tester.getRect(find.byType(RateRefreshIndicator));
+      final odometerRect = tester.getRect(find.byType(OdometerNumber));
+
+      expect(dotsRect.center.dy, closeTo(refreshRect.center.dy, 8.0),
+          reason: 'the dots sit in the BOTTOM rate row, on the same line '
+              'as the refresh affordance — never in the secondary pair '
+              'slot above');
+      expect(dotsRect.right, lessThan(refreshRect.left),
+          reason: 'the dots own the LEFT of the rate row');
+      expect(dotsRect.top, greaterThan(odometerRect.bottom),
+          reason: 'the dots are below the primary figure');
+      expect(find.byType(RateRefreshIndicator), findsOneWidget,
+          reason: 'the right-side refresh affordance stays in place while '
+              'the rate is unresolved');
+    });
+
+    testWidgets(
+        'a balance move while FX is unusable is denominated in USDC, '
+        'never mislabeled as GHS',
+        (tester) async {
+      await _seedCurrency(null); // GHS-first, rate unusable
+      await _pumpFrontFace(tester, balance: 100, rate: 0);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await _pumpFrontFace(tester, balance: 120, rate: 0);
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // +20 USDC on a figure showing USDC prints "+USDC 20.00" — the old
+      // code printed "+GH₵ 300.00" (a fabricated conversion at a phantom
+      // rate) purely because the global preference said GHS-first.
+      expect(find.text('+USDC\u00A020.00'), findsOneWidget,
+          reason: 'the delta chip follows the unit the figure actually '
+              'shows');
+      expect(find.textContaining('GH₵'), findsNothing,
+          reason: 'no phantom-rate cedi conversion rides the chip');
+    });
+
+    testWidgets(
+        'the rate arriving replaces the dots with the true caption and '
+        'converts the hero — the card height never moved',
+        (tester) async {
+      final container =
+          await _pumpFrontFace(tester, balance: 123.45, rate: 0);
+      await tester.pump(const Duration(milliseconds: 120));
+      final before = tester.getRect(find.byType(HologramBalanceCard));
+      expect(find.byKey(const ValueKey('home-balance-fx-dots')),
+          findsOneWidget);
+
+      container.read(oracleRateProvider.notifier).state = 15.38;
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byKey(const ValueKey('home-balance-fx-dots')), findsNothing,
+          reason: 'the waiting dots leave once a rate lands');
+      expect(find.textContaining('1 USDC ='), findsOneWidget,
+          reason: 'the true rate caption takes the bottom-left slot');
+      // GHS-first + usable rate: the hero converts and the unit follows.
+      expect(
+          tester
+              .widget<Text>(
+                  find.byKey(const ValueKey('home-balance-primary-unit')))
+              .data,
+          'GH₵');
+      expect(tester.widget<OdometerNumber>(find.byType(OdometerNumber)).value,
+          '1,898.66');
+      final after = tester.getRect(find.byType(HologramBalanceCard));
+      expect(after.height, before.height,
+          reason: 'the empty pair slot keeps its height: the card geometry '
+              'is identical across the rate landing');
     });
   });
 
@@ -641,18 +926,6 @@ void main() {
   group('WORKSTREAM B — captures (light/dark × 320/360/390 × FX states)',
       () {
     const rootKey = Key('balance-card-capture-root');
-    bool fontsLoaded = false;
-
-    Future<void> loadFonts() async {
-      if (fontsLoaded) return;
-      final inter =
-          await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
-      final loader = FontLoader('Inter')
-        ..addFont(Future<ByteData>.value(
-            ByteData.view(Uint8List.fromList(inter).buffer)));
-      await loader.load();
-      fontsLoaded = true;
-    }
 
     Future<void> capture(WidgetTester tester, String name) async {
       var ok = false;
@@ -672,7 +945,7 @@ void main() {
 
     testWidgets('front face, both FX states, both themes, three widths',
         (tester) async {
-      await tester.runAsync(loadFonts);
+      await tester.runAsync(_loadFonts);
       for (final themeName in ['light', 'dark']) {
         for (final width in [320.0, 360.0, 390.0]) {
           for (final state in ['waiting', 'resolved']) {
@@ -696,6 +969,12 @@ void main() {
               UncontrolledProviderScope(
                 container: container,
                 child: MaterialApp(
+                  // REAL theme + glyph-complete fallback: metrics come
+                  // from the app's committed faces; only the cedi glyph
+                  // (missing from ComicNeue) falls through to DejaVuSans
+                  // exactly as the OS supplies it on-device.
+                  theme: _harnessTheme(
+                      themeName == 'dark' ? AzamanTheme.dark : AzamanTheme.light),
                   home: Scaffold(
                     backgroundColor: themeName == 'dark'
                         ? const Color(0xFF0A0C12)
@@ -733,6 +1012,124 @@ void main() {
         }
       }
       await tester.binding.setSurfaceSize(null);
+    });
+
+    testWidgets('CAPTURE-EVIDENCE FONT CONTRACT — every family the card '
+        'types in is registered in the harness (no placeholder-bar text)',
+        (tester) async {
+      await tester.runAsync(_loadFonts);
+      // One representative configuration (dark, 390dp, resolved — the
+      // richest text surface: caption + unit + delta + figure + icons).
+      SharedPreferences.setMockInitialValues({'azaman_theme': 1});
+      await tester.binding.setSurfaceSize(const Size(390, 260));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      Widget host(ProviderContainer c) => UncontrolledProviderScope(
+            container: c,
+            child: MaterialApp(
+              // REAL theme + glyph-complete fallback: metrics come
+              // from the app's committed faces; only the cedi glyph
+              // (missing from ComicNeue) falls through to DejaVuSans
+              // exactly as the OS supplies it on-device.
+              theme: _harnessTheme(AzamanTheme.dark),
+              home: const Scaffold(
+                body: Center(
+                  child: RepaintBoundary(
+                    key: rootKey,
+                    child: HologramBalanceCard(),
+                  ),
+                ),
+              ),
+            ),
+          );
+
+      // Stage 1: the authoritative first load anchors the delta
+      // baseline silently (no chip yet).
+      final container = ProviderContainer(overrides: [
+        balanceDataProvider.overrideWith(
+          (ref) => const BalanceData(availableBalance: 100),
+        ),
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.loaded),
+        oracleRateProvider.overrideWith((ref) => 15.38),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(host(container));
+      for (var i = 0; i < 14; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      // Stage 2: a REAL balance move mounts the delta chip with its
+      // HugeIcons direction icon — the richest text+icon surface.
+      final moved = ProviderContainer(overrides: [
+        balanceDataProvider.overrideWith(
+          (ref) => const BalanceData(availableBalance: 123.45),
+        ),
+        balanceReadinessProvider.overrideWith(
+            (ref) => BalanceReadiness.loaded),
+        oracleRateProvider.overrideWith((ref) => 15.38),
+      ]);
+      addTearDown(moved.dispose);
+      await tester.pumpWidget(host(moved));
+      for (var i = 0; i < 14; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.byIcon(HugeIconsSolid.arrowUp01), findsOneWidget,
+          reason: 'the delta chip must be mounted for this contract to '
+              'cover the icon families too — the chip text itself is '
+              'unit-dependent (GH₵ under the usable rate here), the '
+              'direction ICON is the stable marker');
+
+      final used = _usedFontFamilies(
+          tester, _harnessTheme(AzamanTheme.dark));
+      expect(
+          used,
+          containsAll([
+            'ComicNeue',
+            'Inter',
+            'packages/hugeicons_pro/HugeIconsSolid',
+          ]),
+          reason: 'the card types in both live theme families and the '
+              'delta chip mounts a HugeIconsSolid icon — the collector '
+              'must see all three (a broken collector that finds '
+              'nothing would make this contract vacuous)');
+      final missing = _missingFontFamilies(used, _loadedFontFamilies);
+      expect(missing, isEmpty,
+          reason: 'families typed in by the card but not registered by '
+              'the capture harness rasterise as placeholder bars — the '
+              'committed evidence defect this review found. Missing: '
+              '${missing.join(', ')}');
+    });
+
+    test('CAPTURE-EVIDENCE FONT CONTRACT (negative) — the pre-fix '
+        'Inter-only harness is caught by the detector', () {
+      // The families the card tree really types in (see the contract
+      // test above). The harness as committed on the review head
+      // registered ONLY Inter:
+      const preFixLoaded = {'Inter'};
+      const usedByCard = {
+        'ComicNeue', // every AzText UI style (labels, captions, deltas)
+        'Inter', // money figures (AzText.money/delta)
+        'packages/hugeicons_pro/HugeIconsSolid', // delta-direction icons
+      };
+      final missing = _missingFontFamilies(usedByCard, preFixLoaded);
+      expect(missing,
+          containsAll(['ComicNeue', 'packages/hugeicons_pro/HugeIconsSolid']),
+          reason: 'with only Inter registered, every ComicNeue run and '
+              'every HugeIcons glyph rasterised as placeholder bars — '
+              'the committed-evidence defect. The detector must name '
+              'exactly these.');
+      const fixedHarness = {
+        'Inter',
+        'ComicNeue',
+        'packages/hugeicons_pro/HugeIconsSolid',
+        'packages/hugeicons_pro/HugeIconsStroke',
+        'MaterialIcons',
+        'DejaVuSans',
+      };
+      expect(_missingFontFamilies(usedByCard, fixedHarness), isEmpty,
+          reason: 'with the fixed harness all card families resolve '
+              '(the live testWidgets contract proves the real registry '
+              'is this set)');
     });
   });
 
