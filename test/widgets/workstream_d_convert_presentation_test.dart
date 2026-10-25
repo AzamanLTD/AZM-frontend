@@ -299,6 +299,96 @@ void main() {
   });
 
   group('D3 — surface grammar', () {
+    testWidgets('Max fill is OMITTED until the canonical balance read '
+        'has loaded — never a fabricated figure', (tester) async {
+      await tester.pumpWidget(_convertHarness(
+        snapshot: _usableSnapshot(),
+        balanceLoaded: false,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('convert_max_absent')), findsOneWidget);
+      expect(find.byKey(const Key('convert_max')), findsNothing);
+      expect(find.text('Max'), findsNothing);
+    });
+
+    testWidgets('Max fill appears with the balance line once the read '
+        'loads', (tester) async {
+      await tester.pumpWidget(_convertHarness(
+        snapshot: _usableSnapshot(),
+        balanceLoaded: true,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('convert_max')), findsOneWidget);
+      expect(find.byKey(const Key('convert_from_balance')), findsOneWidget);
+    });
+
+    testWidgets('tapping Max fills the field with the full available '
+        'balance at display precision', (tester) async {
+      await tester.pumpWidget(_convertHarness(
+        snapshot: _usableSnapshot(),
+        balanceLoaded: true,
+        availableBalance: 987.65,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('convert_max')));
+      await tester.pump();
+
+      final field = tester.widget<TextField>(
+        find.byKey(const Key('convert_amount_field')),
+      );
+      expect(field.controller!.text, '987.65');
+    });
+
+    testWidgets('Max fill carries sub-pesewa dust down to display '
+        'precision — the field shows the same figure the balance line '
+        'shows', (tester) async {
+      await tester.pumpWidget(_convertHarness(
+        snapshot: _usableSnapshot(),
+        balanceLoaded: true,
+        availableBalance: 987.654321,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('convert_max')));
+      await tester.pump();
+
+      final field = tester.widget<TextField>(
+        find.byKey(const Key('convert_amount_field')),
+      );
+      expect(field.controller!.text, '987.65');
+    });
+
+    testWidgets('Max is OMITTED in the reversed direction (GHS has no '
+        'balance to disclose)', (tester) async {
+      await tester.pumpWidget(_convertHarness(
+        snapshot: _usableSnapshot(),
+        balanceLoaded: true,
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('convert_direction_switch')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('convert_max')), findsNothing);
+      expect(find.byKey(const Key('convert_max_absent')), findsNothing);
+    });
+
+    testWidgets('a zero available balance renders no Max (an empty fill '
+        'would be a lie about what Max means)', (tester) async {
+      await tester.pumpWidget(_convertHarness(
+        snapshot: _usableSnapshot(),
+        balanceLoaded: true,
+        availableBalance: 0,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('convert_max_absent')), findsOneWidget);
+      expect(find.byKey(const Key('convert_max')), findsNothing);
+    });
+
     testWidgets('X-close pops the convert surface', (tester) async {
       await tester.pumpWidget(
         MaterialApp(

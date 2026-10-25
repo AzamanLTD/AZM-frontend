@@ -233,14 +233,27 @@ class _FromPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            'Amount (${reversed ? 'GHS' : 'USDC'})',
-            key: const Key('convert_amount_label'),
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: colors.onSurfaceVariant,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Amount (${reversed ? 'GHS' : 'USDC'})',
+                  key: const Key('convert_amount_label'),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              // IMAGE-A FIDELITY — the 'Max' quick-fill from the Buy/Sell
+              // reference. It appears ONLY in the forward direction when
+              // the canonical balance read has actually loaded; the fill
+              // is the raw available figure (no invented buffer math,
+              // no rounding games — the estimate above stays
+              // display-only and the execution gate stays closed).
+              if (!reversed) _MaxFillButton(controller: controller),
+            ],
           ),
           const SizedBox(height: 8),
           _AmountField(controller: controller, reversed: reversed),
@@ -341,6 +354,56 @@ class _UsdcBalanceLine extends ConsumerWidget {
         style: TextStyle(
           fontSize: 12,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+}
+
+/// IMAGE-A FIDELITY — 'Max'. Fills the From field with the FULL
+/// available USDC balance straight from the canonical read. The control
+/// only renders when that read has loaded and is a sane non-negative
+/// figure; with no honest number to fill there is no button at all
+/// (never a fabricated figure). Filling is a pure text edit — it does
+/// not touch money, and the gate below still owns what the screen can
+/// actually do.
+class _MaxFillButton extends ConsumerWidget {
+  const _MaxFillButton({required this.controller});
+
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final readiness = ref.watch(balanceReadinessProvider);
+    if (readiness != BalanceReadiness.loaded) {
+      return const SizedBox.shrink(key: Key('convert_max_absent'));
+    }
+    final balance = ref.watch(balanceDataProvider).availableBalance;
+    if (!balance.isFinite || balance <= 0) {
+      return const SizedBox.shrink(key: Key('convert_max_absent'));
+    }
+    final colors = Theme.of(context).colorScheme;
+    return InkWell(
+      key: const Key('convert_max'),
+      borderRadius: BorderRadius.circular(8),
+      onTap: () {
+        // Trim sub-pesewa dust that the display does not carry — the
+        // field holds the same figure the balance line shows.
+        final shown = balance.toStringAsFixed(2);
+        controller.value = TextEditingValue(
+          text: shown,
+          selection: TextSelection.collapsed(offset: shown.length),
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Text(
+          'Max',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: colors.primary,
+          ),
         ),
       ),
     );
