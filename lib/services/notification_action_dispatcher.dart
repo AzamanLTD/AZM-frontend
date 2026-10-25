@@ -126,12 +126,59 @@ abstract final class NotificationActionDispatcher {
         if (disputeId != null && disputeId.isNotEmpty) {
           return NotificationAction.navigable('/dispute/$disputeId');
         }
-        // Route field as last resort.
+        // Route field as last resort — but ONLY for routes the app
+        // actually registers. The payload is server-ORIGINATED data, yet
+        // a route string is arbitrary navigation input: an unrecognised
+        // value (a typo, a retired route, a malicious injection
+        // upstream) must resolve to unsupportedAction, never to a raw
+        // push of whatever string arrived. The allowlist is the set of
+        // top-level canonical routes the router actually mounts; it is
+        // intentionally closed — new routes join it by name here, in
+        // review, not by whoever authored the payload.
         final route = payload['route']?.toString();
         if (route != null && route.isNotEmpty) {
-          return NotificationAction.navigable(route);
+          final allowed = _isKnownTopLevelRoute(route);
+          return allowed
+              ? NotificationAction.navigable(route)
+              : const NotificationAction.unsupportedAction();
         }
         return const NotificationAction.informational();
     }
+  }
+
+  /// The closed allowlist of top-level routes the router mounts. These
+  /// are exactly the paths `lib/router/` registers at the root — a
+  /// payload `route` outside this set never navigates.
+  static const Set<String> _knownTopLevelRoutes = {
+    '/account', '/azm-auction', '/biz', '/business', '/business-market',
+    '/card-transfer', '/chat', '/close-friends', '/convert', '/deposit',
+    '/discover', '/dispute', '/friends', '/leaderboard', '/loyalty-cards',
+    '/marketplace', '/messages', '/my-orders',
+    '/notification-preferences', '/notifications', '/orders',
+    '/payment-requests', '/profile', '/proof-of-residency', '/queue',
+    '/receive', '/referral', '/request', '/round-up', '/savings',
+    '/search', '/send', '/settings', '/spending-insights', '/storefront',
+    '/story-analytics', '/story-camera', '/story-create', '/story-editor',
+    '/story-highlights', '/susu', '/trade', '/transactions', '/vault',
+    '/wallet-pass', '/withdraw', '/worker',
+  };
+
+  /// True when [route] is a route the app registers at the top level —
+  /// either an exact allowlist match, or `known/...` (a subpath of a
+  /// known root, e.g. `/business/BIZ-123`). Query strings are stripped
+  /// first. Everything else is unknown and must not navigate.
+  static bool _isKnownTopLevelRoute(String route) {
+    var path = route;
+    final q = path.indexOf('?');
+    if (q >= 0) path = path.substring(0, q);
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
+    }
+    if (_knownTopLevelRoutes.contains(path)) return true;
+    final seg = path.split('/');
+    if (seg.length > 2 && _knownTopLevelRoutes.contains('/${seg[1]}')) {
+      return true;
+    }
+    return false;
   }
 }

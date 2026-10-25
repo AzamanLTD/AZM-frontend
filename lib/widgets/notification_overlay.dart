@@ -1312,6 +1312,7 @@ class _SlideState extends State<_SlideRevealNotification>
                               ],
                             ],
                           ),
+                          ),
                         ],
                       ),
                     ),

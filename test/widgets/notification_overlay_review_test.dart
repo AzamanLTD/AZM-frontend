@@ -259,6 +259,32 @@ void main() {
       expect(a.route, '/friends');
     });
 
+    // ── Route-field allowlist (hardening, review 5) ───────────────────
+    // The `route` fallback is navigation input from payload data. Only
+    // routes the app actually mounts may navigate; anything else must
+    // resolve as unsupported so the caller shows the honest fallback.
+
+    test('allowlisted route subpaths resolve', () {
+      final a = NotificationActionDispatcher
+          .resolve({'route': '/business/BIZ-ABC123?tab=offers'});
+      expect(a.resolution, NotificationActionResolution.navigable);
+      expect(a.route, '/business/BIZ-ABC123?tab=offers');
+    });
+
+    test('unknown route string is unsupported, never raw-navigated', () {
+      for (final bad in [
+        '/evil/phish',
+        '//external.example.com',
+        '/no-longer-exists',
+        'friends', // no leading slash — not a registered route
+      ]) {
+        final a = NotificationActionDispatcher.resolve({'route': bad});
+        expect(a.resolution, NotificationActionResolution.unsupportedAction,
+            reason: 'route "$bad" must not navigate');
+        expect(a.route, isNull);
+      }
+    });
+
     test('empty payload is informational', () {
       final a = NotificationActionDispatcher.resolve(<String, dynamic>{});
       expect(a.resolution, NotificationActionResolution.informational);
