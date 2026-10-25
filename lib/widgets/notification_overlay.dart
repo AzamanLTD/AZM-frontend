@@ -765,7 +765,9 @@ class _SlideRevealNotification extends StatefulWidget {
   final AppNotification notification;
   final AzamanColors colors;
   final VoidCallback onMarkRead;
-  final VoidCallback onDelete;
+  // Honest delete: resolves false when the SERVER rejected the
+  // dismissal — the row must return with its read state untouched.
+  final Future<bool> Function() onDelete;
   const _SlideRevealNotification({
     super.key,
     required this.notification,
@@ -782,6 +784,9 @@ class _SlideState extends State<_SlideRevealNotification>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _hidden = false;
+  // Set only when the SERVER rejected a dismissal — the row returns and
+  // an honest caption explains why. Cleared on the next interaction.
+  bool _dismissFailed = false;
   static const double _maxReveal = 110.0;
 
   @override
@@ -867,9 +872,22 @@ class _SlideState extends State<_SlideRevealNotification>
                       // anything was removed rather than kept as a no-op.
                       if (showLeft) ...[
                         GestureDetector(
-                          onTap: () {
-                            widget.onDelete();
+                          onTap: () async {
+                            // Optimistic hide first so the chip feels
+                            // instant; the server is the durable
+                            // authority and a rejection un-hides the
+                            // row (retry = tap Delete again).
                             setState(() => _hidden = true);
+                            final dismissed = await widget.onDelete();
+                            if (!mounted) return;
+                            if (!dismissed) {
+                              setState(() {
+                                _hidden = false;
+                                _dismissFailed = true;
+                              });
+                            } else if (_dismissFailed) {
+                              setState(() => _dismissFailed = false);
+                            }
                           },
                           child: _chip(
                             c,
@@ -942,6 +960,18 @@ class _SlideState extends State<_SlideRevealNotification>
                                   decoration: TextDecoration.none,
                                 ),
                               ),
+                              if (_dismissFailed) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Couldn't dismiss — not saved. Try again.",
+                                  style: TextStyle(
+                                    color: c.danger,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
