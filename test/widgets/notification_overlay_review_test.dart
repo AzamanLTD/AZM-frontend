@@ -18,10 +18,11 @@
 //      and dispatch its actionPayload through the shared canonical
 //      action-to-route resolver, with a truthful fallback when the
 //      action is unsupported.
-//   4. HONEST HIDE — the left-swipe chip said "Delete" while the backend
-//      contract has no dismissal endpoint: the operation only removes
-//      the item from the in-memory list. The chip must not claim
-//      permanence.
+//   4. HONEST DISMISSAL — with backend #374's durable owner-scoped
+//      soft-dismissal contract now consumed (PR #200), the left-swipe
+//      chip is a real Delete: optimistic hide, server is the authority,
+//      a rejection un-hides the row with its read state untouched and an
+//      honest inline error. Read and dismissed stay distinct states.
 //   5. NO IDLE BOB — the grab handle ran a repeating controller for as
 //      long as the panel was open. Idle motion is not allowed.
 //   6. UNREAD COUNT — unreadCountProvider silently dropped unread
@@ -396,7 +397,7 @@ void main() {
     expect(visited, isEmpty);
   });
 
-  testWidgets('swipe-delete chip is honestly labelled Hide, not Delete',
+  testWidgets('swipe-delete chip is the durable server-backed Delete',
       (tester) async {
     await _pumpPanel(tester, seed: [_n('d-1', 'Title d-1')]);
 
@@ -407,9 +408,9 @@ void main() {
         const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
-    expect(find.text('Hide'), findsOneWidget);
-    expect(find.text('Delete'), findsNothing,
-        reason: 'no dismissal endpoint exists — Delete would be a lie');
+    expect(find.text('Delete'), findsOneWidget,
+        reason: 'the durable owner-scoped dismissal contract is live');
+    expect(find.text('Hide'), findsNothing);
   });
 
   testWidgets('the panel hosts no repeating idle controllers while open',

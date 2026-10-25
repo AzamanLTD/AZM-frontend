@@ -152,7 +152,7 @@ class BusinessResultCard extends ConsumerWidget {
   String _subtitleLine(WidgetRef ref) {
     final following = ref.watch(followingListProvider).valueOrNull ?? [];
     if (following.any(
-      (f) => f['businessProfileId']?.toString() == business.bizId,
+      (f) => f['businessProfileId']?.toString() == business.id,
     )) {
       return 'You follow this business';
     }

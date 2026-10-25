@@ -149,7 +149,12 @@ class MixLocalFirstRails extends ConsumerWidget {
     final networkOffers = <MixOffer>[];
     if (followedIds.isNotEmpty) {
       for (final offer in mix.offers) {
-        if (followedIds.contains(offer.bizId)) {
+        // IDENTITY FIX: the follow list carries canonical
+        // BusinessProfile.id values; the offer's STORE identity is
+        // offer.businessId. Comparing against the display bizId code
+        // matched nothing — the rail only ever rendered by luck of
+        // identical strings, which the two identities never share.
+        if (followedIds.contains(offer.businessId)) {
           networkOffers.add(offer);
           if (networkOffers.length >= maxNetwork) break;
         }
@@ -180,7 +185,10 @@ class MixLocalFirstRails extends ConsumerWidget {
           ),
         if (networkOffers.isNotEmpty)
           _Rail(
-            title: 'From your network',
+            // WORDING FIX (review 5): these businesses come from the
+            // user's OWN follow list — "From your network" overstated a
+            // social-graph signal that this rail does not measure.
+            title: 'Your follows',
             children: [
               for (final offer in networkOffers)
                 _NetworkRailCard(
