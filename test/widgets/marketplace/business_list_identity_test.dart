@@ -43,13 +43,35 @@ http.Response _json(int status, Map<String, dynamic> body) =>
 class _RecordingClient extends ApiClient {
   final List<String> calls = [];
   Map<String, dynamic> storiesBody = const {'success': true, 'stories': []};
+  bool bookmarked = false;
 
   @override
   Future<http.Response> get(String endpoint,
       {Map<String, String>? headers, bool requireAuth = true}) async {
     calls.add('GET $endpoint');
-    if (endpoint == '/follows/check/BIZ-1') {
+    // Canonical BusinessProfile.id drives the follow / show-less /
+    // bookmark contracts; BIZ-1 remains a route parameter only.
+    if (endpoint == '/follows/check/bp-1') {
       return _json(200, {'success': true, 'isFollowing': false});
+    }
+    if (endpoint == '/recommendation-feedback/check/bp-1') {
+      return _json(200, {'success': true, 'applied': false});
+    }
+    if (endpoint.startsWith('/bookmarks')) {
+      return _json(200, {
+        'success': true,
+        'total': bookmarked ? 1 : 0,
+        'bookmarks': bookmarked
+            ? [
+                {
+                  'businessProfileId': 'bp-1',
+                  'businessName': 'Palm Court Kitchen',
+                  'category': 'FOOD_BEVERAGE',
+                  'savedAt': '2026-10-25T10:00:00.000Z',
+                }
+              ]
+            : [],
+      });
     }
     if (endpoint == '/marketplace/business/BIZ-1/stories') {
       return _json(200, storiesBody);
@@ -63,6 +85,18 @@ class _RecordingClient extends ApiClient {
       bool requireAuth = true,
       String? idempotencyKey}) async {
     calls.add('POST $endpoint');
+    if (endpoint == '/bookmarks') {
+      bookmarked = true;
+      return _json(201, {
+        'success': true,
+        'state': 'BOOKMARKED',
+        'alreadyBookmarked': false,
+        'bookmark': {
+          'businessProfileId': 'bp-1',
+          'savedAt': '2026-10-25T12:00:00.000Z',
+        },
+      });
+    }
     return _json(404, {'success': false});
   }
 
@@ -70,6 +104,10 @@ class _RecordingClient extends ApiClient {
   Future<http.Response> delete(String endpoint,
       {Map<String, String>? headers, bool requireAuth = true}) async {
     calls.add('DELETE $endpoint');
+    if (endpoint == '/bookmarks/bp-1') {
+      bookmarked = false;
+      return _json(200, {'success': true, 'state': 'NOT_BOOKMARKED', 'removed': true});
+    }
     return _json(404, {'success': false});
   }
 }

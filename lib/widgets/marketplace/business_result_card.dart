@@ -41,7 +41,9 @@ import 'package:azaman/models/story_model.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
-import 'package:azaman/providers/saved_businesses_provider.dart';
+import 'package:azaman/providers/server_bookmarks_provider.dart'
+    show isBusinessSaved, toggleBusinessSaved;
+import 'package:azaman/services/recommendation_feedback_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/services/api_client.dart';
@@ -264,6 +266,7 @@ class BusinessResultCard extends ConsumerWidget {
                 child: Center(
                   child: _AvatarWithBadge(
                     bizId: business.bizId,
+                    saved: isBusinessSaved(ref, business),
                     url: url,
                     cat: cat,
                     colors: colors,
@@ -439,8 +442,9 @@ class _OfferingChips extends StatelessWidget {
   Widget build(BuildContext context) {
     // De-duped defensively (backend already dedupes) and order-preserving.
     final seen = <String>{};
-    final unique =
-        wires.where((w) => seen.add(w) && w.isNotEmpty).toList(growable: false);
+    final unique = wires
+        .where((w) => seen.add(w) && w.isNotEmpty)
+        .toList(growable: false);
     if (unique.isEmpty) return const SizedBox.shrink();
 
     final visible = unique.take(maxVisible).toList(growable: false);
@@ -452,38 +456,39 @@ class _OfferingChips extends StatelessWidget {
     // ('…, also offers Restaurants, Transit') — one coherent utterance,
     // never per-icon noise.
     return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final wire in visible) ...[
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: BusinessCategories.offeringTintFor(wire)
-                    .withValues(alpha: 0.16),
-              ),
-              child: Icon(
-                BusinessCategories.offeringIconFor(wire),
-                size: 12,
-                color: BusinessCategories.offeringTintFor(wire),
-              ),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final wire in visible) ...[
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: BusinessCategories.offeringTintFor(
+                wire,
+              ).withValues(alpha: 0.16),
             ),
-            if (wire != visible.last) const SizedBox(width: 4),
-          ],
-          if (overflowCount > 0) ...[
-            const SizedBox(width: 4),
-            Text(
-              '+$overflowCount',
-              style: TextStyle(
-                fontSize: 10,
-                color: colors.textTertiary,
-                fontWeight: FontWeight.w600,
-              ),
+            child: Icon(
+              BusinessCategories.offeringIconFor(wire),
+              size: 12,
+              color: BusinessCategories.offeringTintFor(wire),
             ),
-          ],
+          ),
+          if (wire != visible.last) const SizedBox(width: 4),
         ],
-      );
+        if (overflowCount > 0) ...[
+          const SizedBox(width: 4),
+          Text(
+            '+$overflowCount',
+            style: TextStyle(
+              fontSize: 10,
+              color: colors.textTertiary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
@@ -538,6 +543,7 @@ class _OpenStatusPill extends StatelessWidget {
 class _AvatarWithBadge extends ConsumerWidget {
   const _AvatarWithBadge({
     required this.bizId,
+    required this.saved,
     required this.url,
     required this.cat,
     required this.colors,
@@ -547,6 +553,11 @@ class _AvatarWithBadge extends ConsumerWidget {
   });
 
   final String bizId;
+
+  /// AUTHORITATIVE bookmark state from the durable seam
+  /// (isBusinessSaved at the card) — the badge renders server truth,
+  /// not the device-local wishlist.
+  final bool saved;
   final String? url;
   final BusinessCategory cat;
   final AzamanColors colors;
@@ -562,7 +573,6 @@ class _AvatarWithBadge extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final d = kBusinessAvatarDiameter;
-    final saved = ref.watch(savedBusinessesProvider).contains(bizId);
     // Story ring state — drawn ONLY from the authoritative block.
     // hasUnseenStory == null means the viewer is anonymous: the ring is
     // drawn WITHOUT unseen emphasis and the label never claims "new".
@@ -572,15 +582,15 @@ class _AvatarWithBadge extends ConsumerWidget {
     final storyLabel = !hasRing
         ? ''
         : unseen
-            ? ' New story'
-            : ' Story';
+        ? ' New story'
+        : ' Story';
     return Semantics(
       button: true,
       label: saved
           ? 'Actions for this business: follow, bookmark, or rate and '
-              'review. Bookmarked$storyLabel'
+                'review. Bookmarked$storyLabel'
           : 'Actions for this business: follow, bookmark, or rate and '
-              'review$storyLabel',
+                'review$storyLabel',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         key: ValueKey('business-avatar-$bizId'),
@@ -612,9 +622,7 @@ class _AvatarWithBadge extends ConsumerWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: unseen
-                              ? colors.accent
-                              : colors.divider,
+                          color: unseen ? colors.accent : colors.divider,
                           width: unseen ? 2.5 : 2.0,
                         ),
                       ),
@@ -805,6 +813,13 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
   bool _followLoaded = false;
   bool _followBusy = false;
 
+  // "SHOW LESS LIKE THIS" (AZM-backend PR #373) — persistent,
+  // user-scoped recommendation feedback. The row appears ONLY after
+  // the real check succeeds; a failed fetch renders NO row (honest
+  // absence — the same grammar as the Watch-story affordance).
+  bool? _showLessApplied; // null = unknown (check in flight/failed)
+  bool _showLessBusy = false;
+
   // WORKSTREAM G (2026-10-25) — G5: the panel offers 'Watch story' ONLY
   // after the REAL stories contract (GET /marketplace/business/:id/stories)
   // returns at least one story that has not expired. No invented counts,
@@ -817,15 +832,19 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
     super.initState();
     _checkFollow();
     _checkStories();
+    _checkShowLess();
   }
 
-  String get _bizId => widget.business.bizId;
+  /// Canonical BusinessProfile.id — the ONLY key the follow and
+  /// recommendation-feedback contracts accept (display "BIZ-..." codes
+  /// 404 against findUnique({ where: { id } })).
+  String get _canonicalId => widget.business.id;
 
   Future<void> _checkStories() async {
     try {
       final stories = await ref
           .read(marketplaceBookingServiceProvider)
-          .getBusinessStories(_bizId);
+          .getBusinessStories(widget.business.bizId);
       if (!mounted) return;
       final now = DateTime.now();
       final active = stories
@@ -855,7 +874,7 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
   Future<void> _checkFollow() async {
     try {
       final client = ref.read(apiClientProvider);
-      final res = await client.get('/follows/check/$_bizId');
+      final res = await client.get('/follows/check/$_canonicalId');
       if (!mounted) return;
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       setState(() {
@@ -878,9 +897,9 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
     try {
       final client = ref.read(apiClientProvider);
       if (was) {
-        await client.delete('/follows/$_bizId');
+        await client.delete('/follows/$_canonicalId');
       } else {
-        await client.post('/follows', {'businessProfileId': _bizId});
+        await client.post('/follows', {'businessProfileId': _canonicalId});
       }
     } catch (_) {
       // Honest failure: revert the optimistic state — never pretend a
@@ -891,9 +910,72 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
     }
   }
 
-  void _toggleBookmark() {
+  Future<void> _checkShowLess() async {
+    try {
+      final applied = await ref
+          .read(recommendationFeedbackServiceProvider)
+          .check(_canonicalId);
+      if (!mounted) return;
+      setState(() => _showLessApplied = applied);
+    } catch (_) {
+      // Honest absence: no Show-less affordance on a failed check.
+      if (mounted) setState(() => _showLessApplied = null);
+    }
+  }
+
+  Future<void> _toggleShowLess() async {
+    if (_showLessBusy || _showLessApplied == null) return;
     AzamanHaptics.toggle();
-    ref.read(savedBusinessesProvider.notifier).toggle(_bizId);
+    final was = _showLessApplied!;
+    setState(() => _showLessBusy = true);
+    try {
+      final service = ref.read(recommendationFeedbackServiceProvider);
+      if (was == true) {
+        final result = await service.undo(_canonicalId);
+        if (!mounted) return;
+        // ANY 200 means NONE — removed:false is idempotent success.
+        if (result.none) {
+          setState(() => _showLessApplied = false);
+        } else {
+          _showLessRejected('Could not undo. Still showing less.');
+        }
+      } else {
+        final result = await service.apply(_canonicalId);
+        if (!mounted) return;
+        // alreadyApplied:true is SUCCESS — the durable state is
+        // SHOW_LESS either way.
+        if (result.showLess) {
+          setState(() => _showLessApplied = true);
+        } else {
+          _showLessRejected('Could not apply. Nothing changed.');
+        }
+      }
+    } catch (_) {
+      // Honest failure: the durable state never moved — revert to it.
+      _showLessRejected(
+        was == true
+            ? 'Could not undo. Still showing less.'
+            : 'Could not apply. Nothing changed.',
+      );
+    } finally {
+      if (mounted) setState(() => _showLessBusy = false);
+    }
+  }
+
+  void _showLessRejected(String message) {
+    if (!mounted) return;
+    setState(() => _showLessApplied = _showLessApplied); // state unchanged
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
+  Future<void> _toggleBookmark() async {
+    AzamanHaptics.toggle();
+    // The durable seam: real sessions ride the server bookmark
+    // contract (canonical ids, exact rollback); demo keeps the
+    // device-local wishlist. Failure surfaces via the seam's snackbar.
+    await toggleBusinessSaved(context, ref, widget.business);
   }
 
   Future<void> _review() async {
@@ -905,7 +987,7 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final saved = ref.watch(savedBusinessesProvider).contains(_bizId);
+    final saved = isBusinessSaved(ref, widget.business);
     final cat = BusinessCategories.fromWire(widget.business.category);
 
     return SafeArea(
@@ -966,41 +1048,62 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
             ),
           ),
           const Divider(height: 1),
-          if (_activeStories != null && _activeStories!.isNotEmpty)
-            _PanelRow(
-              key: const ValueKey('business-action-watch-story'),
-              icon: Icons.play_circle_outline_rounded,
-              label: 'Watch story',
-              colors: colors,
-              onTap: _watchStory,
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_activeStories != null && _activeStories!.isNotEmpty)
+                    _PanelRow(
+                      key: const ValueKey('business-action-watch-story'),
+                      icon: Icons.play_circle_outline_rounded,
+                      label: 'Watch story',
+                      colors: colors,
+                      onTap: _watchStory,
+                    ),
+                  _PanelRow(
+                    key: const ValueKey('business-action-follow'),
+                    icon: _isFollowing
+                        ? Icons.person_remove_rounded
+                        : Icons.person_add_alt_rounded,
+                    label: _isFollowing ? 'Unfollow' : 'Follow',
+                    busy: _followBusy || !_followLoaded,
+                    active: _isFollowing,
+                    colors: colors,
+                    onTap: _toggleFollow,
+                  ),
+                  _PanelRow(
+                    key: const ValueKey('business-action-bookmark'),
+                    icon: saved
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    label: saved ? 'Remove bookmark' : 'Bookmark',
+                    active: saved,
+                    colors: colors,
+                    onTap: _toggleBookmark,
+                  ),
+                  _PanelRow(
+                    key: const ValueKey('business-action-review'),
+                    icon: Icons.reviews_outlined,
+                    label: 'Rate & review',
+                    colors: colors,
+                    onTap: _review,
+                  ),
+                  if (_showLessApplied != null)
+                    _PanelRow(
+                      key: const ValueKey('business-action-show-less'),
+                      icon: Icons.visibility_off_outlined,
+                      label: _showLessApplied!
+                          ? 'Undo "show less like this"'
+                          : 'Show less like this',
+                      busy: _showLessBusy,
+                      active: _showLessApplied!,
+                      colors: colors,
+                      onTap: _toggleShowLess,
+                    ),
+                ],
+              ),
             ),
-          _PanelRow(
-            key: const ValueKey('business-action-follow'),
-            icon: _isFollowing
-                ? Icons.person_remove_rounded
-                : Icons.person_add_alt_rounded,
-            label: _isFollowing ? 'Unfollow' : 'Follow',
-            busy: _followBusy || !_followLoaded,
-            active: _isFollowing,
-            colors: colors,
-            onTap: _toggleFollow,
-          ),
-          _PanelRow(
-            key: const ValueKey('business-action-bookmark'),
-            icon: saved
-                ? Icons.bookmark_rounded
-                : Icons.bookmark_border_rounded,
-            label: saved ? 'Remove bookmark' : 'Bookmark',
-            active: saved,
-            colors: colors,
-            onTap: _toggleBookmark,
-          ),
-          _PanelRow(
-            key: const ValueKey('business-action-review'),
-            icon: Icons.reviews_outlined,
-            label: 'Rate & review',
-            colors: colors,
-            onTap: _review,
           ),
           const SizedBox(height: 8),
         ],

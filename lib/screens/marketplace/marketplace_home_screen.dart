@@ -26,6 +26,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/providers/business_provider.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
 import 'package:azaman/services/marketplace_booking_service.dart'
@@ -41,6 +42,8 @@ import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart';
+import 'package:azaman/widgets/marketplace/follow_onboarding_sheet.dart';
+import 'package:azaman/widgets/marketplace/follow_onboarding_spotlight.dart';
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/marketplace_mix_provider.dart';
 import 'package:azaman/widgets/liquid/category_speed_dial.dart';
@@ -233,7 +236,10 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     );
     // The rail's growth and the list's compensation scroll run on the SAME
     // curve and duration, so the visible content stays anchored.
-    _storyPinCurve = CurvedAnimation(parent: _storyPinCtrl, curve: Curves.easeOut);
+    _storyPinCurve = CurvedAnimation(
+      parent: _storyPinCtrl,
+      curve: Curves.easeOut,
+    );
     _storyPinCtrl.addListener(() => setState(() {}));
   }
 
@@ -561,7 +567,9 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
           });
           _startNearbyUpdates();
           _lastFiredPosition = pos;
-          ref.read(nearbySearchProvider.notifier).searchNearby(
+          ref
+              .read(nearbySearchProvider.notifier)
+              .searchNearby(
                 lat: pos.latitude,
                 lng: pos.longitude,
                 q: _query.isEmpty ? null : _query,
@@ -753,6 +761,18 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                         // ── §11: the category SPEED DIAL is the category
                         // system (radial fan grammar) + Near You as the only
                         // additional control. §12: no star/featured surface.
+                        // ── I1: the follow-onboarding spotlight card.
+                        //    Renders itself ONLY in the proven-eligible
+                        //    state (authoritative empty follow list,
+                        //    authenticated, not previously dismissed) —
+                        //    every other state is an honest SizedBox
+                        //    that takes no layout space. Non-modal by
+                        //    construction: the marketplace above and
+                        //    below it stays fully interactive.
+                        FollowOnboardingSpotlight(
+                          userId: ref.watch(authProvider).user?.id,
+                          onStart: () => FollowOnboardingSheet.open(context),
+                        ),
                         _controlRow(colors),
                         Expanded(
                           child: _mixActive
@@ -788,9 +808,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
         // proximity feed is live, showing REAL states only (resolving,
         // nearby results, nearby failure) and NEVER coordinates.
         if (_nearYouActive)
-          const MixProximityStrip(
-            key: ValueKey('mix_proximity_strip'),
-          ),
+          const MixProximityStrip(key: ValueKey('mix_proximity_strip')),
         const MixTaxonomyBubbleRail(),
         // WORKSTREAM H — local-first rails: "Nearby for you" (real
         // distance-ordered results) ABOVE "From your network" (offers
@@ -1021,8 +1039,10 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     // scrolls by exactly that — the anchor is preserved at every tap
     // point, not just from fully collapsed.
     final growth = StoryRailCollapse.extentPx * (1 - _storyRailRatio(context));
-    final target = (pos.pixels + growth)
-        .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+    final target = (pos.pixels + growth).clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
     if (reduced) {
       _storyPinCtrl.value = 1.0;
       pos.jumpTo(target);
