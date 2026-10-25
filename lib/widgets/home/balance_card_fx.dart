@@ -139,38 +139,24 @@ class BalanceCardFx extends StatelessWidget {
     if (v.balanceConfirmed) {
       final ghs = v.availableGhsValue;
       if (ghs != null) {
-        headline = Text(
-          AzMoney.ghs(ghs),
+        headline = _FittedHeadline(
           key: const ValueKey('balance-fx-headline'),
           semanticsLabel: 'Available balance ${AzMoney.ghs(ghs)}',
-          style: AzText.money(
-            colors.textPrimary,
-            size: AzText.sizeHero,
-            weight: FontWeight.w700,
-          ),
+          amount: AzMoney.amount(ghs),
+          colors: colors,
         );
       } else {
         // Confirmed balance, but the combined value is not computable.
         // The known native GHS amount must remain visible — presented
         // WITH an explicit incomplete-valuation note, never alone as the
         // total.
-        headline = Column(
-          key: const ValueKey('balance-fx-headline-block'),
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              AzMoney.ghs(v.nativeGhsAvailable),
-              key: const ValueKey('balance-fx-headline-native'),
-              semanticsLabel:
-                  'GHS wallet ${AzMoney.ghs(v.nativeGhsAvailable)} — the '
-                  'combined value is unavailable',
-              style: AzText.money(
-                colors.textPrimary,
-                size: AzText.sizeHero,
-                weight: FontWeight.w700,
-              ),
-            ),
-          ],
+        headline = _FittedHeadline(
+          key: const ValueKey('balance-fx-headline-native'),
+          semanticsLabel:
+              'GHS wallet ${AzMoney.ghs(v.nativeGhsAvailable)} — the '
+              'combined value is unavailable',
+          amount: AzMoney.amount(v.nativeGhsAvailable),
+          colors: colors,
         );
       }
     } else {
@@ -201,18 +187,15 @@ class BalanceCardFx extends StatelessWidget {
                     'USDC equivalent of the available balance, '
                     '${AzMoney.amount(v.availableUsdcEquivalent!)} USDC — '
                     'an equivalent, not USDC held',
+                // E1: the squiggly ≈ already SAYS 'equivalent' — the
+                // trailing word is dropped from the visual line; the
+                // semantics label keeps the honest full explanation.
                 style: AzText.money(
                   colors.textSecondary,
                   size: 16,
                   weight: FontWeight.w600,
                   tracking: 0,
                 ),
-                children: const [
-                  TextSpan(
-                    text: ' equivalent',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                  ),
-                ],
               ),
             ),
           ),
@@ -260,14 +243,28 @@ class BalanceCardFx extends StatelessWidget {
         style: AzText.caption.copyWith(color: colors.textTertiary),
       );
     } else if (rate.loading) {
+      // E1 — ONE coherent updating row: the dots and the 'Updating
+      // rate…' caption read as a single status in the SAME slot the
+      // rate occupies when idle, so nothing on the card moves between
+      // the loading and idle states.
       rateStatus = SizedBox(
         height: 12 * 1.45,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: FxTypingDots(
-            key: const ValueKey('balance-fx-rate-dots'),
-            color: colors.textSecondary,
-          ),
+        child: Row(
+          key: const ValueKey('balance-fx-rate-updating'),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            FxTypingDots(
+              key: const ValueKey('balance-fx-rate-dots'),
+              color: colors.textSecondary,
+            ),
+            const SizedBox(width: AzSpace.xs),
+            Text(
+              'Updating rate…',
+              key: const ValueKey('balance-fx-rate-updating-label'),
+              style: AzText.caption.copyWith(color: colors.textSecondary),
+            ),
+          ],
         ),
       );
     } else {
@@ -307,7 +304,7 @@ class BalanceCardFx extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (valuationIncomplete) ...[
-                  const SizedBox(height: AzSpace.xs),
+                  const SizedBox(height: AzSpace.sm),
                   Text(
                     'GHS wallet only — the combined value with the USDC '
                     'held cannot be shown without a valid FX rate',
@@ -318,7 +315,7 @@ class BalanceCardFx extends StatelessWidget {
                   ),
                 ],
                 if (equivalent != null) ...[
-                  const SizedBox(height: AzSpace.xs),
+                  const SizedBox(height: AzSpace.sm),
                   equivalent,
                 ],
               ],
@@ -385,6 +382,70 @@ class _DisclosureIconButton extends StatelessWidget {
           ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+      ),
+    );
+  }
+}
+
+// E2 — THE ONE-LINE RESPONSIVE HEADLINE.
+//
+// The PR #190 review documented the defect: a 4-digit combined headline
+// ("GH₵ 5,234.50"-scale) wraps and overflows the fixed 165px frame at
+// 320dp. The fix is the CAUSE, not the fixture: the headline is a single
+// typographic line (subordinate GH₵ marker + hero digits, E1) laid out at
+// its NATURAL size and scaled down ONLY as much as the card width demands
+// (FittedBox scaleDown, bounded to the card's interior width). At 320dp a
+// 4-digit figure still reads large; nothing is pre-shrunk and nothing is
+// ever unreadable. The rate row is pinned by the frame's fixed footprint
+// and never competes with the headline for space.
+class _FittedHeadline extends StatelessWidget {
+  const _FittedHeadline({
+    super.key,
+    required this.amount,
+    required this.colors,
+    required this.semanticsLabel,
+  });
+
+  /// The pre-formatted digit string (no currency marker — the marker is
+  /// rendered as its own subordinate span).
+  final String amount;
+  final AzamanColors colors;
+  final String semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FittedBox(
+        alignment: Alignment.centerLeft,
+        fit: BoxFit.scaleDown,
+        child: Text.rich(
+          semanticsLabel: semanticsLabel,
+          maxLines: 1,
+          TextSpan(
+            // E1 — the GH₵ marker is SMALLER + subordinate to the
+            // digits: the amount is the hero, the currency marker is a
+            // quiet label beside it (never part of the giant block).
+            text: '${AzMoney.ghsSymbol}${AzMoney.nbsp}',
+            style: AzText.money(
+              colors.textSecondary,
+              size: 16,
+              weight: FontWeight.w600,
+              tracking: 0,
+            ),
+            children: [
+              TextSpan(
+                text: amount,
+                style: AzText.money(
+                  colors.textPrimary,
+                  size: AzText.sizeHero,
+                  weight: FontWeight.w700,
+                  tracking: 0,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
