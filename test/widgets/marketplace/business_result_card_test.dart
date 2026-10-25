@@ -176,8 +176,8 @@ void main() {
 
   group('business result card — Workstream D', () {
     testWidgets('the avatar is circular with the category icon badge '
-        'at its bottom-right; no category name is printed under the image',
-        (tester) async {
+        "at 6 o'clock (Workstream G); no category name is printed under "
+        'the image', (tester) async {
       await _pumpCard(tester, _business());
 
       final avatar = find.byKey(const ValueKey('business-avatar-BIZ-1'));
@@ -192,15 +192,21 @@ void main() {
       expect(rect.width, closeTo(rect.height, 0.5),
           reason: 'the avatar box is square (circle inside)');
 
-      // The badge sits at the avatar's bottom-right corner band.
+      // WORKSTREAM G (G3): the badge sits at 6 o'clock — centred on the
+      // avatar's vertical axis, bottom edge flush with the circle's
+      // bottom edge, lower half only, logo still dominant.
       final badgeRect =
           tester.getRect(find.byKey(const ValueKey('business-avatar-badge-BIZ-1')));
-      expect(badgeRect.right <= rect.right + 2, isTrue);
-      expect(badgeRect.bottom <= rect.bottom + 2, isTrue);
-      expect(badgeRect.bottom > rect.center.dy, isTrue,
-          reason: 'the badge is at the bottom of the avatar');
-      expect(badgeRect.right > rect.center.dx, isTrue,
-          reason: 'the badge is at the right of the avatar');
+      expect((badgeRect.center.dx - rect.center.dx).abs(), lessThan(2.0),
+          reason: "the badge is centred on the avatar's axis (6 o'clock)");
+      expect(badgeRect.bottom <= rect.bottom + 2, isTrue,
+          reason: 'the badge bottom aligns with the circle bottom');
+      expect(badgeRect.bottom >= rect.bottom - 2, isTrue,
+          reason: 'the badge does not sink below the circle bottom');
+      expect(badgeRect.top > rect.center.dy, isTrue,
+          reason: 'the badge is in the lower half of the avatar');
+      expect(badgeRect.width < rect.width / 2, isTrue,
+          reason: 'the logo stays dominant over the badge');
 
       // The category name is NOT printed as a label under the image —
       // it lives in the badge's semantics only.
