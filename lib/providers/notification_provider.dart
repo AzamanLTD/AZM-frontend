@@ -206,8 +206,13 @@ final notificationProvider =
 });
 
 final unreadCountProvider = Provider<int>((ref) {
+  // REVIEW 4.1 — the unread count is derived from the same canonical
+  // source as the overlay's visible list and counts EVERY unread
+  // notification. The previous rule silently dropped unread `general`
+  // notifications, so the bell badge and the panel's own unread count
+  // disagreed whenever a general notice was unread.
   return ref.watch(notificationProvider)
-      .where((n) => !n.isRead && n.category != NotificationCategory.general)
+      .where((n) => !n.isRead)
       .length;
 });
 
