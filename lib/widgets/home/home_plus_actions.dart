@@ -5,6 +5,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
+import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 import 'package:azaman/widgets/nav_transitions.dart' as nav_transitions_pkg;
 
@@ -53,10 +54,9 @@ List<PlusLauncherAction> buildHomePlusActions(BuildContext context) {
     PlusLauncherAction(
       icon: HugeIconsSolid.bank,
       label: 'Withdraw',
-      onTap: () => nav_transitions_pkg.pushWithVerticalTransition(
-        context,
-        const WithdrawalScreen(),
-      ),
+      // CANONICAL ROUTE: /withdraw (Workstream C) — same rise semantics as
+      // Add Cash, routed so every entry point transitions alike.
+      onTap: () => context.push(AzRoutes.withdraw()),
     ),
     PlusLauncherAction(
       // Workstream G — Convert: a real navigation action to the honest

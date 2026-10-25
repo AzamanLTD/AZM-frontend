@@ -22,10 +22,12 @@
 // The user toggles between the two paths via a segmented control at the top.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/fiat_pool_provider.dart';
@@ -43,9 +45,15 @@ import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/services/az_sound.dart';
 import 'package:azaman/utils/biometric_gate.dart';
+import 'package:azaman/utils/amount_input.dart';
+import 'package:azaman/utils/az_money.dart';
+import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/widgets/amount_keypad.dart';
+import 'package:azaman/widgets/momo_network.dart' as momo_net;
+import 'package:azaman/widgets/odometer_number.dart';
+import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
-import 'package:azaman/utils/idempotency_key.dart';
 import 'package:azaman/widgets/withdrawal_progress_sheet.dart';
 
 
@@ -80,7 +88,19 @@ class WithdrawalScreen extends ConsumerStatefulWidget {
 
 class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   // ── Common ──────────────────────────────────────────────────────────────
-  final TextEditingController _amountController = TextEditingController();
+  // Workstream C — the amount is composed on the shared custom keypad and
+  // rendered by the odometer, exactly like Add Cash. The AmountInput state
+  // machine owns every validity rule (single decimal point, two fractional
+  // digits, no leading zeros, 7-digit integer cap); an invalid amount can
+  // never be typed into being. The raw string persists across mode/page
+  // switches because it lives here, in the surface state.
+  String _amountRaw = '';
+
+  /// The controlled PageView shared by both mode sections. The segment
+  /// toggle drives it; a horizontal swipe drives the toggle. Per-section
+  /// input state (saved-account pick, wallet pick, reference note) lives
+  // in this State, so swiping between pages never loses it.
+  final PageController _modePageController = PageController();
   // Phase H3 — GlobalKey on the slider so the biometric gate's onCancelled
   // path can reset the thumb after a failed/cancelled auth prompt. Without
   // this the slide widget commits to _confirmed=true on swipe completion
@@ -326,7 +346,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   Future<void> _submit() async {
     if (_isSubmitting) return;
-    final amount = double.tryParse(_amountController.text) ?? 0;
+    final amount = _amountValue ?? 0;
     if (amount <= 0) {
       _showSnack('Enter a valid amount', isError: true);
       return;
@@ -599,6 +619,73 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     );
   }
 
+  // ── Payout-account selection (Add Cash selector grammar) ────────────
+
+  /// The single selection path — the row, the sheet and the default
+  /// priming all land here, so the id, the legacy controllers and the
+  /// network mapping can never drift apart.
+  void _selectAccount(SavedMomoAccount a) {
+    setState(() {
+      _selectedSavedMomoId = a.id;
+      _phoneController.text = a.phoneNumber;
+      _accountNameController.text = a.accountName ?? '';
+      // Map provider → MomoNetwork enum for backend compatibility —
+      // the existing _handleMomoWithdraw path still reads
+      // _selectedNetwork.apiValue.
+      switch (a.provider.toUpperCase()) {
+        case 'MTN':
+          _selectedNetwork = MomoNetwork.mtn;
+          break;
+        case 'TELECEL':
+        case 'VODAFONE': // legacy stored value
+          _selectedNetwork = MomoNetwork.telecel;
+          break;
+        case 'AIRTELTIGO':
+        case 'AT':
+          _selectedNetwork = MomoNetwork.airtelTigo;
+          break;
+        default:
+          _selectedNetwork = MomoNetwork.mtn;
+      }
+    });
+  }
+
+  Future<void> _showAccountSelector(
+    AzamanColors colors,
+    List<SavedMomoAccount> accounts,
+  ) async {
+    AzamanHaptics.navigation();
+    final maxHeight = MediaQuery.of(context).size.height * 0.72;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.card,
+      barrierColor: colors.background.withValues(alpha: 0.6),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => _WithdrawAccountSelectorSheet(
+        colors: colors,
+        accounts: accounts,
+        selectedId: _selectedSavedMomoId,
+        maxHeight: maxHeight,
+        onSelect: (account) {
+          // The selection lands in parent state IMMEDIATELY (the check
+          // flips on the same frame behind the still-open sheet); the
+          // sheet closes itself after the acknowledgement delay. No
+          // submission race: a submission cannot start beneath the
+          // sheet's modal barrier, and the row is locked while
+          // _isSubmitting.
+          _selectAccount(account);
+        },
+        onAdd: () {
+          Navigator.pop(sheetCtx);
+          _goToAddPaymentMethod();
+        },
+      ),
+    );
+  }
+
   void _goToAddPaymentMethod() {
     HapticFeedback.selectionClick();
     // Master Sprint v2 (2026-05-27): instead of pushing the full saved-
@@ -623,7 +710,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   @override
   void dispose() {
-    _amountController.dispose();
+    _modePageController.dispose();
     _phoneController.dispose();
     _accountNameController.dispose();
     super.dispose();
@@ -944,6 +1031,55 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     }
   }
 
+  // ── Amount state (Workstream C — shared custom keypad) ──────────────────
+
+  /// The amount as composed on the keypad, or null when there is no
+  /// meaningful amount (empty/zero). Every validity rule is enforced by
+  /// the [AmountInput] state machine before any state exists.
+  double? get _amountValue => AmountInput.value(_amountRaw);
+
+  /// The odometer string: grouped integer part, fraction exactly as
+  /// typed. Empty input displays as '0' — a resting instrument reads
+  /// zero, it does not read blank.
+  String get _amountDisplay => AmountInput.display(_amountRaw);
+
+  void _onKeypadKey(String key) {
+    if (_isSubmitting) return;
+    setState(() => _amountRaw = AmountInput.applyKey(_amountRaw, key));
+    _updateFeePreview(_amountRaw);
+  }
+
+  /// Max affordance — fills the composition with the full available USDC
+  /// balance. The preset must respect the AmountInput invariants (two
+  /// fractional digits, 7-digit integer cap), so the raw string is
+  /// trimmed/capped rather than naively formatted.
+  void _setMax() {
+    if (_isSubmitting) return;
+    var raw = _availableBalance <= 0 ? '' : _availableBalance.toStringAsFixed(2);
+    if (raw.endsWith('.00')) raw = raw.substring(0, raw.length - 3);
+    final intPart = raw.split('.').first;
+    if (intPart.length > 7) raw = '9999999';
+    setState(() => _amountRaw = raw);
+    _updateFeePreview(raw);
+  }
+
+  // ── Surface close (Workstream C — Add Cash grammar) ──────────────────────
+
+  /// The surface close, identical to Add Cash/Receive/Send: pop the
+  /// surface if the stack has it, otherwise return Home. Mid-flight the
+  /// close is refused — a dismissal while the withdrawal request is
+  /// in flight would silently abandon an unresolved committed operation
+  /// (dismissal is NOT cancelling a backend-accepted transaction).
+  void _closeSurface() {
+    if (_isSubmitting) return;
+    AzamanHaptics.navigation();
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Granular theme read (Phase 0b convention).
@@ -951,77 +1087,232 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
     // BUGFIX (2026-05-27): both withdrawal paths debit USDC from
     // `User.availableBalance` server-side (mobile-money via
-    // `processFiatWithdrawal`, crypto via `requestWithdrawal`). The
-    // previous version showed "USDT" for vendors and "AZM" for non-vendor
-    // crypto withdrawals — both wrong. AZM is a loyalty-point ledger
-    // (Phase D-3), not a withdrawable currency. The label is now USDC
-    // for both modes regardless of role.
-    final bool isMomo = _mode == _WithdrawMode.mobileMoney;
+    // `processFiatWithdrawal`, crypto via `requestWithdrawal`). AZM is a
+    // loyalty-point ledger (Phase D-3), not a withdrawable currency. The
+    // label is USDC for both modes regardless of role.
     const String balanceLabel = 'USDC';
-    final double activeBalance = _availableBalance;
 
-    return Scaffold(
-      backgroundColor: colors.surface,
-      appBar: AppBar(
+    // Workstream C — Withdraw adopts the Add Cash surface grammar:
+    // close+title header, dominant amount composition, custom keypad,
+    // commit affordance anchored at the bottom safe area. The MoMo/Crypto
+    // sections live in a controlled PageView so the segmented toggle and
+    // a horizontal swipe stay in sync; the financial contracts
+    // (allowlists, network rules, balance checks, execution APIs,
+    // idempotency, durable recovery) are untouched.
+    //
+    // Mid-flight protection: while the withdrawal request is in flight,
+    // the pull dismissal and the system back are both refused — the
+    // operation must not be silently abandoned (PR #165 finding 2).
+    return PopScope(
+      canPop: !_isSubmitting,
+      child: Scaffold(
         backgroundColor: colors.surface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: colors.textPrimary,
-            size: 18,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Withdraw',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ),
-      body: _isLoadingWallets
-          ? Center(child: CircularProgressIndicator(color: colors.accent))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isMomo) _buildFiatPoolBanner(colors),
-                  _buildModeToggle(colors),
-                  const SizedBox(height: 28),
-                  _buildBalanceCard(colors, balanceLabel, activeBalance),
-                  const SizedBox(height: 28),
-                  _buildAmountField(colors, balanceLabel, activeBalance),
-                  const SizedBox(height: 28),
-                  if (isMomo)
-                    _buildMobileMoneyFields(colors)
-                  else
-                    _buildDestinationSection(colors),
-                  if (!isMomo && _selectedWallet != null) ...[
-                    const SizedBox(height: 18),
-                    _buildFeePreview(colors),
-                  ],
-                  if (isMomo) ...[
-                    const SizedBox(height: 24),
-                    _buildKotaniFeePreview(colors),
-                    _buildAzmFeeDiscountSelector(colors),
-                  ],
-                  const SizedBox(height: 28),
-                  _buildSubmitButton(colors),
-                  const SizedBox(height: 28),
-                  _buildSmartRoutesEntry(colors),
-                  const SizedBox(height: 16),
-                  _buildRecentWithdrawalsSection(colors),
-                ],
+        body: _isLoadingWallets
+            ? Center(child: CircularProgressIndicator(color: colors.accent))
+            : SafeArea(
+                bottom: false,
+                child: PullDownDismissibleSurface(
+                  onDismiss: _closeSurface,
+                  // Mid-flight: the pull is refused. The operation is
+                  // resolved by the response (or the durable recovery
+                  // path on the next open), never by a silent drag-away.
+                  canDismiss: () => !_isSubmitting,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxHeight < 620;
+                      final bottomInset = MediaQuery.of(context).padding.bottom;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _WithdrawHeader(
+                            colors: colors,
+                            busy: _isSubmitting,
+                            onClose: _closeSurface,
+                          ),
+                          Padding(
+                            padding:
+                                EdgeInsets.fromLTRB(20, compact ? 6 : 10, 20, 0),
+                            child: _buildModeToggle(colors),
+                          ),
+                          _buildAmountComposition(colors, balanceLabel, compact),
+                          Expanded(
+                            child: PageView(
+                              key: const ValueKey('withdraw-mode-pages'),
+                              controller: _modePageController,
+                              onPageChanged: (index) {
+                                if (_isSubmitting) return;
+                                setState(() => _mode = index == 0
+                                    ? _WithdrawMode.mobileMoney
+                                    : _WithdrawMode.cryptoWallet);
+                              },
+                              children: [
+                                _buildMomoPage(colors),
+                                _buildCryptoPage(colors),
+                              ],
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 28),
+                            child: AmountKeypad(
+                              onKey: _onKeypadKey,
+                              enabled: !_isSubmitting,
+                              rowHeight: compact ? 46 : 54,
+                            ),
+                          ),
+                          Padding(
+                            padding:
+                                EdgeInsets.fromLTRB(20, 12, 20, 12 + bottomInset),
+                            child: _buildSubmitButton(colors),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
-            ),
+      ),
+    );
+  }
+
+  // ── Amount composition (dominant entry, odometer + Max) ──────────────────
+
+  Widget _buildAmountComposition(
+    AzamanColors colors,
+    String balanceLabel,
+    bool compact,
+  ) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, compact ? 6 : 12, 24, compact ? 8 : 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Available',
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${AzMoney.amount(_availableBalance)} $balanceLabel',
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              // Max — fills the composition with the full balance. Same
+              // vocabulary as the old suffix chip; never enabled
+              // mid-flight.
+              Semantics(
+                button: true,
+                label: 'Use full balance',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _isSubmitting ? null : _setMax,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      'Max',
+                      style: TextStyle(
+                        color: _isSubmitting
+                            ? colors.textTertiary
+                            : colors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      OdometerNumber(
+                        value: _amountDisplay,
+                        style: AzText.money(
+                          colors.textPrimary,
+                          size: compact ? 46 : 56,
+                        ),
+                        semanticsLabel: '$_amountDisplay $balanceLabel',
+                      ),
+                      const SizedBox(width: 10),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          balanceLabel,
+                          style: AzText.money(
+                            colors.textSecondary,
+                            size: compact ? 18 : 22,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Mode pages (controlled PageView, per-section state preserved) ─────────
+
+  /// The Mobile Money page. Every input (saved-account pick, network,
+  /// reference note, discount tier) lives in this surface's State, so a
+  /// swipe to Crypto and back preserves it exactly.
+  Widget _buildMomoPage(AzamanColors colors) {
+    return ListView(
+      key: const ValueKey('withdraw-momo-page'),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      children: [
+        _buildFiatPoolBanner(colors),
+        _buildMobileMoneyFields(colors),
+        const SizedBox(height: 16),
+        _buildKotaniFeePreview(colors),
+        _buildAzmFeeDiscountSelector(colors),
+        const SizedBox(height: 20),
+        _buildSmartRoutesEntry(colors),
+        const SizedBox(height: 12),
+        _buildRecentWithdrawalsSection(colors),
+      ],
+    );
+  }
+
+  /// The Crypto Wallet page. The wallet selection (and every other input)
+  /// persists across swipes because it lives in this surface's State.
+  Widget _buildCryptoPage(AzamanColors colors) {
+    return ListView(
+      key: const ValueKey('withdraw-crypto-page'),
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      children: [
+        _buildDestinationSection(colors),
+        if (_selectedWallet != null) ...[
+          const SizedBox(height: 16),
+          _buildFeePreview(colors),
+        ],
+        const SizedBox(height: 20),
+        _buildSmartRoutesEntry(colors),
+        const SizedBox(height: 12),
+        _buildRecentWithdrawalsSection(colors),
+      ],
     );
   }
 
@@ -1076,7 +1367,17 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       final selected = _mode == mode;
       return GestureDetector(
         onTap: () {
+          if (_isSubmitting || _mode == mode) return;
           HapticFeedback.selectionClick();
+          // Workstream C: the segmented toggle drives the controlled
+          // PageView — tap and horizontal swipe stay in sync.
+          if (_modePageController.hasClients) {
+            _modePageController.animateToPage(
+              mode == _WithdrawMode.mobileMoney ? 0 : 1,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+            );
+          }
           setState(() => _mode = mode);
         },
         child: Padding(
@@ -1114,126 +1415,21 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       alignment: Alignment.center,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            tile(_WithdrawMode.mobileMoney, 'Mobile Money'),
-            tile(_WithdrawMode.cryptoWallet, 'Crypto Wallet'),
-          ],
+        // Scale-down clamp: the two tiles keep their exact look at every
+        // production width; on narrow viewports (or very large text
+        // scales) the Row scales down instead of overflowing — the
+        // geometry contract of the 320dp capture set.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              tile(_WithdrawMode.mobileMoney, 'Mobile Money'),
+              tile(_WithdrawMode.cryptoWallet, 'Crypto Wallet'),
+            ],
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _buildBalanceCard(
-    AzamanColors colors,
-    String balanceLabel,
-    double active,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Available',
-          style: TextStyle(
-            color: colors.textTertiary,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '${active.toStringAsFixed(2)} $balanceLabel',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 34,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.8,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAmountField(
-    AzamanColors colors,
-    String balanceLabel,
-    double active,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Amount',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _amountController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (v) { setState(() {}); _updateFeePreview(v); },
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-          ),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: colors.softSurface,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            hintText: '0.00',
-            hintStyle: TextStyle(color: colors.textTertiary),
-            prefixText: '$balanceLabel ',
-            prefixStyle: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-            suffixIcon: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                setState(() {
-                  _amountController.text = active.toStringAsFixed(2);
-                });
-              },
-              child: Center(
-                widthFactor: 1,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    'Max',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -1332,93 +1528,148 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                 ),
               );
             }
-            return Column(
-              children: accounts
-                  .map(
-                    (a) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _MomoAccountPicker(
-                        account: a,
-                        colors: colors,
-                        selected: _selectedSavedMomoId == a.id,
-                        onTap: () => setState(() {
-                          _selectedSavedMomoId = a.id;
-                          _phoneController.text = a.phoneNumber;
-                          _accountNameController.text = a.accountName ?? '';
-                          // Map provider → MomoNetwork enum for backend
-                          // compatibility — the existing _handleMomoWithdraw
-                          // path still reads _selectedNetwork.apiValue.
-                          // Map saved account provider → MomoNetwork enum
-                          switch (a.provider.toUpperCase()) {
-                            case 'MTN':
-                              _selectedNetwork = MomoNetwork.mtn;
-                              break;
-                            case 'TELECEL':
-                            case 'VODAFONE': // legacy stored value
-                              _selectedNetwork = MomoNetwork.telecel;
-                              break;
-                            case 'AIRTELTIGO':
-                            case 'AT':
-                              _selectedNetwork = MomoNetwork.airtelTigo;
-                              break;
-                            default:
-                              _selectedNetwork = MomoNetwork.mtn;
-                          }
-                        }),
-                      ),
-                    ),
-                  )
-                  .toList(),
+            // OWNER CORRECTION (2026-10-25): the payout account is ONE
+            // Add-Cash-style selector row — the selected account with a
+            // network badge, registered name, phone and a chevron — that
+            // opens the account selector sheet. It must NOT stack every
+            // saved account as parallel wallet tiles (the previous list
+            // rendered both demo networks as two wallets).
+            // No default priming: a payout destination is a deliberate
+            // pick. Until then the row shows the honest 'choose' state
+            // (Add Cash's _ChooseMethodRow grammar) and the submit gate
+            // keeps its 'Choose an account' requirement — no preselected
+            // destination can slide out by accident.
+            final selected = _selectedSavedMomoId == null
+                ? null
+                : accounts.where((a) => a.id == _selectedSavedMomoId)
+                    .cast<SavedMomoAccount?>()
+                    .firstWhere((a) => a != null, orElse: () => null);
+            if (selected == null) {
+              return _ChooseAccountRow(
+                colors: colors,
+                onTap: _isSubmitting
+                    ? null
+                    : () => _showAccountSelector(colors, accounts),
+              );
+            }
+            return _WithdrawAccountRow(
+              account: selected,
+              colors: colors,
+              // No payout-method changes while a submission is in flight
+              // (the same lock the reference affordance honours).
+              onTap: _isSubmitting
+                  ? null
+                  : () => _showAccountSelector(colors, accounts),
             );
           },
         ),
-        const SizedBox(height: 24),
-        Text(
-          'Reference',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _accountNameController,
-          keyboardType: TextInputType.text,
-          maxLength: 80,
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: colors.softSurface,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 16,
-            ),
-            hintText: 'Optional note',
-            hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
-            counterText: '',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
+        const SizedBox(height: 16),
+        _buildReferenceAffordance(colors),
       ],
     );
   }
 
+  // ── Reference affordance (Workstream C) ──────────────────────────────────
+
+  /// The optional transaction reference is edited in a CANCEL-SAFE modal,
+  /// not an inline field: edits commit only on Save; Cancel (and tapping
+  /// away) leaves the committed note untouched. The note is attached to
+  /// the SMS the recipient receives (backend maps `accountName` -> gateway
+  /// `note`) — it is a MoMo-path-only field and is NEVER sent on the
+  /// crypto route.
+  Widget _buildReferenceAffordance(AzamanColors colors) {
+    final note = _accountNameController.text.trim();
+    final hasNote = note.isNotEmpty;
+    return Semantics(
+      button: true,
+      label: hasNote
+          ? 'Reference: $note. Edit reference'
+          : 'Add optional reference',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: _isSubmitting ? null : () => _openReferenceSheet(colors),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.sticky_note_2_outlined,
+                color: colors.textTertiary,
+                size: 18,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Reference',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasNote
+                          ? note
+                          : 'Optional note sent with the payout SMS',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                hasNote ? 'Edit' : 'Add',
+                style: TextStyle(
+                  color: _isSubmitting
+                      ? colors.textTertiary
+                      : colors.accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The cancel-safe reference editor. The sheet owns its draft
+  /// controller and disposes it only when the route is finally torn down
+  /// (AFTER the exit animation) — disposing eagerly would dispose a
+  /// controller the animated exit is still reading.
+  Future<void> _openReferenceSheet(AzamanColors colors) async {
+    final result = await showModalBottomSheet<String?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => _ReferenceSheet(
+        colors: colors,
+        initial: _accountNameController.text,
+      ),
+    );
+    // Cancel-safe: anything but a non-null result leaves the committed
+    // note exactly as it was.
+    if (result == null || !mounted) return;
+    setState(() => _accountNameController.text = result);
+  }
   // ── Crypto-wallet whitelist picker (Phase 15 stance preserved) ──────────
 
   Widget _buildDestinationSection(AzamanColors colors) {
@@ -1624,7 +1875,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           'Admin covers 50% of blockchain gas. Platform fee also applies.';
     }
 
-    final amount = double.tryParse(_amountController.text) ?? 0;
+    final amount = AmountInput.value(_amountRaw) ?? 0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1716,7 +1967,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   /// Phase E2: updated to reflect AZM fee discount when selected.
   Widget _buildKotaniFeePreview(AzamanColors colors) {
     final config = ref.watch(platformConfigProvider);
-    final amount = double.tryParse(_amountController.text) ?? 0;
+    final amount = AmountInput.value(_amountRaw) ?? 0;
     final discountMultiplier = _selectedFeeDiscount?.discount ?? 0.0;
     // Live fee rate from backend — was hardcoded 0.02
     final effectiveFeeRate =
@@ -1927,7 +2178,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     if (_mode == _WithdrawMode.mobileMoney) {
       // Master Sprint v2: must have selected a saved MoMo address. The
       // phone field is auto-populated from the picker — no manual entry.
-      final amountOk = (double.tryParse(_amountController.text) ?? 0) > 0;
+      final amountOk = (AmountInput.value(_amountRaw) ?? 0) > 0;
       canSubmit = _selectedSavedMomoId != null && amountOk;
     } else {
       canSubmit = _selectedWallet != null;
@@ -2051,6 +2302,137 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         return Icons.payments_outlined;
     }
   }
+
+}
+
+/// The reference editor sheet. Owns its draft [TextEditingController] and
+/// disposes it in [State.dispose] — which the framework runs only after
+/// the route's exit animation completes.
+class _ReferenceSheet extends StatefulWidget {
+  const _ReferenceSheet({required this.colors, required this.initial});
+
+  final AzamanColors colors;
+  final String initial;
+
+  @override
+  State<_ReferenceSheet> createState() => _ReferenceSheetState();
+}
+
+class _ReferenceSheetState extends State<_ReferenceSheet> {
+  late final TextEditingController _draft =
+      TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _draft.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    return Padding(
+      padding:
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Reference',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Attached to the SMS your recipient receives. Optional.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _draft,
+              autofocus: true,
+              maxLength: 80,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: colors.softSurface,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
+                hintText: 'e.g. Rent for May',
+                hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    // Cancel: discard the draft entirely.
+                    onPressed: () => Navigator.of(context).pop(null),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.accent,
+                      foregroundColor:
+                          colors.isDark ? Colors.black : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () =>
+                        Navigator.of(context).pop(_draft.text.trim()),
+                    child: const Text(
+                      'Save',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // =============================================================================
@@ -2058,95 +2440,388 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 // screen. Shows the registered name (auto-resolved at save time) + provider
 // chip + masked number.
 // =============================================================================
-class _MomoAccountPicker extends StatelessWidget {
-  final SavedMomoAccount account;
-  final AzamanColors colors;
-  final bool selected;
-  final VoidCallback onTap;
+// ── Payout-account selector row (Add Cash _SelectedMethodRow grammar) ─────
 
-  const _MomoAccountPicker({
+/// ONE compact row showing the account the payout will go to — network
+/// badge, verified registered name (primary star when applicable), the
+/// phone, and an expand chevron. Tapping opens the selector sheet. It
+/// deliberately does NOT render the other saved accounts inline.
+class _WithdrawAccountRow extends StatelessWidget {
+  const _WithdrawAccountRow({
     required this.account,
     required this.colors,
-    required this.selected,
     required this.onTap,
   });
 
-  Color get _providerColor {
-    switch (account.provider.toUpperCase()) {
-      case 'MTN': return const Color(0xFFFFCC00);
-      case 'TELECEL': return const Color(0xFFE60000);
-      case 'AIRTELTIGO': case 'AT': return const Color(0xFFD62828);
-      default: return const Color(0xFF888888);
-    }
+  final SavedMomoAccount account;
+  final AzamanColors colors;
+
+  /// Null while a submission is in flight — no payout-method changes
+  /// during that window.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final network = momo_net.MomoNetwork.of(account.provider);
+    final name =
+        (account.accountName != null && account.accountName!.trim().isNotEmpty)
+        ? account.accountName!
+        : account.nickname;
+    final phone = momo_net.MomoNetwork.formatPhone(account.phoneNumber);
+
+    return Semantics(
+      button: true,
+      label:
+          'Payout account: $name, ${network.displayName}, $phone. '
+          'Double tap to change.',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          // Card/surface fill, NO border — the row reads as one raised
+          // surface; separation comes from the fill against the page.
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              momo_net.MomoNetworkBadge(provider: account.provider, showLabel: false),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        if (account.isPrimary) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.star_rounded,
+                            color: colors.warning,
+                            size: 14,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      phone,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.expand_more, color: colors.textTertiary, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// No account picked yet: the honest 'choose' row — same visual family as
+/// the selected row, but stating that a payout account must be chosen.
+/// Tapping opens the same selector sheet; nothing is preselected.
+class _ChooseAccountRow extends StatelessWidget {
+  const _ChooseAccountRow({
+    required this.colors,
+    required this.onTap,
+  });
+
+  final AzamanColors colors;
+
+  /// Null while a submission is in flight.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Choose a payout account. Double tap to open the list.',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.account_balance_wallet_outlined,
+                  color: colors.textTertiary, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Choose payout account',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              Icon(Icons.expand_more, color: colors.textTertiary, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The payout-account selector sheet — the Add Cash payment-method sheet
+/// grammar applied to withdrawals: a titled sheet, one option row per
+/// saved account with the live check state, and the add-account CTA
+/// pinned at the bottom.
+class _WithdrawAccountSelectorSheet extends StatefulWidget {
+  const _WithdrawAccountSelectorSheet({
+    required this.colors,
+    required this.accounts,
+    required this.selectedId,
+    required this.maxHeight,
+    required this.onSelect,
+    required this.onAdd,
+  });
+
+  final AzamanColors colors;
+  final List<SavedMomoAccount> accounts;
+  final String? selectedId;
+  final double maxHeight;
+  final ValueChanged<SavedMomoAccount> onSelect;
+  final VoidCallback onAdd;
+
+  @override
+  State<_WithdrawAccountSelectorSheet> createState() =>
+      _WithdrawAccountSelectorSheetState();
+}
+
+class _WithdrawAccountSelectorSheetState
+    extends State<_WithdrawAccountSelectorSheet> {
+  static const Duration _acknowledgementDelay = Duration(milliseconds: 160);
+
+  /// The row the user just tapped — drives the check immediately, even
+  /// before the parent rebuild flows a new selectedId in.
+  String? _tappedId;
+
+  Timer? _closeTimer;
+
+  @override
+  void dispose() {
+    _closeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _select(SavedMomoAccount account) {
+    if (_closeTimer != null) return; // already acknowledged; closing
+    AzamanHaptics.selection();
+    setState(() => _tappedId = account.id);
+    widget.onSelect(account);
+    _closeTimer = Timer(_acknowledgementDelay, () {
+      if (!mounted) return;
+      Navigator.pop(context);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = _providerColor;
-    return GestureDetector(
-      onTap: () { HapticFeedback.selectionClick(); onTap(); },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? c.withValues(alpha: 0.10) : colors.softSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? c.withValues(alpha: 0.70) : colors.divider,
-            width: selected ? 1.8 : 1.0,
-          ),
-          boxShadow: selected
-            ? [BoxShadow(color: c.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 3))]
-            : const [],
-        ),
-        child: Row(
+    final selectedId = _tappedId ?? widget.selectedId;
+    final colors = widget.colors;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Provider dot
-            Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(
-                color: c.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Container(
-                  width: 12, height: 12,
-                  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
+              child: Row(
                 children: [
-                  Text(
-                    account.accountName ?? account.nickname,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 13.5, fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Text(
+                      'Payout account',
+                      style: AzText.titleL.copyWith(
+                        color: colors.textPrimary,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${account.provider}  ·  ${account.phoneNumber}',
-                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                  Semantics(
+                    button: true,
+                    label: 'Close payout accounts',
+                    excludeSemantics: true,
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.close,
+                        color: colors.textTertiary,
+                        size: 20,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                key: ValueKey(selected),
-                color: selected ? c : colors.textTertiary.withValues(alpha: 0.5),
-                size: 22,
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                children: [
+                  for (final account in widget.accounts)
+                    _PayoutOptionRow(
+                      colors: colors,
+                      account: account,
+                      selected: account.id == selectedId,
+                      onTap: () => _select(account),
+                    ),
+                ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+              child: _AddAccountRow(colors: colors, onTap: widget.onAdd),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One option row inside the selector sheet — network badge, verified
+/// registered name, network · phone subtitle and the animated check.
+class _PayoutOptionRow extends StatelessWidget {
+  const _PayoutOptionRow({
+    required this.colors,
+    required this.account,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AzamanColors colors;
+  final SavedMomoAccount account;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final network = momo_net.MomoNetwork.of(account.provider);
+    final name =
+        (account.accountName != null && account.accountName!.trim().isNotEmpty)
+        ? account.accountName!
+        : account.nickname;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label:
+          '$name, ${network.displayName}, '
+          '${momo_net.MomoNetwork.formatPhone(account.phoneNumber)}',
+      excludeSemantics: true,
+      child: ListTile(
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: momo_net.MomoNetworkBadge(provider: account.provider, showLabel: false),
+        title: Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          '${network.displayName} · ${momo_net.MomoNetwork.formatPhone(account.phoneNumber)}',
+          style: TextStyle(color: colors.textSecondary, fontSize: 12),
+        ),
+        trailing: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: selected ? colors.accent : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected
+                  ? colors.accent
+                  : colors.border.withValues(alpha: 0.8),
+              width: 1.6,
+            ),
+          ),
+          child: selected
+              ? const Icon(Icons.check, size: 15, color: Colors.black)
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+/// The add-account CTA pinned at the bottom of the selector sheet —
+/// opens the same AddPayoutSheet flow the surface already uses.
+class _AddAccountRow extends StatelessWidget {
+  const _AddAccountRow({required this.colors, required this.onTap});
+
+  final AzamanColors colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Add a new payout account',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: colors.accent, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Add a new account',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2170,9 +2845,95 @@ class _FeeRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-          Text(value, style: TextStyle(color: color, fontSize: 12, fontWeight: isBold ? FontWeight.w800 : FontWeight.w500)),
+          // Flexible+ellipsis on both sides: at large text scales (or
+          // unusually wide glyph runs) the row wraps gracefully instead
+          // of overflowing the fee card.
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(color: color, fontSize: 12, fontWeight: isBold ? FontWeight.w800 : FontWeight.w500),
+            ),
+          ),
         ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEADER — [X] Withdraw (Workstream C, Add Cash grammar). The X is the ONE
+// close affordance: no back arrow, no duplicate close controls. While a
+// withdrawal request is in flight the X is inert — the operation must not
+// be silently abandoned (PR #165 finding 2).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _WithdrawHeader extends StatelessWidget {
+  const _WithdrawHeader({
+    required this.colors,
+    required this.busy,
+    required this.onClose,
+  });
+
+  final AzamanColors colors;
+  final bool busy;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = !busy;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Row(
+        children: [
+          Semantics(
+            button: true,
+            label: enabled ? 'Close Withdraw' : 'Withdrawal in progress',
+            enabled: enabled,
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: enabled ? onClose : null,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: colors.softSurface,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.close,
+                  size: 18,
+                  color: enabled
+                      ? colors.textPrimary
+                      : colors.textTertiary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Text(
+            'Withdraw',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

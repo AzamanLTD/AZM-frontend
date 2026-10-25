@@ -423,6 +423,19 @@ void main() {
       // sanctioned imperative exception until Workstream C redesigns it.
       expect(source, contains('AzRoutes.send('));
       expect(source, contains('WithdrawalScreen'));
+      // SendMoney still genuinely has no canonical route on main — its
+      // imperative navigation is the sanctioned exception. Withdrawal
+      // gained its canonical rise route (/withdraw, Workstream C) — it
+      // must be reached by location now, never constructed.
+      expect(source, contains('SendMoneyScreen'));
+      expect(source, contains('AzRoutes.withdraw()'));
+      expect(
+        source,
+        isNot(contains('WithdrawalScreen')),
+        reason:
+            'the withdrawal surface is reached through AzRoutes.withdraw(), '
+            'never constructed imperatively',
+      );
     });
 
     test('the + trigger rebuilds from the animation controller and '
