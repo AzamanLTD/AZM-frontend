@@ -1082,7 +1082,9 @@ class _SlideRevealNotification extends StatefulWidget {
   final AppNotification notification;
   final AzamanColors colors;
   final VoidCallback onMarkRead;
-  final VoidCallback onDelete;
+  // Honest delete: resolves false when the SERVER rejected the
+  // dismissal — the row must return with its read state untouched.
+  final Future<bool> Function() onDelete;
   final VoidCallback onTap;
   const _SlideRevealNotification({
     super.key,
@@ -1101,6 +1103,9 @@ class _SlideState extends State<_SlideRevealNotification>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _hidden = false;
+  // Set only when the SERVER rejected a dismissal — the row returns and
+  // an honest caption explains why. Cleared on the next interaction.
+  bool _dismissFailed = false;
   static const double _maxReveal = 110.0;
 
   @override
@@ -1187,31 +1192,39 @@ class _SlideState extends State<_SlideRevealNotification>
                           ),
                         ),
                       const Spacer(),
-                      // Left-swipe offers ONLY Hide. The backend
-                      // notification contract (GET /notifications,
-                      // unread-count, PATCH :id/read, PATCH read-all) has
-                      // no persistent-dismissal endpoint — the action
-                      // removes the notification from THIS device's
-                      // in-memory list only, and a later refresh fetches
-                      // it back. REVIEW 4.1 renames the chip from
-                      // "Delete" to "Hide" so the affordance stops
-                      // claiming a permanence the contract cannot honour.
-                      // The persistent-dismissal contract is tracked with
-                      // the backend workstream; when it ships, this chip
-                      // becomes the real delete.
+                      // Left-swipe offers ONLY Delete, now backed by the
+                      // durable owner-scoped soft-dismissal contract
+                      // (PATCH :id/dismiss). Optimistic hide, server is
+                      // the authority, a rejection un-hides the row with
+                      // its read state untouched and an honest inline
+                      // error. No snooze/mute affordance exists because
+                      // the backend has no such operation.
                       if (showLeft) ...[
                         GestureDetector(
-                          onTap: () {
-                            widget.onDelete();
+                          onTap: () async {
+                            // Optimistic hide first so the chip feels
+                            // instant; the server is the durable
+                            // authority and a rejection un-hides the
+                            // row (retry = tap Delete again).
                             setState(() => _hidden = true);
+                            final dismissed = await widget.onDelete();
+                            if (!mounted) return;
+                            if (!dismissed) {
+                              setState(() {
+                                _hidden = false;
+                                _dismissFailed = true;
+                              });
+                            } else if (_dismissFailed) {
+                              setState(() => _dismissFailed = false);
+                            }
                           },
                           child: Semantics(
                             button: true,
-                            label: 'Hide notification from this list',
+                            label: 'Delete notification from this list',
                             child: _chip(
                               c,
                               HugeIconsSolid.delete01,
-                              'Hide',
+                              'Delete',
                               c.danger,
                             ),
                           ),
@@ -1285,8 +1298,20 @@ class _SlideState extends State<_SlideRevealNotification>
                                     decoration: TextDecoration.none,
                                   ),
                                 ),
+                              ),
+                              if (_dismissFailed) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Couldn't dismiss — not saved. Try again.",
+                                  style: TextStyle(
+                                    color: c.danger,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
                               ],
-                            ),
+                            ],
                           ),
                         ],
                       ),
