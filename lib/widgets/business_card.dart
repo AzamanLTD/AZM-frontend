@@ -24,7 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 
 import 'package:azaman/models/business_models.dart';
-import 'package:azaman/providers/saved_businesses_provider.dart';
+import 'package:azaman/providers/server_bookmarks_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/business_hours.dart';
@@ -157,7 +157,7 @@ class BusinessCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              _BookmarkButton(bizId: business.bizId),
+              _BookmarkButton(business: business),
             ],
           ),
           const SizedBox(height: 4),
@@ -310,7 +310,7 @@ class BusinessCard extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            _BookmarkButton(bizId: business.bizId, size: 18),
+            _BookmarkButton(business: business, size: 18),
             const SizedBox(width: 4),
             Icon(Icons.arrow_forward, size: 14, color: colors.textTertiary),
           ],
@@ -416,21 +416,20 @@ class BusinessCard extends ConsumerWidget {
       business.openStateAt(DateTime.now()) == OpenState.open;
 }
 
-// ── Bookmark button (wired to savedBusinessesProvider) ────────────────────────
+// ── Bookmark button (durable server bookmarks; demo keeps the local wishlist) ─
 class _BookmarkButton extends ConsumerWidget {
-  final String bizId;
+  final BusinessProfile business;
   final double size;
-  const _BookmarkButton({required this.bizId, this.size = 20});
+  const _BookmarkButton({required this.business, this.size = 20});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final saved = ref.watch(savedBusinessesProvider);
-    final isSaved = saved.contains(bizId);
+    final isSaved = isBusinessSaved(ref, business);
     final colors = ref.watch(themeProvider).colors;
     return GestureDetector(
       onTap: () {
         AzamanHaptics.toggle();
-        ref.read(savedBusinessesProvider.notifier).toggle(bizId);
+        toggleBusinessSaved(context, ref, business);
       },
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),

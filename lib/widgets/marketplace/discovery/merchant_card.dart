@@ -9,7 +9,7 @@ import 'package:azaman/experience/motion/az_identity_morph.dart';
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/marketplace_discovery_provider.dart';
-import 'package:azaman/providers/saved_businesses_provider.dart';
+import 'package:azaman/providers/server_bookmarks_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_radius.dart';
@@ -39,7 +39,7 @@ class MerchantCard extends ConsumerWidget {
     final travel = AzMotion.of(context).travel;
     final profile = MarketplaceExperienceCatalog.fromCategory(business.category);
     final open = ref.watch(discoverySnapshotProvider.select((s) => business.openStateAt(s.now)));
-    final saved = ref.watch(savedBusinessesProvider.select((s) => s.contains(business.bizId)));
+    final saved = isBusinessSaved(ref, business);
 
     final relevance = [
       if (open == OpenState.open) 'Open now',
@@ -123,7 +123,7 @@ class MerchantCard extends ConsumerWidget {
                         behavior: HitTestBehavior.opaque,
                         onTap: () {
                           AzamanHaptics.toggle();
-                          ref.read(savedBusinessesProvider.notifier).toggle(business.bizId);
+                          toggleBusinessSaved(context, ref, business);
                         },
                         child: Icon(
                           saved ? HugeIconsSolid.bookmark02 : HugeIconsSolid.bookmark01,
