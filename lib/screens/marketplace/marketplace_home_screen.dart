@@ -40,13 +40,13 @@ import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart';
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/marketplace_mix_provider.dart';
 import 'package:azaman/widgets/liquid/category_speed_dial.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_dice.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_feed_surface.dart';
+import 'package:azaman/widgets/marketplace/discovery/mix_local_first_rails.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_taxonomy_bubble_rail.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/marketplace/nearby_outcome.dart';
@@ -117,6 +117,11 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
   //   • `_viewMode` (list/map, the view segmented control) governs the
   //     GEOGRAPHIC surface. The pill no longer switches the view.
   bool _nearYouActive = false;
+
+  /// True when the proximity feed was co-activated BY MIX (Workstream H):
+  /// exiting Mix then restores the pre-Mix near-you state exactly — a
+  /// user who explicitly enabled Near You first keeps it on exit.
+  bool _nearYouFromMix = false;
 
   /// Foreground-only position stream (started only while a proximity
   /// consumer is active and the app is foregrounded; stopped on exit,
@@ -499,19 +504,57 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
         _mixActive = true;
         _selectedCategory = null; // the dial renders All — Mix's default
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         // Entering Mix defaults to ALL: the UNFILTERED discovery feed (the
         // gateway omits the category parameter entirely).
-        ref.read(marketplaceMixProvider.notifier).selectCategory(null);
+        await ref.read(marketplaceMixProvider.notifier).selectCategory(null);
+        // WORKSTREAM H — pressing Mix co-activates Near You when a valid
+        // foreground location is ALREADY available. The resolve is SILENT:
+        // it never asks for permission, so pressing Mix can't surprise
+        // the user with a system prompt. No position → the honest off
+        // state; the Near You control remains the explicit ask/retry
+        // route. No coordinates are invented and no fake feed loads.
+        try {
+          final pos = await widget.locationResolver.resolveSilently();
+          if (!mounted || !_mixActive) return;
+          setState(() {
+            _position = pos;
+            if (!_nearYouActive) {
+              _nearYouActive = true;
+              _nearYouFromMix = true;
+            }
+          });
+          _startNearbyUpdates();
+          _lastFiredPosition = pos;
+          ref.read(nearbySearchProvider.notifier).searchNearby(
+                lat: pos.latitude,
+                lng: pos.longitude,
+                q: _query.isEmpty ? null : _query,
+                category: _selectedCategory,
+              );
+        } catch (_) {
+          // Silent by design: Mix stays a pure discovery surface. No
+          // prompt, no retry loop, no error banner on this path.
+        }
       });
     } else {
+      final mixOwnedNearYou = _nearYouFromMix;
       setState(() {
         _mixActive = false;
         // Restore the pre-Mix dial selection — the marketplace list
         // underneath never changed, so the view returns exactly as left.
         _selectedCategory = _preMixDialWire;
+        // WORKSTREAM H exit restoration: if MIX was what turned the
+        // proximity feed on, it turns it back off — the user returns to
+        // the exact marketplace they left. An explicitly-enabled Near You
+        // survives the Mix round trip.
+        if (mixOwnedNearYou) {
+          _nearYouActive = false;
+          _nearYouFromMix = false;
+        }
       });
+      if (mixOwnedNearYou) _stopNearbyUpdates();
     }
   }
 
@@ -579,11 +622,23 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
         body: SafeArea(
           bottom: false,
           child: AzPullToRefresh(
-            onRefresh: () => _mixActive
-                ? ref.read(marketplaceMixProvider.notifier).retry()
-                : (_viewMode == _ViewMode.list
-                      ? (_nearYouActive ? _fireNearby() : _refresh())
-                      : _fireNearby()),
+            onRefresh: () async {
+              // WORKSTREAM H: with Mix and the co-activated proximity
+              // feed both live, one deliberate pull refreshes BOTH —
+              // never a silent stale half.
+              if (_mixActive && _nearYouActive) {
+                await Future.wait([
+                  ref.read(marketplaceMixProvider.notifier).retry(),
+                  _fireNearby(),
+                ]);
+              } else if (_mixActive) {
+                await ref.read(marketplaceMixProvider.notifier).retry();
+              } else if (_viewMode == _ViewMode.list) {
+                await (_nearYouActive ? _fireNearby() : _refresh());
+              } else {
+                await _fireNearby();
+              }
+            },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -699,7 +754,25 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // WORKSTREAM H — the proximity strip: the one-glance answer to
+        // "why am I seeing these results?" Rendered ONLY while the
+        // proximity feed is live, showing REAL states only (resolving,
+        // nearby results, nearby failure) and NEVER coordinates.
+        if (_nearYouActive)
+          const MixProximityStrip(
+            key: ValueKey('mix_proximity_strip'),
+          ),
         const MixTaxonomyBubbleRail(),
+        // WORKSTREAM H — local-first rails: "Nearby for you" (real
+        // distance-ordered results) ABOVE "From your network" (offers
+        // from businesses the user actually follows on the server).
+        // Real-data-only: a rail with nothing honest to show renders
+        // nothing at all — no fabricated popularity, no guessed rows.
+        if (_nearYouActive)
+          MixLocalFirstRails(
+            key: const ValueKey('mix_local_first_rails'),
+            onOpenStore: _openMixStore,
+          ),
         Expanded(
           key: const ValueKey('mix_inplace_feed'),
           child: MixFeedSurface(
@@ -1091,7 +1164,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                         categories: _dialCategories,
                         selectedWire: _selectedCategory,
                         colors: colors,
-                        onSelected: (wire) {
+                        onSelected: (wire) async {
                           AzamanHaptics.toggle();
                           setState(() => _selectedCategory = wire);
                           if (_mixActive) {
@@ -1100,11 +1173,17 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                             // REAL_ESTATE "Stay" is the discovery endpoint's
                             // HOSPITALITY; the mismatch can never build an invalid
                             // query and never silently defaults to Eat).
-                            ref
+                            await ref
                                 .read(marketplaceMixProvider.notifier)
                                 .selectCategory(
                                   MixDialCategoryBoundary.dialToMix(wire),
                                 );
+                            // WORKSTREAM H: while Mix co-activated the
+                            // proximity feed, the dial is BOTH feeds'
+                            // category selector — the nearby search
+                            // re-fires with the same wire, so the rails
+                            // and the discovery feed never disagree.
+                            if (_nearYouActive) _fireNearby();
                           } else {
                             _fireSearch();
                           }
