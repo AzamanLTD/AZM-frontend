@@ -178,6 +178,53 @@ class BusinessCategories {
 
   /// Friendly label for any wire value (e.g. on a business card).
   static String labelFor(String? wire) => fromWire(wire).label;
+
+  // ── WORKSTREAM G (2026-10-25): the CENTRAL business-category icon and
+  // tint mapping — the single source for every surface that renders an
+  // offering glyph (discovery list chips today, any future surface).
+  // No scattered per-widget maps: they can drift from the canonical
+  // BusinessCategories contract. Covers every canonical backend
+  // BusinessCategory; a wire value outside the map still resolves to
+  // the generic OTHER glyph so a future backend enum addition can never
+  // blank a row.
+  static const Map<String, IconData> offeringIcons = {
+    'FREELANCE_SERVICES': Icons.design_services_outlined,
+    'RETAIL': Icons.shopping_bag_outlined,
+    'FOOD_BEVERAGE': Icons.restaurant_outlined,
+    'TECHNOLOGY': Icons.laptop_mac_outlined,
+    'REAL_ESTATE': Icons.home_work_outlined,
+    'EDUCATION': Icons.school_outlined,
+    'HEALTH_WELLNESS': Icons.spa_outlined,
+    'ENTERTAINMENT': Icons.theater_comedy_outlined,
+    'LOGISTICS': Icons.directions_bus_outlined,
+    'FINANCIAL_SERVICES': Icons.account_balance_outlined,
+    'OTHER': Icons.category_outlined,
+    'HOSPITALITY': Icons.hotel_outlined,
+  };
+
+  static const Map<String, Color> offeringTints = {
+    'FREELANCE_SERVICES': Color(0xFF7B7B9A),
+    'RETAIL': Color(0xFF00D97E),
+    'FOOD_BEVERAGE': Color(0xFFF59E0B),
+    'TECHNOLOGY': Color(0xFF4F8EF7),
+    'REAL_ESTATE': Color(0xFF34D399),
+    'EDUCATION': Color(0xFF60A5FA),
+    'HEALTH_WELLNESS': Color(0xFFF472B6),
+    'ENTERTAINMENT': Color(0xFFC084FC),
+    'LOGISTICS': Color(0xFF4F8EF7),
+    'FINANCIAL_SERVICES': Color(0xFFFBBF24),
+    'OTHER': Color(0xFF7B7B9A),
+    'HOSPITALITY': Color(0xFFA78BFA),
+  };
+
+  /// The offering glyph for a canonical wire value (OTHER fallback for
+  /// unknown future enum additions — never a blank row).
+  static IconData offeringIconFor(String wire) =>
+      offeringIcons[wire] ?? Icons.category_outlined;
+
+  /// The offering tint for a canonical wire value (neutral fallback).
+  static Color offeringTintFor(String wire) =>
+      offeringTints[wire] ?? const Color(0xFF7B7B9A);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

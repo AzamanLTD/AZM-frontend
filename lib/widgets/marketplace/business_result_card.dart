@@ -19,8 +19,11 @@
 //     savedBusinessesProvider, LeaveReviewSheet. No action is faked.
 //   • Bookmark does NOT appear on the card body — it lives on the
 //     avatar panel.
-//   • Beside the name only GROUNDED facts render: the category label,
-//     verified badge, live open status and (when present) distance.
+//   • Beside the name only GROUNDED facts render: live open status and
+//     (when present) distance. WORKSTREAM G (2026-10-25): the verified
+//     badge and the marketing description are REMOVED from the list card
+//     (verified stays on the business's own surfaces); the identity line
+//     carries only real open-state, real distance and the category badge.
 //     There is NO secondary-offering iconography: the business DTO
 //     has no authoritative 'offered categories' field, and the spec
 //     forbids guessing one (documented backend gap).
@@ -33,7 +36,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/models/story_model.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
+import 'package:azaman/screens/story_viewer_screen.dart';
+import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
@@ -149,9 +156,9 @@ class BusinessResultCard extends ConsumerWidget {
     )) {
       return 'You follow this business';
     }
-    if (business.description != null && business.description!.isNotEmpty) {
-      return business.description!;
-    }
+    // WORKSTREAM G (2026-10-25): the marketing description is REMOVED from
+    // the list card — the identity line shows only grounded facts (follow
+    // status, real inventory counts, category fallback).
     final products = business.products;
     switch (business.category) {
       case 'FOOD_BEVERAGE':
@@ -366,10 +373,6 @@ class _Body extends StatelessWidget {
                     ),
                   ),
                 ],
-                if (business.isVerified) ...[
-                  const SizedBox(width: 5),
-                  Icon(Icons.verified_rounded, size: 13, color: colors.accent),
-                ],
                 if (business.locations.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Flexible(
@@ -408,42 +411,12 @@ class _Body extends StatelessWidget {
   }
 }
 
-// ── Offering chips (Workstream D) ────────────────────────────────────────────
+// ── Offering chips (Workstream D / Workstream G) ────────────────────────────
 // Rendered from the owner-DECLARED offeredCategories wire values only —
-// never inferred from amenities/cuisine/description. The map covers every
-// canonical backend BusinessCategory (AZM-backend PR #366); a wire value
-// outside the map still renders via the generic OTHER glyph so a future
-// backend enum addition can never blank the row.
-const Map<String, IconData> _offeringIcons = {
-  'FREELANCE_SERVICES': Icons.design_services_outlined,
-  'RETAIL': Icons.shopping_bag_outlined,
-  'FOOD_BEVERAGE': Icons.restaurant_outlined,
-  'TECHNOLOGY': Icons.laptop_mac_outlined,
-  'REAL_ESTATE': Icons.home_work_outlined,
-  'EDUCATION': Icons.school_outlined,
-  'HEALTH_WELLNESS': Icons.spa_outlined,
-  'ENTERTAINMENT': Icons.theater_comedy_outlined,
-  'LOGISTICS': Icons.directions_bus_outlined,
-  'FINANCIAL_SERVICES': Icons.account_balance_outlined,
-  'OTHER': Icons.category_outlined,
-  'HOSPITALITY': Icons.hotel_outlined,
-};
-
-const Map<String, Color> _offeringTints = {
-  'FREELANCE_SERVICES': Color(0xFF7B7B9A),
-  'RETAIL': Color(0xFF00D97E),
-  'FOOD_BEVERAGE': Color(0xFFF59E0B),
-  'TECHNOLOGY': Color(0xFF4F8EF7),
-  'REAL_ESTATE': Color(0xFF34D399),
-  'EDUCATION': Color(0xFF60A5FA),
-  'HEALTH_WELLNESS': Color(0xFFF472B6),
-  'ENTERTAINMENT': Color(0xFFC084FC),
-  'LOGISTICS': Color(0xFF4F8EF7),
-  'FINANCIAL_SERVICES': Color(0xFFFBBF24),
-  'OTHER': Color(0xFF7B7B9A),
-  'HOSPITALITY': Color(0xFFA78BFA),
-};
-
+// never inferred from amenities/cuisine/description. WORKSTREAM G
+// (2026-10-25): the icon + tint mapping is the CENTRAL
+// BusinessCategories.offeringIconFor/offeringTintFor contract — no
+// scattered per-widget maps that can drift from the canonical mapping.
 /// Compact, non-interactive row of offering chips. Shows at most
 /// [_OfferingChips.maxVisible] icons, then a "+N" text for the rest —
 /// the Row it lives in is Flexible so long lists ellipsize, never
@@ -482,13 +455,13 @@ class _OfferingChips extends StatelessWidget {
               height: 20,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: (_offeringTints[wire] ?? const Color(0xFF7B7B9A))
+                color: BusinessCategories.offeringTintFor(wire)
                     .withValues(alpha: 0.16),
               ),
               child: Icon(
-                _offeringIcons[wire] ?? Icons.category_outlined,
+                BusinessCategories.offeringIconFor(wire),
                 size: 12,
-                color: _offeringTints[wire] ?? colors.textSecondary,
+                color: BusinessCategories.offeringTintFor(wire),
               ),
             ),
             if (wire != visible.last) const SizedBox(width: 4),
@@ -544,7 +517,20 @@ class _OpenStatusPill extends StatelessWidget {
 
 // ── Circular avatar with the primary-category badge ─────────────────────────
 
-class _AvatarWithBadge extends StatelessWidget {
+// ── Circular avatar: category badge at 6 o'clock + bookmark state ─────────
+//
+// WORKSTREAM G (2026-10-25):
+//   • G3 — the primary-category badge moved from the bottom-RIGHT corner
+//     to the 6 o'clock position: centred on the avatar's vertical axis,
+//     its bottom edge flush with the avatar circle's bottom edge, cut out
+//     of the photo by a card-surface moat so the logo stays dominant.
+//   • G4 — the bookmark INDICATOR sits at the TOP-RIGHT of the profile
+//     picture (never on the card body). It is a state signal, not a
+//     button: it reflects the real savedBusinessesProvider (the app's
+//     saved-business source of truth) and toggling stays in the avatar
+//     action panel. No server bookmark contract exists, so the indicator
+//     claims nothing beyond that provider's state.
+class _AvatarWithBadge extends ConsumerWidget {
   const _AvatarWithBadge({
     required this.bizId,
     required this.url,
@@ -562,11 +548,15 @@ class _AvatarWithBadge extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final d = kBusinessAvatarDiameter;
+    final saved = ref.watch(savedBusinessesProvider).contains(bizId);
     return Semantics(
       button: true,
-      label: 'Actions for this business: follow, bookmark, or rate and review',
+      label: saved
+          ? 'Actions for this business: follow, bookmark, or rate and '
+              'review. Bookmarked'
+          : 'Actions for this business: follow, bookmark, or rate and review',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         key: ValueKey('business-avatar-$bizId'),
@@ -575,13 +565,13 @@ class _AvatarWithBadge extends StatelessWidget {
           onTap();
         },
         child: SizedBox(
-          width: d + kBusinessBadgeDiameter / 2,
-          height: d + kBusinessBadgeDiameter / 2,
+          width: d,
+          height: d,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              // The circular profile with its polished story-ring
-              // treatment: card-surface gap ring + category accent.
+              // The circular profile with its polished ring treatment:
+              // card-surface gap ring + category accent.
               Container(
                 width: d,
                 height: d,
@@ -609,31 +599,80 @@ class _AvatarWithBadge extends StatelessWidget {
                       : placeholder,
                 ),
               ),
-              // The category badge: icon ONLY, accurate semantics, no
+              // G3 — the category badge at 6 o'clock: centred on the
+              // avatar's axis, bottom edge flush with the circle's
+              // bottom edge, cut out of the photo by the card-surface
+              // moat (the outer disc) so it reads as a designed cut-out,
+              // not a sticker. Icon ONLY, accurate semantics, no
               // category name printed under the image.
               PositionedDirectional(
                 key: ValueKey('business-avatar-badge-$bizId'),
-                end: 0,
+                start: (d - kBusinessBadgeDiameter) / 2,
                 bottom: 0,
                 child: Container(
                   width: kBusinessBadgeDiameter,
                   height: kBusinessBadgeDiameter,
+                  // The cut-out moat: card-surface separation between
+                  // the badge and the photo behind it.
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: colors.card,
-                    border: Border.all(
-                      color: cat.color.withValues(alpha: 0.5),
-                      width: 1,
-                    ),
                   ),
+                  padding: const EdgeInsets.all(2), // moat ring
                   alignment: Alignment.center,
                   child: Semantics(
                     label: 'Category: ${cat.label}',
                     button: false,
-                    child: Icon(cat.icon, size: 13, color: cat.color),
+                    child: Container(
+                      width: kBusinessBadgeDiameter - 4,
+                      height: kBusinessBadgeDiameter - 4,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: cat.color.withValues(alpha: 0.5),
+                          width: 1,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(
+                        cat.icon,
+                        size: 12,
+                        color: cat.color,
+                      ),
+                    ),
                   ),
                 ),
               ),
+              // G4 — the bookmark indicator at the profile picture's
+              // top-right: state signal only (toggling lives in the
+              // avatar panel). Cut out of the photo by its own
+              // card-surface moat.
+              if (saved)
+                PositionedDirectional(
+                  key: ValueKey('business-avatar-bookmark-$bizId'),
+                  end: 0,
+                  top: 0,
+                  child: Semantics(
+                    label: 'Bookmarked',
+                    button: false,
+                    excludeSemantics: false,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.card,
+                      ),
+                      padding: const EdgeInsets.all(2), // moat ring
+                      alignment: Alignment.center,
+                      child: Icon(
+                        Icons.bookmark_rounded,
+                        size: 11,
+                        color: colors.accent,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -711,13 +750,52 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
   bool _followLoaded = false;
   bool _followBusy = false;
 
+  // WORKSTREAM G (2026-10-25) — G5: the panel offers 'Watch story' ONLY
+  // after the REAL stories contract (GET /marketplace/business/:id/stories)
+  // returns at least one story that has not expired. No invented counts,
+  // no fabricated existence: fetch failure and empty/expired lists render
+  // NO row — an honest absence.
+  List<BusinessStory>? _activeStories;
+
   @override
   void initState() {
     super.initState();
     _checkFollow();
+    _checkStories();
   }
 
   String get _bizId => widget.business.bizId;
+
+  Future<void> _checkStories() async {
+    try {
+      final stories = await ref
+          .read(marketplaceBookingServiceProvider)
+          .getBusinessStories(_bizId);
+      if (!mounted) return;
+      final now = DateTime.now();
+      final active = stories
+          .where((story) => story.expiresAt.isAfter(now))
+          .toList(growable: false);
+      setState(() => _activeStories = active);
+    } catch (_) {
+      // Honest failure: no Watch-story affordance on a failed fetch —
+      // the error is never surfaced as 'no stories' either; the row is
+      // simply absent.
+      if (mounted) setState(() => _activeStories = const []);
+    }
+  }
+
+  Future<void> _watchStory() async {
+    final stories = _activeStories;
+    if (stories == null || stories.isEmpty) return;
+    final ctx = context;
+    Navigator.of(ctx).pop();
+    await StoryViewerScreen.open(
+      ctx,
+      groups: [storyGroupFromBusinessStories(stories)],
+      initialGroupIndex: 0,
+    );
+  }
 
   Future<void> _checkFollow() async {
     try {
@@ -833,6 +911,14 @@ class _BusinessActionPanelState extends ConsumerState<_BusinessActionPanel> {
             ),
           ),
           const Divider(height: 1),
+          if (_activeStories != null && _activeStories!.isNotEmpty)
+            _PanelRow(
+              key: const ValueKey('business-action-watch-story'),
+              icon: Icons.play_circle_outline_rounded,
+              label: 'Watch story',
+              colors: colors,
+              onTap: _watchStory,
+            ),
           _PanelRow(
             key: const ValueKey('business-action-follow'),
             icon: _isFollowing
