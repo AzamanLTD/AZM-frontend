@@ -7,6 +7,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
+import 'package:azaman/services/notification_action_dispatcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
@@ -108,10 +109,13 @@ class _State extends ConsumerState<NotificationOverlay>
     with TickerProviderStateMixin {
   late AnimationController _slideCtrl;
   late Animation<Offset> _slideAnim;
-  late AnimationController _bobCtrl;
-  late Animation<double> _bobAnim;
   int _tab = 0;
   double _drag = 0;
+
+  /// REVIEW 4.1 — set the moment a card's open action begins closing the
+  /// panel so a second tap (or the dismiss tap underneath) can't fire a
+  /// second navigation for the same notification.
+  bool _closing = false;
 
   // WORKSTREAM A — driven reveal state. In driven mode the panel's
   // vertical fraction (dy of screen height; 0 = open, negative = above
@@ -163,14 +167,12 @@ class _State extends ConsumerState<NotificationOverlay>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutQuart));
     _slideCtrl.forward();
-    _bobCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _bobAnim = Tween<double>(
-      begin: 0,
-      end: 5,
-    ).animate(CurvedAnimation(parent: _bobCtrl, curve: Curves.easeInOut));
+    // REVIEW 4.1 — the grab handle no longer bobs on a repeating idle
+    // loop. Idle motion exists only to be looked at; the handle is a
+    // dismissal affordance, and its affordance is communicated by its
+    // position and the panel's own arrival — not by a permanent shimmy.
+    // (Motion in this panel now happens only on interaction: the driven
+    // reveal, the settle hand-off and the drag dismissal.)
     _loadQuietHours();
   }
 
@@ -239,7 +241,6 @@ class _State extends ConsumerState<NotificationOverlay>
     NotificationOverlay._panelMounted = false;
     _settleCtrl.dispose();
     _slideCtrl.dispose();
-    _bobCtrl.dispose();
     super.dispose();
   }
 
@@ -252,9 +253,13 @@ class _State extends ConsumerState<NotificationOverlay>
     // build happens after dependencies resolve, before any animation can
     // matter — the same pattern the notification bell documents).
     _slideCtrl.duration = MotionTokens.accessibleDuration(
-        context, const Duration(milliseconds: 420));
+      context,
+      const Duration(milliseconds: 420),
+    );
     _settleCtrl.duration = MotionTokens.accessibleDuration(
-        context, const Duration(milliseconds: 260));
+      context,
+      const Duration(milliseconds: 260),
+    );
     if (!_entranceStarted && !_drivenMode) {
       _entranceStarted = true;
       _slideCtrl.forward();
@@ -274,11 +279,7 @@ class _State extends ConsumerState<NotificationOverlay>
         break;
       case 2: // cancel
         _driver!.update(_driver!.reveal);
-        _startSettle(
-          from: _currentDrivenDy(),
-          to: -0.92,
-          thenRemove: true,
-        );
+        _startSettle(from: _currentDrivenDy(), to: -0.92, thenRemove: true);
         break;
       default:
         setState(() {});
@@ -299,9 +300,10 @@ class _State extends ConsumerState<NotificationOverlay>
     required bool thenRemove,
   }) {
     _drivenMode = false;
-    _settleAnim = Tween<double>(begin: from, end: to).animate(
-      CurvedAnimation(parent: _settleCtrl, curve: Curves.easeOutCubic),
-    );
+    _settleAnim = Tween<double>(
+      begin: from,
+      end: to,
+    ).animate(CurvedAnimation(parent: _settleCtrl, curve: Curves.easeOutCubic));
     if (thenRemove) {
       _settleCtrl.forward(from: 0).then((_) {
         if (mounted) widget.onClose();
@@ -314,11 +316,61 @@ class _State extends ConsumerState<NotificationOverlay>
 
   void _dismiss() => _slideCtrl.reverse().then((_) => widget.onClose());
 
+  /// Opens a notification: marks it read, resolves its actionPayload
+  /// through the shared canonical dispatcher, and either navigates to
+  /// the verified destination (closing this overlay first, exactly like
+  /// the hub closes itself before deep-linking) or tells the truth when
+  /// there is no supported destination.
+  void _openNotification(AppNotification n) {
+    // Never double-dispatch while the overlay is already closing.
+    if (_closing) return;
+    ref.read(notificationProvider.notifier).markAsRead(n.id);
+
+    final action = NotificationActionDispatcher.resolve(n.actionPayload);
+    switch (action.resolution) {
+      case NotificationActionResolution.navigable:
+        final route = action.route!;
+        final router = GoRouter.of(context);
+        _closing = true;
+        _dismiss();
+        // Push after the overlay reverse completes so the deep-link stacks
+        // on MainWrapper, not on top of a dying overlay. The router is
+        // captured BEFORE the async gap; the overlay widget itself is
+        // disposed by then, so nothing may touch its context here.
+        Future<void>.delayed(const Duration(milliseconds: 260), () {
+          router.push(route);
+        });
+      case NotificationActionResolution.unsupportedAction:
+        // Truthful fallback: the payload names an action this app build
+        // does not support. Saying nothing would make the tap feel dead;
+        // pretending success would be a lie.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("This notification's action isn't available yet."),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      case NotificationActionResolution.informational:
+        // Purely informational notice — opening it is just reading it.
+        break;
+    }
+  }
+
+  // REVIEW 4.1 — classification is AUTHORITATIVE on the server's explicit
+  // NotificationCategory. Title keyword matching survives only as the
+  // LEGACY fallback for old `general` notifications (which predate the
+  // category field) and can never override or re-file an explicit
+  // category. A notification the server filed as MONEY is a money
+  // notification whatever its title says — and vice versa.
+
   bool _isSystem(AppNotification n) {
-    if (n.category == NotificationCategory.adminSystem ||
+    if (n.category == NotificationCategory.system ||
+        n.category == NotificationCategory.adminSystem ||
         n.category == NotificationCategory.vendorPriority) {
       return true;
     }
+    if (n.category != NotificationCategory.general) return false;
+    // Legacy fallback only.
     final t = (n.title + n.body).toLowerCase();
     return t.contains('cfo') ||
         t.contains('balance low') ||
@@ -326,7 +378,9 @@ class _State extends ConsumerState<NotificationOverlay>
   }
 
   bool _isMoney(AppNotification n) {
+    if (n.category == NotificationCategory.money) return true;
     if (n.category != NotificationCategory.general) return false;
+    // Legacy fallback only.
     final t = n.title.toLowerCase();
     return t.contains('deposit') ||
         t.contains('withdraw') ||
@@ -340,10 +394,16 @@ class _State extends ConsumerState<NotificationOverlay>
         t.contains('invoice');
   }
 
-  bool _isSocial(AppNotification n) =>
-      n.category == NotificationCategory.general &&
-      !_isMoney(n) &&
-      !_isSystem(n);
+  bool _isSocial(AppNotification n) {
+    if (n.category == NotificationCategory.social ||
+        n.category == NotificationCategory.chat) {
+      return true;
+    }
+    if (n.category != NotificationCategory.general) return false;
+    // Legacy fallback only: old uncategorised mail that is not money or
+    // system surfaces under Social.
+    return !_isMoney(n) && !_isSystem(n);
+  }
 
   // Business notification card — shown when the Business tab is selected.
   // Business notifications (NEW_ORDER, KYB_STATUS_CHANGED, etc.) live on a
@@ -544,12 +604,17 @@ class _State extends ConsumerState<NotificationOverlay>
     final colors = ref.watch(themeProvider).colors;
     final topPad = MediaQuery.of(context).padding.top;
     final screenH = MediaQuery.of(context).size.height;
-    final all = ref.watch(generalNotificationsProvider);
-    final sec = ref.watch(securityNotificationsProvider);
-    final vendor = ref.watch(vendorNotificationsProvider);
     final hasBiz = ref.watch(myBusinessProvider).profile != null;
     final bizUnread = ref.watch(bizUnreadCountProvider);
-    final allN = [...all, ...sec, ...vendor]
+    // REVIEW 4.1 — the visible list is derived from the ONE canonical
+    // server-notification source (notificationProvider), never from a
+    // hand-picked subset of category slices. The previous three-way merge
+    // (general + security + vendor) silently omitted every notification
+    // the server explicitly categorised as money, social, chat or
+    // system — supported by the model and provider, invisible here.
+    // Deriving from the single source also makes omission and duplicates
+    // structurally impossible: every notification appears exactly once.
+    final allN = [...ref.watch(notificationProvider)]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final filtered = allN.where((n) => _matchesTab(n, _tab)).toList();
     final unread =
@@ -624,11 +689,7 @@ class _State extends ConsumerState<NotificationOverlay>
                     // Downward dismissal: the panel settles DOWN past
                     // its origin and the entry is removed.
                     _drag = 0;
-                    _startSettle(
-                      from: 0,
-                      to: 0.92,
-                      thenRemove: true,
-                    );
+                    _startSettle(from: 0, to: 0.92, thenRemove: true);
                   } else {
                     setState(() => _drag = 0);
                   }
@@ -890,23 +951,20 @@ class _State extends ConsumerState<NotificationOverlay>
                                       )
                                     : _buildGroupedList(filtered, colors),
                               ),
-                              AnimatedBuilder(
-                                animation: _bobAnim,
-                                builder: (_, __) => Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: 10 + _bobAnim.value,
-                                    top: 6,
-                                  ),
-                                  child: Center(
-                                    child: Container(
-                                      width: 100,
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: colors.textTertiary.withValues(
-                                          alpha: 0.35,
-                                        ),
-                                        borderRadius: BorderRadius.circular(3),
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: 10,
+                                  top: 6,
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    width: 100,
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: colors.textTertiary.withValues(
+                                        alpha: 0.35,
                                       ),
+                                      borderRadius: BorderRadius.circular(3),
                                     ),
                                   ),
                                 ),
@@ -947,6 +1005,14 @@ class _State extends ConsumerState<NotificationOverlay>
       groups.putIfAbsent(label, () => []).add(n);
     }
 
+    // REVIEW 4.1 BUGFIX — the list previously had `itemCount:
+    // groups.length` while the builder indexed `sectionOrder[i]`.
+    // Those two lists are UNRELATED: with a single 'Yesterday' group the
+    // builder asked for sectionOrder[0] == 'Today', found nothing, and
+    // rendered an empty box — so every notification older than today
+    // silently vanished from the panel while the unread badge still
+    // counted them. Iterate the ACTUAL present sections (in canonical
+    // section order) instead.
     final sectionOrder = [
       'Today',
       'Yesterday',
@@ -954,15 +1020,23 @@ class _State extends ConsumerState<NotificationOverlay>
       'This Month',
       'Earlier',
     ];
+    final present = [
+      for (final label in sectionOrder)
+        if (groups.containsKey(label)) label,
+      // Defensive: a label outside the canonical order still renders
+      // (grouped last) rather than being dropped.
+      ...groups.keys.where((label) => !sectionOrder.contains(label)),
+    ];
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: groups.length,
+      itemCount: present.length,
       itemBuilder: (_, sectionIdx) {
-        final label = sectionOrder[sectionIdx];
-        final sectionItems = groups[label];
-        if (sectionItems == null || sectionItems.isEmpty)
+        final label = present[sectionIdx];
+        final sectionItems = groups[label]!;
+        if (sectionItems.isEmpty) {
           return const SizedBox();
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -990,6 +1064,11 @@ class _State extends ConsumerState<NotificationOverlay>
                 onDelete: () => ref
                     .read(notificationProvider.notifier)
                     .deleteNotification(n.id),
+                // REVIEW 4.1 — the card itself is tappable: opening a
+                // notification marks it read and dispatches its real
+                // actionPayload through the shared action-to-route
+                // resolver (the same one the notification hub uses).
+                onTap: () => _openNotification(n),
               ),
             ),
           ],
@@ -1004,12 +1083,14 @@ class _SlideRevealNotification extends StatefulWidget {
   final AzamanColors colors;
   final VoidCallback onMarkRead;
   final VoidCallback onDelete;
+  final VoidCallback onTap;
   const _SlideRevealNotification({
     super.key,
     required this.notification,
     required this.colors,
     required this.onMarkRead,
     required this.onDelete,
+    required this.onTap,
   });
 
   @override
@@ -1058,6 +1139,16 @@ class _SlideState extends State<_SlideRevealNotification>
         final showLeft = offset < -12;
 
         return GestureDetector(
+          // REVIEW 4.1 — the card is tappable. A tap that ends without a
+          // horizontal drag (i.e. not a swipe-reveal gesture) opens the
+          // notification. This recognizer is on the SAME GestureDetector
+          // as the horizontal drag, so Flutter arbitrates between the
+          // two: a horizontal drag claim suppresses the tap.
+          onTapUp: (d) {
+            if (_controller.value.abs() < 8) {
+              widget.onTap();
+            }
+          },
           onHorizontalDragUpdate: (d) {
             _controller.value = (_controller.value + d.primaryDelta!).clamp(
               -_maxReveal,
@@ -1096,24 +1187,33 @@ class _SlideState extends State<_SlideRevealNotification>
                           ),
                         ),
                       const Spacer(),
-                      // Left-swipe offers ONLY Delete. There is no
-                      // "Later"/snooze affordance because the backend
+                      // Left-swipe offers ONLY Hide. The backend
                       // notification contract (GET /notifications,
                       // unread-count, PATCH :id/read, PATCH read-all) has
-                      // no snooze/mute/remind-later operation — a visible
-                      // chip that pretended to snooze without changing
-                      // anything was removed rather than kept as a no-op.
+                      // no persistent-dismissal endpoint — the action
+                      // removes the notification from THIS device's
+                      // in-memory list only, and a later refresh fetches
+                      // it back. REVIEW 4.1 renames the chip from
+                      // "Delete" to "Hide" so the affordance stops
+                      // claiming a permanence the contract cannot honour.
+                      // The persistent-dismissal contract is tracked with
+                      // the backend workstream; when it ships, this chip
+                      // becomes the real delete.
                       if (showLeft) ...[
                         GestureDetector(
                           onTap: () {
                             widget.onDelete();
                             setState(() => _hidden = true);
                           },
-                          child: _chip(
-                            c,
-                            HugeIconsSolid.delete01,
-                            'Delete',
-                            c.danger,
+                          child: Semantics(
+                            button: true,
+                            label: 'Hide notification from this list',
+                            child: _chip(
+                              c,
+                              HugeIconsSolid.delete01,
+                              'Hide',
+                              c.danger,
+                            ),
                           ),
                         ),
                       ],
@@ -1122,68 +1222,74 @@ class _SlideState extends State<_SlideRevealNotification>
                 ),
                 Transform.translate(
                   offset: Offset(offset, 0),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: n.isRead
-                          ? c.card
-                          : c.accent.withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: c.divider.withValues(alpha: 0.5),
+                  child: Semantics(
+                    button: true,
+                    label: n.isRead
+                        ? 'Notification from ${n.title}. Opens details.'
+                        : 'Unread notification from ${n.title}. Opens details.',
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: n.isRead
+                            ? c.card
+                            : c.accent.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: c.divider.withValues(alpha: 0.5),
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.only(top: 5),
-                          decoration: BoxDecoration(
-                            color: n.isRead ? Colors.transparent : c.accent,
-                            shape: BoxShape.circle,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.only(top: 5),
+                            decoration: BoxDecoration(
+                              color: n.isRead ? Colors.transparent : c.accent,
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                n.title,
-                                style: TextStyle(
-                                  color: c.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.none,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  n.title,
+                                  style: TextStyle(
+                                    color: c.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.none,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                n.body,
-                                style: TextStyle(
-                                  color: c.textSecondary,
-                                  fontSize: 12,
-                                  height: 1.4,
-                                  decoration: TextDecoration.none,
+                                const SizedBox(height: 2),
+                                Text(
+                                  n.body,
+                                  style: TextStyle(
+                                    color: c.textSecondary,
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _relTime(n.createdAt),
-                                style: TextStyle(
-                                  color: c.textTertiary,
-                                  fontSize: 10,
-                                  decoration: TextDecoration.none,
+                                const SizedBox(height: 4),
+                                Text(
+                                  _relTime(n.createdAt),
+                                  style: TextStyle(
+                                    color: c.textTertiary,
+                                    fontSize: 10,
+                                    decoration: TextDecoration.none,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
