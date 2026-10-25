@@ -219,8 +219,17 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   ///  - Repeated dismissal is idempotent on both sides (server 200s on
   ///    already-dismissed rows).
   Future<bool> deleteNotification(String id) async {
-    final snapshot = state;
-    state = snapshot.where((n) => n.id != id).toList();
+    // ROLLBACK CORRECTNESS (review 4.4): the optimistic removal is
+    // operation-scoped, so its rollback must be too. Restoring a FULL
+    // snapshot here could resurrect an item another concurrent
+    // operation had legitimately settled in the meantime — a second
+    // dismissal that succeeded, or a socket DISMISSED convergence from
+    // another session. Only the exact dismissed item is re-inserted,
+    // and only if it is still absent.
+    final index = state.indexWhere((n) => n.id == id);
+    if (index < 0) return true; // already gone (idempotent dismissal)
+    final dismissedItem = state[index];
+    state = state.where((n) => n.id != id).toList();
     try {
       final response = await _api.delete('/notifications/$id');
       if (response.statusCode == 200) return true;
@@ -229,9 +238,20 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
     } catch (e) {
       debugPrint('[NotificationProvider] dismissal error: $e');
     }
-    // Roll back exactly — same order, same read states.
-    state = snapshot;
+    _restoreDismissed(dismissedItem, index);
     return false;
+  }
+
+  /// Operation-scoped rollback: re-inserts exactly the item whose
+  /// dismissal failed, at its original position (clamped), and only if
+  /// it is not present — a concurrent settle for this id wins over the
+  /// stale optimistic removal. Every OTHER item keeps whatever state
+  /// the concurrent operations left it in.
+  void _restoreDismissed(AppNotification item, int originalIndex) {
+    if (state.any((n) => n.id == item.id)) return;
+    final next = [...state];
+    next.insert(originalIndex.clamp(0, next.length), item);
+    state = next;
   }
 
   /// Local convergence for the socket `DISMISSED` event (another session

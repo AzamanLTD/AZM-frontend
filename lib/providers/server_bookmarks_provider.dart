@@ -110,8 +110,12 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
   /// POST /api/bookmarks — optimistic save with exact rollback.
   /// Returns the durable end state (true = BOOKMARKED).
   Future<bool> save(String businessProfileId) async {
+    // ROLLBACK CORRECTNESS (review 4.4): rollback is operation-scoped.
+    // Restoring a full snapshot here could erase a bookmark another
+    // concurrent operation had just legitimately settled (a successful
+    // save/remove for a DIFFERENT id, or a hydrate). Only this
+    // operation's own optimistic placeholder is rolled back.
     if (_demo) return false;
-    final snapshot = state.bookmarks;
     if (isSaved(businessProfileId)) return true;
 
     // Optimistic: a placeholder with unknown display fields. The UI
@@ -120,10 +124,19 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
     state = state.copyWith(
       bookmarks: [
         ServerBookmark.placeholder(businessProfileId),
-        ...snapshot,
+        ...state.bookmarks,
       ],
       clearError: true,
     );
+
+    Future<bool> rollbackOwn() {
+      state = state.copyWith(
+        bookmarks: state.bookmarks
+            .where((b) => b.businessProfileId != businessProfileId)
+            .toList(),
+      );
+      return Future.value(false);
+    }
 
     try {
       final result = await _service.save(businessProfileId);
@@ -151,13 +164,11 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
       }
       // Defensive: a 2xx without BOOKMARKED is a contract violation —
       // roll back rather than trust it.
-      state = state.copyWith(bookmarks: snapshot);
-      return false;
+      return await rollbackOwn();
     } catch (e) {
       // Includes the contract 404 "wrong business id": no retry, no
-      // simulated local save. Restore the exact snapshot.
-      state = state.copyWith(bookmarks: snapshot);
-      return false;
+      // simulated local save. Only this operation's placeholder goes.
+      return rollbackOwn();
     }
   }
 
@@ -165,16 +176,34 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
   /// rollback. ANY server 200 is the durable NOT_BOOKMARKED end state
   /// (including the idempotent removed:false).
   Future<bool> remove(String businessProfileId) async {
+    // ROLLBACK CORRECTNESS (review 4.4): operation-scoped rollback. A
+    // failed removal re-inserts exactly the bookmark it optimistically
+    // removed — only if it is still absent — so concurrent operations
+    // on OTHER ids (or a fresh save for this id) are never stomped.
     if (_demo) return false;
-    final snapshot = state.bookmarks;
     if (!isSaved(businessProfileId)) return true;
 
+    final removed = state.bookmarks
+        .firstWhere((b) => b.businessProfileId == businessProfileId);
+    final originalIndex =
+        state.bookmarks.indexWhere((b) => b.businessProfileId == businessProfileId);
     state = state.copyWith(
-      bookmarks: snapshot
+      bookmarks: state.bookmarks
           .where((b) => b.businessProfileId != businessProfileId)
           .toList(),
       clearError: true,
     );
+
+    void rollbackOwn() {
+      // A concurrent settle for this id (hydrate or re-save) wins over
+      // the stale optimistic removal — never overwrite a live row.
+      if (state.bookmarks.any((b) => b.businessProfileId == businessProfileId)) {
+        return;
+      }
+      final next = [...state.bookmarks];
+      next.insert(originalIndex.clamp(0, next.length), removed);
+      state = state.copyWith(bookmarks: next);
+    }
 
     try {
       final result = await _service.remove(businessProfileId);
@@ -182,10 +211,10 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
         return true; // durable end state reached
       }
       // 2xx without NOT_BOOKMARKED = contract violation → roll back.
-      state = state.copyWith(bookmarks: snapshot);
+      rollbackOwn();
       return false;
     } catch (e) {
-      state = state.copyWith(bookmarks: snapshot);
+      rollbackOwn();
       return false;
     }
   }

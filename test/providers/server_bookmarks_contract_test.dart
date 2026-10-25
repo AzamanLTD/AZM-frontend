@@ -322,6 +322,115 @@ void main() {
     });
   });
 
+
+  // ==========================================================================
+  // REVIEW 4.4 — ROLLBACK ATOMICITY: a failed save/remove must roll back
+  // only ITS OWN optimistic mutation. The old full-snapshot rollback could
+  // erase a bookmark a concurrent operation had legitimately settled while
+  // this request was in flight (a successful save/remove for a different
+  // id, or a fresh hydrate).
+  // ==========================================================================
+  group('rollback atomicity (review 4.4)', () {
+    test('a failed save cannot erase a concurrently saved different id',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.api.onGet = (_) async =>
+          http.Response(_pageJson([_dto('u1'), _dto('u2')], total: 2), 200);
+      await h.notifier.hydrate();
+
+      // Save 'x' will FAIL (500); save 'y' succeeds mid-flight.
+      h.api.onPost = (endpoint, body) async =>
+          body['businessProfileId'] == 'x'
+              ? http.Response('{"error": "boom"}', 500)
+              : http.Response(
+                  '{"success": true, "state": "BOOKMARKED", "alreadyBookmarked": false,'
+                  ' "bookmark": {"businessProfileId": "${body['businessProfileId']}", "savedAt": "2026-10-25T10:00:00Z"}}',
+                  201);
+
+      final failed = h.notifier.save('x');
+      final ok = await h.notifier.save('y');
+      await Future.wait([Future.sync(() => failed), Future.value(true)]);
+
+      expect(ok, isTrue);
+      expect(h.ids, isNot(contains('x')),
+          reason: 'the failed save rolls its own placeholder back');
+      expect(h.ids, containsAll(['y', 'u1', 'u2']),
+          reason: 'the concurrent SUCCESS and hydrated rows must survive');
+    });
+
+    test('a failed remove cannot resurrect a concurrently removed row',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.api.onGet = (_) async =>
+          http.Response(_pageJson([_dto('u1'), _dto('u2')], total: 2), 200);
+      await h.notifier.hydrate();
+      expect(h.ids, containsAll(['u1', 'u2']));
+
+      // Remove 'u1' will FAIL (503); remove 'u2' succeeds mid-flight.
+      h.api.onDelete = (endpoint) async => endpoint.contains('/u1')
+          ? http.Response('{"error": "nope"}', 503)
+          : http.Response(
+              '{"success": true, "state": "NOT_BOOKMARKED", "removed": true}',
+              200);
+
+      final failed = h.notifier.remove('u1');
+      final ok = await h.notifier.remove('u2');
+      await Future.wait([Future.sync(() => failed), Future.value(true)]);
+
+      expect(ok, isTrue);
+      expect(h.ids, contains('u1'),
+          reason: 'the failed removal rolls its own row back');
+      expect(h.ids, isNot(contains('u2')),
+          reason: 'the concurrent SUCCESS must not be resurrected');
+    });
+
+    test('a failed remove keeps the row that was optimistically saved mid-flight',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.api.onGet = (_) async =>
+          http.Response(_pageJson([_dto('u1'), _dto('u2')], total: 2), 200);
+      await h.notifier.hydrate();
+
+      // Remove 'u1' will FAIL; while in flight, a save for a brand-new
+      // id lands successfully.
+      h.api.onDelete = (_) async => http.Response('{"error": "nope"}', 503);
+      h.api.onPost = (_, body) async => http.Response(
+          '{"success": true, "state": "BOOKMARKED", "alreadyBookmarked": false,'
+          ' "bookmark": {"businessProfileId": "${body['businessProfileId']}", "savedAt": "2026-10-25T10:00:00Z"}}',
+          201);
+
+      final failed = h.notifier.remove('u1');
+      await h.notifier.save('fresh-9');
+      final result = await Future.sync(() => failed);
+
+      expect(result, isFalse);
+      expect(h.ids, containsAll(['u1', 'fresh-9']),
+          reason: 'failed remove restores u1 WITHOUT stomping the fresh save');
+    });
+
+    test('a failed remove re-inserts at the original position', () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.api.onGet = (_) async =>
+          http.Response(_pageJson([_dto('u1'), _dto('u2')], total: 2), 200);
+      await h.notifier.hydrate();
+      final before = h.container.read(serverBookmarksProvider).bookmarks;
+
+      h.api.onDelete = (_) async => http.Response('{"error": "nope"}', 503);
+      final ok = await h.notifier.remove('u1');
+      expect(ok, isFalse);
+
+      final after = h.container.read(serverBookmarksProvider).bookmarks;
+      expect(after.length, before.length);
+      expect(after.map((b) => b.businessProfileId).toList(),
+          before.map((b) => b.businessProfileId).toList(),
+          reason: 'identical order to the pre-optimistic state');
+    });
+  });
+
   group('demo mode keeps the device-local wishlist', () {
     test('the notifier fires NO bookmark HTTP in demo mode', () async {
       // Demo mode has no backend, and the demo interceptor must never

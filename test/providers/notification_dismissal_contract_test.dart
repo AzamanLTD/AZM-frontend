@@ -306,6 +306,106 @@ void main() {
     });
   });
 
+
+  // ==========================================================================
+  // REVIEW 4.4 — ROLLBACK ATOMICITY: a failed dismissal must roll back
+  // ONLY its own item. The old full-snapshot rollback resurrected items
+  // that concurrent operations (a second successful dismissal, or a
+  // socket DISMISSED convergence from another session) had legitimately
+  // settled while this request was in flight.
+  // ==========================================================================
+  group('rollback atomicity (review 4.4)', () {
+    test('a failed dismissal cannot resurrect a concurrently dismissed item',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.api.onDelete = (endpoint) async =>
+          endpoint.contains('/a') ? http.Response('{}', 500) : http.Response('{}', 200);
+      h.seed([_n('a'), _n('b'), _n('c')]);
+
+      final first = h.notifier.deleteNotification('a'); // will FAIL (500)
+      final second = h.notifier.deleteNotification('b'); // succeeds mid-flight
+      await Future.wait([first, second]);
+
+      // 'a' is honestly back (its dismissal failed); 'b' STAYS gone.
+      expect(
+          h.state.map((n) => n.id), contains('a'),
+          reason: 'the failed dismissal rolls its own item back');
+      expect(
+          h.state.map((n) => n.id), isNot(contains('b')),
+          reason: 'the concurrent SUCCESS must not be resurrected');
+    });
+
+    test('a failed dismissal cannot resurrect a socket-dismissed item',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.api.onDelete = (endpoint) async =>
+          endpoint.contains('/a') ? http.Response('{}', 500) : http.Response('{}', 200);
+      h.seed([_n('a'), _n('b')]);
+
+      final pending = h.notifier.deleteNotification('a'); // will FAIL
+      // While 'a' is in flight, ANOTHER session dismisses 'b' — the
+      // socket convergence removes it durably.
+      h.socket.serverBroadcast(
+          {'type': 'DISMISSED', 'notificationId': 'b'});
+      final failed = await pending;
+
+      expect(failed, isFalse);
+      expect(h.state.map((n) => n.id), contains('a'));
+      expect(h.state.map((n) => n.id), isNot(contains('b')),
+          reason: 'socket convergence must survive the failed rollback');
+    });
+
+    test('a failed dismissal keeps concurrent read-state changes intact',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.api.onDelete = (endpoint) async =>
+          endpoint.contains('/a') ? http.Response('{}', 500) : http.Response('{}', 200);
+      h.seed([_n('a'), _n('b', isRead: false)]);
+
+      final pending = h.notifier.deleteNotification('a'); // will FAIL
+      // Another session marks 'b' read while 'a' is in flight.
+      h.notifier.markAsRead('b');
+      await pending;
+
+      final b = h.state.firstWhere((n) => n.id == 'b');
+      expect(b.isRead, isTrue,
+          reason: 'the failed dismissal rollback must not undo the '
+              'concurrent read flip');
+    });
+
+    test('rollback restores the item at its original position and read state',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.api.onDelete = (endpoint) async =>
+          endpoint.contains('/b') ? http.Response('{}', 503) : http.Response('{}', 200);
+      h.seed([_n('a'), _n('b', isRead: true), _n('c')]);
+
+      final ok = await h.notifier.deleteNotification('b');
+      expect(ok, isFalse);
+      // addNotification prepends, so the seeded order on the state is
+      // [c, b, a]; the rollback must restore exactly THAT order.
+      expect(h.state.map((n) => n.id), ['c', 'b', 'a'],
+          reason: 'same order as before the optimistic removal');
+      expect(h.state.firstWhere((n) => n.id == 'b').isRead, isTrue);
+    });
+
+    test('dismissing an item another session already dismissed is idempotent',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.seed([_n('a')]);
+      h.socket.serverBroadcast(
+          {'type': 'DISMISSED', 'notificationId': 'a'});
+      final ok = await h.notifier.deleteNotification('a');
+      expect(ok, isTrue, reason: 'already gone locally + server 200 = done');
+      expect(h.state, isEmpty);
+    });
+  });
+
   group('unread count follows the durable list', () {
     test('dismissing an unread row updates the derived badge consistently',
         () async {
