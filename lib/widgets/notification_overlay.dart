@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/services/deposit_continuations.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/router/route_registry.dart';
@@ -156,6 +157,10 @@ class _State extends ConsumerState<NotificationOverlay>
     WidgetsBinding.instance.addObserver(this);
     final uid = ref.read(authProvider).user?.id;
     ref.read(launcherDraftsProvider.notifier).loadForUser(uid);
+    // FIX 3 — submitted deposit continuations have NO five-minute clock:
+    // they load on every open and leave only on authoritative
+    // resolution. Same for the foreground-return sweep below.
+    ref.read(depositContinuationsProvider.notifier).loadForUser(uid);
     _slideCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
@@ -264,6 +269,7 @@ class _State extends ConsumerState<NotificationOverlay>
     if (state != AppLifecycleState.resumed) return;
     final uid = ref.read(authProvider).user?.id;
     ref.read(launcherDraftsProvider.notifier).loadForUser(uid);
+    ref.read(depositContinuationsProvider.notifier).loadForUser(uid);
   }
 
   @override
@@ -618,6 +624,140 @@ class _State extends ConsumerState<NotificationOverlay>
     }
   }
 
+  // FIX 3 — the submitted-deposits section. Semantically DISTINCT from
+  // the five-minute draft cards above: these are transactions the user
+  // already instructed — their continuation survives every form-draft
+  // TTL and leaves this list only when the ledger authoritatively
+  // resolves them (settled/failed), because no cancellation endpoint
+  // exists. There is deliberately NO destructive swipe here: discarding
+  // a local form draft is a convenience; "removing" a submitted
+  // operation would be a lie about money that may still move.
+  Widget _buildSubmittedDepositsSection(
+    AzamanColors colors,
+    List<DepositContinuation> continuations,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Deposits in progress',
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                decoration: TextDecoration.none,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          ...continuations.map((c) {
+            final ref = c.reference.trim();
+            final short =
+                ref.length > 14 ? '…${ref.substring(ref.length - 12)}' : ref;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: colors.accent, width: 0.8),
+                ),
+                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: colors.accentSurface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.add_card_rounded,
+                        size: 19,
+                        color: colors.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Add Cash — deposit in progress',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            'Instruction $short sent — this is not a saved '
+                            'form, so it stays until the deposit is '
+                            'confirmed.',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _resumeDeposit(c),
+                      style: TextButton.styleFrom(
+                        backgroundColor: colors.accentSurface,
+                        foregroundColor: colors.accent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 7,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Check status',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  /// FIX 3 — resume a submitted deposit: same guard-and-order as a draft
+  /// resume, but the route extra carries ONLY the durable reference —
+  /// the deposit surface reconciles it against the ledger on arrival.
+  void _resumeDeposit(DepositContinuation continuation) {
+    if (_closing) return;
+    HapticFeedback.lightImpact();
+    final router = GoRouter.of(context);
+    _closing = true;
+    _dismiss();
+    Future<void>.delayed(const Duration(milliseconds: 260), () {
+      router.push('/deposit', extra: {
+        'pendingReference': continuation.reference,
+      });
+    });
+  }
+
   /// §C.3 — the local continuation section. One row per unexpired draft:
   /// Resume reopens the canonical launcher surface with the stored
   /// editable inputs; a left/right swipe permanently discards the draft
@@ -858,7 +998,28 @@ class _State extends ConsumerState<NotificationOverlay>
     // §C.3 — LOCAL continuation drafts: a distinct source, rendered above
     // the category card. They are NOT server notifications — the unread
     // count above is untouched — and never re-filed into a category.
-    final drafts = ref.watch(launcherDraftsProvider).drafts;
+    //
+    // REVIEW GAP 4 — RENDER GATE: the centre renders drafts ONLY when
+    // the draft state's userId matches the CURRENT authenticated user.
+    // A stale in-flight load, a direct account switch or a session
+    // invalidation can leave the state momentarily owned by the previous
+    // user; those records never reach the screen.
+    final draftState = ref.watch(launcherDraftsProvider);
+    final currentUid = ref.read(authProvider).user?.id;
+    final drafts = (draftState.userId != null &&
+            draftState.userId == currentUid)
+        ? draftState.drafts
+        : const <LauncherDraft>[];
+
+    // FIX 3 — SUBMITTED deposit continuations: a separate lifecycle with
+    // its own authority. A deposit that was already instructed never
+    // disappears because a form-draft clock expired. Same render gate:
+    // only the active user's continuations are shown.
+    final contState = ref.watch(depositContinuationsProvider);
+    final continuations = (contState.userId != null &&
+            contState.userId == currentUid)
+        ? contState.continuations
+        : const <DepositContinuation>[];
     final nowMs = DateTime.now().millisecondsSinceEpoch;
 
     // Build the body: business tab shows a link to business notifications,
@@ -1097,6 +1258,13 @@ class _State extends ConsumerState<NotificationOverlay>
                                   ],
                                 ),
                               ),
+                              if (continuations.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                _buildSubmittedDepositsSection(
+                                  colors,
+                                  continuations,
+                                ),
+                              ],
                               if (drafts.isNotEmpty) ...[
                                 const SizedBox(height: 12),
                                 _buildContinuationSection(

@@ -29,6 +29,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/services/deposit_continuations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/user_model.dart';
@@ -207,6 +208,18 @@ class AuthProvider with ChangeNotifier {
     final ok = await _api.isAuthenticated();
     if (!ok) {
       _user = null;
+      // REVIEW GAP 4 — session invalidation is an identity boundary just
+      // like logout: the drafts/continuation authorities are told their
+      // user is gone, so a stale in-flight storage read can never
+      // repopulate the previous user's state.
+      try {
+        await ref?.read(launcherDraftsProvider.notifier).clearForLogout();
+        await ref
+            ?.read(depositContinuationsProvider.notifier)
+            .clearForLogout();
+      } catch (_) {
+        // Local state clearing must never block the session teardown.
+      }
       // IDENTITY BOUNDARIES — the stored identity no longer checks out
       // (token/user gone, or the check request itself failed and
       // isAuthenticated returned false). This is a session end: the
@@ -239,6 +252,9 @@ class AuthProvider with ChangeNotifier {
     // the next user never inherits the previous user's drafts.
     try {
       await ref?.read(launcherDraftsProvider.notifier).clearForLogout();
+      await ref
+          ?.read(depositContinuationsProvider.notifier)
+          .clearForLogout();
     } catch (_) {
       // Draft clearing must never block the logout itself.
     }

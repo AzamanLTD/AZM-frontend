@@ -48,6 +48,7 @@ import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/deposit_recovery_service.dart';
+import 'package:azaman/services/deposit_continuations.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -131,6 +132,29 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
       };
 
   Future<void> _attemptClose() async {
+    // REVIEW GAP 1 — initial-submit race: while POST /deposit/fiat/
+    // initiate/moolre is in flight the form looks "meaningful" (amount
+    // is set) but a durable provider reference does not exist yet, so a
+    // draft saved in this window could resume into a fresh instruction
+    // for a transaction that may already have committed. Every close
+    // gesture is guarded until the initiation's outcome can be safely
+    // represented: on success the reference exists (and the close draft
+    // carries it); on failure the form is honestly reusable again.
+    // No new idempotency identity is minted here — the guard only holds
+    // the surface open until the SAME operation resolves.
+    final panel = _fiatPanelKey.currentState;
+    if (panel != null && panel.isInitiating) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Setting up your deposit — hold on a moment.',
+          ),
+          duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return; // no draft, no close — the operation owns the window
+    }
     if (_hasMeaningfulDraftInput) {
       final user = ref.read(authProvider).user;
       await guardLauncherClose(
@@ -339,6 +363,21 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // to double-instruct while an earlier instruction may still be live.
   bool _recovering = false;
 
+  // REVIEW GAP 2 — fail-closed recovery: a lookup failure or an
+  // unresolved status is NOT evidence the earlier instruction did not
+  // commit. While true the earlier reference is preserved, the CTA is
+  // blocked, and an explicit unresolved banner offers a re-check. The
+  // form is never silently usable again until the SAME operation is
+  // authoritatively resolved (settled/failed) by the ledger.
+  bool _recoveryUnresolved = false;
+
+  /// REVIEW GAP 1 — true only while the INITIAL initiate request is in
+  /// flight and no durable reference exists yet (the exact window in
+  /// which a close draft cannot honestly represent the operation).
+  /// The OTP confirm is NOT this window: its reference already exists
+  /// and is safely representable.
+  bool get isInitiating => _isSubmitting && !hasInFlightDeposit;
+
   /// The payment reference a draft should carry: the deposit that is
   /// still in flight (OTP pending or prompt sent), never a confirmed or
   /// reset one. A deposit in flight makes a close MEANINGFUL — the draft
@@ -348,6 +387,28 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       : (_pendingReference ?? _depositResult?['reference']?.toString());
 
   bool get hasInFlightDeposit => (inFlightReference ?? '').isNotEmpty;
+
+  /// FIX 3 — the moment a durable provider reference exists the deposit
+  /// is a SUBMITTED operation: its way-back survives form-draft expiry
+  /// in the separate continuation lifecycle. Saved at initiate success
+  /// (idempotent upsert) and removed only on AUTHORITATIVE resolution.
+  void _saveContinuation(String reference) {
+    final uid = ref.read(authProvider).user?.id;
+    if (uid == null || uid.isEmpty) return; // never persists anonymously
+    ref
+        .read(depositContinuationsProvider.notifier)
+        .save(uid, reference);
+  }
+
+  /// Authoritative resolution only (settled or failed by the ledger, or
+  /// socket-confirmed). Never called for a discarded local FORM draft.
+  void _resolveContinuation(String reference) {
+    final uid = ref.read(authProvider).user?.id;
+    if (uid == null || uid.isEmpty) return;
+    ref
+        .read(depositContinuationsProvider.notifier)
+        .resolve(uid, reference);
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -439,6 +500,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
           _pendingReference ?? (_depositResult?['reference']?.toString() ?? '');
       if (pendingRef.isEmpty || reference != pendingRef) return;
       setState(() => _depositConfirmed = true);
+      // FIX 3 — the ledger confirmed it: the submitted operation is
+      // authoritatively resolved and leaves the continuation lifecycle.
+      _resolveContinuation(reference);
       final colors = ref.read(themeProvider).colors;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -472,7 +536,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // registered in initState — the recovered view re-arms it through the
   // same `_pendingReference ?? _depositResult['reference']` seam.
   Future<void> _recoverInterruptedDeposit(String reference) async {
-    setState(() => _recovering = true);
+    setState(() {
+      _recovering = true;
+      // A deliberate re-check clears the banner until it lands again.
+      _recoveryUnresolved = false;
+    });
     DepositRecoveryOutcome? outcome;
     try {
       outcome =
@@ -486,9 +554,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       case DepositRecoveryStatus.settled:
         setState(() {
           _recovering = false;
+          _recoveryUnresolved = false;
           _depositResult = {'reference': reference};
           _depositConfirmed = true;
         });
+        // FIX 3 — settled while away: the submitted operation leaves the
+        // continuation lifecycle for good.
+        _resolveContinuation(reference);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
@@ -508,6 +580,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         final frozen = outcome!.status == DepositRecoveryStatus.frozen;
         setState(() {
           _recovering = false;
+          _recoveryUnresolved = false;
           _pendingReference = reference;
           _depositResult = {
             'reference': reference,
@@ -521,7 +594,12 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
           };
         });
       case DepositRecoveryStatus.failed:
-        setState(() => _recovering = false);
+        setState(() {
+          _recovering = false;
+          _recoveryUnresolved = false;
+        });
+        // FIX 3 — the ledger said it failed: authoritatively resolved.
+        _resolveContinuation(reference);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -532,9 +610,27 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         );
       case DepositRecoveryStatus.unknown:
       case null:
-        // Honest absence — the form stays exactly as the draft left it.
-        setState(() => _recovering = false);
+        // REVIEW GAP 2 — FAIL CLOSED. A lookup failure or a no-match is
+        // NOT evidence that the earlier instruction did not commit (the
+        // ledger may lag; the request may have died mid-flight). The
+        // reference is preserved, the CTA stays blocked, and the
+        // unresolved banner offers a re-check of the SAME operation.
+        // No success or failure is claimed on an unavailable lookup,
+        // and no new initiation may start until the ledger answers.
+        setState(() {
+          _recovering = false;
+          _recoveryUnresolved = true;
+          _pendingReference = reference;
+        });
     }
+  }
+
+  /// REVIEW GAP 2 — the banner's explicit re-check. Reconciles the SAME
+  /// reference (never a new idempotency identity) against the ledger.
+  void _retryRecovery() {
+    final ref = _pendingReference;
+    if (ref == null || ref.isEmpty) return;
+    _recoverInterruptedDeposit(ref);
   }
 
   // ── Amount input state machine ──────────────────────────────────────────
@@ -678,6 +774,22 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     // Deposit lifecycle: no second instruction while the restored one
     // is being reconciled — an earlier instruction may still be live.
     if (_recovering) return;
+    // REVIEW GAP 2 — an unresolved earlier deposit blocks a new one
+    // outright: the same operation must be authoritatively resolved
+    // first. The user is told why, honestly.
+    if (_recoveryUnresolved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Confirm your earlier deposit first — tap "Check again" on '
+            'the notice above.',
+          ),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     final amount = _amountValue;
     if (amount == null) {
       ScaffoldMessenger.of(
@@ -735,11 +847,16 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       if (response.statusCode == 201 || response.statusCode == 200) {
         AzamanHaptics.commit();
         if (data['requiresOtp'] == true) {
+          final freshRef = data['data']?['reference']?.toString();
           setState(() {
             _isSubmitting = false;
             _requiresOtp = true;
-            _pendingReference = data['data']?['reference']?.toString();
+            _pendingReference = freshRef;
           });
+          // FIX 3 — the reference just became durable: the submitted
+          // operation enters the continuation lifecycle immediately,
+          // independent of every form-draft clock.
+          if ((freshRef ?? '').isNotEmpty) _saveContinuation(freshRef!);
         } else {
           setState(() {
             _depositResult = (data['data'] is Map<String, dynamic>)
@@ -747,6 +864,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 : data as Map<String, dynamic>;
             _isSubmitting = false;
           });
+          // FIX 3 — same durable-reference moment, no-OTP branch.
+          final freshRef = inFlightReference;
+          if ((freshRef ?? '').isNotEmpty) _saveContinuation(freshRef!);
           // In demo mode there's no real Moolre prompt to approve —
           // auto-confirm after a short delay so the user sees the full
           // deposit success flow.
@@ -806,6 +926,10 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
           _requiresOtp = false;
           _depositResult = {'reference': _pendingReference};
         });
+        // FIX 3 — keep the continuation record warm under the confirmed
+        // reference until the socket/ledger settles it (idempotent).
+        final confirmedRef = _pendingReference;
+        if ((confirmedRef ?? '').isNotEmpty) _saveContinuation(confirmedRef!);
       } else {
         setState(() => _isConfirmingOtp = false);
         if (mounted) {
@@ -869,6 +993,22 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
 
         return Column(
           children: [
+            // REVIEW GAP 2 — the explicit fail-closed state. The earlier
+            // deposit could not be resolved against the ledger (lookup
+            // failed or no row yet): the reference is preserved, nothing
+            // is claimed, and the CTA below stays blocked until the SAME
+            // operation is authoritatively resolved.
+            if (_recoveryUnresolved || _recovering) ...[
+              Padding(
+                padding: EdgeInsets.fromLTRB(20, compact ? 6 : 14, 20, 0),
+                child: _RecoveryUnresolvedBanner(
+                  colors: colors,
+                  reference: _pendingReference,
+                  checking: _recovering,
+                  onRetry: _recovering ? null : _retryRecovery,
+                ),
+              ),
+            ],
             // ── Phantom-style top-left amount composition (UI-correction
             // Phase A): the amount and the selected payment method form the
             // primary interaction at the top; keypad and CTA anchor the
@@ -1003,6 +1143,8 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                     colors: colors,
                     label: _recovering
                         ? 'Checking last deposit…'
+                        : _recoveryUnresolved
+                        ? 'Confirm your earlier deposit first'
                         : _isValidatingName
                         ? 'Checking account…'
                         : _isSubmitting
@@ -1010,6 +1152,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                         : 'Add Cash',
                     onTap:
                         (_recovering ||
+                            _recoveryUnresolved ||
                             _isSubmitting ||
                             _isValidatingName ||
                             _amountValue == null ||
@@ -1348,6 +1491,105 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVIEW GAP 2 — the fail-closed recovery banner. An unresolved earlier
+// deposit keeps its reference on the surface and blocks new deposits
+// until the ledger authoritatively answers. It never claims success or
+// failure on an unavailable lookup.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RecoveryUnresolvedBanner extends StatelessWidget {
+  const _RecoveryUnresolvedBanner({
+    required this.colors,
+    required this.reference,
+    required this.checking,
+    required this.onRetry,
+  });
+
+  final AzamanColors colors;
+  final String? reference;
+  final bool checking;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = (reference ?? '').trim();
+    final short = ref.length > 14 ? '…${ref.substring(ref.length - 12)}' : ref;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: colors.accentSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.accent, width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded, size: 18, color: colors.accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  checking
+                      ? 'Checking your earlier deposit…'
+                      : ref.isEmpty
+                      ? 'We could not confirm your earlier deposit yet.'
+                      : 'We could not confirm your earlier deposit '
+                          '($short) yet.',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'A new deposit can only start once it is confirmed. Nothing '
+            'was charged again — the same deposit is re-checked.',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              decoration: TextDecoration.none,
+            ),
+          ),
+          if (!checking) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onRetry,
+                style: TextButton.styleFrom(
+                  backgroundColor: colors.accentSurface,
+                  foregroundColor: colors.accent,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Check again',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

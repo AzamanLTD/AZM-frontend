@@ -28,10 +28,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azaman/models/user_model.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
+import 'package:azaman/services/deposit_continuations.dart';
 import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
@@ -539,4 +543,136 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     });
   });
+
+  // ── REVIEW GAP 1 + FIX 3: initiation window + submitted continuations ────
+  group('4 — initial-submit race guard + submitted continuation', () {
+    // In-memory secure storage so the continuation lifecycle is asserted
+    // against the REAL service over the same async API.
+    final contStorage = _MemSecureStorage();
+    late DepositContinuationsService contSvc;
+
+    Widget appWithAuth() {
+      contStorage.store.clear();
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith(
+            (ref) => _FixedAuth(User(
+              id: 'user-7',
+              username: 'me',
+              email: 'me@example.com',
+              token: 'tok',
+              role: 'USER',
+              azamanId: 'AZM-999999999',
+            )),
+          ),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: _router()),
+      );
+    }
+
+    testWidgets('every close gesture is guarded while the initiation is in '
+        'flight — no draft, no close, honest notice', (tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithAuth());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+
+      final gate = Completer<void>();
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': 'DEP-RACE-1', 'status': 'PENDING'},
+      }, gate);
+
+      await tester.tap(find.text('Add Cash').last); // CTA
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text('Confirm')); // name dialog
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // The initiate request is now HELD at the gate — the exact window
+      // in which a saved draft could not honestly represent the
+      // operation. Every close gesture must be refused.
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Keep for 5 minutes'), findsNothing,
+          reason: 'the exit prompt must not appear while the initiation '
+              'is in flight');
+      expect(find.textContaining('Setting up your deposit'), findsOneWidget);
+      // Still on the surface — the operation owns the window.
+      expect(find.bySemanticsLabel('Close Add Cash'), findsOneWidget);
+
+      // No draft was saved for the race window.
+      expect(_unexpectedCalls, isEmpty);
+
+      // Outcome arrives: the reference is durable and a continuation is
+      // recorded (FIX 3) — NOW closing is safely representable.
+      gate.complete();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final stored = await contSvc.loadForUser('user-7');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-RACE-1',
+          reason: 'the submitted operation enters the continuation '
+              'lifecycle the moment its reference is durable');
+
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsOneWidget,
+          reason: 'once the outcome is representable the close prompt '
+              'returns');
+    });
+  });
+}
+
+/// In-memory FlutterSecureStorage for the continuation service — same
+/// async API surface the production service calls.
+class _MemSecureStorage implements FlutterSecureStorage {
+  final Map<String, String> store = {};
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final named = invocation.namedArguments;
+    switch (invocation.memberName) {
+      case #read:
+        return Future.value(store[named[#key] as String]);
+      case #write:
+        final key = named[#key] as String;
+        final value = named[#value] as String?;
+        if (value == null) {
+          store.remove(key);
+        } else {
+          store[key] = value;
+        }
+        return Future.value();
+      case #delete:
+        store.remove(named[#key] as String);
+        return Future.value();
+      case #deleteAll:
+        store.clear();
+        return Future.value();
+      default:
+        throw UnimplementedError('${invocation.memberName}');
+    }
+  }
+}
+
+/// Real-shaped auth: a logged-in user so user-scoped persistence works.
+class _FixedAuth extends AuthProvider {
+  _FixedAuth(this.sessionUser);
+  final User sessionUser;
+  @override
+  User? get user => sessionUser;
+  @override
+  Future<void> fetchUserDetails() async {}
 }

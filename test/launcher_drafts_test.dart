@@ -2,6 +2,7 @@
 // contract — stable (user, surface) identity, wall-clock expiry at
 // every read, explicit-Keep-only renewal, user scoping, logout
 // clearing, and the guard's empty-form / Keep / Discard paths.
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -43,6 +44,61 @@ class _FakeSecureStorage implements FlutterSecureStorage {
         return Future.value(store.containsKey(named[#key] as String));
       case #readAll:
         return Future.value(Map.of(store));
+      default:
+        throw UnimplementedError('${invocation.memberName}');
+    }
+  }
+}
+
+/// A storage whose READS can be held open and released by the test —
+/// the seam that makes "the old user's storage request resolves AFTER
+/// the new user's load" an observable, deliberate interleaving.
+///
+/// The async call chain consumes a held completer synchronously
+/// (noSuchMethod dispatch), so consumed-but-unreleased completers are
+/// kept in [_active] for the test's release() to complete.
+class _GatedSecureStorage implements FlutterSecureStorage {
+  final Map<String, String> store = {};
+  final List<Completer<String?>> _held = [];
+  final List<Completer<String?>> _active = [];
+
+  /// Holds the NEXT storage read until the test releases it.
+  void holdNextRead() => _held.add(Completer<String?>());
+
+  /// Resolves the oldest in-flight (or still-held) read with [value].
+  void release([String? value]) {
+    final c = _active.isNotEmpty
+        ? _active.removeAt(0)
+        : (_held.isNotEmpty ? _held.removeAt(0) : null);
+    c?.complete(value);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final named = invocation.namedArguments;
+    switch (invocation.memberName) {
+      case #read:
+        if (_held.isNotEmpty) {
+          final c = _held.removeAt(0);
+          _active.add(c);
+          return c.future;
+        }
+        return Future.value(store[named[#key] as String]);
+      case #write:
+        final key = named[#key] as String;
+        final value = named[#value] as String?;
+        if (value == null) {
+          store.remove(key);
+        } else {
+          store[key] = value;
+        }
+        return Future.value();
+      case #delete:
+        store.remove(named[#key] as String);
+        return Future.value();
+      case #deleteAll:
+        store.clear();
+        return Future.value();
       default:
         throw UnimplementedError('${invocation.memberName}');
     }
@@ -300,26 +356,120 @@ void main() {
       expect(storage.store, isEmpty);
     });
 
-    test('clearForLogout wipes state and the stored block', () async {
-      final overridden = ProviderContainer(
-        overrides: [
-          launcherDraftsProvider.overrideWith(
-            (ref) => LauncherDraftsController(
-              LauncherDraftsService(storage: storage),
-            ),
-          ),
-        ],
-      );
-      addTearDown(overridden.dispose);
-      final c = overridden.read(launcherDraftsProvider.notifier);
-      final now = DateTime.now().millisecondsSinceEpoch;
-      await c.loadForUser(uid);
-      await c.keepDraft(
-        draft(surface: LauncherSurface.convert, savedAtMs: now),
-      );
-      await c.clearForLogout();
-      expect(overridden.read(launcherDraftsProvider).drafts, isEmpty);
-      expect(storage.store['azm.launcher.drafts.$uid'], isNull);
+  });
+
+  group('generation guard — in-flight reads never cross users '
+      '(review gap 4)', () {
+    LauncherDraftsController controllerOf(_GatedSecureStorage gated) =>
+        LauncherDraftsController(LauncherDraftsService(storage: gated));
+
+    test("an old user's storage read resolving AFTER the new user's "
+        'load cannot overwrite the active state', () async {
+      final gated = _GatedSecureStorage();
+      final controller = controllerOf(gated);
+
+      // user-1 begins a load; its storage read is HELD open.
+      gated.holdNextRead();
+      final stale = controller.loadForUser('user-1');
+
+      // user-2 loads and completes FIRST (fresh storage: empty list).
+      await controller.loadForUser('user-2');
+      expect(controller.state.userId, 'user-2');
+      expect(controller.state.drafts, isEmpty);
+
+      // NOW the old user's read resolves with a real draft payload.
+      gated.release(jsonEncode([
+        {
+          'id': 'addCash.user-1',
+          'surface': 'addCash',
+          'savedAtMs': DateTime.now().millisecondsSinceEpoch,
+          'payload': {'amountRaw': '50'},
+        }
+      ]));
+      await stale;
+
+      // The stale generation is DISCARDED: the active user's state is
+      // untouched — no cross-user bleed, no resurrected drafts.
+      expect(controller.state.userId, 'user-2',
+          reason: 'the late old-user completion must not steal state');
+      expect(controller.state.drafts, isEmpty);
+    });
+
+    test('clearForLogout (logout / account switch / session invalidation) '
+        'cannot be undone by an in-flight storage read', () async {
+      final gated = _GatedSecureStorage();
+      final controller = controllerOf(gated);
+
+      // user-1 has a real stored draft and a completed load — the
+      // normal steady state before any logout or session invalidation.
+      gated.store['azm.launcher.drafts.user-1'] = jsonEncode([
+        {
+          'id': 'addCash.user-1',
+          'surface': 'addCash',
+          'savedAtMs': DateTime.now().millisecondsSinceEpoch,
+          'payload': {'amountRaw': '50'},
+        }
+      ]);
+      await controller.loadForUser('user-1');
+      expect(controller.state.userId, 'user-1');
+
+      // A refresh (the centre's open, or the foreground-return sweep)
+      // is now HELD in flight.
+      final payload = gated.store['azm.launcher.drafts.user-1']!;
+      gated.holdNextRead();
+      final stale = controller.loadForUser('user-1');
+
+      // The session ends while the read is still in flight.
+      await controller.clearForLogout();
+      expect(controller.state.userId, isNull);
+      expect(controller.state.drafts, isEmpty);
+      expect(gated.store.containsKey('azm.launcher.drafts.user-1'), isFalse,
+          reason: 'logout clears the stored block');
+
+      // The in-flight read completes AFTER the cleanup, delivering the
+      // payload it captured BEFORE the block was cleared. The state
+      // must stay empty.
+      gated.release(payload);
+      await stale;
+      expect(controller.state.userId, isNull);
+      expect(controller.state.drafts, isEmpty);
+    });
+
+    test('a load held across a user switch resolves for the FIRST user but '
+        'publishes nothing', () async {
+      final gated = _GatedSecureStorage();
+      final controller = controllerOf(gated);
+
+      gated.store['azm.launcher.drafts.user-1'] = jsonEncode([
+        {
+          'id': 'send.user-1',
+          'surface': 'send',
+          'savedAtMs': DateTime.now().millisecondsSinceEpoch,
+          'payload': {'amountRaw': '10'},
+        }
+      ]);
+      gated.holdNextRead();
+      final first = controller.loadForUser('user-1');
+
+      // user-2 arrives with a draft of their own.
+      gated.store['azm.launcher.drafts.user-2'] = jsonEncode([
+        {
+          'id': 'send.user-2',
+          'surface': 'send',
+          'savedAtMs': DateTime.now().millisecondsSinceEpoch,
+          'payload': {'amountRaw': '20'},
+        }
+      ]);
+      await controller.loadForUser('user-2');
+      expect(controller.state.drafts, hasLength(1));
+      expect(controller.state.drafts.single.id, 'send.user-2');
+
+      gated.release(gated.store['azm.launcher.drafts.user-1']);
+      await first;
+
+      // The late user-1 completion must NOT replace user-2's list.
+      expect(controller.state.userId, 'user-2');
+      expect(controller.state.drafts.single.id, 'send.user-2');
     });
   });
 

@@ -255,6 +255,14 @@ class LauncherDraftsController extends StateNotifier<LauncherDraftsState> {
 
   final LauncherDraftsService _service;
 
+  /// GENERATION GUARD (review gap 4): every load and every invalidation
+  /// bumps the generation; a storage read started under an older
+  /// generation completes into the void instead of overwriting the
+  /// active user's draft state. Covers direct account switching,
+  /// session invalidation and explicit logout alike — cleanup can
+  /// never be undone by an in-flight storage read.
+  int _generation = 0;
+
   /// Stable identity for a (user, surface) pair — the id that makes
   /// repeated close/Keep/reopen cycles an UPSERT instead of a duplicate.
   static String draftId(String userId, LauncherSurface surface) =>
@@ -263,11 +271,16 @@ class LauncherDraftsController extends StateNotifier<LauncherDraftsState> {
   /// One of the three expiry-enforcement points: the notification centre's
   /// open calls this, and the service already drops expired records.
   Future<void> loadForUser(String? userId) async {
+    final gen = ++_generation;
     if (userId == null || userId.isEmpty) {
       state = const LauncherDraftsState();
       return;
     }
     final drafts = await _service.loadForUser(userId);
+    // A late completion from an older generation must not overwrite the
+    // active user's state — the request was made for a user the session
+    // has since left behind.
+    if (gen != _generation) return;
     state = LauncherDraftsState(userId: userId, drafts: drafts);
   }
 
@@ -289,8 +302,11 @@ class LauncherDraftsController extends StateNotifier<LauncherDraftsState> {
     await loadForUser(uid);
   }
 
-  /// Logout / account switch.
+  /// Logout / account switch / session invalidation. Bumps the
+  /// generation FIRST so an in-flight loadForUser cannot complete into
+  /// state after the cleanup and resurrect the outgoing user's drafts.
   Future<void> clearForLogout() async {
+    ++_generation;
     final uid = state.userId;
     state = const LauncherDraftsState();
     if (uid != null) await _service.clearAll(uid);

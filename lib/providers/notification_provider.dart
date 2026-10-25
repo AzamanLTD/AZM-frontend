@@ -12,6 +12,13 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   // dismissal contract is testable against fake HTTP + socket edges.
   final ApiClient _api;
   final SocketService? _socketOverride;
+  // REVIEW GAP 5 — same-ID rollback race: a DISMISSED socket event for
+  // an id is the SERVER saying that row is durably gone in every
+  // session. Once recorded here, a subsequently FAILED local delete for
+  // that same id can never roll the item back — the server's answer
+  // outranks our rejected request. Soft dismissal is permanent
+  // server-side, so ids collected here never legitimately reappear.
+  final Set<String> _authoritativelyDismissed = <String>{};
   // Captured at construction: dispose() must not read providers (the
   // container may be mid-teardown, which crashes Riverpod).
   late final SocketService _socketService;
@@ -66,6 +73,7 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
         // Idempotent: an already-absent id is a no-op.
         final id = raw['notificationId']?.toString();
         if (id != null && id.isNotEmpty) {
+          _authoritativelyDismissed.add(id);
           _applyDismissedLocal(id);
         }
       }
@@ -232,7 +240,10 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
     state = state.where((n) => n.id != id).toList();
     try {
       final response = await _api.delete('/notifications/$id');
-      if (response.statusCode == 200) return true;
+      if (response.statusCode == 200) {
+        _authoritativelyDismissed.add(id);
+        return true;
+      }
       debugPrint(
           '[NotificationProvider] dismissal rejected: ${response.statusCode}');
     } catch (e) {
@@ -248,6 +259,11 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   /// stale optimistic removal. Every OTHER item keeps whatever state
   /// the concurrent operations left it in.
   void _restoreDismissed(AppNotification item, int originalIndex) {
+    // SAME-ID RACE (review gap 5): if the server has since confirmed
+    // this exact item dismissed (socket DISMISSED arrived while our
+    // HTTP request was in flight), the failed delete must NOT resurrect
+    // it. The item stays absent and the unread count stays settled.
+    if (_authoritativelyDismissed.contains(item.id)) return;
     if (state.any((n) => n.id == item.id)) return;
     final next = [...state];
     next.insert(originalIndex.clamp(0, next.length), item);

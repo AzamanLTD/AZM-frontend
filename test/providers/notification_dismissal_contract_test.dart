@@ -393,6 +393,34 @@ void main() {
       expect(h.state.firstWhere((n) => n.id == 'b').isRead, isTrue);
     });
 
+    test('SAME-ID race: a socket dismissal arriving for the EXACT item '
+        'whose delete is in flight must survive that delete failing',
+        () async {
+      final h = _Harness();
+      addTearDown(h.dispose);
+      h.seed([_n('a')]);
+
+      // Hold the DELETE open so the socket event lands mid-flight.
+      final gate = Completer<http.Response>();
+      h.api.onDelete = (_) => gate.future;
+      final pending = h.notifier.deleteNotification('a');
+
+      // While 'a' is in flight, ANOTHER session dismisses the SAME
+      // item — the server confirms it durably for the whole account.
+      h.socket.serverBroadcast(
+          {'type': 'DISMISSED', 'notificationId': 'a'});
+
+      // Our own request is then rejected (500). The pre-fix rollback
+      // would resurrect 'a' because the list no longer contained it.
+      gate.complete(http.Response('{}', 500));
+      final ok = await pending;
+
+      expect(ok, isFalse);
+      expect(h.state.map((n) => n.id), isNot(contains('a')),
+          reason: "the server's confirmed dismissal outranks our "
+              'rejected request — the item can never resurrect');
+    });
+
     test('dismissing an item another session already dismissed is idempotent',
         () async {
       final h = _Harness();
