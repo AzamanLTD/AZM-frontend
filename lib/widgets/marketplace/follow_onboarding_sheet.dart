@@ -14,10 +14,11 @@
 //    is reported as exactly what it is, failed rows can be retried
 //    without touching the succeeded ones, and a pending request can
 //    never be duplicated;
-//  * completion needs min(5, eligible count) CONFIRMED follows — with
-//    fewer than five eligible businesses the user is never trapped:
-//    any honest selection can be confirmed and a discovery fallback
-//    (browse the marketplace) is offered;
+//  * completion needs min(5, eligible count) CONFIRMED follows when
+//    five or more businesses are eligible; with fewer than five the
+//    user is never trapped by the catalogue size: their own honest
+//    selection completes, and a persistently failing row still has
+//    the discovery fallback (browse the marketplace) as an exit;
 //  * "Maybe later" leaves with zero mutations (nothing selected and
 //    nothing requested — this sheet's close is not the spotlight's
 //    dismissal and does not persist anything);
@@ -161,9 +162,6 @@ class _FollowOnboardingSheetState extends ConsumerState<FollowOnboardingSheet> {
   bool get _anyPending =>
       _rows.any((r) => r.status == _FollowPickStatus.pending);
 
-  int get _target =>
-      _rows.length < _targetFollows ? _rows.length : _targetFollows;
-
   void _toggleSelect(_FollowPickRow row) {
     if (_submitting || row.status != _FollowPickStatus.idle) return;
     setState(() => row.selected = !row.selected);
@@ -216,11 +214,20 @@ class _FollowOnboardingSheetState extends ConsumerState<FollowOnboardingSheet> {
 
     if (!mounted) return;
     setState(() => _submitting = false);
-    // Completion is judged ONLY on CONFIRMED follows.
+    // Completion is judged ONLY on CONFIRMED follows. With five or
+    // more eligible businesses the bar is the documented target of
+    // five. With FEWER than five the user is never trapped by the
+    // catalogue size: their own honest selection IS the target — a
+    // settled confirm with zero failures completes (spec: "any
+    // honest selection can be confirmed").
     final confirmed = _rows
         .where((r) => r.status == _FollowPickStatus.confirmed)
         .length;
-    if (confirmed > 0 && confirmed >= _target) {
+    final complete = confirmed > 0 &&
+        (_rows.length >= _targetFollows
+            ? confirmed >= _targetFollows
+            : _failedCount == 0);
+    if (complete) {
       setState(() => _done = true);
     }
   }
@@ -410,7 +417,7 @@ class _FollowOnboardingSheetState extends ConsumerState<FollowOnboardingSheet> {
       );
     }
     if (_failedCount > 0) {
-      return FilledButton.tonal(
+      final retry = FilledButton.tonal(
         key: const ValueKey('follow-onboarding-sheet-retry'),
         onPressed: _submitting || _anyPending ? null : _retryFailed,
         child: _submitting || _anyPending
@@ -421,6 +428,26 @@ class _FollowOnboardingSheetState extends ConsumerState<FollowOnboardingSheet> {
               )
             : Text('Retry $_failedCount failed'),
       );
+      // Spec: with fewer than five eligible businesses the user is
+      // never trapped by a row that keeps failing — the discovery
+      // fallback (browse the marketplace) is always offered. It is
+      // an honest exit: confirmed follows are real and durable; the
+      // failed rows simply remain unfollowed.
+      if (_rows.length < _targetFollows) {
+        return Row(
+          children: [
+            Expanded(child: retry),
+            TextButton(
+              key: const ValueKey('follow-onboarding-sheet-browse'),
+              onPressed: _submitting || _anyPending
+                  ? null
+                  : () => Navigator.of(context).pop(),
+              child: const Text('Browse marketplace'),
+            ),
+          ],
+        );
+      }
+      return retry;
     }
     final n = _selectedCount;
     return FilledButton(

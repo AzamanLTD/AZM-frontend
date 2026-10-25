@@ -662,6 +662,99 @@ void main() {
       );
     });
 
+    testWidgets('one of three followed: an honest under-five '
+        'selection completes — the catalogue size never traps the '
+        'user', (tester) async {
+      final client = _FakeSheetClient();
+      await _openSheet(
+        tester,
+        sheetClient: client,
+        service: _FakeBusinessService(_catalogue(3)),
+      );
+
+      await _selectRow(tester, 'bp-1');
+      await tester.tap(
+        find.byKey(const ValueKey('follow-onboarding-sheet-confirm')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(client.followCalls, ['bp-1']);
+      expect(
+        find.text('Following 1 business — done'),
+        findsOneWidget,
+        reason:
+            'with fewer than five eligible businesses the user '
+            'own honest selection is the completion target — '
+            'requiring ALL rows would trap anyone who does not '
+            'care about the rest',
+      );
+    });
+
+    testWidgets('a persistently failing row under five: retry stays '
+        'honest and the browse-the-marketplace fallback is always '
+        'offered — never trapped', (tester) async {
+      final client = _FakeSheetClient(failIds: {'bp-2'});
+      await _openSheet(
+        tester,
+        sheetClient: client,
+        service: _FakeBusinessService(_catalogue(3)),
+      );
+
+      for (final n in [1, 2, 3]) {
+        await _selectRow(tester, 'bp-$n');
+      }
+      await tester.tap(
+        find.byKey(const ValueKey('follow-onboarding-sheet-confirm')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Followed 2 of 3 — the rest can be retried.'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('follow-onboarding-sheet-retry')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('follow-onboarding-sheet-browse')),
+        findsOneWidget,
+        reason:
+            'the spec-promised discovery fallback must exist when '
+            'a row can keep failing forever',
+      );
+      expect(
+        find.byKey(const ValueKey('follow-onboarding-sheet-done')),
+        findsNothing,
+        reason: 'a failed follow can never masquerade as done',
+      );
+
+      // Retry re-fires ONLY the failed row — still failing here.
+      await tester.tap(
+        find.byKey(const ValueKey('follow-onboarding-sheet-retry')),
+      );
+      await tester.pumpAndSettle();
+      expect(client.followCalls.length, 4,
+          reason: 'bp-1/bp-3 once each, bp-2 twice (confirm + retry)');
+      expect(
+        find.byKey(const ValueKey('follow-onboarding-sheet-browse')),
+        findsOneWidget,
+        reason: 'the fallback survives a failed retry',
+      );
+
+      // The fallback is an honest exit: confirmed follows are real,
+      // nothing else is mutated, the sheet closes.
+      await tester.tap(
+        find.byKey(const ValueKey('follow-onboarding-sheet-browse')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('follow-onboarding-pick-bp-1')),
+        findsNothing,
+        reason: 'the sheet is gone; the two real follows persist',
+      );
+    });
+
     testWidgets('empty catalogue: honest absence, no invented '
         'businesses', (tester) async {
       final client = _FakeSheetClient();
