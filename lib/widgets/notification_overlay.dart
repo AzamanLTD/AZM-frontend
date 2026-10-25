@@ -1298,7 +1298,6 @@ class _SlideState extends State<_SlideRevealNotification>
                                     decoration: TextDecoration.none,
                                   ),
                                 ),
-                              ),
                               if (_dismissFailed) ...[
                                 const SizedBox(height: 2),
                                 Text(
