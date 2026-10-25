@@ -1,6 +1,7 @@
 /// Store action row (Overhaul 03 §1.2): primary intent · save · share · follow.
 ///
-/// Save is bound to the existing `savedBusinessesProvider`; share and follow
+/// Save is bound to the durable server-bookmark seam (demo keeps the
+/// device-local wishlist); share and follow
 /// are *callbacks* into the storefront shell, which already owns follow state
 /// (`isFollowing` is a shell input) — this row never introduces a second
 /// source of truth. No "Storefront" button lives here (brief §5.5).
@@ -12,7 +13,7 @@ import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/marketplace/experience/marketplace_experience_capabilities.dart';
 import 'package:azaman/models/business_models.dart';
-import 'package:azaman/providers/saved_businesses_provider.dart';
+import 'package:azaman/providers/server_bookmarks_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
@@ -60,7 +61,7 @@ class StoreActionRow extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: AzSpace.sm),
-          StoreBookmarkToggle(bizId: business.bizId),
+          StoreBookmarkToggle(business: business),
           if (onShare != null) ...[
             const SizedBox(width: AzSpace.xs),
             _RoundIcon(
@@ -88,17 +89,18 @@ class StoreActionRow extends ConsumerWidget {
   }
 }
 
-/// Bookmark bound to `savedBusinessesProvider` (the result card is
-/// gone; nothing to reuse).
+/// Bookmark bound to the durable server-bookmark seam
+/// (`isBusinessSaved`/`toggleBusinessSaved`); demo mode keeps the
+/// device-local wishlist.
 class StoreBookmarkToggle extends ConsumerWidget {
-  final String bizId;
+  final BusinessProfile business;
 
-  const StoreBookmarkToggle({super.key, required this.bizId});
+  const StoreBookmarkToggle({super.key, required this.business});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final saved = ref.watch(savedBusinessesProvider.select((s) => s.contains(bizId)));
+    final saved = isBusinessSaved(ref, business);
     return _RoundIcon(
       key: ValueKey('store_bookmark_${saved ? 'on' : 'off'}'),
       icon: saved ? HugeIconsSolid.bookmark02 : HugeIconsSolid.bookmark01,
@@ -107,7 +109,7 @@ class StoreBookmarkToggle extends ConsumerWidget {
       colors: colors,
       onTap: () {
         AzamanHaptics.toggle();
-        ref.read(savedBusinessesProvider.notifier).toggle(bizId);
+        toggleBusinessSaved(context, ref, business);
       },
     );
   }
