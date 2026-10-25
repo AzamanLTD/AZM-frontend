@@ -1,5 +1,5 @@
 // =============================================================================
-// AZAMAN — WORKSTREAM C: WITHDRAW SURFACE CAPTURE EVIDENCE
+// AZAMAN — WORKSTREAM C: WITHDRAW SURFACE CAPTURE EVIDENCE GENERATOR
 //
 // Generates the capture set for the withdraw surface redesign:
 //   docs/captures/withdraw/withdraw_<state>_<theme>_<width>dp.png
@@ -9,13 +9,19 @@
 //   • theme: light | dark (the app's two identities)
 //   • width: 320 | 360 | 390 dp
 //
-// The suite is self-contained (it writes PNGs, it compares nothing), so it
-// passes in any environment; the artifacts are the evidence. Run:
-//   flutter test test/widgets/withdraw_captures_test.dart -j 1
+// THIS FILE LIVES IN tool/captures — NOT under test/ — ON PURPOSE:
+//   1. It is an evidence generator, not a regression suite. `flutter test`
+//      (what CI runs for the quality battery) only discovers test/ and
+//      the twelve full-app pumps + PNG rasterisations here cost many
+//      minutes, which pushed the CI "Test with coverage" step past its
+//      15-minute job timeout (first run of PR #193: cancelled at 15:18).
+//   2. Some local harnesses deadlock on the SECOND image capture within
+//      one process; the matrix is generated one combo per invocation.
 //
-// Harness lessons from PR #184: capture a boundary whose subtree paints
-// opaquely — MaterialApp.router + Scaffold paint their own background,
-// so the root boundary is opaque (no transparent-buffer tofu).
+// Run (one combo at a time; a plain `flutter test` bare would pick up
+// nothing from this directory):
+//   flutter test tool/captures/withdraw_captures_test.dart \
+//     --plain-name "capture 320 light empty"
 // =============================================================================
 
 import 'dart:io';
@@ -112,12 +118,15 @@ Future<void> _capture(
     tester.view.resetDevicePixelRatio();
   });
 
+  // Runs under the flutter_test binding (it IS a test file — it just
+  // lives in tool/ so CI's battery never picks it up), so the mock
+  // preferences API is exactly the right tool here.
+  // ignore: invalid_use_of_visible_for_testing_member
   SharedPreferences.setMockInitialValues(
       {'azaman_theme': themeIdx, 'biometric_lock_enabled': false});
   await _mockSecureStorage();
 
   final boundaryKey = GlobalKey();
-  debugPrint('CAP: pumpWidget');
   await tester.pumpWidget(
     RepaintBoundary(
       key: boundaryKey,
@@ -131,10 +140,8 @@ Future<void> _capture(
     ),
   );
   await tester.pumpAndSettle();
-  debugPrint('CAP: base settled');
   await tester.tap(find.byKey(const ValueKey('base-marker')));
   await tester.pumpAndSettle();
-  debugPrint('CAP: surface settled');
 
   if (prepared) {
     // Saved account picked + amount composed: the reference affordance,
@@ -153,7 +160,6 @@ Future<void> _capture(
     await tester.pumpAndSettle();
   }
 
-  debugPrint('CAP: capturing');
   final boundary = boundaryKey.currentContext!.findRenderObject()
       as RenderRepaintBoundary;
   final image = await boundary.toImage(pixelRatio: 1.0);
@@ -163,7 +169,6 @@ Future<void> _capture(
   final file = File(
       '${dir.path}/withdraw_${stateName}_$themeName-${logicalWidth.toInt()}dp.png');
   file.writeAsBytesSync(data!.buffer.asUint8List());
-  debugPrint('CAP: wrote ${file.path}');
   expect(file.existsSync(), isTrue, reason: 'capture written: ${file.path}');
 }
 
