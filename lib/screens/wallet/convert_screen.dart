@@ -215,14 +215,30 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
         ),
         body: SafeArea(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
+              // REFERENCE FIDELITY (Binance Convert) — the From/To
+              // card pair with the direction switch rendered as a
+              // seam disc centred between them. The OverflowBox slot
+              // is exactly the cards' gap: the disc paints over both
+              // cards' inner edges while its CENTRE (the tap point)
+              // stays inside the slot, so the control is honestly
+              // hit-testable — no phantom button painted out of reach.
               _FromPanel(
                 controller: _amountCtrl,
                 reversed: _reversed,
-                onSwitchDirection: _switchDirection,
               ),
-              const SizedBox(height: 18),
+              SizedBox(
+                height: 16,
+                child: OverflowBox(
+                  maxWidth: double.infinity,
+                  maxHeight: double.infinity,
+                  child: _DirectionSwitchButton(
+                    reversed: _reversed,
+                    onPressed: _switchDirection,
+                  ),
+                ),
+              ),
               _ToPanel(
                 snapshot: snapshot.valueOrNull,
                 loading: snapshot.isLoading,
@@ -242,21 +258,22 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
   }
 }
 
-// §D — FROM PANEL. The amount side of the pair. Ledger truth drives
-// what it can honestly say: USDC is the settled currency, so the
-// balance line exists ONLY when the canonical balance read has actually
-// loaded (never a fabricated figure) and ONLY on the USDC side — GHS
-// has no balance to disclose (it is a display/quote currency).
+// §D — FROM PANEL. The amount side of the pair, laid out per the
+// Binance reference: 'From' caption with the settled-balance line
+// top-right, the fixed asset pill beside the BIG right-aligned amount,
+// and 'Max' bottom-right. Ledger truth drives what it can honestly
+// say: USDC is the settled currency, so the balance line exists ONLY
+// when the canonical balance read has actually loaded (never a
+// fabricated figure) and ONLY on the USDC side — GHS has no balance
+// to disclose (it is a display/quote currency).
 class _FromPanel extends StatelessWidget {
   const _FromPanel({
     required this.controller,
     required this.reversed,
-    required this.onSwitchDirection,
   });
 
   final TextEditingController controller;
   final bool reversed;
-  final VoidCallback onSwitchDirection;
 
   @override
   Widget build(BuildContext context) {
@@ -269,84 +286,127 @@ class _FromPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(
-                child: _assetHeading(
-                  colors,
-                  code: reversed ? 'GHS' : 'USDC',
-                  label: reversed ? 'Display currency' : 'Settled balance',
+              Text(
+                'From',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.onSurfaceVariant,
                 ),
               ),
-              _DirectionSwitchButton(
-                reversed: reversed,
-                onPressed: onSwitchDirection,
-              ),
+              const Spacer(),
+              if (!reversed) const _UsdcBalanceLine(),
             ],
           ),
           const SizedBox(height: 12),
+          // Asset pill (left) beside the BIG right-aligned amount — the
+          // reference's core From row. The pair is FIXED (there is
+          // exactly one honest pair, USDC ⇄ GHS), so no dropdown caret
+          // pretends a picker that does not exist.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _AssetPill(
+                code: reversed ? 'GHS' : 'USDC',
+                subLabel: reversed ? 'Display currency' : 'Settled balance',
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _AmountField(controller: controller, reversed: reversed),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  'Amount (${reversed ? 'GHS' : 'USDC'})',
-                  key: const Key('convert_amount_label'),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: colors.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              // IMAGE-A FIDELITY — the 'Max' quick-fill from the Buy/Sell
-              // reference. It appears ONLY in the forward direction when
-              // the canonical balance read has actually loaded; the fill
-              // is the raw available figure (no invented buffer math,
-              // no rounding games — the estimate above stays
-              // display-only and the execution gate stays closed).
+              const Spacer(),
+              // IMAGE-A FIDELITY — 'Max' bottom-right in the accent
+              // color; rendered only when an honest figure exists.
               if (!reversed) _MaxFillButton(controller: controller),
             ],
           ),
-          const SizedBox(height: 8),
-          _AmountField(controller: controller, reversed: reversed),
-          // BALANCE INFO — only where the contract supports it: the
-          // canonical USDC balance read has loaded AND the From asset is
-          // the settled currency. Any other state omits the line rather
-          // than inventing a number.
-          if (!reversed) const _UsdcBalanceLine(),
         ],
       ),
     );
   }
+}
 
-  Widget _assetHeading(
-    ColorScheme colors, {
-    required String code,
-    required String label,
-  }) {
+/// The fixed asset pill on each card: a disc with the currency initial
+/// plus the code. Static by contract — USDC is the only settled ledger
+/// currency and GHS the only quote currency; a caret here would imply
+/// a picker that does not exist.
+class _AssetPill extends StatelessWidget {
+  const _AssetPill({
+    required this.code,
+    this.textKey,
+    this.subLabel,
+  });
+
+  final String code;
+  final Key? textKey;
+  final String? subLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          code,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: colors.onSurface,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: colors.primary.withValues(alpha: 0.12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                code.substring(0, 1),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: colors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              code,
+              key: textKey,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: colors.onSurface,
+              ),
+            ),
+          ],
+        ),
+        if (subLabel != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            subLabel!,
+            style: TextStyle(
+              fontSize: 11.5,
+              color: colors.onSurfaceVariant,
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
-        ),
+        ],
       ],
     );
   }
 }
 
-/// The direction switch. Subtle by design: a 180° icon rotation over
-/// 220ms — under reduced motion (`disableAnimations`) the framework
-/// snaps it with no transit. It NEVER implies money moved: switching
-/// clears the amount (digits are never relabelled) and nothing else on
-/// the screen carries a value across the switch.
+/// The direction switch, rendered as the SEAM DISC between the From
+/// and To cards (REFERENCE FIDELITY: a circular button with vertical
+/// swap arrows centred on the pair's seam). A 180° icon rotation over
+/// 220ms — under reduced motion the framework snaps it with no transit.
+/// It NEVER implies money moved: switching clears the amount (digits
+/// are never relabelled) and nothing else on the screen carries a
+/// value across the switch.
 class _DirectionSwitchButton extends StatelessWidget {
   const _DirectionSwitchButton({
     required this.reversed,
@@ -363,15 +423,28 @@ class _DirectionSwitchButton extends StatelessWidget {
       key: const Key('convert_direction_switch'),
       button: true,
       tooltip: 'Switch conversion direction. Display only — nothing converts.',
-      child: IconButton(
-        onPressed: onPressed,
-        icon: AnimatedRotation(
-          turns: reversed ? 0.5 : 0.0,
-          duration: const Duration(milliseconds: 220),
-          child: Icon(
-            Icons.swap_vert,
-            color: colors.onSurfaceVariant,
-            size: 22,
+      child: Material(
+        color: Color.alphaBlend(
+          colors.onSurface.withValues(alpha: 0.08),
+          colors.surface,
+        ),
+        shape: const CircleBorder(),
+        elevation: 0,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: AnimatedRotation(
+              turns: reversed ? 0.5 : 0.0,
+              duration: const Duration(milliseconds: 220),
+              child: Icon(
+                Icons.swap_vert,
+                color: colors.onSurface,
+                size: 24,
+              ),
+            ),
           ),
         ),
       ),
@@ -396,16 +469,28 @@ class _UsdcBalanceLine extends ConsumerWidget {
     if (!balance.isFinite || balance < 0) {
       return const SizedBox.shrink(key: Key('convert_from_balance_absent'));
     }
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Text(
-        'USDC balance ${balance.toStringAsFixed(2)}',
-        key: const Key('convert_from_balance'),
-        style: TextStyle(
-          fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+    final colors = Theme.of(context).colorScheme;
+    // REFERENCE FIDELITY — wallet glyph + raw canonical figure,
+    // top-right of the From card.
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.account_balance_wallet_outlined,
+          size: 13,
+          color: colors.onSurfaceVariant,
         ),
-      ),
+        const SizedBox(width: 4),
+        Text(
+          'USDC balance ${balance.toStringAsFixed(2)}',
+          key: const Key('convert_from_balance'),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -461,8 +546,10 @@ class _MaxFillButton extends ConsumerWidget {
 }
 
 /// Amount entry with the money contract (numeric family, ≈/₵ glyph
-/// source) and the DISPLAY-ONLY arithmetic guards. Kept as its own
-/// widget so the From panel reads as a composition, not a monolith.
+/// source) and the DISPLAY-ONLY arithmetic guards. Rendered per the
+/// reference: borderless (the card is the field's frame), set as the
+/// card's BIG figure right of the asset pill. Kept as its own widget
+/// so the From panel reads as a composition, not a monolith.
 class _AmountField extends StatelessWidget {
   const _AmountField({required this.controller, required this.reversed});
 
@@ -476,38 +563,34 @@ class _AmountField extends StatelessWidget {
       key: const Key('convert_amount_field'),
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textAlign: TextAlign.right,
       inputFormatters: [
         // DOCUMENTED BOUND — 16 characters caps the field at
         // 9999999999999.99: sensible for a wallet, and the figure times
         // any realistic rate can never overflow a double. Programmatic
         // controller writes bypass formatters, which is why the
-        // isFinite guards in the estimate panel are also enforced.
+        // isFinite guards in the estimate widget are also enforced.
         LengthLimitingTextInputFormatter(16),
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
       ],
       style: AzText.money(
         colors.onSurface,
-        size: 20,
+        size: 26,
         weight: FontWeight.w800,
         tracking: 0,
       ),
       decoration: InputDecoration(
         hintText: reversed ? '0.00 GHS' : '0.00',
         hintStyle: AzText.money(
-          colors.onSurfaceVariant,
-          size: 20,
+          colors.onSurfaceVariant.withValues(alpha: 0.5),
+          size: 26,
           weight: FontWeight.w800,
           tracking: 0,
         ),
-        suffixText: reversed ? 'GHS' : 'USDC',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colors.outlineVariant),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: colors.outlineVariant),
-        ),
+        isDense: true,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
       ),
     );
   }
@@ -517,7 +600,7 @@ class _AmountField extends StatelessWidget {
 // rate/freshness strip. All the honesty machinery of the old estimate
 // card lives here, with its keys preserved:
 // • the live FX rate, when usable, is shown ONLY as a NONBINDING
-//   estimate — labeled as such, never a quote or a settled value;
+//   estimate — labeled as such, never as a quote or a settled value;
 // • a rate that is missing, stale or contradictory renders the honest
 //   unavailable state WITH its reason — never a stale number dressed
 //   up as a quote;
@@ -548,32 +631,45 @@ class _ToPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _assetHeading(colors),
+          // REFERENCE FIDELITY — 'To' caption, asset pill left, and
+          // the estimated-receive figure rendered as the card's BIG
+          // figure on the right (the slot the reference's computed
+          // amount occupies). Every estimate-state key is preserved.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'To',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(width: 12),
+              _AssetPill(
+                code: reversed ? 'USDC' : 'GHS',
+                textKey: const Key('convert_to_asset'),
+                subLabel: reversed ? 'Settled currency' : 'Display currency',
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: _ReceiveEstimate(
+                    snapshot: snapshot,
+                    loading: loading,
+                    controller: controller,
+                    reversed: reversed,
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           _rateStrip(context, colors),
         ],
       ),
-    );
-  }
-
-  Widget _assetHeading(ColorScheme colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          reversed ? 'USDC' : 'GHS',
-          key: const Key('convert_to_asset'),
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: colors.onSurface,
-          ),
-        ),
-        Text(
-          reversed ? 'Settled currency' : 'Display currency',
-          style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
-        ),
-      ],
     );
   }
 
@@ -654,85 +750,6 @@ class _ToPanel extends StatelessWidget {
           key: const Key('convert_estimate_disclaimer'),
           style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
         ),
-        const SizedBox(height: 12),
-        _receiveEstimate(colors, snap),
-      ],
-    );
-  }
-
-  Widget _receiveEstimate(ColorScheme colors, FxRateSnapshot snap) {
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: controller,
-      builder: (context, value, _) =>
-          _buildReceiveEstimate(colors, snap, value.text),
-    );
-  }
-
-  Widget _buildReceiveEstimate(
-    ColorScheme colors,
-    FxRateSnapshot snap,
-    String raw,
-  ) {
-    final rate = snap.ghsPerUsdc;
-    final amount = double.tryParse(raw.trim());
-    final amountEligible = amount != null && amount.isFinite && amount > 0;
-    // FORWARD: USDC × rate → GHS. REVERSED: GHS ÷ rate → USDC (rate is
-    // guaranteed positive by isUsableAt; the division can still overflow
-    // only for absurd inputs, guarded below).
-    final double? estimate = amountEligible
-        ? (reversed ? amount / rate : amount * rate)
-        : null;
-    final estimateUsable = estimate != null && estimate.isFinite;
-    // The honest non-numeric state fires for BOTH overflow paths: a
-    // programmatic controller write that parses as non-finite (Infinity
-    // parses > 0 — do NOT gate this on amountEligible, which requires
-    // isFinite) and a finite amount whose product with the rate is not
-    // finite.
-    final amountTooLarge = !estimateUsable && amount != null && amount > 0;
-    final toCode = reversed ? 'USDC' : 'GHS';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (estimateUsable)
-          Text(
-            '≈ ${reversed ? '' : 'GH₵ '}${estimate.toStringAsFixed(2)} $toCode',
-            key: const Key('convert_amount_estimate'),
-            semanticsLabel:
-                'Nonbinding estimate, ${estimate.toStringAsFixed(2)} '
-                '${reversed ? 'USDC' : 'cedis'}. Not a quote; nothing is '
-                'converted.',
-            // MONEY CONTRACT: the numeric family carries the ≈ and ₵
-            // glyphs the UI family does not ship (see the rate line).
-            style: AzText.money(
-              colors.onSurface,
-              size: 16,
-              weight: FontWeight.w700,
-              tracking: 0,
-            ),
-          )
-        else if (amountTooLarge)
-          const Text(
-            'Amount is too large to estimate — enter a smaller figure.',
-            key: Key('convert_amount_estimate_too_large'),
-            style: TextStyle(fontSize: 12),
-          )
-        else
-          Text(
-            'Enter an amount for a live estimate.',
-            key: const Key('convert_amount_estimate_pending'),
-            style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
-          ),
-        if (estimateUsable)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              'ESTIMATE ONLY — computed from the displayed rate. Not a '
-              'quote, not reserved, nothing converts.',
-              key: const Key('convert_amount_estimate_disclaimer'),
-              style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
-            ),
-          ),
       ],
     );
   }
@@ -802,6 +819,114 @@ class _ToPanel extends StatelessWidget {
   }
 }
 
+
+/// The estimated-receive figure rendered as the To card's BIG figure.
+/// Every honesty key is preserved verbatim:
+/// • convert_amount_estimate / _too_large / _pending — the figure or
+///   its honest absence (the strip owns the loading and unavailable
+///   verdicts; with no usable rate there is NO figure to render);
+/// • convert_amount_estimate_disclaimer — the nonbinding label rides
+///   directly under the figure, right-aligned with it.
+class _ReceiveEstimate extends StatelessWidget {
+  const _ReceiveEstimate({
+    required this.snapshot,
+    required this.loading,
+    required this.controller,
+    required this.reversed,
+  });
+
+  final FxRateSnapshot? snapshot;
+  final bool loading;
+  final TextEditingController controller;
+  final bool reversed;
+
+  @override
+  Widget build(BuildContext context) {
+    final snap = snapshot;
+    if (snap == null || !snap.isUsableAt(kConvertNow())) {
+      return const SizedBox.shrink(
+        key: Key('convert_estimate_figure_absent'),
+      );
+    }
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: controller,
+      builder: (context, value, _) => _build(context, snap, value.text),
+    );
+  }
+
+  Widget _build(
+    BuildContext context,
+    FxRateSnapshot snap,
+    String raw,
+  ) {
+    final colors = Theme.of(context).colorScheme;
+    final rate = snap.ghsPerUsdc;
+    final amount = double.tryParse(raw.trim());
+    final amountEligible = amount != null && amount.isFinite && amount > 0;
+    // FORWARD: USDC × rate → GHS. REVERSED: GHS ÷ rate → USDC (rate is
+    // guaranteed positive by isUsableAt; the division can still overflow
+    // only for absurd inputs, guarded below).
+    final double? estimate = amountEligible
+        ? (reversed ? amount / rate : amount * rate)
+        : null;
+    final estimateUsable = estimate != null && estimate.isFinite;
+    // The honest non-numeric state fires for BOTH overflow paths: a
+    // programmatic controller write that parses as non-finite (Infinity
+    // parses > 0 — do NOT gate this on amountEligible, which requires
+    // isFinite) and a finite amount whose product with the rate is not
+    // finite.
+    final amountTooLarge = !estimateUsable && amount != null && amount > 0;
+    final toCode = reversed ? 'USDC' : 'GHS';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (estimateUsable)
+          Text(
+            '≈ ${reversed ? '' : 'GH₵ '}${estimate.toStringAsFixed(2)} $toCode',
+            key: const Key('convert_amount_estimate'),
+            semanticsLabel:
+                'Nonbinding estimate, ${estimate.toStringAsFixed(2)} '
+                '${reversed ? 'USDC' : 'cedis'}. Not a quote; nothing is '
+                'converted.',
+            // MONEY CONTRACT: the numeric family carries the ≈ and ₵
+            // glyphs the UI family does not ship (see the rate line).
+            style: AzText.money(
+              colors.onSurface,
+              size: 24,
+              weight: FontWeight.w800,
+              tracking: 0,
+            ),
+          )
+        else if (amountTooLarge)
+          const Text(
+            'Amount is too large to estimate — enter a smaller figure.',
+            textAlign: TextAlign.right,
+            key: Key('convert_amount_estimate_too_large'),
+            style: TextStyle(fontSize: 12),
+          )
+        else
+          Text(
+            'Enter an amount for a live estimate.',
+            textAlign: TextAlign.right,
+            key: const Key('convert_amount_estimate_pending'),
+            style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+          ),
+        if (estimateUsable)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'ESTIMATE ONLY — computed from the displayed rate. Not a '
+              'quote, not reserved, nothing converts.',
+              key: const Key('convert_amount_estimate_disclaimer'),
+              style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _ExecutionGate extends StatelessWidget {
   const _ExecutionGate({required this.colors, required this.supported});
 
@@ -861,13 +986,23 @@ class _Panel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    // REFERENCE FIDELITY (Binance Convert) — the From/To pair render as
+    // filled cards one step ABOVE the page surface (the reference's
+    // #222933 on #181c22), not outlined boxes. The step is derived from
+    // the theme (a 4% onSurface wash over the surface), so light and
+    // dark both read correctly with zero hardcoded color.
     return Container(
       key: panelKey,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.outlineVariant),
+        color: Color.alphaBlend(
+          colors.onSurface.withValues(alpha: 0.04),
+          colors.surface,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: colors.outlineVariant.withValues(alpha: 0.5),
+        ),
       ),
       child: child,
     );
