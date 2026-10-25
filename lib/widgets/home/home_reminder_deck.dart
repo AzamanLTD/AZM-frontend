@@ -1055,6 +1055,14 @@ class _ReminderConfettiState extends State<_ReminderConfetti>
   }
 }
 
+/// E4 — the emitter origin: centred on the section's HEADER band (the
+/// separator at the top of the reminder section), a fixed 10px below the
+/// section's top edge. Exposed for the geometry contract test: the burst
+/// must originate at the header, never from the deck card.
+@visibleForTesting
+Offset reminderConfettiHeaderOrigin(Size size) =>
+    Offset(size.width / 2, 10);
+
 /// One immutable confetti piece. All trajectory parameters are fixed at
 /// generation; only time moves a piece.
 @immutable
@@ -1070,7 +1078,9 @@ class ConfettiParticle {
 
   factory ConfettiParticle.generate(math.Random rng, int index) =>
       ConfettiParticle(
-        angle: -math.pi / 2 + (rng.nextDouble() - 0.5) * 1.9,
+        // E4 — DOWNWARD cone: every trajectory leaves the header heading
+        // into the content below (sin(angle) > 0 for the whole spread).
+        angle: math.pi / 2 + (rng.nextDouble() - 0.5) * 1.9,
         speed: 0.22 + rng.nextDouble() * 0.30,
         size: 3.0 + rng.nextDouble() * 3.0,
         spin: rng.nextDouble() * 6.28,
@@ -1115,7 +1125,11 @@ class _ConfettiPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final origin = Offset(size.width / 2, size.height * 0.35);
+    // E4 — the burst ORIGINATES at the reminder section's HEADER band
+    // (the separator at the very top of the section) and sprays DOWN
+    // over the content below. It never erupts from the card itself:
+    // the celebration belongs to the section, not to the money card.
+    final origin = reminderConfettiHeaderOrigin(size);
     final palette = <Color>[
       accent,
       const Color(0xFF34D399),
