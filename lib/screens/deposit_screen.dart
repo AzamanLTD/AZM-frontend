@@ -47,6 +47,7 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/deposit_recovery_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -112,13 +113,21 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
   bool get _hasMeaningfulDraftInput {
     final panel = _fiatPanelKey.currentState;
     if (panel == null) return false;
-    return panel._amountRaw.isNotEmpty;
+    // A deposit in flight is ALWAYS meaningful: real money may be moving
+    // under its reference, and closing must offer Keep so the draft
+    // carries the user's way back onto that one transaction.
+    return panel._amountRaw.isNotEmpty || panel.hasInFlightDeposit;
   }
 
   Map<String, dynamic> _captureDraft() => {
         'amountRaw': _fiatPanelKey.currentState?._amountRaw ?? '',
         if (_fiatPanelKey.currentState?._selectedAccountId != null)
           'accountId': _fiatPanelKey.currentState!._selectedAccountId,
+        // Deposit lifecycle (PR #202 item 1) — persist the reference of
+        // a deposit still in flight so a session interruption can be
+        // reconciled on resume. Never persisted once confirmed.
+        if (_fiatPanelKey.currentState?.hasInFlightDeposit == true)
+          'pendingReference': _fiatPanelKey.currentState!.inFlightReference,
       };
 
   Future<void> _attemptClose() async {
@@ -169,6 +178,8 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                   restoredAmount: widget.restoredDraft?['amountRaw']?.toString(),
                   restoredAccountId:
                       widget.restoredDraft?['accountId']?.toString(),
+                  restoredPendingReference: widget
+                      .restoredDraft?['pendingReference']?.toString(),
                 ),
               ),
             ],
@@ -250,6 +261,7 @@ class _FiatDepositPanel extends ConsumerStatefulWidget {
     this.memo,
     this.restoredAmount,
     this.restoredAccountId,
+    this.restoredPendingReference,
   });
 
   final String? prefillAmount;
@@ -263,6 +275,13 @@ class _FiatDepositPanel extends ConsumerStatefulWidget {
   /// the LIVE saved-accounts list when it loads; a deleted account is
   /// honestly unselected instead of restored as stale data.
   final String? restoredAccountId;
+
+  /// §C draft resume — the payment reference of a deposit that was still
+  /// IN FLIGHT when the surface closed. Unlike amount/account this is not
+  /// a preference: real money may be moving under that reference. The
+  /// panel reconciles it against the backend's durable ledger state
+  /// (see [_recoverInterruptedDeposit]) instead of assuming anything.
+  final String? restoredPendingReference;
 
   @override
   ConsumerState<_FiatDepositPanel> createState() => _FiatDepositPanelState();
@@ -313,6 +332,22 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   final _otpController = TextEditingController();
   bool _isConfirmingOtp = false;
   bool _depositConfirmed = false;
+
+  // Deposit lifecycle (PR #202 item 1) — true while the restored draft's
+  // pending reference is being reconciled against the backend ledger.
+  // While true no NEW initiation can start: the user must never be able
+  // to double-instruct while an earlier instruction may still be live.
+  bool _recovering = false;
+
+  /// The payment reference a draft should carry: the deposit that is
+  /// still in flight (OTP pending or prompt sent), never a confirmed or
+  /// reset one. A deposit in flight makes a close MEANINGFUL — the draft
+  /// keeps the user's way back onto that one transaction.
+  String? get inFlightReference => _depositConfirmed
+      ? null
+      : (_pendingReference ?? _depositResult?['reference']?.toString());
+
+  bool get hasInFlightDeposit => (inFlightReference ?? '').isNotEmpty;
 
   @override
   bool get wantKeepAlive => true;
@@ -384,6 +419,15 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     if (restoredAccount != null && restoredAccount.isNotEmpty) {
       _selectedAccountId = restoredAccount;
     }
+    // §C resume — a deposit that was still IN FLIGHT when the surface
+    // closed. Reconcile against the backend's durable ledger state
+    // (demo mode has no backend to ask and never recovers).
+    final restoredReference = widget.restoredPendingReference?.trim();
+    if (!AppConfig.demoMode &&
+        restoredReference != null &&
+        restoredReference.isNotEmpty) {
+      _recoverInterruptedDeposit(restoredReference);
+    }
     SocketService.instance.onDepositSuccess((
       amountGhs,
       amountUsdc,
@@ -415,6 +459,82 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     SocketService.instance.onDepositSuccess((a, b, c, d) {});
     _otpController.dispose();
     super.dispose();
+  }
+
+  // ── Interrupted-deposit recovery (PR #202 item 1) ────────────────────
+  //
+  // The draft's pending reference is resolved against the backend's
+  // durable ledger (GET /finance/transactions, then Backend F's
+  // GET /deposit/fiat/status/:id when present — see
+  // DepositRecoveryService). Every branch maps to an honest UI state;
+  // none of them re-instructs the provider or claims what did not
+  // happen. A late settlement still arrives on the socket listener
+  // registered in initState — the recovered view re-arms it through the
+  // same `_pendingReference ?? _depositResult['reference']` seam.
+  Future<void> _recoverInterruptedDeposit(String reference) async {
+    setState(() => _recovering = true);
+    DepositRecoveryOutcome? outcome;
+    try {
+      outcome =
+          await DepositRecoveryService(apiClient).recover(reference);
+    } catch (_) {
+      outcome = null; // network/refused: no claim, fresh form
+    }
+    if (!mounted) return;
+    final colors = ref.read(themeProvider).colors;
+    switch (outcome?.status) {
+      case DepositRecoveryStatus.settled:
+        setState(() {
+          _recovering = false;
+          _depositResult = {'reference': reference};
+          _depositConfirmed = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              '✓ Your deposit completed while you were away — your wallet was funded.',
+            ),
+            backgroundColor: colors.success,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      case DepositRecoveryStatus.pending:
+      case DepositRecoveryStatus.frozen:
+        // The instruction may still be live at the provider. Restore
+        // the in-flight view so the user cannot double-instruct under a
+        // new quote; the socket listener confirms a late settlement on
+        // its own.
+        final frozen = outcome!.status == DepositRecoveryStatus.frozen;
+        setState(() {
+          _recovering = false;
+          _pendingReference = reference;
+          _depositResult = {
+            'reference': reference,
+            'instructions': frozen
+                ? 'This deposit is under dispute review. It will resolve '
+                      'through the dispute flow — do not send another '
+                      'payment for it.'
+                : 'Approve the prompt on your phone to complete the '
+                      'deposit. If you already approved it, this page '
+                      'will confirm automatically.',
+          };
+        });
+      case DepositRecoveryStatus.failed:
+        setState(() => _recovering = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Your last deposit did not go through. You can start a new one.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      case DepositRecoveryStatus.unknown:
+      case null:
+        // Honest absence — the form stays exactly as the draft left it.
+        setState(() => _recovering = false);
+    }
   }
 
   // ── Amount input state machine ──────────────────────────────────────────
@@ -555,6 +675,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   /// deposit initiates against THIS snapshot, never a re-resolved
   /// "current" selection that might have changed in between.
   Future<void> _initiateDeposit([SavedMomoAccount? validatedAccount]) async {
+    // Deposit lifecycle: no second instruction while the restored one
+    // is being reconciled — an earlier instruction may still be live.
+    if (_recovering) return;
     final amount = _amountValue;
     if (amount == null) {
       ScaffoldMessenger.of(
@@ -878,13 +1001,16 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 children: [
                   _PrimaryButton(
                     colors: colors,
-                    label: _isValidatingName
+                    label: _recovering
+                        ? 'Checking last deposit…'
+                        : _isValidatingName
                         ? 'Checking account…'
                         : _isSubmitting
                         ? 'Sending prompt…'
                         : 'Add Cash',
                     onTap:
-                        (_isSubmitting ||
+                        (_recovering ||
+                            _isSubmitting ||
                             _isValidatingName ||
                             _amountValue == null ||
                             _currentAccount(
@@ -894,7 +1020,8 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                                 null)
                         ? null
                         : _validateAndConfirm,
-                    isBusy: _isSubmitting || _isValidatingName,
+                    isBusy:
+                        _recovering || _isSubmitting || _isValidatingName,
                   ),
                   const SizedBox(height: 8),
                   Center(
@@ -1080,46 +1207,60 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                     ],
                   ),
           ),
-          if (_depositConfirmed) ...[
-            const SizedBox(height: 12),
-            _PanelCard(
-              colors: colors,
-              fillColor: colors.success.withValues(alpha: 0.10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'GH₵ $amount',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
-                    ),
+          // Deposit lifecycle (PR #202 item 1) — the amount/reference
+          // card anchors the deposit in BOTH states: a user who resumes
+          // onto a still-pending instruction sees exactly which
+          // transaction they are waiting on, same as a confirmed one.
+          const SizedBox(height: 12),
+          _PanelCard(
+            colors: colors,
+            fillColor: (_depositConfirmed ? colors.success : colors.accent)
+                .withValues(alpha: 0.10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'GH₵ $amount',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Prompt sent to $networkName',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Prompt sent to $networkName',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 14),
-                  SelectableText(
-                    reference.toString(),
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 13,
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.w700,
-                    ),
+                ),
+                const SizedBox(height: 14),
+                SelectableText(
+                  reference.toString(),
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 13,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            instructions,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 18),
             Text(
               instructions,
               textAlign: TextAlign.center,
@@ -1129,8 +1270,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 18),
-          ],
+          const SizedBox(height: 18),
           _PrimaryButton(
             colors: colors,
             label: _depositConfirmed ? 'Start another deposit' : 'Cancel',
