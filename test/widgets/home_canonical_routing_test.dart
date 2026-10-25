@@ -417,18 +417,19 @@ void main() {
         isNot(contains('const DepositScreen(')),
         reason: 'the deposit screen is reached by location too',
       );
-      // WORKSTREAM B — Send is now a canonical location (/send, the
-      // rise family): the activity row routes by location, never by
-      // constructing the screen over the router. Withdrawal remains the
-      // sanctioned imperative exception until Workstream C redesigns it.
+      // WORKSTREAMS B + C (integrated) — Send and Withdraw are both
+      // canonical rise locations now (/send, /withdraw): the activity
+      // row routes by location for both, never by constructing either
+      // screen over the router.
       expect(source, contains('AzRoutes.send('));
-      expect(source, contains('WithdrawalScreen'));
-      // SendMoney still genuinely has no canonical route on main — its
-      // imperative navigation is the sanctioned exception. Withdrawal
-      // gained its canonical rise route (/withdraw, Workstream C) — it
-      // must be reached by location now, never constructed.
-      expect(source, contains('SendMoneyScreen'));
       expect(source, contains('AzRoutes.withdraw()'));
+      expect(
+        source,
+        isNot(contains('SendMoneyScreen')),
+        reason:
+            'the send surface is reached through AzRoutes.send(), '
+            'never constructed imperatively',
+      );
       expect(
         source,
         isNot(contains('WithdrawalScreen')),
