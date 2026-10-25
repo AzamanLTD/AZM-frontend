@@ -95,9 +95,24 @@ class MarketplaceHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _scrollCtrl = ScrollController();
   double _scrollOffset = 0;
+
+  // ── WORKSTREAM F1 — the EXPLICIT story-rail expansion state ──────────────
+  //
+  // The collapsed affordance used to `_scrollCtrl.animateTo(0)`: tapping the
+  // stories strip while scrolled down DRAGGED THE FEED BACK TO THE TOP,
+  // destroying the scroll anchor. The pin is the fix: tapping expands the
+  // rail IN PLACE (explicit expansion state) while the list scrolls DOWN by
+  // exactly the rail's growth, so the first visible results stay visually
+  // stationary while the rail slides in over them. The scroll-driven
+  // collapse keeps all its authority whenever the pin is not held; the pin
+  // hands back seamlessly when the user scrolls the feed to its top (the
+  // scroll ratio there is already 1 — no height jump, no opacity pop).
+  late final AnimationController _storyPinCtrl;
+  late final CurvedAnimation _storyPinCurve;
+  bool _storyPinHeld = false;
   // Live results while typing: debounce the already-updated provider text
   // into the existing search plumbing.
   Timer? _debounce;
@@ -176,6 +191,15 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     _scrollCtrl.addListener(_onScroll);
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.hasClients) {
+        // WORKSTREAM F1 — the pin hands back to the scroll-driven grammar
+        // exactly when the feed returns to its top; there the scroll ratio
+        // is already 1, so this is a seamless handoff, never a jump.
+        if (_storyPinHeld &&
+            _scrollCtrl.offset <= 0.5 &&
+            _storyPinCtrl.value >= 1) {
+          _storyPinHeld = false;
+          _storyPinCtrl.value = 0;
+        }
         setState(() => _scrollOffset = _scrollCtrl.offset);
       }
     });
@@ -198,6 +222,14 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     // position stream that follows runs only while the consuming surface is
     // active and the app is foregrounded.
     WidgetsBinding.instance.addObserver(this);
+    _storyPinCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    // The rail's growth and the list's compensation scroll run on the SAME
+    // curve and duration, so the visible content stays anchored.
+    _storyPinCurve = CurvedAnimation(parent: _storyPinCtrl, curve: Curves.easeOut);
+    _storyPinCtrl.addListener(() => setState(() {}));
   }
 
   // ── App lifecycle: the location stream is FOREGROUND-ONLY ────────────────
@@ -218,6 +250,8 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _nearbyTracker?.dispose();
     _debounce?.cancel();
+    _storyPinCurve.dispose();
+    _storyPinCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -549,15 +583,10 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
 
     // Scroll-driven gradient (0 at top → full when scrolled 120px)
     final expandRatio = (_scrollOffset / 120).clamp(0.0, 1.0);
-    // §16 — the story rail's collapse now speaks the SAME grammar as
-    // chat's story rail: shared travel (StoryRailCollapse.travelPx),
-    // the shared snap threshold, and reduced-motion handling that
-    // lands directly instead of sliding. No second Telegram-like
-    // implementation lives in this file anymore.
-    final storyExpandRatio = StoryRailCollapse.ratio(
-      scrollOffset: _scrollOffset,
-      reducedMotion: !AzMotion.of(context).travel,
-    );
+    // §16 — the story rail's collapse speaks the SAME grammar as chat's
+    // story rail; WORKSTREAM F1 layers the explicit pin on top (the pin
+    // only ever OPENS — scroll keeps its authority everywhere else).
+    final storyExpandRatio = _storyRailRatio(context);
 
     final searchActive = ref.watch(
       marketplaceSearchProvider.select((s) => s.isActive),
@@ -882,6 +911,57 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     );
   }
 
+  // ── WORKSTREAM F1 — explicit story expansion (pin) ──────────────────────────
+
+  /// The rail's EFFECTIVE open ratio: the scroll-driven shared collapse
+  /// grammar, layered with the explicit pinned-open animation. The pin
+  /// only ever OPENS the rail (max) — the scroll keeps its authority for
+  /// every collapse that is not an explicit expansion.
+  double _storyRailRatio(BuildContext context) {
+    final scrollRatio = StoryRailCollapse.ratio(
+      scrollOffset: _scrollOffset,
+      reducedMotion: !AzMotion.of(context).travel,
+    );
+    return _storyPinCurve.value > scrollRatio
+        ? _storyPinCurve.value
+        : scrollRatio;
+  }
+
+  /// Expands the stories rail IN PLACE from the collapsed affordance.
+  ///
+  /// F1 contract: the page is NEVER scrolled to the top. The rail opens
+  /// (explicit expansion state) and the results list scrolls DOWN by
+  /// exactly the rail's growth on the same curve/duration, so the first
+  /// visible results stay visually stationary while the rail slides in.
+  /// Reduced motion lands directly, per the shared rail grammar.
+  void _pinStoriesOpen(BuildContext context) {
+    if (_storyPinHeld || _storyPinCtrl.value >= 1) return;
+    _storyPinHeld = true;
+    final reduced = !AzMotion.of(context).travel;
+    if (!reduced) {
+      _storyPinCtrl.forward(from: 0);
+    }
+    if (!_scrollCtrl.hasClients) return;
+    final pos = _scrollCtrl.position;
+    // Compensate only the rail's REMAINING growth: tapping mid-collapse
+    // (partial ratio) grows the rail by the unfilled part, and the list
+    // scrolls by exactly that — the anchor is preserved at every tap
+    // point, not just from fully collapsed.
+    final growth = StoryRailCollapse.extentPx * (1 - _storyRailRatio(context));
+    final target = (pos.pixels + growth)
+        .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+    if (reduced) {
+      _storyPinCtrl.value = 1.0;
+      pos.jumpTo(target);
+    } else {
+      _scrollCtrl.animateTo(
+        target,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
   // ── Header (title + actions) ────────────────────────────────────────────────
 
   Widget _header(AzamanColors colors) {
@@ -889,10 +969,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     // the focused Marketplace nav band owns the search field, bound to the
     // AUTHORITATIVE provider. The header keeps the story avatars slot, the
     // storefront management, order history, and the list/map view toggle.
-    final storyExpandRatio = StoryRailCollapse.ratio(
-      scrollOffset: _scrollOffset,
-      reducedMotion: !AzMotion.of(context).travel,
-    );
+    final storyExpandRatio = _storyRailRatio(context);
     final storyCollapsedOpacity = (1.0 - storyExpandRatio).clamp(0.0, 1.0);
 
     // Review A1 — the collapsed story affordance now renders with the
@@ -912,13 +989,9 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
           if (storyCollapsedOpacity > 0.5)
             Expanded(
               child: MarketplaceCollapsedAvatars(
-                onTap: () {
-                  _scrollCtrl.animateTo(
-                    0,
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeOut,
-                  );
-                },
+                // WORKSTREAM F1 — expand IN PLACE; the feed NEVER gets
+                // dragged back to the top.
+                onTap: () => _pinStoriesOpen(context),
               ),
             )
           else

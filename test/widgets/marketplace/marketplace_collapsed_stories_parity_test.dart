@@ -15,8 +15,8 @@
 //   • the affordance is a real button with an accurate accessible label;
 //   • the marketplace actions stay RIGHT of the collapsed affordance on
 //     the same header row;
-//   • tapping the collapsed affordance expands the rail and returns the
-//     page to the top;
+//   • tapping the collapsed affordance expands the rail IN PLACE (the
+//     page never returns to the top — see the Workstream F1 pin suite);
 //   • no horizontal overflow at 320/360/390dp in either state;
 //   • reduced motion lands directly (binary) — no fractional slide;
 //   • light/dark captures of both states and both surfaces.
@@ -524,22 +524,28 @@ void main() {
       await _teardownHome(tester);
     });
 
-    testWidgets('tapping the collapsed affordance expands the rail and '
-        'returns the page to the top', (tester) async {
+    testWidgets('tapping the collapsed affordance expands the rail IN '
+        'PLACE — the page never returns to the top (F1 pin)', (tester) async {
       final ctrl = await _pumpHome(tester);
       ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
       await _settleFrames(tester, frames: 6);
+      final offsetBefore = ctrl.offset;
 
       await tester
           .tap(find.byKey(const ValueKey('marketplace_story_rail_compact')));
-      // The expand is a 400ms animateTo — advance it in ticker-sized steps
+      // The expand is a 400ms animation — advance it in ticker-sized steps
       // (a single long pump only fires one animation tick).
       for (var i = 0; i < 14; i++) {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      expect(ctrl.offset, 0,
-          reason: 'the affordance scrolls the page back to the rail');
+      // Workstream F1: the anchor is preserved — the list scrolls DOWN by
+      // the rail's growth instead of being dragged back to the top.
+      expect(
+          ctrl.offset,
+          closeTo(offsetBefore + StoryRailCollapse.extentPx, 1.0),
+          reason: 'the anchor is preserved; the page never returns to the top');
+      expect(ctrl.offset, greaterThan(StoryRailCollapse.extentPx));
       expect(find.byType(MarketplaceExpandedStories), findsOneWidget);
 
       final expandedRings = tester
