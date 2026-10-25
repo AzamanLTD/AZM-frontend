@@ -54,6 +54,7 @@ abstract final class AzRouteNames {
   static const marketplace = 'marketplace';
   static const savings = 'savings';
   static const deposit = 'deposit';
+  static const withdraw = 'withdraw';
   static const convert = 'convert';
 
   // Susu
@@ -192,6 +193,11 @@ abstract final class AzRoutes {
   /// itself gates execution behind [kConvertExecutionSupported]; the route
   /// always exists so the launcher/navigation surface is stable.
   static String convert() => '/convert';
+
+  /// `/withdraw` — the Withdraw surface (Workstream C). Canonical rise
+  /// route: every entry point (launcher, activity, P2P payouts) pushes
+  /// through the router so the surface rises from a lower layer alike.
+  static String withdraw() => '/withdraw';
 
   // ── Card transfer ─────────────────────────────────────────────────────────
   static const cardTransfer = '/card-transfer';

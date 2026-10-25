@@ -28,7 +28,6 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/send_money_screen.dart';
-import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 enum ActivityActionType {
@@ -243,8 +242,9 @@ class ActivityActionResolver {
         context.push(AzRoutes.deposit());
       case ActivityActionType.viewWithdrawal:
         AzamanHaptics.nav();
-        Navigator.push(context,
-            MaterialPageRoute(builder: (_) => const WithdrawalScreen()));
+        // CANONICAL ROUTE: /withdraw rises from a lower layer (Workstream
+        // C) — never a bare MaterialPageRoute.
+        context.push(AzRoutes.withdraw());
       case ActivityActionType.viewTrade:
         AzamanHaptics.nav();
         if (action.reference != null) {

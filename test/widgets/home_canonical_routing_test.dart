@@ -418,10 +418,19 @@ void main() {
         isNot(contains('const DepositScreen(')),
         reason: 'the deposit screen is reached by location too',
       );
-      // SendMoney and Withdrawal still genuinely have no canonical
-      // routes — their imperative navigation is the sanctioned exception.
+      // SendMoney still genuinely has no canonical route on main — its
+      // imperative navigation is the sanctioned exception. Withdrawal
+      // gained its canonical rise route (/withdraw, Workstream C) — it
+      // must be reached by location now, never constructed.
       expect(source, contains('SendMoneyScreen'));
-      expect(source, contains('WithdrawalScreen'));
+      expect(source, contains('AzRoutes.withdraw()'));
+      expect(
+        source,
+        isNot(contains('WithdrawalScreen')),
+        reason:
+            'the withdrawal surface is reached through AzRoutes.withdraw(), '
+            'never constructed imperatively',
+      );
     });
 
     test('the + trigger rebuilds from the animation controller and '
