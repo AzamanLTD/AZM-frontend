@@ -24,6 +24,15 @@ abstract class NearbyLocationResolver {
   /// Check services, ask permission (in context) when needed, and return
   /// the current position.
   Future<Position> resolve();
+
+  /// Workstream H — the NO-PROMPT seam. Returns a position ONLY when
+  /// location services are on AND permission is ALREADY granted. It
+  /// never requests anything: a silent capability probe. Callers use it
+  /// to co-activate proximity features opportunistically (e.g. pressing
+  /// Mix) without ever surfacing a permission ask the user did not
+  /// initiate. Unavailable → throws; the caller keeps its honest off
+  /// state and its explicit request/retry route.
+  Future<Position> resolveSilently();
 }
 
 /// The real platform resolver: the geolocator permission dance.
@@ -38,11 +47,26 @@ class PlatformNearbyLocationResolver extends NearbyLocationResolver {
     }
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
+      // The EXPLICIT path (the user pressed Near You) asks in context.
       permission = await Geolocator.requestPermission();
     }
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       throw 'Location permission denied.';
+    }
+    return Geolocator.getCurrentPosition();
+  }
+
+  @override
+  Future<Position> resolveSilently() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw 'Location services are disabled.';
+    }
+    final permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      throw 'Location permission not granted.';
     }
     return Geolocator.getCurrentPosition();
   }
@@ -54,6 +78,11 @@ class FailingNearbyLocationResolver extends NearbyLocationResolver {
 
   @override
   Future<Position> resolve() async {
+    throw 'Location services are disabled.';
+  }
+
+  @override
+  Future<Position> resolveSilently() async {
     throw 'Location services are disabled.';
   }
 }

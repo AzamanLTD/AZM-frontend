@@ -11,6 +11,9 @@
 // =============================================================================
 
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
+
+import 'package:azaman/widgets/stories/viewer/story_chrome_region.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
@@ -97,6 +100,10 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
   }
 
   void _down(PointerDownEvent e) {
+    // WORKSTREAM F2 — chrome (buttons, scrollables) owns its pointers:
+    // a tap on a caption affordance or the CTA is NOT story navigation,
+    // and a drag over the caption never dismisses the viewer.
+    if (_isChrome(e.position)) return;
     _pointers[e.pointer] = e.position;
     if (_pointers.length == 1) {
       _origin = e.position;
@@ -161,6 +168,7 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
 
   void _up(PointerEvent e) {
     if (e is PointerCancelEvent) return _cancel(e);
+    if (!_pointers.containsKey(e.pointer)) return;
     _pointers.remove(e.pointer);
     final velocity =
         _velocity?.getVelocity().pixelsPerSecond ?? Offset.zero;
@@ -206,6 +214,7 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
   /// with zero velocity so the shell settles below the commit line, and a
   /// hold simply ends so playback resumes.
   void _cancel(PointerEvent e) {
+    if (!_pointers.containsKey(e.pointer)) return;
     _pointers.remove(e.pointer);
     switch (_phase) {
       case StoryGesturePhase.deciding:
@@ -229,6 +238,18 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
       _downTime = null;
       _velocity = null;
     }
+  }
+
+  /// Whether [global] hits a [StoryChromeRegion] subtree — the pointer
+  /// is chrome-owned and the arbiter never interprets it.
+  bool _isChrome(Offset global) {
+    final box = context.findRenderObject();
+    if (box is! RenderBox || !box.attached) return false;
+    final result = BoxHitTestResult();
+    final local = box.globalToLocal(global);
+    if (!box.hitTest(result, position: local)) return false;
+    return result.path.any((entry) =>
+        entry.target is RenderStoryChromeRegion);
   }
 
   @override

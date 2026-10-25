@@ -221,23 +221,22 @@ class MarketplaceExpandedStories extends ConsumerWidget {
   }
 
   Widget _buildEmptyState(BuildContext context, AzamanColors colors) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'Suggested businesses',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: colors.textTertiary,
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        SizedBox(
+    // §16 fix — the empty state renders at the SAME 94px rail geometry as
+    // the populated rail: rail box (86) + breathing (4) fits the extent
+    // with room to spare. The old 'Suggested businesses' heading cost 18px
+    // more than the rail extent allows (RenderFlex overflow, clipped at
+    // the bottom) and claimed suggestion data that does not exist (§9) —
+    // the heading's explanatory value now lives in the Semantics label
+    // below, exposed to screen readers without stealing rail geometry.
+    return Semantics(
+      container: true,
+      label: 'No followed businesses yet. Tap Browse to discover '
+          'businesses, or follow one to see its stories here.',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
           height: StoryRailMetrics.ring +
               StoryRailMetrics.labelGap +
               StoryRailMetrics.label,
@@ -306,9 +305,10 @@ class MarketplaceExpandedStories extends ConsumerWidget {
               }
             },
           ),
-        ),
-        const SizedBox(height: 4),
-      ],
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
     );
   }
 }

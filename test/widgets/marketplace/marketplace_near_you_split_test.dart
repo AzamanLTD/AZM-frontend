@@ -122,6 +122,9 @@ class _SucceedingResolver extends NearbyLocationResolver {
 
   @override
   Future<Position> resolve() async => _position(5.603, -0.187);
+
+  @override
+  Future<Position> resolveSilently() async => _position(5.603, -0.187);
 }
 
 Future<(_RecordingSearchNotifier, _FakeNearbyNotifier)> _pumpHome(

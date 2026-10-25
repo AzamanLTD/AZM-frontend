@@ -23,6 +23,7 @@ import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/widgets/stories/viewer/story_business_tray.dart';
+import 'package:azaman/widgets/stories/viewer/story_chrome_region.dart';
 import 'package:azaman/widgets/stories/viewer/story_interaction_bar.dart';
 import 'package:azaman/widgets/stories/viewer/story_media_controller.dart';
 import 'package:azaman/widgets/stories/viewer/story_playback_controller.dart';
@@ -95,6 +96,9 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
   final Map<int, StoryMediaController> _media = {};
   double _zoom = 1;
 
+  /// The story index whose caption reveal holds playback, if any.
+  int? _revealHeldForStory;
+
   bool get _isActive => widget.activeIndex.value == widget.myIndex;
 
   @override
@@ -146,6 +150,13 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
   }
 
   void _onPlaybackChanged() {
+    // WORKSTREAM F2 — a caption reveal hold never leaks across stories:
+    // the reveal state is per-story (the block is keyed), and the hold is
+    // released here, on the index change, while the page is active.
+    if (_revealHeldForStory != null && _revealHeldForStory != _playback.index) {
+      _revealHeldForStory = null;
+      _playback.release(PauseReason.captionReveal);
+    }
     final i = _playback.index;
     _ensureMedia(i);
     _ensureMedia(i + 1);
@@ -372,44 +383,66 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
               ],
             ),
           ),
-          if (item.caption?.isNotEmpty ?? false)
-            Positioned(
-              left: AzSpace.xl,
-              right: AzSpace.xl,
-              bottom: 140,
-              child: Text(
-                item.caption!,
-                style: AzText.bodyL.copyWith(
-                  color: Colors.white,
-                  shadows: const [
-                    Shadow(blurRadius: 8, color: Colors.black54),
-                  ],
-                ),
-                maxLines: 4,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          if (item.linkedBizId != null)
-            Positioned(
-              left: AzSpace.xl,
-              right: AzSpace.xl,
-              bottom: 88,
-              child: StoryBusinessTray(
-                bizId: item.linkedBizId!,
-                onPause: () => _playback.hold(PauseReason.sheet),
-                onResume: () => _playback.release(PauseReason.sheet),
-              ),
-            ),
+          // ── WORKSTREAM F2 — the bottom block ──────────────────────────────
+          //
+          // The caption, the store/market CTA and the interaction bar are
+          // ONE bottom-anchored column, in that order — the caption gets
+          // its own predictable space directly above the CTA, the CTA is
+          // NEVER covered (it is a sibling above the bar, not a floating
+          // Positioned guessing the bar's height), and the whole block
+          // adapts to small devices and large text scales instead of
+          // hard-coding offsets that collide.
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: StoryInteractionBar(
-              story: item,
-              authorId: widget.group.authorId,
-              onFocusChanged: (focused) => focused
-                  ? _playback.hold(PauseReason.sheet)
-                  : _playback.release(PauseReason.sheet),
+            // The whole bottom block is CHROME: its buttons are never
+            // story tap-zones, its scrollable never dismisses the viewer.
+            child: StoryChromeRegion(
+              child: SafeArea(
+              top: false,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (item.caption?.isNotEmpty ?? false)
+                    // Keyed by the story: the reveal state never leaks
+                    // from one story into the next.
+                    _StoryCaptionBlock(
+                      key: ValueKey('story-caption-${item.id}'),
+                      caption: item.caption!,
+                      // Reading the full caption holds the story (the
+                      // same OR-ed pause grammar as the sheet) so it
+                      // never auto-advances mid-read; collapsing resumes.
+                      onPause: () {
+                        _revealHeldForStory = _playback.index;
+                        _playback.hold(PauseReason.captionReveal);
+                      },
+                      onResume: () {
+                        _revealHeldForStory = null;
+                        _playback.release(PauseReason.captionReveal);
+                      },
+                    ),
+                  if (item.linkedBizId != null)
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AzSpace.lg),
+                      child: StoryBusinessTray(
+                        bizId: item.linkedBizId!,
+                        onPause: () => _playback.hold(PauseReason.sheet),
+                        onResume: () => _playback.release(PauseReason.sheet),
+                      ),
+                    ),
+                  StoryInteractionBar(
+                    story: item,
+                    authorId: widget.group.authorId,
+                    onFocusChanged: (focused) => focused
+                        ? _playback.hold(PauseReason.sheet)
+                        : _playback.release(PauseReason.sheet),
+                  ),
+                ],
+              ),
+            ),
             ),
           ),
         ],
@@ -447,4 +480,139 @@ class _MediaErrorState extends StatelessWidget {
           child: Icon(Icons.broken_image, color: Colors.white30, size: 48),
         ),
       );
+}
+
+// ── WORKSTREAM F2 — the bounded, revealable story caption block ─────────────
+//
+// The caption gets its OWN predictable space in the bottom block (never a
+// floating overlay guessing the CTA's position). Long captions (> ~20
+// words) truncate with a "See more" affordance; the full reveal is
+// bounded (never more than a third of the viewport) and scrollable, and
+// collapses back with "Show less". The TRUNCATED caption still carries
+// the FULL text to semantics — the visual ellipsis never discards the
+// caption from the a11y tree (the Text's semantics label is the whole
+// string; the affordance is a separate labelled button).
+class _StoryCaptionBlock extends StatefulWidget {
+  const _StoryCaptionBlock({
+    super.key,
+    required this.caption,
+    required this.onPause,
+    required this.onResume,
+  });
+
+  final String caption;
+
+  /// Playback holds while the full reveal is open, and resumes on
+  /// collapse — the same OR-ed pause grammar the sheet uses.
+  final VoidCallback onPause;
+  final VoidCallback onResume;
+
+  @override
+  State<_StoryCaptionBlock> createState() => _StoryCaptionBlockState();
+}
+
+class _StoryCaptionBlockState extends State<_StoryCaptionBlock> {
+  /// The brief's ~20-word threshold for the "See more" reveal.
+  static const int _revealWordThreshold = 20;
+
+  /// The full reveal never occupies more than a third of the viewport —
+  /// the CTA and the reply bar stay reachable on every device.
+  static const double _revealMaxViewportFraction = 1 / 3;
+
+  bool _expanded = false;
+
+  bool get _isLong =>
+      widget.caption.trim().split(RegExp(r'\s+')).length >
+      _revealWordThreshold;
+
+  // NOTE: the block NEVER releases from dispose — notifying listeners
+  // during element teardown is unsafe ("deactivated widget's ancestor").
+  // A hold that outlives the block is released by the PAGE on the story
+  // index change (see _onPlaybackChanged), and one that outlives the page
+  // dies with the controller. The block only holds/releases on its OWN
+  // live affordance toggles, which always run with the tree stable.
+
+  Widget _affordance(String label, IconData icon, VoidCallback onTap) =>
+      SizedBox(
+        height: 44, // reachable touch target on small devices
+        child: TextButton.icon(
+          onPressed: onTap,
+          icon: Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.7)),
+          label: Text(
+            label,
+            style: AzText.caption.copyWith(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: AzSpace.md),
+            alignment: Alignment.centerLeft,
+            foregroundColor: Colors.white.withValues(alpha: 0.7),
+          ),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AzText.bodyL.copyWith(
+      color: Colors.white,
+      shadows: const [Shadow(blurRadius: 8, color: Colors.black54)],
+    );
+
+    if (!_isLong) {
+      // Short caption: whole text, own bounded space above the CTA.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(AzSpace.xl, 0, AzSpace.xl, AzSpace.sm),
+        child: Text(widget.caption, style: style),
+      );
+    }
+
+    if (!_expanded) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(AzSpace.xl, 0, AzSpace.xl, AzSpace.sm),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.caption,
+              style: style,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            _affordance('See more', Icons.keyboard_arrow_down, () {
+              widget.onPause();
+              setState(() => _expanded = true);
+            }),
+          ],
+        ),
+      );
+    }
+
+    // Full reveal: bounded to a third of the viewport, scrollable, and
+    // collapsible — the CTA below stays reachable on every device and
+    // at every text scale.
+    final maxHeight =
+        MediaQuery.sizeOf(context).height * _revealMaxViewportFraction;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AzSpace.xl, 0, AzSpace.xl, AzSpace.sm),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.caption, style: style),
+              _affordance('Show less', Icons.keyboard_arrow_up, () {
+                setState(() => _expanded = false);
+                widget.onResume();
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
