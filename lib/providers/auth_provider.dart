@@ -27,6 +27,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+
+import 'package:azaman/services/launcher_drafts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/user_model.dart';
@@ -231,6 +233,15 @@ class AuthProvider with ChangeNotifier {
     _hydrationGeneration++;
     await _api.logout();
     _user = null;
+    // §C.1 identity boundary — every stored launcher draft (and its
+    // editable inputs, including any secure-storage fields) is scoped
+    // to the outgoing user. Account switches pass through here too, so
+    // the next user never inherits the previous user's drafts.
+    try {
+      await ref?.read(launcherDraftsProvider.notifier).clearForLogout();
+    } catch (_) {
+      // Draft clearing must never block the logout itself.
+    }
     // IDENTITY BOUNDARIES — logout ends the session identity: the next
     // session must start from `unresolved`, never the previous user's
     // figure.

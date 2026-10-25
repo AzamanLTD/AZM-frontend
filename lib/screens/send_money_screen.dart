@@ -56,6 +56,9 @@ import 'package:meta/meta.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/widgets/launcher_exit_prompt.dart';
+
 import 'package:azaman/models/currency_catalog.dart';
 import 'package:azaman/models/currency_model.dart'
     show currencyProvider, DisplayCurrency;
@@ -105,7 +108,8 @@ class SendMoneyScreen extends ConsumerStatefulWidget {
       this.initialRecipient,
       this.discovery,
       this.sendOverride,
-      this.fxRateOverride})
+      this.fxRateOverride,
+      this.restoredDraft})
       : seededFriend = null;
 
   /// Chat entry: the shared composer pre-seeded with the conversation's
@@ -117,7 +121,8 @@ class SendMoneyScreen extends ConsumerStatefulWidget {
       this.sendOverride,
       this.fxRateOverride})
       : seededFriend = recipient,
-        initialRecipient = null;
+        initialRecipient = null,
+        restoredDraft = null;
 
   /// "Send Again" seed from an activity record — carries an explicit AZM
   /// ID, which the composer resolves through the live identity contract.
@@ -126,6 +131,12 @@ class SendMoneyScreen extends ConsumerStatefulWidget {
   /// friendship (the identity service projects no User.id), so the
   /// resolved identity is shown honestly with its connection state.
   final ActivityRecipient? initialRecipient;
+
+  /// §C continuation: editable inputs restored from a five-minute
+  /// launcher draft (see launcher_drafts.dart). LOCAL convenience only —
+  /// it restores the composition, revalidates the recipient through the
+  /// live identity contract, and never implies a pending transaction.
+  final Map<String, dynamic>? restoredDraft;
 
   /// Test seams. Production callers leave both null: the screen then uses
   /// the live discovery service and the canonical FriendService.sendFunds
@@ -180,9 +191,20 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   SendRecipient? _recipient;
 
+  /// True only after the user picked a recipient in this session (see
+  /// _chooseRecipient). Constructor prefills never set it, so a pristine
+  /// toFriend surface closes silently.
+  bool _recipientChosenByUser = false;
+
   bool _seedLookupDone = false;
   bool _seedLookingUp = false;
   String? _error;
+
+  /// The AZM ID carried by a restored draft (§C) — resolved through the
+  /// same live identity lookup as an "Send Again" seed in the first
+  /// post-frame callback, so a resumed draft re-validates the recipient
+  /// instead of trusting stored data.
+  String? _draftSeedAzamanId;
 
   // Quick amounts per entry unit — a '10' pill is NEVER ambiguous: the
   // label carries the unit, and GHS pills are cedi-scale, not USDC digits.
@@ -196,6 +218,15 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     if (seed != null) {
       _recipient = seed;
     }
+    final draft = widget.restoredDraft;
+    if (draft != null) {
+      // §C.1 resume — restore ONLY the editable inputs, then revalidate:
+      // the recipient is re-resolved live, never trusted from the draft.
+      _amountRaw = draft['amountRaw']?.toString() ?? '';
+      _entryIndex = draft['entryIndex'] is int ? draft['entryIndex'] as int : 0;
+      _referenceController.text = draft['reference']?.toString() ?? '';
+      _draftSeedAzamanId = draft['recipientAzamanId']?.toString();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // The friend list is the authoritative friendship source for the
@@ -203,6 +234,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       ref.read(friendProvider).refreshAll();
       unawaited(refreshCanonicalBalance(ref));
       _resolveSeedIfAny();
+      _resolveDraftSeedIfAny();
     });
   }
 
@@ -210,6 +242,26 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   void dispose() {
     _referenceController.dispose();
     super.dispose();
+  }
+
+  /// §C resume — a draft's stored AZM ID is re-resolved through the
+  /// live identity contract. A stale recipient (deleted account, removed
+  /// friendship) surfaces honestly as a lookup outcome — the draft never
+  /// bypasses eligibility revalidation.
+  Future<void> _resolveDraftSeedIfAny() async {
+    final azamanId = _draftSeedAzamanId;
+    if (azamanId == null || _seedLookupDone) return;
+    _draftSeedAzamanId = null;
+    final myAzamanId = ref.read(authProvider).user?.azamanId;
+    final discovery = widget.discovery ?? RecipientDiscoveryService();
+    final outcome =
+        await discovery.lookupByAzamanId(azamanId, myAzamanId: myAzamanId);
+    if (!mounted) return;
+    if (outcome.status == AzmLookupStatus.found) {
+      setState(() => _recipient = outcome.recipient);
+    }
+    // notFound/self/failed: the honest existing states speak for
+    // themselves — the draft restores the amounts, not a stale identity.
   }
 
   /// "Send Again" seed → live AZM-ID lookup. The resolved identity is
@@ -370,6 +422,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     if (picked != null && mounted) {
       setState(() {
         _recipient = picked;
+        // Only a recipient the USER picked in this session counts as
+        // meaningful input — a toFriend/send-again prefill alone must
+        // never trigger the exit prompt.
+        _recipientChosenByUser = true;
         _error = null;
       });
     }
@@ -380,6 +436,8 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     AzamanHaptics.nav();
     setState(() {
       _recipient = null;
+      // A cleared recipient is no longer user-added state.
+      _recipientChosenByUser = false;
       _error = null;
     });
   }
@@ -671,10 +729,19 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     // intercepted with an explicit decision: retry the exact operation
     // (same durable identity) or acknowledge leaving it pending.
     return PopScope(
-      canPop: _stage != _SendStage.unknown,
+      // §C.1 — system back is guarded in TWO states: a submitted attempt
+      // with UNKNOWN outcome (existing explicit decision), and a
+      // MEANINGFUL unsubmitted compose (the shared draft prompt).
+      canPop: _stage != _SendStage.unknown && !_hasMeaningfulDraftInput,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop || _stage != _SendStage.unknown || !mounted) return;
-        _showUnknownPendingDialog();
+        if (didPop || !mounted) return;
+        if (_stage == _SendStage.unknown) {
+          _showUnknownPendingDialog();
+          return;
+        }
+        if (_hasMeaningfulDraftInput) {
+          _attemptClose();
+        }
       },
       child: Scaffold(
         backgroundColor: colors.surface,
@@ -686,11 +753,13 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         body: SafeArea(
           bottom: false,
           child: PullDownDismissibleSurface(
-            onDismiss: _closeSurface,
+            onDismiss: _attemptClose,
             // PR #165 review finding 2, extended to the pull gesture: an
             // UNKNOWN outcome must never be silently dragged away — the
             // surface asks before committing, and a rejected pull shows
             // the same explicit decision dialog as the system-back guard.
+            // §C.1: a committed pull on a MEANINGFUL compose no longer
+            // pops — onDismiss routes through the shared draft prompt.
             canDismiss: () => _stage != _SendStage.unknown,
             onDismissRejected: _showUnknownPendingDialog,
             child: Column(
@@ -700,7 +769,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                   key: const ValueKey('send-app-bar'),
                   colors: colors,
                   stage: _stage,
-                  onClose: _closeSurface,
+                  onClose: _attemptClose,
                   onBackToEdit: _backToCompose,
                 ),
                 Expanded(
@@ -722,6 +791,49 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         ),
       ),
     );
+  }
+
+  /// §C.1 — is there meaningful unsubmitted work worth a draft? Only the
+  /// COMPOSE stage ever qualifies: review is a confirmable state that the
+  /// user reaches deliberately, and sending/done/failed/unknown are
+  /// submitted-flow states whose durable identity belongs to the server.
+  bool get _hasMeaningfulDraftInput =>
+      _stage == _SendStage.compose &&
+      (_amountRaw.isNotEmpty ||
+          _referenceController.text.trim().isNotEmpty ||
+          // §C.1 — only a recipient the user actively chose in this
+          // session is meaningful; constructor-seeded prefills (toFriend,
+          // Send Again, restored drafts already revalidated) are starting
+          // state, not work worth a Keep prompt.
+          _recipientChosenByUser);
+
+  Map<String, dynamic> _captureDraft() => {
+        'amountRaw': _amountRaw,
+        'entryIndex': _entryIndex,
+        'reference': _referenceController.text.trim(),
+        if (_recipient?.azamanId != null)
+          'recipientAzamanId': _recipient!.azamanId,
+      };
+
+  /// §C.1 — the guarded close. Empty compose closes silently; a meaningful
+  /// one offers Keep for 5 minutes / Discard / Stay through the SHARED
+  /// launcher prompt. Submitted-flow closes keep their existing semantics
+  /// (the unknown stage keeps its own explicit decision dialog).
+  Future<void> _attemptClose() async {
+    final user = ref.read(authProvider).user;
+    if (_stage == _SendStage.compose) {
+      await guardLauncherClose(
+        context: context,
+        ref: ref,
+        userId: user?.id,
+        surface: LauncherSurface.send,
+        hasMeaningfulInput: _hasMeaningfulDraftInput,
+        capture: _captureDraft,
+        doClose: _closeSurface,
+      );
+      return;
+    }
+    _closeSurface();
   }
 
   /// Workstream B — the surface close, identical to Add Cash/Receive:
@@ -805,7 +917,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
           child: _BalanceChip(
               colors: colors,
               balance: balance,

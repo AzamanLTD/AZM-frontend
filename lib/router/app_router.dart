@@ -398,6 +398,11 @@ final GoRouter appRouter = GoRouter(
         key: state.pageKey,
         restorationId: state.name,
         child: DepositScreen(
+          // §C continuation — the notification centre's Resume pushes the
+          // canonical route with the draft's editable inputs as extra.
+          restoredDraft: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
           prefillAmount: state.uri.queryParameters['amount'],
           memo: state.uri.queryParameters['memo'],
         ),
@@ -424,6 +429,11 @@ final GoRouter appRouter = GoRouter(
                   azamanId: state.uri.queryParameters['to']!,
                   displayName: state.uri.queryParameters['name'] ?? '',
                 ),
+          // §C continuation — the notification centre's Resume pushes the
+          // canonical route with the draft's editable inputs as extra.
+          restoredDraft: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
         ),
       ),
     ),
@@ -438,7 +448,13 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const WithdrawalScreen(),
+        child: WithdrawalScreen(
+          // §C continuation — editable draft inputs from the
+          // notification centre's Resume.
+          restoredDraft: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
+        ),
       ),
     ),
 
@@ -452,7 +468,13 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const ConvertScreen(),
+        child: ConvertScreen(
+          // §C continuation — the notification centre's Resume pushes
+          // the canonical route with the draft's editable inputs as extra.
+          restoredDraft: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
+        ),
       ),
     ),
 

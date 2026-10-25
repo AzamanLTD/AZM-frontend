@@ -219,7 +219,15 @@ abstract final class AzamanSheet {
     BuildContext context, {
     required WidgetBuilder builder,
     bool isDismissible = true,
+    // Tall-but-bounded whisper content (the launcher exit prompt's three
+    // choice rows) legitimately exceeds the 0.45 whisper cap on short
+    // viewports. The caller may raise the cap slightly — clamped into
+    // the band below the panel's extended detent so a raised whisper
+    // still reads as a whisper, never a panel.
+    double maxHeightFraction = AzSheetGeometry.whisperMaxFraction,
   }) {
+    assert(maxHeightFraction > 0 && maxHeightFraction <= 0.68,
+        'a raised whisper must stay a whisper, not become a panel');
     final viewport = MediaQuery.of(context).size.height;
     return showModalBottomSheet<T>(
       context: context,
@@ -234,7 +242,7 @@ abstract final class AzamanSheet {
         maxHeight: AzSheetGeometry.whisperHeight(
           viewportHeight: viewport,
           contentHeight: double.infinity,
-        ),
+        ) * (maxHeightFraction / AzSheetGeometry.whisperMaxFraction),
       ),
       builder: (ctx) => AzSheetSurface(
         weight: AzSheetWeight.whisper,

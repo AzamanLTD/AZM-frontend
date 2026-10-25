@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
@@ -106,7 +109,7 @@ class NotificationOverlay extends ConsumerStatefulWidget {
 }
 
 class _State extends ConsumerState<NotificationOverlay>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _slideCtrl;
   late Animation<Offset> _slideAnim;
   int _tab = 0;
@@ -145,6 +148,13 @@ class _State extends ConsumerState<NotificationOverlay>
   void initState() {
     super.initState();
     NotificationOverlay._panelMounted = true;
+    // §C.3 — opening the notification centre is one of the three expiry
+    // enforcement points. loadForUser drops anything whose five-minute
+    // wall clock has lapsed; only unexpired drafts render as continuation
+    // cards. LOCAL drafts never touch the server unread count.
+    WidgetsBinding.instance.addObserver(this);
+    final uid = ref.read(authProvider).user?.id;
+    ref.read(launcherDraftsProvider.notifier).loadForUser(uid);
     _slideCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
@@ -237,11 +247,22 @@ class _State extends ConsumerState<NotificationOverlay>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _driver?.removeListener(_onDriverCommand);
     NotificationOverlay._panelMounted = false;
     _settleCtrl.dispose();
     _slideCtrl.dispose();
     super.dispose();
+  }
+
+  /// §C.1 — returning to the foreground is the third expiry-enforcement
+  /// point: drafts are re-read from storage and anything past its
+  /// five-minute wall clock is dropped, not displayed.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final uid = ref.read(authProvider).user?.id;
+    ref.read(launcherDraftsProvider.notifier).loadForUser(uid);
   }
 
   @override
@@ -354,6 +375,46 @@ class _State extends ConsumerState<NotificationOverlay>
         // Purely informational notice — opening it is just reading it.
         break;
     }
+  }
+
+  /// §C.3 — canonical destination per surface. These are the SAME routes
+  /// the launcher windows push; Resume pushes the canonical route with the
+  /// draft's editable inputs as extra, never an invented route.
+  String _draftRoute(LauncherSurface surface) => switch (surface) {
+        LauncherSurface.send => '/send',
+        LauncherSurface.withdraw => '/withdraw',
+        LauncherSurface.addCash => '/deposit',
+        LauncherSurface.convert => '/convert',
+      };
+
+  String _draftTitle(LauncherSurface surface) => switch (surface) {
+        LauncherSurface.send => 'Continue sending',
+        LauncherSurface.withdraw => 'Continue withdrawal',
+        LauncherSurface.addCash => 'Continue adding cash',
+        LauncherSurface.convert => 'Continue conversion estimate',
+      };
+
+  IconData _draftIcon(LauncherSurface surface) => switch (surface) {
+        LauncherSurface.send => Icons.send_rounded,
+        LauncherSurface.withdraw => Icons.south_west_rounded,
+        LauncherSurface.addCash => Icons.add_card_rounded,
+        LauncherSurface.convert => Icons.swap_vert_circle_rounded,
+      };
+
+  /// §C.3 Resume — dismiss the panel FIRST (the same guard-and-order the
+  /// notification dispatcher uses), then push the canonical route once.
+  /// A second tap cannot double-navigate: `_closing` latches.
+  void _resumeDraft(LauncherDraft draft) {
+    if (_closing) return;
+    HapticFeedback.lightImpact();
+    final router = GoRouter.of(context);
+    final route = _draftRoute(draft.surface);
+    final payload = Map<String, dynamic>.from(draft.payload);
+    _closing = true;
+    _dismiss();
+    Future<void>.delayed(const Duration(milliseconds: 260), () {
+      router.push(route, extra: payload);
+    });
   }
 
   // REVIEW 4.1 — classification is AUTHORITATIVE on the server's explicit
@@ -534,6 +595,153 @@ class _State extends ConsumerState<NotificationOverlay>
     }
   }
 
+  /// §C.3 — the local continuation section. One row per unexpired draft:
+  /// Resume reopens the canonical launcher surface with the stored
+  /// editable inputs; a left/right swipe permanently discards the draft
+  /// (an explicit user action — a refresh can never resurrect it).
+  Widget _buildContinuationSection(
+    AzamanColors colors,
+    List<LauncherDraft> drafts,
+    int nowMs,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Continue where you left off',
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                decoration: TextDecoration.none,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          ...drafts.map((d) {
+            final expired = d.isExpiredAt(nowMs);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Dismissible(
+                key: ValueKey('launcher_draft_${d.id}'),
+                direction: DismissDirection.horizontal,
+                // Swipe-away is the PERMANENT discard of this local
+                // draft (and its stored editable state). It never
+                // touches server notifications or any transaction.
+                onDismissed: (_) {
+                  AzamanHaptics.selection();
+                  ref
+                      .read(launcherDraftsProvider.notifier)
+                      .discardDraft(d.id);
+                },
+                background: Container(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  decoration: BoxDecoration(
+                    color: colors.danger,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.white),
+                ),
+                secondaryBackground: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: colors.danger,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.white),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colors.divider, width: 0.8),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: colors.accentSurface,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _draftIcon(d.surface),
+                          size: 19,
+                          color: colors.accent,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _draftTitle(d.surface),
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              'Saved locally ${d.minutesLeftAt(nowMs)}',
+                              style: TextStyle(
+                                color: colors.textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        // An expired card cannot Resume; the next
+                        // loadForUser sweep removes it.
+                        onPressed:
+                            expired ? null : () => _resumeDraft(d),
+                        style: TextButton.styleFrom(
+                          backgroundColor: colors.accentSurface,
+                          foregroundColor: colors.accent,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Resume',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _categoryRow(
     int idx,
     IconData icon,
@@ -623,6 +831,12 @@ class _State extends ConsumerState<NotificationOverlay>
     final money = allN.where(_isMoney).length;
     final social = allN.where(_isSocial).length;
     final secCnt = allN.where(_isSecurity).length;
+
+    // §C.3 — LOCAL continuation drafts: a distinct source, rendered above
+    // the category card. They are NOT server notifications — the unread
+    // count above is untouched — and never re-filed into a category.
+    final drafts = ref.watch(launcherDraftsProvider).drafts;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
 
     // Build the body: business tab shows a link to business notifications,
     // other tabs show the filtered notification list.
@@ -860,6 +1074,14 @@ class _State extends ConsumerState<NotificationOverlay>
                                   ],
                                 ),
                               ),
+                              if (drafts.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                _buildContinuationSection(
+                                  colors,
+                                  drafts,
+                                  nowMs,
+                                ),
+                              ],
                               const SizedBox(height: 16),
                               Padding(
                                 padding: const EdgeInsets.symmetric(

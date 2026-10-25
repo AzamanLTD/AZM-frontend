@@ -35,11 +35,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/widgets/launcher_exit_prompt.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/config.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
@@ -67,6 +71,7 @@ class DepositScreen extends ConsumerStatefulWidget {
     this.initialTab = DepositTab.fiat,
     this.prefillAmount,
     this.memo,
+    this.restoredDraft,
   });
 
   final DepositTab initialTab;
@@ -83,6 +88,12 @@ class DepositScreen extends ConsumerStatefulWidget {
   /// the cycle that prompted them. Not surfaced visually.
   final String? memo;
 
+  /// §C continuation — editable inputs restored from a five-minute
+  /// launcher draft. LOCAL convenience only; a draft is NEVER a pending
+  /// deposit. The saved-account pick is re-matched by id against the
+  /// LIVE account list when the panel loads.
+  final Map<String, dynamic>? restoredDraft;
+
   @override
   ConsumerState<DepositScreen> createState() => _DepositScreenState();
 }
@@ -90,6 +101,43 @@ class DepositScreen extends ConsumerStatefulWidget {
 enum DepositTab { crypto, fiat }
 
 class _DepositScreenState extends ConsumerState<DepositScreen> {
+  /// §C — live handle into the fiat panel so the draft capture reads the
+  /// panel's actual amount state without hoisting it.
+  final GlobalKey<_FiatDepositPanelState> _fiatPanelKey =
+      GlobalKey<_FiatDepositPanelState>();
+
+  /// §C.1 — meaningful unsubmitted input on the launcher's surface (the
+  /// fiat panel's amount). Empty closes are silent; a meaningful close
+  /// offers Keep for 5 minutes / Discard / Stay.
+  bool get _hasMeaningfulDraftInput {
+    final panel = _fiatPanelKey.currentState;
+    if (panel == null) return false;
+    return panel._amountRaw.isNotEmpty;
+  }
+
+  Map<String, dynamic> _captureDraft() => {
+        'amountRaw': _fiatPanelKey.currentState?._amountRaw ?? '',
+        if (_fiatPanelKey.currentState?._selectedAccountId != null)
+          'accountId': _fiatPanelKey.currentState!._selectedAccountId,
+      };
+
+  Future<void> _attemptClose() async {
+    if (_hasMeaningfulDraftInput) {
+      final user = ref.read(authProvider).user;
+      await guardLauncherClose(
+        context: context,
+        ref: ref,
+        userId: user?.id,
+        surface: LauncherSurface.addCash,
+        hasMeaningfulInput: _hasMeaningfulDraftInput,
+        capture: _captureDraft,
+        doClose: _closeSurface,
+      );
+      return;
+    }
+    _closeSurface();
+  }
+
   void _closeSurface() {
     AzamanHaptics.navigation();
     if (context.canPop()) {
@@ -108,15 +156,19 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
       body: SafeArea(
         bottom: false,
         child: PullDownDismissibleSurface(
-          onDismiss: _closeSurface,
+          onDismiss: _attemptClose,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _AddCashHeader(colors: colors, onClose: _closeSurface),
+              _AddCashHeader(colors: colors, onClose: _attemptClose),
               Expanded(
                 child: _FiatDepositPanel(
+                  key: _fiatPanelKey,
                   prefillAmount: widget.prefillAmount,
                   memo: widget.memo,
+                  restoredAmount: widget.restoredDraft?['amountRaw']?.toString(),
+                  restoredAccountId:
+                      widget.restoredDraft?['accountId']?.toString(),
                 ),
               ),
             ],
@@ -192,10 +244,25 @@ class _AddCashHeader extends StatelessWidget {
 // =============================================================================
 
 class _FiatDepositPanel extends ConsumerStatefulWidget {
-  const _FiatDepositPanel({this.prefillAmount, this.memo});
+  const _FiatDepositPanel({
+    super.key,
+    this.prefillAmount,
+    this.memo,
+    this.restoredAmount,
+    this.restoredAccountId,
+  });
 
   final String? prefillAmount;
   final String? memo;
+
+  /// §C draft resume — the launcher draft's amount. Applied exactly like
+  /// the deep-link prefill: through the same validator, never raw-trusted.
+  final String? restoredAmount;
+
+  /// §C draft resume — the draft's explicit account id. Re-matched against
+  /// the LIVE saved-accounts list when it loads; a deleted account is
+  /// honestly unselected instead of restored as stale data.
+  final String? restoredAccountId;
 
   @override
   ConsumerState<_FiatDepositPanel> createState() => _FiatDepositPanelState();
@@ -276,6 +343,19 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     }
   }
 
+  /// §C resume — validate and apply the draft's amount. Same rules as
+  /// the deep-link prefill: strictly positive, at most two fractional
+  /// digits; anything else is dropped and the input stays empty.
+  void _applyRestoredAmount() {
+    final raw = widget.restoredAmount?.trim();
+    if (raw == null || raw.isEmpty) return;
+    final ok = RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(raw);
+    final v = double.tryParse(raw);
+    if (ok && v != null && v > 0) {
+      _amountRaw = raw;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -285,12 +365,24 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     // is dropped silently and the input stays empty so the user notices and
     // re-enters.
     final raw = widget.prefillAmount?.trim();
-    if (raw != null && raw.isNotEmpty) {
+    if (raw != null && raw.isEmpty && (widget.restoredAmount ?? '').isNotEmpty) {
+      // §C resume: no deep-link prefill — restore the draft amount
+      // through the SAME validator. A malformed stored value is dropped
+      // exactly like a malformed deep link.
+      _applyRestoredAmount();
+    } else if (raw != null && raw.isNotEmpty) {
       final ok = RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(raw);
       final v = double.tryParse(raw);
       if (ok && v != null && v > 0) {
         _amountRaw = raw;
       }
+    }
+    // §C resume — the draft's EXPLICIT account choice. _currentAccount
+    // re-matches it against the live list on every read; a deleted
+    // account falls through to the honest derived selection.
+    final restoredAccount = widget.restoredAccountId;
+    if (restoredAccount != null && restoredAccount.isNotEmpty) {
+      _selectedAccountId = restoredAccount;
     }
     SocketService.instance.onDepositSuccess((
       amountGhs,

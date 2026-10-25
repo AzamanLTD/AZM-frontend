@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/currency_provider.dart';
+import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/widgets/launcher_exit_prompt.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
@@ -54,7 +57,13 @@ DateTime Function() kConvertNow = () => DateTime.now().toUtc();
 ///   remain different concepts — this screen never writes the
 ///   preference, and the preference never debits a wallet.
 class ConvertScreen extends ConsumerStatefulWidget {
-  const ConvertScreen({super.key});
+  const ConvertScreen({super.key, this.restoredDraft});
+
+  /// §C continuation — the draft's amount/direction restored as an
+  /// ESTIMATE-FORM draft (§C.2: Convert is display-only; this is never
+  /// a pending conversion). The rate is re-observed live on open; a
+  /// stored quote is never reused.
+  final Map<String, dynamic>? restoredDraft;
 
   @override
   ConsumerState<ConvertScreen> createState() => _ConvertScreenState();
@@ -89,11 +98,52 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
   // keeps that truthful.
   bool _reversed = false;
 
+  /// §C.1 — is there a meaningful estimate-form draft to keep? A typed
+  /// amount on either direction. Empty closes are silent.
+  bool get _hasMeaningfulDraftInput => _amountCtrl.text.trim().isNotEmpty;
+
+  Map<String, dynamic> _captureDraft() => {
+        'amountRaw': _amountCtrl.text.trim(),
+        'reversed': _reversed,
+      };
+
+  /// §C.1 — the guarded close through the SHARED launcher prompt. The
+  /// draft is an estimate-form draft: resuming re-observes the live
+  /// rate, it never restores a quote.
+  Future<void> _attemptClose() async {
+    if (_hasMeaningfulDraftInput) {
+      final user = ref.read(authProvider).user;
+      await guardLauncherClose(
+        context: context,
+        ref: ref,
+        userId: user?.id,
+        surface: LauncherSurface.convert,
+        hasMeaningfulInput: _hasMeaningfulDraftInput,
+        capture: _captureDraft,
+        doClose: () => Navigator.of(context).maybePop(),
+      );
+      return;
+    }
+    Navigator.of(context).maybePop();
+  }
+
   void _switchDirection() {
     setState(() {
       _reversed = !_reversed;
       _amountCtrl.clear();
     });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.restoredDraft;
+    if (draft != null) {
+      // §C resume — amount + direction ONLY. The estimate is recomputed
+      // from the live snapshot; an expired observation is never reused.
+      _amountCtrl.text = draft['amountRaw']?.toString() ?? '';
+      _reversed = draft['reversed'] == true;
+    }
   }
 
   @override
@@ -136,7 +186,7 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
       // §6: Convert is a transient surface like Receive — a committed
       // downward pull closes it. Nothing is pending on this screen, so
       // the pull is always accepted.
-      onDismiss: () => Navigator.of(context).maybePop(),
+      onDismiss: _attemptClose,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: colors.surface,
@@ -152,7 +202,7 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
             key: const Key('convert_close'),
             icon: Icon(Icons.close, color: colors.onSurface, size: 20),
             tooltip: 'Close',
-            onPressed: () => Navigator.of(context).maybePop(),
+            onPressed: _attemptClose,
           ),
           title: Text(
             'Convert',

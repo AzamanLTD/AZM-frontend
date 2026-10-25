@@ -27,6 +27,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/widgets/launcher_exit_prompt.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
@@ -80,7 +83,13 @@ extension on MomoNetwork {
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 class WithdrawalScreen extends ConsumerStatefulWidget {
-  const WithdrawalScreen({super.key});
+  const WithdrawalScreen({super.key, this.restoredDraft});
+
+  /// §C continuation — editable inputs restored from a five-minute
+  /// launcher draft. LOCAL convenience only; nothing here is a pending
+  /// withdrawal. The saved wallet is re-matched by address from the LIVE
+  /// wallet list, never trusted from storage.
+  final Map<String, dynamic>? restoredDraft;
 
   @override
   ConsumerState<WithdrawalScreen> createState() => _WithdrawalScreenState();
@@ -136,7 +145,17 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   List<Map<String, dynamic>> _savedWallets = [];
   Map<String, dynamic>? _selectedWallet;
 
+  /// True only after the user picked a wallet from the dropdown in this
+  /// session. The auto-selected first saved wallet is server state, not
+  /// user input, and must never trigger the draft prompt.
+  bool _walletChosenByUser = false;
+
   // ── Mobile Money path (Phase B Kotani fields) ───────────────────────────
+  /// §C — wallet address carried by a restored draft; re-matched against
+  /// the live wallet list once it loads, so a deleted wallet surfaces as
+  /// an honest unselected state rather than a stale payload.
+  String? _draftWalletAddress;
+
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _accountNameController = TextEditingController();
   MomoNetwork _selectedNetwork = MomoNetwork.mtn;
@@ -184,6 +203,25 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   @override
   void initState() {
     super.initState();
+    final draft = widget.restoredDraft;
+    if (draft != null) {
+      // §C.1 resume — restore ONLY editable inputs. The wallet is
+      // re-matched live by address; the recipient phone/name are plain
+      // text the backend revalidates at submit.
+      _amountRaw = draft['amountRaw']?.toString() ?? '';
+      _mode = draft['mode'] == 'cryptoWallet'
+          ? _WithdrawMode.cryptoWallet
+          : _WithdrawMode.mobileMoney;
+      _phoneController.text = draft['phone']?.toString() ?? '';
+      _accountNameController.text = draft['accountName']?.toString() ?? '';
+      _draftWalletAddress = draft['walletAddress']?.toString();
+      _selectedNetwork = switch (draft['network']) {
+        'MTN' => MomoNetwork.mtn,
+        'TELECEL' => MomoNetwork.telecel,
+        'AIRTELTIGO' => MomoNetwork.airtelTigo,
+        _ => MomoNetwork.mtn,
+      };
+    }
     _bootstrap();
   }
 
@@ -332,6 +370,16 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         setState(() {
           _savedWallets = wallets;
           _selectedWallet = wallets.isNotEmpty ? wallets.first : null;
+          // §C resume — re-match the draft's wallet against the LIVE
+          // list by address. A deleted wallet stays honestly unselected.
+          final draftAddress = _draftWalletAddress;
+          if (draftAddress != null) {
+            _draftWalletAddress = null;
+            final match = wallets.where(
+              (w) => w['address']?.toString() == draftAddress,
+            );
+            if (match.isNotEmpty) _selectedWallet = match.first;
+          }
           _isLoadingWallets = false;
         });
       } else if (mounted) {
@@ -1070,6 +1118,54 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   /// close is refused — a dismissal while the withdrawal request is
   /// in flight would silently abandon an unresolved committed operation
   /// (dismissal is NOT cancelling a backend-accepted transaction).
+  /// §C.1 — meaningful unsubmitted input? Only outside a submission:
+  /// while `_isSubmitting` the close is refused outright (existing
+  /// contract), and a submitted operation is NEVER a draft.
+  bool get _hasMeaningfulDraftInput =>
+      !_isSubmitting &&
+      (_amountRaw.isNotEmpty ||
+          _phoneController.text.trim().isNotEmpty ||
+          _accountNameController.text.trim().isNotEmpty ||
+          (_mode == _WithdrawMode.cryptoWallet && _walletChosenByUser));
+
+  Map<String, dynamic> _captureDraft() => {
+        'amountRaw': _amountRaw,
+        'mode': _mode == _WithdrawMode.cryptoWallet
+            ? 'cryptoWallet'
+            : 'mobileMoney',
+        'network': _selectedNetwork.apiValue,
+        'phone': _phoneController.text.trim(),
+        'accountName': _accountNameController.text.trim(),
+        if (_selectedWallet?['address'] != null)
+          'walletAddress': _selectedWallet!['address'].toString(),
+      };
+
+  /// §C.1 — the guarded close through the SHARED launcher prompt. An
+  /// empty form closes silently; a meaningful one offers Keep/Discard/
+  /// Stay. The in-flight submission keeps its existing refusal.
+  Future<void> _attemptClose() async {
+    if (_isSubmitting) return;
+    if (_mode == _WithdrawMode.mobileMoney &&
+        (_amountRaw.isNotEmpty ||
+            _phoneController.text.trim().isNotEmpty ||
+            _accountNameController.text.trim().isNotEmpty) ||
+        _mode == _WithdrawMode.cryptoWallet &&
+            (_amountRaw.isNotEmpty || _selectedWallet != null)) {
+      final user = ref.read(authProvider).user;
+      await guardLauncherClose(
+        context: context,
+        ref: ref,
+        userId: user?.id,
+        surface: LauncherSurface.withdraw,
+        hasMeaningfulInput: _hasMeaningfulDraftInput,
+        capture: _captureDraft,
+        doClose: _closeSurface,
+      );
+      return;
+    }
+    _closeSurface();
+  }
+
   void _closeSurface() {
     if (_isSubmitting) return;
     AzamanHaptics.navigation();
@@ -1104,7 +1200,14 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     // the pull dismissal and the system back are both refused — the
     // operation must not be silently abandoned (PR #165 finding 2).
     return PopScope(
-      canPop: !_isSubmitting,
+      // §C.1 — system back is guarded: refused in-flight (existing
+      // contract), and routed through the shared draft prompt when the
+      // unsubmitted form is meaningful.
+      canPop: !_isSubmitting && !_hasMeaningfulDraftInput,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || _isSubmitting || !mounted) return;
+        _attemptClose();
+      },
       child: Scaffold(
         backgroundColor: colors.surface,
         body: _isLoadingWallets
@@ -1112,7 +1215,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
             : SafeArea(
                 bottom: false,
                 child: PullDownDismissibleSurface(
-                  onDismiss: _closeSurface,
+                  onDismiss: _attemptClose,
                   // Mid-flight: the pull is refused. The operation is
                   // resolved by the response (or the durable recovery
                   // path on the next open), never by a silent drag-away.
@@ -1127,7 +1230,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                           _WithdrawHeader(
                             colors: colors,
                             busy: _isSubmitting,
-                            onClose: _closeSurface,
+                            onClose: _attemptClose,
                           ),
                           Padding(
                             padding:
@@ -1843,7 +1946,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               }).toList(),
               onChanged: (value) {
                 HapticFeedback.selectionClick();
-                setState(() => _selectedWallet = value);
+                setState(() {
+                  _selectedWallet = value;
+                  _walletChosenByUser = true;
+                });
               },
             ),
           ),
