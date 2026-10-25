@@ -27,7 +27,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/router/route_registry.dart';
-import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
@@ -223,11 +222,19 @@ class ActivityActionResolver {
         AzamanHaptics.nav();
         // The recipient payload is explicit — the send flow receives the
         // authoritative AZM ID, it does not re-derive anything.
-        Navigator.push(
-            context,
-            MaterialPageRoute(
-                builder: (_) =>
-                    SendMoneyScreen(initialRecipient: action.recipient)));
+        // WORKSTREAM B — by canonical location: /send?to=&name= carries
+        // the same explicit seed the imperative construction carried.
+        // A sendAgain action with NO resolved recipient opens the plain
+        // compose surface (exactly what the old imperative construction
+        // did with a null seed) — never a fabricated recipient.
+        context.push(
+          action.recipient == null
+              ? AzRoutes.send()
+              : AzRoutes.send(
+                  to: action.recipient!.azamanId,
+                  name: action.recipient!.displayName,
+                ),
+        );
       case ActivityActionType.viewSusu:
         AzamanHaptics.nav();
         if (action.reference != null) {

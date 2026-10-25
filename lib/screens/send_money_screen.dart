@@ -81,6 +81,7 @@ import 'package:azaman/widgets/home/activity_actions.dart'
     show ActivityRecipient;
 import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 import 'package:azaman/widgets/send/recipient_selector_sheet.dart';
 import 'package:azaman/widgets/send/send_result_panel.dart';
 import 'package:azaman/services/az_sound.dart';
@@ -676,61 +677,62 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         _showUnknownPendingDialog();
       },
       child: Scaffold(
-      backgroundColor: colors.surface,
-      appBar: AppBar(
-        key: const ValueKey('send-app-bar'),
         backgroundColor: colors.surface,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leading: _stage == _SendStage.review ||
-                _stage == _SendStage.sending ||
-                _stage == _SendStage.unknown
-            ? IconButton(
-                key: const ValueKey('send-edit-back'),
-                icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
-                // Disabled mid-flight AND while the outcome is UNKNOWN —
-                // the composition is frozen until the durable operation
-                // resolves (PR #165 review finding 2).
-                onPressed: (_stage == _SendStage.sending ||
-                        _stage == _SendStage.unknown)
-                    ? null
-                    : _backToCompose,
-                tooltip: 'Back to edit',
-              )
-            : IconButton(
-                icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-        title: Text(
-          _stage == _SendStage.review ||
-                  _stage == _SendStage.sending ||
-                  _stage == _SendStage.unknown
-              ? 'Review transfer'
-              : 'Send',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
+        // Workstream B — Send joins the shared transient-surface grammar
+        // (rise-from-bottom route + X close + deliberate pull-to-dismiss):
+        // the SAME gesture shell Add Cash, Receive and Convert use. The
+        // composition, stages, money action and every financial guard are
+        // untouched — only the presentation surface changed.
+        body: SafeArea(
+          bottom: false,
+          child: PullDownDismissibleSurface(
+            onDismiss: _closeSurface,
+            // PR #165 review finding 2, extended to the pull gesture: an
+            // UNKNOWN outcome must never be silently dragged away — the
+            // surface asks before committing, and a rejected pull shows
+            // the same explicit decision dialog as the system-back guard.
+            canDismiss: () => _stage != _SendStage.unknown,
+            onDismissRejected: _showUnknownPendingDialog,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SendHeader(
+                  key: const ValueKey('send-app-bar'),
+                  colors: colors,
+                  stage: _stage,
+                  onClose: _closeSurface,
+                  onBackToEdit: _backToCompose,
+                ),
+                Expanded(
+                  child: switch (_stage) {
+                    _SendStage.done => _buildDone(colors),
+                    _SendStage.compose => LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxHeight < 620;
+                          return _buildCompose(
+                              colors, compact, balance, myAzamanId);
+                        },
+                      ),
+                    _ => _buildReview(colors),
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
-      body: SafeArea(
-        child: switch (_stage) {
-          _SendStage.done => _buildDone(colors),
-          _SendStage.compose => LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxHeight < 620;
-                return _buildCompose(colors, compact, balance, myAzamanId);
-              },
-            ),
-          _ => _buildReview(colors),
-        },
-      ),
-      ),
     );
+  }
+
+  /// Workstream B — the surface close, identical to Add Cash/Receive:
+  /// pop the surface if the stack has it, otherwise return Home.
+  void _closeSurface() {
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    } else {
+      Navigator.of(context, rootNavigator: true).maybePop();
+    }
   }
 
   /// The unknown-outcome pop decision: retry the exact operation (same
@@ -1792,6 +1794,95 @@ class _PrimaryAction extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WORKSTREAM B — SEND HEADER — [X] / [←] + title, the Add Cash grammar.
+//
+// Compose/done: an X close (one close affordance, no duplicate controls).
+// Review/sending/unknown: the back-to-edit arrow — a STAGE control, not a
+// close — disabled mid-flight and while the outcome is UNKNOWN (PR #165
+// review finding 2: the composition is frozen until the durable operation
+// resolves).
+// ─────────────────────────────────────────────────────────────────────────────
+class _SendHeader extends StatelessWidget {
+  const _SendHeader({
+    super.key,
+    required this.colors,
+    required this.stage,
+    required this.onClose,
+    required this.onBackToEdit,
+  });
+
+  final AzamanColors colors;
+  final _SendStage stage;
+  final VoidCallback onClose;
+  final VoidCallback onBackToEdit;
+
+  bool get _showsBackToEdit =>
+      stage == _SendStage.review ||
+      stage == _SendStage.sending ||
+      stage == _SendStage.unknown;
+
+  @override
+  Widget build(BuildContext context) {
+    final frozen =
+        stage == _SendStage.sending || stage == _SendStage.unknown;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      child: Row(
+        children: [
+          // The key stays on the IgnorePointer so the frozen contract
+          // stays testable from outside (the old app-bar IconButton's
+          // null-onPressed read, expressed for the new header grammar).
+          IgnorePointer(
+            key: const ValueKey('send-edit-back'),
+            ignoring: frozen,
+            child: Semantics(
+              // container: true keeps the affordance its OWN focusable
+              // semantics node at every stage. Without it the review
+              // stage's scrollable semantics merges this label into the
+              // whole-surface node ("Back to edit\nReview transfer\n…"),
+              // costing screen-reader users a discrete, announced close
+              // target (observed via debugDumpSemanticsTree).
+              container: true,
+              button: true,
+              label: _showsBackToEdit ? 'Back to edit' : 'Close Send',
+              excludeSemantics: true,
+              child: GestureDetector(
+                onTap: _showsBackToEdit ? onBackToEdit : onClose,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: colors.softSurface,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    _showsBackToEdit ? Icons.arrow_back : Icons.close,
+                    size: 18,
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Text(
+            _showsBackToEdit ? 'Review transfer' : 'Send',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
       ),
     );
   }
