@@ -286,11 +286,14 @@ void main() {
         (tester) async {
       await _pumpSurface(tester);
 
-      // Pick the demo saved MoMo account — the picker fills the reference
-      // with the account's registered name, so the affordance flips from
-      // 'Add' to 'Edit' with the name previewed.
+      // Pick the demo saved MoMo account through the selector sheet —
+      // the pick fills the reference with the account's registered name,
+      // so the affordance flips from 'Add' to 'Edit' with the preview.
+      await tester.tap(find.text('Choose payout account'), warnIfMissed: false);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Kwame Mensah'), warnIfMissed: false);
       await tester.pumpAndSettle();
+
       expect(find.text('Edit'), findsOneWidget);
       expect(find.text('Kwame Mensah'), findsWidgets,
           reason: 'the row and the affordance preview both show the name');
@@ -306,6 +309,100 @@ void main() {
           reason: 'the account pick survives the round trip');
       // The account row AND the affordance preview both carry the name.
       expect(find.text('Kwame Mensah'), findsWidgets);
+    });
+  });
+
+  group('B2 — the payout account is ONE Add-Cash-style selector, never a '
+      'stack of wallets (owner correction 2026-10-25)', () {
+    testWidgets('the surface renders exactly one account row — the other '
+        'saved account never stacks inline', (tester) async {
+      await _pumpSurface(tester);
+
+      // Before any pick: the honest choose state, exactly once.
+      expect(find.text('Choose payout account'), findsOneWidget);
+      // The demo seeds TWO saved accounts (Kwame Mensah · MTN primary,
+      // Ama Boateng · Telecel). NEITHER renders inline — the old stacked
+      // list showed both networks as two wallets, which the owner
+      // corrected: the selector row must be the only surface presence.
+      expect(find.text('Kwame Mensah'), findsNothing,
+          reason: 'no account tile renders before a pick');
+      expect(find.text('Ama Boateng'), findsNothing);
+      expect(find.text('My MTN'), findsNothing);
+      expect(find.text('Telecel Acct'), findsNothing);
+    });
+
+    testWidgets('the row opens the selector sheet; picking an account '
+        'lands the row and the reference preview', (tester) async {
+      await _pumpSurface(tester);
+
+      await tester.tap(find.text('Choose payout account'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      // The sheet: both real accounts offered, the add-account CTA and
+      // a titled header — the Add Cash payment-method grammar.
+      expect(find.text('Payout account'), findsOneWidget);
+      expect(find.text('Kwame Mensah'), findsOneWidget);
+      expect(find.text('Ama Boateng'), findsOneWidget);
+      expect(find.text('Add a new account'), findsOneWidget);
+
+      // Pick the primary account.
+      await tester.tap(find.text('Kwame Mensah'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      // The sheet is gone; the row carries the pick.
+      expect(find.text('Payout account'), findsNothing,
+          reason: 'the sheet closed after the acknowledged pick');
+      expect(find.text('Kwame Mensah'), findsWidgets,
+          reason: 'the row and the reference preview show the name');
+      expect(find.text('024 412 3456'), findsOneWidget,
+          reason: 'the Ghana-formatted phone renders on the row');
+      expect(find.text('Edit'), findsOneWidget);
+    });
+
+    testWidgets('switching accounts in the sheet updates the row — the '
+        'selection is a live single source', (tester) async {
+      await _pumpSurface(tester);
+
+      // Pick the primary.
+      await tester.tap(find.text('Choose payout account'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kwame Mensah'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('Kwame Mensah'), findsWidgets);
+
+      // Reopen and switch to the Telecel account.
+      await tester.tap(find.text('Kwame Mensah').first, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('Ama Boateng'), findsOneWidget,
+          reason: 'the sheet offers the other real account');
+      await tester.tap(find.text('Ama Boateng'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ama Boateng'), findsWidgets,
+          reason: 'the row now carries the switched account');
+      expect(find.text('050 098 7654'), findsOneWidget,
+          reason: 'the switched account phone renders');
+    });
+
+    testWidgets('the sheet opens from the selected row too, and closing it '
+        'leaves the pick untouched', (tester) async {
+      await _pumpSurface(tester);
+
+      await tester.tap(find.text('Choose payout account'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kwame Mensah'), warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      // Reopen, then dismiss via the close control — the pick survives.
+      await tester.tap(find.text('Kwame Mensah').first, warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(find.text('Payout account'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.close).last, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Payout account'), findsNothing);
+      expect(find.text('Kwame Mensah'), findsWidgets,
+          reason: 'closing the sheet never undoes the committed pick');
     });
   });
 
@@ -388,6 +485,8 @@ void main() {
         'appears', (tester) async {
       await _pumpSurface(tester);
 
+      await tester.tap(find.text('Choose payout account'), warnIfMissed: false);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Kwame Mensah'), warnIfMissed: false);
       await tester.pumpAndSettle();
       for (final key in const ['1', '2', '.', '5']) {

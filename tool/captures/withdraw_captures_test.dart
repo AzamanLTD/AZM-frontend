@@ -145,7 +145,12 @@ Future<void> _capture(
 
   if (prepared) {
     // Saved account picked + amount composed: the reference affordance,
-    // the fee preview and the live slide-to-confirm all visible.
+    // the fee preview and the live slide-to-confirm all visible. The
+    // payout account is picked through the Add-Cash-style selector
+    // sheet (the owner-corrected grammar — one row, never stacked
+    // wallets).
+    await tester.tap(find.text('Choose payout account'), warnIfMissed: false);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Kwame Mensah'), warnIfMissed: false);
     await tester.pumpAndSettle();
     for (final key in const ['1', '2', '.', '5']) {

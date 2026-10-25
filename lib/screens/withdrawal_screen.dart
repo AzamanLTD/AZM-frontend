@@ -22,6 +22,7 @@
 // The user toggles between the two paths via a segmented control at the top.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -48,11 +49,11 @@ import 'package:azaman/utils/amount_input.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/amount_keypad.dart';
+import 'package:azaman/widgets/momo_network.dart' as momo_net;
 import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
-import 'package:azaman/utils/idempotency_key.dart';
 import 'package:azaman/widgets/withdrawal_progress_sheet.dart';
 
 
@@ -614,6 +615,73 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         content: Text(msg),
         backgroundColor: isError ? colors.danger : colors.success,
         behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  // ── Payout-account selection (Add Cash selector grammar) ────────────
+
+  /// The single selection path — the row, the sheet and the default
+  /// priming all land here, so the id, the legacy controllers and the
+  /// network mapping can never drift apart.
+  void _selectAccount(SavedMomoAccount a) {
+    setState(() {
+      _selectedSavedMomoId = a.id;
+      _phoneController.text = a.phoneNumber;
+      _accountNameController.text = a.accountName ?? '';
+      // Map provider → MomoNetwork enum for backend compatibility —
+      // the existing _handleMomoWithdraw path still reads
+      // _selectedNetwork.apiValue.
+      switch (a.provider.toUpperCase()) {
+        case 'MTN':
+          _selectedNetwork = MomoNetwork.mtn;
+          break;
+        case 'TELECEL':
+        case 'VODAFONE': // legacy stored value
+          _selectedNetwork = MomoNetwork.telecel;
+          break;
+        case 'AIRTELTIGO':
+        case 'AT':
+          _selectedNetwork = MomoNetwork.airtelTigo;
+          break;
+        default:
+          _selectedNetwork = MomoNetwork.mtn;
+      }
+    });
+  }
+
+  Future<void> _showAccountSelector(
+    AzamanColors colors,
+    List<SavedMomoAccount> accounts,
+  ) async {
+    AzamanHaptics.navigation();
+    final maxHeight = MediaQuery.of(context).size.height * 0.72;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: colors.card,
+      barrierColor: colors.background.withValues(alpha: 0.6),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (sheetCtx) => _WithdrawAccountSelectorSheet(
+        colors: colors,
+        accounts: accounts,
+        selectedId: _selectedSavedMomoId,
+        maxHeight: maxHeight,
+        onSelect: (account) {
+          // The selection lands in parent state IMMEDIATELY (the check
+          // flips on the same frame behind the still-open sheet); the
+          // sheet closes itself after the acknowledgement delay. No
+          // submission race: a submission cannot start beneath the
+          // sheet's modal barrier, and the row is locked while
+          // _isSubmitting.
+          _selectAccount(account);
+        },
+        onAdd: () {
+          Navigator.pop(sheetCtx);
+          _goToAddPaymentMethod();
+        },
       ),
     );
   }
@@ -1460,43 +1528,38 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                 ),
               );
             }
-            return Column(
-              children: accounts
-                  .map(
-                    (a) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: _MomoAccountPicker(
-                        account: a,
-                        colors: colors,
-                        selected: _selectedSavedMomoId == a.id,
-                        onTap: () => setState(() {
-                          _selectedSavedMomoId = a.id;
-                          _phoneController.text = a.phoneNumber;
-                          _accountNameController.text = a.accountName ?? '';
-                          // Map provider → MomoNetwork enum for backend
-                          // compatibility — the existing _handleMomoWithdraw
-                          // path still reads _selectedNetwork.apiValue.
-                          // Map saved account provider → MomoNetwork enum
-                          switch (a.provider.toUpperCase()) {
-                            case 'MTN':
-                              _selectedNetwork = MomoNetwork.mtn;
-                              break;
-                            case 'TELECEL':
-                            case 'VODAFONE': // legacy stored value
-                              _selectedNetwork = MomoNetwork.telecel;
-                              break;
-                            case 'AIRTELTIGO':
-                            case 'AT':
-                              _selectedNetwork = MomoNetwork.airtelTigo;
-                              break;
-                            default:
-                              _selectedNetwork = MomoNetwork.mtn;
-                          }
-                        }),
-                      ),
-                    ),
-                  )
-                  .toList(),
+            // OWNER CORRECTION (2026-10-25): the payout account is ONE
+            // Add-Cash-style selector row — the selected account with a
+            // network badge, registered name, phone and a chevron — that
+            // opens the account selector sheet. It must NOT stack every
+            // saved account as parallel wallet tiles (the previous list
+            // rendered both demo networks as two wallets).
+            // No default priming: a payout destination is a deliberate
+            // pick. Until then the row shows the honest 'choose' state
+            // (Add Cash's _ChooseMethodRow grammar) and the submit gate
+            // keeps its 'Choose an account' requirement — no preselected
+            // destination can slide out by accident.
+            final selected = _selectedSavedMomoId == null
+                ? null
+                : accounts.where((a) => a.id == _selectedSavedMomoId)
+                    .cast<SavedMomoAccount?>()
+                    .firstWhere((a) => a != null, orElse: () => null);
+            if (selected == null) {
+              return _ChooseAccountRow(
+                colors: colors,
+                onTap: _isSubmitting
+                    ? null
+                    : () => _showAccountSelector(colors, accounts),
+              );
+            }
+            return _WithdrawAccountRow(
+              account: selected,
+              colors: colors,
+              // No payout-method changes while a submission is in flight
+              // (the same lock the reference affordance honours).
+              onTap: _isSubmitting
+                  ? null
+                  : () => _showAccountSelector(colors, accounts),
             );
           },
         ),
@@ -2377,95 +2440,388 @@ class _ReferenceSheetState extends State<_ReferenceSheet> {
 // screen. Shows the registered name (auto-resolved at save time) + provider
 // chip + masked number.
 // =============================================================================
-class _MomoAccountPicker extends StatelessWidget {
-  final SavedMomoAccount account;
-  final AzamanColors colors;
-  final bool selected;
-  final VoidCallback onTap;
+// ── Payout-account selector row (Add Cash _SelectedMethodRow grammar) ─────
 
-  const _MomoAccountPicker({
+/// ONE compact row showing the account the payout will go to — network
+/// badge, verified registered name (primary star when applicable), the
+/// phone, and an expand chevron. Tapping opens the selector sheet. It
+/// deliberately does NOT render the other saved accounts inline.
+class _WithdrawAccountRow extends StatelessWidget {
+  const _WithdrawAccountRow({
     required this.account,
     required this.colors,
-    required this.selected,
     required this.onTap,
   });
 
-  Color get _providerColor {
-    switch (account.provider.toUpperCase()) {
-      case 'MTN': return const Color(0xFFFFCC00);
-      case 'TELECEL': return const Color(0xFFE60000);
-      case 'AIRTELTIGO': case 'AT': return const Color(0xFFD62828);
-      default: return const Color(0xFF888888);
-    }
+  final SavedMomoAccount account;
+  final AzamanColors colors;
+
+  /// Null while a submission is in flight — no payout-method changes
+  /// during that window.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final network = momo_net.MomoNetwork.of(account.provider);
+    final name =
+        (account.accountName != null && account.accountName!.trim().isNotEmpty)
+        ? account.accountName!
+        : account.nickname;
+    final phone = momo_net.MomoNetwork.formatPhone(account.phoneNumber);
+
+    return Semantics(
+      button: true,
+      label:
+          'Payout account: $name, ${network.displayName}, $phone. '
+          'Double tap to change.',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          // Card/surface fill, NO border — the row reads as one raised
+          // surface; separation comes from the fill against the page.
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              momo_net.MomoNetworkBadge(provider: account.provider, showLabel: false),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            name,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        if (account.isPrimary) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            Icons.star_rounded,
+                            color: colors.warning,
+                            size: 14,
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      phone,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.expand_more, color: colors.textTertiary, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// No account picked yet: the honest 'choose' row — same visual family as
+/// the selected row, but stating that a payout account must be chosen.
+/// Tapping opens the same selector sheet; nothing is preselected.
+class _ChooseAccountRow extends StatelessWidget {
+  const _ChooseAccountRow({
+    required this.colors,
+    required this.onTap,
+  });
+
+  final AzamanColors colors;
+
+  /// Null while a submission is in flight.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Choose a payout account. Double tap to open the list.',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.account_balance_wallet_outlined,
+                  color: colors.textTertiary, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Choose payout account',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              Icon(Icons.expand_more, color: colors.textTertiary, size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The payout-account selector sheet — the Add Cash payment-method sheet
+/// grammar applied to withdrawals: a titled sheet, one option row per
+/// saved account with the live check state, and the add-account CTA
+/// pinned at the bottom.
+class _WithdrawAccountSelectorSheet extends StatefulWidget {
+  const _WithdrawAccountSelectorSheet({
+    required this.colors,
+    required this.accounts,
+    required this.selectedId,
+    required this.maxHeight,
+    required this.onSelect,
+    required this.onAdd,
+  });
+
+  final AzamanColors colors;
+  final List<SavedMomoAccount> accounts;
+  final String? selectedId;
+  final double maxHeight;
+  final ValueChanged<SavedMomoAccount> onSelect;
+  final VoidCallback onAdd;
+
+  @override
+  State<_WithdrawAccountSelectorSheet> createState() =>
+      _WithdrawAccountSelectorSheetState();
+}
+
+class _WithdrawAccountSelectorSheetState
+    extends State<_WithdrawAccountSelectorSheet> {
+  static const Duration _acknowledgementDelay = Duration(milliseconds: 160);
+
+  /// The row the user just tapped — drives the check immediately, even
+  /// before the parent rebuild flows a new selectedId in.
+  String? _tappedId;
+
+  Timer? _closeTimer;
+
+  @override
+  void dispose() {
+    _closeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _select(SavedMomoAccount account) {
+    if (_closeTimer != null) return; // already acknowledged; closing
+    AzamanHaptics.selection();
+    setState(() => _tappedId = account.id);
+    widget.onSelect(account);
+    _closeTimer = Timer(_acknowledgementDelay, () {
+      if (!mounted) return;
+      Navigator.pop(context);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = _providerColor;
-    return GestureDetector(
-      onTap: () { HapticFeedback.selectionClick(); onTap(); },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected ? c.withValues(alpha: 0.10) : colors.softSurface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? c.withValues(alpha: 0.70) : colors.divider,
-            width: selected ? 1.8 : 1.0,
-          ),
-          boxShadow: selected
-            ? [BoxShadow(color: c.withValues(alpha: 0.12), blurRadius: 10, offset: const Offset(0, 3))]
-            : const [],
-        ),
-        child: Row(
+    final selectedId = _tappedId ?? widget.selectedId;
+    final colors = widget.colors;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Provider dot
-            Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(
-                color: c.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Container(
-                  width: 12, height: 12,
-                  decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 4),
+              child: Row(
                 children: [
-                  Text(
-                    account.accountName ?? account.nickname,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 13.5, fontWeight: FontWeight.w800,
+                  Expanded(
+                    child: Text(
+                      'Payout account',
+                      style: AzText.titleL.copyWith(
+                        color: colors.textPrimary,
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${account.provider}  ·  ${account.phoneNumber}',
-                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                  Semantics(
+                    button: true,
+                    label: 'Close payout accounts',
+                    excludeSemantics: true,
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(
+                        Icons.close,
+                        color: colors.textTertiary,
+                        size: 20,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-                key: ValueKey(selected),
-                color: selected ? c : colors.textTertiary.withValues(alpha: 0.5),
-                size: 22,
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                children: [
+                  for (final account in widget.accounts)
+                    _PayoutOptionRow(
+                      colors: colors,
+                      account: account,
+                      selected: account.id == selectedId,
+                      onTap: () => _select(account),
+                    ),
+                ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 16),
+              child: _AddAccountRow(colors: colors, onTap: widget.onAdd),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One option row inside the selector sheet — network badge, verified
+/// registered name, network · phone subtitle and the animated check.
+class _PayoutOptionRow extends StatelessWidget {
+  const _PayoutOptionRow({
+    required this.colors,
+    required this.account,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AzamanColors colors;
+  final SavedMomoAccount account;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final network = momo_net.MomoNetwork.of(account.provider);
+    final name =
+        (account.accountName != null && account.accountName!.trim().isNotEmpty)
+        ? account.accountName!
+        : account.nickname;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label:
+          '$name, ${network.displayName}, '
+          '${momo_net.MomoNetwork.formatPhone(account.phoneNumber)}',
+      excludeSemantics: true,
+      child: ListTile(
+        onTap: onTap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        leading: momo_net.MomoNetworkBadge(provider: account.provider, showLabel: false),
+        title: Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: Text(
+          '${network.displayName} · ${momo_net.MomoNetwork.formatPhone(account.phoneNumber)}',
+          style: TextStyle(color: colors.textSecondary, fontSize: 12),
+        ),
+        trailing: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: selected ? colors.accent : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected
+                  ? colors.accent
+                  : colors.border.withValues(alpha: 0.8),
+              width: 1.6,
+            ),
+          ),
+          child: selected
+              ? const Icon(Icons.check, size: 15, color: Colors.black)
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+/// The add-account CTA pinned at the bottom of the selector sheet —
+/// opens the same AddPayoutSheet flow the surface already uses.
+class _AddAccountRow extends StatelessWidget {
+  const _AddAccountRow({required this.colors, required this.onTap});
+
+  final AzamanColors colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Add a new payout account',
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: colors.softSurface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.add_circle_outline, color: colors.accent, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Add a new account',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
