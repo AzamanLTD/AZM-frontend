@@ -53,6 +53,10 @@ import 'package:azaman/widgets/azaman_network_image.dart';
 /// Circular avatar diameter.
 const double kBusinessAvatarDiameter = 56.0;
 
+/// Radial gap between the avatar circle and the story ring — the ring
+/// floats clear of the photo instead of hugging it.
+const double _kStoryRingGap = 3.5;
+
 /// Radial clearance between the avatar ring and the notch edge — the
 /// "detached" air that makes the cutout read as designed, not accidental.
 const double kBusinessNotchGap = 6.0;
@@ -265,6 +269,7 @@ class BusinessResultCard extends ConsumerWidget {
                     colors: colors,
                     placeholder: _avatarPlaceholder(cat),
                     onTap: () => _openActionPanel(context, business, colors),
+                    storyState: business.storyState,
                   ),
                 ),
               ),
@@ -538,6 +543,7 @@ class _AvatarWithBadge extends ConsumerWidget {
     required this.colors,
     required this.placeholder,
     required this.onTap,
+    this.storyState,
   });
 
   final String bizId;
@@ -547,16 +553,34 @@ class _AvatarWithBadge extends ConsumerWidget {
   final Widget placeholder;
   final VoidCallback onTap;
 
+  /// BUSINESS STORY STATE (AZM-backend PR #371) — the authoritative
+  /// active/unseen signal. Null (legacy payload / backend without the
+  /// contract) or hasActiveStory == false renders NO ring: absence is
+  /// honest, never a guessed fallback.
+  final BusinessStoryState? storyState;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final d = kBusinessAvatarDiameter;
     final saved = ref.watch(savedBusinessesProvider).contains(bizId);
+    // Story ring state — drawn ONLY from the authoritative block.
+    // hasUnseenStory == null means the viewer is anonymous: the ring is
+    // drawn WITHOUT unseen emphasis and the label never claims "new".
+    final story = storyState;
+    final hasRing = story != null && story.hasActiveStory;
+    final unseen = hasRing && story.hasUnseenStory == true;
+    final storyLabel = !hasRing
+        ? ''
+        : unseen
+            ? ' New story'
+            : ' Story';
     return Semantics(
       button: true,
       label: saved
           ? 'Actions for this business: follow, bookmark, or rate and '
-              'review. Bookmarked'
-          : 'Actions for this business: follow, bookmark, or rate and review',
+              'review. Bookmarked$storyLabel'
+          : 'Actions for this business: follow, bookmark, or rate and '
+              'review$storyLabel',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         key: ValueKey('business-avatar-$bizId'),
@@ -570,6 +594,33 @@ class _AvatarWithBadge extends ConsumerWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              // BUSINESS STORY RING (AZM-backend PR #371) — drawn around
+              // the avatar ONLY when the authoritative storyState says a
+              // story is ACTIVE. Unseen emphasis (accent ring + 'New
+              // story' semantics) ONLY on a real `true`; a seen story and
+              // an anonymous null both draw the quiet seen ring — null
+              // is NEVER treated as unseen.
+              if (hasRing)
+                PositionedDirectional(
+                  key: ValueKey('business-story-ring-$bizId'),
+                  start: -_kStoryRingGap,
+                  end: -_kStoryRingGap,
+                  top: -_kStoryRingGap,
+                  bottom: -_kStoryRingGap,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: unseen
+                              ? colors.accent
+                              : colors.divider,
+                          width: unseen ? 2.5 : 2.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               // The circular profile with its polished ring treatment:
               // card-surface gap ring + category accent.
               Container(

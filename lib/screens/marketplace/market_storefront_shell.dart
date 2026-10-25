@@ -38,8 +38,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/providers/server_social_proof_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_radius.dart';
@@ -66,7 +68,7 @@ class MarketStorefrontSnaps {
   static const double shopping = 0.78;
 }
 
-class MarketStorefrontShell extends StatefulWidget {
+class MarketStorefrontShell extends ConsumerStatefulWidget {
   final BusinessProfile business;
   final AzamanColors colors;
 
@@ -139,10 +141,10 @@ class MarketStorefrontShell extends StatefulWidget {
   });
 
   @override
-  State<MarketStorefrontShell> createState() => _MarketStorefrontShellState();
+  ConsumerState<MarketStorefrontShell> createState() => _MarketStorefrontShellState();
 }
 
-class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
+class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
 
@@ -556,7 +558,36 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
         // One minimal meta line — the current screen's metadata dump is
         // deliberately NOT carried into the hero.
         _identityMeta(business, colors),
+        const SizedBox(height: AzSpace.xs),
+        _identitySocialProof(business, colors),
       ],
+    );
+  }
+
+  /// SOCIAL PROOF (AZM-backend PR #372) — the friends/friends-of-friends
+  /// follow counts. Shown ONLY on a successful response with a non-zero
+  /// direct-friends anchor: loading, failure, demo mode, and honest
+  /// zeros all render NOTHING. A follow is NOT a visit — the label only
+  /// ever claims "Followed by", never "visited by".
+  Widget _identitySocialProof(BusinessProfile business, AzamanColors colors) {
+    final proof = ref.watch(serverSocialProofProvider(business.id));
+    final line = proof.maybeWhen(
+      data: socialProofLine,
+      orElse: () => null,
+    );
+    if (line == null) return const SizedBox.shrink();
+    return Text(
+      line,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.1,
+        shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+      ),
     );
   }
 

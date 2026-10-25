@@ -461,6 +461,45 @@ class PriceRange {
 // BusinessProfile
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// BUSINESS STORY STATE (AZM-backend PR #371, "Backend B") — the
+/// authoritative active/unseen story signal attached to business card
+/// DTOs from /business/search and /follows/following.
+///
+/// HONESTY CONTRACT:
+///   • `hasActiveStory` — a Story with expiresAt > now exists (real bool).
+///   • `hasUnseenStory` — NULL for anonymous viewers. The client must
+///     NEVER treat null as true or false: it draws the seen ring, not
+///     the unseen emphasis, and never claims "new".
+///   • `latestStoryAt` — ISO createdAt of the newest ACTIVE story; the
+///     ring-ordering timestamp. Null when no active story exists.
+/// Story availability must never be inferred from logo/description/
+/// review/follow fields — only this block says a ring is real. A card
+/// with no storyState block (legacy/backend-without-PR-371) renders NO
+/// ring; absence is honest, never a fallback guess.
+class BusinessStoryState {
+  final bool hasActiveStory;
+  final bool? hasUnseenStory;
+  final DateTime? latestStoryAt;
+
+  const BusinessStoryState({
+    required this.hasActiveStory,
+    this.hasUnseenStory,
+    this.latestStoryAt,
+  });
+
+  factory BusinessStoryState.fromJson(Map<String, dynamic> json) {
+    return BusinessStoryState(
+      hasActiveStory: json['hasActiveStory'] == true,
+      hasUnseenStory: json['hasUnseenStory'] is bool
+          ? json['hasUnseenStory'] as bool
+          : null,
+      latestStoryAt: json['latestStoryAt'] is String
+          ? DateTime.tryParse(json['latestStoryAt'] as String)
+          : null,
+    );
+  }
+}
+
 class BusinessProfile {
   final String id;
   final String bizId; // "BIZ-XXXXXXXXX"
@@ -506,6 +545,10 @@ class BusinessProfile {
   // Hex string like "#FFAA00"; null falls back to the category-default tint
   // used in business_result_card.dart.
   final String? adAccentColor;
+  // BUSINESS STORY STATE (AZM-backend PR #371) — null when the payload
+  // carries no storyState block (legacy / unmerged-backend). The card
+  // layer renders a ring ONLY on hasActiveStory.
+  final BusinessStoryState? storyState;
 
   List<String> get showcaseUrls {
     if (businessMeta == null || !businessMeta!.containsKey('showcaseUrls')) return [];
@@ -558,6 +601,7 @@ class BusinessProfile {
     this.offeredCategories = const [],
     this.businessMeta,
     this.adAccentColor,
+    this.storyState,
     required this.username,
     this.description,
     this.website,
@@ -638,6 +682,10 @@ class BusinessProfile {
       offeredCategories: _toStringList(json['offeredCategories']),
       businessMeta: json['businessMeta'] as Map<String, dynamic>?,
       adAccentColor: json['adAccentColor'] as String?,
+      storyState: json['storyState'] is Map<String, dynamic>
+          ? BusinessStoryState.fromJson(
+              json['storyState'] as Map<String, dynamic>)
+          : null,
       username: (user['username'] ?? '').toString(),
       userProfilePictureUrl: user['profilePictureUrl']?.toString(),
       products: products,
