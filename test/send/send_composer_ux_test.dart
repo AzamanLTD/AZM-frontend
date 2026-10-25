@@ -199,8 +199,17 @@ Future<void> _slideToConfirm(WidgetTester tester) async {
       reason: 'the money action is a slide-to-confirm surface');
   final topLeft = tester.getTopLeft(slide);
   final gesture = await tester.startGesture(topLeft + const Offset(28, 30));
-  // Full deliberate drag: far past the 90% threshold on the widest surface.
-  await gesture.moveBy(const Offset(1200, 0));
+  // Full deliberate drag: far past the 90% threshold on the widest
+  // surface. Workstream B: the review stage now lives inside
+  // PullDownDismissibleSurface, whose vertical recognizer joins the
+  // gesture arena. A synthetic one-shot 1200px moveBy leaves the arena
+  // unresolved until pointer-up; a real thumb travels in incremental
+  // events, so the harness now drags incrementally (24 frames) — the
+  // same deliberate travel, realistic gesture physics.
+  for (var i = 0; i < 24; i++) {
+    await gesture.moveBy(const Offset(50, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+  }
   await gesture.up();
   await tester.pump();
 }
@@ -533,9 +542,12 @@ void main() {
       // disabled, and no keypad to change the amount.
       expect(find.byKey(const ValueKey('send-review-edit')), findsNothing,
           reason: 'HTTP $status freezes the composition');
-      final backButton =
-          tester.widget<IconButton>(find.byKey(const ValueKey('send-edit-back')));
-      expect(backButton.onPressed, isNull,
+      // Workstream B — the header is the Add Cash grammar (X/back inside
+      // the pull-dismissible surface). The frozen contract is now read
+      // from the IgnorePointer that gates the affordance.
+      final backGate =
+          tester.widget<IgnorePointer>(find.byKey(const ValueKey('send-edit-back')));
+      expect(backGate.ignoring, isTrue,
           reason: 'HTTP $status disables the edit-back affordance');
       expect(find.text('Retry transfer'), findsOneWidget,
           reason: 'HTTP $status offers the exact-operation retry');

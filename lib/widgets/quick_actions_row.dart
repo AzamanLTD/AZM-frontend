@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
-import 'package:azaman/screens/withdrawal_screen.dart';
 
 class QuickActionsRow extends ConsumerWidget {
   final VoidCallback? onDeposit;
@@ -60,10 +59,8 @@ class QuickActionsRow extends ConsumerWidget {
 
   void _defaultWithdraw(BuildContext ctx) {
     HapticFeedback.lightImpact();
-    Navigator.push(
-      ctx,
-      MaterialPageRoute(builder: (_) => const WithdrawalScreen()),
-    );
+    // CANONICAL ROUTE: /withdraw (Workstream C) — rise via the router.
+    ctx.push(AzRoutes.withdraw());
   }
 
   void _defaultTransfer(BuildContext ctx, WidgetRef ref) {

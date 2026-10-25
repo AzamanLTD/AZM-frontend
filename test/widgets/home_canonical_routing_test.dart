@@ -9,7 +9,6 @@
 //   rebuilds from the animation controller — mid-flight rotation ticks
 //   prove the tree tracks _rot itself, not incidental parent rebuilds.
 import 'dart:io';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -418,10 +417,26 @@ void main() {
         isNot(contains('const DepositScreen(')),
         reason: 'the deposit screen is reached by location too',
       );
-      // SendMoney and Withdrawal still genuinely have no canonical
-      // routes — their imperative navigation is the sanctioned exception.
-      expect(source, contains('SendMoneyScreen'));
-      expect(source, contains('WithdrawalScreen'));
+      // WORKSTREAMS B + C (integrated) — Send and Withdraw are both
+      // canonical rise locations now (/send, /withdraw): the activity
+      // row routes by location for both, never by constructing either
+      // screen over the router.
+      expect(source, contains('AzRoutes.send('));
+      expect(source, contains('AzRoutes.withdraw()'));
+      expect(
+        source,
+        isNot(contains('SendMoneyScreen')),
+        reason:
+            'the send surface is reached through AzRoutes.send(), '
+            'never constructed imperatively',
+      );
+      expect(
+        source,
+        isNot(contains('WithdrawalScreen')),
+        reason:
+            'the withdrawal surface is reached through AzRoutes.withdraw(), '
+            'never constructed imperatively',
+      );
     });
 
     test('the + trigger rebuilds from the animation controller and '
