@@ -578,14 +578,10 @@ class _AvatarWithBadge extends ConsumerWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: colors.card,
-                  border: Border.all(color: cat.color, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: cat.color.withValues(alpha: 0.25),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  // REFERENCE FIDELITY — a distinct, BOLD category ring
+                  // around the photo (the reference's ~3px accent ring).
+                  // Flat by design: the reference carries no glow.
+                  border: Border.all(color: cat.color, width: 3),
                 ),
                 padding: const EdgeInsets.all(2), // gap ring
                 child: ClipOval(
@@ -626,18 +622,26 @@ class _AvatarWithBadge extends ConsumerWidget {
                     child: Container(
                       width: kBusinessBadgeDiameter - 4,
                       height: kBusinessBadgeDiameter - 4,
+                      // REFERENCE FIDELITY — the badge disc is WHITE
+                      // with a DARK monochrome category glyph (#333 in
+                      // the reference), in BOTH themes: a deliberately
+                      // fixed high-contrast cut-out, like the reference
+                      // photo's white disc. In dark mode the white
+                      // disc pops against the photo; in light mode the
+                      // moat ring keeps it separated from the surface.
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        color: Colors.white,
                         border: Border.all(
-                          color: cat.color.withValues(alpha: 0.5),
-                          width: 1,
+                          color: colors.textTertiary.withValues(alpha: 0.4),
+                          width: 0.5,
                         ),
                       ),
                       alignment: Alignment.center,
                       child: Icon(
                         cat.icon,
                         size: 12,
-                        color: cat.color,
+                        color: const Color(0xFF333333),
                       ),
                     ),
                   ),
