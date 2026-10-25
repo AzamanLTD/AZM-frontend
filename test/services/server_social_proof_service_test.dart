@@ -27,6 +27,7 @@ class _FakeClient extends ApiClient {
   final int getStatus;
   final Map<String, dynamic> Function(String id)? singleBody;
   final Map<String, dynamic> batchBody;
+  final List<String> endpoints = [];
   _FakeClient({
     this.getStatus = 200,
     this.singleBody,
@@ -36,6 +37,7 @@ class _FakeClient extends ApiClient {
   @override
   Future<http.Response> get(String endpoint,
       {Map<String, String>? headers, bool requireAuth = true}) async {
+    endpoints.add(endpoint);
     if (getStatus != 200) return _json(getStatus, {'success': false});
     final id = endpoint.split('/').last;
     return _json(200, {
@@ -50,6 +52,7 @@ class _FakeClient extends ApiClient {
       {Map<String, String>? headers,
       bool requireAuth = true,
       String? idempotencyKey}) async {
+    endpoints.add(endpoint);
     if (getStatus != 200) return _json(getStatus, {'success': false});
     // A real server echoes proofs only for the ids in the request body.
     final requested =
@@ -135,6 +138,37 @@ void main() {
           client: _FakeClient(batchBody: {'bp-1': 'garbage-string'}));
       await expectLater(svc.fetchBatch(['bp-1']),
           throwsA(isA<SocialProofUnavailable>()));
+    });
+  });
+
+  // PATH CONTRACT (review 4.3) — AppConfig.apiUrl already ends in '/api';
+  // the ApiClient-relative paths must be exactly '/social-proof/...' with
+  // NO second '/api' segment. These tests pin the ACTUAL request path,
+  // not just parsing of the mocked response.
+  group('request paths', () {
+    test('single fetch requests exactly /social-proof/<id> — no double /api',
+        () async {
+      final fake = _FakeClient(singleBody: (id) => const {});
+      await ServerSocialProofService(client: fake).fetch('BIZ-PROFILE-9');
+      expect(fake.endpoints, ['/social-proof/BIZ-PROFILE-9']);
+    });
+
+    test('batch requests exactly /social-proof — no double /api', () async {
+      final fake = _FakeClient(batchBody: const {});
+      await ServerSocialProofService(client: fake)
+          .fetchBatch(['a', 'b']);
+      expect(fake.endpoints, ['/social-proof']);
+    });
+
+    test('no request path ever contains /api twice', () async {
+      final fake = _FakeClient(singleBody: (id) => const {});
+      final svc = ServerSocialProofService(client: fake);
+      await svc.fetch('x');
+      await svc.fetchBatch(['x', 'y']);
+      for (final e in fake.endpoints) {
+        expect(e.contains('/api/api/'), isFalse,
+            reason: 'doubled /api segment would 404 on device');
+      }
     });
   });
 

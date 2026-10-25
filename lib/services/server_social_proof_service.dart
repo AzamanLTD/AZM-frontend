@@ -5,6 +5,11 @@
 //
 // Wire contract (docs/marketplace-social-proof-contract.md):
 //   GET  /api/social-proof/:businessProfileId   (Bearer required)
+//
+// PATH NOTE (2026-10-25 review 4.3): ApiClient.baseUrl is AppConfig.apiUrl
+// which ALREADY ends in '/api'. The paths below are therefore the
+// ApiClient-relative '/social-proof/...' forms — never '/api/...' again,
+// which produced .../api/api/social-proof/... (404) on device.
 //     200 → { success, businessProfileId,
 //             friendsFollowingCount,
 //             friendsOfFriendsFollowingCount }
@@ -71,7 +76,7 @@ class ServerSocialProofService {
     final http.Response r;
     try {
       r = await _client
-          .get('/api/social-proof/$businessProfileId', requireAuth: true);
+          .get('/social-proof/$businessProfileId', requireAuth: true);
     } catch (_) {
       throw SocialProofUnavailable();
     }
@@ -91,7 +96,7 @@ class ServerSocialProofService {
     final http.Response r;
     try {
       r = await _client.post(
-        '/api/social-proof',
+        '/social-proof',
         {'businessProfileIds': ids},
         requireAuth: true,
       );
