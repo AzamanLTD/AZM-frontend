@@ -6,6 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
+import 'package:azaman/router/app_router.dart' show handleNotificationTap;
 import 'package:azaman/services/notification_action_dispatcher.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/premium_glass_container.dart';
@@ -550,6 +551,22 @@ class _NotificationHubScreenState extends ConsumerState<NotificationHubScreen>
     final action = NotificationActionDispatcher.resolve(
       notification.actionPayload,
     );
+    // REVIEW 4.2 — DELEGATED actions keep their ESTABLISHED imperative
+    // behaviour (e.g. OPEN_CHAT's FriendChatScreen push with friendship
+    // state): the dispatcher stays pure, and the hub forwards to the
+    // pre-existing router handler instead of inventing a stand-in route.
+    // Close the hub first so the imperative push stacks on MainWrapper,
+    // exactly like the deep-link path below.
+    if (action.resolution == NotificationActionResolution.delegated) {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      handleNotificationTap(
+        action: action.actionName!,
+        actionPayload: action.payload,
+      );
+      return;
+    }
     if (action.resolution != NotificationActionResolution.navigable) {
       // REVIEW 4.1 — informational payloads and unsupported actions tell
       // the truth here too: nothing opens, nothing pretends to succeed.

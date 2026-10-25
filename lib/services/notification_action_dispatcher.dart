@@ -25,13 +25,28 @@ enum NotificationActionResolution {
 
   /// The payload has no action at all — a purely informational notice.
   informational,
+
+  /// The payload names an action whose ESTABLISHED behaviour (in
+  /// `handleNotificationTap`) is imperative — it needs widget state a
+  /// pure route string cannot carry (e.g. OPEN_CHAT pushes
+  /// FriendChatScreen with friendship fields). The dispatcher stays
+  /// pure: it hands the action back to the caller with [actionName]
+  /// and [payload], and the caller forwards both to the established
+  /// imperative handler. The dispatcher never invents a stand-in route.
+  delegated,
 }
 
 class NotificationAction {
   final NotificationActionResolution resolution;
   final String? route;
 
-  const NotificationAction._(this.resolution, this.route);
+  /// For [NotificationActionResolution.delegated] only: the original
+  /// action name and payload the established imperative handler needs.
+  final String? actionName;
+  final Map<String, dynamic>? payload;
+
+  const NotificationAction._(this.resolution, this.route,
+      [this.actionName, this.payload]);
 
   const NotificationAction.navigable(String route)
     : this._(NotificationActionResolution.navigable, route);
@@ -41,6 +56,12 @@ class NotificationAction {
 
   const NotificationAction.informational()
     : this._(NotificationActionResolution.informational, null);
+
+  const NotificationAction.delegated(
+    String actionName,
+    Map<String, dynamic>? payload,
+  ) : this._(NotificationActionResolution.delegated, null, actionName,
+       payload);
 }
 
 abstract final class NotificationActionDispatcher {
@@ -106,6 +127,81 @@ abstract final class NotificationActionDispatcher {
       case 'OPEN_MARKETPLACE':
         return const NotificationAction.navigable('/marketplace');
 
+      // ── Susu deep-link actions (restored 2026-10-25, review 4.2) ────────
+      // Established behaviour (handleNotificationTap, Phase 4 susu sprint):
+      // OPEN_SUSU with a susuId → the susu detail route; without → the
+      // susu hub. Never an invented id: the hub IS the honest fallback.
+      case 'OPEN_SUSU':
+        final susuId = payload['susuId']?.toString();
+        return (susuId != null && susuId.isNotEmpty)
+            ? NotificationAction.navigable('/susu/$susuId')
+            : const NotificationAction.navigable('/susu');
+
+      // OPEN_SUSU_INVITE prefers the LINK-channel token (the public
+      // redemption route), then the susuId detail route, then the hub —
+      // the exact preference order the established handler uses.
+      case 'OPEN_SUSU_INVITE':
+        final token = payload['token']?.toString();
+        final susuId = payload['susuId']?.toString();
+        if (token != null && token.isNotEmpty) {
+          return NotificationAction.navigable('/susu/invite/$token');
+        }
+        if (susuId != null && susuId.isNotEmpty) {
+          return NotificationAction.navigable('/susu/$susuId');
+        }
+        return const NotificationAction.navigable('/susu');
+
+      // OPEN_DEPOSIT_FOR_SUSU pre-fills Add Cash exactly like the
+      // established handler: amount + memo 'susu:<id>' trace (Req 12.4).
+      case 'OPEN_DEPOSIT_FOR_SUSU':
+        final amount = payload['amount']?.toString();
+        final susuId = payload['susuId']?.toString();
+        final params = <String>[
+          if (amount != null && amount.isNotEmpty)
+            'amount=${Uri.encodeQueryComponent(amount)}',
+          if (susuId != null && susuId.isNotEmpty)
+            'memo=${Uri.encodeQueryComponent('susu:$susuId')}',
+        ];
+        return NotificationAction.navigable(
+          params.isEmpty ? '/deposit' : '/deposit?${params.join('&')}',
+        );
+
+      // ── Order tracking (restored 4.2) ──────────────────────────────────
+      // Established behaviour: only an orderId the payload actually
+      // supplies navigates; a missing id is unsupported, never invented.
+      case 'OPEN_ORDER':
+        final orderId = payload['orderId']?.toString();
+        if (orderId == null || orderId.isEmpty) {
+          return const NotificationAction.unsupportedAction();
+        }
+        final orderRef = payload['orderRef']?.toString();
+        return NotificationAction.navigable(
+          orderRef == null || orderRef.isEmpty
+              ? '/orders/$orderId/tracking'
+              : '/orders/$orderId/tracking'
+                  '?orderRef=${Uri.encodeQueryComponent(orderRef)}',
+        );
+
+      // ── KYC proof of residency (restored 4.2) ──────────────────────────
+      case 'OPEN_PROOF_OF_RESIDENCY':
+        return const NotificationAction.navigable('/proof-of-residency');
+
+      // ── Default payload action (restored 4.2) ─────────────────────────
+      // The BE's _ensureDeepLink stamps bare/default payloads with
+      // { route: '/', action: 'OPEN_HOME' }; the established destination
+      // is the home surface ('/').
+      case 'OPEN_HOME':
+        return const NotificationAction.navigable('/');
+
+      // ── Chat (restored 4.2, imperative) ────────────────────────────────
+      // OPEN_CHAT's established behaviour pushes FriendChatScreen with
+      // friendship state (conversationId, friendName, friendId) that a
+      // pure route cannot carry — and the hub fallback needs the same
+      // logic. The dispatcher delegates: the caller forwards the action
+      // to the established imperative handler. It never invents a
+      // stand-in route for a chat the payload actually identified.
+      case 'OPEN_CHAT':
+        return NotificationAction.delegated(action!, payload);
       // ── Fallback: legacy payload shapes ──────────────────────────────
       default:
         // An action name this app does not support is reported as such.

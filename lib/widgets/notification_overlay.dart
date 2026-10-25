@@ -10,6 +10,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
+import 'package:azaman/router/app_router.dart' show handleNotificationTap;
 import 'package:azaman/services/notification_action_dispatcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/business_provider.dart';
@@ -348,6 +349,23 @@ class _State extends ConsumerState<NotificationOverlay>
     ref.read(notificationProvider.notifier).markAsRead(n.id);
 
     final action = NotificationActionDispatcher.resolve(n.actionPayload);
+    // REVIEW 4.2 — DELEGATED actions keep their ESTABLISHED imperative
+    // behaviour (e.g. OPEN_CHAT's FriendChatScreen push). The overlay
+    // hands the action to the pre-existing router handler after its own
+    // dismissal dance: the router is captured BEFORE the async gap, the
+    // handleNotificationTap call happens after the overlay has closed,
+    // so the imperative screen stacks on MainWrapper, never on the
+    // dying overlay.
+    if (action.resolution == NotificationActionResolution.delegated) {
+      final actionName = action.actionName!;
+      final actionPayload = action.payload;
+      _closing = true;
+      _dismiss();
+      Future<void>.delayed(const Duration(milliseconds: 260), () {
+        handleNotificationTap(action: actionName, actionPayload: actionPayload);
+      });
+      return;
+    }
     switch (action.resolution) {
       case NotificationActionResolution.navigable:
         final route = action.route!;
@@ -373,6 +391,11 @@ class _State extends ConsumerState<NotificationOverlay>
         );
       case NotificationActionResolution.informational:
         // Purely informational notice — opening it is just reading it.
+        break;
+      case NotificationActionResolution.delegated:
+        // Unreachable: the guard above routes delegated actions through
+        // the established imperative handler before this switch runs.
+        // Kept explicit so the switch stays exhaustive and honest.
         break;
     }
   }
