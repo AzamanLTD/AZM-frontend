@@ -47,117 +47,122 @@ Future<LauncherExitChoice?> showLauncherExitPrompt(
         required String subtitle,
         required Color tint,
         bool emphasize = false,
-      }) =>
-          Semantics(
-            button: true,
-            label: '$title. $subtitle',
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
+      }) => Semantics(
+        button: true,
+        label: '$title. $subtitle',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => Navigator.of(ctx).pop(value),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              decoration: BoxDecoration(
+                color: emphasize ? tint.withValues(alpha: 0.12) : c.card,
                 borderRadius: BorderRadius.circular(14),
-                onTap: () => Navigator.of(ctx).pop(value),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 13),
-                  decoration: BoxDecoration(
-                    color: emphasize ? tint.withValues(alpha: 0.12) : c.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: emphasize
-                          ? tint.withValues(alpha: 0.55)
-                          : c.divider.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(icon, size: 22, color: tint),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                color: c.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                decoration: TextDecoration.none,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              subtitle,
-                              style: TextStyle(
-                                color: c.textSecondary,
-                                fontSize: 11.5,
-                                height: 1.3,
-                                decoration: TextDecoration.none,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                border: Border.all(
+                  color: emphasize
+                      ? tint.withValues(alpha: 0.55)
+                      : c.divider.withValues(alpha: 0.6),
                 ),
               ),
+              child: Row(
+                children: [
+                  Icon(icon, size: 22, color: tint),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: c.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: c.textSecondary,
+                            fontSize: 11.5,
+                            height: 1.3,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          );
+          ),
+        ),
+      );
 
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Keep this $surfaceLabel draft?',
-              style: TextStyle(
-                color: c.textPrimary,
-                fontSize: 16.5,
-                fontWeight: FontWeight.w800,
-                decoration: TextDecoration.none,
+      // The raised cap fits every choice at 1.0 text scale on supported
+      // viewports, but accessibility text scaling (or the shortest
+      // landscape heights) can push the column past the whisper ceiling.
+      // The content then scrolls those few pixels — it must never paint
+      // the striped RenderFlex overflow over a choice the user cannot see.
+      return SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Keep this $surfaceLabel draft?',
+                style: TextStyle(
+                  color: c.textPrimary,
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w800,
+                  decoration: TextDecoration.none,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "You're closing with unfinished details. Nothing was sent — "
-              'this is just your input.',
-              style: TextStyle(
-                color: c.textSecondary,
-                fontSize: 12.5,
-                height: 1.4,
-                decoration: TextDecoration.none,
+              const SizedBox(height: 4),
+              Text(
+                "You're closing with unfinished details. Nothing was sent — "
+                'this is just your input.',
+                style: TextStyle(
+                  color: c.textSecondary,
+                  fontSize: 12.5,
+                  height: 1.4,
+                  decoration: TextDecoration.none,
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            choice(
-              value: LauncherExitChoice.keep,
-              icon: Icons.schedule_outlined,
-              title: 'Keep for 5 minutes',
-              subtitle:
-                  'Resume exactly where you left off, from Notifications.',
-              tint: c.accent,
-              emphasize: true,
-            ),
-            const SizedBox(height: 8),
-            choice(
-              value: LauncherExitChoice.discard,
-              icon: Icons.delete_outline,
-              title: 'Discard draft',
-              subtitle: 'Close and clear what you typed.',
-              tint: c.danger,
-            ),
-            const SizedBox(height: 8),
-            choice(
-              value: LauncherExitChoice.stay,
-              icon: Icons.close,
-              title: 'Stay here',
-              subtitle: 'Keep editing — nothing changes.',
-              tint: c.textSecondary,
-            ),
-          ],
+              const SizedBox(height: 10),
+              choice(
+                value: LauncherExitChoice.keep,
+                icon: Icons.schedule_outlined,
+                title: 'Keep for 5 minutes',
+                subtitle:
+                    'Resume exactly where you left off, from Notifications.',
+                tint: c.accent,
+                emphasize: true,
+              ),
+              const SizedBox(height: 8),
+              choice(
+                value: LauncherExitChoice.discard,
+                icon: Icons.delete_outline,
+                title: 'Discard draft',
+                subtitle: 'Close and clear what you typed.',
+                tint: c.danger,
+              ),
+              const SizedBox(height: 8),
+              choice(
+                value: LauncherExitChoice.stay,
+                icon: Icons.close,
+                title: 'Stay here',
+                subtitle: 'Keep editing — nothing changes.',
+                tint: c.textSecondary,
+              ),
+            ],
+          ),
         ),
       );
     },
@@ -189,8 +194,9 @@ Future<void> guardLauncherClose({
   required VoidCallback doClose,
 }) async {
   final controller = ref.read(launcherDraftsProvider.notifier);
-  final existingId =
-      userId == null ? null : LauncherDraftsController.draftId(userId, surface);
+  final existingId = userId == null
+      ? null
+      : LauncherDraftsController.draftId(userId, surface);
 
   if (!hasMeaningfulInput) {
     // Empty form: no prompt ever. A stale kept draft for this surface is
@@ -213,12 +219,14 @@ Future<void> guardLauncherClose({
         doClose();
         return;
       }
-      await controller.keepDraft(LauncherDraft(
-        id: LauncherDraftsController.draftId(userId, surface),
-        surface: surface,
-        savedAtMs: DateTime.now().millisecondsSinceEpoch,
-        payload: capture(),
-      ));
+      await controller.keepDraft(
+        LauncherDraft(
+          id: LauncherDraftsController.draftId(userId, surface),
+          surface: surface,
+          savedAtMs: DateTime.now().millisecondsSinceEpoch,
+          payload: capture(),
+        ),
+      );
       doClose();
     case LauncherExitChoice.discard:
       if (existingId != null) await controller.discardDraft(existingId);
