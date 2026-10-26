@@ -351,30 +351,8 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
   }
 
   /// Label for the catalog shortcut, adapted to the business vertical.
-  static String _catalogTabLabel(String? category) {
-    switch (category) {
-      case 'FOOD_BEVERAGE':
-        return 'Menu';
-      case 'RETAIL':
-      case 'TECHNOLOGY':
-        return 'Products';
-      case 'HEALTH_WELLNESS':
-      case 'FREELANCE_SERVICES':
-      case 'FINANCIAL_SERVICES':
-        return 'Services';
-      case 'EDUCATION':
-        return 'Courses';
-      case 'ENTERTAINMENT':
-        return 'Experiences';
-      case 'HOSPITALITY':
-      case 'REAL_ESTATE':
-        return 'Amenities';
-      case 'LOGISTICS':
-        return 'Add-ons';
-      default:
-        return 'Catalog';
-    }
-  }
+  static String _catalogTabLabel(String? category) =>
+      BusinessCategories.catalogLabel(category);
 
   /// Empty-state icon + copy for the catalog, per vertical.
   static ({IconData icon, String text}) _catalogEmptyState(String? category) {

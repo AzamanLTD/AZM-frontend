@@ -69,6 +69,7 @@ class BalanceCardPair extends StatefulWidget {
     required this.valuation,
     required this.colors,
     this.trailingRefresh,
+    this.flipGuard,
   });
 
   final BalanceCardValuation valuation;
@@ -77,6 +78,12 @@ class BalanceCardPair extends StatefulWidget {
   /// The right-edge refresh affordance slot (the live wiring will pass the
   /// real RateRefreshIndicator; the frame pins it flush right).
   final Widget? trailingRefresh;
+
+  /// The shared nested-gesture guard. When the HOST mounts card-level
+  /// affordances (the Home deck's large-text overlay), it owns the guard
+  /// and passes it here so both the frame's listener and the host's
+  /// overlay read/write ONE mark. Null → the frame allocates its own.
+  final ValueNotifier<bool>? flipGuard;
 
   @override
   State<BalanceCardPair> createState() => _BalanceCardPairState();
@@ -91,18 +98,23 @@ class _BalanceCardPairState extends State<BalanceCardPair>
   /// NESTED-GESTURE GUARD — affordances hosted by a face mark this on
   /// pointer-down; the frame's Listener reads it on pointer-up and cedes
   /// the gesture (the same contract as the live card's affordances).
-  final ValueNotifier<bool> _flipGuard = ValueNotifier<bool>(false);
+  /// The frame's guard: the host-supplied [BalanceCardPair.flipGuard]
+  /// when the host owns card-level affordances, else a private one.
+  late final ValueNotifier<bool> _flipGuard =
+      widget.flipGuard ?? ValueNotifier<bool>(false);
+  bool _ownsGuard = false;
 
   @override
   void initState() {
     super.initState();
+    _ownsGuard = widget.flipGuard == null;
     _ctrl = AnimationController(vsync: this, duration: MotionTokens.spatial);
     _flip = CurvedAnimation(parent: _ctrl, curve: MotionTokens.symmetric);
   }
 
   @override
   void dispose() {
-    _flipGuard.dispose();
+    if (_ownsGuard) _flipGuard.dispose();
     _ctrl.dispose();
     super.dispose();
   }

@@ -46,7 +46,7 @@ import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
-import 'package:azaman/widgets/odometer_number.dart';
+import 'package:azaman/providers/currency_provider.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart'
@@ -133,19 +133,21 @@ ThemeData _harnessTheme(AzamanTheme theme) {
 /// Widget-level, not semantics-level: while the deck is tucked the card
 /// subtree stays mounted but its semantics are excluded, so a semantics
 /// label search cannot see the figure even when it IS there. The
-/// OdometerNumber's [OdometerNumber.value] is the authoritative slot
+/// The GHS headline's [ValueKey] slot is the authoritative slot
 /// content: 100 USDC at the pinned rate 1.0 under the default GHS-first
 /// preference renders 'GH₵ 100.00' — AzMoney.amount() strips the symbol,
 /// leaving '100.00'.
 void _expectConfirmedBalance() {
   expect(
-    find.byKey(const ValueKey('home-balance-amount-dots')),
+    find.byKey(const ValueKey('balance-fx-amount-dots')),
     findsNothing,
     reason: 'a confirmed-balance capture must never show the waiting dots',
   );
   expect(
-    find.byWidgetPredicate(
-        (w) => w is OdometerNumber && w.value == '100.00'),
+    find.descendant(
+      of: find.byKey(const ValueKey('balance-fx-headline')),
+      matching: find.text('100.00'),
+    ),
     findsOneWidget,
     reason: 'the seeded available balance (100 USDC at rate 1.0) '
         'must be present as the rendered primary figure',
@@ -246,6 +248,24 @@ Future<void> _swipeCommit(WidgetTester tester, Key cardKey) async {
   await tester.pump();
 }
 
+/// The new balance-card seam: the valuation adapter reads the pinned
+/// [fxRateProvider] snapshot, not the legacy oracle double. `rate <= 0`
+/// means NO usable snapshot — the honest-unavailable state.
+FxRateSnapshot? _pinnedFx(double rate) {
+  if (rate <= 0 || !rate.isFinite) return null;
+  final now = DateTime.now().toUtc();
+  return FxRateSnapshot(
+    ghsPerUsdc: rate,
+    source: 'KOTANI',
+    lastSync: now,
+    fetchedAt: now,
+    serverFresh: true,
+    lastExternalSync: now,
+    externalRateAgeSeconds: 0,
+    rateFreshnessMaxAgeSeconds: 60,
+  );
+}
+
 Future<ProviderContainer> _pumpHome(
   WidgetTester tester, {
   Size surface = const Size(390, 844),
@@ -279,6 +299,11 @@ Future<ProviderContainer> _pumpHome(
         (ref) => BalanceReadiness.loaded,
       ),
       oracleRateProvider.overrideWith((ref) => 1.0),
+      // The new balance-card seam: the valuation adapter reads the
+      // pinned [fxRateProvider] snapshot, not the legacy oracle double.
+      fxRateProvider.overrideWith(
+        (ref) async => _pinnedFx(1.0),
+      ),
       azmCardProgrammeProvider.overrideWith(
         (ref) => _PinnedProgramme().._pin = '1234',
       ),
@@ -637,7 +662,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
     headerHeightByScale[scale] = tester
-        .renderObject<RenderBox>(find.text('Azaman Balance'))
+        .renderObject<RenderBox>(find.text('AVAILABLE BALANCE'))
         .size
         .height;
   }
@@ -730,7 +755,12 @@ void main() {
     await _advance(tester);
     expect(_deckState(tester), WalletDeckState.balanceOut);
     expect(
-      find.bySemanticsLabel(RegExp(r'GH₵.100\.00.available')),
+      find.bySemanticsLabel(
+        // AzMoney.ghs separates the symbol and figure with a
+        // NON-BREAKING space (U+00A0) — a literal ' ' in the pattern
+        // would miss it; '.' matches any character, as the old
+        // 'GH₵.100\.00.available' pattern knew.
+        RegExp(r'Available balance GH₵.100\.00 in GHS')),
       findsOneWidget,
       reason: 'the balance semantics must carry the complete figure at '
           'the OS\'s largest text setting',

@@ -6,9 +6,11 @@
 //
 //   E1 — front-face grammar: the GH₵ marker is SMALLER and subordinate to
 //        the digits; the squiggly ≈ says 'equivalent' (the trailing word
-//        is gone from the visual line); the updating dots + 'Updating
-//        rate…' caption read as ONE coherent status in the SAME slot the
-//        rate occupies when idle.
+//        is gone from the visual line, and the glyph sits on the USDC
+//        line only — the GHS headline is the known value, owner-
+//        corrected 2026-10-26); the updating dots + 'Updating rate…'
+//        caption read as ONE coherent status in the SAME slot the rate
+//        occupies when idle.
 //   E2 — the documented 320dp 4-digit overflow (PR #190 known defect) is
 //        fixed at the CAUSE: the headline is a single typographic line
 //        that responsively fits at every width, the fixture is never
@@ -156,6 +158,16 @@ Text _headlineText(WidgetTester tester, {required Key key}) => tester.widget(
   find.descendant(of: find.byKey(key), matching: find.byType(Text)).first,
 );
 
+
+/// Drags the back face's section pager one section DOWN and settles.
+Future<void> _dragToNextSection(WidgetTester tester) async {
+  await tester.drag(
+    find.byKey(const ValueKey('bc-section-pager')),
+    const Offset(0, -120),
+  );
+  await tester.pumpAndSettle();
+}
+
 Future<void> _flipToBack(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('balance-pair-flip-listener')));
   await tester.pump();
@@ -168,53 +180,69 @@ void main() {
       tester,
     ) async {
       await _pumpPair(tester, valuation: _freshGhs(1234.56));
-      final text = _headlineText(
-        tester,
-        key: const ValueKey('balance-fx-headline'),
+      // The headline is ONE amount line: [gutter][unit label][digits] —
+      // its gutter slot is EMPTY (no ≈): the glyph belongs to the USDC
+      // line below. The unit label is a quiet separate label; the
+      // digits are the hero.
+      final headline = find.byKey(const ValueKey('balance-fx-headline'));
+      final unitLabel = tester.widget<Text>(
+        find.descendant(
+          of: headline,
+          matching: find.text('GH₵'),
+        ),
       );
-      final span = text.textSpan as TextSpan;
-      // One marker span + one digits span — a single typographic line.
-      expect(span.children, hasLength(1));
-      expect(span.text, '${AzMoney.ghsSymbol}${AzMoney.nbsp}');
+      final amountText = tester.widget<Text>(
+        find.descendant(
+          of: headline,
+          matching: find.text(AzMoney.amount(1234.56)),
+        ),
+      );
+      final unitSize = unitLabel.style?.fontSize ?? 14;
+      final amountSize = amountText.style?.fontSize ?? 0;
+      expect(amountSize, AzText.sizeHero, reason: 'the AMOUNT is the hero');
       expect(
-        span.style?.fontSize,
-        16,
-        reason:
-            'the currency marker is small, never part of the hero '
-            'block',
+        unitSize,
+        lessThan(amountSize / 2),
+        reason: 'the currency marker is small, never part of the hero block',
       );
-      final digits = span.children!.single as TextSpan;
-      expect(digits.text, AzMoney.amount(1234.56));
-      expect(
-        digits.style?.fontSize,
-        AzText.sizeHero,
-        reason: 'the AMOUNT is the hero',
+      // Subordinate: the marker sits to the LEFT of the digits, same line.
+      final unitRect = tester.getRect(
+        find.descendant(of: headline, matching: find.text('GH₵')),
       );
+      final amountRect = tester.getRect(
+        find.descendant(of: headline, matching: find.text(AzMoney.amount(1234.56))),
+      );
+      expect(unitRect.right, lessThan(amountRect.left));
+      // One typographic line: the small marker rides the hero line —
+      // its centre sits inside the amount's vertical band.
+      expect(unitRect.center.dy, greaterThan(amountRect.top));
+      expect(unitRect.center.dy, lessThan(amountRect.bottom));
     });
 
     testWidgets('the squiggly ≈ says equivalent — the trailing word is '
         'gone from the visual line', (tester) async {
       await _pumpPair(tester, valuation: _saved());
-      // The VISIBLE span (not the screen-reader label, which keeps the
-      // honest full explanation): '≈ 58.31 USDC' and nothing after.
+      // The VISIBLE USDC span carries the AMOUNT ONLY — the ≈ now lives
+      // in the shared leading gutter that precedes BOTH lines, and no
+      // word follows the figure.
       final visible = tester.widget<Text>(
         find.byKey(const ValueKey('balance-fx-equivalent')),
       );
       final span = visible.textSpan as TextSpan;
-      expect(span.text, startsWith('≈ '));
-      expect(span.text, endsWith(' USDC'));
-      expect(
-        span.text!.contains('equivalent'),
-        isFalse,
-        reason:
-            "the word 'Equivalent' is dropped — the ≈ already says "
-            'it',
-      );
+      expect(span.text, isNot(contains('equivalent')));
+      expect(span.text, isNot(contains('≈')));
       expect(
         span.children ?? const <InlineSpan>[],
         isEmpty,
         reason: 'the old trailing word span is gone entirely',
       );
+      // The ≈ glyph renders in the gutter, BEFORE the USDC line's
+      // amount — the owner-corrected arrangement.
+      final approxRect = tester.getRect(find.text('≈').first);
+      final equivRect = tester.getRect(
+        find.byKey(const ValueKey('balance-fx-equivalent')),
+      );
+      expect(approxRect.right, lessThan(equivRect.left));
       // The info icon is retained beside the figure.
       expect(
         find.byKey(const ValueKey('balance-fx-equivalent-info')),
@@ -354,26 +382,16 @@ void main() {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
 
-      // Lazy ListView (fixed 165px card, rows disposed when they scroll
-      // far off): the divider contract is asserted PER ROW, on whichever
-      // rows are built, rather than by a global count.
+      // Section-paged back: the divider contract is per section page.
 
-      // Between-rows contract on the visible AVAILABLE section: the
-      // ghs-wallet divider separates the two rows.
-      final ghsRow = tester.getRect(
-        find.byKey(const ValueKey('bc-row-ghs-wallet')),
-      );
-      final usdcRow = tester.getRect(
-        find.byKey(const ValueKey('bc-row-usdc-held')),
-      );
+      // AVAILABLE page: the ghs-wallet divider separates the two rows;
+      // usdc-held (the section's last row) carries none.
       final ghsDivider = tester.getRect(
         find.descendant(
           of: find.byKey(const ValueKey('bc-row-ghs-wallet')),
           matching: find.byKey(const ValueKey('bc-row-divider')),
         ),
       );
-      expect(ghsDivider.top, greaterThan(ghsRow.top));
-      expect(ghsDivider.bottom, lessThan(usdcRow.bottom));
       expect(ghsDivider.height, 1.0);
       expect(
         find.descendant(
@@ -384,33 +402,44 @@ void main() {
         reason: 'the section-last row carries no divider',
       );
 
-      // Scroll to the tail: susu (a vendor row follows) carries one;
-      // vendor and azm points (section lasts) carry none.
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('bc-row-azm-points')),
-        80,
-        scrollable: find.descendant(
-          of: find.byKey(const ValueKey('bc-breakdown-scroll')),
-          matching: find.byType(Scrollable),
-        ),
-      );
+      // COMMITTED page: vaults and savings carry dividers; susu (the
+      // section's last row) carries none.
+      await _dragToNextSection(tester);
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('bc-row-susu')),
+          of: find.byKey(const ValueKey('bc-row-vaults')),
           matching: find.byKey(const ValueKey('bc-row-divider')),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('bc-row-vendor')),
+          of: find.byKey(const ValueKey('bc-row-savings')),
+          matching: find.byKey(const ValueKey('bc-row-divider')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('bc-row-susu')),
           matching: find.byKey(const ValueKey('bc-row-divider')),
         ),
         findsNothing,
       );
+
+      // LOCKED page: escrow carries one; dispute escrow (the section's
+      // last row) carries none.
+      await _dragToNextSection(tester);
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('bc-row-azm-points')),
+          of: find.byKey(const ValueKey('bc-row-escrow')),
+          matching: find.byKey(const ValueKey('bc-row-divider')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('bc-row-dispute-escrow')),
           matching: find.byKey(const ValueKey('bc-row-divider')),
         ),
         findsNothing,
@@ -418,20 +447,10 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('rows sit on ONE typographic baseline; long detail text '
-        'stays readable', (tester) async {
+    testWidgets('rows sit on ONE typographic baseline; the escrow and '
+        'dispute escrow values stay DISTINCT', (tester) async {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
-      // The escrow row's detail is below the fold of the fixed frame —
-      // bring it into the built region first.
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('bc-row-escrow')),
-        80,
-        scrollable: find.descendant(
-          of: find.byKey(const ValueKey('bc-breakdown-scroll')),
-          matching: find.byType(Scrollable),
-        ),
-      );
       final row = find
           .descendant(
             of: find.byKey(const ValueKey('bc-row-ghs-wallet')),
@@ -445,17 +464,14 @@ void main() {
         reason: 'label, amount and unit share one baseline line',
       );
 
-      final escrowDetail = find.descendant(
-        of: find.byKey(const ValueKey('bc-row-escrow')),
-        matching: find.textContaining('Disputes'),
-      );
-      final detailText = tester.widget<Text>(escrowDetail);
+      // LOCKED page: escrow and dispute escrow are SEPARATE visible
+      // values — never a merged sum.
+      await _dragToNextSection(tester);
+      await _dragToNextSection(tester);
+      expect(find.byKey(const ValueKey('bc-row-escrow')), findsOneWidget);
       expect(
-        detailText.maxLines,
-        2,
-        reason:
-            'long detail wraps to a second line instead of '
-            'truncating mid-fact',
+        find.byKey(const ValueKey('bc-row-dispute-escrow')),
+        findsOneWidget,
       );
       await tester.pumpWidget(const SizedBox());
     });

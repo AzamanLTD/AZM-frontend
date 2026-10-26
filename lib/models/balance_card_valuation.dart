@@ -112,8 +112,11 @@ class FxRateView {
 @immutable
 class BalanceCardValuation {
   // ── Available assets ───────────────────────────────────────────────────
-  /// Actual native GHS available (the GHS wallet).
-  final double nativeGhsAvailable;
+  /// Actual native GHS available (the GHS wallet). NULL when the current
+  /// backend contract publishes no native-GHS wallet at all — the absence
+  /// of the wallet is not a GH₵ 0.00 holding, and the breakdown row must
+  /// render unknown, never zero.
+  final double? nativeGhsAvailable;
 
   /// Actual liquid USDC held. This is a REAL holding; it is never the same
   /// number as the USDC equivalent of the GHS total.
@@ -127,7 +130,10 @@ class BalanceCardValuation {
   // ── Locked or committed (separate fields, never merged) ────────────────
   final double escrowLocked;
   final double disputeEscrow;
-  final double vaultLocked;
+
+  /// Committed vault total (USDC). NULL when the vault list has not
+  /// loaded or its fetch failed — unknown must never render as a zero.
+  final double? vaultLocked;
 
   /// Committed Susu total. Null when the susu list has not loaded or its
   /// fetch failed — unknown must never render as a zero.
@@ -137,8 +143,9 @@ class BalanceCardValuation {
   /// denominated in cedis (backend: SavingsGoal.currentAmountGhs →
   /// locked.savingsGhs), NOT in USDC. The GHS-suffixed name exists so a
   /// cross-currency mapping error fails loudly at the call site instead
-  /// of silently rendering a cedi amount as USDC.
-  final double savingsLockedGhs;
+  /// of silently rendering a cedi amount as USDC. NULL when the savings
+  /// overview has not loaded or its fetch failed — unknown, never zero.
+  final double? savingsLockedGhs;
 
   // NOTE (contract gap, deliberate): there is NO savings-withdrawable
   // field. The backend balance valuation does not publish a verified
@@ -184,14 +191,14 @@ class BalanceCardValuation {
   final bool usdcTransactionGateOpen;
 
   const BalanceCardValuation({
-    this.nativeGhsAvailable = 0,
+    this.nativeGhsAvailable,
     this.availableUsdc = 0,
     this.balanceConfirmed = false,
     this.escrowLocked = 0,
     this.disputeEscrow = 0,
-    this.vaultLocked = 0,
+    this.vaultLocked,
     this.susuCommitted,
-    this.savingsLockedGhs = 0,
+    this.savingsLockedGhs,
     this.vendorUnallocatedUsdc = 0,
     this.vendorRowRelevant = false,
     this.azmPoints = 0,
@@ -215,16 +222,20 @@ class BalanceCardValuation {
   /// unavailable (null) even though native GHS is known.
   BalanceCardValuation compute() {
     final hasUsdc = availableUsdc > 0;
+    final native = nativeGhsAvailable ?? 0;
     final r = rate.hasRate ? rate.ghsPerUsdc! : null;
 
     double? ghs;
     double? usdcEquiv;
     if (!hasUsdc) {
-      ghs = nativeGhsAvailable;
+      // Native GHS alone is the whole total only when the wallet itself
+      // is contractually present; an absent wallet (null) with no USDC
+      // is an honestly empty card, not a GH₵ 0.00 total.
+      ghs = nativeGhsAvailable != null ? native : null;
       // hasRate guarantees a positive, finite rate.
-      usdcEquiv = r != null ? nativeGhsAvailable / r : null;
+      usdcEquiv = r != null && ghs != null ? native / r : null;
     } else if (r != null) {
-      ghs = nativeGhsAvailable + availableUsdc * r;
+      ghs = native + availableUsdc * r;
       usdcEquiv = ghs / r;
     }
     return BalanceCardValuation(
@@ -255,7 +266,7 @@ class BalanceCardValuation {
   bool get valuationIncomplete =>
       balanceConfirmed &&
       availableGhsValue == null &&
-      nativeGhsAvailable > 0 &&
+      (nativeGhsAvailable ?? 0) > 0 &&
       availableUsdc > 0;
 
   @override

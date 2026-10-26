@@ -35,6 +35,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/susu_model.dart';
+import 'package:azaman/widgets/home/home_balance_card.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
@@ -45,7 +46,6 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
-import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/services/home_summary_service.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
 
@@ -209,12 +209,12 @@ void main() {
 
       // The §17 surfaces all render: balance card, reminder deck (real
       // data), recent activity rows.
-      expect(find.byType(FlippableBalanceCard), findsOneWidget);
+      expect(find.byType(HomeBalanceCard), findsOneWidget);
       expect(find.byType(HomeReminderDeck), findsOneWidget);
 
       // Balance card fits the viewport width with page padding to spare.
       final cardRect =
-          tester.getRect(find.byType(FlippableBalanceCard).first);
+          tester.getRect(find.byType(HomeBalanceCard).first);
       expect(cardRect.left >= 0, isTrue,
           reason: 'balance card never bleeds off the left edge');
       expect(cardRect.right <= viewport.width, isTrue,
@@ -229,7 +229,7 @@ void main() {
     testWidgets('LIGHT — Home renders without overflow at $label',
         (tester) async {
       await _pumpHome(tester, viewport: viewport, dark: false);
-      expect(find.byType(FlippableBalanceCard), findsOneWidget);
+      expect(find.byType(HomeBalanceCard), findsOneWidget);
       expect(find.byType(HomeReminderDeck), findsOneWidget);
     });
 
@@ -246,7 +246,7 @@ void main() {
       // No expressive travel to wait out: a single short pump lands the
       // page at its final state.
       await tester.pump(const Duration(milliseconds: 16));
-      expect(find.byType(FlippableBalanceCard), findsOneWidget);
+      expect(find.byType(HomeBalanceCard), findsOneWidget);
       expect(find.byType(HomeReminderDeck), findsOneWidget);
     });
   }

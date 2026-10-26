@@ -32,7 +32,7 @@ import 'package:azaman/widgets/home/home_reminder_deck.dart';
 
 /// Opens the deck's large-text detail sheet at the user's REAL text
 /// scale. [ambientScaler] is captured ABOVE the deck faces' clamps (see
-/// `HologramBalanceCard`) — the sheet never renders at a clamped scale.
+/// the balance card) — the sheet never renders at a clamped scale.
 Future<void> showLargeTextDeckSheet(
   BuildContext context, {
   TextScaler? ambientScaler,
@@ -315,7 +315,7 @@ class LargeTextDeckButton extends ConsumerWidget {
   /// The interactive/semantic target: 48dp — the Material minimum —
   /// because this control is the ONLY route into the enlarged visual
   /// alternative. It is a TRANSPARENT overlay riding the flip card's
-  /// front-face stack (see [FlippableBalanceCard]); it paints nothing.
+  /// front-face stack (see [HomeBalanceCard]); it paints nothing.
   ///
   /// It cannot live inside the header row: a Positioned region escaping
   /// its layout slot is only hit-tested while the pointer stays inside

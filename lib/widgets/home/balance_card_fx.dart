@@ -1,35 +1,45 @@
 // =============================================================================
 // AZAMAN — BALANCE CARD (FX-STATUS FRONT FACE)
-// Final Balance Card Redesign: the front is ALWAYS GHS-first. There is no
-// currency toggle on this card and the global display preference cannot
-// switch it to a USDC-primary layout.
 //
-// LAYOUT (front):
+// FRONT LAYOUT (owner-corrected 2026-10-26 — GHS headline dominant, as
+// the live main card's rhythm, never USDC-first):
+//
 //   AVAILABLE BALANCE
-//   GH₵ 1,234.56                     ← combined available value (GHS)
-//   ≈ 102.79 USDC equivalent  ⓘ     ← overall equivalent + info icon when
-//                                        a saved/demo fallback rate is shown
-//   1 USDC ≈ GH₵ 12.03 · Using saved rate      [refresh]
+//   GH₵ 1,234.56             ← the known combined value, dominant —
+//                               it is NOT estimated, no ≈
+//   ≈  102.79 USDC    ⓘ     ← the USDC EQUIVALENT, the estimate — the
+//                               ≈ marks this line, info when a
+//                               saved/demo fallback rate is displayed
+//   [••• Updating rate…]            [refresh]
+//
+// The two amount lines share ONE leading gutter column and ONE
+// unit-label column, so their digits sit in a clean vertical
+// alignment. The ≈ renders ONLY on the USDC line — that is the line
+// being estimated; the GHS headline is the known value. The visual
+// USDC line never says the word "equivalent": ≈ already communicates
+// the relationship; the full accessible semantics keep the honest
+// explanation (an equivalent calculation, not necessarily USDC
+// actually held).
 //
 // STATE LAWS (product contract):
 //   • Balance readiness and FX readiness are SEPARATE states. FX loading
 //     never replaces a known available-balance amount; the FX dots live
-//     ONLY in the bottom-left rate row, and only while a request is
+//     ONLY in the bottom-left rate cluster, and only while a request is
 //     genuinely in progress with NO eligible saved fallback already shown.
 //   • While a saved/demo fallback is displayed, a refresh keeps that value
 //     and status in place — no dots.
 //   • Fresh rate: no stale-rate warning. Saved/demo: explicit fallback
-//     identification in the rate row plus an information disclosure
-//     (touch, keyboard and screen-reader accessible) stating the rate is
-//     indicative, not a live/guaranteed execution rate or firm quote.
-//   • No rate and no eligible fallback: a STABLE unavailable state. If
-//     available USDC cannot be valued, the combined GHS valuation is
-//     presented as incomplete — the known native GHS amount stays visible
-//     but is never presented alone as the total.
+//     identification in the rate row plus the information disclosure
+//     beside the USDC line (touch, keyboard and screen-reader
+//     accessible) stating the rate is indicative, not a live/guaranteed
+//     execution rate or firm quote.
+//   • No rate and no eligible fallback: a STABLE unavailable state. With
+//     no native GHS wallet on the current contract the headline renders
+//     an honest dash, the REAL USDC holding still shows beneath it (it
+//     is a fact, not a conversion), and the rate row says the rate is
+//     unavailable. Never a fabricated GH₵ 0.00.
 //   • The widget is PURE: it renders the typed valuation it is given and
-//     never recalculates a valuation from a separately sourced rate. It
-//     is not yet wired into the Home screen — the backend valuation
-//     contract is pending and the wiring adapter lands with it.
+//     never recalculates a valuation from a separately sourced rate.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -43,6 +53,20 @@ import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/fx_typing_dots.dart';
 import 'package:azaman/widgets/home/balance_card_pair.dart'
     show FlipGuardMarker;
+
+/// The leading gutter column shared by BOTH amount lines. The ≈ glyph
+/// renders in it ONLY on the USDC line (the estimate); on the GHS
+/// headline the slot stays empty — keeping the digits aligned.
+const double kApproxGutter = 16;
+
+/// The fixed unit-label column width: "GH₵" and "USDC" labels share it so
+/// the digit blocks of the two lines align vertically.
+const double kUnitColumn = 46;
+
+/// The headline's amount size — the live main card's hero rhythm
+/// (AzText.money, w600, tabular figures) scaled to the pair card's 165dp
+/// footprint with the secondary line beneath.
+const double _kHeadlineSize = AzText.sizeHero;
 
 /// The redesigned Home balance card front face.
 class BalanceCardFx extends StatelessWidget {
@@ -131,65 +155,133 @@ class BalanceCardFx extends StatelessWidget {
     final rate = v.rate;
     final hasRate = rate.hasRate;
 
-    // ── Headline ──────────────────────────────────────────────────────
-    // The combined available value in GHS. A known amount is NEVER
-    // replaced by FX state: FX readiness and balance readiness are
-    // separate, and only the BALANCE placeholder may occupy this slot.
+    // ── Headline: the combined available value in GHS (dominant) ───────
+    // Balance readiness and FX readiness are separate: only the BALANCE
+    // placeholder may occupy this slot — never an FX state, and never a
+    // fabricated 0.00.
     final Widget headline;
-    if (v.balanceConfirmed) {
-      final ghs = v.availableGhsValue;
-      if (ghs != null) {
-        headline = _FittedHeadline(
-          key: const ValueKey('balance-fx-headline'),
-          semanticsLabel: 'Available balance ${AzMoney.ghs(ghs)}',
-          amount: AzMoney.amount(ghs),
-          colors: colors,
-        );
-      } else {
-        // Confirmed balance, but the combined value is not computable.
-        // The known native GHS amount must remain visible — presented
-        // WITH an explicit incomplete-valuation note, never alone as the
-        // total.
-        headline = _FittedHeadline(
-          key: const ValueKey('balance-fx-headline-native'),
-          semanticsLabel:
-              'GHS wallet ${AzMoney.ghs(v.nativeGhsAvailable)} — the '
-              'combined value is unavailable',
-          amount: AzMoney.amount(v.nativeGhsAvailable),
-          colors: colors,
-        );
-      }
+    if (!v.balanceConfirmed) {
+      headline = Row(
+        key: const ValueKey('balance-fx-headline-loading'),
+        children: [
+          const SizedBox(width: kApproxGutter, child: SizedBox.shrink()),
+          SizedBox(
+            width: kUnitColumn,
+            child: Text(
+              'GH₵',
+              style: AzText.label.copyWith(color: colors.textTertiary),
+            ),
+          ),
+          FxTypingDots(
+            key: const ValueKey('balance-fx-amount-dots'),
+            color: colors.textPrimary,
+          ),
+        ],
+      );
+    } else if (v.availableGhsValue != null) {
+      headline = _AmountLine(
+        key: const ValueKey('balance-fx-headline'),
+        unit: 'GH₵',
+        amount: AzMoney.amount(v.availableGhsValue!),
+        amountStyle: AzText.money(
+          colors.textPrimary,
+          size: _kHeadlineSize,
+          weight: FontWeight.w600,
+          tracking: 0,
+        ),
+        unitStyle: AzText.label.copyWith(color: colors.textTertiary),
+        // The GHS headline is the KNOWN combined value — the ≈ glyph
+        // belongs on the USDC line below, which is the estimate. The
+        // gutter column stays so both lines' digits stay aligned.
+        approx: false,
+        semanticsLabel: 'Available balance '
+            '${AzMoney.ghs(v.availableGhsValue!)} in GHS',
+      );
     } else {
-      // Balance readiness placeholder — three dots for the still-loading
-      // BALANCE. FX state never occupies this slot.
-      headline = FxTypingDots(
-        key: const ValueKey('balance-fx-amount-dots'),
-        color: colors.textPrimary,
+      // Confirmed balance, but the combined GHS value is not computable
+      // (no usable rate, no native GHS wallet). Honest dash — never a
+      // fabricated GH₵ 0.00, never USDC relabelled as GHS.
+      headline = Row(
+        key: const ValueKey('balance-fx-headline-unavailable'),
+        children: [
+          const SizedBox(width: kApproxGutter, child: SizedBox.shrink()),
+          SizedBox(
+            width: kUnitColumn,
+            child: Text(
+              'GH₵',
+              style: AzText.label.copyWith(color: colors.textTertiary),
+            ),
+          ),
+          Text(
+            '—',
+            key: const ValueKey('balance-fx-headline-dash'),
+            style: AzText.money(
+              colors.textTertiary,
+              size: _kHeadlineSize,
+              weight: FontWeight.w600,
+              tracking: 0,
+            ),
+          ),
+        ],
       );
     }
 
-    final valuationIncomplete = v.valuationIncomplete;
-
-    // ── USDC equivalent ──────────────────────────────────────────────
-    final Widget? equivalent;
+    // ── Secondary line: the USDC equivalent (smaller) ────────────────────
+    final Widget secondary;
     if (!v.balanceConfirmed) {
-      equivalent = null;
+      // Keep the geometry stable while loading: same row, no value.
+      secondary = SizedBox(
+        key: const ValueKey('balance-fx-equivalent-loading'),
+        height: 20,
+        child: Row(
+          children: [
+            const SizedBox(width: kApproxGutter, child: SizedBox.shrink()),
+            SizedBox(
+              width: kUnitColumn,
+              child: Text(
+                'USDC',
+                style: AzText.bodyS.copyWith(color: colors.textTertiary),
+              ),
+            ),
+          ],
+        ),
+      );
     } else if (v.availableUsdcEquivalent != null) {
-      equivalent = Row(
+      secondary = Row(
         key: const ValueKey('balance-fx-equivalent-row'),
         children: [
+          // The USDC line is the ESTIMATE — the ≈ marks it, in the same
+          // shared gutter so the digits of both lines still align.
+          SizedBox(
+            width: kApproxGutter,
+            child: Text(
+              '≈',
+              key: const ValueKey('balance-fx-equivalent-approx'),
+              style: AzText.bodyS.copyWith(
+                color: colors.textTertiary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: kUnitColumn,
+            child: Text(
+              'USDC',
+              style: AzText.bodyS.copyWith(color: colors.textTertiary),
+            ),
+          ),
           Flexible(
             child: Text.rich(
               key: const ValueKey('balance-fx-equivalent'),
               TextSpan(
-                text: '≈ ${AzMoney.amount(v.availableUsdcEquivalent!)} USDC',
+                text: AzMoney.amount(v.availableUsdcEquivalent!),
                 semanticsLabel:
-                    'USDC equivalent of the available balance, '
                     '${AzMoney.amount(v.availableUsdcEquivalent!)} USDC — '
-                    'an equivalent, not USDC held',
-                // E1: the squiggly ≈ already SAYS 'equivalent' — the
-                // trailing word is dropped from the visual line; the
-                // semantics label keeps the honest full explanation.
+                    'the USDC equivalent of the available balance, an '
+                    'equivalent calculation, not necessarily USDC held',
+                // E1: the squiggly ≈ already SAYS 'equivalent' — no
+                // trailing word on the visual line; the semantics label
+                // keeps the honest full explanation.
                 style: AzText.money(
                   colors.textSecondary,
                   size: 16,
@@ -213,17 +305,44 @@ class BalanceCardFx extends StatelessWidget {
           ],
         ],
       );
+    } else if (v.availableUsdc > 0) {
+      // No usable rate: there is NO equivalent. The REAL USDC holding
+      // still shows — it is a fact, not a conversion — and the leading
+      // slot stays empty: ≈ would claim a relationship that does not
+      // exist in this state.
+      secondary = Row(
+        key: const ValueKey('balance-fx-usdc-held-no-rate'),
+        children: [
+          const SizedBox(width: kApproxGutter, child: SizedBox.shrink()),
+          SizedBox(
+            width: kUnitColumn,
+            child: Text(
+              'USDC',
+              style: AzText.bodyS.copyWith(color: colors.textTertiary),
+            ),
+          ),
+          Text(
+            AzMoney.amount(v.availableUsdc),
+            key: const ValueKey('balance-fx-usdc-held-amount'),
+            style: AzText.money(
+              colors.textSecondary,
+              size: 16,
+              weight: FontWeight.w600,
+              tracking: 0,
+            ),
+          ),
+        ],
+      );
     } else {
-      // When the equivalent is unavailable the incomplete NOTE above
-      // already states exactly that, in user terms — a second caption
-      // would only repeat the same sentence inside a fixed footprint.
-      equivalent = null;
+      secondary = const SizedBox(height: 20);
     }
 
-    // ── Bottom-left FX rate/status ───────────────────────────────────
+    // ── Bottom-left FX rate/status cluster ─────────────────────────────
     // Dots appear here ONLY while genuinely loading without an eligible
     // fallback already shown. A displayed saved/demo value is kept in
-    // place while a refresh runs — never swapped for dots.
+    // place while a refresh runs — never swapped for dots. The dots and
+    // the 'Updating rate…' caption form ONE adjacent cluster in the same
+    // slot the rate occupies when idle.
     final Widget rateStatus;
     if (hasRate) {
       final suffix = switch (rate.kind) {
@@ -243,10 +362,6 @@ class BalanceCardFx extends StatelessWidget {
         style: AzText.caption.copyWith(color: colors.textTertiary),
       );
     } else if (rate.loading) {
-      // E1 — ONE coherent updating row: the dots and the 'Updating
-      // rate…' caption read as a single status in the SAME slot the
-      // rate occupies when idle, so nothing on the card moves between
-      // the loading and idle states.
       rateStatus = SizedBox(
         height: 12 * 1.45,
         child: Row(
@@ -277,9 +392,8 @@ class BalanceCardFx extends StatelessWidget {
 
     // CONTENT ONLY — the shared frame (BalanceCardPair) owns the material,
     // corner radius, rim and edge. This face supplies content inside the
-    // fixed footprint; the rate row pins flush to the card's bottom edge
-    // (the same proportions as the live Home card), and nothing here can
-    // influence the card's layout size.
+    // fixed footprint; the rate row pins flush to the card's bottom edge,
+    // and nothing here can influence the card's layout size.
     return Padding(
       key: const ValueKey('balance-fx-card'),
       padding: const EdgeInsets.all(AzSpace.lg),
@@ -292,37 +406,19 @@ class BalanceCardFx extends StatelessWidget {
             style: AzText.eyebrow.copyWith(color: colors.textTertiary),
           ),
           const SizedBox(height: AzSpace.sm),
-          headline,
-          // The middle block lives in the REMAINING space of the fixed
-          // footprint: whatever the FX state renders (the incomplete
-          // note, the equivalent row), it can never push the rate row
-          // past the card's bottom edge — the note caps at two lines and
-          // the rate row stays pinned flush to the bottom.
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (valuationIncomplete) ...[
-                  const SizedBox(height: AzSpace.sm),
-                  Text(
-                    'GHS wallet only — the combined value with the USDC '
-                    'held cannot be shown without a valid FX rate',
-                    key: const ValueKey('balance-fx-valuation-incomplete'),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AzText.bodyS.copyWith(color: colors.textSecondary),
-                  ),
-                ],
-                if (equivalent != null) ...[
-                  const SizedBox(height: AzSpace.sm),
-                  equivalent,
-                ],
-              ],
-            ),
+          // The dominant GHS line, scaled down only as much as the card
+          // width demands (never pre-shrunk, never unreadable).
+          FittedBox(
+            key: const ValueKey('balance-fx-headline-fitted'),
+            alignment: Alignment.centerLeft,
+            fit: BoxFit.scaleDown,
+            child: headline,
           ),
-          // The rate/status row spans the card: status anchored bottom
-          // LEFT, the refresh affordance flush RIGHT.
+          const SizedBox(height: AzSpace.xxs),
+          secondary,
+          // The middle block lives in the REMAINING space of the fixed
+          // footprint so the rate row always stays pinned flush bottom.
+          const Expanded(child: SizedBox.shrink()),
           Row(
             key: const ValueKey('balance-fx-rate-row'),
             children: [
@@ -388,65 +484,60 @@ class _DisclosureIconButton extends StatelessWidget {
   }
 }
 
-// E2 — THE ONE-LINE RESPONSIVE HEADLINE.
-//
-// The PR #190 review documented the defect: a 4-digit combined headline
-// ("GH₵ 5,234.50"-scale) wraps and overflows the fixed 165px frame at
-// 320dp. The fix is the CAUSE, not the fixture: the headline is a single
-// typographic line (subordinate GH₵ marker + hero digits, E1) laid out at
-// its NATURAL size and scaled down ONLY as much as the card width demands
-// (FittedBox scaleDown, bounded to the card's interior width). At 320dp a
-// 4-digit figure still reads large; nothing is pre-shrunk and nothing is
-// ever unreadable. The rate row is pinned by the frame's fixed footprint
-// and never competes with the headline for space.
-class _FittedHeadline extends StatelessWidget {
-  const _FittedHeadline({
+/// The dominant amount line of the front face:
+/// [≈ gutter][unit label][amount]. The ≈ slot precedes the amount, and
+/// both lines share the same gutter and unit-column widths so their
+/// digits align vertically — the visual relationship the owner asked for.
+class _AmountLine extends StatelessWidget {
+  const _AmountLine({
     super.key,
+    required this.unit,
     required this.amount,
-    required this.colors,
+    required this.unitStyle,
+    required this.amountStyle,
     required this.semanticsLabel,
+    this.approx = false,
   });
 
-  /// The pre-formatted digit string (no currency marker — the marker is
-  /// rendered as its own subordinate span).
+  final String unit;
   final String amount;
-  final AzamanColors colors;
+  final TextStyle unitStyle;
+  final TextStyle amountStyle;
   final String semanticsLabel;
+
+  /// Whether the leading ≈ glyph renders. False in states where the
+  /// amount is NOT an approximation of the other line (loading, or the
+  /// real USDC holding shown without a rate).
+  final bool approx;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: FittedBox(
-        alignment: Alignment.centerLeft,
-        fit: BoxFit.scaleDown,
-        child: Text.rich(
-          semanticsLabel: semanticsLabel,
-          maxLines: 1,
-          TextSpan(
-            // E1 — the GH₵ marker is SMALLER + subordinate to the
-            // digits: the amount is the hero, the currency marker is a
-            // quiet label beside it (never part of the giant block).
-            text: '${AzMoney.ghsSymbol}${AzMoney.nbsp}',
-            style: AzText.money(
-              colors.textSecondary,
-              size: 16,
-              weight: FontWeight.w600,
-              tracking: 0,
-            ),
-            children: [
-              TextSpan(
-                text: amount,
-                style: AzText.money(
-                  colors.textPrimary,
-                  size: AzText.sizeHero,
-                  weight: FontWeight.w700,
-                  tracking: 0,
-                ),
-              ),
-            ],
+    return Semantics(
+      label: semanticsLabel,
+      excludeSemantics: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: kApproxGutter,
+            child: approx
+                ? Text(
+                    '≈',
+                    style: amountStyle.copyWith(
+                      color: unitStyle.color,
+                      fontSize: (amountStyle.fontSize ?? 16) * 0.66,
+                    ),
+                  )
+                : null,
           ),
-        ),
+          SizedBox(
+            width: kUnitColumn,
+            child: Text(unit, style: unitStyle),
+          ),
+          const SizedBox(width: AzSpace.xs),
+          Text(amount, style: amountStyle),
+        ],
       ),
     );
   }

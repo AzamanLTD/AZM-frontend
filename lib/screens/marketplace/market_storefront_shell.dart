@@ -50,6 +50,8 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
+import 'package:azaman/widgets/marketplace/profile_joystick.dart';
+import 'package:azaman/widgets/marketplace/profile_joystick_delegates.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart'
     show OpenStatus, currentOpenStatus;
 
@@ -512,30 +514,35 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Logo / profile image, straddling the banner. Long-press bursts
-        // the JOYSTICK — the radial shortcut fan (§9.4 vocabulary, the
-        // shared LiquidLauncher) anchored on this avatar.
-        Semantics(
-          button: true,
-          label: 'Market shortcuts',
-          hint: 'Long-press for quick actions',
-          child: GestureDetector(
-            key: _heroAvatarKey,
-            onLongPress: _openJoystick,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: _logoAvatar(business, colors, radius: 36),
+        // Logo / profile image, straddling the banner. WORKSTREAM A
+        // (2026-10-26): touch-down starts the SHARED directional joystick
+        // — up opens the real catalog destination, down opens the story
+        // viewer only when the authoritative story contract says a story
+        // is active, right rides the durable bookmark seam, left opens
+        // the MANDATORY show-less confirmation. A plain tap still bursts
+        // the radial launcher so the extra shortcuts (Share, Reviews,
+        // Follow) stay reachable — the joystick does not replace them.
+        ProfileJoystick(
+          key: _heroAvatarKey,
+          semanticLabel: 'Market shortcuts',
+          semanticHint: 'Touch, then drag: up for ${widget.catalogLabel
+              .toLowerCase()}, down for story, right to '
+              'bookmark, left to show less. Tap for more actions.',
+          actions: _joystickActions(),
+          onTap: _openJoystick,
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
+            child: _logoAvatar(business, colors, radius: 36),
           ),
         ),
         const SizedBox(height: AzSpace.md),
@@ -654,6 +661,49 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   // wired action does not appear. Opening and dismissal are silent (the
   // launcher's contract); every pick plays exactly one confirm() haptic
   // inside the launcher, then closes the route and runs the delegate.
+
+  /// WORKSTREAM A — the hero joystick's four directions, ALL wired to
+  /// the shell's real delegates. Unavailable directions carry a null
+  /// delegate: the satellite renders honestly dimmed and a release on it
+  /// fires nothing.
+  ProfileJoystickActions _joystickActions() {
+    final business = widget.business;
+    final hasActiveStory = business.storyState?.hasActiveStory == true;
+    return ProfileJoystickActions(
+      menu: ProfileJoystickAction(
+        icon: Icons.menu_book_rounded,
+        label: widget.catalogLabel,
+        onRelease: widget.hasCatalog && widget.onOpenCatalog != null
+            ? widget.onOpenCatalog
+            : null,
+        unavailableLabel: 'No catalog yet',
+      ),
+      story: ProfileJoystickAction(
+        icon: Icons.play_circle_outline_rounded,
+        label: 'Story',
+        onRelease: hasActiveStory
+            ? () => openJoystickStory(context, ref, business)
+            : null,
+        unavailableLabel: 'No active story',
+      ),
+      bookmark: ProfileJoystickAction(
+        icon: widget.isBookmarked
+            ? Icons.bookmark_rounded
+            : Icons.bookmark_border_rounded,
+        label: widget.isBookmarked ? 'Saved' : 'Save',
+        onRelease: widget.onToggleBookmark,
+        unavailableLabel: 'Unavailable',
+      ),
+      showLess: ProfileJoystickAction(
+        icon: Icons.visibility_off_outlined,
+        label: 'Show less',
+        // The release only OPENS the mandatory confirmation; the real
+        // service call happens after an explicit confirm.
+        onRelease: () =>
+            openJoystickShowLessConfirm(context, ref, business),
+      ),
+    );
+  }
 
   List<LiquidLauncherItem> _joystickItems() {
     final items = <LiquidLauncherItem>[];

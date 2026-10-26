@@ -26,6 +26,7 @@
 import 'dart:async';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/widgets/home/home_balance_card.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/susu_provider.dart';
@@ -34,7 +35,6 @@ import 'package:azaman/screens/card_transfer_screen.dart';
 import 'package:azaman/widgets/card_transfer/compact_card_pair.dart';
 import 'package:azaman/widgets/home/visa_transfer_seam_control.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
-import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:azaman/widgets/amount_keypad.dart';
 
@@ -53,9 +53,9 @@ class _ProgrammeClaimingTransfers extends DemoCardProgramme {
   bool get supportsTransfers => true;
 }
 
-/// A susu list that never resolves — the FlippableBalanceCard watcher must
-/// degrade silently (the F-023 failure path behaving as designed); no test
-/// traffic ever leaves the process.
+/// A susu list that never resolves — the balance-card valuation watcher
+/// must degrade silently (the F-023 failure path behaving as designed);
+/// no test traffic ever leaves the process.
 class _SusuListNeverLoads extends SusuListNotifier {
   @override
   Future<List<SusuSummary>> build() => Completer<List<SusuSummary>>().future;
@@ -371,7 +371,7 @@ void main() {
           findsOneWidget);
       expect(find.byType(CompactBalancePreview), findsOneWidget);
       expect(find.byType(CompactVisaPreview), findsOneWidget);
-      expect(find.byType(FlippableBalanceCard), findsNothing,
+      expect(find.byType(HomeBalanceCard), findsNothing,
           reason: 'the full-height Home balance card must not be mounted '
               'on the transfer surface');
       expect(find.byType(AzmVisaCard), findsNothing,

@@ -209,7 +209,9 @@ void main() {
 
     // 1. TUCKED — both cards in the pouch, both headers exposed.
     expect(_deckState(tester), WalletDeckState.tucked);
-    expect(find.text('Azaman Balance'), findsOneWidget);
+    // The new BalanceCardPair front face: the eyebrow header carries
+    // the brand slot the old 'Azaman Balance' title held.
+    expect(find.text('AVAILABLE BALANCE'), findsOneWidget);
     await _settle(tester);
     await _capture(tester, 'dark_tucked');
 
@@ -218,7 +220,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
     await _settle(tester, rounds: 5);
     expect(_deckState(tester), WalletDeckState.balanceOut);
-    expect(find.text('Azaman Balance'), findsOneWidget,
+    expect(find.text('AVAILABLE BALANCE'), findsOneWidget,
         reason: 'the header is the card\'s own — one widget in both states');
     await _capture(tester, 'dark_balance_out');
 
