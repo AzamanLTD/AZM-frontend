@@ -46,6 +46,7 @@
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
@@ -171,15 +172,15 @@ class _ProfileJoystickState extends ConsumerState<ProfileJoystick> {
   void _installGlobalRoute() {
     if (_globalRouteActive) return;
     _globalRouteActive = true;
-    GestureBinding.instance.pointerRouter
-        .addGlobalRoute(_onGlobalPointerEvent);
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_onGlobalPointerEvent);
   }
 
   void _uninstallGlobalRoute() {
     if (!_globalRouteActive) return;
     _globalRouteActive = false;
-    GestureBinding.instance.pointerRouter
-        .removeGlobalRoute(_onGlobalPointerEvent);
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(
+      _onGlobalPointerEvent,
+    );
   }
 
   bool get _reducedMotion =>
@@ -230,11 +231,39 @@ class _ProfileJoystickState extends ConsumerState<ProfileJoystick> {
       widget.onTap?.call();
       return;
     }
+    _executeDirection(direction);
+  }
+
+  // ONE guarded execution path, shared verbatim by the gesture release
+  // and the accessibility custom actions: an availability check, then
+  // EXACTLY one confirmation haptic, then the host's real callback. A
+  // semantic activation can therefore never bypass a direction's
+  // existing confirmation (show-less) or fire an unavailable delegate.
+  void _executeDirection(ProfileJoystickDirection direction) {
     final action = widget.actions.actionFor(direction);
     if (action.onRelease == null) return; // unavailable: no dead fire
-    // EXACTLY one confirmation haptic per executed action.
     AzamanHaptics.confirm();
     action.onRelease!();
+  }
+
+  /// The accessibility exposure (Workstream J1): every AVAILABLE
+  /// direction is exposed as a custom semantics action with the host's
+  /// honest, state-aware label, so a TalkBack/VoiceOver user who cannot
+  /// perform the directional swipe can still invoke the exact same
+  /// callbacks. Unavailable directions (e.g. story with no active
+  /// story) are OMITTED — never advertised, never executable. Labels
+  /// are unique per direction; a duplicate label would silently remap
+  /// an action, so it is skipped defensively.
+  Map<CustomSemanticsAction, VoidCallback> _accessibleActions() {
+    final result = <CustomSemanticsAction, VoidCallback>{};
+    for (final direction in ProfileJoystickDirection.values) {
+      final action = widget.actions.actionFor(direction);
+      if (!action.available) continue;
+      final custom = CustomSemanticsAction(label: action.label);
+      if (result.containsKey(custom)) continue;
+      result[custom] = () => _executeDirection(direction);
+    }
+    return result;
   }
 
   void _sessionCancelled() {
@@ -289,16 +318,19 @@ class _ProfileJoystickState extends ConsumerState<ProfileJoystick> {
   Widget build(BuildContext context) {
     final active = _session != null;
     return Semantics(
-      button: true,
+      // The button role and the tap action are advertised ONLY when a
+      // short tap actually exists (Workstream J1: never advertise a
+      // button tap that does nothing).
+      button: widget.onTap != null,
+      onTap: widget.onTap,
       label: widget.semanticLabel,
       hint: widget.semanticHint,
+      customSemanticsActions: _accessibleActions(),
       child: RawGestureDetector(
         behavior: HitTestBehavior.opaque,
         gestures: {
           _JoystickGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<
-                _JoystickGestureRecognizer
-              >(
+              GestureRecognizerFactoryWithHandlers<_JoystickGestureRecognizer>(
                 () => _JoystickGestureRecognizer(
                   debugOwner: this,
                   activationSlop: widget.activationSlop,
@@ -390,28 +422,37 @@ class _JoystickOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: SizedBox.expand(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            _satellite(
-              ProfileJoystickDirection.menu,
-              anchor.topCenter - Offset(0, _kPillGap + _pillHeight() / 2),
-            ),
-            _satellite(
-              ProfileJoystickDirection.story,
-              anchor.bottomCenter + Offset(0, _kPillGap + _pillHeight() / 2),
-            ),
-            _satellite(
-              ProfileJoystickDirection.bookmark,
-              anchor.centerRight + Offset(_kPillGap + _pillWidth(actions.bookmark) / 2, 0),
-            ),
-            _satellite(
-              ProfileJoystickDirection.showLess,
-              anchor.centerLeft - Offset(_kPillGap + _pillWidth(actions.showLess) / 2, 0),
-            ),
-          ],
+    // J1: the fan is a transient VISUAL affordance shown only during an
+    // active gesture; screen-reader users drive the same actions via the
+    // custom semantics actions on the avatar node instead. Exclude it
+    // from the semantics tree so the open dial adds no duplicate or
+    // confusing stops ('Story (No active story)' must never be read out).
+    return ExcludeSemantics(
+      child: IgnorePointer(
+        child: SizedBox.expand(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _satellite(
+                ProfileJoystickDirection.menu,
+                anchor.topCenter - Offset(0, _kPillGap + _pillHeight() / 2),
+              ),
+              _satellite(
+                ProfileJoystickDirection.story,
+                anchor.bottomCenter + Offset(0, _kPillGap + _pillHeight() / 2),
+              ),
+              _satellite(
+                ProfileJoystickDirection.bookmark,
+                anchor.centerRight +
+                    Offset(_kPillGap + _pillWidth(actions.bookmark) / 2, 0),
+              ),
+              _satellite(
+                ProfileJoystickDirection.showLess,
+                anchor.centerLeft -
+                    Offset(_kPillGap + _pillWidth(actions.showLess) / 2, 0),
+              ),
+            ],
+          ),
         ),
       ),
     );

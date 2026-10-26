@@ -260,6 +260,15 @@ class BalanceCardValuation {
   /// The headline can only be shown as a confirmed combined value.
   bool get headlineKnown => balanceConfirmed && availableGhsValue != null;
 
+  /// Whether the headline total includes a CONVERTED USDC component —
+  /// USDC revalued into GHS through the display rate (Workstream J2).
+  /// Only a genuinely native-GHS-only total (no USDC in the wallet)
+  /// may be presented as an exact known value; any total with a
+  /// converted component must carry the approximate marker in the
+  /// visual, the semantics and the disclosure alike.
+  bool get headlineIncludesConvertedUsdc =>
+      headlineKnown && availableUsdc > 0;
+
   /// A known USDC holding that cannot be valued: the combined GHS valuation
   /// is incomplete and must be presented as such — native GHS alone may
   /// never appear to be the whole total.

@@ -297,11 +297,11 @@ void main() {
       expect(find.textContaining('Using saved rate'), findsNothing,
           reason: 'no fallback chrome in the rate row');
 
-      // OWNER CORRECTION (2026-10-26): the ≈ marks the USDC line — the
-      // line being ESTIMATED. The GHS headline is the known value: its
-      // gutter slot stays empty so the digits still align.
-      expect(find.text('≈'), findsOneWidget,
-          reason: 'a usable rate renders exactly one ≈ glyph');
+      // WORKSTREAM J2 (2026-10-26): this fixture is a native+USDC
+      // COMBINED total — it includes a converted USDC component, so the
+      // GHS headline itself carries the approximate marker, alongside
+      // the USDC equivalent line's. Only a genuinely native-GHS-only
+      // total renders without ≈ on the headline.
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('balance-fx-equivalent-row')),
@@ -315,8 +315,9 @@ void main() {
           of: find.byKey(const ValueKey('balance-fx-headline')),
           matching: find.text('≈'),
         ),
-        findsNothing,
-        reason: 'the GHS headline is the known value — no ≈ on it',
+        findsOneWidget,
+        reason: 'a total with a converted USDC component is marked '
+            'approximate on the headline too',
       );
     });
 

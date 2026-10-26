@@ -142,106 +142,129 @@ class _BalanceCardPairState extends State<BalanceCardPair>
     // back face's inner scroll; nothing about a drag can flip the card.
     Offset? downAt;
     bool? downOnAffordance;
-    return Listener(
-      key: const ValueKey('balance-pair-flip-listener'),
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: (e) {
-        downAt = e.position;
-        // A deeper affordance Listener fires before this one, so the mark
-        // is already set if the press began on a nested control.
-        downOnAffordance = _flipGuard.value;
-      },
-      onPointerCancel: (e) {
-        downAt = null;
-        downOnAffordance = null;
-        _flipGuard.value = false;
-      },
-      onPointerUp: (e) {
-        final guarded = downOnAffordance ?? false;
-        downOnAffordance = null;
-        _flipGuard.value = false;
-        if (guarded) return;
-        if (downAt == null) return;
-        final dist = (e.position - downAt!).distance;
-        downAt = null;
-        if (dist < 8) _toggle();
-      },
-      child: MediaQuery.withClampedTextScaling(
-        // The live Home card clamps at 1.25x — the largest scale its hard
-        // 165px budget accommodates at every width. Same clamp, same card.
-        maxScaleFactor: 1.25,
-        child: AnimatedBuilder(
-          animation: _flip,
-          builder: (context, _) {
-            final t = _flip.value;
-            final angle = t * math.pi;
-            final showBack = t > 0.5;
+    // WORKSTREAM J3 — screen-reader/switch discoverability: the flip is
+    // exposed as a REAL semantic tap action with a meaningful,
+    // state-aware hint ('Show balance details' / 'Return to the
+    // balance'). The semantic activation and the pointer tap both call
+    // the same _toggle, so nothing about the arbitration below changes:
+    // a SEMANTIC activation of the frame itself is the deliberate
+    // reveal, while the nested disclosure/return controls carry their
+    // own semantic taps on deeper nodes, so activating THEM never
+    // reaches this action.
+    return Semantics(
+      key: const ValueKey('balance-pair-semantics'),
+      container: true,
+      button: true,
+      label: _isBack
+          ? 'Balance card — details breakdown'
+          : 'Balance card — available balance',
+      onTapHint: _isBack
+          ? 'return to the balance summary'
+          : 'show the balance details',
+      onTap: _toggle,
+      child: Listener(
+        key: const ValueKey('balance-pair-flip-listener'),
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (e) {
+          downAt = e.position;
+          // A deeper affordance Listener fires before this one, so the mark
+          // is already set if the press began on a nested control.
+          downOnAffordance = _flipGuard.value;
+        },
+        onPointerCancel: (e) {
+          downAt = null;
+          downOnAffordance = null;
+          _flipGuard.value = false;
+        },
+        onPointerUp: (e) {
+          final guarded = downOnAffordance ?? false;
+          downOnAffordance = null;
+          _flipGuard.value = false;
+          if (guarded) return;
+          if (downAt == null) return;
+          final dist = (e.position - downAt!).distance;
+          downAt = null;
+          if (dist < 8) _toggle();
+        },
+        child: MediaQuery.withClampedTextScaling(
+          // The live Home card clamps at 1.25x — the largest scale its hard
+          // 165px budget accommodates at every width. Same clamp, same card.
+          maxScaleFactor: 1.25,
+          child: AnimatedBuilder(
+            animation: _flip,
+            builder: (context, _) {
+              final t = _flip.value;
+              final angle = t * math.pi;
+              final showBack = t > 0.5;
 
-            return SizedBox(
-              key: const ValueKey('balance-pair-frame'),
-              height: BalanceCardGeometry.height,
-              width: double.infinity,
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateX(angle),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // ── THE ONE MATERIAL ────────────────────────────────
-                    // Both faces live inside the same HolographicSurface —
-                    // the app's graphite/hologram family. The back is the
-                    // same family, subdued (lower intensity): a matte
-                    // reverse side, never a second card.
-                    if (showBack)
-                      Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..rotateX(math.pi),
-                        child: HolographicSurface(
-                          key: const ValueKey('balance-pair-back-surface'),
+              return SizedBox(
+                key: const ValueKey('balance-pair-frame'),
+                height: BalanceCardGeometry.height,
+                width: double.infinity,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..setEntry(3, 2, 0.001)
+                    ..rotateX(angle),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // ── THE ONE MATERIAL ────────────────────────────────
+                      // Both faces live inside the same HolographicSurface —
+                      // the app's graphite/hologram family. The back is the
+                      // same family, subdued (lower intensity): a matte
+                      // reverse side, never a second card.
+                      if (showBack)
+                        Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()..rotateX(math.pi),
+                          child: HolographicSurface(
+                            key: const ValueKey('balance-pair-back-surface'),
+                            base: widget.colors.card,
+                            tint: widget.colors.textSecondary,
+                            intensity: 0.6,
+                            sheenPeak: 0.10,
+                            showSheen: false,
+                            showReactiveParticles: false,
+                            interactive: false,
+                            borderRadius: BalanceCardGeometry.radius,
+                            child: BalanceCardBreakdown(
+                              valuation: widget.valuation,
+                              colors: widget.colors,
+                              flipGuard: _flipGuard,
+                              onFlipBackRequested: _toggle,
+                            ),
+                          ),
+                        )
+                      else
+                        HolographicSurface(
+                          key: const ValueKey('balance-pair-front-surface'),
                           base: widget.colors.card,
                           tint: widget.colors.textSecondary,
-                          intensity: 0.6,
-                          sheenPeak: 0.10,
                           showSheen: false,
                           showReactiveParticles: false,
                           interactive: false,
                           borderRadius: BalanceCardGeometry.radius,
-                          child: BalanceCardBreakdown(
+                          child: BalanceCardFx(
                             valuation: widget.valuation,
                             colors: widget.colors,
                             flipGuard: _flipGuard,
-                            onFlipBackRequested: _toggle,
                           ),
                         ),
-                      )
-                    else
-                      HolographicSurface(
-                        key: const ValueKey('balance-pair-front-surface'),
-                        base: widget.colors.card,
-                        tint: widget.colors.textSecondary,
-                        showSheen: false,
-                        showReactiveParticles: false,
-                        interactive: false,
-                        borderRadius: BalanceCardGeometry.radius,
-                        child: BalanceCardFx(
-                          valuation: widget.valuation,
-                          colors: widget.colors,
-                          flipGuard: _flipGuard,
+                      // ── THE ONE EDGE ─────────────────────────────────────
+                      // The rim is INSIDE the flip transform: the perimeter
+                      // travels with the card, exactly like the live card.
+                      const Positioned.fill(
+                        child: PremiumCardRim(
+                          radius: BalanceCardGeometry.radius,
                         ),
                       ),
-                    // ── THE ONE EDGE ─────────────────────────────────────
-                    // The rim is INSIDE the flip transform: the perimeter
-                    // travels with the card, exactly like the live card.
-                    const Positioned.fill(
-                      child: PremiumCardRim(radius: BalanceCardGeometry.radius),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

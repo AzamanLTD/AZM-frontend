@@ -22,9 +22,12 @@
 //   E4 — the celebration originates at the reminder section's HEADER and
 //        sprays DOWN over the content below — never from the card.
 //
-// The pair is demo/contract-seam only (PR #190): nothing here touches the
-// live production card, which stays unchanged until the backend valuation
-// contract is verified end-to-end.
+// PR #203 wires BalanceCardPair into the live Home deck through
+// HomeBalanceCard, so this suite pins the production card's own
+// contract. The FRONT-face figures stay interim-honest: until the
+// backend valuation contract (#367/8/9) ships and is revalidated, the
+// GHS headline is an APPROXIMATE converted display valuation, and the
+// #367 mapper activates only after that compatibility review.
 // =============================================================================
 
 import 'dart:io';
