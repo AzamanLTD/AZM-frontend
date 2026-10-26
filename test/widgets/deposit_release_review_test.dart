@@ -28,10 +28,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azaman/models/user_model.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
+import 'package:azaman/providers/deposit_settlement_monitor.dart';
+import 'package:azaman/services/deposit_continuations.dart';
+import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
@@ -209,13 +215,33 @@ final List<SavedMomoAccount> _accounts = [
 ];
 
 Widget _app() {
+  // FINAL REVIEW — the deposit surface belongs to an authenticated
+  // session by contract: the continuation lifecycle is owner-scoped
+  // and the initiation itself now REQUIRES a capturable owner (it is
+  // blocked before the wire without one). The base harness runs with
+  // a signed-in identity and in-memory continuations.
   return ProviderScope(
     overrides: [
       savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+      authProvider.overrideWith((ref) => _FixedAuth(_harnessUser)),
+      depositContinuationsProvider.overrideWith(
+        (ref) => DepositContinuationsController(
+          DepositContinuationsService(storage: _MemSecureStorage()),
+        ),
+      ),
     ],
     child: MaterialApp.router(routerConfig: _router()),
   );
 }
+
+final _harnessUser = User(
+  id: 'user-a',
+  username: 'me',
+  email: 'me@example.com',
+  token: 'tok',
+  role: 'USER',
+  azamanId: 'AZM-999999999',
+);
 
 GoRouter _router() => GoRouter(
   initialLocation: '/',
@@ -539,4 +565,1314 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     });
   });
+
+  // ── REVIEW GAP 1 + FIX 3: initiation window + submitted continuations ────
+  group('4 — initial-submit race guard + submitted continuation', () {
+    // In-memory secure storage so the continuation lifecycle is asserted
+    // against the REAL service over the same async API.
+    final contStorage = _MemSecureStorage();
+    late DepositContinuationsService contSvc;
+
+    Widget appWithAuth() {
+      contStorage.store.clear();
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith(
+            (ref) => _FixedAuth(User(
+              id: 'user-7',
+              username: 'me',
+              email: 'me@example.com',
+              token: 'tok',
+              role: 'USER',
+              azamanId: 'AZM-999999999',
+            )),
+          ),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: _router()),
+      );
+    }
+
+    testWidgets('every close gesture is guarded while the initiation is in '
+        'flight — no draft, no close, honest notice', (tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithAuth());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+
+      final gate = Completer<void>();
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': 'DEP-RACE-1', 'status': 'PENDING'},
+      }, gate);
+
+      await tester.tap(find.text('Add Cash').last); // CTA
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text('Confirm')); // name dialog
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // The initiate request is now HELD at the gate — the exact window
+      // in which a saved draft could not honestly represent the
+      // operation. Every close gesture must be refused.
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Keep for 5 minutes'), findsNothing,
+          reason: 'the exit prompt must not appear while the initiation '
+              'is in flight');
+      expect(find.textContaining('Setting up your deposit'), findsOneWidget);
+      // Still on the surface — the operation owns the window.
+      expect(find.bySemanticsLabel('Close Add Cash'), findsOneWidget);
+
+      // No draft was saved for the race window.
+      expect(_unexpectedCalls, isEmpty);
+
+      // Outcome arrives: the reference is durable and a continuation is
+      // recorded (FIX 3) — NOW closing is safely representable.
+      gate.complete();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final stored = await contSvc.loadForUser('user-7');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-RACE-1',
+          reason: 'the submitted operation enters the continuation '
+              'lifecycle the moment its reference is durable');
+
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsOneWidget,
+          reason: 'once the outcome is representable the close prompt '
+              'returns');
+    });
+  });
+
+  group('5 — REVIEW FOLLOW-UP P1: continuation persistence is part of the '
+      'close guard', () {
+    final contStorage = _GatedWriteStorage();
+    late DepositContinuationsService contSvc;
+
+    Widget appWithAuth() {
+      // NOTE: writeGate/writeError are NOT reset here — the tests arm
+      // them BEFORE the submit sequence (the write happens mid-submit,
+      // right after the initiate response lands).
+      contStorage.store.clear();
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith(
+            (ref) => _FixedAuth(User(
+              id: 'user-7',
+              username: 'me',
+              email: 'me@example.com',
+              token: 'tok',
+              role: 'USER',
+              azamanId: 'AZM-999999999',
+            )),
+          ),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: _router()),
+      );
+    }
+
+    Future<void> submitDeposit(WidgetTester tester, String reference) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithAuth());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': reference, 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('(a) a HELD secure-storage write keeps every close '
+        'gesture blocked until the continuation is durably saved',
+        (tester) async {
+      final heldWrite = Completer<void>();
+      contStorage.writeGate = heldWrite;
+      await submitDeposit(tester, 'DEP-PERSIST-1');
+
+      expect(find.text('Prompt sent'), findsOneWidget);
+      expect(find.text('Keep for 5 minutes'), findsNothing,
+          reason: 'the exit prompt must not bypass the durability '
+              'barrier while the continuation write is in flight');
+      expect(find.bySemanticsLabel('Close Add Cash'), findsOneWidget,
+          reason: 'the surface stays open — closing now could lose the '
+              'only local pointer to the submitted operation');
+      expect(contStorage.store.isEmpty, isTrue,
+          reason: 'the record is not durable yet');
+
+      heldWrite.complete();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final stored = await contSvc.loadForUser('user-7');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-PERSIST-1');
+
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsOneWidget,
+          reason: 'once the local way-back is durable, closing is safely '
+              'representable again');
+    });
+
+    testWidgets('(b) a FAILED local write keeps the surface fail-closed '
+        'with the exact reference and an explicit retry',
+        (tester) async {
+      contStorage.writeError = StateError('disk full');
+      await submitDeposit(tester, 'DEP-PERSIST-2');
+
+      expect(find.text('Keep for 5 minutes'), findsNothing,
+          reason: 'a failed persistence write keeps the close guard '
+              'active — the reference must not be closed away unsaved');
+      // Two retry affordances: the failure snackbar's action and the
+      // result view's primary button.
+      expect(find.text('Save receipt'), findsNWidgets(2),
+          reason: 'the retry affordance for the SAME operation replaces '
+              'the normal result actions');
+      expect(contStorage.store.isEmpty, isTrue);
+
+      contStorage.writeError = null;
+      await tester.pump(const Duration(seconds: 6));
+      await tester.tap(find.text('Save receipt').last);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final stored = await contSvc.loadForUser('user-7');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-PERSIST-2',
+          reason: 'the retry persists the EXACT reference the backend '
+              'returned — nothing is re-initiated or invented');
+
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsOneWidget);
+    });
+  });
+
+  group('6 — REVIEW FOLLOW-UP: OTP persistence + continuation owner '
+      'identity', () {
+    final contStorage = _GatedWriteStorage();
+    late DepositContinuationsService contSvc;
+    _MutableAuth? currentAuth;
+
+    User makeUser(String id) => User(
+          id: id,
+          username: 'me',
+          email: 'me@example.com',
+          token: 'tok',
+          role: 'USER',
+          azamanId: 'AZM-999999999',
+        );
+
+    Widget appWithAuth() {
+      contStorage.store.clear();
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith((ref) => currentAuth!),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: _router()),
+      );
+    }
+
+    Future<void> openAndEnterAmount(WidgetTester tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithAuth());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+    }
+
+    testWidgets('(c) on the OTP path a failed continuation write never '
+        'lets Cancel destroy the reference', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      contStorage.writeError = StateError('disk full');
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'requiresOtp': true,
+        'data': {'reference': 'DEP-OTP-1', 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // OTP view is up, the local write FAILED: there is no Cancel —
+      // cancelling would discard the only in-memory reference.
+      expect(find.text('Enter OTP'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing,
+          reason: 'a failed persistence write must not expose a Cancel '
+              'that destroys the unpersisted reference');
+      expect(find.text('Save receipt'), findsWidgets);
+      expect(contStorage.store.isEmpty, isTrue);
+
+      // The close guard stays active — no second initiation, no exit.
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsNothing);
+
+      // Retry the SAME save from the OTP state: persistence succeeds
+      // under the initiating user, and only then does Cancel return.
+      contStorage.writeError = null;
+      // Let the queued snackbars (failure notice + close-guard notice)
+      // dismiss; the retry button is then scoped to the OTP view
+      // itself so no snackbar action can shadow it.
+      await tester.pump(const Duration(seconds: 10));
+      final otpRetry =
+          find.descendant(of: find.byType(SingleChildScrollView), matching: find.text('Save receipt'));
+      expect(otpRetry, findsOneWidget);
+      await tester.tap(otpRetry);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final stored = await contSvc.loadForUser('user-a');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-OTP-1');
+      expect(await contSvc.loadForUser('user-b'), isEmpty);
+
+      // With the record durable the back action returns — under its
+      // honest label (LAST REVIEW: a local back can never cancel a
+      // submitted instruction).
+      expect(find.text('Back to Add Cash'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing);
+      await tester.tap(find.text('Back to Add Cash'));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('Add Cash'), findsWidgets);
+    });
+
+    testWidgets('(d) an account switch mid-initiation never rebinds the '
+        "continuation owner — A's reference is saved under A only",
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      final gate = Completer<void>();
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': 'DEP-RACE-A', 'status': 'PENDING'},
+      }, gate);
+
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // The initiation response is HELD; the session switches directly
+      // to user B before it lands.
+      currentAuth!.switchTo(makeUser('user-b'));
+      gate.complete();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // The reference is bound to the INITIATING identity only.
+      final aList = await contSvc.loadForUser('user-a');
+      expect(aList, hasLength(1));
+      expect(aList.single.reference, 'DEP-RACE-A');
+      expect(await contSvc.loadForUser('user-b'), isEmpty,
+          reason: 'a response arriving after a switch must never store '
+              "A's reference under B's key");
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(e) the same switch race during OTP confirmation and '
+        'continuation persistence', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'requiresOtp': true,
+        'data': {'reference': 'DEP-RACE-A', 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Enter OTP'), findsOneWidget);
+
+      // The initiation's continuation is already stored under A.
+      expect((await contSvc.loadForUser('user-a')), hasLength(1));
+
+      // Confirm the OTP; the response is held; the session switches to
+      // B before it lands.
+      await tester.enterText(find.byType(TextField), '123456');
+      final gate = Completer<void>();
+      _wire['POST /deposit/fiat/initiate/moolre/otp'] = _Route(200, {
+        'success': true,
+        'data': {'reference': 'DEP-RACE-A'},
+      }, gate);
+      await tester.tap(find.text('Confirm deposit'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      currentAuth!.switchTo(makeUser('user-b'));
+      gate.complete();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // The confirmed reference UPSERTS under the initiating identity —
+      // never duplicated, never reassigned to B.
+      final aList = await contSvc.loadForUser('user-a');
+      expect(aList, hasLength(1));
+      expect(aList.single.reference, 'DEP-RACE-A');
+      expect(await contSvc.loadForUser('user-b'), isEmpty);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(f) no capturable owner: the financial mutation is '
+        'BLOCKED before the wire — nothing may later be stored under '
+        'any key', (tester) async {
+      currentAuth = _MutableAuth(null);
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      // The initiate route is deliberately NOT wired: if the blocked
+      // path ever regresses and sends the request, the harness records
+      // an unexpected HTTP call and this test fails loudly.
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // BLOCKED BEFORE THE WIRE: no financial mutation was requested.
+      expect(_unexpectedCalls, isEmpty,
+          reason: 'an initiation without a capturable owner must never '
+              'reach the backend');
+      expect(find.text('Your session ended. Sign in again to start a '
+          'deposit.'), findsOneWidget);
+
+      // No accepted operation exists: no reference was minted, no
+      // fail-closed persistence state was armed, storage stays empty.
+      expect(find.text('Save receipt'), findsNothing,
+          reason: 'a blocked initiation mints no reference and arms no '
+              'persistence-retry state');
+      expect(contStorage.store.isEmpty, isTrue);
+
+      // User B signs in and the surface is reused: NOTHING belonging
+      // to the ownerless operation may ever land under B's key.
+      currentAuth!.switchTo(makeUser('user-b'));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(contStorage.store.isEmpty, isTrue);
+      expect(await contSvc.loadForUser('user-b'), isEmpty);
+      expect(await contSvc.loadForUser('user-a'), isEmpty);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(g) FINAL REVIEW — a retry after an account switch '
+        "persists under the CAPTURED owner only: B is active when the "
+        'failed write is retried and B\'s key stays empty',
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      contStorage.writeError = StateError('disk full');
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'requiresOtp': true,
+        'data': {'reference': 'DEP-RETRY-B', 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Enter OTP'), findsOneWidget);
+      expect(contStorage.store.isEmpty, isTrue);
+
+      // The write failed; user B becomes active BEFORE the retry.
+      currentAuth!.switchTo(makeUser('user-b'));
+      contStorage.writeError = null;
+      // Let the queued snackbars (failure notice + close-guard notice)
+      // dismiss; the retry button is then scoped to the OTP view.
+      await tester.pump(const Duration(seconds: 10));
+      final otpRetry = find.descendant(
+          of: find.byType(SingleChildScrollView),
+          matching: find.text('Save receipt'));
+      expect(otpRetry, findsOneWidget);
+      await tester.tap(otpRetry);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // The retry used the CAPTURED owner (A) — never the active one.
+      final aList = await contSvc.loadForUser('user-a');
+      expect(aList, hasLength(1));
+      expect(aList.single.reference, 'DEP-RETRY-B');
+      expect(await contSvc.loadForUser('user-b'), isEmpty,
+          reason: 'a retry under a switched session must never store '
+              "A's operation under B's key");
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(h) FINAL REVIEW — the result view renders the '
+        'instructions exactly ONCE', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      const wireInstructions =
+          'Dial *170# and approve the prompt to complete this deposit.';
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {
+          'reference': 'DEP-RESULT-1',
+          'status': 'PENDING',
+          'instructions': wireInstructions,
+        },
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // The result view is up with the durable reference.
+      expect(find.text('DEP-RESULT-1'), findsOneWidget);
+      // A single instructions block — the duplicated render is gone.
+      expect(find.text(wireInstructions), findsOneWidget,
+          reason: 'the result view must render the instructions block '
+              'exactly once');
+      // Flush short-lived timers (demo auto-confirm, stagger etc.).
+      await tester.pump(const Duration(seconds: 4));
+    });
+  });
+
+  // ── LAST REVIEW: pending-result cancellation semantics + settlement ────
+
+  group('7 — LAST REVIEW: pending-result cancellation semantics + '
+      'independent settlement tracking', () {
+    final contStorage = _MemSecureStorage();
+    late DepositContinuationsService contSvc;
+    _MutableAuth? currentAuth;
+
+    User makeUser(String id) => User(
+          id: id,
+          username: 'me',
+          email: 'me@example.com',
+          token: 'tok',
+          role: 'USER',
+          azamanId: 'AZM-999999999',
+        );
+
+    Widget appWithAuth() {
+      contStorage.store.clear();
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith((ref) => currentAuth!),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: _router()),
+      );
+    }
+
+    Future<void> openAndEnterAmount(WidgetTester tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithAuth());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+    }
+
+    /// Submit one no-OTP deposit and wait for its pending result view.
+    Future<void> submitDeposit(WidgetTester tester, String reference) async {
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': reference, 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text(reference), findsOneWidget,
+          reason: 'the pending result view must be showing $reference');
+    }
+
+    /// The honest local return from a pending result view.
+    Future<void> backToAddCash(WidgetTester tester) async {
+      await tester.tap(find.text('Back to Add Cash'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    /// Deliver a settlement through the REAL socket listener fan-out
+    /// and let the async resolution chain flush.
+    Future<void> settle(WidgetTester tester, String reference) async {
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', reference);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    testWidgets('(a) leaving the result view does not orphan the '
+        'operation — a settlement for the ORIGINAL reference resolves its '
+        'continuation without reopening the status screen', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      await submitDeposit(tester, 'DEP-LEAVE-1');
+
+      await backToAddCash(tester);
+      // Back on the resting instrument — the operation is NOT on screen.
+      expect(find.text('DEP-LEAVE-1'), findsNothing);
+      final pending = await contSvc.loadForUser('user-a');
+      expect(pending, hasLength(1),
+          reason: 'the submitted operation stays durably tracked after the '
+              'honest local return');
+      expect(pending.single.reference, 'DEP-LEAVE-1');
+
+      // The settlement arrives for the EXACT original reference.
+      await settle(tester, 'DEP-LEAVE-1');
+
+      // Resolved — without ever reopening the deposit status screen.
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'the continuation is authoritatively resolved by the '
+              'settlement alone; no status screen was reopened');
+      // And the surface says so — honest user-facing status.
+      expect(find.textContaining('earlier deposit DEP-LEAVE-1 completed'),
+          findsOneWidget);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(b) the pending-state action NEVER claims or implies '
+        'that the provider instruction was cancelled', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+
+      // 1. The no-OTP pending result view: the action is a RETURN, the
+      //    caption says the instruction is still in progress.
+      await submitDeposit(tester, 'DEP-HONEST-1');
+      expect(find.text('Back to Add Cash'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing,
+          reason: 'no cancellation contract exists with the provider — '
+              'the label must never present a local reset as one');
+      expect(find.textContaining('Leaving will not cancel it'),
+          findsOneWidget,
+          reason: 'the pending action must state that the submitted '
+              'instruction may still complete');
+      await backToAddCash(tester);
+
+      // 2. The OTP entry path: same honest semantics for its back action.
+      await _enterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'requiresOtp': true,
+        'data': {'reference': 'DEP-HONEST-2', 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Enter OTP'), findsOneWidget);
+      expect(find.text('Back to Add Cash'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing);
+      expect(find.textContaining('going back does not cancel it'),
+          findsOneWidget);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(c) PRODUCT POLICY — a second initiation while the '
+        'first deposit is still pending is EXPLICITLY SUPPORTED: both '
+        'operations tracked independently, nothing silently ended',
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+
+      await submitDeposit(tester, 'DEP-CON-1');
+      await backToAddCash(tester);
+
+      // The first operation is still pending — start a second one.
+      await _enterAmount(tester);
+      await submitDeposit(tester, 'DEP-CON-2');
+
+      // Both initiations reached the wire: neither was silently
+      // suppressed, and neither implied the first one had ended.
+      final initiates =
+          _requests.where((b) => b.containsKey('amountGhs')).toList();
+      expect(initiates, hasLength(2),
+          reason: 'the concurrent-pending policy must send BOTH '
+              'instructions to the provider');
+
+      // Both operations live in the continuation lifecycle, tracked
+      // independently by their exact references.
+      final pending = await contSvc.loadForUser('user-a');
+      expect(pending.map((c) => c.reference),
+          containsAll(['DEP-CON-1', 'DEP-CON-2']));
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(d) out-of-order settlements with two distinct pending '
+        'references resolve ONLY the matching reference each time — and '
+        'never another user\'s', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+
+      await submitDeposit(tester, 'DEP-ORDER-1');
+      await backToAddCash(tester);
+      await _enterAmount(tester);
+      await submitDeposit(tester, 'DEP-ORDER-2');
+      await backToAddCash(tester);
+      expect((await contSvc.loadForUser('user-a')), hasLength(2));
+
+      // OUT OF ORDER: the SECOND deposit settles first. Only its exact
+      // reference resolves — the first deposit's continuation is
+      // untouched.
+      await settle(tester, 'DEP-ORDER-2');
+      var pending = await contSvc.loadForUser('user-a');
+      expect(pending, hasLength(1));
+      expect(pending.single.reference, 'DEP-ORDER-1',
+          reason: 'deposit B\'s settlement must never resolve, clear or '
+              'confirm deposit A');
+
+      // An unknown reference resolves nothing.
+      await settle(tester, 'DEP-UNKNOWN-9');
+      expect(await contSvc.loadForUser('user-a'), hasLength(1));
+
+      // A SECOND user's pending reference: its settlement must NOT
+      // resolve under the active user's authority — only the matching
+      // user's reference resolves, ever.
+      await contSvc.save('user-b', 'DEP-B-1');
+      await settle(tester, 'DEP-B-1');
+      expect((await contSvc.loadForUser('user-b')), hasLength(1),
+          reason: 'a settlement event carries no identity — it can never '
+              'resolve another user\'s stored continuation');
+      expect(await contSvc.loadForUser('user-a'), hasLength(1));
+
+      // The first deposit settles last — now everything for user A is
+      // resolved, and user B is still intact.
+      await settle(tester, 'DEP-ORDER-1');
+      expect(await contSvc.loadForUser('user-a'), isEmpty);
+      expect((await contSvc.loadForUser('user-b')), hasLength(1));
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(e) a resolved reference can NEVER be resurrected — not '
+        'by a retry, not by a delayed storage mutation, not by a '
+        'duplicate settlement event', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+
+      await submitDeposit(tester, 'DEP-RES-1');
+      await backToAddCash(tester);
+      await settle(tester, 'DEP-RES-1');
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'the operation must be resolved before the resurrection '
+              'assertions run');
+
+      // A DELAYED storage mutation (a late retry of the original save)
+      // for the resolved reference is a NO-OP — terminal resolution.
+      await contSvc.save('user-a', 'DEP-RES-1');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'resolution is terminal: a retry or delayed save can '
+              'never resurrect the resolved reference');
+
+      // A DUPLICATE settlement event changes nothing — idempotent.
+      await settle(tester, 'DEP-RES-1');
+      expect(await contSvc.loadForUser('user-a'), isEmpty);
+      // And the surface does not double-notify: the completion snackbar
+      // from the FIRST settlement is still the only one.
+      expect(find.textContaining('earlier deposit DEP-RES-1 completed'),
+          findsOneWidget);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+  });
+
+  // ── LAST REVIEW (settlement attribution): owner index + save race ──────
+
+  group('8 — LAST REVIEW: owner-aware settlement + the save race', () {
+    final contStorage = _GatedWriteStorage();
+    late DepositContinuationsService contSvc;
+    _MutableAuth? currentAuth;
+
+    User makeUser(String id) => User(
+          id: id,
+          username: 'me',
+          email: 'me@example.com',
+          token: 'tok',
+          role: 'USER',
+          azamanId: 'AZM-999999999',
+        );
+
+    /// Shell + router with an OPTIONAL explicit controller instance, so
+    /// tests can drive the REAL controller the monitor talks to.
+    Widget appWithHost({DepositContinuationsController? controller}) {
+      contStorage.store.clear();
+      contStorage.writeError = null;
+      contStorage.writeGate = null;
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith((ref) => currentAuth!),
+          depositContinuationsProvider.overrideWith(
+            (ref) => controller ?? DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: Column(
+          children: [
+            const _MonitorHost(),
+            Expanded(child: MaterialApp.router(routerConfig: _router())),
+          ],
+        ),
+      );
+    }
+
+    Future<void> openAndEnterAmount(WidgetTester tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithHost());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+    }
+
+    Future<void> submitDeposit(WidgetTester tester, String reference) async {
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': reference, 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text(reference), findsOneWidget,
+          reason: 'the pending result view must be showing $reference');
+    }
+
+    /// Deliver a settlement through the REAL socket fan-out.
+    Future<void> settle(WidgetTester tester, String reference) async {
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', reference);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    testWidgets('(a) settlement ownership is INDEPENDENT of the active '
+        'account and the screen lifecycle: A submits, the surface is '
+        'disposed, the session switches to B, and A\'s settlement still '
+        'resolves A\'s continuation — while B\'s records stay untouched '
+        'and the monitor\'s listener survives the screen\'s dispose',
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      await submitDeposit(tester, 'DEP-OWN-1');
+
+      // Back to the form (the honest return — the reset clears the
+      // editable form), then DISPOSE the whole deposit surface: with
+      // the form empty the close is silent and the route pops.
+      await tester.tap(find.text('Back to Add Cash'));
+      await tester.pump(const Duration(milliseconds: 200));
+      final listenersWhileOpen =
+          SocketService.instance.depositSuccessListenerCountForTesting;
+      expect(listenersWhileOpen, greaterThanOrEqualTo(2),
+          reason: 'the surface and the monitor are independent listeners');
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 600));
+
+      // The surface is GONE (route popped, exit animation done) and its
+      // listener with it — the session-wide monitor's listener is
+      // exactly what remains.
+      expect(find.text('Add Cash'), findsNothing,
+          reason: 'the deposit surface must be fully unmounted');
+      expect(find.text('DEP-OWN-1'), findsNothing);
+      final listenersAfterDispose =
+          SocketService.instance.depositSuccessListenerCountForTesting;
+      expect(listenersAfterDispose, listenersWhileOpen - 1,
+          reason: 'disposing the surface must remove ONLY its own '
+              'listener; the monitor must survive');
+      final pendingA = await contSvc.loadForUser('user-a');
+      expect(pendingA, hasLength(1),
+          reason: 'the submitted operation is durably stored under A');
+      expect(pendingA.single.reference, 'DEP-OWN-1');
+
+      // B holds a stored continuation that must never be touched.
+      await contSvc.save('user-b', 'DEP-B-KEEP');
+
+      // The session switches to B — then A's settlement arrives.
+      currentAuth!.switchTo(makeUser('user-b'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await settle(tester, 'DEP-OWN-1');
+
+      // A's exact continuation resolved — WITHOUT A holding the
+      // session and WITHOUT the deposit surface existing.
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'the reference->owner binding recorded at the save '
+              'must carry the settlement to the INITIATING user');
+      final bRefs = (await contSvc.loadForUser('user-b'))
+          .map((c) => c.reference)
+          .toList();
+      expect(bRefs, ['DEP-B-KEEP'],
+          reason: 'B\'s records must be untouched by A\'s settlement');
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(b) the save-vs-settlement race through the REAL '
+        'monitor/controller path: a settlement delivered while the '
+        'initial continuation write is HELD OPEN waits for the record '
+        'to land, then resolves the exact reference — sibling and '
+        'cross-user records untouched', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      final ctrl = DepositContinuationsController(
+          DepositContinuationsService(storage: contStorage));
+      await tester.pumpWidget(appWithHost(controller: ctrl));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // A sibling record lands normally through the real controller.
+      await ctrl.save('user-a', 'DEP-SIB-1');
+      // B holds an out-of-band record that must never be touched.
+      await contSvc.save('user-b', 'DEP-B-KEEP');
+
+      // HOLD the next storage write open, then start A's REAL
+      // controller save — it blocks inside the gated write.
+      final gate = Completer<void>();
+      contStorage.writeGate = gate;
+      unawaited(ctrl.save('user-a', 'DEP-RACE-2'));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+          (await contSvc.loadForUser('user-a'))
+              .map((c) => c.reference)
+              .contains('DEP-RACE-2'),
+          isFalse,
+          reason: 'the record must still be in flight');
+
+      // The settlement for the EXACT in-flight reference arrives NOW —
+      // through the real socket fan-out (the monitor is the only
+      // listener: no deposit surface exists in this test).
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-RACE-2');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Release the write. The owner's serialized chain: the record
+      // lands FIRST, then the queued settlement resolves it.
+      gate.complete();
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      final aRefs = (await contSvc.loadForUser('user-a'))
+          .map((c) => c.reference)
+          .toList();
+      expect(aRefs, ['DEP-SIB-1'],
+          reason: 'the racing settlement resolved the EXACT reference '
+              'after the save landed, and the sibling survived');
+      final bRefs = (await contSvc.loadForUser('user-b'))
+          .map((c) => c.reference)
+          .toList();
+      expect(bRefs, ['DEP-B-KEEP'],
+          reason: 'the save race must never touch another user\'s '
+              'records');
+    });
+
+    testWidgets('(c) unknown and foreign references clear NOTHING: '
+        'with a bound reference on file, an event for another user\'s '
+        'record and an event for an unknown reference both resolve '
+        'nothing — then the bound reference resolves its OWN owner '
+        'only', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      final ctrl = DepositContinuationsController(
+          DepositContinuationsService(storage: contStorage));
+      await tester.pumpWidget(appWithHost(controller: ctrl));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // A's bound (session-submitted) pending operation...
+      await ctrl.save('user-a', 'DEP-A1');
+      // ...and B's two out-of-band records.
+      await contSvc.save('user-b', 'DEP-B1');
+      await contSvc.save('user-b', 'DEP-B2');
+
+      // A FOREIGN reference (another user's record) with A active.
+      await settle(tester, 'DEP-B1');
+      expect((await contSvc.loadForUser('user-a')).map((c) => c.reference),
+          ['DEP-A1'],
+          reason: 'a foreign reference must never resolve under the '
+              'active session');
+      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
+          unorderedEquals(['DEP-B1', 'DEP-B2']),
+          reason: 'another user\'s continuation must never be cleared '
+              'by a settlement observed in this session');
+
+      // An UNKNOWN reference.
+      await settle(tester, 'DEP-NOPE-9');
+      expect((await contSvc.loadForUser('user-a')).map((c) => c.reference),
+          ['DEP-A1']);
+      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
+          unorderedEquals(['DEP-B1', 'DEP-B2']));
+
+      // The bound reference resolves its OWN owner — and only that.
+      await settle(tester, 'DEP-A1');
+      expect(await contSvc.loadForUser('user-a'), isEmpty);
+      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
+          unorderedEquals(['DEP-B1', 'DEP-B2']),
+          reason: 'A\'s settlement must never leak into B\'s records');
+    });
+  });
+
+  // ── LAST REVIEW (concurrent owner-index initialization) ─────────────
+
+  group('9 — LAST REVIEW: shared awaitable owner-index initialization', () {
+    final contStorage = _GatedIndexReadStorage();
+    _MutableAuth? currentAuth;
+
+    User makeUser(String id) => User(
+          id: id,
+          username: 'me',
+          email: 'me@example.com',
+          token: 'tok',
+          role: 'USER',
+          azamanId: 'AZM-999999999',
+        );
+
+    Widget hostFor(DepositContinuationsController controller) =>
+        ProviderScope(
+          overrides: [
+            savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+            authProvider.overrideWith((ref) => currentAuth!),
+            depositContinuationsProvider.overrideWith((ref) => controller),
+          ],
+          child: Column(
+            children: [
+              const _MonitorHost(),
+              Expanded(
+                  child: MaterialApp.router(routerConfig: _router())),
+            ],
+          ),
+        );
+
+    testWidgets('(a) settlements for references owned by DIFFERENT users, '
+        'whose bindings live ONLY in the persisted index, both wait for '
+        'the SAME held initialization and resolve their OWN owners after '
+        'the read lands — the active third account is never credited with '
+        'a fallback attribution', (tester) async {
+      contStorage.store.clear();
+      contStorage.indexReadGate = null;
+      // The PREVIOUS session's durable state: continuation records under
+      // each user, and the owner index in storage. This fresh session's
+      // in-memory map is EMPTY — attribution must come from the index.
+      final contSvc =
+          DepositContinuationsService(storage: contStorage);
+      await contSvc.save('user-a', 'DEP-A9'); // raw save: no binding
+      await contSvc.save('user-b', 'DEP-B9');
+      contStorage.store['azm.deposit.continuations.ownerIndex'] =
+          jsonEncode({'DEP-A9': 'user-a', 'DEP-B9': 'user-b'});
+
+      // HOLD the initial index read open.
+      final gate = Completer<void>();
+      contStorage.indexReadGate = gate;
+
+      // Fresh controller + session-wide monitor; the ACTIVE account is
+      // a THIRD user with no records of their own.
+      currentAuth = _MutableAuth(makeUser('user-c'));
+      await tester.pumpWidget(
+          hostFor(DepositContinuationsController(contSvc)));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Both settlements arrive WHILE the initial index read is in
+      // flight — through the REAL socket fan-out.
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-A9');
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-B9');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Neither can have resolved yet: both owner lookups are waiting
+      // on the SAME held initialization.
+      expect((await contSvc.loadForUser('user-a'))
+              .map((c) => c.reference)
+              .toList(),
+          ['DEP-A9']);
+      expect((await contSvc.loadForUser('user-b'))
+              .map((c) => c.reference)
+              .toList(),
+          ['DEP-B9']);
+
+      // Release the read: both settlements attribute to their BOUND
+      // owners — the second event must NOT have raced past the load
+      // and fallen back to the active account.
+      gate.complete();
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'the settlement for the first-delivered reference '
+              'resolves after initialization');
+      expect(await contSvc.loadForUser('user-b'), isEmpty,
+          reason: 'the settlement for the second-delivered reference '
+              'MUST NOT be lost to a raced-past initialization');
+      expect(await contSvc.loadForUser('user-c'), isEmpty,
+          reason: 'the fallback can never touch an unrelated account');
+    });
+
+    testWidgets('(b) a save racing initialization persists the COMPLETE '
+        'map — an incomplete map is never written over the persisted '
+        'index — and a service reconstructed from the same storage still '
+        'finds the earlier bindings', (tester) async {
+      contStorage.store.clear();
+      contStorage.indexReadGate = null;
+      // Previous session: a persisted binding for user-a.
+      contStorage.store['azm.deposit.continuations.ownerIndex'] =
+          jsonEncode({'DEP-OLD9': 'user-a'});
+
+      final contSvc =
+          DepositContinuationsService(storage: contStorage);
+      final ctrl = DepositContinuationsController(contSvc);
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await tester.pumpWidget(hostFor(ctrl));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // HOLD the initial index read, then launch TWO controller saves
+      // while it is in flight: their records land independently, but
+      // their index persists must queue BEHIND the initialization.
+      final gate = Completer<void>();
+      contStorage.indexReadGate = gate;
+      final saveA = ctrl.save('user-a', 'DEP-NEW9');
+      final saveB = ctrl.save('user-b', 'DEP-NEWB9');
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // The records themselves are durable while the index read is
+      // still held (the list writes are independent of the index).
+      expect((await contSvc.loadForUser('user-a'))
+              .map((c) => c.reference)
+              .contains('DEP-NEW9'),
+          isTrue);
+      expect((await contSvc.loadForUser('user-b'))
+              .map((c) => c.reference)
+              .contains('DEP-NEWB9'),
+          isTrue);
+
+      gate.complete();
+      await saveA;
+      await saveB;
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // The persisted index is COMPLETE: the previous session's binding
+      // plus both new ones.
+      final persisted = jsonDecode(contStorage
+          .store['azm.deposit.continuations.ownerIndex']!)
+          as Map<String, dynamic>;
+      expect(persisted['DEP-OLD9'], 'user-a',
+          reason: 'a racing persist must never overwrite the persisted '
+              'index with an uninitialized map');
+      expect(persisted['DEP-NEW9'], 'user-a');
+      expect(persisted['DEP-NEWB9'], 'user-b');
+
+      // Reconstruction from the SAME storage: earlier bindings survive.
+      final fresh = DepositContinuationsService(storage: contStorage);
+      expect(await fresh.lookupReferenceOwner('DEP-OLD9'), 'user-a');
+      expect(await fresh.lookupReferenceOwner('DEP-NEW9'), 'user-a');
+      expect(await fresh.lookupReferenceOwner('DEP-NEWB9'), 'user-b');
+    });
+
+    testWidgets('(c) a binding made in MEMORY during the held '
+        'initialization is NEWER than the persisted copy and WINS the '
+        'merge — initialization can never overwrite fresh session state',
+        (tester) async {
+      contStorage.store.clear();
+      contStorage.indexReadGate = null;
+      // A stale persisted binding from a previous session.
+      contStorage.store['azm.deposit.continuations.ownerIndex'] =
+          jsonEncode({'DEP-X9': 'user-wrong'});
+      final contSvc =
+          DepositContinuationsService(storage: contStorage);
+
+      final gate = Completer<void>();
+      contStorage.indexReadGate = gate;
+
+      // The lookup starts initialization (held)...
+      final lookup = contSvc.lookupReferenceOwner('DEP-X9');
+      // ...and DURING the read the controller binds the reference to
+      // the RIGHT owner (memory-first, synchronous — the save-race
+      // contract).
+      contSvc.bindReferenceOwner('user-right', 'DEP-X9');
+
+      gate.complete();
+      expect(await lookup, 'user-right');
+      expect(await contSvc.lookupReferenceOwner('DEP-X9'), 'user-right',
+          reason: 'the initialization merge must never overwrite a '
+              'newer in-memory binding');
+    });
+  });
+}
+
+
+/// In-memory FlutterSecureStorage for the continuation service — same
+/// async API surface the production service calls.
+class _MemSecureStorage implements FlutterSecureStorage {
+  final Map<String, String> store = {};
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final named = invocation.namedArguments;
+    switch (invocation.memberName) {
+      case #read:
+        return Future.value(store[named[#key] as String]);
+      case #write:
+        final key = named[#key] as String;
+        final value = named[#value] as String?;
+        if (value == null) {
+          store.remove(key);
+        } else {
+          store[key] = value;
+        }
+        return Future.value();
+      case #delete:
+        store.remove(named[#key] as String);
+        return Future.value();
+      case #deleteAll:
+        store.clear();
+        return Future.value();
+      default:
+        throw UnimplementedError('${invocation.memberName}');
+    }
+  }
+}
+
+/// [_MemSecureStorage] whose OWNER-INDEX read can be held open — the
+/// seam for the concurrent-initialization races: a previous session's
+/// bindings exist ONLY in the persisted index, so an uninitialized
+/// lookup must WAIT for the read instead of racing past it.
+class _GatedIndexReadStorage extends _MemSecureStorage {
+  Completer<void>? indexReadGate;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #read &&
+        invocation.namedArguments[#key] ==
+            'azm.deposit.continuations.ownerIndex') {
+      final gate = indexReadGate;
+      if (gate != null) {
+        indexReadGate = null;
+        // then<String?>: the declared read() return type is checked at
+        // runtime — a bare then() future is Future<dynamic> and would
+        // fail the implicit cast (and be swallowed by the service's
+        // corrupt-index catch).
+        return gate.future.then((_) async =>
+            (await super.noSuchMethod(invocation)) as String?);
+      }
+    }
+    return super.noSuchMethod(invocation);
+  }
+}
+
+/// [_MemSecureStorage] whose WRITES can be held open or made to fail —
+/// the seam that makes the continuation durability barrier observable:
+/// a durable backend reference is not enough while its local record
+/// has not been written.
+class _GatedWriteStorage extends _MemSecureStorage {
+  Completer<void>? writeGate;
+  Object? writeError;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #write) {
+      if (writeError != null) return Future.error(writeError!);
+      final gate = writeGate;
+      if (gate != null) {
+        writeGate = null;
+        return gate.future.then((_) => super.noSuchMethod(invocation));
+      }
+    }
+    return super.noSuchMethod(invocation);
+  }
+}
+
+/// Real-shaped auth: a logged-in user so user-scoped persistence works.
+class _FixedAuth extends AuthProvider {
+  _FixedAuth(this.sessionUser);
+  final User sessionUser;
+  @override
+  User? get user => sessionUser;
+  @override
+  Future<void> fetchUserDetails() async {}
+}
+
+/// The app-shell activation contract in miniature: whatever else is on
+/// screen, the settlement monitor stays alive for the whole session
+/// (production: MainWrapper watches it).
+class _MonitorHost extends ConsumerWidget {
+  const _MonitorHost();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(depositSettlementMonitorProvider);
+    return const SizedBox.shrink();
+  }
+}
+
+/// Auth whose session identity can be switched (or dropped) MID-TEST —
+/// the seam for the account-switch races on an in-flight deposit.
+class _MutableAuth extends AuthProvider {
+  _MutableAuth(this.sessionUser);
+  User? sessionUser;
+  @override
+  User? get user => sessionUser;
+  @override
+  Future<void> fetchUserDetails() async {}
+  void switchTo(User? next) {
+    sessionUser = next;
+    notifyListeners();
+  }
 }

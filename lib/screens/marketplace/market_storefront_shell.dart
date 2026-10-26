@@ -38,8 +38,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/providers/server_social_proof_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_radius.dart';
@@ -47,6 +49,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart'
     show OpenStatus, currentOpenStatus;
 
@@ -65,7 +68,7 @@ class MarketStorefrontSnaps {
   static const double shopping = 0.78;
 }
 
-class MarketStorefrontShell extends StatefulWidget {
+class MarketStorefrontShell extends ConsumerStatefulWidget {
   final BusinessProfile business;
   final AzamanColors colors;
 
@@ -77,6 +80,16 @@ class MarketStorefrontShell extends StatefulWidget {
   final List<Map<String, dynamic>> showcaseSlides;
   final bool isFollowing;
   final int unpaidInvoices;
+
+  /// JOYSTICK — whether the durable bookmark contract (backend PR #370,
+  /// consumed via the `isBusinessSaved`/`toggleBusinessSaved` seam) says
+  /// this business is saved. Drives the Save satellite's state.
+  final bool isBookmarked;
+
+  /// JOYSTICK — durable save toggle (server bookmark contract in real
+  /// sessions, the local wishlist in demo). Null hides the Save
+  /// satellite — no dead shortcuts.
+  final VoidCallback? onToggleBookmark;
 
   /// Whether the market has catalog sections/products (gates the in-sheet
   /// catalog shortcut button).
@@ -110,6 +123,8 @@ class MarketStorefrontShell extends StatefulWidget {
     required this.showcaseSlides,
     required this.isFollowing,
     required this.unpaidInvoices,
+    this.isBookmarked = false,
+    this.onToggleBookmark,
     required this.hasCatalog,
     required this.catalogLabel,
     required this.productsBuilder,
@@ -126,12 +141,17 @@ class MarketStorefrontShell extends StatefulWidget {
   });
 
   @override
-  State<MarketStorefrontShell> createState() => _MarketStorefrontShellState();
+  ConsumerState<MarketStorefrontShell> createState() => _MarketStorefrontShellState();
 }
 
-class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
+class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
+
+  /// JOYSTICK — locates the hero avatar so the radial burst can anchor
+  /// on its live on-screen rect (it straddles the banner edge, so no
+  /// static offset is honest).
+  final GlobalKey _heroAvatarKey = GlobalKey();
 
   static const double _infoSnap = MarketStorefrontSnaps.info;
   static const double _overviewSnap = MarketStorefrontSnaps.overview;
@@ -181,10 +201,22 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
     return (1.0 - t).clamp(0.0, 1.0);
   }
 
-  /// The large hero identity: full at overview, faded out toward the pill
-  /// (shopping) AND toward the info panel (info snap).
+  /// The large hero identity: full at overview (the ARRIVAL composition),
+  /// faded out toward the pill (shopping) AND toward the info panel (info
+  /// snap).
+  ///
+  /// AUDIT FIX (2026-10-25): this previously multiplied the info PANEL's
+  /// own fade (`_infoProgress`, which is 0 at overview), so the identity
+  /// was fully invisible — and pointer-ignored — at the very snap the
+  /// design calls the arrival state. The intended window (per
+  /// [_infoVisibleBelow]'s contract: the panel is fully faded out by
+  /// 0.56, so the two surfaces never fight) is that the identity fades
+  /// IN from 0.56 → overview, reaching FULL exactly at the overview snap.
   double get _identityOpacity {
-    return (1.0 - _pillProgress) * _infoProgress;
+    final fromInfo = ((_extent - _infoVisibleBelow) /
+            (_overviewSnap - _infoVisibleBelow))
+        .clamp(0.0, 1.0);
+    return (1.0 - _pillProgress) * fromInfo;
   }
 
   void _onExtentChanged() {
@@ -480,20 +512,31 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Logo / profile image, straddling the banner.
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
+        // Logo / profile image, straddling the banner. Long-press bursts
+        // the JOYSTICK — the radial shortcut fan (§9.4 vocabulary, the
+        // shared LiquidLauncher) anchored on this avatar.
+        Semantics(
+          button: true,
+          label: 'Market shortcuts',
+          hint: 'Long-press for quick actions',
+          child: GestureDetector(
+            key: _heroAvatarKey,
+            onLongPress: _openJoystick,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 3),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-            ],
+              child: _logoAvatar(business, colors, radius: 36),
+            ),
           ),
-          child: _logoAvatar(business, colors, radius: 36),
         ),
         const SizedBox(height: AzSpace.md),
         // Market name — the strongest element on the page.
@@ -515,7 +558,36 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
         // One minimal meta line — the current screen's metadata dump is
         // deliberately NOT carried into the hero.
         _identityMeta(business, colors),
+        const SizedBox(height: AzSpace.xs),
+        _identitySocialProof(business, colors),
       ],
+    );
+  }
+
+  /// SOCIAL PROOF (AZM-backend PR #372) — the friends/friends-of-friends
+  /// follow counts. Shown ONLY on a successful response with a non-zero
+  /// direct-friends anchor: loading, failure, demo mode, and honest
+  /// zeros all render NOTHING. A follow is NOT a visit — the label only
+  /// ever claims "Followed by", never "visited by".
+  Widget _identitySocialProof(BusinessProfile business, AzamanColors colors) {
+    final proof = ref.watch(serverSocialProofProvider(business.id));
+    final line = proof.maybeWhen(
+      data: socialProofLine,
+      orElse: () => null,
+    );
+    if (line == null) return const SizedBox.shrink();
+    return Text(
+      line,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 12.5,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.1,
+        shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+      ),
     );
   }
 
@@ -570,6 +642,69 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
       (l) => l.isPrimary,
       orElse: () => widget.locations.first,
     );
+  }
+
+  // ── JOYSTICK — the radial shortcut fan (directional shortcuts) ────────────
+  //
+  // §9.4 vocabulary: long-press the hero avatar and the wired shortcuts
+  // (Save / Share / Follow / Reviews) burst out around it with the ONE
+  // shared gesture language (LiquidLauncher — kPopSpring launch, goo-rim
+  // merge, one confirm() haptic per pick, reduced-motion honored inside).
+  // Satellites are built ONLY from live delegates: a shortcut that has no
+  // wired action does not appear. Opening and dismissal are silent (the
+  // launcher's contract); every pick plays exactly one confirm() haptic
+  // inside the launcher, then closes the route and runs the delegate.
+
+  List<LiquidLauncherItem> _joystickItems() {
+    final items = <LiquidLauncherItem>[];
+    void add(IconData icon, String label, VoidCallback action) {
+      items.add(LiquidLauncherItem(
+        icon: icon,
+        label: label,
+        onTap: () {
+          Navigator.of(context).pop(); // close the joystick route
+          action();
+        },
+      ));
+    }
+
+    if (widget.onToggleBookmark != null) {
+      add(
+        widget.isBookmarked
+            ? Icons.bookmark_rounded
+            : Icons.bookmark_border_rounded,
+        widget.isBookmarked ? 'Saved' : 'Save',
+        widget.onToggleBookmark!,
+      );
+    }
+    if (widget.onShare != null) {
+      add(Icons.ios_share_rounded, 'Share', widget.onShare!);
+    }
+    if (widget.onToggleFollow != null) {
+      add(
+        widget.isFollowing ? Icons.check_rounded : Icons.person_add_outlined,
+        widget.isFollowing ? 'Following' : 'Follow',
+        widget.onToggleFollow!,
+      );
+    }
+    if (widget.onOpenReviews != null) {
+      add(Icons.star_rounded, 'Reviews', widget.onOpenReviews!);
+    }
+    return items;
+  }
+
+  void _openJoystick() {
+    final items = _joystickItems();
+    if (items.isEmpty) return; // nothing wired — stay silent, no dead burst
+
+    final avatarCtx = _heroAvatarKey.currentContext;
+    if (avatarCtx == null) return;
+    final render = avatarCtx.findRenderObject();
+    if (render is! RenderBox || !render.attached) return;
+    final anchor =
+        render.localToGlobal(Offset.zero) & render.size; // GLOBAL rect
+    Navigator.of(context, rootNavigator: true)
+        .push(_JoystickRoute(anchor: anchor, items: items));
   }
 
   Widget _logoAvatar(
@@ -1247,4 +1382,72 @@ class _MarketStorefrontShellState extends State<MarketStorefrontShell> {
         return Icons.local_mall_outlined;
     }
   }
+}
+
+/// The joystick surface: a transparent route whose only content is the
+/// LiquidLauncher burst box, anchored (centered, screen-clamped) on the
+/// hero avatar's live rect at open time. The PopupRoute's own barrier
+/// owns scrim + tap-outside dismissal (barrierDismissible); the launcher
+/// owns the burst animation and its haptic contract.
+class _JoystickRoute extends PopupRoute<void> {
+  _JoystickRoute({required this.anchor, required this.items});
+
+  /// The avatar's global rect when the joystick opened.
+  final Rect anchor;
+  final List<LiquidLauncherItem> items;
+
+  @override
+  Color get barrierColor => Colors.black38;
+
+  @override
+  bool get barrierDismissible => true;
+
+  @override
+  String? get barrierLabel => 'Dismiss shortcuts';
+
+  @override
+  Duration get transitionDuration => Duration.zero;
+
+  @override
+  Duration get reverseTransitionDuration => Duration.zero;
+
+  @override
+  Widget buildPage(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+  ) {
+    final screen = MediaQuery.sizeOf(context);
+    const boxW = 300.0;
+    const boxH = 280.0;
+    // Center the burst box on the avatar, clamped fully on-screen.
+    final left =
+        (anchor.center.dx - boxW / 2).clamp(8.0, screen.width - boxW - 8);
+    final top =
+        (anchor.center.dy - boxH / 2).clamp(8.0, screen.height - boxH - 8);
+    return Stack(
+      children: [
+        Positioned(
+          key: const Key('market-joystick-burst'),
+          left: left,
+          top: top,
+          width: boxW,
+          height: boxH,
+          child: LiquidLauncher(
+            semanticLabel: 'Market shortcuts',
+            items: items,
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget buildTransitions(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) =>
+      child; // the launcher animates its own satellites
 }

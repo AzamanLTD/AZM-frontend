@@ -43,6 +43,7 @@ import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
 import 'package:azaman/screens/card_transfer_screen.dart';
 import 'package:azaman/screens/deposit_screen.dart';
+import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/wallet/convert_screen.dart';
 import 'package:azaman/screens/payment_requests_screen.dart';
 import 'package:azaman/screens/payment_request_landing_screen.dart';
@@ -113,6 +114,9 @@ import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/story_creation_screen.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/router/top_route_observer.dart';
+import 'package:azaman/screens/send_money_screen.dart';
+import 'package:azaman/widgets/home/activity_actions.dart'
+    show ActivityRecipient;
 
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
@@ -394,8 +398,62 @@ final GoRouter appRouter = GoRouter(
         key: state.pageKey,
         restorationId: state.name,
         child: DepositScreen(
+          // §C continuation — the notification centre's Resume pushes the
+          // canonical route with the draft's editable inputs as extra.
+          restoredDraft: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
           prefillAmount: state.uri.queryParameters['amount'],
           memo: state.uri.queryParameters['memo'],
+        ),
+      ),
+    ),
+
+    // ── Send (Workstream B) — the composer joins the rise family. The
+    // route-level rise transition gives every entry point (launcher,
+    // activity "Send Again", deep link) the same rising, X-closable,
+    // pull-dismissible surface grammar as Add Cash and Receive. The
+    // optional `to`/`name` seeds carry an explicit AZM ID which the
+    // screen validates against the live identity contract; the wire
+    // request itself is untouched.
+    GoRoute(
+      path: '/send',
+      name: AzRouteNames.send,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: SendMoneyScreen(
+          initialRecipient: state.uri.queryParameters['to'] == null
+              ? null
+              : ActivityRecipient(
+                  azamanId: state.uri.queryParameters['to']!,
+                  displayName: state.uri.queryParameters['name'] ?? '',
+                ),
+          // §C continuation — the notification centre's Resume pushes the
+          // canonical route with the draft's editable inputs as extra.
+          restoredDraft: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
+        ),
+      ),
+    ),
+
+    // ── Withdraw (Workstream C) ────────────────────────────────────────
+    // Canonical rise route for the Withdraw surface — the same vertical
+    // semantics as /deposit, so launcher, activity and P2P payout entries
+    // all transition alike and deep links resolve to the canonical page.
+    GoRoute(
+      path: '/withdraw',
+      name: AzRouteNames.withdraw,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: WithdrawalScreen(
+          // §C continuation — editable draft inputs from the
+          // notification centre's Resume.
+          restoredDraft: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
         ),
       ),
     ),
@@ -410,7 +468,13 @@ final GoRouter appRouter = GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const ConvertScreen(),
+        child: ConvertScreen(
+          // §C continuation — the notification centre's Resume pushes
+          // the canonical route with the draft's editable inputs as extra.
+          restoredDraft: state.extra is Map<String, dynamic>
+              ? state.extra as Map<String, dynamic>
+              : null,
+        ),
       ),
     ),
 

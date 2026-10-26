@@ -41,7 +41,7 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/home/balance_card_preview_section.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
-import 'package:azaman/widgets/notification_bell.dart';
+import 'package:azaman/widgets/home/home_persistent_header.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
@@ -53,7 +53,6 @@ import 'package:azaman/widgets/home/visa_transfer_seam_control.dart';
 import 'package:azaman/widgets/home/wallet_modules.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
-import 'package:azaman/widgets/scale_tap.dart';
 
 /// [onOpenSettings] — 2026-10-12 Home refresh: the profile button in the
 /// header opens the shell's EXISTING settings end drawer. The shell owns the
@@ -94,6 +93,11 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   // the measured deck parking offset inside that band.
   double _peekPx = 0;
   bool _peekSet = false;
+
+  // WORKSTREAM A — the pinned header's translucency, driven directly by
+  // the Home scroll offset (0 = transparent at rest, 1 = fully frosted).
+  // A ValueNotifier, not an Animation: the scroll is the animation.
+  final ValueNotifier<double> _headerTint = ValueNotifier<double>(0);
 
   // PASS A3 — how deep the CURRENT drag sits in the armed plateau
   // (forward or reverse). Feeds the heading's lock-in cue; zero while
@@ -212,6 +216,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     // entrance settle would otherwise leave a pending timer behind.
     _doorwayGapTimer?.cancel();
     _doorwayGapTimer = null;
+    _headerTint.dispose();
     _handoff.dispose();
     super.dispose();
   }
@@ -462,6 +467,12 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   // as the explicit navigation/accessibility fallback.
 
   bool _onHomeScrollNotification(ScrollNotification n) {
+    // WORKSTREAM A — the pinned header's translucency tracks the REAL
+    // scroll offset directly (transparent at rest, frosted as content
+    // passes under the band). Clamped; no timers, no idle animation.
+    if (n is ScrollUpdateNotification) {
+      _headerTint.value = (n.metrics.pixels / 48).clamp(0.0, 1.0);
+    }
     // Committed: the activity surface owns all gestures now.
     if (_handoff.value >= 1.0) return false;
     final m = n.metrics;
@@ -682,18 +693,16 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                               child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const SizedBox(height: AzSpace.sm),
-
-                                // Block 0 — header, arrives from the left.
-                                _stage(
-                                  0,
-                                  _GreetingHeader(
-                                    onOpenSettings: widget.onOpenSettings,
-                                  ),
-                                  reduceMotion,
+                                // WORKSTREAM A — the header is now a
+                                // PINNED band above the scroll view; the
+                                // column reserves exactly its height plus
+                                // the rhythm it always had (56 + 12 == the
+                                // old 8 + 44 + 16, so the typewriter lands
+                                // at the same y it always did).
+                                const SizedBox(
+                                  height: HomePersistentHeader.bandHeight +
+                                      AzSpace.md,
                                 ),
-
-                                const SizedBox(height: AzSpace.lg),
 
                                 // Block 1 — the typewriter greeting (§2).
                                 _stage(
@@ -853,6 +862,23 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                     ),
                   ),
                 ),
+              ),
+            ),
+
+            // ── WORKSTREAM A: the pinned, Home-only header ──────────────
+            // Topmost child: the band paints over the scrolling content
+            // (translucent when scrolled), wins hit-testing for the
+            // pull-down reveal inside its 56px, and departs upward with
+            // the wallet→activity handoff so the deck peek and the
+            // activity surface's own chrome read cleanly.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: HomePersistentHeader(
+                onOpenSettings: widget.onOpenSettings,
+                handoff: _handoff,
+                scrollTint: _headerTint,
               ),
             ),
           ],
@@ -1072,104 +1098,6 @@ class _DeckHostState extends ConsumerState<_DeckHost>
   }
 }
 
-/// The header (2026-10-12 refresh): a simpler, more deliberate hierarchy.
-///
-///   [ Notifications ]                                    [ Profile ]
-///
-/// The EXISTING notification control moves to the former profile position on
-/// the far left; the profile button sits on the far right and opens the
-/// shell's existing settings end drawer via the explicit [onOpenSettings]
-/// callback — it does NOT push the generic ProfileScreen. The AZM Rewards
-/// pill and its Home entry point are removed (the rewards programme keeps its
-/// canonical route; the gamified pill is not relocated elsewhere). The
-/// balance-visibility eye is RETIRED (2026-10-16): the wallet pouch's
-/// tucked deck is the privacy state; there is no eye control anywhere.
-class _GreetingHeader extends ConsumerWidget {
-  const _GreetingHeader({this.onOpenSettings});
-
-  final VoidCallback? onOpenSettings;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
-    final user = ref.watch(authProvider).user;
-    final reduceMotion = !AzMotion.of(context).travel;
-    final username = user?.username ?? '';
-    final initials = _initials(username);
-
-    final avatarCore = ScaleTap(
-      // Opens the SHELL'S settings drawer — see the AzamanHomePage docs.
-      onTap: () {
-        AzamanHaptics.nav();
-        onOpenSettings?.call();
-      },
-      child: Hero(
-        tag: 'profile-avatar',
-        // EXPERIENCE PASS §10 — initials only on Home, for now. A clean
-        // circular surface: no photo, no thick gradient ring, no
-        // double-border — at most a subtle 1px separation so the disc
-        // reads against any background. Profile-picture support stays
-        // everywhere else; this is a Home presentation decision.
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: colors.card,
-            border: Border.all(
-              color: colors.border.withValues(alpha: 0.6),
-              width: 1,
-            ),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            initials,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ),
-      ),
-    );
-    final avatar = reduceMotion
-        ? avatarCore
-        : avatarCore.animate().scale(
-            begin: const Offset(0.8, 0.8),
-            end: const Offset(1, 1),
-            duration: 300.ms,
-            curve: Curves.easeOutBack,
-          );
-
-    // One row, two anchors: the notification control pinned left, the
-    // profile button pinned right. With only two controls the spacer can
-    // never collide on narrow screens, and each touch target keeps its full
-    // size regardless of available width.
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          const NotificationBell(),
-          const Spacer(),
-          Semantics(button: true, label: 'Profile and settings', child: avatar),
-        ],
-      ),
-    );
-  }
-
-  String _initials(String name) {
-    final trimmed = name.trim();
-    if (trimmed.isEmpty) return 'A';
-    final parts = trimmed.split(RegExp(r'\s+'));
-    if (parts.length == 1) {
-      return parts.first.substring(0, 1).toUpperCase();
-    }
-    return (parts.first.substring(0, 1) + parts[1].substring(0, 1))
-        .toUpperCase();
-  }
-}
 
 /// EXPERIENCE PASS §6/§7 — clips the wallet composition to its top [height]
 /// so the handoff slides it under the screen edge instead of fading it out.

@@ -37,17 +37,49 @@ http.Response _json(int status, Map<String, dynamic> body) =>
     http.Response(jsonEncode(body), status,
         headers: {'content-type': 'application/json'});
 
-// The fake follows/bookmarks backend: the REAL endpoints the panel uses.
+// The fake backend: the REAL endpoints the panel uses, keyed by the
+// CANONICAL BusinessProfile.id ('bp-1') — the display 'BIZ-1' code is a
+// route parameter for /business/:bizId only and must never reach a
+// follow/bookmark/recommendation-feedback contract.
+const kCanonicalId = 'bp-1';
+
 class _RecordingClient extends ApiClient {
   final List<String> calls = [];
   bool following = false;
+  bool bookmarked = false;
+  bool showLess = false;
+  bool followCheckFails = false;
+  bool showLessCheckFails = false;
 
   @override
   Future<http.Response> get(String endpoint,
       {Map<String, String>? headers, bool requireAuth = true}) async {
     calls.add('GET $endpoint');
-    if (endpoint == '/follows/check/BIZ-1') {
+    if (endpoint == '/follows/check/$kCanonicalId' && !followCheckFails) {
       return _json(200, {'success': true, 'isFollowing': following});
+    }
+    if (endpoint == '/recommendation-feedback/check/$kCanonicalId') {
+      if (showLessCheckFails) return _json(500, {'success': false});
+      return _json(200, {'success': true, 'applied': showLess});
+    }
+    if (endpoint.startsWith('/bookmarks')) {
+      return _json(200, {
+        'success': true,
+        'total': bookmarked ? 1 : 0,
+        'bookmarks': bookmarked
+            ? [
+                {
+                  'businessProfileId': kCanonicalId,
+                  'businessName': 'Palm Court Kitchen',
+                  'category': 'FOOD_BEVERAGE',
+                  'savedAt': '2026-10-25T10:00:00.000Z',
+                }
+              ]
+            : [],
+      });
+    }
+    if (endpoint == '/bookmarks/check/$kCanonicalId') {
+      return _json(200, {'success': true, 'bookmarked': bookmarked});
     }
     return _json(404, {'success': false});
   }
@@ -55,10 +87,31 @@ class _RecordingClient extends ApiClient {
   @override
   Future<http.Response> post(String endpoint, Map<String, dynamic> body,
       {Map<String, String>? headers, bool requireAuth = true, String? idempotencyKey}) async {
-    calls.add('POST $endpoint');
+    calls.add('POST $endpoint ${body['businessProfileId'] ?? ''}');
     if (endpoint == '/follows') {
       following = true;
-      return _json(200, {'success': true});
+      return _json(201, {'success': true});
+    }
+    if (endpoint == '/recommendation-feedback') {
+      showLess = true;
+      return _json(201, {
+        'success': true,
+        'state': 'SHOW_LESS',
+        'alreadyApplied': false,
+        'appliedAt': '2026-10-25T11:00:00.000Z',
+      });
+    }
+    if (endpoint == '/bookmarks') {
+      bookmarked = true;
+      return _json(201, {
+        'success': true,
+        'state': 'BOOKMARKED',
+        'alreadyBookmarked': false,
+        'bookmark': {
+          'businessProfileId': kCanonicalId,
+          'savedAt': '2026-10-25T12:00:00.000Z',
+        },
+      });
     }
     return _json(404, {'success': false});
   }
@@ -67,9 +120,21 @@ class _RecordingClient extends ApiClient {
   Future<http.Response> delete(String endpoint,
       {Map<String, String>? headers, bool requireAuth = true}) async {
     calls.add('DELETE $endpoint');
-    if (endpoint == '/follows/BIZ-1') {
+    if (endpoint == '/follows/$kCanonicalId') {
       following = false;
       return _json(200, {'success': true});
+    }
+    if (endpoint == '/recommendation-feedback/$kCanonicalId') {
+      showLess = false;
+      return _json(200, {'success': true, 'state': 'NONE', 'removed': true});
+    }
+    if (endpoint == '/bookmarks/$kCanonicalId') {
+      bookmarked = false;
+      return _json(200, {
+        'success': true,
+        'state': 'NOT_BOOKMARKED',
+        'removed': true,
+      });
     }
     return _json(404, {'success': false});
   }
@@ -176,8 +241,8 @@ void main() {
 
   group('business result card — Workstream D', () {
     testWidgets('the avatar is circular with the category icon badge '
-        'at its bottom-right; no category name is printed under the image',
-        (tester) async {
+        "at 6 o'clock (Workstream G); no category name is printed under "
+        'the image', (tester) async {
       await _pumpCard(tester, _business());
 
       final avatar = find.byKey(const ValueKey('business-avatar-BIZ-1'));
@@ -192,15 +257,21 @@ void main() {
       expect(rect.width, closeTo(rect.height, 0.5),
           reason: 'the avatar box is square (circle inside)');
 
-      // The badge sits at the avatar's bottom-right corner band.
+      // WORKSTREAM G (G3): the badge sits at 6 o'clock — centred on the
+      // avatar's vertical axis, bottom edge flush with the circle's
+      // bottom edge, lower half only, logo still dominant.
       final badgeRect =
           tester.getRect(find.byKey(const ValueKey('business-avatar-badge-BIZ-1')));
-      expect(badgeRect.right <= rect.right + 2, isTrue);
-      expect(badgeRect.bottom <= rect.bottom + 2, isTrue);
-      expect(badgeRect.bottom > rect.center.dy, isTrue,
-          reason: 'the badge is at the bottom of the avatar');
-      expect(badgeRect.right > rect.center.dx, isTrue,
-          reason: 'the badge is at the right of the avatar');
+      expect((badgeRect.center.dx - rect.center.dx).abs(), lessThan(2.0),
+          reason: "the badge is centred on the avatar's axis (6 o'clock)");
+      expect(badgeRect.bottom <= rect.bottom + 2, isTrue,
+          reason: 'the badge bottom aligns with the circle bottom');
+      expect(badgeRect.bottom >= rect.bottom - 2, isTrue,
+          reason: 'the badge does not sink below the circle bottom');
+      expect(badgeRect.top > rect.center.dy, isTrue,
+          reason: 'the badge is in the lower half of the avatar');
+      expect(badgeRect.width < rect.width / 2, isTrue,
+          reason: 'the logo stays dominant over the badge');
 
       // The category name is NOT printed as a label under the image —
       // it lives in the badge's semantics only.
@@ -241,7 +312,7 @@ void main() {
       expect(find.byKey(const ValueKey('business-action-review')), findsOneWidget);
 
       // The follow row checked the REAL contract on open.
-      expect(client.calls, contains('GET /follows/check/BIZ-1'));
+      expect(client.calls, contains('GET /follows/check/$kCanonicalId'));
     });
 
     testWidgets('the panel follow action posts the real follow and the '
@@ -255,8 +326,12 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('business-action-follow')));
       await tester.pumpAndSettle();
 
-      expect(client.calls, contains('POST /follows'),
-          reason: 'follow goes through the canonical POST /follows');
+      expect(
+          client.calls,
+          contains('POST /follows $kCanonicalId'),
+          reason: 'follow goes through POST /follows keyed by the '
+              'canonical BusinessProfile.id — the display BIZ- code '
+              '404s against findUnique({ where: { id } })');
       expect(find.text('Unfollow'), findsOneWidget,
           reason: 'the row reflects the real toggled state');
     });
@@ -275,10 +350,71 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 120));
 
-      // savedBusinessesProvider is the same SharedPreferences-backed
-      // provider the profile screen uses — the row reflects the flip.
+      // The durable seam: the toggle rode POST /bookmarks with the
+      // canonical id, and the row reflects the server-confirmed state.
+      expect(client.calls, contains('POST /bookmarks $kCanonicalId'),
+          reason: 'the bookmark toggle rode the durable server '
+              'contract keyed by the canonical id');
       expect(find.text('Remove bookmark'), findsOneWidget,
-          reason: 'the bookmark toggle flipped the real saved set');
+          reason: 'the row reflects the server-confirmed bookmark');
+    });
+
+    testWidgets('the panel show-less row appears only after the real '
+        'check succeeds and apply rides the contract', (tester) async {
+      final client = _RecordingClient();
+      await _pumpCard(tester, _business(), client: client);
+
+      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await tester.pumpAndSettle();
+
+      // The check ran on open; the row is honest absence before it.
+      expect(client.calls, contains('GET /recommendation-feedback/check/$kCanonicalId'));
+      expect(find.byKey(const ValueKey('business-action-show-less')),
+          findsOneWidget);
+      expect(find.text('Show less like this'), findsOneWidget);
+
+      await tester.tap(
+          find.byKey(const ValueKey('business-action-show-less')));
+      await tester.pumpAndSettle();
+
+      expect(client.calls, contains('POST /recommendation-feedback $kCanonicalId'),
+          reason: 'apply rides the real contract with the canonical id');
+      expect(find.text('Undo "show less like this"'), findsOneWidget,
+          reason: 'the row reflects the durable SHOW_LESS state');
+
+      // Undo restores NONE — idempotent removal, canonical id again.
+      await tester.tap(
+          find.byKey(const ValueKey('business-action-show-less')));
+      await tester.pumpAndSettle();
+      expect(client.calls, contains('DELETE /recommendation-feedback/$kCanonicalId'));
+      expect(find.text('Show less like this'), findsOneWidget);
+    });
+
+    testWidgets('a failed show-less check renders NO row (honest '
+        'absence)', (tester) async {
+      final client = _RecordingClient()..showLessCheckFails = true;
+      await _pumpCard(tester, _business(), client: client);
+
+      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await tester.pumpAndSettle();
+
+      expect(client.calls, contains('GET /recommendation-feedback/check/$kCanonicalId'));
+      expect(find.byKey(const ValueKey('business-action-show-less')),
+          findsNothing,
+          reason: 'a failed check must never offer an affordance '
+              'whose state is unknown');
+    });
+
+    testWidgets('the avatar bookmark badge reflects the AUTHORITATIVE '
+        'server bookmark state, not the device wishlist', (tester) async {
+      final client = _RecordingClient()..bookmarked = true;
+      await _pumpCard(tester, _business(), client: client);
+
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('business-avatar-bookmark-BIZ-1')),
+          findsOneWidget,
+          reason: 'the badge is drawn from the hydrated server list');
     });
 
     testWidgets('SEPARATION: an avatar tap NEVER navigates to the '

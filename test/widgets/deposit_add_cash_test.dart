@@ -19,11 +19,15 @@
 // =============================================================================
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/config.dart';
+import 'package:azaman/models/user_model.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
+import 'package:azaman/services/deposit_continuations.dart';
 import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/widgets/odometer_number.dart';
@@ -36,12 +40,68 @@ class _FakeSavedMomo extends SavedMomoNotifier {
   Future<List<SavedMomoAccount>> build() async => accounts;
 }
 
+/// REVIEW FOLLOW-UP P1 — the deposit surface now belongs to an
+/// authenticated session by contract: the submitted continuation is
+/// owner-scoped and fails closed without one. The demo harness runs
+/// with a signed-in identity and in-memory secure storage.
+class _FixedAuth extends AuthProvider {
+  _FixedAuth(this.sessionUser);
+  final User sessionUser;
+  @override
+  User? get user => sessionUser;
+  @override
+  Future<void> fetchUserDetails() async {}
+}
+
+/// In-memory FlutterSecureStorage for the continuation service.
+class _MemSecureStorage implements FlutterSecureStorage {
+  final Map<String, String> store = {};
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final named = invocation.namedArguments;
+    switch (invocation.memberName) {
+      case #read:
+        return Future.value(store[named[#key] as String]);
+      case #write:
+        final key = named[#key] as String;
+        final value = named[#value] as String?;
+        if (value == null) {
+          store.remove(key);
+        } else {
+          store[key] = value;
+        }
+        return Future.value();
+      case #delete:
+        store.remove(named[#key] as String);
+        return Future.value();
+      default:
+        return Future.value();
+    }
+  }
+}
+
+final _demoUser = User(
+  id: 'user-7',
+  username: 'me',
+  email: 'me@example.com',
+  token: 'tok',
+  role: 'USER',
+  azamanId: 'AZM-999999999',
+);
+
 /// The demo seed's two accounts, for tests that don't override the provider.
 Widget _app({List<SavedMomoAccount>? fakeAccounts}) {
   return ProviderScope(
     overrides: [
       if (fakeAccounts != null)
         savedMomoProvider.overrideWith(() => _FakeSavedMomo(fakeAccounts)),
+      authProvider.overrideWith((ref) => _FixedAuth(_demoUser)),
+      depositContinuationsProvider.overrideWith(
+        (ref) => DepositContinuationsController(
+          DepositContinuationsService(storage: _MemSecureStorage()),
+        ),
+      ),
     ],
     child: MaterialApp.router(routerConfig: _router()),
   );

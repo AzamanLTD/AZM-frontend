@@ -4,19 +4,82 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/services/deposit_continuations.dart';
+import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/models/notification_model.dart';
+import 'package:azaman/router/app_router.dart' show handleNotificationTap;
+import 'package:azaman/services/notification_action_dispatcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
+import 'package:azaman/theme/motion_tokens.dart';
 import 'package:go_router/go_router.dart';
+
+/// WORKSTREAM A (2026-10-24) — the driven reveal hand-off.
+///
+/// The Home header's bounded pull-down progressively reveals this panel:
+/// the finger owns the panel's position through [update]; on release the
+/// session issues a single [commit] (the panel settles open) or [cancel]
+/// (it animates back to closed and removes itself). The controller is a
+/// dumb command channel — every piece of panel positioning, animation and
+/// entry lifecycle stays inside [NotificationOverlay]'s state, so there
+/// is exactly one owner per stage of the interaction.
+class NotificationRevealController extends ChangeNotifier {
+  NotificationRevealController();
+
+  double _reveal = 0;
+  double get reveal => _reveal;
+
+  int _command = 0; // 0 none, 1 commit, 2 cancel
+  int get command => _command;
+
+  /// The finger moved: [t] is the 0..1 reveal progress. Clamped — the
+  /// panel never renders beyond fully open, and a reversed drag below
+  /// zero simply holds it closed.
+  void update(double t) {
+    final clamped = t.clamp(0.0, 1.0);
+    if (clamped == _reveal) return;
+    _reveal = clamped;
+    notifyListeners();
+  }
+
+  /// Release past the opening threshold: settle open.
+  void commit() {
+    _command = 1;
+    notifyListeners();
+  }
+
+  /// Release below the threshold (or an interrupted/cancelled gesture):
+  /// settle closed and remove the entry.
+  void cancel() {
+    _command = 2;
+    notifyListeners();
+  }
+}
 
 class NotificationOverlay extends ConsumerStatefulWidget {
   final VoidCallback onClose;
-  const NotificationOverlay({super.key, required this.onClose});
+
+  /// When non-null the panel is DRIVEN: it mounts hidden and its on-screen
+  /// position follows [drivenReveal] instead of its own entrance animation.
+  final NotificationRevealController? drivenReveal;
+
+  const NotificationOverlay({
+    super.key,
+    required this.onClose,
+    this.drivenReveal,
+  });
+
+  /// One panel at a time, ever. A second `show` while the centre is open
+  /// (or mid-reveal) is a bounce, not a stacked second entry.
+  static bool _panelMounted = false;
 
   static void show(BuildContext context) {
+    if (_panelMounted) return;
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
     entry = OverlayEntry(
@@ -25,18 +88,60 @@ class NotificationOverlay extends ConsumerStatefulWidget {
     overlay.insert(entry);
   }
 
+  /// Begins the finger-driven reveal: mounts the panel hidden above the
+  /// top edge and returns the controller the caller drags. Returns null
+  /// if a panel is already mounted (the bell tap handles that case).
+  static NotificationRevealController? beginReveal(BuildContext context) {
+    if (_panelMounted) return null;
+    final overlay = Overlay.of(context);
+    final controller = NotificationRevealController();
+    late OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => NotificationOverlay(
+        onClose: () => entry.remove(),
+        drivenReveal: controller,
+      ),
+    );
+    overlay.insert(entry);
+    return controller;
+  }
+
   @override
   ConsumerState<NotificationOverlay> createState() => _State();
 }
 
 class _State extends ConsumerState<NotificationOverlay>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _slideCtrl;
   late Animation<Offset> _slideAnim;
-  late AnimationController _bobCtrl;
-  late Animation<double> _bobAnim;
   int _tab = 0;
   double _drag = 0;
+
+  /// REVIEW 4.1 — set the moment a card's open action begins closing the
+  /// panel so a second tap (or the dismiss tap underneath) can't fire a
+  /// second navigation for the same notification.
+  bool _closing = false;
+
+  // WORKSTREAM A — driven reveal state. In driven mode the panel's
+  // vertical fraction (dy of screen height; 0 = open, negative = above
+  // the top edge) is derived from the controller's reveal value. On
+  // commit/cancel a short settle animation takes over FROM THE LIVE
+  // FRACTION so the hand-off is continuous — never a jump to a canned
+  // position.
+  bool _drivenMode = false;
+  bool _entranceStarted = false;
+  NotificationRevealController? _driver;
+
+  /// The continuous settle from a driven state (or the downward
+  /// dismissal): animates a raw dy fraction from → to. The CONTROLLER is
+  /// persistent (one per State — the panel's rebuild listener watches it,
+  /// so it must never be swapped mid-flight); the TWEEN is re-created per
+  /// settle with the live from/to fractions.
+  late final AnimationController _settleCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+  );
+  Animation<double>? _settleAnim;
   bool _quietHoursEnabled = false;
   TimeOfDay _quietStart = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _quietEnd = const TimeOfDay(hour: 7, minute: 0);
@@ -44,23 +149,46 @@ class _State extends ConsumerState<NotificationOverlay>
   @override
   void initState() {
     super.initState();
+    NotificationOverlay._panelMounted = true;
+    // §C.3 — opening the notification centre is one of the three expiry
+    // enforcement points. loadForUser drops anything whose five-minute
+    // wall clock has lapsed; only unexpired drafts render as continuation
+    // cards. LOCAL drafts never touch the server unread count.
+    WidgetsBinding.instance.addObserver(this);
+    final uid = ref.read(authProvider).user?.id;
+    ref.read(launcherDraftsProvider.notifier).loadForUser(uid);
+    // FIX 3 — submitted deposit continuations have NO five-minute clock:
+    // they load on every open and leave only on authoritative
+    // resolution. Same for the foreground-return sweep below.
+    ref.read(depositContinuationsProvider.notifier).loadForUser(uid);
     _slideCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
+    _driver = widget.drivenReveal;
+    _drivenMode = _driver != null;
+    if (_drivenMode) {
+      _driver!.addListener(_onDriverCommand);
+      // Driven panels mount HIDDEN — the entrance animation never runs;
+      // the finger supplies the position.
+      _slideCtrl.value = 1.0;
+    }
+    // The non-driven entrance starts in didChangeDependencies: forward()
+    // captures the controller's duration at call time, and the accessible
+    // (reduced-motion) duration is only resolvable once the inherited
+    // MediaQuery is available — starting it here would lock in the 420ms
+    // default and animate under reduced motion.
     _slideAnim = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutQuart));
     _slideCtrl.forward();
-    _bobCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _bobAnim = Tween<double>(
-      begin: 0,
-      end: 5,
-    ).animate(CurvedAnimation(parent: _bobCtrl, curve: Curves.easeInOut));
+    // REVIEW 4.1 — the grab handle no longer bobs on a repeating idle
+    // loop. Idle motion exists only to be looked at; the handle is a
+    // dismissal affordance, and its affordance is communicated by its
+    // position and the panel's own arrival — not by a permanent shimmy.
+    // (Motion in this panel now happens only on interaction: the driven
+    // reveal, the settle hand-off and the drag dismissal.)
     _loadQuietHours();
   }
 
@@ -125,18 +253,214 @@ class _State extends ConsumerState<NotificationOverlay>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _driver?.removeListener(_onDriverCommand);
+    NotificationOverlay._panelMounted = false;
+    _settleCtrl.dispose();
     _slideCtrl.dispose();
-    _bobCtrl.dispose();
     super.dispose();
+  }
+
+  /// §C.1 — returning to the foreground is the third expiry-enforcement
+  /// point: drafts are re-read from storage and anything past its
+  /// five-minute wall clock is dropped, not displayed.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final uid = ref.read(authProvider).user?.id;
+    ref.read(launcherDraftsProvider.notifier).loadForUser(uid);
+    ref.read(depositContinuationsProvider.notifier).loadForUser(uid);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // WORKSTREAM A: reduced motion receives direct state transitions — the
+    // entrance/dismissal slide collapses to zero duration. MediaQuery is
+    // not readable in initState, so the duration lands here (the first
+    // build happens after dependencies resolve, before any animation can
+    // matter — the same pattern the notification bell documents).
+    _slideCtrl.duration = MotionTokens.accessibleDuration(
+      context,
+      const Duration(milliseconds: 420),
+    );
+    _settleCtrl.duration = MotionTokens.accessibleDuration(
+      context,
+      const Duration(milliseconds: 260),
+    );
+    if (!_entranceStarted && !_drivenMode) {
+      _entranceStarted = true;
+      _slideCtrl.forward();
+    }
+  }
+
+  /// The driven command channel: every controller notification lands
+  /// here. A reveal update is a plain position change; commit/cancel are
+  /// consumed once and hand the panel to a continuous settle from the
+  /// live fraction.
+  void _onDriverCommand() {
+    if (!mounted) return;
+    switch (_driver!.command) {
+      case 1: // commit
+        _driver!.update(_driver!.reveal); // keep position; clear command
+        _startSettle(from: _currentDrivenDy(), to: 0.0, thenRemove: false);
+        break;
+      case 2: // cancel
+        _driver!.update(_driver!.reveal);
+        _startSettle(from: _currentDrivenDy(), to: -0.92, thenRemove: true);
+        break;
+      default:
+        setState(() {});
+    }
+  }
+
+  /// The live dy fraction while driven.
+  double _currentDrivenDy() => -(1 - (_driver?.reveal ?? 0)) * 0.92;
+
+  /// Animates the raw dy fraction [from] → [to]; when [thenRemove] the
+  /// entry is removed at the end (settle-closed). Continuous with the
+  /// live position — the settle always starts from where the panel
+  /// actually is (the finger's last reveal, or the drag offset), never
+  /// from a canned position.
+  void _startSettle({
+    required double from,
+    required double to,
+    required bool thenRemove,
+  }) {
+    _drivenMode = false;
+    _settleAnim = Tween<double>(
+      begin: from,
+      end: to,
+    ).animate(CurvedAnimation(parent: _settleCtrl, curve: Curves.easeOutCubic));
+    if (thenRemove) {
+      _settleCtrl.forward(from: 0).then((_) {
+        if (mounted) widget.onClose();
+      });
+    } else {
+      _settleCtrl.forward(from: 0);
+    }
+    setState(() {});
   }
 
   void _dismiss() => _slideCtrl.reverse().then((_) => widget.onClose());
 
+  /// Opens a notification: marks it read, resolves its actionPayload
+  /// through the shared canonical dispatcher, and either navigates to
+  /// the verified destination (closing this overlay first, exactly like
+  /// the hub closes itself before deep-linking) or tells the truth when
+  /// there is no supported destination.
+  void _openNotification(AppNotification n) {
+    // Never double-dispatch while the overlay is already closing.
+    if (_closing) return;
+    ref.read(notificationProvider.notifier).markAsRead(n.id);
+
+    final action = NotificationActionDispatcher.resolve(n.actionPayload);
+    // REVIEW 4.2 — DELEGATED actions keep their ESTABLISHED imperative
+    // behaviour (e.g. OPEN_CHAT's FriendChatScreen push). The overlay
+    // hands the action to the pre-existing router handler after its own
+    // dismissal dance: the router is captured BEFORE the async gap, the
+    // handleNotificationTap call happens after the overlay has closed,
+    // so the imperative screen stacks on MainWrapper, never on the
+    // dying overlay.
+    if (action.resolution == NotificationActionResolution.delegated) {
+      final actionName = action.actionName!;
+      final actionPayload = action.payload;
+      _closing = true;
+      _dismiss();
+      Future<void>.delayed(const Duration(milliseconds: 260), () {
+        handleNotificationTap(action: actionName, actionPayload: actionPayload);
+      });
+      return;
+    }
+    switch (action.resolution) {
+      case NotificationActionResolution.navigable:
+        final route = action.route!;
+        final router = GoRouter.of(context);
+        _closing = true;
+        _dismiss();
+        // Push after the overlay reverse completes so the deep-link stacks
+        // on MainWrapper, not on top of a dying overlay. The router is
+        // captured BEFORE the async gap; the overlay widget itself is
+        // disposed by then, so nothing may touch its context here.
+        Future<void>.delayed(const Duration(milliseconds: 260), () {
+          router.push(route);
+        });
+      case NotificationActionResolution.unsupportedAction:
+        // Truthful fallback: the payload names an action this app build
+        // does not support. Saying nothing would make the tap feel dead;
+        // pretending success would be a lie.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("This notification's action isn't available yet."),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      case NotificationActionResolution.informational:
+        // Purely informational notice — opening it is just reading it.
+        break;
+      case NotificationActionResolution.delegated:
+        // Unreachable: the guard above routes delegated actions through
+        // the established imperative handler before this switch runs.
+        // Kept explicit so the switch stays exhaustive and honest.
+        break;
+    }
+  }
+
+  /// §C.3 — canonical destination per surface. These are the SAME routes
+  /// the launcher windows push; Resume pushes the canonical route with the
+  /// draft's editable inputs as extra, never an invented route.
+  String _draftRoute(LauncherSurface surface) => switch (surface) {
+        LauncherSurface.send => '/send',
+        LauncherSurface.withdraw => '/withdraw',
+        LauncherSurface.addCash => '/deposit',
+        LauncherSurface.convert => '/convert',
+      };
+
+  String _draftTitle(LauncherSurface surface) => switch (surface) {
+        LauncherSurface.send => 'Continue sending',
+        LauncherSurface.withdraw => 'Continue withdrawal',
+        LauncherSurface.addCash => 'Continue adding cash',
+        LauncherSurface.convert => 'Continue conversion estimate',
+      };
+
+  IconData _draftIcon(LauncherSurface surface) => switch (surface) {
+        LauncherSurface.send => Icons.send_rounded,
+        LauncherSurface.withdraw => Icons.south_west_rounded,
+        LauncherSurface.addCash => Icons.add_card_rounded,
+        LauncherSurface.convert => Icons.swap_vert_circle_rounded,
+      };
+
+  /// §C.3 Resume — dismiss the panel FIRST (the same guard-and-order the
+  /// notification dispatcher uses), then push the canonical route once.
+  /// A second tap cannot double-navigate: `_closing` latches.
+  void _resumeDraft(LauncherDraft draft) {
+    if (_closing) return;
+    HapticFeedback.lightImpact();
+    final router = GoRouter.of(context);
+    final route = _draftRoute(draft.surface);
+    final payload = Map<String, dynamic>.from(draft.payload);
+    _closing = true;
+    _dismiss();
+    Future<void>.delayed(const Duration(milliseconds: 260), () {
+      router.push(route, extra: payload);
+    });
+  }
+
+  // REVIEW 4.1 — classification is AUTHORITATIVE on the server's explicit
+  // NotificationCategory. Title keyword matching survives only as the
+  // LEGACY fallback for old `general` notifications (which predate the
+  // category field) and can never override or re-file an explicit
+  // category. A notification the server filed as MONEY is a money
+  // notification whatever its title says — and vice versa.
+
   bool _isSystem(AppNotification n) {
-    if (n.category == NotificationCategory.adminSystem ||
+    if (n.category == NotificationCategory.system ||
+        n.category == NotificationCategory.adminSystem ||
         n.category == NotificationCategory.vendorPriority) {
       return true;
     }
+    if (n.category != NotificationCategory.general) return false;
+    // Legacy fallback only.
     final t = (n.title + n.body).toLowerCase();
     return t.contains('cfo') ||
         t.contains('balance low') ||
@@ -144,7 +468,9 @@ class _State extends ConsumerState<NotificationOverlay>
   }
 
   bool _isMoney(AppNotification n) {
+    if (n.category == NotificationCategory.money) return true;
     if (n.category != NotificationCategory.general) return false;
+    // Legacy fallback only.
     final t = n.title.toLowerCase();
     return t.contains('deposit') ||
         t.contains('withdraw') ||
@@ -158,10 +484,16 @@ class _State extends ConsumerState<NotificationOverlay>
         t.contains('invoice');
   }
 
-  bool _isSocial(AppNotification n) =>
-      n.category == NotificationCategory.general &&
-      !_isMoney(n) &&
-      !_isSystem(n);
+  bool _isSocial(AppNotification n) {
+    if (n.category == NotificationCategory.social ||
+        n.category == NotificationCategory.chat) {
+      return true;
+    }
+    if (n.category != NotificationCategory.general) return false;
+    // Legacy fallback only: old uncategorised mail that is not money or
+    // system surfaces under Social.
+    return !_isMoney(n) && !_isSystem(n);
+  }
 
   // Business notification card — shown when the Business tab is selected.
   // Business notifications (NEW_ORDER, KYB_STATUS_CHANGED, etc.) live on a
@@ -292,6 +624,287 @@ class _State extends ConsumerState<NotificationOverlay>
     }
   }
 
+  // FIX 3 — the submitted-deposits section. Semantically DISTINCT from
+  // the five-minute draft cards above: these are transactions the user
+  // already instructed — their continuation survives every form-draft
+  // TTL and leaves this list only when the ledger authoritatively
+  // resolves them (settled/failed), because no cancellation endpoint
+  // exists. There is deliberately NO destructive swipe here: discarding
+  // a local form draft is a convenience; "removing" a submitted
+  // operation would be a lie about money that may still move.
+  Widget _buildSubmittedDepositsSection(
+    AzamanColors colors,
+    List<DepositContinuation> continuations,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Deposits in progress',
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                decoration: TextDecoration.none,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          ...continuations.map((c) {
+            final ref = c.reference.trim();
+            final short =
+                ref.length > 14 ? '…${ref.substring(ref.length - 12)}' : ref;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: colors.accent, width: 0.8),
+                ),
+                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: colors.accentSurface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.add_card_rounded,
+                        size: 19,
+                        color: colors.accent,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Add Cash — deposit in progress',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            'Instruction $short sent — this is not a saved '
+                            'form, so it stays until the deposit is '
+                            'confirmed.',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => _resumeDeposit(c),
+                      style: TextButton.styleFrom(
+                        backgroundColor: colors.accentSurface,
+                        foregroundColor: colors.accent,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 7,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Check status',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  /// FIX 3 — resume a submitted deposit: same guard-and-order as a draft
+  /// resume, but the route extra carries ONLY the durable reference —
+  /// the deposit surface reconciles it against the ledger on arrival.
+  void _resumeDeposit(DepositContinuation continuation) {
+    if (_closing) return;
+    HapticFeedback.lightImpact();
+    final router = GoRouter.of(context);
+    _closing = true;
+    _dismiss();
+    Future<void>.delayed(const Duration(milliseconds: 260), () {
+      router.push('/deposit', extra: {
+        'pendingReference': continuation.reference,
+      });
+    });
+  }
+
+  /// §C.3 — the local continuation section. One row per unexpired draft:
+  /// Resume reopens the canonical launcher surface with the stored
+  /// editable inputs; a left/right swipe permanently discards the draft
+  /// (an explicit user action — a refresh can never resurrect it).
+  Widget _buildContinuationSection(
+    AzamanColors colors,
+    List<LauncherDraft> drafts,
+    int nowMs,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Continue where you left off',
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                decoration: TextDecoration.none,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          ...drafts.map((d) {
+            final expired = d.isExpiredAt(nowMs);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Dismissible(
+                key: ValueKey('launcher_draft_${d.id}'),
+                direction: DismissDirection.horizontal,
+                // Swipe-away is the PERMANENT discard of this local
+                // draft (and its stored editable state). It never
+                // touches server notifications or any transaction.
+                onDismissed: (_) {
+                  AzamanHaptics.selection();
+                  ref
+                      .read(launcherDraftsProvider.notifier)
+                      .discardDraft(d.id);
+                },
+                background: Container(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.only(left: 20),
+                  decoration: BoxDecoration(
+                    color: colors.danger,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.white),
+                ),
+                secondaryBackground: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  decoration: BoxDecoration(
+                    color: colors.danger,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Colors.white),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: colors.divider, width: 0.8),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: colors.accentSurface,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          _draftIcon(d.surface),
+                          size: 19,
+                          color: colors.accent,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _draftTitle(d.surface),
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                            const SizedBox(height: 1),
+                            Text(
+                              'Saved locally ${d.minutesLeftAt(nowMs)}',
+                              style: TextStyle(
+                                color: colors.textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        // An expired card cannot Resume; the next
+                        // loadForUser sweep removes it.
+                        onPressed:
+                            expired ? null : () => _resumeDraft(d),
+                        style: TextButton.styleFrom(
+                          backgroundColor: colors.accentSurface,
+                          foregroundColor: colors.accent,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 7,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Resume',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _categoryRow(
     int idx,
     IconData icon,
@@ -362,12 +975,17 @@ class _State extends ConsumerState<NotificationOverlay>
     final colors = ref.watch(themeProvider).colors;
     final topPad = MediaQuery.of(context).padding.top;
     final screenH = MediaQuery.of(context).size.height;
-    final all = ref.watch(generalNotificationsProvider);
-    final sec = ref.watch(securityNotificationsProvider);
-    final vendor = ref.watch(vendorNotificationsProvider);
     final hasBiz = ref.watch(myBusinessProvider).profile != null;
     final bizUnread = ref.watch(bizUnreadCountProvider);
-    final allN = [...all, ...sec, ...vendor]
+    // REVIEW 4.1 — the visible list is derived from the ONE canonical
+    // server-notification source (notificationProvider), never from a
+    // hand-picked subset of category slices. The previous three-way merge
+    // (general + security + vendor) silently omitted every notification
+    // the server explicitly categorised as money, social, chat or
+    // system — supported by the model and provider, invisible here.
+    // Deriving from the single source also makes omission and duplicates
+    // structurally impossible: every notification appears exactly once.
+    final allN = [...ref.watch(notificationProvider)]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     final filtered = allN.where((n) => _matchesTab(n, _tab)).toList();
     final unread =
@@ -376,6 +994,37 @@ class _State extends ConsumerState<NotificationOverlay>
     final money = allN.where(_isMoney).length;
     final social = allN.where(_isSocial).length;
     final secCnt = allN.where(_isSecurity).length;
+
+    // §C.3 — LOCAL continuation drafts: a distinct source, rendered above
+    // the category card. They are NOT server notifications — the unread
+    // count above is untouched — and never re-filed into a category.
+    //
+    // REVIEW GAP 4 — RENDER GATE: the centre renders drafts ONLY when
+    // the draft state's userId matches the CURRENT authenticated user.
+    // A stale in-flight load, a direct account switch or a session
+    // invalidation can leave the state momentarily owned by the previous
+    // user; those records never reach the screen.
+    final draftState = ref.watch(launcherDraftsProvider);
+    // REVIEW FOLLOW-UP P1 — WATCH, not read: the render gate must
+    /// re-evaluate the moment the session identity changes (direct
+    /// account switch included), without depending on some unrelated
+    /// provider update happening to trigger a rebuild.
+    final currentUid = ref.watch(authProvider).user?.id;
+    final drafts = (draftState.userId != null &&
+            draftState.userId == currentUid)
+        ? draftState.drafts
+        : const <LauncherDraft>[];
+
+    // FIX 3 — SUBMITTED deposit continuations: a separate lifecycle with
+    // its own authority. A deposit that was already instructed never
+    // disappears because a form-draft clock expired. Same render gate:
+    // only the active user's continuations are shown.
+    final contState = ref.watch(depositContinuationsProvider);
+    final continuations = (contState.userId != null &&
+            contState.userId == currentUid)
+        ? contState.continuations
+        : const <DepositContinuation>[];
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
 
     // Build the body: business tab shows a link to business notifications,
     // other tabs show the filtered notification list.
@@ -388,22 +1037,61 @@ class _State extends ConsumerState<NotificationOverlay>
           child: Container(color: Colors.transparent),
         ),
         AnimatedBuilder(
-          animation: _slideAnim,
+          // The settle controller carries the driven reveal hand-off and
+          // the downward dismissal — without it in the listenable the
+          // panel would freeze at the hand-off position (the controller
+          // ticks but nobody rebuilds).
+          animation: Listenable.merge([_slideAnim, _settleCtrl]),
           builder: (_, __) {
-            final off = _drag != 0
-                ? Offset(0, _drag / screenH)
-                : _slideAnim.value;
+            // WORKSTREAM A — one priority order for the panel's vertical
+            // fraction: an in-flight settle (driven hand-off or downward
+            // dismissal) wins; then the live driven reveal; then the
+            // legacy finger drag; then the canned entrance animation.
+            final double dy;
+            if (_settleAnim != null) {
+              dy = _settleAnim!.value;
+            } else if (_drivenMode) {
+              dy = _currentDrivenDy();
+            } else if (_drag != 0) {
+              dy = _drag / screenH;
+            } else {
+              dy = _slideAnim.value.dy;
+            }
+            final off = Offset(0, dy);
             return Transform.translate(
               offset: Offset(0, off.dy * screenH),
               child: GestureDetector(
+                // WORKSTREAM A — the chrome's drag is BIDIRECTIONAL and
+                // finger-attached. Upward stays the legacy dismissal;
+                // downward now follows the finger too (the panel hangs
+                // from the top edge — dragging it back down toward its
+                // origin dismisses it, matching how it arrived). Drags
+                // that START on the notification list itself are claimed
+                // by the list's own scrollable and never reach this
+                // recognizer, so list scrolling stays a normal scroll.
+                onVerticalDragStart: (d) {
+                  setState(() => _drag = 0);
+                },
                 onVerticalDragUpdate: (d) {
-                  if ((d.primaryDelta ?? 0) < 0) {
-                    setState(() => _drag += d.primaryDelta!);
+                  final delta = d.primaryDelta ?? 0;
+                  if (delta != 0) {
+                    setState(() => _drag += delta);
                   }
                 },
+                onVerticalDragCancel: () {
+                  setState(() => _drag = 0);
+                },
                 onVerticalDragEnd: (d) {
-                  if ((d.primaryVelocity ?? 0) < -350 || _drag < -80) {
+                  final v = d.primaryVelocity ?? 0;
+                  if (v < -350 || _drag < -80) {
+                    // Legacy upward dismissal.
+                    _drag = 0;
                     _dismiss();
+                  } else if (_drag > 90 || v > 700) {
+                    // Downward dismissal: the panel settles DOWN past
+                    // its origin and the entry is removed.
+                    _drag = 0;
+                    _startSettle(from: 0, to: 0.92, thenRemove: true);
                   } else {
                     setState(() => _drag = 0);
                   }
@@ -437,13 +1125,26 @@ class _State extends ConsumerState<NotificationOverlay>
                                 ),
                                 child: Row(
                                   children: [
-                                    Text(
-                                      'Notifications',
-                                      style: TextStyle(
-                                        color: colors.textPrimary,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w700,
-                                        decoration: TextDecoration.none,
+                                    // Overflow-safe title (pre-existing
+                                    // defect surfaced by the Workstream A
+                                    // tests): at 400dp and below — and at
+                                    // large text scales — the trailing
+                                    // controls (quiet-hours chip, gear,
+                                    // Read all) alone can exceed the row.
+                                    // The title yields first, with a clean
+                                    // ellipsis fallback; at normal widths
+                                    // nothing changes.
+                                    Flexible(
+                                      child: Text(
+                                        'Notifications',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: colors.textPrimary,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.none,
+                                        ),
                                       ),
                                     ),
                                     const Spacer(),
@@ -561,6 +1262,21 @@ class _State extends ConsumerState<NotificationOverlay>
                                   ],
                                 ),
                               ),
+                              if (continuations.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                _buildSubmittedDepositsSection(
+                                  colors,
+                                  continuations,
+                                ),
+                              ],
+                              if (drafts.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                _buildContinuationSection(
+                                  colors,
+                                  drafts,
+                                  nowMs,
+                                ),
+                              ],
                               const SizedBox(height: 16),
                               Padding(
                                 padding: const EdgeInsets.symmetric(
@@ -652,23 +1368,20 @@ class _State extends ConsumerState<NotificationOverlay>
                                       )
                                     : _buildGroupedList(filtered, colors),
                               ),
-                              AnimatedBuilder(
-                                animation: _bobAnim,
-                                builder: (_, __) => Padding(
-                                  padding: EdgeInsets.only(
-                                    bottom: 10 + _bobAnim.value,
-                                    top: 6,
-                                  ),
-                                  child: Center(
-                                    child: Container(
-                                      width: 100,
-                                      height: 5,
-                                      decoration: BoxDecoration(
-                                        color: colors.textTertiary.withValues(
-                                          alpha: 0.35,
-                                        ),
-                                        borderRadius: BorderRadius.circular(3),
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  bottom: 10,
+                                  top: 6,
+                                ),
+                                child: Center(
+                                  child: Container(
+                                    width: 100,
+                                    height: 5,
+                                    decoration: BoxDecoration(
+                                      color: colors.textTertiary.withValues(
+                                        alpha: 0.35,
                                       ),
+                                      borderRadius: BorderRadius.circular(3),
                                     ),
                                   ),
                                 ),
@@ -709,6 +1422,14 @@ class _State extends ConsumerState<NotificationOverlay>
       groups.putIfAbsent(label, () => []).add(n);
     }
 
+    // REVIEW 4.1 BUGFIX — the list previously had `itemCount:
+    // groups.length` while the builder indexed `sectionOrder[i]`.
+    // Those two lists are UNRELATED: with a single 'Yesterday' group the
+    // builder asked for sectionOrder[0] == 'Today', found nothing, and
+    // rendered an empty box — so every notification older than today
+    // silently vanished from the panel while the unread badge still
+    // counted them. Iterate the ACTUAL present sections (in canonical
+    // section order) instead.
     final sectionOrder = [
       'Today',
       'Yesterday',
@@ -716,15 +1437,23 @@ class _State extends ConsumerState<NotificationOverlay>
       'This Month',
       'Earlier',
     ];
+    final present = [
+      for (final label in sectionOrder)
+        if (groups.containsKey(label)) label,
+      // Defensive: a label outside the canonical order still renders
+      // (grouped last) rather than being dropped.
+      ...groups.keys.where((label) => !sectionOrder.contains(label)),
+    ];
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: groups.length,
+      itemCount: present.length,
       itemBuilder: (_, sectionIdx) {
-        final label = sectionOrder[sectionIdx];
-        final sectionItems = groups[label];
-        if (sectionItems == null || sectionItems.isEmpty)
+        final label = present[sectionIdx];
+        final sectionItems = groups[label]!;
+        if (sectionItems.isEmpty) {
           return const SizedBox();
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -752,6 +1481,11 @@ class _State extends ConsumerState<NotificationOverlay>
                 onDelete: () => ref
                     .read(notificationProvider.notifier)
                     .deleteNotification(n.id),
+                // REVIEW 4.1 — the card itself is tappable: opening a
+                // notification marks it read and dispatches its real
+                // actionPayload through the shared action-to-route
+                // resolver (the same one the notification hub uses).
+                onTap: () => _openNotification(n),
               ),
             ),
           ],
@@ -765,13 +1499,17 @@ class _SlideRevealNotification extends StatefulWidget {
   final AppNotification notification;
   final AzamanColors colors;
   final VoidCallback onMarkRead;
-  final VoidCallback onDelete;
+  // Honest delete: resolves false when the SERVER rejected the
+  // dismissal — the row must return with its read state untouched.
+  final Future<bool> Function() onDelete;
+  final VoidCallback onTap;
   const _SlideRevealNotification({
     super.key,
     required this.notification,
     required this.colors,
     required this.onMarkRead,
     required this.onDelete,
+    required this.onTap,
   });
 
   @override
@@ -782,6 +1520,9 @@ class _SlideState extends State<_SlideRevealNotification>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   bool _hidden = false;
+  // Set only when the SERVER rejected a dismissal — the row returns and
+  // an honest caption explains why. Cleared on the next interaction.
+  bool _dismissFailed = false;
   static const double _maxReveal = 110.0;
 
   @override
@@ -820,6 +1561,16 @@ class _SlideState extends State<_SlideRevealNotification>
         final showLeft = offset < -12;
 
         return GestureDetector(
+          // REVIEW 4.1 — the card is tappable. A tap that ends without a
+          // horizontal drag (i.e. not a swipe-reveal gesture) opens the
+          // notification. This recognizer is on the SAME GestureDetector
+          // as the horizontal drag, so Flutter arbitrates between the
+          // two: a horizontal drag claim suppresses the tap.
+          onTapUp: (d) {
+            if (_controller.value.abs() < 8) {
+              widget.onTap();
+            }
+          },
           onHorizontalDragUpdate: (d) {
             _controller.value = (_controller.value + d.primaryDelta!).clamp(
               -_maxReveal,
@@ -858,24 +1609,41 @@ class _SlideState extends State<_SlideRevealNotification>
                           ),
                         ),
                       const Spacer(),
-                      // Left-swipe offers ONLY Delete. There is no
-                      // "Later"/snooze affordance because the backend
-                      // notification contract (GET /notifications,
-                      // unread-count, PATCH :id/read, PATCH read-all) has
-                      // no snooze/mute/remind-later operation — a visible
-                      // chip that pretended to snooze without changing
-                      // anything was removed rather than kept as a no-op.
+                      // Left-swipe offers ONLY Delete, now backed by the
+                      // durable owner-scoped soft-dismissal contract
+                      // (PATCH :id/dismiss). Optimistic hide, server is
+                      // the authority, a rejection un-hides the row with
+                      // its read state untouched and an honest inline
+                      // error. No snooze/mute affordance exists because
+                      // the backend has no such operation.
                       if (showLeft) ...[
                         GestureDetector(
-                          onTap: () {
-                            widget.onDelete();
+                          onTap: () async {
+                            // Optimistic hide first so the chip feels
+                            // instant; the server is the durable
+                            // authority and a rejection un-hides the
+                            // row (retry = tap Delete again).
                             setState(() => _hidden = true);
+                            final dismissed = await widget.onDelete();
+                            if (!mounted) return;
+                            if (!dismissed) {
+                              setState(() {
+                                _hidden = false;
+                                _dismissFailed = true;
+                              });
+                            } else if (_dismissFailed) {
+                              setState(() => _dismissFailed = false);
+                            }
                           },
-                          child: _chip(
-                            c,
-                            HugeIconsSolid.delete01,
-                            'Delete',
-                            c.danger,
+                          child: Semantics(
+                            button: true,
+                            label: 'Delete notification from this list',
+                            child: _chip(
+                              c,
+                              HugeIconsSolid.delete01,
+                              'Delete',
+                              c.danger,
+                            ),
                           ),
                         ),
                       ],
@@ -884,68 +1652,86 @@ class _SlideState extends State<_SlideRevealNotification>
                 ),
                 Transform.translate(
                   offset: Offset(offset, 0),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: n.isRead
-                          ? c.card
-                          : c.accent.withValues(alpha: 0.07),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: c.divider.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.only(top: 5),
-                          decoration: BoxDecoration(
-                            color: n.isRead ? Colors.transparent : c.accent,
-                            shape: BoxShape.circle,
-                          ),
+                  child: Semantics(
+                    button: true,
+                    label: n.isRead
+                        ? 'Notification from ${n.title}. Opens details.'
+                        : 'Unread notification from ${n.title}. Opens details.',
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: n.isRead
+                            ? c.card
+                            : c.accent.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: c.divider.withValues(alpha: 0.5),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                n.title,
-                                style: TextStyle(
-                                  color: c.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  decoration: TextDecoration.none,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            margin: const EdgeInsets.only(top: 5),
+                            decoration: BoxDecoration(
+                              color: n.isRead ? Colors.transparent : c.accent,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  n.title,
+                                  style: TextStyle(
+                                    color: c.textPrimary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.none,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                n.body,
-                                style: TextStyle(
-                                  color: c.textSecondary,
-                                  fontSize: 12,
-                                  height: 1.4,
-                                  decoration: TextDecoration.none,
+                                const SizedBox(height: 2),
+                                Text(
+                                  n.body,
+                                  style: TextStyle(
+                                    color: c.textSecondary,
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _relTime(n.createdAt),
-                                style: TextStyle(
-                                  color: c.textTertiary,
-                                  fontSize: 10,
-                                  decoration: TextDecoration.none,
+                                const SizedBox(height: 4),
+                                Text(
+                                  _relTime(n.createdAt),
+                                  style: TextStyle(
+                                    color: c.textTertiary,
+                                    fontSize: 10,
+                                    decoration: TextDecoration.none,
+                                  ),
                                 ),
-                              ),
+                              if (_dismissFailed) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  "Couldn't dismiss — not saved. Try again.",
+                                  style: TextStyle(
+                                    color: c.danger,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.none,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

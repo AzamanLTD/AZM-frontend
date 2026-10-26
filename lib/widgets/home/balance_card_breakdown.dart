@@ -62,6 +62,7 @@ class _BreakdownRow extends StatelessWidget {
     required this.unit,
     required this.colors,
     this.detail,
+    this.showDivider = false,
   });
 
   final String label;
@@ -72,6 +73,13 @@ class _BreakdownRow extends StatelessWidget {
   final AzamanColors colors;
   final String? detail;
 
+  /// E3 — one consistent hairline between rows within a section. The
+  /// LAST row of a section carries no divider (the section label's own
+  /// spacing is the rhythm); the divider is a fixed 1px rule in the
+  /// palette's quiet neutral so the list reads as one uniform ledger,
+  /// never as separate tiles.
+  final bool showDivider;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -79,7 +87,12 @@ class _BreakdownRow extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // E3 — BASELINE RHYTHM: the label, the amount and the unit sit
+          // on one typographic baseline regardless of their different
+          // sizes, so every row's money reads on the same optical line.
           Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
               Semantics(
                 label: iconSemantic,
@@ -129,9 +142,21 @@ class _BreakdownRow extends StatelessWidget {
               padding: const EdgeInsets.only(left: 16 + AzSpace.sm),
               child: Text(
                 detail!,
-                maxLines: 1,
+                // E3 — long detail text stays READABLE: it wraps to a
+                // second line inside the scroll region instead of
+                // truncating mid-fact (the scroll owns the height).
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: AzText.caption.copyWith(color: colors.textTertiary),
+              ),
+            ),
+          if (showDivider)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Container(
+                key: const ValueKey('bc-row-divider'),
+                height: 1,
+                color: colors.textSecondary.withValues(alpha: 0.10),
               ),
             ),
         ],
@@ -242,6 +267,7 @@ class BalanceCardBreakdown extends StatelessWidget {
                 _SectionLabel('AVAILABLE', colors),
                 _BreakdownRow(
                   key: const ValueKey('bc-row-ghs-wallet'),
+                  showDivider: true,
                   label: 'GHS wallet',
                   icon: HugeIconsSolid.wallet01,
                   iconSemantic: 'GHS wallet icon',
@@ -261,6 +287,7 @@ class BalanceCardBreakdown extends StatelessWidget {
                 _SectionLabel('LOCKED OR COMMITTED', colors),
                 _BreakdownRow(
                   key: const ValueKey('bc-row-escrow'),
+                  showDivider: true,
                   label: 'Escrow & disputes',
                   icon: HugeIconsSolid.lock,
                   iconSemantic: 'Escrow lock icon',
@@ -273,6 +300,7 @@ class BalanceCardBreakdown extends StatelessWidget {
                 ),
                 _BreakdownRow(
                   key: const ValueKey('bc-row-vaults'),
+                  showDivider: true,
                   label: 'Vaults',
                   icon: HugeIconsSolid.shield01,
                   iconSemantic: 'Vault shield icon',
@@ -282,6 +310,7 @@ class BalanceCardBreakdown extends StatelessWidget {
                 ),
                 _BreakdownRow(
                   key: const ValueKey('bc-row-savings'),
+                  showDivider: true,
                   label: 'Savings',
                   icon: HugeIconsSolid.piggyBank,
                   iconSemantic: 'Savings piggy bank icon',
@@ -296,6 +325,7 @@ class BalanceCardBreakdown extends StatelessWidget {
                 ),
                 _BreakdownRow(
                   key: const ValueKey('bc-row-susu'),
+                  showDivider: v.vendorRowRelevant,
                   label: 'Susu',
                   icon: HugeIconsSolid.userGroup,
                   iconSemantic: 'Susu group icon',

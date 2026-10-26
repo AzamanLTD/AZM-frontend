@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azaman/config.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
 import 'package:azaman/widgets/marketplace/store/store_action_row.dart';
@@ -25,7 +26,12 @@ BusinessProfile _business() => const BusinessProfile(
     );
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    // No backend exists in a widget test — the bookmark seam's demo
+    // path (device-local wishlist) is the honest target here.
+    AppConfig.enableDemoMode();
+  });
 
   testWidgets('primary action uses the vertical label; bookmark toggles saved state', (tester) async {
     var primary = 0;

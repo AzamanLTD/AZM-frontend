@@ -26,6 +26,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/providers/business_provider.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/marketplace_nav_focus.dart';
 import 'package:azaman/providers/marketplace_search_binding.dart';
 import 'package:azaman/services/marketplace_booking_service.dart'
@@ -40,13 +41,15 @@ import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/story_viewer_screen.dart';
 import 'package:azaman/models/story_model.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart';
+import 'package:azaman/widgets/marketplace/follow_onboarding_sheet.dart';
+import 'package:azaman/widgets/marketplace/follow_onboarding_spotlight.dart';
 import 'package:azaman/marketplace/mix/mix_models.dart';
 import 'package:azaman/providers/marketplace_mix_provider.dart';
 import 'package:azaman/widgets/liquid/category_speed_dial.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_dice.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_feed_surface.dart';
+import 'package:azaman/widgets/marketplace/discovery/mix_local_first_rails.dart';
 import 'package:azaman/widgets/marketplace/discovery/mix_taxonomy_bubble_rail.dart';
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/marketplace/nearby_outcome.dart';
@@ -95,9 +98,24 @@ class MarketplaceHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _scrollCtrl = ScrollController();
   double _scrollOffset = 0;
+
+  // ── WORKSTREAM F1 — the EXPLICIT story-rail expansion state ──────────────
+  //
+  // The collapsed affordance used to `_scrollCtrl.animateTo(0)`: tapping the
+  // stories strip while scrolled down DRAGGED THE FEED BACK TO THE TOP,
+  // destroying the scroll anchor. The pin is the fix: tapping expands the
+  // rail IN PLACE (explicit expansion state) while the list scrolls DOWN by
+  // exactly the rail's growth, so the first visible results stay visually
+  // stationary while the rail slides in over them. The scroll-driven
+  // collapse keeps all its authority whenever the pin is not held; the pin
+  // hands back seamlessly when the user scrolls the feed to its top (the
+  // scroll ratio there is already 1 — no height jump, no opacity pop).
+  late final AnimationController _storyPinCtrl;
+  late final CurvedAnimation _storyPinCurve;
+  bool _storyPinHeld = false;
   // Live results while typing: debounce the already-updated provider text
   // into the existing search plumbing.
   Timer? _debounce;
@@ -117,6 +135,11 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
   //   • `_viewMode` (list/map, the view segmented control) governs the
   //     GEOGRAPHIC surface. The pill no longer switches the view.
   bool _nearYouActive = false;
+
+  /// True when the proximity feed was co-activated BY MIX (Workstream H):
+  /// exiting Mix then restores the pre-Mix near-you state exactly — a
+  /// user who explicitly enabled Near You first keeps it on exit.
+  bool _nearYouFromMix = false;
 
   /// Foreground-only position stream (started only while a proximity
   /// consumer is active and the app is foregrounded; stopped on exit,
@@ -176,6 +199,15 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     _scrollCtrl.addListener(_onScroll);
     _scrollCtrl.addListener(() {
       if (_scrollCtrl.hasClients) {
+        // WORKSTREAM F1 — the pin hands back to the scroll-driven grammar
+        // exactly when the feed returns to its top; there the scroll ratio
+        // is already 1, so this is a seamless handoff, never a jump.
+        if (_storyPinHeld &&
+            _scrollCtrl.offset <= 0.5 &&
+            _storyPinCtrl.value >= 1) {
+          _storyPinHeld = false;
+          _storyPinCtrl.value = 0;
+        }
         setState(() => _scrollOffset = _scrollCtrl.offset);
       }
     });
@@ -198,6 +230,17 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     // position stream that follows runs only while the consuming surface is
     // active and the app is foregrounded.
     WidgetsBinding.instance.addObserver(this);
+    _storyPinCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    // The rail's growth and the list's compensation scroll run on the SAME
+    // curve and duration, so the visible content stays anchored.
+    _storyPinCurve = CurvedAnimation(
+      parent: _storyPinCtrl,
+      curve: Curves.easeOut,
+    );
+    _storyPinCtrl.addListener(() => setState(() {}));
   }
 
   // ── App lifecycle: the location stream is FOREGROUND-ONLY ────────────────
@@ -218,6 +261,8 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     WidgetsBinding.instance.removeObserver(this);
     _nearbyTracker?.dispose();
     _debounce?.cancel();
+    _storyPinCurve.dispose();
+    _storyPinCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
@@ -499,19 +544,59 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
         _mixActive = true;
         _selectedCategory = null; // the dial renders All — Mix's default
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
         // Entering Mix defaults to ALL: the UNFILTERED discovery feed (the
         // gateway omits the category parameter entirely).
-        ref.read(marketplaceMixProvider.notifier).selectCategory(null);
+        await ref.read(marketplaceMixProvider.notifier).selectCategory(null);
+        // WORKSTREAM H — pressing Mix co-activates Near You when a valid
+        // foreground location is ALREADY available. The resolve is SILENT:
+        // it never asks for permission, so pressing Mix can't surprise
+        // the user with a system prompt. No position → the honest off
+        // state; the Near You control remains the explicit ask/retry
+        // route. No coordinates are invented and no fake feed loads.
+        try {
+          final pos = await widget.locationResolver.resolveSilently();
+          if (!mounted || !_mixActive) return;
+          setState(() {
+            _position = pos;
+            if (!_nearYouActive) {
+              _nearYouActive = true;
+              _nearYouFromMix = true;
+            }
+          });
+          _startNearbyUpdates();
+          _lastFiredPosition = pos;
+          ref
+              .read(nearbySearchProvider.notifier)
+              .searchNearby(
+                lat: pos.latitude,
+                lng: pos.longitude,
+                q: _query.isEmpty ? null : _query,
+                category: _selectedCategory,
+              );
+        } catch (_) {
+          // Silent by design: Mix stays a pure discovery surface. No
+          // prompt, no retry loop, no error banner on this path.
+        }
       });
     } else {
+      final mixOwnedNearYou = _nearYouFromMix;
       setState(() {
         _mixActive = false;
         // Restore the pre-Mix dial selection — the marketplace list
         // underneath never changed, so the view returns exactly as left.
         _selectedCategory = _preMixDialWire;
+        // WORKSTREAM H exit restoration: if MIX was what turned the
+        // proximity feed on, it turns it back off — the user returns to
+        // the exact marketplace they left. An explicitly-enabled Near You
+        // survives the Mix round trip.
+        if (mixOwnedNearYou) {
+          _nearYouActive = false;
+          _nearYouFromMix = false;
+        }
       });
+      if (mixOwnedNearYou) _stopNearbyUpdates();
     }
   }
 
@@ -549,15 +634,10 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
 
     // Scroll-driven gradient (0 at top → full when scrolled 120px)
     final expandRatio = (_scrollOffset / 120).clamp(0.0, 1.0);
-    // §16 — the story rail's collapse now speaks the SAME grammar as
-    // chat's story rail: shared travel (StoryRailCollapse.travelPx),
-    // the shared snap threshold, and reduced-motion handling that
-    // lands directly instead of sliding. No second Telegram-like
-    // implementation lives in this file anymore.
-    final storyExpandRatio = StoryRailCollapse.ratio(
-      scrollOffset: _scrollOffset,
-      reducedMotion: !AzMotion.of(context).travel,
-    );
+    // §16 — the story rail's collapse speaks the SAME grammar as chat's
+    // story rail; WORKSTREAM F1 layers the explicit pin on top (the pin
+    // only ever OPENS — scroll keeps its authority everywhere else).
+    final storyExpandRatio = _storyRailRatio(context);
 
     final searchActive = ref.watch(
       marketplaceSearchProvider.select((s) => s.isActive),
@@ -579,11 +659,23 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
         body: SafeArea(
           bottom: false,
           child: AzPullToRefresh(
-            onRefresh: () => _mixActive
-                ? ref.read(marketplaceMixProvider.notifier).retry()
-                : (_viewMode == _ViewMode.list
-                      ? (_nearYouActive ? _fireNearby() : _refresh())
-                      : _fireNearby()),
+            onRefresh: () async {
+              // WORKSTREAM H: with Mix and the co-activated proximity
+              // feed both live, one deliberate pull refreshes BOTH —
+              // never a silent stale half.
+              if (_mixActive && _nearYouActive) {
+                await Future.wait([
+                  ref.read(marketplaceMixProvider.notifier).retry(),
+                  _fireNearby(),
+                ]);
+              } else if (_mixActive) {
+                await ref.read(marketplaceMixProvider.notifier).retry();
+              } else if (_viewMode == _ViewMode.list) {
+                await (_nearYouActive ? _fireNearby() : _refresh());
+              } else {
+                await _fireNearby();
+              }
+            },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -669,6 +761,18 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                         // ── §11: the category SPEED DIAL is the category
                         // system (radial fan grammar) + Near You as the only
                         // additional control. §12: no star/featured surface.
+                        // ── I1: the follow-onboarding spotlight card.
+                        //    Renders itself ONLY in the proven-eligible
+                        //    state (authoritative empty follow list,
+                        //    authenticated, not previously dismissed) —
+                        //    every other state is an honest SizedBox
+                        //    that takes no layout space. Non-modal by
+                        //    construction: the marketplace above and
+                        //    below it stays fully interactive.
+                        FollowOnboardingSpotlight(
+                          userId: ref.watch(authProvider).user?.id,
+                          onStart: () => FollowOnboardingSheet.open(context),
+                        ),
                         _controlRow(colors),
                         Expanded(
                           child: _mixActive
@@ -699,7 +803,23 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // WORKSTREAM H — the proximity strip: the one-glance answer to
+        // "why am I seeing these results?" Rendered ONLY while the
+        // proximity feed is live, showing REAL states only (resolving,
+        // nearby results, nearby failure) and NEVER coordinates.
+        if (_nearYouActive)
+          const MixProximityStrip(key: ValueKey('mix_proximity_strip')),
         const MixTaxonomyBubbleRail(),
+        // WORKSTREAM H — local-first rails: "Nearby for you" (real
+        // distance-ordered results) ABOVE "From your network" (offers
+        // from businesses the user actually follows on the server).
+        // Real-data-only: a rail with nothing honest to show renders
+        // nothing at all — no fabricated popularity, no guessed rows.
+        if (_nearYouActive)
+          MixLocalFirstRails(
+            key: const ValueKey('mix_local_first_rails'),
+            onOpenStore: _openMixStore,
+          ),
         Expanded(
           key: const ValueKey('mix_inplace_feed'),
           child: MixFeedSurface(
@@ -882,6 +1002,59 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     );
   }
 
+  // ── WORKSTREAM F1 — explicit story expansion (pin) ──────────────────────────
+
+  /// The rail's EFFECTIVE open ratio: the scroll-driven shared collapse
+  /// grammar, layered with the explicit pinned-open animation. The pin
+  /// only ever OPENS the rail (max) — the scroll keeps its authority for
+  /// every collapse that is not an explicit expansion.
+  double _storyRailRatio(BuildContext context) {
+    final scrollRatio = StoryRailCollapse.ratio(
+      scrollOffset: _scrollOffset,
+      reducedMotion: !AzMotion.of(context).travel,
+    );
+    return _storyPinCurve.value > scrollRatio
+        ? _storyPinCurve.value
+        : scrollRatio;
+  }
+
+  /// Expands the stories rail IN PLACE from the collapsed affordance.
+  ///
+  /// F1 contract: the page is NEVER scrolled to the top. The rail opens
+  /// (explicit expansion state) and the results list scrolls DOWN by
+  /// exactly the rail's growth on the same curve/duration, so the first
+  /// visible results stay visually stationary while the rail slides in.
+  /// Reduced motion lands directly, per the shared rail grammar.
+  void _pinStoriesOpen(BuildContext context) {
+    if (_storyPinHeld || _storyPinCtrl.value >= 1) return;
+    _storyPinHeld = true;
+    final reduced = !AzMotion.of(context).travel;
+    if (!reduced) {
+      _storyPinCtrl.forward(from: 0);
+    }
+    if (!_scrollCtrl.hasClients) return;
+    final pos = _scrollCtrl.position;
+    // Compensate only the rail's REMAINING growth: tapping mid-collapse
+    // (partial ratio) grows the rail by the unfilled part, and the list
+    // scrolls by exactly that — the anchor is preserved at every tap
+    // point, not just from fully collapsed.
+    final growth = StoryRailCollapse.extentPx * (1 - _storyRailRatio(context));
+    final target = (pos.pixels + growth).clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
+    if (reduced) {
+      _storyPinCtrl.value = 1.0;
+      pos.jumpTo(target);
+    } else {
+      _scrollCtrl.animateTo(
+        target,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
   // ── Header (title + actions) ────────────────────────────────────────────────
 
   Widget _header(AzamanColors colors) {
@@ -889,10 +1062,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
     // the focused Marketplace nav band owns the search field, bound to the
     // AUTHORITATIVE provider. The header keeps the story avatars slot, the
     // storefront management, order history, and the list/map view toggle.
-    final storyExpandRatio = StoryRailCollapse.ratio(
-      scrollOffset: _scrollOffset,
-      reducedMotion: !AzMotion.of(context).travel,
-    );
+    final storyExpandRatio = _storyRailRatio(context);
     final storyCollapsedOpacity = (1.0 - storyExpandRatio).clamp(0.0, 1.0);
 
     // Review A1 — the collapsed story affordance now renders with the
@@ -912,13 +1082,9 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
           if (storyCollapsedOpacity > 0.5)
             Expanded(
               child: MarketplaceCollapsedAvatars(
-                onTap: () {
-                  _scrollCtrl.animateTo(
-                    0,
-                    duration: const Duration(milliseconds: 400),
-                    curve: Curves.easeOut,
-                  );
-                },
+                // WORKSTREAM F1 — expand IN PLACE; the feed NEVER gets
+                // dragged back to the top.
+                onTap: () => _pinStoriesOpen(context),
               ),
             )
           else
@@ -1091,7 +1257,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                         categories: _dialCategories,
                         selectedWire: _selectedCategory,
                         colors: colors,
-                        onSelected: (wire) {
+                        onSelected: (wire) async {
                           AzamanHaptics.toggle();
                           setState(() => _selectedCategory = wire);
                           if (_mixActive) {
@@ -1100,11 +1266,17 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                             // REAL_ESTATE "Stay" is the discovery endpoint's
                             // HOSPITALITY; the mismatch can never build an invalid
                             // query and never silently defaults to Eat).
-                            ref
+                            await ref
                                 .read(marketplaceMixProvider.notifier)
                                 .selectCategory(
                                   MixDialCategoryBoundary.dialToMix(wire),
                                 );
+                            // WORKSTREAM H: while Mix co-activated the
+                            // proximity feed, the dial is BOTH feeds'
+                            // category selector — the nearby search
+                            // re-fires with the same wire, so the rails
+                            // and the discovery feed never disagree.
+                            if (_nearYouActive) _fireNearby();
                           } else {
                             _fireSearch();
                           }

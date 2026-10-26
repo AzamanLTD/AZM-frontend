@@ -188,10 +188,16 @@ Future<void> _assertFrontContract(WidgetTester tester,
   // The headline is a single Text when the combined value is computable,
   // or a block (native amount + note) when the rate is missing.
   final headlineFinder = find.byKey(const ValueKey('balance-fx-headline'));
+  // WORKSTREAM E: the incomplete-valuation headline is the fitted NATIVE
+  // amount line now (the old wrapper block is gone) — fall back to it.
+  final nativeFinder =
+      find.byKey(const ValueKey('balance-fx-headline-native'));
   final blockFinder =
       find.byKey(const ValueKey('balance-fx-headline-block'));
-  final headline = tester.getRect(
-      headlineFinder.evaluate().isNotEmpty ? headlineFinder : blockFinder);
+  final effective = headlineFinder.evaluate().isNotEmpty
+      ? headlineFinder
+      : (nativeFinder.evaluate().isNotEmpty ? nativeFinder : blockFinder);
+  final headline = tester.getRect(effective);
   final rateRow =
       tester.getRect(find.byKey(const ValueKey('balance-fx-rate-row')));
   expect(headline.top, greaterThan(label.bottom),

@@ -27,6 +27,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+
+import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/services/deposit_continuations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/user_model.dart';
@@ -101,6 +104,25 @@ class AuthProvider with ChangeNotifier {
     _user = loginUser;
     if (previousIdentity != null && previousIdentity != loginUser.id) {
       _resetBalanceStateForIdentityBoundary();
+      // REVIEW FOLLOW-UP P1 — a DIRECT account switch (no logout) is an
+      // identity boundary too. The drafts and submitted-deposit
+      // continuation authorities are switched to the new user
+      /// immediately: the outgoing user's in-memory records vanish
+      /// synchronously (they can never render past the boundary), the
+      /// new user's records load under a fresh generation, and any
+      /// in-flight storage read for the old user completes into the
+      /// void. Logout must not be relied on to run before every
+      /// switch (SSO and login both land here directly).
+      try {
+        await ref
+            ?.read(launcherDraftsProvider.notifier)
+            .switchToUser(loginUser.id);
+        await ref
+            ?.read(depositContinuationsProvider.notifier)
+            .switchToUser(loginUser.id);
+      } catch (_) {
+        // Authority switching must never block the session handoff.
+      }
     }
     _status = AuthStatus.loading;
     _error = null;
@@ -205,6 +227,18 @@ class AuthProvider with ChangeNotifier {
     final ok = await _api.isAuthenticated();
     if (!ok) {
       _user = null;
+      // REVIEW GAP 4 — session invalidation is an identity boundary just
+      // like logout: the drafts/continuation authorities are told their
+      // user is gone, so a stale in-flight storage read can never
+      // repopulate the previous user's state.
+      try {
+        await ref?.read(launcherDraftsProvider.notifier).clearForLogout();
+        await ref
+            ?.read(depositContinuationsProvider.notifier)
+            .clearForLogout();
+      } catch (_) {
+        // Local state clearing must never block the session teardown.
+      }
       // IDENTITY BOUNDARIES — the stored identity no longer checks out
       // (token/user gone, or the check request itself failed and
       // isAuthenticated returned false). This is a session end: the
@@ -231,6 +265,18 @@ class AuthProvider with ChangeNotifier {
     _hydrationGeneration++;
     await _api.logout();
     _user = null;
+    // §C.1 identity boundary — every stored launcher draft (and its
+    // editable inputs, including any secure-storage fields) is scoped
+    // to the outgoing user. Account switches pass through here too, so
+    // the next user never inherits the previous user's drafts.
+    try {
+      await ref?.read(launcherDraftsProvider.notifier).clearForLogout();
+      await ref
+          ?.read(depositContinuationsProvider.notifier)
+          .clearForLogout();
+    } catch (_) {
+      // Draft clearing must never block the logout itself.
+    }
     // IDENTITY BOUNDARIES — logout ends the session identity: the next
     // session must start from `unresolved`, never the previous user's
     // figure.

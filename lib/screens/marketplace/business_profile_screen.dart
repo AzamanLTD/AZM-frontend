@@ -49,6 +49,8 @@ import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/screens/marketplace/catalog_storefront_screen.dart';
 import 'package:azaman/screens/marketplace/business_reviews_section.dart';
 import 'package:azaman/providers/marketplace_search_provider.dart';
+import 'package:azaman/providers/server_bookmarks_provider.dart'
+    show isBusinessSaved, toggleBusinessSaved;
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -1209,6 +1211,13 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
       showcaseSlides: _showcaseSlides,
       isFollowing: _isFollowing,
       unpaidInvoices: _unpaidInvoices,
+      // JOYSTICK — the durable bookmark contract (PR #370) through the
+      // single canonical seam. Real sessions read/write the server set
+      // (canonical BusinessProfile.id keys); demo rides the local
+      // wishlist. Watching here means the Save satellite's state is
+      // always the honest end state, including after exact rollback.
+      isBookmarked: isBusinessSaved(ref, business),
+      onToggleBookmark: () => toggleBusinessSaved(context, ref, business),
       hasCatalog: _hasCatalog,
       catalogLabel: _catalogTabLabel(business.category),
       productsBuilder: _storefrontProducts,

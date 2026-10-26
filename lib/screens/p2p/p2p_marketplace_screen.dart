@@ -8,7 +8,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
-import 'package:azaman/screens/withdrawal_screen.dart';
 import 'package:azaman/screens/azm_rewards_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
@@ -368,11 +367,8 @@ class _CashBalanceCard extends ConsumerWidget {
                         onDarkCard: true,
                         onTap: () {
                           HapticFeedback.lightImpact();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const WithdrawalScreen()),
-                          );
+                          // CANONICAL ROUTE: /withdraw (Workstream C).
+                          context.push(AzRoutes.withdraw());
                         },
                       ),
                     ),

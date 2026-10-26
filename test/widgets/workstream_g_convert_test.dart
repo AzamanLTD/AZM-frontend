@@ -499,14 +499,23 @@ void main() {
               'arithmetic on an unusable rate would be a fabricated '
               'number',
         );
+        // WORKSTREAM D CONTRACT UPDATE (2026-10-25): with no usable rate
+        // the To panel's rate strip itself carries the unavailable
+        // verdict + reason, so there is no 'enter an amount' prompt at
+        // all — prompting for an estimate while the rate is broken would
+        // be the dishonest state. The reason must be disclosed instead.
         expect(
-          tester
-              .widget<Text>(
-                find.byKey(const Key('convert_amount_estimate_pending')),
-              )
-              .data!
-              .contains('usable rate'),
-          isTrue,
+          find.byKey(const Key('convert_amount_estimate_pending')),
+          findsNothing,
+          reason:
+              'no estimate prompt may render while the rate itself is '
+              'unusable — the To panel discloses the unavailability '
+              'instead',
+        );
+        expect(
+          find.byKey(const Key('convert_estimate_unavailable_reason')),
+          findsOneWidget,
+          reason: 'the WHY must be disclosed, not just the verdict',
         );
       },
     );

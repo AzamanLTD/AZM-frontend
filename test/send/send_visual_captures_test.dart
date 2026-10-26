@@ -169,7 +169,15 @@ Future<void> _slideToConfirm(WidgetTester tester) async {
       reason: 'the money action is a slide-to-confirm surface');
   final topLeft = tester.getTopLeft(slide);
   final gesture = await tester.startGesture(topLeft + const Offset(28, 30));
-  await gesture.moveBy(const Offset(1200, 0));
+  // Workstream B: the review stage lives inside
+  // PullDownDismissibleSurface whose vertical recognizer joins the
+  // arena — drag incrementally (real thumb physics) so the horizontal
+  // slide recognizer resolves instead of hitting the one-shot synthetic
+  // move's arena tie-break.
+  for (var i = 0; i < 24; i++) {
+    await gesture.moveBy(const Offset(50, 0));
+    await tester.pump(const Duration(milliseconds: 16));
+  }
   await gesture.up();
   await tester.pump();
 }

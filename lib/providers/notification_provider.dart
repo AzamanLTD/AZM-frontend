@@ -8,12 +8,26 @@ import 'package:azaman/services/socket_service.dart';
 
 class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   final Ref _ref;
+  // Injectable seams (defaults = production singletons) so the durable
+  // dismissal contract is testable against fake HTTP + socket edges.
+  final ApiClient _api;
+  final SocketService? _socketOverride;
+  // REVIEW GAP 5 — same-ID rollback race: a DISMISSED socket event for
+  // an id is the SERVER saying that row is durably gone in every
+  // session. Once recorded here, a subsequently FAILED local delete for
+  // that same id can never roll the item back — the server's answer
+  // outranks our rejected request. Soft dismissal is permanent
+  // server-side, so ids collected here never legitimately reappear.
+  final Set<String> _authoritativelyDismissed = <String>{};
   // Captured at construction: dispose() must not read providers (the
   // container may be mid-teardown, which crashes Riverpod).
   late final SocketService _socketService;
 
-  NotificationNotifier(this._ref) : super([]) {
-    _socketService = _ref.read(socketServiceProvider);
+  NotificationNotifier(this._ref, {ApiClient? client, SocketService? socketService})
+      : _api = client ?? apiClient,
+        _socketOverride = socketService,
+        super([]) {
+    _socketService = _socketOverride ?? _ref.read(socketServiceProvider);
     _initSocketListener();
     fetchNotifications();
   }
@@ -53,6 +67,15 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
         }
       } else if (type == 'MARKED_ALL_READ') {
         _applyMarkAllAsReadLocal();
+      } else if (type == 'DISMISSED') {
+        // Backend E (owner-scoped soft dismissal): another session of
+        // this user dismissed an item — converge by hiding it here too.
+        // Idempotent: an already-absent id is a no-op.
+        final id = raw['notificationId']?.toString();
+        if (id != null && id.isNotEmpty) {
+          _authoritativelyDismissed.add(id);
+          _applyDismissedLocal(id);
+        }
       }
     } catch (e) {
       debugPrint('[NotificationProvider] notifications_updated parse error: $e');
@@ -73,7 +96,7 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
       final token = auth.user?.token;
       if (token == null || token.isEmpty) return;
 
-      final response = await apiClient.get('/notifications?limit=50');
+      final response = await _api.get('/notifications?limit=50');
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -111,7 +134,7 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
       final token = auth.user?.token;
       if (token == null) return;
 
-      await apiClient.patch('/notifications/$id/read');
+      await _api.patch('/notifications/$id/read');
     } catch (e) {
       debugPrint('[NotificationProvider] markAsRead API error: $e');
     }
@@ -136,7 +159,7 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
       final token = auth.user?.token;
       if (token == null) return null;
 
-      final response = await apiClient.patch('/notifications/read-all');
+      final response = await _api.patch('/notifications/read-all');
 
       if (response.statusCode == 200) {
         try {
@@ -186,12 +209,74 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
     state = [notification, ...state];
   }
 
-  void removeNotification(String id) {
+  /// Durable, owner-scoped dismissal — the honest delete.
+  ///
+  /// Backend contract (Backend E): `DELETE /api/notifications/:id` soft-
+  /// dismisses the row; the server hides it from the owner's list and
+  /// unread count in every session and emits `notifications_updated
+  /// { type: DISMISSED }` to the owner's socket room.
+  ///
+  /// Honesty rules:
+  ///  - Optimistic local removal keeps the swipe chip snappy, but a
+  ///    REJECTED dismissal (non-200 or network failure) rolls the exact
+  ///    snapshot back — an item is never silently lost locally, and the
+  ///    user can tap Delete again to retry.
+  ///  - Dismissal is independent of `isRead`: the rolled-back item
+  ///    returns with its read state untouched; dismissing an unread
+  ///    item never marks it read.
+  ///  - Repeated dismissal is idempotent on both sides (server 200s on
+  ///    already-dismissed rows).
+  Future<bool> deleteNotification(String id) async {
+    // ROLLBACK CORRECTNESS (review 4.4): the optimistic removal is
+    // operation-scoped, so its rollback must be too. Restoring a FULL
+    // snapshot here could resurrect an item another concurrent
+    // operation had legitimately settled in the meantime — a second
+    // dismissal that succeeded, or a socket DISMISSED convergence from
+    // another session. Only the exact dismissed item is re-inserted,
+    // and only if it is still absent.
+    final index = state.indexWhere((n) => n.id == id);
+    if (index < 0) return true; // already gone (idempotent dismissal)
+    final dismissedItem = state[index];
     state = state.where((n) => n.id != id).toList();
+    try {
+      final response = await _api.delete('/notifications/$id');
+      if (response.statusCode == 200) {
+        _authoritativelyDismissed.add(id);
+        return true;
+      }
+      debugPrint(
+          '[NotificationProvider] dismissal rejected: ${response.statusCode}');
+    } catch (e) {
+      debugPrint('[NotificationProvider] dismissal error: $e');
+    }
+    _restoreDismissed(dismissedItem, index);
+    return false;
   }
 
-  void deleteNotification(String id) {
-    removeNotification(id);
+  /// Operation-scoped rollback: re-inserts exactly the item whose
+  /// dismissal failed, at its original position (clamped), and only if
+  /// it is not present — a concurrent settle for this id wins over the
+  /// stale optimistic removal. Every OTHER item keeps whatever state
+  /// the concurrent operations left it in.
+  void _restoreDismissed(AppNotification item, int originalIndex) {
+    // SAME-ID RACE (review gap 5): if the server has since confirmed
+    // this exact item dismissed (socket DISMISSED arrived while our
+    // HTTP request was in flight), the failed delete must NOT resurrect
+    // it. The item stays absent and the unread count stays settled.
+    if (_authoritativelyDismissed.contains(item.id)) return;
+    if (state.any((n) => n.id == item.id)) return;
+    final next = [...state];
+    next.insert(originalIndex.clamp(0, next.length), item);
+    state = next;
+  }
+
+  /// Local convergence for the socket `DISMISSED` event (another session
+  /// dismissed this item). Local-only by design: the server already
+  /// persisted the dismissal and broadcast it; we mirror the durable
+  /// state, we do not re-request it.
+  void _applyDismissedLocal(String id) {
+    if (!state.any((n) => n.id == id)) return;
+    state = state.where((n) => n.id != id).toList();
   }
 
   /// Refresh notifications from the backend (pull-to-refresh).
@@ -202,12 +287,17 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
 
 final notificationProvider =
     StateNotifierProvider<NotificationNotifier, List<AppNotification>>((ref) {
-  return NotificationNotifier(ref);
+  return NotificationNotifier(ref, client: ref.watch(apiClientProvider));
 });
 
 final unreadCountProvider = Provider<int>((ref) {
+  // REVIEW 4.1 — the unread count is derived from the same canonical
+  // source as the overlay's visible list and counts EVERY unread
+  // notification. The previous rule silently dropped unread `general`
+  // notifications, so the bell badge and the panel's own unread count
+  // disagreed whenever a general notice was unread.
   return ref.watch(notificationProvider)
-      .where((n) => !n.isRead && n.category != NotificationCategory.general)
+      .where((n) => !n.isRead)
       .length;
 });
 

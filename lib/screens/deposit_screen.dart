@@ -35,14 +35,21 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/widgets/launcher_exit_prompt.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/config.dart';
+import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/deposit_settlement_monitor.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/deposit_recovery_service.dart';
+import 'package:azaman/services/deposit_continuations.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -67,6 +74,7 @@ class DepositScreen extends ConsumerStatefulWidget {
     this.initialTab = DepositTab.fiat,
     this.prefillAmount,
     this.memo,
+    this.restoredDraft,
   });
 
   final DepositTab initialTab;
@@ -83,6 +91,12 @@ class DepositScreen extends ConsumerStatefulWidget {
   /// the cycle that prompted them. Not surfaced visually.
   final String? memo;
 
+  /// §C continuation — editable inputs restored from a five-minute
+  /// launcher draft. LOCAL convenience only; a draft is NEVER a pending
+  /// deposit. The saved-account pick is re-matched by id against the
+  /// LIVE account list when the panel loads.
+  final Map<String, dynamic>? restoredDraft;
+
   @override
   ConsumerState<DepositScreen> createState() => _DepositScreenState();
 }
@@ -90,6 +104,81 @@ class DepositScreen extends ConsumerStatefulWidget {
 enum DepositTab { crypto, fiat }
 
 class _DepositScreenState extends ConsumerState<DepositScreen> {
+  /// §C — live handle into the fiat panel so the draft capture reads the
+  /// panel's actual amount state without hoisting it.
+  final GlobalKey<_FiatDepositPanelState> _fiatPanelKey =
+      GlobalKey<_FiatDepositPanelState>();
+
+  /// §C.1 — meaningful unsubmitted input on the launcher's surface (the
+  /// fiat panel's amount). Empty closes are silent; a meaningful close
+  /// offers Keep for 5 minutes / Discard / Stay.
+  bool get _hasMeaningfulDraftInput {
+    final panel = _fiatPanelKey.currentState;
+    if (panel == null) return false;
+    // A deposit in flight is ALWAYS meaningful: real money may be moving
+    // under its reference, and closing must offer Keep so the draft
+    // carries the user's way back onto that one transaction.
+    return panel._amountRaw.isNotEmpty || panel.hasInFlightDeposit;
+  }
+
+  Map<String, dynamic> _captureDraft() => {
+        'amountRaw': _fiatPanelKey.currentState?._amountRaw ?? '',
+        if (_fiatPanelKey.currentState?._selectedAccountId != null)
+          'accountId': _fiatPanelKey.currentState!._selectedAccountId,
+        // Deposit lifecycle (PR #202 item 1) — persist the reference of
+        // a deposit still in flight so a session interruption can be
+        // reconciled on resume. Never persisted once confirmed.
+        if (_fiatPanelKey.currentState?.hasInFlightDeposit == true)
+          'pendingReference': _fiatPanelKey.currentState!.inFlightReference,
+      };
+
+  Future<void> _attemptClose() async {
+    // REVIEW GAP 1 — initial-submit race: while POST /deposit/fiat/
+    // initiate/moolre is in flight the form looks "meaningful" (amount
+    // is set) but a durable provider reference does not exist yet, so a
+    // draft saved in this window could resume into a fresh instruction
+    // for a transaction that may already have committed. Every close
+    // gesture is guarded until the initiation's outcome can be safely
+    // represented: on success the reference exists (and the close draft
+    // carries it); on failure the form is honestly reusable again.
+    // No new idempotency identity is minted here — the guard only holds
+    // the surface open until the SAME operation resolves.
+    final panel = _fiatPanelKey.currentState;
+    // REVIEW FOLLOW-UP P1 — the guard now holds through BOTH windows:
+    // the initiate request itself, and the continuation persistence it
+    // hands off to. Closing before the local record is confirmed could
+    /// lose the only pointer to a submitted operation.
+    if (panel != null &&
+        (panel.isInitiating || panel.isPersistingContinuation)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            panel.isInitiating
+                ? 'Setting up your deposit — hold on a moment.'
+                : 'Saving your deposit receipt — hold on a moment.',
+          ),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return; // no draft, no close — the operation owns the window
+    }
+    if (_hasMeaningfulDraftInput) {
+      final user = ref.read(authProvider).user;
+      await guardLauncherClose(
+        context: context,
+        ref: ref,
+        userId: user?.id,
+        surface: LauncherSurface.addCash,
+        hasMeaningfulInput: _hasMeaningfulDraftInput,
+        capture: _captureDraft,
+        doClose: _closeSurface,
+      );
+      return;
+    }
+    _closeSurface();
+  }
+
   void _closeSurface() {
     AzamanHaptics.navigation();
     if (context.canPop()) {
@@ -102,21 +191,32 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    // LAST REVIEW — settlement resolution must survive this surface's
+    // own result view AND its absence: watching the monitor from build
+    // (the legal lifecycle point) keeps it alive whenever Add Cash is
+    // open; MainWrapper keeps it alive for the rest of the session.
+    ref.watch(depositSettlementMonitorProvider);
 
     return Scaffold(
       backgroundColor: colors.surface,
       body: SafeArea(
         bottom: false,
         child: PullDownDismissibleSurface(
-          onDismiss: _closeSurface,
+          onDismiss: _attemptClose,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _AddCashHeader(colors: colors, onClose: _closeSurface),
+              _AddCashHeader(colors: colors, onClose: _attemptClose),
               Expanded(
                 child: _FiatDepositPanel(
+                  key: _fiatPanelKey,
                   prefillAmount: widget.prefillAmount,
                   memo: widget.memo,
+                  restoredAmount: widget.restoredDraft?['amountRaw']?.toString(),
+                  restoredAccountId:
+                      widget.restoredDraft?['accountId']?.toString(),
+                  restoredPendingReference: widget
+                      .restoredDraft?['pendingReference']?.toString(),
                 ),
               ),
             ],
@@ -192,10 +292,33 @@ class _AddCashHeader extends StatelessWidget {
 // =============================================================================
 
 class _FiatDepositPanel extends ConsumerStatefulWidget {
-  const _FiatDepositPanel({this.prefillAmount, this.memo});
+  const _FiatDepositPanel({
+    super.key,
+    this.prefillAmount,
+    this.memo,
+    this.restoredAmount,
+    this.restoredAccountId,
+    this.restoredPendingReference,
+  });
 
   final String? prefillAmount;
   final String? memo;
+
+  /// §C draft resume — the launcher draft's amount. Applied exactly like
+  /// the deep-link prefill: through the same validator, never raw-trusted.
+  final String? restoredAmount;
+
+  /// §C draft resume — the draft's explicit account id. Re-matched against
+  /// the LIVE saved-accounts list when it loads; a deleted account is
+  /// honestly unselected instead of restored as stale data.
+  final String? restoredAccountId;
+
+  /// §C draft resume — the payment reference of a deposit that was still
+  /// IN FLIGHT when the surface closed. Unlike amount/account this is not
+  /// a preference: real money may be moving under that reference. The
+  /// panel reconciles it against the backend's durable ledger state
+  /// (see [_recoverInterruptedDeposit]) instead of assuming anything.
+  final String? restoredPendingReference;
 
   @override
   ConsumerState<_FiatDepositPanel> createState() => _FiatDepositPanelState();
@@ -243,9 +366,282 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   bool _isValidatingName = false;
   bool _requiresOtp = false;
   String? _pendingReference;
+
+  /// REVIEW FOLLOW-UP P1 — the continuation write that makes a
+  /// SUBMITTED deposit durably recoverable. True while the write is in
+  /// flight, and while it has failed and awaits its explicit retry:
+  /// the surface must not close — and no new deposit may start — until
+  /// the local recovery record is confirmed. The backend reference is
+  /// the user's only way back onto an instruction they already gave.
+  bool _persistingContinuation = false;
+  bool _continuationPersistFailed = false;
+
+  /// REVIEW FOLLOW-UP (owner identity) — the identity that STARTED the
+  /// financial operation owns its continuation records for the
+  /// operation's whole lifetime (initiate → OTP confirm → recovery →
+  /// resolution). An account switch while a request is in flight must
+  /// NEVER reassign a submitted operation to whichever user is active
+  /// when the response lands: A's reference is saved under A's storage
+  /// key even if B is on screen. Captured at initiation; a resumed
+  /// draft's recovery captures the CURRENT user, because a user-scoped
+  /// draft can only be re-opened by its owner.
+  String? _operationOwnerUserId;
+  bool _operationOwnerCaptured = false;
+
+  /// The storage owner for this screen's continuation lifecycle. Falls
+  /// back to the session user only BEFORE any operation was captured
+  /// (fresh screen, no pending operation).
+  String? get _continuationOwner => _operationOwnerCaptured
+      ? _operationOwnerUserId
+      : ref.read(authProvider).user?.id;
+
+  /// Capture the operation's owner at the moment the financial request
+  /// starts — the ONLY time the session user is consulted for this
+  /// operation's identity.
+  void _captureOperationOwner() {
+    _operationOwnerUserId = ref.read(authProvider).user?.id;
+    _operationOwnerCaptured = true;
+  }
+
+  // ── LAST REVIEW: pending-result cancellation semantics ────────────────
+  //
+  // No cancellation contract exists with the provider: a local screen
+  // reset can NEVER end a submitted instruction. The operation's
+  // reference and owner must therefore outlive the form/result state
+  // the reset clears:
+  //
+  //   • durably — the continuation record (saved under the operation
+  //     owner's key the moment its reference is durable) plus the
+  //     settlement monitor, which resolves the reference's BOUND owner's
+  //     stored continuation for an event's EXACT reference even after
+  //     this surface is gone or the session switched accounts;
+  //   • on this surface — [_trackedOperations]: every operation this
+  //     screen minted, keyed by exact reference → the owner captured at
+  //     ITS initiation. A settlement for THAT reference is confirmed to
+  //     the user and resolved under the RIGHT owner (an account switch
+  //     mid-flow never re-binds a settled operation), even after the
+  //     user backed out of its result view or started another deposit.
+  //
+  // Entries leave ONLY on authoritative settlement (duplicate events are
+  // no-ops); an unresolved operation stays tracked exactly as long as its
+  // continuation record stays stored. Product policy: concurrent pending
+  // operations are SUPPORTED — each carries its own reference and is
+  // independently tracked and resolved; the notification centre lists
+  // every "Deposits in progress" row.
+  final Map<String, String> _trackedOperations = {};
+
+  /// Record a submitted operation under the owner captured at ITS
+  /// initiation. Called at every durable-reference moment.
+  void _trackOperation(String reference, String owner) {
+    final ref_ = reference.trim();
+    if (ref_.isEmpty || owner.trim().isEmpty) return;
+    _trackedOperations[ref_] = owner.trim();
+  }
+
+  /// The screen's settlement listener — stored as a field so dispose can
+  /// remove exactly this handler (SocketService's seam is multi-listener:
+  /// the continuation monitor's handler must survive this surface).
+  void _onSocketSettlement(
+    double amountGhs,
+    double amountUsdc,
+    String provider,
+    String reference,
+  ) {
+    if (!mounted) return;
+    final eventRef = reference.trim();
+    if (eventRef.isEmpty) return;
+    final owner = _trackedOperations.remove(eventRef);
+    if (owner == null || owner.isEmpty) {
+      // Not an operation this surface minted (or already settled — a
+      // duplicate event is a no-op). The settlement monitor owns the
+      // stored-continuation half; an untracked reference is not ours to
+      // confirm or resolve.
+      return;
+    }
+    // Resolution under the operation's CAPTURED owner: a settlement for
+    // A's deposit resolves A's continuation even if another account is
+    // active now. Exact-reference only — deposit B's record is never
+    // touched by deposit A's event, and the service's terminal
+    // resolution makes this idempotent.
+    ref
+        .read(depositContinuationsProvider.notifier)
+        .resolve(owner, eventRef);
+    final colors = ref.read(themeProvider).colors;
+    final visibleRef =
+        _depositResult?['reference']?.toString() ?? _pendingReference ?? '';
+    if (visibleRef == eventRef && _depositResult != null) {
+      if (!_depositConfirmed) {
+        setState(() => _depositConfirmed = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✓ Deposit confirmed — GH₵ ${amountGhs.toStringAsFixed(2)} credited to your wallet',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: colors.success,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } else {
+      // The operation completed while its result view was NOT on screen
+      // (the user backed out, started another deposit, or is mid-OTP):
+      // honest status for a pending operation the surface still tracks.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '✓ Your earlier deposit $eventRef completed — your wallet was funded.',
+          ),
+          backgroundColor: colors.success,
+          duration: const Duration(seconds: 5),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
   final _otpController = TextEditingController();
   bool _isConfirmingOtp = false;
   bool _depositConfirmed = false;
+
+  // Deposit lifecycle (PR #202 item 1) — true while the restored draft's
+  // pending reference is being reconciled against the backend ledger.
+  // While true no NEW initiation can start: the user must never be able
+  // to double-instruct while an earlier instruction may still be live.
+  bool _recovering = false;
+
+  // REVIEW GAP 2 — fail-closed recovery: a lookup failure or an
+  // unresolved status is NOT evidence the earlier instruction did not
+  // commit. While true the earlier reference is preserved, the CTA is
+  // blocked, and an explicit unresolved banner offers a re-check. The
+  // form is never silently usable again until the SAME operation is
+  // authoritatively resolved (settled/failed) by the ledger.
+  bool _recoveryUnresolved = false;
+
+  /// REVIEW GAP 1 — true only while the INITIAL initiate request is in
+  /// flight and no durable reference exists yet (the exact window in
+  /// which a close draft cannot honestly represent the operation).
+  /// The OTP confirm is NOT this window: its reference already exists
+  /// and is safely representable.
+  bool get isInitiating => _isSubmitting && !hasInFlightDeposit;
+
+  /// REVIEW FOLLOW-UP P1 — the close guard holds through this window
+  /// exactly as it does through the initiation window: a durable
+  /// backend reference whose local continuation record is unconfirmed
+  /// (or failed) is a lost way back, and no draft may claim otherwise.
+  bool get isPersistingContinuation =>
+      _persistingContinuation || _continuationPersistFailed;
+
+  /// The payment reference a draft should carry: the deposit that is
+  /// still in flight (OTP pending or prompt sent), never a confirmed or
+  /// reset one. A deposit in flight makes a close MEANINGFUL — the draft
+  /// keeps the user's way back onto that one transaction.
+  String? get inFlightReference => _depositConfirmed
+      ? null
+      : (_pendingReference ?? _depositResult?['reference']?.toString());
+
+  bool get hasInFlightDeposit => (inFlightReference ?? '').isNotEmpty;
+
+  /// FIX 3 — the moment a durable provider reference exists the deposit
+  /// is a SUBMITTED operation: its way-back survives form-draft expiry
+  /// in the separate continuation lifecycle. Saved at initiate success
+  /// (idempotent upsert) and removed only on AUTHORITATIVE resolution.
+  /// REVIEW FOLLOW-UP P1 — the save is AWAITED inside the submit and
+  /// OTP-confirm windows and the close guard holds until it completes.
+  /// On failure the exact returned reference is retained, the state
+  /// stays safe and recoverable, an explicit retry re-runs the SAME
+  /// save, and no new deposit is initiated in its place. The
+  /// continuation is never claimed saved when it is not.
+  Future<void> _saveContinuation(String reference) async {
+    // OWNER BINDING (review follow-up) — the INITIATING identity, never
+    // the currently-active one. A response that lands after an account
+    // switch must not store A's reference under B's key.
+    final uid = _continuationOwner?.trim();
+    if (uid == null || uid.isEmpty) {
+      // FAIL CLOSED — no owner can be established for an operation the
+      // backend has already accepted. Never silently treat the
+      // way-back as saved: the exact reference is retained, the
+      // persistence-failure state engages, and the retry guard stays
+      // armed until an owner can be established and the write lands.
+      _markContinuationPersistFailed();
+      return;
+    }
+    setState(() => _persistingContinuation = true);
+    try {
+      await ref
+          .read(depositContinuationsProvider.notifier)
+          .save(uid, reference);
+      if (mounted) {
+        setState(() {
+          _persistingContinuation = false;
+          _continuationPersistFailed = false;
+        });
+      }
+    } catch (_) {
+      _markContinuationPersistFailed();
+    }
+  }
+
+  /// The single fail-closed transition for an unpersisted submitted
+  /// operation: exact reference retained, close guard held, explicit
+  /// retry offered for the SAME save. Never claims the write happened.
+  void _markContinuationPersistFailed() {
+    if (!mounted) return;
+    final colors = ref.read(themeProvider).colors;
+    setState(() {
+      _persistingContinuation = false;
+      _continuationPersistFailed = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          "We couldn't save this deposit's receipt on your device "
+          'yet. Tap Save receipt to keep your way back to it.',
+        ),
+        backgroundColor: colors.accentSurface,
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Save receipt',
+          textColor: colors.accent,
+          onPressed: _retryContinuationSave,
+        ),
+      ),
+    );
+  }
+
+  /// REVIEW FOLLOW-UP P1 — retry the SAME operation's local save. The
+  /// reference is never re-minted and the provider is never
+  /// re-instructed.
+  void _retryContinuationSave() {
+    final active = inFlightReference ?? _pendingReference;
+    if (active == null || active.isEmpty) return;
+    // FINAL REVIEW — the retry NEVER captures (or replaces) the owner.
+    // Ownership is established exactly once, before the initiate
+    // request leaves, and is REQUIRED for that request to be sent at
+    // all — an accepted operation therefore always carries a captured
+    // owner. Should one somehow be missing, the save below fails
+    // closed and the exact reference is retained WITHOUT being
+    // assigned to whatever account happens to be active now: no
+    // trusted ownership evidence, no storage under B's key.
+    _saveContinuation(active);
+  }
+
+  /// Authoritative resolution only (settled or failed by the ledger, or
+  /// socket-confirmed). Never called for a discarded local FORM draft.
+  /// LAST REVIEW — the owner is an explicit argument: each operation
+  /// resolves under the identity that CAPTURED it, never under whoever
+  /// happens to be active when the settlement lands.
+  void _resolveContinuationOwned(String? owner, String reference) {
+    // OWNER BINDING — only the initiating owner's authoritative
+    // resolution removes THEIR stored continuation; it can never
+    // delete (or resolve under) a different account's records.
+    final uid = owner?.trim();
+    if (uid == null || uid.isEmpty) return;
+    ref
+        .read(depositContinuationsProvider.notifier)
+        .resolve(uid, reference);
+  }
 
   @override
   bool get wantKeepAlive => true;
@@ -276,6 +672,19 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     }
   }
 
+  /// §C resume — validate and apply the draft's amount. Same rules as
+  /// the deep-link prefill: strictly positive, at most two fractional
+  /// digits; anything else is dropped and the input stays empty.
+  void _applyRestoredAmount() {
+    final raw = widget.restoredAmount?.trim();
+    if (raw == null || raw.isEmpty) return;
+    final ok = RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(raw);
+    final v = double.tryParse(raw);
+    if (ok && v != null && v > 0) {
+      _amountRaw = raw;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -285,50 +694,186 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     // is dropped silently and the input stays empty so the user notices and
     // re-enters.
     final raw = widget.prefillAmount?.trim();
-    if (raw != null && raw.isNotEmpty) {
+    if (raw != null && raw.isEmpty && (widget.restoredAmount ?? '').isNotEmpty) {
+      // §C resume: no deep-link prefill — restore the draft amount
+      // through the SAME validator. A malformed stored value is dropped
+      // exactly like a malformed deep link.
+      _applyRestoredAmount();
+    } else if (raw != null && raw.isNotEmpty) {
       final ok = RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(raw);
       final v = double.tryParse(raw);
       if (ok && v != null && v > 0) {
         _amountRaw = raw;
       }
     }
-    SocketService.instance.onDepositSuccess((
-      amountGhs,
-      amountUsdc,
-      provider,
-      reference,
-    ) {
-      if (!mounted) return;
-      final pendingRef =
-          _pendingReference ?? (_depositResult?['reference']?.toString() ?? '');
-      if (pendingRef.isEmpty || reference != pendingRef) return;
-      setState(() => _depositConfirmed = true);
-      final colors = ref.read(themeProvider).colors;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '✓ Deposit confirmed — GH₵ ${amountGhs.toStringAsFixed(2)} credited to your wallet',
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: colors.success,
-          duration: const Duration(seconds: 5),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    });
+    // §C resume — the draft's EXPLICIT account choice. _currentAccount
+    // re-matches it against the live list on every read; a deleted
+    // account falls through to the honest derived selection.
+    final restoredAccount = widget.restoredAccountId;
+    if (restoredAccount != null && restoredAccount.isNotEmpty) {
+      _selectedAccountId = restoredAccount;
+    }
+    // §C resume — a deposit that was still IN FLIGHT when the surface
+    // closed. Reconcile against the backend's durable ledger state
+    // (demo mode has no backend to ask and never recovers).
+    final restoredReference = widget.restoredPendingReference?.trim();
+    if (!AppConfig.demoMode &&
+        restoredReference != null &&
+        restoredReference.isNotEmpty) {
+      _recoverInterruptedDeposit(restoredReference);
+    }
+    // LAST REVIEW — settlement resolution must survive the result view:
+    // the monitor (session-long, activated in build()) resolves the
+    // ACTIVE user's stored continuations for an event's exact
+    // reference; this surface's own handler only adds the visible
+    // confirmation and the per-operation owner binding for operations
+    // IT minted. The two share the socket seam — neither displaces the
+    // other.
+    SocketService.instance.onDepositSuccess(_onSocketSettlement);
   }
 
   @override
   void dispose() {
-    SocketService.instance.onDepositSuccess((a, b, c, d) {});
+    // Multi-listener seam: remove ONLY this surface's handler — the
+    // continuation monitor's listener must keep resolving stored
+    // continuations after this surface is gone.
+    SocketService.instance.removeDepositSuccessListener(_onSocketSettlement);
     _otpController.dispose();
     super.dispose();
+  }
+
+  // ── Interrupted-deposit recovery (PR #202 item 1) ────────────────────
+  //
+  // The draft's pending reference is resolved against the backend's
+  // durable ledger (GET /finance/transactions, then Backend F's
+  // GET /deposit/fiat/status/:id when present — see
+  // DepositRecoveryService). Every branch maps to an honest UI state;
+  // none of them re-instructs the provider or claims what did not
+  // happen. A late settlement still arrives on the socket listener
+  // registered in initState — the recovered operation is tracked by its
+  // EXACT reference (and its durable continuation is resolved by the
+  // settlement monitor), so a settlement confirms and resolves it even
+  // from a different view.
+  Future<void> _recoverInterruptedDeposit(String reference) async {
+    // OWNER BINDING — a resumed draft is user-scoped, so the user
+    // re-opening it IS its owner; the recovery and any later
+    // authoritative resolution stay bound to that identity. Idempotent:
+    // a re-check after an account switch never rebinds the draft.
+    if (!_operationOwnerCaptured) _captureOperationOwner();
+    // The recovered operation's owner for THIS sweep: every resolution
+    // below happens under exactly this identity, independent of whoever
+    // is active when a late settlement lands (the settlement monitor +
+    // the tracked-operation binding own that half).
+    final recoveredOwner = _continuationOwner;
+    setState(() {
+      _recovering = true;
+      // A deliberate re-check clears the banner until it lands again.
+      _recoveryUnresolved = false;
+    });
+    DepositRecoveryOutcome? outcome;
+    try {
+      outcome =
+          await DepositRecoveryService(apiClient).recover(reference);
+    } catch (_) {
+      outcome = null; // network/refused: no claim, fresh form
+    }
+    if (!mounted) return;
+    final colors = ref.read(themeProvider).colors;
+    switch (outcome?.status) {
+      case DepositRecoveryStatus.settled:
+        setState(() {
+          _recovering = false;
+          _recoveryUnresolved = false;
+          _depositResult = {'reference': reference};
+          _depositConfirmed = true;
+        });
+        // FIX 3 — settled while away: the submitted operation leaves the
+        // continuation lifecycle for good — under ITS owner.
+        _resolveContinuationOwned(recoveredOwner, reference);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              '✓ Your deposit completed while you were away — your wallet was funded.',
+            ),
+            backgroundColor: colors.success,
+            duration: const Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      case DepositRecoveryStatus.pending:
+      case DepositRecoveryStatus.frozen:
+        // The instruction may still be live at the provider. Restore
+        // the in-flight view so the user cannot double-instruct under a
+        // new quote; the socket listener confirms a late settlement on
+        // its own.
+        final frozen = outcome!.status == DepositRecoveryStatus.frozen;
+        // The instruction may still be live: track it by exact
+        // reference so a late socket settlement confirms and resolves
+        // THIS operation (never a newer one) even from another view.
+        if (recoveredOwner != null) _trackOperation(reference, recoveredOwner);
+        setState(() {
+          _recovering = false;
+          _recoveryUnresolved = false;
+          _pendingReference = reference;
+          _depositResult = {
+            'reference': reference,
+            'instructions': frozen
+                ? 'This deposit is under dispute review. It will resolve '
+                      'through the dispute flow — do not send another '
+                      'payment for it.'
+                : 'Approve the prompt on your phone to complete the '
+                      'deposit. If you already approved it, this page '
+                      'will confirm automatically.',
+          };
+        });
+      case DepositRecoveryStatus.failed:
+        setState(() {
+          _recovering = false;
+          _recoveryUnresolved = false;
+        });
+        // FIX 3 — the ledger said it failed: authoritatively resolved
+        // under the operation's owner.
+        _resolveContinuationOwned(recoveredOwner, reference);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Your last deposit did not go through. You can start a new one.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      case DepositRecoveryStatus.unknown:
+      case null:
+        // REVIEW GAP 2 — FAIL CLOSED. A lookup failure or a no-match is
+        // NOT evidence that the earlier instruction did not commit (the
+        // ledger may lag; the request may have died mid-flight). The
+        // reference is preserved, the CTA stays blocked, and the
+        // unresolved banner offers a re-check of the SAME operation.
+        // No success or failure is claimed on an unavailable lookup,
+        // and no new initiation may start until the ledger answers.
+        if (recoveredOwner != null) _trackOperation(reference, recoveredOwner);
+        setState(() {
+          _recovering = false;
+          _recoveryUnresolved = true;
+          _pendingReference = reference;
+        });
+    }
+  }
+
+  /// REVIEW GAP 2 — the banner's explicit re-check. Reconciles the SAME
+  /// reference (never a new idempotency identity) against the ledger.
+  void _retryRecovery() {
+    final ref = _pendingReference;
+    if (ref == null || ref.isEmpty) return;
+    _recoverInterruptedDeposit(ref);
   }
 
   // ── Amount input state machine ──────────────────────────────────────────
 
   void _onKeypadKey(String key) {
-    if (_isSubmitting || _isValidatingName) return;
+    if (_isSubmitting || _isValidatingName || _persistingContinuation) {
+      return;
+    }
     setState(() => _amountRaw = AmountInput.applyKey(_amountRaw, key));
   }
 
@@ -463,6 +1008,25 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   /// deposit initiates against THIS snapshot, never a re-resolved
   /// "current" selection that might have changed in between.
   Future<void> _initiateDeposit([SavedMomoAccount? validatedAccount]) async {
+    // Deposit lifecycle: no second instruction while the restored one
+    // is being reconciled — an earlier instruction may still be live.
+    if (_recovering) return;
+    // REVIEW GAP 2 — an unresolved earlier deposit blocks a new one
+    // outright: the same operation must be authoritatively resolved
+    // first. The user is told why, honestly.
+    if (_recoveryUnresolved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Confirm your earlier deposit first — tap "Check again" on '
+            'the notice above.',
+          ),
+          duration: Duration(seconds: 4),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     final amount = _amountValue;
     if (amount == null) {
       ScaffoldMessenger.of(
@@ -493,6 +1057,36 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     }
 
     setState(() => _isSubmitting = true);
+    // OWNER BINDING (review follow-up) — capture the identity that is
+    // starting this financial operation BEFORE the request leaves. The
+    // response may land after an account switch; its continuation
+    // records stay bound to THIS identity for the operation's lifetime.
+    _captureOperationOwner();
+    // FINAL REVIEW — a financial mutation REQUIRES a capturable owner.
+    // The continuation lifecycle is user-scoped: an initiation this
+    // device cannot attribute to an authenticated identity could never
+    // honestly become anyone's continuation record, and the backend
+    // must never be asked to accept an instruction whose local way-back
+    // no account can own. Block BEFORE the wire, with honest feedback.
+    final ownerId = _operationOwnerUserId?.trim();
+    if (ownerId == null || ownerId.isEmpty) {
+      // No operation exists — release the captured (empty) state so a
+      // later sign-in starts clean.
+      _operationOwnerCaptured = false;
+      _operationOwnerUserId = null;
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Your session ended. Sign in again to start a deposit.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
     try {
       // All saved accounts in this picker are Mobile Money (MTN / Telecel /
       // AirtelTigo), so every deposit routes through the Moolre PIN-push
@@ -520,10 +1114,22 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       if (response.statusCode == 201 || response.statusCode == 200) {
         AzamanHaptics.commit();
         if (data['requiresOtp'] == true) {
+          final freshRef = data['data']?['reference']?.toString();
+          // FIX 3 + REVIEW FOLLOW-UP P1 — the reference just became
+          // durable: the submitted operation enters the continuation
+          // lifecycle immediately, independent of every form-draft
+          // clock. The save is awaited BEFORE the guard releases — the
+          // OTP screen only becomes reachable once the local way-back
+          // is confirmed (or explicitly flagged for retry).
+          if ((freshRef ?? '').isNotEmpty) await _saveContinuation(freshRef!);
+          if (!mounted) return;
+          if (freshRef != null) {
+            _trackOperation(freshRef, _operationOwnerUserId ?? '');
+          }
           setState(() {
             _isSubmitting = false;
             _requiresOtp = true;
-            _pendingReference = data['data']?['reference']?.toString();
+            _pendingReference = freshRef;
           });
         } else {
           setState(() {
@@ -532,6 +1138,15 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 : data as Map<String, dynamic>;
             _isSubmitting = false;
           });
+          // FIX 3 + REVIEW FOLLOW-UP P1 — same durable-reference
+          // moment, no-OTP branch: the await holds the persistence
+          // window under the close guard (via
+          // _persistingContinuation) until the record is confirmed.
+          final freshRef = inFlightReference;
+          if ((freshRef ?? '').isNotEmpty) await _saveContinuation(freshRef!);
+          if (freshRef != null) {
+            _trackOperation(freshRef, _operationOwnerUserId ?? '');
+          }
           // In demo mode there's no real Moolre prompt to approve —
           // auto-confirm after a short delay so the user sees the full
           // deposit success flow.
@@ -591,6 +1206,15 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
           _requiresOtp = false;
           _depositResult = {'reference': _pendingReference};
         });
+        // FIX 3 + REVIEW FOLLOW-UP P1 — keep the continuation record
+        // warm under the confirmed reference until the socket/ledger
+        // settles it (idempotent). Awaited: a confirm whose local
+        // record is unconfirmed must not hand the surface back
+        // unguarded.
+        final confirmedRef = _pendingReference;
+        if ((confirmedRef ?? '').isNotEmpty) {
+          await _saveContinuation(confirmedRef!);
+        }
       } else {
         setState(() => _isConfirmingOtp = false);
         if (mounted) {
@@ -619,7 +1243,21 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   }
 
   void _reset() {
+    // LAST REVIEW — an honest LOCAL return, not a cancellation: no
+    // cancellation contract exists with the provider. Every branch that
+    // reaches here leaves the operation's way back intact — the
+    // durable continuation record under the owner's key (so the
+    // settlement monitor can resolve it from ANY view) and the exact-
+    // reference tracked-operation binding (so a settlement confirms to
+    // the user under the RIGHT owner). Concurrent pending operations
+    // are the defined product policy: the next initiation simply adds
+    // its own independently tracked reference.
     setState(() {
+      // The CURRENT form/result state is cleared: the next operation
+      // captures a fresh owner at its own initiation. Previously
+      // submitted operations stay tracked above.
+      _operationOwnerUserId = null;
+      _operationOwnerCaptured = false;
       _depositResult = null;
       _requiresOtp = false;
       _pendingReference = null;
@@ -654,6 +1292,22 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
 
         return Column(
           children: [
+            // REVIEW GAP 2 — the explicit fail-closed state. The earlier
+            // deposit could not be resolved against the ledger (lookup
+            // failed or no row yet): the reference is preserved, nothing
+            // is claimed, and the CTA below stays blocked until the SAME
+            // operation is authoritatively resolved.
+            if (_recoveryUnresolved || _recovering) ...[
+              Padding(
+                padding: EdgeInsets.fromLTRB(20, compact ? 6 : 14, 20, 0),
+                child: _RecoveryUnresolvedBanner(
+                  colors: colors,
+                  reference: _pendingReference,
+                  checking: _recovering,
+                  onRetry: _recovering ? null : _retryRecovery,
+                ),
+              ),
+            ],
             // ── Phantom-style top-left amount composition (UI-correction
             // Phase A): the amount and the selected payment method form the
             // primary interaction at the top; keypad and CTA anchor the
@@ -714,7 +1368,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                   // submission is in flight — a mid-validation switch is
                   // exactly the race that would confirm one account's name
                   // and charge another (release-level review blocker 3).
-                  final bool locked = _isSubmitting || _isValidatingName;
+                  final bool locked = _isSubmitting ||
+                      _isValidatingName ||
+                      _persistingContinuation;
                   if (accounts.isEmpty) {
                     return _AddMethodRow(
                       colors: colors,
@@ -754,7 +1410,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                       amount: amt,
                       selected: _amountRaw == amt.toString(),
                       onTap: () {
-                        if (_isSubmitting || _isValidatingName) return;
+                        if (_isSubmitting ||
+                            _isValidatingName ||
+                            _persistingContinuation) {
+                          return;
+                        }
                         AzamanHaptics.toggle();
                         setState(() => _amountRaw = amt.toString());
                       },
@@ -773,7 +1433,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: AmountKeypad(
                 onKey: _onKeypadKey,
-                enabled: !_isSubmitting && !_isValidatingName,
+                enabled: !_isSubmitting &&
+                    !_isValidatingName &&
+                    !_persistingContinuation,
                 rowHeight: compact ? 46 : 54,
               ),
             ),
@@ -786,23 +1448,42 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 children: [
                   _PrimaryButton(
                     colors: colors,
-                    label: _isValidatingName
+                    label: _continuationPersistFailed
+                        ? 'Save receipt'
+                        : _persistingContinuation
+                        ? 'Saving your deposit…'
+                        : _recovering
+                        ? 'Checking last deposit…'
+                        : _recoveryUnresolved
+                        ? 'Confirm your earlier deposit first'
+                        : _isValidatingName
                         ? 'Checking account…'
                         : _isSubmitting
                         ? 'Sending prompt…'
                         : 'Add Cash',
-                    onTap:
-                        (_isSubmitting ||
-                            _isValidatingName ||
-                            _amountValue == null ||
-                            _currentAccount(
-                                  accountsAsync.valueOrNull ??
-                                      const <SavedMomoAccount>[],
-                                ) ==
-                                null)
+                    // REVIEW FOLLOW-UP P1 — while the continuation is
+                    // unconfirmed the CTA is the retry for the SAME
+                    // save; a failed local write never becomes a fresh
+                    // deposit.
+                    onTap: _continuationPersistFailed
+                        ? _retryContinuationSave
+                        : (_recovering ||
+                              _recoveryUnresolved ||
+                              _isSubmitting ||
+                              _isValidatingName ||
+                              _persistingContinuation ||
+                              _amountValue == null ||
+                              _currentAccount(
+                                    accountsAsync.valueOrNull ??
+                                        const <SavedMomoAccount>[],
+                                  ) ==
+                                  null)
                         ? null
                         : _validateAndConfirm,
-                    isBusy: _isSubmitting || _isValidatingName,
+                    isBusy: _recovering ||
+                        _isSubmitting ||
+                        _isValidatingName ||
+                        _persistingContinuation,
                   ),
                   const SizedBox(height: 8),
                   Center(
@@ -988,61 +1669,93 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                     ],
                   ),
           ),
-          if (_depositConfirmed) ...[
-            const SizedBox(height: 12),
-            _PanelCard(
-              colors: colors,
-              fillColor: colors.success.withValues(alpha: 0.10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'GH₵ $amount',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
-                    ),
+          // Deposit lifecycle (PR #202 item 1) — the amount/reference
+          // card anchors the deposit in BOTH states: a user who resumes
+          // onto a still-pending instruction sees exactly which
+          // transaction they are waiting on, same as a confirmed one.
+          const SizedBox(height: 12),
+          _PanelCard(
+            colors: colors,
+            fillColor: (_depositConfirmed ? colors.success : colors.accent)
+                .withValues(alpha: 0.10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'GH₵ $amount',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Prompt sent to $networkName',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Prompt sent to $networkName',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 14),
-                  SelectableText(
-                    reference.toString(),
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 13,
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.w700,
-                    ),
+                ),
+                const SizedBox(height: 14),
+                SelectableText(
+                  reference.toString(),
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 13,
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            instructions,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 13,
+              height: 1.5,
+            ),
+          ),
+          if (!_depositConfirmed) ...[
+            const SizedBox(height: 14),
+            // LAST REVIEW — no cancellation contract exists with the
+            // provider, so the local action may never present itself as
+            // one. The honest label says what the tap actually does
+            // (return to Add Cash) and the caption says what it does NOT
+            // do (end the instruction): it stays live until the ledger
+            // settles it, tracked by exact reference the whole time.
             Text(
-              instructions,
+              'This deposit is still in progress. Leaving will not '
+              'cancel it — we will confirm here and in your '
+              'notifications once your provider completes it.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 13,
+                color: colors.textTertiary,
+                fontSize: 12,
                 height: 1.5,
               ),
             ),
-            const SizedBox(height: 18),
           ],
+          const SizedBox(height: 18),
           _PrimaryButton(
             colors: colors,
-            label: _depositConfirmed ? 'Start another deposit' : 'Cancel',
-            onTap: _reset,
+            // REVIEW FOLLOW-UP P1 — while the continuation record is
+            // unconfirmed, the only offered action is saving it; the
+            // pending operation must not be reset away.
+            label: _continuationPersistFailed
+                ? 'Save receipt'
+                : _depositConfirmed
+                ? 'Start another deposit'
+                : 'Back to Add Cash',
+            onTap: _continuationPersistFailed
+                ? _retryContinuationSave
+                : _reset,
           ),
         ],
       ),
@@ -1101,21 +1814,153 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
             isBusy: _isConfirmingOtp,
           ),
           const SizedBox(height: 10),
-          Center(
-            child: TextButton(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              TextButton(
+              // REVIEW FOLLOW-UP — while the continuation record is
+              // UNPERSISTED the only offered action is the SAME save's
+              // retry: the reference is the only way back to an
+              // already-submitted instruction.
+              //
+              // LAST REVIEW — once the record is durable the action is
+              // honestly labelled as a RETURN, never a cancellation: no
+              // cancellation contract exists with the provider, so the
+              // instruction stays live (tracked by exact reference and
+              // durably stored under its owner) and settles whenever
+              // the user's provider processes it. The user can get back
+              // to it any time from the notification centre's
+              // "Deposits in progress" row.
               onPressed: _isConfirmingOtp
                   ? null
+                  : _continuationPersistFailed
+                  ? _retryContinuationSave
                   : () => setState(() {
                       _requiresOtp = false;
                       _pendingReference = null;
                       _otpController.clear();
                     }),
               child: Text(
-                'Cancel',
-                style: TextStyle(color: colors.textTertiary),
+                _continuationPersistFailed ? 'Save receipt' : 'Back to Add Cash',
+                style: TextStyle(
+                  color: _continuationPersistFailed
+                      ? colors.accent
+                      : colors.textTertiary,
+                ),
               ),
             ),
+            if (!_continuationPersistFailed && !_isConfirmingOtp)
+              Text(
+                'The deposit stays active — going back does not cancel '
+                'it. You can pick it up again from your notifications.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
+              ),
+            ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVIEW GAP 2 — the fail-closed recovery banner. An unresolved earlier
+// deposit keeps its reference on the surface and blocks new deposits
+// until the ledger authoritatively answers. It never claims success or
+// failure on an unavailable lookup.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RecoveryUnresolvedBanner extends StatelessWidget {
+  const _RecoveryUnresolvedBanner({
+    required this.colors,
+    required this.reference,
+    required this.checking,
+    required this.onRetry,
+  });
+
+  final AzamanColors colors;
+  final String? reference;
+  final bool checking;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = (reference ?? '').trim();
+    final short = ref.length > 14 ? '…${ref.substring(ref.length - 12)}' : ref;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: colors.accentSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: colors.accent, width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline_rounded, size: 18, color: colors.accent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  checking
+                      ? 'Checking your earlier deposit…'
+                      : ref.isEmpty
+                      ? 'We could not confirm your earlier deposit yet.'
+                      : 'We could not confirm your earlier deposit '
+                          '($short) yet.',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'A new deposit can only start once it is confirmed. Nothing '
+            'was charged again — the same deposit is re-checked.',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              decoration: TextDecoration.none,
+            ),
+          ),
+          if (!checking) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onRetry,
+                style: TextButton.styleFrom(
+                  backgroundColor: colors.accentSurface,
+                  foregroundColor: colors.accent,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Check again',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

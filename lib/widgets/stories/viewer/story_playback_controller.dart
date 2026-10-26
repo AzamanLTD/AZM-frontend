@@ -18,7 +18,8 @@ enum PauseReason {
   zoom(2),
   sheet(4),
   inactive(8),
-  buffering(16);
+  buffering(16),
+  captionReveal(32);
 
   const PauseReason(this.bit);
   final int bit;
