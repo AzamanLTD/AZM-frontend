@@ -292,7 +292,18 @@ class DepositContinuationsService {
       // initialization, so the PERSISTED copy is purged too and no
       // in-flight index read can merge it back afterwards.
       await _loadRefOwners();
-      if (_refOwners[ref] == userId) _refOwners.remove(ref);
+      if (_refOwners[ref] == userId) {
+        _refOwners.remove(ref);
+        // FINAL REVIEW (persisted cleanup): removing the binding in
+        // MEMORY alone leaves the resolved reference in the persisted
+        // index forever — stale attribution that survives every
+        // restart and grows without bound. The cleanup goes through
+        // the SAME serialized persistence queue as the saves, so it
+        // is ordered against concurrent index writes and best-effort:
+        // a failed cleanup write can never fail the authoritative
+        // resolution that already succeeded.
+        await persistReferenceOwners();
+      }
       final list = [...await loadForUser(userId)];
       list.removeWhere((c) => c.reference == ref);
       await _write(userId, list);
@@ -317,9 +328,13 @@ class DepositContinuationsService {
       final list = [...await loadForUser(uid)];
       if (!list.any((c) => c.reference == ref)) return;
       _resolvedReferences.add(_terminalKey(uid, ref));
-      // LAST REVIEW: purge after initialization (see resolve()).
+      // LAST REVIEW: purge after initialization, and through the same
+      // serialized persistence queue as the saves — see resolve().
       await _loadRefOwners();
-      if (_refOwners[ref] == uid) _refOwners.remove(ref);
+      if (_refOwners[ref] == uid) {
+        _refOwners.remove(ref);
+        await persistReferenceOwners();
+      }
       list.removeWhere((c) => c.reference == ref);
       await _write(uid, list);
     });
