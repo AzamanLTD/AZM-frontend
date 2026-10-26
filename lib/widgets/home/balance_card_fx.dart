@@ -459,9 +459,15 @@ class BalanceCardFx extends StatelessWidget {
     // corner radius, rim and edge. This face supplies content inside the
     // fixed footprint; the rate row pins flush to the card's bottom edge,
     // and nothing here can influence the card's layout size.
+    // CONTENT INSET — AzSpace.md (12), not lg (16): the equivalent line's
+    // disclosure control carries the full 44 x 44 dp accessibility touch
+    // target, and the fixed 165px footprint must hold the headline, the
+    // 44px equivalent row and the pinned rate row at the pair's 1.25x
+    // text-scale clamp on every supported width (320dp included). The
+    // denser inset buys that target without shrinking any glyph.
     return Padding(
       key: const ValueKey('balance-fx-card'),
-      padding: const EdgeInsets.all(AzSpace.lg),
+      padding: const EdgeInsets.all(AzSpace.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -527,11 +533,15 @@ class _DisclosureIconButton extends StatelessWidget {
         // describe a converted display valuation, fallback states the
         // saved/demo rate.
         message: semanticLabel,
-        // shrinkWrap keeps Material's padded 48px default target from
-        // inflating the line: the explicit 32px minimum governs, which
-        // the fixed 165px card footprint can carry at every text scale
-        // (the equivalent row was 48px tall otherwise and overflowed
-        // the card at 1.25x+ text scales).
+        // HIT TARGET CONTRACT: the control's effective touch target is the
+        // full 44 x 44 dp mobile accessibility target (WCAG 2.5.8 /
+        // Material), with the VISUAL glyph kept small (16px). shrinkWrap
+        // keeps Material's extra default padding from inflating the
+        // target further; the explicit 44px minimum is the target, and
+        // the pair's internal 1.25x text-scale clamp guarantees the
+        // resulting 44px row fits the fixed 165px card footprint at
+        // every supported width and text scale (48px did not: it
+        // overflowed the card at 1.25x+ scales).
         child: Theme(
           data: Theme.of(context).copyWith(
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -545,7 +555,7 @@ class _DisclosureIconButton extends StatelessWidget {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           ),
         ),
       ),

@@ -33,10 +33,13 @@
 //     frame's Listener consumes the mark on pointer-up and cedes the
 //     gesture, so an affordance tap NEVER also flips the card.
 //
-// CONTRACT-SEAM STAGE: this component is pure and fixture-driven — it renders
-// the typed BalanceCardValuation it is given and is NOT yet wired into the
-// live Home screen. The backend valuation contract is pending; the wiring
-// adapter lands with it.
+// WIRED (superseding the old contract-seam note): this component renders
+// the typed BalanceCardValuation it is given, and the live Home deck now
+// mounts it through HomeBalanceCard — the production adapter
+// (balanceCardValuationProvider) is the only seam numbers enter through.
+// The backend valuation contract (PR #367) is still pending on the live
+// API: until it ships the adapter feeds the honest interim derivation,
+// and its `data.valuation` mapper activates the moment the field does.
 // =============================================================================
 
 import 'dart:math' as math;

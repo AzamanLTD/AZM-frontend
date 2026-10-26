@@ -25,12 +25,29 @@
 //
 // CONTRACT GAP (honest): the current backend main publishes NO native
 // GHS wallet and NO precomputed valuation totals (backend PR #367 is
-// open). Therefore nativeGhsAvailable is NULL (the GHS wallet row on the
+// open). Therefore, while the balance response is LEGACY (no valuation
+// block), nativeGhsAvailable is NULL (the GHS wallet row on the
 // back face renders unknown, never GH₵ 0.00) and the combined GHS value
 // is the honest interim derivation: (native ?? 0) + availableUsdc ×
-// rate, applied ONLY while a usable rate exists. The headline USDC figure
-// is the REAL holding; the GHS figure is its equivalent — exactly the
-// old HologramBalanceCard semantics, now typed.
+// rate, applied ONLY while a usable rate exists — explicitly a
+// DISPLAY-ONLY conversion, labelled as such in the disclosure and the
+// screen-reader semantics.
+//
+// WHEN backend PR #367 SHIPS, the response carries `data.valuation` and
+// this adapter consumes the strict typed parse of that exact contract
+// (BackendBalanceValuation):
+//   • valuation PRESENT + parses  → backend-authoritative everything:
+//     native GHS, actual USDC held, the backend's own GHS total and USDC
+//     equivalent (the card never recalculates), the backend's rate
+//     status (CURRENT / SAVED_FALLBACK / DEMO_FALLBACK / UNAVAILABLE),
+//     the AUTHORITATIVE usdcTransactionGateOpen verbatim, and the
+//     locked.* buckets (incl. committedSusuUsdc — the ONLY legitimate
+//     source of a committed-Susu figure).
+//   • valuation EXPLICITLY NULL or malformed → the backend SAYS the
+//     valuation is unavailable. The card shows no GHS figure at all —
+//     never a silent client-side substitution for a backend failure.
+//   • valuation key ABSENT (legacy) → the interim display-only
+//     derivation above.
 //
 // UNKNOWN IS NOT ZERO, every branch below: readiness unresolved/failed →
 // balanceConfirmed false (dots, never 0.00); vaults/savings/susu not
@@ -41,16 +58,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
+import 'package:azaman/models/balance_valuation_payload.dart'
+    show BackendBalanceValuation, BackendRateStatus;
 import 'package:azaman/providers/auth_provider.dart' show isVendorProvider;
 import 'package:azaman/providers/currency_provider.dart' show fxRateProvider;
 import 'package:azaman/providers/hologram_provider.dart'
     show balanceDataProvider, balanceReadinessProvider, BalanceReadiness;
 import 'package:azaman/providers/savings_overview_provider.dart'
     show savingsOverviewProvider;
-import 'package:azaman/providers/susu_provider.dart' show susuListProvider;
 import 'package:azaman/providers/vault_provider.dart' show vaultsProvider;
-import 'package:azaman/models/susu_model.dart'
-    show SusuMemberStatus, SusuStatus;
 
 /// The production valuation the main Home card renders.
 ///
@@ -62,7 +78,6 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
   final fxSnapshot = ref.watch(fxRateProvider);
   final vaults = ref.watch(vaultsProvider);
   final savings = ref.watch(savingsOverviewProvider);
-  final susu = ref.watch(susuListProvider);
   final isVendor = ref.watch(isVendorProvider);
 
   // ── Balance readiness: unresolved/failed is NOT zero, and a failure
@@ -112,6 +127,19 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
           allKnown = false;
           break;
         }
+        // STATUS FILTER — the agreed backend valuation contract counts
+        // ONLY the ACTIVE and PAUSED statuses in the committed-savings
+        // bucket (backend PR #367, SAVINGS_ACTIVE_STATUSES). COMPLETED
+        // and CANCELLED goals are settled history, not currently
+        // committed savings. A missing or non-String status is a
+        // MALFORMED entry: the aggregate goes UNKNOWN (null) — never
+        // silently included or excluded.
+        final status = entry['status'];
+        if (status is! String) {
+          allKnown = false;
+          break;
+        }
+        if (status != 'ACTIVE' && status != 'PAUSED') continue;
         final amount = entry['currentAmountGhs'];
         if (amount is! num || amount < 0 || !amount.isFinite) {
           allKnown = false;
@@ -124,20 +152,120 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
     // else: goals collection absent/malformed → savingsGhs stays null.
   }
 
+  // ── Committed Susu: UNKNOWN until the backend says otherwise ───────
+  //
+  // SusuSummary.contributionUsdc is the group's RECURRING CONTRIBUTION
+  // AMOUNT — a schedule figure, NOT proof of paid funds currently held
+  // for the caller. An ACTIVE group plus the caller's ACTIVE membership
+  // do not, by themselves, establish that any funds are committed. The
+  // ONLY legitimate source of a committed-Susu amount is the backend
+  // valuation contract's `locked.committedSusuUsdc` (backend PR #367:
+  // PAID contributions in COLLECTING/COLLECTING_GRACE cycles). Until
+  // that field is published on the live contract, the committed-Susu
+  // row renders UNKNOWN (—) — never a scheduled contribution summed
+  // as though it were held funds.
   double? susuTotal;
-  if (susu.hasValue) {
-    // Committed Susu requires BOTH: an ACTIVE group and the caller's
-    // OWN membership being ACTIVE (SusuGroup.myStatus is parsed from
-    // the caller's member record). A pending-vouch, pending-contract,
-    // defaulted or removed member has NOTHING committed by this user —
-    // an active group alone does not commit the caller's funds.
-    susuTotal = susu.value!
-        .where((s) =>
-            s.status == SusuStatus.active &&
-            s.myStatus == SusuMemberStatus.active)
-        .fold<double>(0.0, (sum, s) => sum + s.contributionUsdc);
+
+  // ── Backend valuation block (backend PR #367, additive) ──────────────
+  //
+  // Three states, never conflated:
+  //   • valuation key ABSENT            → LEGACY contract: interim
+  //     display-only client derivation (below), gate honestly closed.
+  //   • valuation EXPLICITLY null / malformed → the backend SAYS the
+  //     valuation is unavailable: NO GHS figure at all, and NEVER a
+  //     silent client-side substitution for the backend's failure.
+  //   • valuation present + strict parse ok → backend-authoritative.
+  BackendBalanceValuation? backendValuation;
+  var backendSaysUnavailable = false;
+  if (balance.valuationFieldPresent) {
+    final raw = balance.valuationRaw;
+    if (raw == null) {
+      backendSaysUnavailable = true;
+    } else {
+      backendValuation = BackendBalanceValuation.parse(raw);
+      if (backendValuation == null) backendSaysUnavailable = true;
+    }
   }
 
+  if (backendValuation != null) {
+    // ── BACKEND-AUTHORITATIVE branch ────────────────────────────────
+    // Every figure below is a documented #367 field, mapped verbatim.
+    // The card NEVER recalculates: the GHS total and the USDC
+    // equivalent are the backend's own computed values.
+    final rateKind = switch (backendValuation.rateStatus) {
+      BackendRateStatus.current => FxRateKind.fresh,
+      BackendRateStatus.savedFallback => FxRateKind.saved,
+      BackendRateStatus.demoFallback => FxRateKind.demo,
+      BackendRateStatus.unavailable => FxRateKind.none,
+    };
+    final displayRate = backendValuation.displayRate;
+    final obs = backendValuation.currentRate ?? backendValuation.savedRate;
+    return BalanceCardValuation(
+      nativeGhsAvailable: backendValuation.nativeGhsAvailable.value,
+      availableUsdc: backendValuation.availableUsdc.value,
+      balanceConfirmed: confirmed,
+      escrowLocked: backendValuation.locked.escrowUsdc.value,
+      disputeEscrow: backendValuation.locked.disputesUsdc.value,
+      vaultLocked: backendValuation.locked.vaultsUsdc.value,
+      susuCommitted: backendValuation.locked.committedSusuUsdc.value,
+      savingsLockedGhs: backendValuation.locked.savingsGhs.value,
+      vendorUnallocatedUsdc:
+          backendValuation.locked.vendorUnallocatedUsdc.value,
+      vendorRowRelevant: isVendor,
+      azmPoints: backendValuation.azmPoints.value,
+      rate: FxRateView(
+        ghsPerUsdc: displayRate?.rate,
+        kind: rateKind,
+        loading: false,
+        sourceLabel: obs?.source,
+        observedAt: obs?.observedAt,
+      ),
+      availableGhsValue: backendValuation.availableGhsValue?.value,
+      availableUsdcEquivalent: backendValuation.usdcEquivalent?.value,
+      // AUTHORITATIVE gate — the backend's own transaction
+      // authorisation boolean, verbatim. Never derived from the rate.
+      usdcTransactionGateOpen: backendValuation.usdcTransactionGateOpen,
+      // NO compute() here: [BalanceCardValuation.compute] re-derives the
+      // totals from the rate, and the backend's own availableGhsValue /
+      // usdcEquivalent are AUTHORITATIVE — the card renders them as
+      // given, never recalculated client-side.
+    );
+  }
+
+  if (backendSaysUnavailable) {
+    // ── EXPLICIT BACKEND FAILURE branch ─────────────────────────────
+    // The backend declared the valuation unavailable. Show the REAL
+    // USDC holding and the honest committed buckets from the legacy
+    // fields/lists, but NO GHS figure and NO USDC equivalent: the
+    // client-side rate must never masquerade as a valuation the backend
+    // just said it could not produce. The rate row keeps its own
+    // informational state (a rate fact is not a valuation).
+    return BalanceCardValuation(
+      nativeGhsAvailable: null,
+      availableUsdc: balance.availableBalance,
+      balanceConfirmed: confirmed,
+      escrowLocked: balance.escrowLockedBalance,
+      disputeEscrow: balance.disputeEscrowBalance,
+      vaultLocked: vaultTotal,
+      susuCommitted: susuTotal,
+      savingsLockedGhs: savingsGhs,
+      vendorUnallocatedUsdc: balance.vendorUnallocatedBalance,
+      vendorRowRelevant: isVendor,
+      azmPoints: balance.azmBalance,
+      rate: rateView,
+      availableGhsValue: null,
+      availableUsdcEquivalent: null,
+      // No gate field accompanies an unavailable valuation — the gate
+      // stays honestly closed.
+      usdcTransactionGateOpen: false,
+      // NO compute(): compute() would re-derive a GHS figure from the
+      // client-side rate and silently substitute it for the backend's
+      // declared-unavailable valuation — exactly the substitution this
+      // branch exists to prevent. The nulls are final.
+    );
+  }
+
+  // ── LEGACY branch: interim display-only derivation ────────────────────
   return BalanceCardValuation(
     // No native GHS wallet exists on the current contract — NULL, and
     // the back-face row renders unknown. Never 0.

@@ -71,6 +71,21 @@ Future<void> _loadFonts() async {
 
 /// A confirmed balance with a FRESH rate over [ghs] — the headline fixture
 /// for the E2 digit-length matrix. combined = native + usdc × rate.
+/// A confirmed balance with a FRESH canonical rate — the card's
+/// default good state, and the one the disclosure control shows.
+BalanceCardValuation _fresh() {
+  const base = BalanceCardValuation(
+    availableUsdc: 100,
+    balanceConfirmed: true,
+    rate: FxRateView(
+      ghsPerUsdc: 12.5,
+      kind: FxRateKind.fresh,
+      sourceLabel: 'oracle',
+    ),
+  );
+  return base.compute();
+}
+
 BalanceCardValuation _freshGhs(double ghs) => BalanceCardValuation(
   nativeGhsAvailable: 0,
   availableUsdc: ghs / 12.5,
@@ -116,6 +131,7 @@ Future<void> _pumpPair(
   WidgetTester tester, {
   required BalanceCardValuation valuation,
   double width = 390,
+  double scale = 1.0,
 }) async {
   await tester.runAsync(_loadFonts);
   final colors = ThemeProvider.getColors(
@@ -126,7 +142,10 @@ Future<void> _pumpPair(
     MaterialApp(
       theme: ThemeProvider.getThemeData(AzamanTheme.dark),
       home: MediaQuery(
-        data: MediaQueryData(size: Size(width, 844)),
+        data: MediaQueryData(
+          size: Size(width, 844),
+          textScaler: TextScaler.linear(scale),
+        ),
         child: Scaffold(
           backgroundColor: Colors.transparent,
           body: Align(
@@ -472,6 +491,74 @@ void main() {
           reason: 'confirmed: the same row shows the real cached figure');
       expect(find.text('not confirmed yet'), findsNothing);
       await tester.pumpWidget(const SizedBox());
+    });
+  });
+
+  group('E1b — the disclosure control: full target, zero flip bleed', () {
+    // The equivalent line's info control is the card's ONLY tappable
+    // affordance besides the flip itself. Its target is the full
+    // 44 x 44 dp mobile accessibility target while the glyph stays 16px,
+    // and the fixed 165px footprint must still hold it at the pair's
+    // 1.25x text-scale clamp on the narrowest supported width.
+    for (final scale in [1.0, 1.25, 1.3]) {
+      testWidgets('info target ≥ 44 x 44 at 320dp / ${scale}x scale, '
+          'card footprint unchanged', (tester) async {
+        await _pumpPair(tester, valuation: _fresh(), width: 320, scale: scale);
+        expect(tester.takeException(), isNull);
+
+        final target = tester.getRect(
+          find.byKey(const ValueKey('balance-fx-equivalent-info')),
+        );
+        expect(target.width, greaterThanOrEqualTo(44),
+            reason: 'WCAG 2.5.8 / Material minimum touch target');
+        expect(target.height, greaterThanOrEqualTo(44));
+
+        // The footprint contract: the fixed 165px frame is untouched.
+        expect(_frameRect(tester).height, 165);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('tapping the info control opens the disclosure and NEVER '
+        'flips the card', (tester) async {
+      await _pumpPair(tester, valuation: _fresh(), width: 320);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey('balance-fx-equivalent-info')),
+      );
+      await tester.pumpAndSettle();
+
+      // The disclosure dialog opened…
+      expect(
+        find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+        findsOneWidget,
+      );
+      // …and the card is STILL on its front face: the affordance
+      // tap must not have leaked into the flip gesture.
+      expect(
+        find.byKey(const ValueKey('balance-pair-front-surface')),
+        findsOneWidget,
+        reason: 'an info tap must never flip the card to the back face',
+      );
+      expect(
+        find.byKey(const ValueKey('balance-pair-back-surface')),
+        findsNothing,
+      );
+
+      // Dismiss and confirm the card settles back, still front.
+      await tester
+          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('balance-pair-front-surface')),
+        findsOneWidget,
+      );
+      expect(_frameRect(tester).height, 165);
     });
   });
 

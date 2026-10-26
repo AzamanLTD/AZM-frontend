@@ -5,18 +5,11 @@
 // balanceCardValuationProvider (the ONLY seam production numbers enter
 // the redesigned card through), with the honesty laws this PR exists
 // to enforce:
-//   • Susu 'committed' requires an ACTIVE group AND the caller's OWN
-//     ACTIVE membership — a pending/defaulted/removed member has
-//     NOTHING committed by this user, even in an active group.
-//   • Savings is a real number ONLY when the RAW goals shape is a
-//     List whose every entry carries a valid currentAmountGhs. A
-//     missing/malformed goals collection or a missing amount is
-//     UNKNOWN (null) — never a confirmed zero.
-//   • The USDC transaction gate is a BACKEND authorisation fact. No
-//     gate field exists on the current contract, so the gate is
-//     CLOSED — rate usability alone must NEVER open it.
-//   • Native GHS is NULL on the current contract (backend PR #367
-//     unmerged) — the back-face wallet row stays unknown, never 0.
+//   • Committed Susu has NO client-side derivation AT ALL: a group's
+//     recurring contribution amount is a schedule figure, not held
+//     funds. Only the backend valuation contract's locked
+//     committedSusuUsdc (backend PR #367) is a committed amount —
+//     until it ships the row renders UNKNOWN (null).
 //   • Balance unresolved/failed → balanceConfirmed false; loaded →
 //     true even for a genuine zero; vaults/savings/susu unloaded →
 //     null committed values, empty-loaded-list → real zero.
@@ -150,7 +143,7 @@ ProviderContainer _container({
           ? savingsOverviewProvider.overrideWith(
               _NeverLoadingSavingsNotifier.new)
           : savingsOverviewProvider.overrideWith(
-              () => _FakeSavingsNotifier(savings ?? SavingsOverview({}))),
+              () => _FakeSavingsNotifier(savings ?? const SavingsOverview({}))),
       susuLoading
           ? susuListProvider.overrideWith(_LoadingSusuListNotifier.new)
           : susuListProvider.overrideWith(() => _FakeSusuListNotifier(susu)),
@@ -181,78 +174,67 @@ Future<BalanceCardValuation> _val(ProviderContainer c) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('Susu — committed requires the caller\'s OWN active membership', () {
-    test('active group + OWN membership active → committed', () async {
+  group('Susu committed — unknown until the backend contract publishes it', () {
+    // THE REGRESSION this group exists for: an ACTIVE group plus the
+    // caller's OWN ACTIVE membership were previously summed from the
+    // group's recurring contributionUsdc and rendered as committed
+    // funds. They do NOT establish a committed amount: a schedule
+    // figure is not held money. Only the #367 valuation field
+    // locked.committedSusuUsdc is authoritative — until the live
+    // contract carries it the row is UNKNOWN.
+    test('active group + own ACTIVE membership → UNKNOWN (null), the regression', () async {
       final v = await _val(_container(
         susu: [_susu(myStatus: SusuMemberStatus.active, contribution: 10)],
       ));
-      expect(v.susuCommitted, 10);
+      expect(v.susuCommitted, isNull,
+          reason: 'an active group and active caller membership do not, '
+              'by themselves, establish a committed amount: '
+              'contributionUsdc is the recurring schedule amount, not '
+              'proof of funds currently held');
     });
 
-    test('active group but caller PENDING_VOUCH → nothing committed', () async {
-      final v = await _val(_container(
-        susu: [_susu(myStatus: SusuMemberStatus.pendingVouch)],
-      ));
-      expect(v.susuCommitted, 0,
-          reason: 'a not-yet-admitted member has committed no funds — '
-              'the group being active is not the caller\'s commitment');
+    test('pending/defaulted/removed memberships are equally unknown', () async {
+      for (final status in [
+        SusuMemberStatus.pendingVouch,
+        SusuMemberStatus.pendingContract,
+        SusuMemberStatus.defaulted,
+        SusuMemberStatus.removed,
+      ]) {
+        final v = await _val(_container(susu: [_susu(myStatus: status)]));
+        expect(v.susuCommitted, isNull);
+      }
     });
 
-    test('active group but caller PENDING_CONTRACT → nothing committed', () async {
-      final v = await _val(_container(
-        susu: [_susu(myStatus: SusuMemberStatus.pendingContract)],
-      ));
-      expect(v.susuCommitted, 0);
-    });
-
-    test('active group but caller DEFAULTED → nothing committed', () async {
-      final v = await _val(_container(
-        susu: [_susu(myStatus: SusuMemberStatus.defaulted)],
-      ));
-      expect(v.susuCommitted, 0);
-    });
-
-    test('active group but caller REMOVED → nothing committed', () async {
-      final v = await _val(_container(
-        susu: [_susu(myStatus: SusuMemberStatus.removed)],
-      ));
-      expect(v.susuCommitted, 0);
-    });
-
-    test('own ACTIVE membership in a NON-active group → nothing committed', () async {
+    test('a non-active group is unknown too', () async {
       final v = await _val(_container(
         susu: [
           _susu(myStatus: SusuMemberStatus.active, status: SusuStatus.configuring),
         ],
       ));
-      expect(v.susuCommitted, 0);
+      expect(v.susuCommitted, isNull);
     });
 
-    test('mixed memberships: only the own-active rows count', () async {
-      final v = await _val(_container(
-        susu: [
-          _susu(myStatus: SusuMemberStatus.active, contribution: 10),
-          _susu(myStatus: SusuMemberStatus.pendingVouch, contribution: 40),
-          _susu(myStatus: SusuMemberStatus.active, status: SusuStatus.completed),
-        ],
-      ));
-      expect(v.susuCommitted, 10);
-    });
-
-    test('susu list NOT loaded → committed is UNKNOWN (null), not zero', () async {
+    test('susu list NOT loaded → UNKNOWN (null), not zero', () async {
       final v = _container(susuLoading: true)
           .read(balanceCardValuationProvider);
       expect(v.susuCommitted, isNull);
+    });
+
+    test('an EMPTY loaded list is still unknown, not a confirmed zero', () async {
+      final v = await _val(_container(susu: const []));
+      expect(v.susuCommitted, isNull,
+          reason: 'no committed-Susu source exists on the current '
+              'contract at all — even an empty list cannot confirm 0');
     });
   });
 
   group('Savings — unknown raw shapes are never a confirmed zero', () {
     test('goals is a real List with valid amounts → summed', () async {
       final v = await _val(_container(
-        savings: SavingsOverview({
+        savings: const SavingsOverview({
           'goals': [
-            {'currentAmountGhs': 30},
-            {'currentAmountGhs': 12.5},
+            {'status': 'ACTIVE', 'currentAmountGhs': 30},
+            {'status': 'PAUSED', 'currentAmountGhs': 12.5},
           ],
         }),
       ));
@@ -261,14 +243,82 @@ void main() {
 
     test('goals is a valid EMPTY list → a real zero', () async {
       final v = await _val(_container(
-        savings: SavingsOverview({'goals': <Map<String, dynamic>>[]}),
+        savings: const SavingsOverview({'goals': <Map<String, dynamic>>[]}),
       ));
       expect(v.savingsLockedGhs, 0);
     });
 
+    // STATUS FILTER — the agreed backend valuation contract counts
+    // ONLY ACTIVE and PAUSED goals in the committed-savings bucket
+    // (backend PR #367, SAVINGS_ACTIVE_STATUSES). COMPLETED/CANCELLED
+    // goals are settled history, not currently committed savings.
+    test('ACTIVE and PAUSED goals contribute', () async {
+      final v = await _val(_container(
+        savings: const SavingsOverview({
+          'goals': [
+            {'status': 'ACTIVE', 'currentAmountGhs': 30},
+            {'status': 'PAUSED', 'currentAmountGhs': 12.5},
+          ],
+        }),
+      ));
+      expect(v.savingsLockedGhs, 42.5);
+    });
+
+    test('COMPLETED and CANCELLED goals are excluded', () async {
+      final v = await _val(_container(
+        savings: const SavingsOverview({
+          'goals': [
+            {'status': 'ACTIVE', 'currentAmountGhs': 30},
+            {'status': 'COMPLETED', 'currentAmountGhs': 500},
+            {'status': 'CANCELLED', 'currentAmountGhs': 700},
+          ],
+        }),
+      ));
+      expect(v.savingsLockedGhs, 30);
+    });
+
+    test('a list of ONLY completed/cancelled goals is a real zero', () async {
+      final v = await _val(_container(
+        savings: const SavingsOverview({
+          'goals': [
+            {'status': 'COMPLETED', 'currentAmountGhs': 500},
+            {'status': 'CANCELLED', 'currentAmountGhs': 700},
+          ],
+        }),
+      ));
+      expect(v.savingsLockedGhs, 0,
+          reason: 'validly parsed, just settled history — that is a '
+              'real zero of currently committed savings, not an unknown');
+    });
+
+    test('an entry with a MISSING status is malformed → UNKNOWN (null)', () async {
+      final v = await _val(_container(
+        savings: const SavingsOverview({
+          'goals': [
+            {'currentAmountGhs': 30},
+          ],
+        }),
+      ));
+      expect(v.savingsLockedGhs, isNull,
+          reason: 'the overview does not guarantee a default status — '
+              'an entry without a status is never silently included or '
+              'excluded');
+    });
+
+    test('an entry with a NON-STRING status is malformed → UNKNOWN (null)', () async {
+      final v = await _val(_container(
+        savings: const SavingsOverview({
+          'goals': [
+            {'status': 3, 'currentAmountGhs': 30},
+          ],
+        }),
+      ));
+      expect(v.savingsLockedGhs, isNull);
+    });
+
     test('goals key ABSENT → UNKNOWN (null), never zero', () async {
       final v = await _val(_container(
-        savings: SavingsOverview({'unrelated': 1}),
+        savings: const SavingsOverview({'unrelated': 1}),
       ));
       expect(v.savingsLockedGhs, isNull,
           reason: 'the contract not publishing a goals collection does '
@@ -277,14 +327,14 @@ void main() {
 
     test('goals is NOT a List → UNKNOWN (null)', () async {
       final v = await _val(_container(
-        savings: SavingsOverview({'goals': 'unavailable'}),
+        savings: const SavingsOverview({'goals': 'unavailable'}),
       ));
       expect(v.savingsLockedGhs, isNull);
     });
 
     test('any entry with a MISSING currentAmountGhs → UNKNOWN (null)', () async {
       final v = await _val(_container(
-        savings: SavingsOverview({
+        savings: const SavingsOverview({
           'goals': [
             {'currentAmountGhs': 30},
             {'name': 'Goal with no amount'},
@@ -297,7 +347,7 @@ void main() {
 
     test('any entry with a non-numeric amount → UNKNOWN (null)', () async {
       final v = await _val(_container(
-        savings: SavingsOverview({
+        savings: const SavingsOverview({
           'goals': [
             {'currentAmountGhs': 'thirty'},
           ],
@@ -308,7 +358,7 @@ void main() {
 
     test('a NON-MAP entry → UNKNOWN (null)', () async {
       final v = await _val(_container(
-        savings: SavingsOverview({'goals': ['malformed']}),
+        savings: const SavingsOverview({'goals': ['malformed']}),
       ));
       expect(v.savingsLockedGhs, isNull);
     });
@@ -382,6 +432,228 @@ void main() {
       expect(v.availableGhsValue, isNull);
       expect(v.availableUsdcEquivalent, isNull);
       expect(v.usdcTransactionGateOpen, isFalse);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // The backend valuation block (backend PR #367): the adapter consumes
+  // `data.valuation` when the contract ships, and distinguishes the
+  // three states — legacy (field absent), explicit backend
+  // unavailability (null / malformed), backend-authoritative (parses).
+  // ─────────────────────────────────────────────────────────────────────
+
+  /// A well-formed #367 valuation payload, exactly as the backend
+  /// serializes it (money = { exact, value }).
+  Map<String, dynamic> valuation367Payload({
+    double nativeGhs = 0,
+    double availableUsdc = 100,
+    Map<String, dynamic>? usdcEquivalent,
+    Map<String, dynamic>? availableGhsValue,
+    String rateStatus = 'CURRENT',
+    String valuationStatus = 'CURRENT',
+    bool gateOpen = true,
+  }) {
+    // The real #367 serializer sends NO displayRate when the rate is
+    // UNAVAILABLE (there is no display rate to describe).
+    final displayRate = rateStatus == 'UNAVAILABLE'
+        ? null
+        : {'basis': rateStatus, 'rate': 12.5};
+    return {
+        'pair': 'USDC/GHS',
+        'nativeGhsAvailable': {'exact': nativeGhs.toStringAsFixed(8), 'value': nativeGhs},
+        'availableUsdc': {'exact': availableUsdc.toStringAsFixed(8), 'value': availableUsdc},
+        'usdcEquivalent': usdcEquivalent,
+        'availableGhsValue': availableGhsValue,
+        'rateStatus': rateStatus,
+        'valuationStatus': valuationStatus,
+        'currentRate': {
+          'rate': 12.5,
+          'rateExact': '12.50000000',
+          'isFresh': true,
+          'pair': 'USDC/GHS',
+          'source': 'KOTANI_PAY',
+          'observedAt': '2026-10-26T10:00:00Z',
+        },
+        'savedRate': null,
+        'displayRate': displayRate,
+        'usdcTransactionGateOpen': gateOpen,
+        'usdcTransactionGateReason': 'FRESH_CANONICAL_RATE',
+        'locked': {
+          'escrowUsdc': {'exact': '5.00000000', 'value': 5},
+          'disputesUsdc': {'exact': '2.00000000', 'value': 2},
+          'vaultsUsdc': {'exact': '7.00000000', 'value': 7},
+          'savingsGhs': {'exact': '42.50000000', 'value': 42.5},
+          'committedSusuUsdc': {'exact': '9.00000000', 'value': 9},
+          'vendorUnallocatedUsdc': {'exact': '0.00000000', 'value': 0},
+        },
+        'nonCash': {
+          'azmPoints': {'exact': '900.75000000', 'value': 900.75},
+        },
+        'evaluatedAt': '2026-10-26T10:00:05Z',
+      };
+  }
+
+  group('backend valuation PRESENT + parses → backend-authoritative', () {
+    test('every figure is mapped verbatim from the payload', () async {
+      final payload = valuation367Payload(
+        nativeGhs: 20,
+        availableUsdc: 100,
+        usdcEquivalent: {'exact': '116.00000000', 'value': 116},
+        availableGhsValue: {'exact': '1450.00000000', 'value': 1450},
+      );
+      final v = await _val(_container(
+        balance: BalanceData(
+          availableBalance: 999,
+          valuationFieldPresent: true,
+          valuationRaw: payload,
+        ),
+      ));
+      // The backend's own totals win; the client never recalculates and
+      // the legacy availableBalance is superseded.
+      expect(v.nativeGhsAvailable, 20);
+      expect(v.availableUsdc, 100);
+      expect(v.availableGhsValue, 1450);
+      expect(v.availableUsdcEquivalent, 116);
+      expect(v.escrowLocked, 5);
+      expect(v.disputeEscrow, 2);
+      expect(v.vaultLocked, 7);
+      expect(v.savingsLockedGhs, 42.5);
+      // The ONLY legitimate committed-Susu source, mapped.
+      expect(v.susuCommitted, 9);
+      expect(v.azmPoints, 900.75);
+      expect(v.rate.kind, FxRateKind.fresh);
+      expect(v.rate.ghsPerUsdc, 12.5);
+      expect(v.rate.sourceLabel, 'KOTANI_PAY');
+    });
+
+    test('the backend gate is mapped VERBATIM — closed payload stays closed', () async {
+      final v = await _val(_container(
+        balance: BalanceData(
+          valuationFieldPresent: true,
+          valuationRaw: valuation367Payload(gateOpen: false, rateStatus: 'SAVED_FALLBACK', valuationStatus: 'SAVED_FALLBACK'),
+        ),
+      ));
+      expect(v.usdcTransactionGateOpen, isFalse);
+      expect(v.rate.kind, FxRateKind.saved,
+          reason: 'a saved rate is displayed as saved — it is never '
+              'labelled current/fresh');
+    });
+
+    test('backend-authoritative branch never recomputes the totals', () async {
+      // The payload's own GHS total deliberately disagrees with any
+      // client derivation (100 USDC × 12.5 client rate = 1250 ≠ 1450):
+      // the card must show 1450, the backend's number.
+      final v = await _val(_container(
+        balance: BalanceData(
+          availableBalance: 100,
+          valuationFieldPresent: true,
+          valuationRaw: valuation367Payload(
+            availableGhsValue: {'exact': '1450.00000000', 'value': 1450},
+            usdcEquivalent: {'exact': '116.00000000', 'value': 116},
+          ),
+        ),
+      ));
+      expect(v.availableGhsValue, 1450);
+      expect(v.availableUsdcEquivalent, 116);
+    });
+
+    test('a PARTIAL_FX_UNAVAILABLE payload shows no GHS total', () async {
+      final v = await _val(_container(
+        balance: BalanceData(
+          valuationFieldPresent: true,
+          valuationRaw: valuation367Payload(
+            usdcEquivalent: null,
+            availableGhsValue: null,
+            rateStatus: 'UNAVAILABLE',
+            valuationStatus: 'PARTIAL_FX_UNAVAILABLE',
+            gateOpen: false,
+          ),
+        ),
+      ));
+      expect(v.availableGhsValue, isNull);
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.usdcTransactionGateOpen, isFalse);
+      expect(v.rate.kind, FxRateKind.none);
+    });
+
+    test('a DEMO_FALLBACK payload maps the demo rate kind, gate closed', () async {
+      final v = await _val(_container(
+        balance: BalanceData(
+          valuationFieldPresent: true,
+          valuationRaw: valuation367Payload(
+            rateStatus: 'DEMO_FALLBACK',
+            valuationStatus: 'DEMO_FALLBACK',
+            gateOpen: false,
+          ),
+        ),
+      ));
+      expect(v.rate.kind, FxRateKind.demo);
+      expect(v.usdcTransactionGateOpen, isFalse,
+          reason: 'a demo rate never opens the transaction gate');
+    });
+  });
+
+  group('backend valuation EXPLICITLY unavailable → no client substitution', () {
+    test('explicit null valuation → NO GHS figure even with a usable client rate', () async {
+      // THE core honesty regression: a usable CLIENT-side oracle rate is
+      // loaded, but the backend explicitly said the valuation is
+      // unavailable. The card must NOT derive a GHS total from the
+      // client rate and present it as though the backend valued it.
+      final v = await _val(_container(
+        balance: const BalanceData(
+          availableBalance: 100,
+          valuationFieldPresent: true,
+          valuationRaw: null,
+        ),
+      ));
+      expect(v.availableGhsValue, isNull,
+          reason: 'an explicit backend valuation failure must never be '
+              'silently replaced with a client-side conversion');
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.nativeGhsAvailable, isNull);
+      expect(v.availableUsdc, 100,
+          reason: 'the real USDC holding is still shown — the failure '
+              'was the valuation, not the ledger');
+      expect(v.usdcTransactionGateOpen, isFalse);
+    });
+
+    test('a MALFORMED valuation payload is treated exactly like explicit null', () async {
+      final v = await _val(_container(
+        balance: const BalanceData(
+          availableBalance: 100,
+          valuationFieldPresent: true,
+          valuationRaw: <String, dynamic>{
+            'pair': 'USDC/GHS',
+            // nativeGhsAvailable malformed → whole payload rejected.
+            'nativeGhsAvailable': {'exact': 'x', 'value': 'nope'},
+            'availableUsdc': {'exact': '1.00000000', 'value': 1},
+          },
+        ),
+      ));
+      expect(v.availableGhsValue, isNull);
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.availableUsdc, 100);
+    });
+
+    test('an unknown rateStatus string rejects the payload', () async {
+      final v = await _val(_container(
+        balance: BalanceData(
+          valuationFieldPresent: true,
+          valuationRaw: valuation367Payload(rateStatus: 'SOMEHOW_FRESH'),
+        ),
+      ));
+      expect(v.availableGhsValue, isNull);
+    });
+  });
+
+  group('legacy response (valuation field absent) → interim derivation', () {
+    test('the interim GHS figure remains the display-only derivation', () async {
+      final v = await _val(_container());
+      final rate = _usableRate();
+      expect(v.availableGhsValue, 50 * rate.ghsPerUsdc);
+      expect(v.nativeGhsAvailable, isNull);
+      expect(v.usdcTransactionGateOpen, isFalse);
+      expect(v.rate.kind, FxRateKind.fresh);
     });
   });
 }
