@@ -1005,7 +1005,11 @@ class _State extends ConsumerState<NotificationOverlay>
     // invalidation can leave the state momentarily owned by the previous
     // user; those records never reach the screen.
     final draftState = ref.watch(launcherDraftsProvider);
-    final currentUid = ref.read(authProvider).user?.id;
+    // REVIEW FOLLOW-UP P1 — WATCH, not read: the render gate must
+    /// re-evaluate the moment the session identity changes (direct
+    /// account switch included), without depending on some unrelated
+    /// provider update happening to trigger a rebuild.
+    final currentUid = ref.watch(authProvider).user?.id;
     final drafts = (draftState.userId != null &&
             draftState.userId == currentUid)
         ? draftState.drafts

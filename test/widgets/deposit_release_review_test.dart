@@ -633,6 +633,125 @@ void main() {
               'returns');
     });
   });
+
+  group('5 — REVIEW FOLLOW-UP P1: continuation persistence is part of the '
+      'close guard', () {
+    final contStorage = _GatedWriteStorage();
+    late DepositContinuationsService contSvc;
+
+    Widget appWithAuth() {
+      // NOTE: writeGate/writeError are NOT reset here — the tests arm
+      // them BEFORE the submit sequence (the write happens mid-submit,
+      // right after the initiate response lands).
+      contStorage.store.clear();
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith(
+            (ref) => _FixedAuth(User(
+              id: 'user-7',
+              username: 'me',
+              email: 'me@example.com',
+              token: 'tok',
+              role: 'USER',
+              azamanId: 'AZM-999999999',
+            )),
+          ),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: _router()),
+      );
+    }
+
+    Future<void> submitDeposit(WidgetTester tester, String reference) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithAuth());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': reference, 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('(a) a HELD secure-storage write keeps every close '
+        'gesture blocked until the continuation is durably saved',
+        (tester) async {
+      final heldWrite = Completer<void>();
+      contStorage.writeGate = heldWrite;
+      await submitDeposit(tester, 'DEP-PERSIST-1');
+
+      expect(find.text('Prompt sent'), findsOneWidget);
+      expect(find.text('Keep for 5 minutes'), findsNothing,
+          reason: 'the exit prompt must not bypass the durability '
+              'barrier while the continuation write is in flight');
+      expect(find.bySemanticsLabel('Close Add Cash'), findsOneWidget,
+          reason: 'the surface stays open — closing now could lose the '
+              'only local pointer to the submitted operation');
+      expect(contStorage.store.isEmpty, isTrue,
+          reason: 'the record is not durable yet');
+
+      heldWrite.complete();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final stored = await contSvc.loadForUser('user-7');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-PERSIST-1');
+
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsOneWidget,
+          reason: 'once the local way-back is durable, closing is safely '
+              'representable again');
+    });
+
+    testWidgets('(b) a FAILED local write keeps the surface fail-closed '
+        'with the exact reference and an explicit retry',
+        (tester) async {
+      contStorage.writeError = StateError('disk full');
+      await submitDeposit(tester, 'DEP-PERSIST-2');
+
+      expect(find.text('Keep for 5 minutes'), findsNothing,
+          reason: 'a failed persistence write keeps the close guard '
+              'active — the reference must not be closed away unsaved');
+      // Two retry affordances: the failure snackbar's action and the
+      // result view's primary button.
+      expect(find.text('Save receipt'), findsNWidgets(2),
+          reason: 'the retry affordance for the SAME operation replaces '
+              'the normal result actions');
+      expect(contStorage.store.isEmpty, isTrue);
+
+      contStorage.writeError = null;
+      await tester.pump(const Duration(seconds: 6));
+      await tester.tap(find.text('Save receipt').last);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final stored = await contSvc.loadForUser('user-7');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-PERSIST-2',
+          reason: 'the retry persists the EXACT reference the backend '
+              'returned — nothing is re-initiated or invented');
+
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsOneWidget);
+    });
+  });
 }
 
 /// In-memory FlutterSecureStorage for the continuation service — same
@@ -664,6 +783,28 @@ class _MemSecureStorage implements FlutterSecureStorage {
       default:
         throw UnimplementedError('${invocation.memberName}');
     }
+  }
+}
+
+/// [_MemSecureStorage] whose WRITES can be held open or made to fail —
+/// the seam that makes the continuation durability barrier observable:
+/// a durable backend reference is not enough while its local record
+/// has not been written.
+class _GatedWriteStorage extends _MemSecureStorage {
+  Completer<void>? writeGate;
+  Object? writeError;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #write) {
+      if (writeError != null) return Future.error(writeError!);
+      final gate = writeGate;
+      if (gate != null) {
+        writeGate = null;
+        return gate.future.then((_) => super.noSuchMethod(invocation));
+      }
+    }
+    return super.noSuchMethod(invocation);
   }
 }
 

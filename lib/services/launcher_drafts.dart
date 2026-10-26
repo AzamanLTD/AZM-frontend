@@ -302,14 +302,30 @@ class LauncherDraftsController extends StateNotifier<LauncherDraftsState> {
     await loadForUser(uid);
   }
 
-  /// Logout / account switch / session invalidation. Bumps the
-  /// generation FIRST so an in-flight loadForUser cannot complete into
-  /// state after the cleanup and resurrect the outgoing user's drafts.
+  /// Logout / session invalidation. Bumps the generation FIRST so an
+  /// in-flight loadForUser cannot complete into state after the
+  /// cleanup and resurrect the outgoing user's drafts. (Form drafts
+  /// ARE deleted on logout — they are unsubmitted conveniences, unlike
+  /// submitted-deposit continuations.)
   Future<void> clearForLogout() async {
     ++_generation;
     final uid = state.userId;
     state = const LauncherDraftsState();
     if (uid != null) await _service.clearAll(uid);
+  }
+
+  /// REVIEW FOLLOW-UP P1 — direct account switch (no logout). The
+  /// outgoing user's in-memory drafts are dropped IMMEDIATELY —
+  /// synchronously — so they can never render after the identity
+  /// boundary, and the incoming user's drafts load under a fresh
+  /// generation. The outgoing user's STORED drafts are NOT deleted by
+  /// a switch: they are user-scoped and reload when that user signs
+  /// back in (they still die on explicit logout, per the form-draft
+  /// contract above).
+  Future<void> switchToUser(String? userId) async {
+    ++_generation;
+    state = const LauncherDraftsState();
+    await loadForUser(userId);
   }
 }
 

@@ -12,8 +12,13 @@
 // been initiated (OTP pending, or prompt sent, or recovery unresolved)
 // but not yet authoritatively resolved. It is:
 //
-//   • USER-SCOPED — one storage key per authenticated user, cleared on
-//     logout/account switch, never persisted anonymously.
+//   • USER-SCOPED — one storage key per authenticated user, never
+//     persisted anonymously, never rendered to another account. The
+//     in-memory state is cleared on logout/account switch; the STORED
+//     record is NOT — logging out neither cancels nor resolves a
+//     submitted instruction, and the same user must find their way
+//     back when they sign in again. The record leaves storage only
+//     via resolve() (authoritative settlement/failure).
 //   • TTL-FREE — a submitted operation outlives every form-draft clock.
 //     The record leaves storage only when the deposit is AUTHORITATIVELY
 //     resolved (settled or failed by the ledger, confirmed on the
@@ -149,11 +154,12 @@ class DepositContinuationsService {
     await _write(userId, list);
   }
 
-  /// Logout / account switch: the next user must never inherit a
-  /// submitted-operation record.
-  Future<void> clearAll(String userId) async {
-    await _storage.delete(key: _key(userId));
-  }
+  // NOTE (review follow-up P1): there is deliberately NO clearAll.
+  // Logout and account switches must NOT delete an unresolved
+  /// submitted-operation record — that deletion is reserved for
+  // resolve() (authoritative settlement/failure). Strict per-user
+  // isolation comes from the user-scoped storage key: another account
+  // can never read this block.
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -214,13 +220,31 @@ class DepositContinuationsController
     if (state.userId == userId) await loadForUser(userId);
   }
 
-  /// Logout / account switch / session invalidation. Bumps the
-  /// generation FIRST so an in-flight read cannot undo the cleanup.
+  /// Logout / session invalidation. Bumps the generation FIRST so an
+  /// in-flight read cannot undo the cleanup, then clears the IN-MEMORY
+  /// state only. REVIEW FOLLOW-UP P1: the stored record is deliberately
+  /// PRESERVED — logging out neither cancels nor resolves a submitted
+  /// Moolre instruction, so deleting the user's only local way back
+  /// would contradict the continuation contract. Per-user isolation is
+  /// preserved by the user-scoped storage key: another account never
+  /// sees this block, and the same user's outstanding continuations
+  /// reload on their next loadForUser (sign-in / centre open).
   Future<void> clearForLogout() async {
     ++_generation;
-    final uid = state.userId;
     state = const DepositContinuationsState();
-    if (uid != null) await _service.clearAll(uid);
+  }
+
+  /// Direct account switch (no logout). The outgoing user's in-memory
+  /// state is dropped IMMEDIATELY — synchronously — so their records
+  /// can never render after the boundary, and the new user's records
+  /// load under a fresh generation. REVIEW FOLLOW-UP P1: the outgoing
+  /// user's STORED continuations are preserved (user-scoped, they
+  /// reload when that user signs back in); an in-flight read for the
+  /// old user completes into the void via the generation bump.
+  Future<void> switchToUser(String? userId) async {
+    ++_generation;
+    state = const DepositContinuationsState();
+    await loadForUser(userId);
   }
 }
 

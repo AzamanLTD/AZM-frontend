@@ -29,13 +29,25 @@
 //      `general` notifications, so the bell badge and the panel's own
 //      unread count disagreed.
 
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+import 'package:azaman/models/user_model.dart';
 import 'package:azaman/models/notification_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/deposit_continuations.dart';
+import 'package:azaman/services/launcher_drafts.dart';
 import 'package:azaman/services/notification_action_dispatcher.dart';
 import 'package:azaman/widgets/notification_overlay.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -86,6 +98,21 @@ Future<ProviderContainer> _pumpPanel(
   );
   addTearDown(container.dispose);
 
+  await _mountApp(tester, container, visitedRoutes);
+  // Open the panel the way the bell opens it: from a context INSIDE the
+  // navigator's overlay.
+  NotificationOverlay.show(_homeContext!);
+  await tester.pumpAndSettle();
+  return container;
+}
+
+/// Mounts the bare /home shell over the given container (the router the
+/// account-switch test reuses).
+Future<void> _mountApp(
+  WidgetTester tester,
+  ProviderContainer container, [
+  List<String> visitedRoutes = const [],
+]) async {
   final router = GoRouter(
     initialLocation: '/home',
     routes: [
@@ -130,11 +157,6 @@ Future<ProviderContainer> _pumpPanel(
       ),
     ),
   );
-  // Open the panel the way the bell opens it: from a context INSIDE the
-  // navigator's overlay.
-  NotificationOverlay.show(_homeContext!);
-  await tester.pumpAndSettle();
-  return container;
 }
 
 Finder _card(String id) {
@@ -152,6 +174,101 @@ List<AppNotification> _categorisedSeed() => [
   _n('sec-1', 'Title sec-1', category: NotificationCategory.securityAccount),
   _n('gen-1', 'Title gen-1', category: NotificationCategory.general),
 ];
+
+// ── REVIEW FOLLOW-UP P1 — direct account-switch identity boundary ──────────
+//
+// User A has a launcher draft AND an unresolved submitted-deposit
+// continuation; the notification centre is OPEN; the session switches
+// directly to user B (no logout). A's records must vanish immediately,
+// only B's may render, a delayed A storage read must not repopulate, and
+// switching back reloads exactly A's own records. The switch runs through
+// the REAL AuthProvider.setSessionFromLogin identity boundary.
+
+/// Key-aware in-memory storage: reads for a HELD user park until the
+/// test releases them; everything else is a plain map. Used to pin the
+/// stale-read race across a direct identity switch.
+class _KeyGatedStorage implements FlutterSecureStorage {
+  final Map<String, String> store = {};
+  final Set<String> _heldUsers = {};
+  final List<(String, Completer<String?>)> _parked = [];
+
+  void holdReadsFor(String userId) => _heldUsers.add(userId);
+
+  /// Releases every parked read for [userId] with the CURRENT stored
+  /// value — the stale read finally "arrives" with the old user's data.
+  void releaseHeld(String userId) {
+    _heldUsers.remove(userId);
+    final due = _parked
+        .where((e) => e.$1.endsWith('.$userId'))
+        .toList(growable: false);
+    _parked.removeWhere((e) => e.$1.endsWith('.$userId'));
+    for (final (key, completer) in due) {
+      completer.complete(store[key]);
+    }
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    final named = invocation.namedArguments;
+    switch (invocation.memberName) {
+      case #read:
+        final key = named[#key] as String;
+        final held =
+            _heldUsers.any((u) => key.endsWith('.$u')) && _parked.length < 8;
+        if (held) {
+          final completer = Completer<String?>();
+          _parked.add((key, completer));
+          return completer.future;
+        }
+        return Future.value(store[key]);
+      case #write:
+        store[named[#key] as String] = named[#value] as String? ?? '';
+        return Future.value();
+      case #delete:
+        store.remove(named[#key] as String);
+        return Future.value();
+      case #deleteAll:
+        store.clear();
+        return Future.value();
+      default:
+        throw UnimplementedError('${invocation.memberName}');
+    }
+  }
+}
+
+/// Seeded notifier whose API calls go to the MockClient: the
+/// constructor's initial fetch is inert in the other tests only because
+/// their auth is tokenless — here the user IS authenticated, so every
+/// notifier HTTP edge must stay inside the test.
+class _SeededMockApi extends NotificationNotifier {
+  _SeededMockApi(super.ref, List<AppNotification> seed, ApiClient api)
+      : super(client: api) {
+    state = seed;
+  }
+}
+
+User _switchUser(String id) => User.fromJson(
+    {'id': id, 'username': 'u', 'email': '$id@example.com', 'token': 'tok', 'role': 'USER'});
+
+/// An ApiClient whose /auth/me always answers with the asked-for
+/// profile, so the REAL fetchUserDetails succeeds for any user.
+ApiClient _meApi() => ApiClient(
+      client: MockClient((request) async {
+        final id = Uri.parse(request.url.toString()).pathSegments.last;
+        return http.Response(
+          jsonEncode({
+            'user': {
+              'id': id,
+              'username': 'u',
+              'email': '$id@example.com',
+              'token': 'tok',
+              'role': 'USER',
+            }
+          }),
+          200,
+        );
+      }),
+    );
 
 void main() {
   // ── Pure resolver: the canonical action-to-route contract ──────────────
@@ -470,4 +587,109 @@ void main() {
     // PRE-FIX: general unread were excluded → 2. Canonical: 3.
     expect(container.read(unreadCountProvider), 3);
   });
+
+
+testWidgets(
+    'REVIEW FOLLOW-UP P1 — a direct account switch (no logout) re-binds '
+    'the centre immediately: A\'s draft/reference vanish, B\'s records '
+    'alone render, a delayed A read cannot repopulate, and switching '
+    'back reloads exactly A\'s records', (tester) async {
+  SharedPreferences.setMockInitialValues({'azaman_theme': 1});
+  final gated = _KeyGatedStorage();
+
+  // Seed: A has BOTH a launcher draft and an unresolved submitted-deposit
+  // continuation; B has B's own continuation.
+  final nowMs = DateTime.now().millisecondsSinceEpoch;
+  gated.store['azm.launcher.drafts.user-1'] = jsonEncode([
+    {
+      'id': 'send.user-1',
+      'surface': 'send',
+      'savedAtMs': nowMs,
+      'payload': {'amountRaw': '10'},
+    }
+  ]);
+  gated.store['azm.deposit.continuations.user-1'] = jsonEncode([
+    {'id': 'user-1.MOOLRE_A_123', 'reference': 'MOOLRE_A_123', 'savedAtMs': nowMs},
+  ]);
+  gated.store['azm.deposit.continuations.user-2'] = jsonEncode([
+    {'id': 'user-2.MOOLRE_B_456', 'reference': 'MOOLRE_B_456', 'savedAtMs': nowMs},
+  ]);
+
+  final mockApi = _meApi();
+  // The un-mocked secure-storage channel is noisy in tests; reads null.
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(
+    const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+    (call) async => null,
+  );
+  final container = ProviderContainer(
+    overrides: [
+      authProvider.overrideWith((ref) => AuthProvider(ref: ref, client: mockApi)),
+      notificationProvider.overrideWith((ref) => _SeededMockApi(ref, [], mockApi)),
+      launcherDraftsProvider.overrideWith(
+          (ref) => LauncherDraftsController(LauncherDraftsService(storage: gated))),
+      depositContinuationsProvider.overrideWith((ref) =>
+          DepositContinuationsController(DepositContinuationsService(storage: gated))),
+    ],
+  );
+  addTearDown(container.dispose);
+
+  // Sign in as A through the real session path. A hard timeout keeps a
+  // regression from manifesting as a silent 10-minute stall.
+  await container
+      .read(authProvider)
+      .setSessionFromLogin(_switchUser('user-1'))
+      .timeout(const Duration(seconds: 15));
+  await _mountApp(tester, container);
+  NotificationOverlay.show(_homeContext!);
+  await tester.pumpAndSettle();
+
+  // The centre is open under A's identity: A's draft and A's submitted
+  // deposit are both rendered; B's is not.
+  expect(find.text('Continue sending'), findsOneWidget);
+  expect(find.text('Deposits in progress'), findsOneWidget);
+  expect(find.textContaining('MOOLRE_A_123'), findsOneWidget);
+  expect(find.textContaining('MOOLRE_B_456'), findsNothing);
+
+  // Start A-reads that will resolve LATE (after the switch).
+  gated.holdReadsFor('user-1');
+  final staleDrafts =
+      container.read(launcherDraftsProvider.notifier).loadForUser('user-1');
+  final staleCont = container
+      .read(depositContinuationsProvider.notifier)
+      .loadForUser('user-1');
+
+  // DIRECT switch to B — the real AuthProvider identity boundary, no
+  // logout anywhere in the path.
+  await container
+      .read(authProvider)
+      .setSessionFromLogin(_switchUser('user-2'))
+      .timeout(const Duration(seconds: 15));
+  await tester.pumpAndSettle();
+
+  // A's records are gone IMMEDIATELY; only B's continuation renders.
+  expect(find.text('Continue sending'), findsNothing,
+      reason: 'A\'s draft must vanish the moment the identity changes');
+  expect(find.textContaining('MOOLRE_A_123'), findsNothing);
+  expect(find.textContaining('MOOLRE_B_456'), findsOneWidget);
+  expect(find.text('Deposits in progress'), findsOneWidget);
+
+  // The delayed A read finally resolves — it must NOT repopulate or
+  // render A's records (generation guard).
+  gated.releaseHeld('user-1');
+  await staleDrafts;
+  await staleCont;
+  await tester.pumpAndSettle();
+  expect(find.text('Continue sending'), findsNothing);
+  expect(find.textContaining('MOOLRE_A_123'), findsNothing);
+  expect(find.textContaining('MOOLRE_B_456'), findsOneWidget);
+
+  // Switch back to A: exactly A's own still-valid records reload.
+  await container.read(authProvider).setSessionFromLogin(_switchUser('user-1'));
+  await tester.pumpAndSettle();
+  expect(find.text('Continue sending'), findsOneWidget);
+  expect(find.textContaining('MOOLRE_A_123'), findsOneWidget);
+  expect(find.textContaining('MOOLRE_B_456'), findsNothing);
+});
+
 }

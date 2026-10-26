@@ -126,10 +126,18 @@ void main() {
       expect(await service.loadForUser(otherUid), isEmpty);
     });
 
-    test('clearAll wipes the user block (logout/account switch)', () async {
+    test('resolve is the ONLY deletion path: an unresolved submitted '
+        'operation never leaves storage otherwise', () async {
       await service.save(uid, ref);
-      await service.clearAll(uid);
+      // Six hours, many re-saves — the record stays.
+      await service.save(uid, ref);
+      expect(await service.loadForUser(uid), hasLength(1));
+
+      // Authoritative settlement is the one way out.
+      await service.resolve(uid, ref);
       expect(await service.loadForUser(uid), isEmpty);
+      expect(storage.store.containsKey('azm.deposit.continuations.$uid'),
+          isFalse);
     });
 
     test('a corrupt blob reads as empty, never throws', () async {
@@ -177,8 +185,38 @@ void main() {
       expect(controller.state.continuations, isEmpty);
     });
 
-    test('clearForLogout bumps the generation: an in-flight read cannot '
-        'undo the cleanup', () async {
+    test('clearForLogout (REVIEW FOLLOW-UP P1) clears in-memory state '
+        'but PRESERVES the stored record — logging out neither cancels '
+        'nor resolves a submitted instruction', () async {
+      final controller = DepositContinuationsController(service);
+      addTearDown(controller.dispose);
+
+      await controller.loadForUser(uid);
+      await controller.save(uid, ref);
+      expect(controller.state.continuations, hasLength(1));
+
+      await controller.clearForLogout();
+      expect(controller.state.userId, isNull);
+      expect(controller.state.continuations, isEmpty);
+      // The storage record SURVIVES the logout.
+      expect(storage.store.containsKey('azm.deposit.continuations.$uid'),
+          isTrue);
+
+      // The same user signs back in: their outstanding continuation is
+      // right there again.
+      await controller.loadForUser(uid);
+      expect(controller.state.userId, uid);
+      expect(controller.state.continuations, hasLength(1));
+      expect(controller.state.continuations.single.reference, ref);
+
+      // A different account never sees it.
+      await controller.loadForUser(otherUid);
+      expect(controller.state.continuations, isEmpty,
+          reason: 'strict per-user isolation');
+    });
+
+    test('clearForLogout bumps the generation: a stale in-flight read '
+        "cannot repopulate the outgoing user's state", () async {
       final controller = DepositContinuationsController(service);
       addTearDown(controller.dispose);
 
@@ -193,6 +231,38 @@ void main() {
       await stale;
       expect(controller.state.userId, isNull);
       expect(controller.state.continuations, isEmpty);
+    });
+
+    test('switchToUser (REVIEW FOLLOW-UP P1) drops the outgoing user '
+        'immediately, loads the incoming user, and preserves the '
+        "outgoing user's stored records", () async {
+      final controller = DepositContinuationsController(service);
+      addTearDown(controller.dispose);
+
+      // user A has an outstanding submitted deposit.
+      await service.save(uid, ref);
+      await controller.loadForUser(uid);
+      expect(controller.state.continuations, hasLength(1));
+
+      // A DIRECT switch to B (no logout): B's state lands, A's records
+      // are gone from memory the moment the boundary is crossed.
+      await controller.switchToUser(otherUid);
+      expect(controller.state.userId, otherUid);
+      expect(controller.state.continuations, isEmpty);
+
+      // A delayed read that A started before the switch resolves into
+      // the void — it can never repopulate A's records.
+      // (Covered structurally by the generation bump; the stale-read
+      // interleaving is pinned in the generation-guard test above.)
+
+      // A's STORED record is preserved across the switch.
+      expect(storage.store.containsKey('azm.deposit.continuations.$uid'),
+          isTrue);
+
+      // Switching back to A reloads exactly A's outstanding record.
+      await controller.switchToUser(uid);
+      expect(controller.state.userId, uid);
+      expect(controller.state.continuations.single.reference, ref);
     });
   });
 }

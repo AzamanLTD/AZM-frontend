@@ -143,13 +143,20 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
     // No new idempotency identity is minted here — the guard only holds
     // the surface open until the SAME operation resolves.
     final panel = _fiatPanelKey.currentState;
-    if (panel != null && panel.isInitiating) {
+    // REVIEW FOLLOW-UP P1 — the guard now holds through BOTH windows:
+    // the initiate request itself, and the continuation persistence it
+    // hands off to. Closing before the local record is confirmed could
+    /// lose the only pointer to a submitted operation.
+    if (panel != null &&
+        (panel.isInitiating || panel.isPersistingContinuation)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Setting up your deposit — hold on a moment.',
+            panel.isInitiating
+                ? 'Setting up your deposit — hold on a moment.'
+                : 'Saving your deposit receipt — hold on a moment.',
           ),
-          duration: Duration(seconds: 3),
+          duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -353,6 +360,15 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   bool _isValidatingName = false;
   bool _requiresOtp = false;
   String? _pendingReference;
+
+  /// REVIEW FOLLOW-UP P1 — the continuation write that makes a
+  /// SUBMITTED deposit durably recoverable. True while the write is in
+  /// flight, and while it has failed and awaits its explicit retry:
+  /// the surface must not close — and no new deposit may start — until
+  /// the local recovery record is confirmed. The backend reference is
+  /// the user's only way back onto an instruction they already gave.
+  bool _persistingContinuation = false;
+  bool _continuationPersistFailed = false;
   final _otpController = TextEditingController();
   bool _isConfirmingOtp = false;
   bool _depositConfirmed = false;
@@ -378,6 +394,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   /// and is safely representable.
   bool get isInitiating => _isSubmitting && !hasInFlightDeposit;
 
+  /// REVIEW FOLLOW-UP P1 — the close guard holds through this window
+  /// exactly as it does through the initiation window: a durable
+  /// backend reference whose local continuation record is unconfirmed
+  /// (or failed) is a lost way back, and no draft may claim otherwise.
+  bool get isPersistingContinuation =>
+      _persistingContinuation || _continuationPersistFailed;
+
   /// The payment reference a draft should carry: the deposit that is
   /// still in flight (OTP pending or prompt sent), never a confirmed or
   /// reset one. A deposit in flight makes a close MEANINGFUL — the draft
@@ -392,12 +415,60 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   /// is a SUBMITTED operation: its way-back survives form-draft expiry
   /// in the separate continuation lifecycle. Saved at initiate success
   /// (idempotent upsert) and removed only on AUTHORITATIVE resolution.
-  void _saveContinuation(String reference) {
+  /// REVIEW FOLLOW-UP P1 — the save is AWAITED inside the submit and
+  /// OTP-confirm windows and the close guard holds until it completes.
+  /// On failure the exact returned reference is retained, the state
+  /// stays safe and recoverable, an explicit retry re-runs the SAME
+  /// save, and no new deposit is initiated in its place. The
+  /// continuation is never claimed saved when it is not.
+  Future<void> _saveContinuation(String reference) async {
     final uid = ref.read(authProvider).user?.id;
     if (uid == null || uid.isEmpty) return; // never persists anonymously
-    ref
-        .read(depositContinuationsProvider.notifier)
-        .save(uid, reference);
+    setState(() => _persistingContinuation = true);
+    try {
+      await ref
+          .read(depositContinuationsProvider.notifier)
+          .save(uid, reference);
+      if (mounted) {
+        setState(() {
+          _persistingContinuation = false;
+          _continuationPersistFailed = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        final colors = ref.read(themeProvider).colors;
+        setState(() {
+          _persistingContinuation = false;
+          _continuationPersistFailed = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              "We couldn't save this deposit's receipt on your device "
+              'yet. Tap Save receipt to keep your way back to it.',
+            ),
+            backgroundColor: colors.accentSurface,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Save receipt',
+              textColor: colors.accent,
+              onPressed: _retryContinuationSave,
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  /// REVIEW FOLLOW-UP P1 — retry the SAME operation's local save. The
+  /// reference is never re-minted and the provider is never
+  /// re-instructed.
+  void _retryContinuationSave() {
+    final active = inFlightReference ?? _pendingReference;
+    if (active == null || active.isEmpty) return;
+    _saveContinuation(active);
   }
 
   /// Authoritative resolution only (settled or failed by the ledger, or
@@ -636,7 +707,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // ── Amount input state machine ──────────────────────────────────────────
 
   void _onKeypadKey(String key) {
-    if (_isSubmitting || _isValidatingName) return;
+    if (_isSubmitting || _isValidatingName || _persistingContinuation) {
+      return;
+    }
     setState(() => _amountRaw = AmountInput.applyKey(_amountRaw, key));
   }
 
@@ -848,15 +921,19 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         AzamanHaptics.commit();
         if (data['requiresOtp'] == true) {
           final freshRef = data['data']?['reference']?.toString();
+          // FIX 3 + REVIEW FOLLOW-UP P1 — the reference just became
+          // durable: the submitted operation enters the continuation
+          // lifecycle immediately, independent of every form-draft
+          // clock. The save is awaited BEFORE the guard releases — the
+          // OTP screen only becomes reachable once the local way-back
+          // is confirmed (or explicitly flagged for retry).
+          if ((freshRef ?? '').isNotEmpty) await _saveContinuation(freshRef!);
+          if (!mounted) return;
           setState(() {
             _isSubmitting = false;
             _requiresOtp = true;
             _pendingReference = freshRef;
           });
-          // FIX 3 — the reference just became durable: the submitted
-          // operation enters the continuation lifecycle immediately,
-          // independent of every form-draft clock.
-          if ((freshRef ?? '').isNotEmpty) _saveContinuation(freshRef!);
         } else {
           setState(() {
             _depositResult = (data['data'] is Map<String, dynamic>)
@@ -864,9 +941,12 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 : data as Map<String, dynamic>;
             _isSubmitting = false;
           });
-          // FIX 3 — same durable-reference moment, no-OTP branch.
+          // FIX 3 + REVIEW FOLLOW-UP P1 — same durable-reference
+          // moment, no-OTP branch: the await holds the persistence
+          // window under the close guard (via
+          // _persistingContinuation) until the record is confirmed.
           final freshRef = inFlightReference;
-          if ((freshRef ?? '').isNotEmpty) _saveContinuation(freshRef!);
+          if ((freshRef ?? '').isNotEmpty) await _saveContinuation(freshRef!);
           // In demo mode there's no real Moolre prompt to approve —
           // auto-confirm after a short delay so the user sees the full
           // deposit success flow.
@@ -926,10 +1006,15 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
           _requiresOtp = false;
           _depositResult = {'reference': _pendingReference};
         });
-        // FIX 3 — keep the continuation record warm under the confirmed
-        // reference until the socket/ledger settles it (idempotent).
+        // FIX 3 + REVIEW FOLLOW-UP P1 — keep the continuation record
+        // warm under the confirmed reference until the socket/ledger
+        // settles it (idempotent). Awaited: a confirm whose local
+        // record is unconfirmed must not hand the surface back
+        // unguarded.
         final confirmedRef = _pendingReference;
-        if ((confirmedRef ?? '').isNotEmpty) _saveContinuation(confirmedRef!);
+        if ((confirmedRef ?? '').isNotEmpty) {
+          await _saveContinuation(confirmedRef!);
+        }
       } else {
         setState(() => _isConfirmingOtp = false);
         if (mounted) {
@@ -1069,7 +1154,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                   // submission is in flight — a mid-validation switch is
                   // exactly the race that would confirm one account's name
                   // and charge another (release-level review blocker 3).
-                  final bool locked = _isSubmitting || _isValidatingName;
+                  final bool locked = _isSubmitting ||
+                      _isValidatingName ||
+                      _persistingContinuation;
                   if (accounts.isEmpty) {
                     return _AddMethodRow(
                       colors: colors,
@@ -1109,7 +1196,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                       amount: amt,
                       selected: _amountRaw == amt.toString(),
                       onTap: () {
-                        if (_isSubmitting || _isValidatingName) return;
+                        if (_isSubmitting ||
+                            _isValidatingName ||
+                            _persistingContinuation) {
+                          return;
+                        }
                         AzamanHaptics.toggle();
                         setState(() => _amountRaw = amt.toString());
                       },
@@ -1128,7 +1219,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: AmountKeypad(
                 onKey: _onKeypadKey,
-                enabled: !_isSubmitting && !_isValidatingName,
+                enabled: !_isSubmitting &&
+                    !_isValidatingName &&
+                    !_persistingContinuation,
                 rowHeight: compact ? 46 : 54,
               ),
             ),
@@ -1141,7 +1234,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 children: [
                   _PrimaryButton(
                     colors: colors,
-                    label: _recovering
+                    label: _continuationPersistFailed
+                        ? 'Save receipt'
+                        : _persistingContinuation
+                        ? 'Saving your deposit…'
+                        : _recovering
                         ? 'Checking last deposit…'
                         : _recoveryUnresolved
                         ? 'Confirm your earlier deposit first'
@@ -1150,21 +1247,29 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                         : _isSubmitting
                         ? 'Sending prompt…'
                         : 'Add Cash',
-                    onTap:
-                        (_recovering ||
-                            _recoveryUnresolved ||
-                            _isSubmitting ||
-                            _isValidatingName ||
-                            _amountValue == null ||
-                            _currentAccount(
-                                  accountsAsync.valueOrNull ??
-                                      const <SavedMomoAccount>[],
-                                ) ==
-                                null)
+                    // REVIEW FOLLOW-UP P1 — while the continuation is
+                    // unconfirmed the CTA is the retry for the SAME
+                    // save; a failed local write never becomes a fresh
+                    // deposit.
+                    onTap: _continuationPersistFailed
+                        ? _retryContinuationSave
+                        : (_recovering ||
+                              _recoveryUnresolved ||
+                              _isSubmitting ||
+                              _isValidatingName ||
+                              _persistingContinuation ||
+                              _amountValue == null ||
+                              _currentAccount(
+                                    accountsAsync.valueOrNull ??
+                                        const <SavedMomoAccount>[],
+                                  ) ==
+                                  null)
                         ? null
                         : _validateAndConfirm,
-                    isBusy:
-                        _recovering || _isSubmitting || _isValidatingName,
+                    isBusy: _recovering ||
+                        _isSubmitting ||
+                        _isValidatingName ||
+                        _persistingContinuation,
                   ),
                   const SizedBox(height: 8),
                   Center(
@@ -1416,8 +1521,17 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
           const SizedBox(height: 18),
           _PrimaryButton(
             colors: colors,
-            label: _depositConfirmed ? 'Start another deposit' : 'Cancel',
-            onTap: _reset,
+            // REVIEW FOLLOW-UP P1 — while the continuation record is
+            // unconfirmed, the only offered action is saving it; the
+            // pending operation must not be reset away.
+            label: _continuationPersistFailed
+                ? 'Save receipt'
+                : _depositConfirmed
+                ? 'Start another deposit'
+                : 'Cancel',
+            onTap: _continuationPersistFailed
+                ? _retryContinuationSave
+                : _reset,
           ),
         ],
       ),

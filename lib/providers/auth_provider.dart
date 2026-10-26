@@ -104,6 +104,25 @@ class AuthProvider with ChangeNotifier {
     _user = loginUser;
     if (previousIdentity != null && previousIdentity != loginUser.id) {
       _resetBalanceStateForIdentityBoundary();
+      // REVIEW FOLLOW-UP P1 — a DIRECT account switch (no logout) is an
+      // identity boundary too. The drafts and submitted-deposit
+      // continuation authorities are switched to the new user
+      /// immediately: the outgoing user's in-memory records vanish
+      /// synchronously (they can never render past the boundary), the
+      /// new user's records load under a fresh generation, and any
+      /// in-flight storage read for the old user completes into the
+      /// void. Logout must not be relied on to run before every
+      /// switch (SSO and login both land here directly).
+      try {
+        await ref
+            ?.read(launcherDraftsProvider.notifier)
+            .switchToUser(loginUser.id);
+        await ref
+            ?.read(depositContinuationsProvider.notifier)
+            .switchToUser(loginUser.id);
+      } catch (_) {
+        // Authority switching must never block the session handoff.
+      }
     }
     _status = AuthStatus.loading;
     _error = null;
