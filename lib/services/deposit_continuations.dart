@@ -118,7 +118,16 @@ class DepositContinuationsService {
   // so a foreign or tampered entry can never clear anyone's way back.
   static const _ownerIndexKey = 'azm.deposit.continuations.ownerIndex';
   final Map<String, String> _refOwners = {};
-  bool _refOwnersLoaded = false;
+
+  /// LAST REVIEW (concurrent owner-index initialization) — the
+  /// initialization is a SHARED, AWAITABLE future, never a boolean-only
+  /// guard: a flag set before the storage read lands lets a second
+  /// caller (another settlement's owner lookup, or an index persist)
+  /// proceed against an UNLOADED map — the lookup would fall back to
+  /// the active account and silently mis-attribute, and the persist
+  /// would write an incomplete map over the persisted index. Every
+  /// caller now waits for the SAME in-flight read.
+  Future<void>? _refOwnersInit;
   Future<void> _refOwnersPersistQueue = Future<void>.value();
 
   /// Bind an exact reference to the identity whose controller-save is
@@ -160,9 +169,19 @@ class DepositContinuationsService {
     await _refOwnersPersistQueue;
   }
 
-  Future<void> _loadRefOwners() async {
-    if (_refOwnersLoaded) return;
-    _refOwnersLoaded = true;
+  /// EVERY caller shares the SAME in-flight initialization: the first
+  /// caller creates the future AND assigns it before its first await,
+  /// so concurrent lookups/persists wait for the read to land instead
+  /// of observing a pre-set "loaded" flag against an empty map.
+  Future<void> _loadRefOwners() {
+    final existing = _refOwnersInit;
+    if (existing != null) return existing;
+    final init = _doLoadRefOwners();
+    _refOwnersInit = init;
+    return init;
+  }
+
+  Future<void> _doLoadRefOwners() async {
     try {
       final raw = await _storage.read(key: _ownerIndexKey);
       if (raw == null || raw.isEmpty) return;
@@ -172,6 +191,9 @@ class DepositContinuationsService {
           final key = k?.toString().trim() ?? '';
           final owner = v?.toString().trim() ?? '';
           if (key.isNotEmpty && owner.isNotEmpty) {
+            // putIfAbsent: a binding made in MEMORY during this read
+            // (bindReferenceOwner is memory-first and synchronous) is
+            // NEWER than the persisted copy and must win the merge.
             _refOwners.putIfAbsent(key, () => owner);
           }
         });
@@ -266,6 +288,10 @@ class DepositContinuationsService {
     if (ref.isEmpty) return;
     await _enqueue(userId, () async {
       _resolvedReferences.add(_terminalKey(userId, ref));
+      // LAST REVIEW: the binding purge must wait for owner-index
+      // initialization, so the PERSISTED copy is purged too and no
+      // in-flight index read can merge it back afterwards.
+      await _loadRefOwners();
       if (_refOwners[ref] == userId) _refOwners.remove(ref);
       final list = [...await loadForUser(userId)];
       list.removeWhere((c) => c.reference == ref);
@@ -291,6 +317,8 @@ class DepositContinuationsService {
       final list = [...await loadForUser(uid)];
       if (!list.any((c) => c.reference == ref)) return;
       _resolvedReferences.add(_terminalKey(uid, ref));
+      // LAST REVIEW: purge after initialization (see resolve()).
+      await _loadRefOwners();
       if (_refOwners[ref] == uid) _refOwners.remove(ref);
       list.removeWhere((c) => c.reference == ref);
       await _write(uid, list);

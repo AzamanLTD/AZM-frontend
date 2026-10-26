@@ -1569,6 +1569,192 @@ void main() {
           reason: 'A\'s settlement must never leak into B\'s records');
     });
   });
+
+  // ── LAST REVIEW (concurrent owner-index initialization) ─────────────
+
+  group('9 — LAST REVIEW: shared awaitable owner-index initialization', () {
+    final contStorage = _GatedIndexReadStorage();
+    _MutableAuth? currentAuth;
+
+    User makeUser(String id) => User(
+          id: id,
+          username: 'me',
+          email: 'me@example.com',
+          token: 'tok',
+          role: 'USER',
+          azamanId: 'AZM-999999999',
+        );
+
+    Widget hostFor(DepositContinuationsController controller) =>
+        ProviderScope(
+          overrides: [
+            savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+            authProvider.overrideWith((ref) => currentAuth!),
+            depositContinuationsProvider.overrideWith((ref) => controller),
+          ],
+          child: Column(
+            children: [
+              const _MonitorHost(),
+              Expanded(
+                  child: MaterialApp.router(routerConfig: _router())),
+            ],
+          ),
+        );
+
+    testWidgets('(a) settlements for references owned by DIFFERENT users, '
+        'whose bindings live ONLY in the persisted index, both wait for '
+        'the SAME held initialization and resolve their OWN owners after '
+        'the read lands — the active third account is never credited with '
+        'a fallback attribution', (tester) async {
+      contStorage.store.clear();
+      contStorage.indexReadGate = null;
+      // The PREVIOUS session's durable state: continuation records under
+      // each user, and the owner index in storage. This fresh session's
+      // in-memory map is EMPTY — attribution must come from the index.
+      final contSvc =
+          DepositContinuationsService(storage: contStorage);
+      await contSvc.save('user-a', 'DEP-A9'); // raw save: no binding
+      await contSvc.save('user-b', 'DEP-B9');
+      contStorage.store['azm.deposit.continuations.ownerIndex'] =
+          jsonEncode({'DEP-A9': 'user-a', 'DEP-B9': 'user-b'});
+
+      // HOLD the initial index read open.
+      final gate = Completer<void>();
+      contStorage.indexReadGate = gate;
+
+      // Fresh controller + session-wide monitor; the ACTIVE account is
+      // a THIRD user with no records of their own.
+      currentAuth = _MutableAuth(makeUser('user-c'));
+      await tester.pumpWidget(
+          hostFor(DepositContinuationsController(contSvc)));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Both settlements arrive WHILE the initial index read is in
+      // flight — through the REAL socket fan-out.
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-A9');
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-B9');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Neither can have resolved yet: both owner lookups are waiting
+      // on the SAME held initialization.
+      expect((await contSvc.loadForUser('user-a'))
+              .map((c) => c.reference)
+              .toList(),
+          ['DEP-A9']);
+      expect((await contSvc.loadForUser('user-b'))
+              .map((c) => c.reference)
+              .toList(),
+          ['DEP-B9']);
+
+      // Release the read: both settlements attribute to their BOUND
+      // owners — the second event must NOT have raced past the load
+      // and fallen back to the active account.
+      gate.complete();
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'the settlement for the first-delivered reference '
+              'resolves after initialization');
+      expect(await contSvc.loadForUser('user-b'), isEmpty,
+          reason: 'the settlement for the second-delivered reference '
+              'MUST NOT be lost to a raced-past initialization');
+      expect(await contSvc.loadForUser('user-c'), isEmpty,
+          reason: 'the fallback can never touch an unrelated account');
+    });
+
+    testWidgets('(b) a save racing initialization persists the COMPLETE '
+        'map — an incomplete map is never written over the persisted '
+        'index — and a service reconstructed from the same storage still '
+        'finds the earlier bindings', (tester) async {
+      contStorage.store.clear();
+      contStorage.indexReadGate = null;
+      // Previous session: a persisted binding for user-a.
+      contStorage.store['azm.deposit.continuations.ownerIndex'] =
+          jsonEncode({'DEP-OLD9': 'user-a'});
+
+      final contSvc =
+          DepositContinuationsService(storage: contStorage);
+      final ctrl = DepositContinuationsController(contSvc);
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await tester.pumpWidget(hostFor(ctrl));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // HOLD the initial index read, then launch TWO controller saves
+      // while it is in flight: their records land independently, but
+      // their index persists must queue BEHIND the initialization.
+      final gate = Completer<void>();
+      contStorage.indexReadGate = gate;
+      final saveA = ctrl.save('user-a', 'DEP-NEW9');
+      final saveB = ctrl.save('user-b', 'DEP-NEWB9');
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // The records themselves are durable while the index read is
+      // still held (the list writes are independent of the index).
+      expect((await contSvc.loadForUser('user-a'))
+              .map((c) => c.reference)
+              .contains('DEP-NEW9'),
+          isTrue);
+      expect((await contSvc.loadForUser('user-b'))
+              .map((c) => c.reference)
+              .contains('DEP-NEWB9'),
+          isTrue);
+
+      gate.complete();
+      await saveA;
+      await saveB;
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // The persisted index is COMPLETE: the previous session's binding
+      // plus both new ones.
+      final persisted = jsonDecode(contStorage
+          .store['azm.deposit.continuations.ownerIndex']!)
+          as Map<String, dynamic>;
+      expect(persisted['DEP-OLD9'], 'user-a',
+          reason: 'a racing persist must never overwrite the persisted '
+              'index with an uninitialized map');
+      expect(persisted['DEP-NEW9'], 'user-a');
+      expect(persisted['DEP-NEWB9'], 'user-b');
+
+      // Reconstruction from the SAME storage: earlier bindings survive.
+      final fresh = DepositContinuationsService(storage: contStorage);
+      expect(await fresh.lookupReferenceOwner('DEP-OLD9'), 'user-a');
+      expect(await fresh.lookupReferenceOwner('DEP-NEW9'), 'user-a');
+      expect(await fresh.lookupReferenceOwner('DEP-NEWB9'), 'user-b');
+    });
+
+    testWidgets('(c) a binding made in MEMORY during the held '
+        'initialization is NEWER than the persisted copy and WINS the '
+        'merge — initialization can never overwrite fresh session state',
+        (tester) async {
+      contStorage.store.clear();
+      contStorage.indexReadGate = null;
+      // A stale persisted binding from a previous session.
+      contStorage.store['azm.deposit.continuations.ownerIndex'] =
+          jsonEncode({'DEP-X9': 'user-wrong'});
+      final contSvc =
+          DepositContinuationsService(storage: contStorage);
+
+      final gate = Completer<void>();
+      contStorage.indexReadGate = gate;
+
+      // The lookup starts initialization (held)...
+      final lookup = contSvc.lookupReferenceOwner('DEP-X9');
+      // ...and DURING the read the controller binds the reference to
+      // the RIGHT owner (memory-first, synchronous — the save-race
+      // contract).
+      contSvc.bindReferenceOwner('user-right', 'DEP-X9');
+
+      gate.complete();
+      expect(await lookup, 'user-right');
+      expect(await contSvc.lookupReferenceOwner('DEP-X9'), 'user-right',
+          reason: 'the initialization merge must never overwrite a '
+              'newer in-memory binding');
+    });
+  });
 }
 
 
@@ -1601,6 +1787,33 @@ class _MemSecureStorage implements FlutterSecureStorage {
       default:
         throw UnimplementedError('${invocation.memberName}');
     }
+  }
+}
+
+/// [_MemSecureStorage] whose OWNER-INDEX read can be held open — the
+/// seam for the concurrent-initialization races: a previous session's
+/// bindings exist ONLY in the persisted index, so an uninitialized
+/// lookup must WAIT for the read instead of racing past it.
+class _GatedIndexReadStorage extends _MemSecureStorage {
+  Completer<void>? indexReadGate;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #read &&
+        invocation.namedArguments[#key] ==
+            'azm.deposit.continuations.ownerIndex') {
+      final gate = indexReadGate;
+      if (gate != null) {
+        indexReadGate = null;
+        // then<String?>: the declared read() return type is checked at
+        // runtime — a bare then() future is Future<dynamic> and would
+        // fail the implicit cast (and be swallowed by the service's
+        // corrupt-index catch).
+        return gate.future.then((_) async =>
+            (await super.noSuchMethod(invocation)) as String?);
+      }
+    }
+    return super.noSuchMethod(invocation);
   }
 }
 
