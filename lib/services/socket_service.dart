@@ -102,6 +102,13 @@ class SocketService {
           void Function(double, double, String, String) cb) =>
       _depositSuccessListeners.remove(cb);
 
+  /// Test-only introspection of the settlement seam: the deposit
+  /// surface's listener and the session-wide monitor's listener are
+  /// INDEPENDENT — disposing one must never remove the other.
+  @visibleForTesting
+  int get depositSuccessListenerCountForTesting =>
+      _depositSuccessListeners.length;
+
   /// The single dispatch path for a deposit settlement — used by the live
   /// `deposit_success` socket event and by the test seam below, so widget
   /// regressions exercise the exact production listener fan-out.

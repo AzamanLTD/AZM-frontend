@@ -104,6 +104,84 @@ class DepositContinuationsService {
   static String _terminalKey(String userId, String reference) =>
       '$userId\u0000$reference';
 
+  // LAST REVIEW — THE SETTLEMENT OWNER INDEX. A settlement event carries
+  // a reference and NO identity. Attributing it to whichever account is
+  // ACTIVE is wrong (user A's deposit must resolve while user B holds
+  // the session), and attributing it to whichever user's storage happens
+  // to contain the matching string is worse. The session therefore binds
+  // reference -> initiating owner at the CONTROLLER save (the real
+  // durable-reference moment) — in MEMORY first (a settlement racing
+  // the very save that creates the record still finds the owner) and
+  // in a persisted map afterwards (the binding survives a restart).
+  // The index is an ATTRIBUTION hint only: resolution still requires
+  // the bound owner's OWN stored list to contain the EXACT reference,
+  // so a foreign or tampered entry can never clear anyone's way back.
+  static const _ownerIndexKey = 'azm.deposit.continuations.ownerIndex';
+  final Map<String, String> _refOwners = {};
+  bool _refOwnersLoaded = false;
+  Future<void> _refOwnersPersistQueue = Future<void>.value();
+
+  /// Bind an exact reference to the identity whose controller-save is
+  /// creating its continuation record. Memory-first and synchronous, so
+  /// a settlement arriving during the save's storage write is already
+  /// attributable. Deliberately NOT called by raw service saves: an
+  /// out-of-band record carries no session ownership evidence.
+  void bindReferenceOwner(String userId, String reference) {
+    final uid = userId.trim();
+    final ref = reference.trim();
+    if (uid.isEmpty || ref.isEmpty) return;
+    if (_resolvedReferences.contains(_terminalKey(uid, ref))) return;
+    _refOwners[ref] = uid;
+  }
+
+  /// The bound owner for an exact reference, or null when this device
+  /// never bound it (the caller falls back to the active session, and
+  /// even then only the ACTIVE user's own stored record can resolve).
+  Future<String?> lookupReferenceOwner(String reference) async {
+    await _loadRefOwners();
+    return _refOwners[reference.trim()];
+  }
+
+  /// Durable copy of the index. Serialized behind any previous persist
+  /// and best-effort: a failed index write must never fail the record
+  /// save that already succeeded.
+  Future<void> persistReferenceOwners() async {
+    _refOwnersPersistQueue = _refOwnersPersistQueue.then((_) async {
+      await _loadRefOwners();
+      try {
+        await _storage.write(
+            key: _ownerIndexKey, value: jsonEncode(_refOwners));
+      } catch (_) {
+        // Best-effort durability only — the in-memory binding owns the
+        // session; a stale persisted entry is inert (exact-reference
+        // matching still governs every resolution).
+      }
+    });
+    await _refOwnersPersistQueue;
+  }
+
+  Future<void> _loadRefOwners() async {
+    if (_refOwnersLoaded) return;
+    _refOwnersLoaded = true;
+    try {
+      final raw = await _storage.read(key: _ownerIndexKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        decoded.forEach((k, v) {
+          final key = k?.toString().trim() ?? '';
+          final owner = v?.toString().trim() ?? '';
+          if (key.isNotEmpty && owner.isNotEmpty) {
+            _refOwners.putIfAbsent(key, () => owner);
+          }
+        });
+      }
+    } catch (_) {
+      // Corrupt index: absence is safe (the active-user fallback plus
+      // exact-reference matching govern resolution).
+    }
+  }
+
   /// Queue [action] behind the user's previous mutation. The queue
   /// itself never breaks on a failed action (the chain swallows and
   /// continues); the original caller still observes the real error.
@@ -188,9 +266,34 @@ class DepositContinuationsService {
     if (ref.isEmpty) return;
     await _enqueue(userId, () async {
       _resolvedReferences.add(_terminalKey(userId, ref));
+      if (_refOwners[ref] == userId) _refOwners.remove(ref);
       final list = [...await loadForUser(userId)];
       list.removeWhere((c) => c.reference == ref);
       await _write(userId, list);
+    });
+  }
+
+  /// LAST REVIEW — RACE-SAFE SETTLEMENT ENTRY. A settlement event may
+  /// land while the continuation record's INITIAL save is still in
+  /// flight: a storage pre-check outside the lock would miss it and
+  /// lose the event forever. This queues on the owner's OWN mutation
+  /// chain — the same serialization as save()/resolve() — so a
+  /// settlement racing the initial save WAITS for the record to land
+  /// and then resolves it; a save landing after a resolution remains a
+  /// no-op (terminal resolution). Exact-reference matching, sibling
+  /// preservation and per-owner isolation are unchanged: only the
+  /// owner's list is read, and only the exact reference leaves it.
+  Future<void> resolveIfPresent(String userId, String reference) async {
+    final uid = userId.trim();
+    final ref = reference.trim();
+    if (uid.isEmpty || ref.isEmpty) return;
+    await _enqueue(uid, () async {
+      final list = [...await loadForUser(uid)];
+      if (!list.any((c) => c.reference == ref)) return;
+      _resolvedReferences.add(_terminalKey(uid, ref));
+      if (_refOwners[ref] == uid) _refOwners.remove(ref);
+      list.removeWhere((c) => c.reference == ref);
+      await _write(uid, list);
     });
   }
 
@@ -249,9 +352,19 @@ class DepositContinuationsController
   }
 
   /// Record a submitted reference for the active user.
+  /// LAST REVIEW — the save ALSO binds reference -> initiating owner
+  /// (in memory BEFORE the storage write, durably after it) so the
+  /// session-wide settlement monitor can attribute a settlement to
+  /// the INITIATING identity even when another account holds the
+  /// session or this surface is long disposed.
   Future<void> save(String userId, String reference) async {
-    await _service.save(userId, reference);
-    if (state.userId == userId) await loadForUser(userId);
+    final uid = userId.trim();
+    final ref = reference.trim();
+    if (uid.isEmpty || ref.isEmpty) return;
+    _service.bindReferenceOwner(uid, ref);
+    await _service.save(uid, ref);
+    await _service.persistReferenceOwners();
+    if (state.userId == uid) await loadForUser(uid);
   }
 
   /// Authoritative resolution — the deposit settled or failed.
@@ -260,23 +373,29 @@ class DepositContinuationsController
     if (state.userId == userId) await loadForUser(userId);
   }
 
-  /// LAST REVIEW (pending-result cancellation semantics) — a socket
-  /// settlement event, attributed to the ACTIVE user. The stored
-  /// continuation list is the AUTHORITATIVE match source (the in-memory
-  /// state may lag a just-completed save by a microtask; a settlement
-  /// landing in that seam must not be lost). Matching is by EXACT
-  /// reference: an event for deposit A resolves A only — a reference
-  /// unknown to this user's storage resolves nothing, so a late or
-  /// foreign event can never clear another operation's way back.
-  /// Idempotent by construction: the service's terminal-resolution set
-  /// makes a duplicate event (or a retry racing a resolution) a no-op.
+  /// LAST REVIEW (settlement attribution + the save race) — a socket
+  /// settlement event is attributed to the reference's BOUND OWNER:
+  /// the identity recorded at the durable-save moment, so user A's
+  /// deposit resolves while user B holds the session and long after
+  /// the deposit surface is disposed. The ACTIVE user is only a
+  /// conservative fallback for a reference this device never bound —
+  /// and even then resolution requires the ACTIVE user's OWN stored
+  /// list to contain the EXACT reference (a foreign reference matches
+  /// nothing, so another account's way back is never touched).
+  ///
+  /// RACE-SAFE: resolution runs inside the owner's serialized mutation
+  /// chain (resolveIfPresent), so a settlement arriving while the
+  /// record's INITIAL save is still in flight WAITS for the write to
+  /// land instead of being lost; a save landing after a resolution is
+  /// a no-op (terminal resolution). Duplicate events are no-ops.
   Future<void> handleSettlement(String? activeUserId, String reference) async {
-    final uid = activeUserId?.trim();
     final ref = reference.trim();
-    if (uid == null || uid.isEmpty || ref.isEmpty) return;
-    final pending = await _service.loadForUser(uid);
-    if (!pending.any((c) => c.reference == ref)) return;
-    await resolve(uid, ref);
+    if (ref.isEmpty) return;
+    final boundOwner = await _service.lookupReferenceOwner(ref);
+    final owner = boundOwner ?? activeUserId?.trim();
+    if (owner == null || owner.isEmpty) return;
+    await _service.resolveIfPresent(owner, ref);
+    if (state.userId == owner) await loadForUser(owner);
   }
 
   /// Logout / session invalidation. Bumps the generation FIRST so an

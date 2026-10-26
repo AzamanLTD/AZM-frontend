@@ -46,12 +46,14 @@ final depositSettlementMonitorProvider = Provider<void>((ref) {
     String provider,
     String reference,
   ) {
-    // Per-user attribution: the settlement event carries a reference but
-    // no identity, so it can only ever resolve the ACTIVE user's stored
-    // continuation. An event for another account's deposit (or an unknown
-    // reference) matches nothing under this user's scoped storage and is
-    // safely dropped — the notification centre never loses another
-    // user's way back.
+    // Owner-aware attribution: the settlement event carries a reference
+    // but no identity, so the controller attributes it to the
+    // reference's BOUND owner — the identity recorded at the
+    // durable-save moment. The ACTIVE user is only the fallback for a
+    // reference this device never bound, and even then resolution
+    // requires the ACTIVE user's OWN stored list to contain the exact
+    // reference — a foreign or unknown event resolves nothing, so the
+    // notification centre never loses another user's way back.
     final activeUserId = ref.read(authProvider).user?.id;
     ref
         .read(depositContinuationsProvider.notifier)

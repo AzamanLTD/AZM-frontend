@@ -35,6 +35,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
+import 'package:azaman/providers/deposit_settlement_monitor.dart';
 import 'package:azaman/services/deposit_continuations.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/router/transitions.dart';
@@ -1332,6 +1333,242 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     });
   });
+
+  // ── LAST REVIEW (settlement attribution): owner index + save race ──────
+
+  group('8 — LAST REVIEW: owner-aware settlement + the save race', () {
+    final contStorage = _GatedWriteStorage();
+    late DepositContinuationsService contSvc;
+    _MutableAuth? currentAuth;
+
+    User makeUser(String id) => User(
+          id: id,
+          username: 'me',
+          email: 'me@example.com',
+          token: 'tok',
+          role: 'USER',
+          azamanId: 'AZM-999999999',
+        );
+
+    /// Shell + router with an OPTIONAL explicit controller instance, so
+    /// tests can drive the REAL controller the monitor talks to.
+    Widget appWithHost({DepositContinuationsController? controller}) {
+      contStorage.store.clear();
+      contStorage.writeError = null;
+      contStorage.writeGate = null;
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith((ref) => currentAuth!),
+          depositContinuationsProvider.overrideWith(
+            (ref) => controller ?? DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: Column(
+          children: [
+            const _MonitorHost(),
+            Expanded(child: MaterialApp.router(routerConfig: _router())),
+          ],
+        ),
+      );
+    }
+
+    Future<void> openAndEnterAmount(WidgetTester tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithHost());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+    }
+
+    Future<void> submitDeposit(WidgetTester tester, String reference) async {
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': reference, 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text(reference), findsOneWidget,
+          reason: 'the pending result view must be showing $reference');
+    }
+
+    /// Deliver a settlement through the REAL socket fan-out.
+    Future<void> settle(WidgetTester tester, String reference) async {
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', reference);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    testWidgets('(a) settlement ownership is INDEPENDENT of the active '
+        'account and the screen lifecycle: A submits, the surface is '
+        'disposed, the session switches to B, and A\'s settlement still '
+        'resolves A\'s continuation — while B\'s records stay untouched '
+        'and the monitor\'s listener survives the screen\'s dispose',
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      await submitDeposit(tester, 'DEP-OWN-1');
+
+      // Back to the form (the honest return — the reset clears the
+      // editable form), then DISPOSE the whole deposit surface: with
+      // the form empty the close is silent and the route pops.
+      await tester.tap(find.text('Back to Add Cash'));
+      await tester.pump(const Duration(milliseconds: 200));
+      final listenersWhileOpen =
+          SocketService.instance.depositSuccessListenerCountForTesting;
+      expect(listenersWhileOpen, greaterThanOrEqualTo(2),
+          reason: 'the surface and the monitor are independent listeners');
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 600));
+
+      // The surface is GONE (route popped, exit animation done) and its
+      // listener with it — the session-wide monitor's listener is
+      // exactly what remains.
+      expect(find.text('Add Cash'), findsNothing,
+          reason: 'the deposit surface must be fully unmounted');
+      expect(find.text('DEP-OWN-1'), findsNothing);
+      final listenersAfterDispose =
+          SocketService.instance.depositSuccessListenerCountForTesting;
+      expect(listenersAfterDispose, listenersWhileOpen - 1,
+          reason: 'disposing the surface must remove ONLY its own '
+              'listener; the monitor must survive');
+      final pendingA = await contSvc.loadForUser('user-a');
+      expect(pendingA, hasLength(1),
+          reason: 'the submitted operation is durably stored under A');
+      expect(pendingA.single.reference, 'DEP-OWN-1');
+
+      // B holds a stored continuation that must never be touched.
+      await contSvc.save('user-b', 'DEP-B-KEEP');
+
+      // The session switches to B — then A's settlement arrives.
+      currentAuth!.switchTo(makeUser('user-b'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await settle(tester, 'DEP-OWN-1');
+
+      // A's exact continuation resolved — WITHOUT A holding the
+      // session and WITHOUT the deposit surface existing.
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'the reference->owner binding recorded at the save '
+              'must carry the settlement to the INITIATING user');
+      final bRefs = (await contSvc.loadForUser('user-b'))
+          .map((c) => c.reference)
+          .toList();
+      expect(bRefs, ['DEP-B-KEEP'],
+          reason: 'B\'s records must be untouched by A\'s settlement');
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(b) the save-vs-settlement race through the REAL '
+        'monitor/controller path: a settlement delivered while the '
+        'initial continuation write is HELD OPEN waits for the record '
+        'to land, then resolves the exact reference — sibling and '
+        'cross-user records untouched', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      final ctrl = DepositContinuationsController(
+          DepositContinuationsService(storage: contStorage));
+      await tester.pumpWidget(appWithHost(controller: ctrl));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // A sibling record lands normally through the real controller.
+      await ctrl.save('user-a', 'DEP-SIB-1');
+      // B holds an out-of-band record that must never be touched.
+      await contSvc.save('user-b', 'DEP-B-KEEP');
+
+      // HOLD the next storage write open, then start A's REAL
+      // controller save — it blocks inside the gated write.
+      final gate = Completer<void>();
+      contStorage.writeGate = gate;
+      unawaited(ctrl.save('user-a', 'DEP-RACE-2'));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+          (await contSvc.loadForUser('user-a'))
+              .map((c) => c.reference)
+              .contains('DEP-RACE-2'),
+          isFalse,
+          reason: 'the record must still be in flight');
+
+      // The settlement for the EXACT in-flight reference arrives NOW —
+      // through the real socket fan-out (the monitor is the only
+      // listener: no deposit surface exists in this test).
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-RACE-2');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Release the write. The owner's serialized chain: the record
+      // lands FIRST, then the queued settlement resolves it.
+      gate.complete();
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      final aRefs = (await contSvc.loadForUser('user-a'))
+          .map((c) => c.reference)
+          .toList();
+      expect(aRefs, ['DEP-SIB-1'],
+          reason: 'the racing settlement resolved the EXACT reference '
+              'after the save landed, and the sibling survived');
+      final bRefs = (await contSvc.loadForUser('user-b'))
+          .map((c) => c.reference)
+          .toList();
+      expect(bRefs, ['DEP-B-KEEP'],
+          reason: 'the save race must never touch another user\'s '
+              'records');
+    });
+
+    testWidgets('(c) unknown and foreign references clear NOTHING: '
+        'with a bound reference on file, an event for another user\'s '
+        'record and an event for an unknown reference both resolve '
+        'nothing — then the bound reference resolves its OWN owner '
+        'only', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      final ctrl = DepositContinuationsController(
+          DepositContinuationsService(storage: contStorage));
+      await tester.pumpWidget(appWithHost(controller: ctrl));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // A's bound (session-submitted) pending operation...
+      await ctrl.save('user-a', 'DEP-A1');
+      // ...and B's two out-of-band records.
+      await contSvc.save('user-b', 'DEP-B1');
+      await contSvc.save('user-b', 'DEP-B2');
+
+      // A FOREIGN reference (another user's record) with A active.
+      await settle(tester, 'DEP-B1');
+      expect((await contSvc.loadForUser('user-a')).map((c) => c.reference),
+          ['DEP-A1'],
+          reason: 'a foreign reference must never resolve under the '
+              'active session');
+      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
+          unorderedEquals(['DEP-B1', 'DEP-B2']),
+          reason: 'another user\'s continuation must never be cleared '
+              'by a settlement observed in this session');
+
+      // An UNKNOWN reference.
+      await settle(tester, 'DEP-NOPE-9');
+      expect((await contSvc.loadForUser('user-a')).map((c) => c.reference),
+          ['DEP-A1']);
+      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
+          unorderedEquals(['DEP-B1', 'DEP-B2']));
+
+      // The bound reference resolves its OWN owner — and only that.
+      await settle(tester, 'DEP-A1');
+      expect(await contSvc.loadForUser('user-a'), isEmpty);
+      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
+          unorderedEquals(['DEP-B1', 'DEP-B2']),
+          reason: 'A\'s settlement must never leak into B\'s records');
+    });
+  });
 }
 
 
@@ -1397,6 +1634,19 @@ class _FixedAuth extends AuthProvider {
   User? get user => sessionUser;
   @override
   Future<void> fetchUserDetails() async {}
+}
+
+/// The app-shell activation contract in miniature: whatever else is on
+/// screen, the settlement monitor stays alive for the whole session
+/// (production: MainWrapper watches it).
+class _MonitorHost extends ConsumerWidget {
+  const _MonitorHost();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(depositSettlementMonitorProvider);
+    return const SizedBox.shrink();
+  }
 }
 
 /// Auth whose session identity can be switched (or dropped) MID-TEST —

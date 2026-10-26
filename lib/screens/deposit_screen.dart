@@ -412,9 +412,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   //
   //   • durably — the continuation record (saved under the operation
   //     owner's key the moment its reference is durable) plus the
-  //     settlement monitor, which resolves the ACTIVE user's stored
-  //     continuation for an event's EXACT reference even after this
-  //     surface is gone;
+  //     settlement monitor, which resolves the reference's BOUND owner's
+  //     stored continuation for an event's EXACT reference even after
+  //     this surface is gone or the session switched accounts;
   //   • on this surface — [_trackedOperations]: every operation this
   //     screen minted, keyed by exact reference → the owner captured at
   //     ITS initiation. A settlement for THAT reference is confirmed to
