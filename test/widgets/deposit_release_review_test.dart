@@ -752,7 +752,247 @@ void main() {
       expect(find.text('Keep for 5 minutes'), findsOneWidget);
     });
   });
+
+  group('6 — REVIEW FOLLOW-UP: OTP persistence + continuation owner '
+      'identity', () {
+    final contStorage = _GatedWriteStorage();
+    late DepositContinuationsService contSvc;
+    _MutableAuth? currentAuth;
+
+    User makeUser(String id) => User(
+          id: id,
+          username: 'me',
+          email: 'me@example.com',
+          token: 'tok',
+          role: 'USER',
+          azamanId: 'AZM-999999999',
+        );
+
+    Widget appWithAuth() {
+      contStorage.store.clear();
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith((ref) => currentAuth!),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: _router()),
+      );
+    }
+
+    Future<void> openAndEnterAmount(WidgetTester tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithAuth());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+    }
+
+    testWidgets('(c) on the OTP path a failed continuation write never '
+        'lets Cancel destroy the reference', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      contStorage.writeError = StateError('disk full');
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'requiresOtp': true,
+        'data': {'reference': 'DEP-OTP-1', 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // OTP view is up, the local write FAILED: there is no Cancel —
+      // cancelling would discard the only in-memory reference.
+      expect(find.text('Enter OTP'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing,
+          reason: 'a failed persistence write must not expose a Cancel '
+              'that destroys the unpersisted reference');
+      expect(find.text('Save receipt'), findsWidgets);
+      expect(contStorage.store.isEmpty, isTrue);
+
+      // The close guard stays active — no second initiation, no exit.
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsNothing);
+
+      // Retry the SAME save from the OTP state: persistence succeeds
+      // under the initiating user, and only then does Cancel return.
+      contStorage.writeError = null;
+      // Let the queued snackbars (failure notice + close-guard notice)
+      // dismiss; the retry button is then scoped to the OTP view
+      // itself so no snackbar action can shadow it.
+      await tester.pump(const Duration(seconds: 10));
+      final otpRetry =
+          find.descendant(of: find.byType(SingleChildScrollView), matching: find.text('Save receipt'));
+      expect(otpRetry, findsOneWidget);
+      await tester.tap(otpRetry);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final stored = await contSvc.loadForUser('user-a');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-OTP-1');
+      expect(await contSvc.loadForUser('user-b'), isEmpty);
+
+      // With the record durable, Cancel is restored and safe.
+      expect(find.text('Cancel'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(find.text('Add Cash'), findsWidgets);
+    });
+
+    testWidgets('(d) an account switch mid-initiation never rebinds the '
+        "continuation owner — A's reference is saved under A only",
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      final gate = Completer<void>();
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': 'DEP-RACE-A', 'status': 'PENDING'},
+      }, gate);
+
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // The initiation response is HELD; the session switches directly
+      // to user B before it lands.
+      currentAuth!.switchTo(makeUser('user-b'));
+      gate.complete();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // The reference is bound to the INITIATING identity only.
+      final aList = await contSvc.loadForUser('user-a');
+      expect(aList, hasLength(1));
+      expect(aList.single.reference, 'DEP-RACE-A');
+      expect(await contSvc.loadForUser('user-b'), isEmpty,
+          reason: 'a response arriving after a switch must never store '
+              "A's reference under B's key");
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(e) the same switch race during OTP confirmation and '
+        'continuation persistence', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'requiresOtp': true,
+        'data': {'reference': 'DEP-RACE-A', 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Enter OTP'), findsOneWidget);
+
+      // The initiation's continuation is already stored under A.
+      expect((await contSvc.loadForUser('user-a')), hasLength(1));
+
+      // Confirm the OTP; the response is held; the session switches to
+      // B before it lands.
+      await tester.enterText(find.byType(TextField), '123456');
+      final gate = Completer<void>();
+      _wire['POST /deposit/fiat/initiate/moolre/otp'] = _Route(200, {
+        'success': true,
+        'data': {'reference': 'DEP-RACE-A'},
+      }, gate);
+      await tester.tap(find.text('Confirm deposit'));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      currentAuth!.switchTo(makeUser('user-b'));
+      gate.complete();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // The confirmed reference UPSERTS under the initiating identity —
+      // never duplicated, never reassigned to B.
+      final aList = await contSvc.loadForUser('user-a');
+      expect(aList, hasLength(1));
+      expect(aList.single.reference, 'DEP-RACE-A');
+      expect(await contSvc.loadForUser('user-b'), isEmpty);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(f) a MISSING owner cannot bypass the retry guard — '
+        'persistence is never claimed successful without an owner',
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      // The identity drops BEFORE the initiation: the operation starts
+      // with no capturable owner.
+      currentAuth!.switchTo(null);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': 'DEP-NOOWNER-1', 'status': 'PENDING'},
+      });
+
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // FAIL CLOSED: the submitted reference exists, no owner can be
+      // established, nothing was stored — and the close guard holds.
+      expect(find.text('Save receipt'), findsWidgets);
+      expect(contStorage.store.isEmpty, isTrue);
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsNothing,
+          reason: 'an ownerless submitted deposit must not be closable '
+              'while its way-back is unpersisted');
+
+      // The session returns: the retry path binds the (now capturable)
+      // owner and persists the EXACT reference.
+      currentAuth!.switchTo(makeUser('user-a'));
+      // Let the queued snackbars (failure notice + close-guard notice)
+      // dismiss; scope the retry button to the result view so no
+      // snackbar action can shadow it.
+      await tester.pump(const Duration(seconds: 10));
+      final resultRetry =
+          find.descendant(of: find.byType(SingleChildScrollView), matching: find.text('Save receipt'));
+      expect(resultRetry, findsOneWidget);
+      await tester.tap(resultRetry);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final stored = await contSvc.loadForUser('user-a');
+      expect(stored, hasLength(1));
+      expect(stored.single.reference, 'DEP-NOOWNER-1');
+
+      // The guard releases only once the record is durable.
+      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Keep for 5 minutes'), findsOneWidget);
+      // Flush short-lived timers (exit-prompt sheet etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+  });
 }
+
 
 /// In-memory FlutterSecureStorage for the continuation service — same
 /// async API surface the production service calls.
@@ -816,4 +1056,19 @@ class _FixedAuth extends AuthProvider {
   User? get user => sessionUser;
   @override
   Future<void> fetchUserDetails() async {}
+}
+
+/// Auth whose session identity can be switched (or dropped) MID-TEST —
+/// the seam for the account-switch races on an in-flight deposit.
+class _MutableAuth extends AuthProvider {
+  _MutableAuth(this.sessionUser);
+  User? sessionUser;
+  @override
+  User? get user => sessionUser;
+  @override
+  Future<void> fetchUserDetails() async {}
+  void switchTo(User? next) {
+    sessionUser = next;
+    notifyListeners();
+  }
 }

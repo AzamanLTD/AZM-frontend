@@ -15,7 +15,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -124,6 +123,23 @@ void main() {
     test('continuations are user-scoped: no cross-user bleed', () async {
       await service.save(uid, ref);
       expect(await service.loadForUser(otherUid), isEmpty);
+    });
+
+    test('REVIEW FOLLOW-UP — resolution is OWNER-SCOPED: resolving under a '
+        'different user never removes the initiating owner\'s record',
+        () async {
+      await service.save(uid, ref);
+      // A resolution executed with the WRONG identity (an account
+      // switched before the ledger answered) must not touch the
+      // initiating owner's storage.
+      await service.resolve(otherUid, ref);
+      expect(await service.loadForUser(uid), hasLength(1),
+          reason: "B's resolution must never remove A's stored "
+              'continuation');
+
+      // Only the initiating owner's own resolution removes their record.
+      await service.resolve(uid, ref);
+      expect(await service.loadForUser(uid), isEmpty);
     });
 
     test('resolve is the ONLY deletion path: an unresolved submitted '

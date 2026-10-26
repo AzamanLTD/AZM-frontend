@@ -369,6 +369,33 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   /// the user's only way back onto an instruction they already gave.
   bool _persistingContinuation = false;
   bool _continuationPersistFailed = false;
+
+  /// REVIEW FOLLOW-UP (owner identity) — the identity that STARTED the
+  /// financial operation owns its continuation records for the
+  /// operation's whole lifetime (initiate → OTP confirm → recovery →
+  /// resolution). An account switch while a request is in flight must
+  /// NEVER reassign a submitted operation to whichever user is active
+  /// when the response lands: A's reference is saved under A's storage
+  /// key even if B is on screen. Captured at initiation; a resumed
+  /// draft's recovery captures the CURRENT user, because a user-scoped
+  /// draft can only be re-opened by its owner.
+  String? _operationOwnerUserId;
+  bool _operationOwnerCaptured = false;
+
+  /// The storage owner for this screen's continuation lifecycle. Falls
+  /// back to the session user only BEFORE any operation was captured
+  /// (fresh screen, no pending operation).
+  String? get _continuationOwner => _operationOwnerCaptured
+      ? _operationOwnerUserId
+      : ref.read(authProvider).user?.id;
+
+  /// Capture the operation's owner at the moment the financial request
+  /// starts — the ONLY time the session user is consulted for this
+  /// operation's identity.
+  void _captureOperationOwner() {
+    _operationOwnerUserId = ref.read(authProvider).user?.id;
+    _operationOwnerCaptured = true;
+  }
   final _otpController = TextEditingController();
   bool _isConfirmingOtp = false;
   bool _depositConfirmed = false;
@@ -422,8 +449,19 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   /// save, and no new deposit is initiated in its place. The
   /// continuation is never claimed saved when it is not.
   Future<void> _saveContinuation(String reference) async {
-    final uid = ref.read(authProvider).user?.id;
-    if (uid == null || uid.isEmpty) return; // never persists anonymously
+    // OWNER BINDING (review follow-up) — the INITIATING identity, never
+    // the currently-active one. A response that lands after an account
+    // switch must not store A's reference under B's key.
+    final uid = _continuationOwner?.trim();
+    if (uid == null || uid.isEmpty) {
+      // FAIL CLOSED — no owner can be established for an operation the
+      // backend has already accepted. Never silently treat the
+      // way-back as saved: the exact reference is retained, the
+      // persistence-failure state engages, and the retry guard stays
+      // armed until an owner can be established and the write lands.
+      _markContinuationPersistFailed();
+      return;
+    }
     setState(() => _persistingContinuation = true);
     try {
       await ref
@@ -436,30 +474,36 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
         });
       }
     } catch (_) {
-      if (mounted) {
-        final colors = ref.read(themeProvider).colors;
-        setState(() {
-          _persistingContinuation = false;
-          _continuationPersistFailed = true;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text(
-              "We couldn't save this deposit's receipt on your device "
-              'yet. Tap Save receipt to keep your way back to it.',
-            ),
-            backgroundColor: colors.accentSurface,
-            duration: const Duration(seconds: 6),
-            behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'Save receipt',
-              textColor: colors.accent,
-              onPressed: _retryContinuationSave,
-            ),
-          ),
-        );
-      }
+      _markContinuationPersistFailed();
     }
+  }
+
+  /// The single fail-closed transition for an unpersisted submitted
+  /// operation: exact reference retained, close guard held, explicit
+  /// retry offered for the SAME save. Never claims the write happened.
+  void _markContinuationPersistFailed() {
+    if (!mounted) return;
+    final colors = ref.read(themeProvider).colors;
+    setState(() {
+      _persistingContinuation = false;
+      _continuationPersistFailed = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          "We couldn't save this deposit's receipt on your device "
+          'yet. Tap Save receipt to keep your way back to it.',
+        ),
+        backgroundColor: colors.accentSurface,
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Save receipt',
+          textColor: colors.accent,
+          onPressed: _retryContinuationSave,
+        ),
+      ),
+    );
   }
 
   /// REVIEW FOLLOW-UP P1 — retry the SAME operation's local save. The
@@ -468,13 +512,24 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   void _retryContinuationSave() {
     final active = inFlightReference ?? _pendingReference;
     if (active == null || active.isEmpty) return;
+    // A retry may ESTABLISH the owner only if none was ever validly
+    // captured (the operation started with no identity). It never
+    // REPLACES a captured owner: a retry under a switched session can
+    // never rebind A's operation to B's key.
+    if (_operationOwnerCaptured &&
+        (_operationOwnerUserId ?? '').trim().isEmpty) {
+      _captureOperationOwner();
+    }
     _saveContinuation(active);
   }
 
   /// Authoritative resolution only (settled or failed by the ledger, or
   /// socket-confirmed). Never called for a discarded local FORM draft.
   void _resolveContinuation(String reference) {
-    final uid = ref.read(authProvider).user?.id;
+    // OWNER BINDING — only the initiating owner's authoritative
+    // resolution removes THEIR stored continuation; it can never
+    // delete (or resolve under) a different account's records.
+    final uid = _continuationOwner?.trim();
     if (uid == null || uid.isEmpty) return;
     ref
         .read(depositContinuationsProvider.notifier)
@@ -607,6 +662,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   // registered in initState — the recovered view re-arms it through the
   // same `_pendingReference ?? _depositResult['reference']` seam.
   Future<void> _recoverInterruptedDeposit(String reference) async {
+    // OWNER BINDING — a resumed draft is user-scoped, so the user
+    // re-opening it IS its owner; the recovery and any later
+    // authoritative resolution stay bound to that identity. Idempotent:
+    // a re-check after an account switch never rebinds the draft.
+    if (!_operationOwnerCaptured) _captureOperationOwner();
     setState(() {
       _recovering = true;
       // A deliberate re-check clears the banner until it lands again.
@@ -893,6 +953,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     }
 
     setState(() => _isSubmitting = true);
+    // OWNER BINDING (review follow-up) — capture the identity that is
+    // starting this financial operation BEFORE the request leaves. The
+    // response may land after an account switch; its continuation
+    // records stay bound to THIS identity for the operation's lifetime.
+    _captureOperationOwner();
     try {
       // All saved accounts in this picker are Mobile Money (MTN / Telecel /
       // AirtelTigo), so every deposit routes through the Moolre PIN-push
@@ -1044,6 +1109,11 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
 
   void _reset() {
     setState(() {
+      // The operation is over (authoritatively resolved, or its
+      // continuation is durably saved): the next one captures a fresh
+      // owner at its own initiation.
+      _operationOwnerUserId = null;
+      _operationOwnerCaptured = false;
       _depositResult = null;
       _requiresOtp = false;
       _pendingReference = null;
@@ -1592,16 +1662,28 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
           const SizedBox(height: 10),
           Center(
             child: TextButton(
+              // REVIEW FOLLOW-UP — while the continuation record is
+              // UNPERSISTED, Cancel must not discard the in-memory
+              // reference: it is the only way back to an already
+              // submitted instruction. The action becomes the SAME
+              // save's retry; once the record is durable, Cancel
+              // returns to its normal meaning.
               onPressed: _isConfirmingOtp
                   ? null
+                  : _continuationPersistFailed
+                  ? _retryContinuationSave
                   : () => setState(() {
                       _requiresOtp = false;
                       _pendingReference = null;
                       _otpController.clear();
                     }),
               child: Text(
-                'Cancel',
-                style: TextStyle(color: colors.textTertiary),
+                _continuationPersistFailed ? 'Save receipt' : 'Cancel',
+                style: TextStyle(
+                  color: _continuationPersistFailed
+                      ? colors.accent
+                      : colors.textTertiary,
+                ),
               ),
             ),
           ),
