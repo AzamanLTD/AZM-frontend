@@ -512,14 +512,14 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   void _retryContinuationSave() {
     final active = inFlightReference ?? _pendingReference;
     if (active == null || active.isEmpty) return;
-    // A retry may ESTABLISH the owner only if none was ever validly
-    // captured (the operation started with no identity). It never
-    // REPLACES a captured owner: a retry under a switched session can
-    // never rebind A's operation to B's key.
-    if (_operationOwnerCaptured &&
-        (_operationOwnerUserId ?? '').trim().isEmpty) {
-      _captureOperationOwner();
-    }
+    // FINAL REVIEW — the retry NEVER captures (or replaces) the owner.
+    // Ownership is established exactly once, before the initiate
+    // request leaves, and is REQUIRED for that request to be sent at
+    // all — an accepted operation therefore always carries a captured
+    // owner. Should one somehow be missing, the save below fails
+    // closed and the exact reference is retained WITHOUT being
+    // assigned to whatever account happens to be active now: no
+    // trusted ownership evidence, no storage under B's key.
     _saveContinuation(active);
   }
 
@@ -958,6 +958,31 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     // response may land after an account switch; its continuation
     // records stay bound to THIS identity for the operation's lifetime.
     _captureOperationOwner();
+    // FINAL REVIEW — a financial mutation REQUIRES a capturable owner.
+    // The continuation lifecycle is user-scoped: an initiation this
+    // device cannot attribute to an authenticated identity could never
+    // honestly become anyone's continuation record, and the backend
+    // must never be asked to accept an instruction whose local way-back
+    // no account can own. Block BEFORE the wire, with honest feedback.
+    final ownerId = _operationOwnerUserId?.trim();
+    if (ownerId == null || ownerId.isEmpty) {
+      // No operation exists — release the captured (empty) state so a
+      // later sign-in starts clean.
+      _operationOwnerCaptured = false;
+      _operationOwnerUserId = null;
+      setState(() => _isSubmitting = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Your session ended. Sign in again to start a deposit.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
     try {
       // All saved accounts in this picker are Mobile Money (MTN / Telecel /
       // AirtelTigo), so every deposit routes through the Moolre PIN-push
@@ -1578,16 +1603,6 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 18),
-            Text(
-              instructions,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 13,
-                height: 1.5,
-              ),
-            ),
           const SizedBox(height: 18),
           _PrimaryButton(
             colors: colors,

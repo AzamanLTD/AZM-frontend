@@ -30,6 +30,13 @@ class _FakeSecureStorage implements FlutterSecureStorage {
   final List<Completer<String?>> _held = [];
   final List<Completer<String?>> _active = [];
 
+  /// FINAL REVIEW — deterministic WRITE interleaving: when set, the
+  /// next write reports [writeStarted] and its effect lands only when
+  /// the test completes the gate. This is how the race tests freeze a
+  /// mutation mid-flight and let a settlement arrive behind it.
+  Completer<void>? writeGate;
+  final Completer<void> writeStarted = Completer<void>();
+
   void holdNextRead() => _held.add(Completer<String?>());
 
   void release([String? value]) {
@@ -53,11 +60,21 @@ class _FakeSecureStorage implements FlutterSecureStorage {
       case #write:
         final key = named[#key] as String;
         final value = named[#value] as String?;
-        if (value == null) {
-          store.remove(key);
-        } else {
-          store[key] = value;
+        void land() {
+          if (value == null) {
+            store.remove(key);
+          } else {
+            store[key] = value;
+          }
         }
+
+        final gate = writeGate;
+        if (gate != null) {
+          writeGate = null;
+          if (!writeStarted.isCompleted) writeStarted.complete();
+          return gate.future.then((_) => land());
+        }
+        land();
         return Future.value();
       case #delete:
         store.remove(named[#key] as String);
@@ -279,6 +296,147 @@ void main() {
       await controller.switchToUser(uid);
       expect(controller.state.userId, uid);
       expect(controller.state.continuations.single.reference, ref);
+    });
+  });
+
+  // ── FINAL REVIEW: serialized mutations + terminal resolution ────────────
+
+  group('FINAL REVIEW — serialized per-user mutations and terminal '
+      'resolution', () {
+    DepositContinuationsService svc(
+        {required _FakeSecureStorage store}) =>
+        DepositContinuationsService(storage: store);
+
+    Future<List<String>> refs(DepositContinuationsService s, String u) async =>
+        [for (final c in await s.loadForUser(u)) c.reference];
+
+    test('a socket settlement arriving while the INITIAL continuation '
+        'save is still in flight cannot be overwritten by the save\'s '
+        'late write, and sibling records are preserved', () async {
+      final storage = _FakeSecureStorage();
+      final service = svc(store: storage);
+
+      // An earlier, still-unresolved operation for the same user.
+      await service.save('user-a', 'DEP-EARLIER');
+
+      // Freeze the initial save MID-WRITE (the exact window in which a
+      // socket settlement can arrive behind it).
+      final gate = Completer<void>();
+      storage.writeGate = gate;
+      final inFlightSave = service.save('user-a', 'DEP-SETTLE-1');
+      await storage.writeStarted.future; // the save is now at its write
+
+      // The ledger settles the operation while the save is in flight.
+      final settlement = service.resolve('user-a', 'DEP-SETTLE-1');
+
+      // The held write finally lands — LAST, exactly the ordering that
+      // used to resurrect the settled reference.
+      gate.complete();
+      await inFlightSave;
+      await settlement;
+
+      expect(await refs(service, 'user-a'), ['DEP-EARLIER'],
+          reason: 'the settled reference must NOT be resurrected by its '
+              'own late write, and the unrelated sibling must survive');
+    });
+
+    test('a resolution racing an OTP-confirm re-save is terminal in BOTH '
+        'enqueue orders — the stale re-save can never resurrect it',
+        () async {
+      final storage = _FakeSecureStorage();
+      final service = svc(store: storage);
+      await service.save('user-a', 'DEP-OTP-CONFIRM');
+
+      // Order 1: the settlement enqueues first, the stale confirm
+      // re-save lands behind it.
+      final settle = service.resolve('user-a', 'DEP-OTP-CONFIRM');
+      final resave = service.save('user-a', 'DEP-OTP-CONFIRM');
+      await settle;
+      await resave;
+      expect(await refs(service, 'user-a'), isEmpty,
+          reason: 'a re-save enqueued AFTER resolution is a no-op');
+
+      // Order 2: the stale re-save enqueues first, the settlement
+      // lands behind it — the reference still ends resolved.
+      await service.save('user-a', 'DEP-OTP-CONFIRM-2');
+      final resave2 = service.save('user-a', 'DEP-OTP-CONFIRM-2');
+      final settle2 = service.resolve('user-a', 'DEP-OTP-CONFIRM-2');
+      await resave2;
+      await settle2;
+      expect(await refs(service, 'user-a'), isEmpty,
+          reason: 'resolution behind a racing save still wins');
+    });
+
+    test('a RETRY attempting to save a reference after its authoritative '
+        'resolution is a no-op, and terminality is PER-REFERENCE only',
+        () async {
+      final storage = _FakeSecureStorage();
+      final service = svc(store: storage);
+
+      await service.save('user-a', 'DEP-RESOLVED');
+      await service.resolve('user-a', 'DEP-RESOLVED');
+      expect(await refs(service, 'user-a'), isEmpty);
+
+      // The retry (user taps "Save receipt" again) — must not resurrect.
+      await service.save('user-a', 'DEP-RESOLVED');
+      expect(await refs(service, 'user-a'), isEmpty,
+          reason: 'resolution is terminal: a later retry never '
+              'resurrects the reference');
+
+      // Terminality never bleeds into other, valid operations.
+      await service.save('user-a', 'DEP-NEW-OP');
+      expect(await refs(service, 'user-a'), ['DEP-NEW-OP'],
+          reason: 'an unrelated reference saves normally after another '
+              'one resolved');
+    });
+
+    test('CONCURRENT mutations to separate references of the same user '
+        'lose NEITHER record', () async {
+      final storage = _FakeSecureStorage();
+      final service = svc(store: storage);
+
+      final f1 = service.save('user-a', 'DEP-A');
+      final f2 = service.save('user-a', 'DEP-B');
+      final f3 = service.save('user-a', 'DEP-C');
+      await Future.wait([f1, f2, f3]);
+
+      expect(await refs(service, 'user-a'),
+          containsAll(['DEP-A', 'DEP-B', 'DEP-C']));
+      expect((await service.loadForUser('user-a')), hasLength(3),
+          reason: 'unserialized load-modify-write used to let the last '
+              'write drop the siblings');
+    });
+
+    test('a settlement resolving one reference while another is being '
+        'saved preserves the OTHER record', () async {
+      final storage = _FakeSecureStorage();
+      final service = svc(store: storage);
+      await service.save('user-a', 'DEP-OLD');
+
+      final settle = service.resolve('user-a', 'DEP-OLD');
+      final fresh = service.save('user-a', 'DEP-FRESH');
+      await Future.wait([settle, fresh]);
+
+      expect(await refs(service, 'user-a'), ['DEP-FRESH'],
+          reason: 'the resolved record is gone, the concurrently-saved '
+              'one survives');
+    });
+
+    test('different users never queue behind each other and never bleed '
+        'records', () async {
+      final storage = _FakeSecureStorage();
+      final service = svc(store: storage);
+
+      final fa = service.save('user-a', 'DEP-X');
+      final fb = service.save('user-b', 'DEP-X');
+      await Future.wait([fa, fb]);
+
+      expect(await refs(service, 'user-a'), ['DEP-X']);
+      expect(await refs(service, 'user-b'), ['DEP-X']);
+      // Resolving under one user never touches the other user's record.
+      await service.resolve('user-a', 'DEP-X');
+      expect(await refs(service, 'user-a'), isEmpty);
+      expect(await refs(service, 'user-b'), ['DEP-X']);
     });
   });
 }

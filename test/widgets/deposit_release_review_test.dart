@@ -213,13 +213,33 @@ final List<SavedMomoAccount> _accounts = [
 ];
 
 Widget _app() {
+  // FINAL REVIEW — the deposit surface belongs to an authenticated
+  // session by contract: the continuation lifecycle is owner-scoped
+  // and the initiation itself now REQUIRES a capturable owner (it is
+  // blocked before the wire without one). The base harness runs with
+  // a signed-in identity and in-memory continuations.
   return ProviderScope(
     overrides: [
       savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+      authProvider.overrideWith((ref) => _FixedAuth(_harnessUser)),
+      depositContinuationsProvider.overrideWith(
+        (ref) => DepositContinuationsController(
+          DepositContinuationsService(storage: _MemSecureStorage()),
+        ),
+      ),
     ],
     child: MaterialApp.router(routerConfig: _router()),
   );
 }
+
+final _harnessUser = User(
+  id: 'user-a',
+  username: 'me',
+  email: 'me@example.com',
+  token: 'tok',
+  role: 'USER',
+  azamanId: 'AZM-999999999',
+);
 
 GoRouter _router() => GoRouter(
   initialLocation: '/',
@@ -932,20 +952,16 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     });
 
-    testWidgets('(f) a MISSING owner cannot bypass the retry guard — '
-        'persistence is never claimed successful without an owner',
-        (tester) async {
-      currentAuth = _MutableAuth(makeUser('user-a'));
+    testWidgets('(f) no capturable owner: the financial mutation is '
+        'BLOCKED before the wire — nothing may later be stored under '
+        'any key', (tester) async {
+      currentAuth = _MutableAuth(null);
       await openAndEnterAmount(tester);
-      // The identity drops BEFORE the initiation: the operation starts
-      // with no capturable owner.
-      currentAuth!.switchTo(null);
       _wire['POST /deposit/validate-name'] =
           _Route(200, {'data': 'Kwame Mensah'});
-      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
-        'data': {'reference': 'DEP-NOOWNER-1', 'status': 'PENDING'},
-      });
-
+      // The initiate route is deliberately NOT wired: if the blocked
+      // path ever regresses and sends the request, the harness records
+      // an unexpected HTTP call and this test fails loudly.
       await tester.tap(find.text('Add Cash').last);
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 300));
@@ -953,42 +969,108 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 200));
 
-      // FAIL CLOSED: the submitted reference exists, no owner can be
-      // established, nothing was stored — and the close guard holds.
-      expect(find.text('Save receipt'), findsWidgets);
+      // BLOCKED BEFORE THE WIRE: no financial mutation was requested.
+      expect(_unexpectedCalls, isEmpty,
+          reason: 'an initiation without a capturable owner must never '
+              'reach the backend');
+      expect(find.text('Your session ended. Sign in again to start a '
+          'deposit.'), findsOneWidget);
+
+      // No accepted operation exists: no reference was minted, no
+      // fail-closed persistence state was armed, storage stays empty.
+      expect(find.text('Save receipt'), findsNothing,
+          reason: 'a blocked initiation mints no reference and arms no '
+              'persistence-retry state');
       expect(contStorage.store.isEmpty, isTrue);
-      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Keep for 5 minutes'), findsNothing,
-          reason: 'an ownerless submitted deposit must not be closable '
-              'while its way-back is unpersisted');
 
-      // The session returns: the retry path binds the (now capturable)
-      // owner and persists the EXACT reference.
-      currentAuth!.switchTo(makeUser('user-a'));
-      // Let the queued snackbars (failure notice + close-guard notice)
-      // dismiss; scope the retry button to the result view so no
-      // snackbar action can shadow it.
-      await tester.pump(const Duration(seconds: 10));
-      final resultRetry =
-          find.descendant(of: find.byType(SingleChildScrollView), matching: find.text('Save receipt'));
-      expect(resultRetry, findsOneWidget);
-      await tester.tap(resultRetry);
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pump(const Duration(milliseconds: 200));
-
-      final stored = await contSvc.loadForUser('user-a');
-      expect(stored, hasLength(1));
-      expect(stored.single.reference, 'DEP-NOOWNER-1');
-
-      // The guard releases only once the record is durable.
-      await tester.tap(find.bySemanticsLabel('Close Add Cash'));
+      // User B signs in and the surface is reused: NOTHING belonging
+      // to the ownerless operation may ever land under B's key.
+      currentAuth!.switchTo(makeUser('user-b'));
       await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Keep for 5 minutes'), findsOneWidget);
-      // Flush short-lived timers (exit-prompt sheet etc.).
+      expect(contStorage.store.isEmpty, isTrue);
+      expect(await contSvc.loadForUser('user-b'), isEmpty);
+      expect(await contSvc.loadForUser('user-a'), isEmpty);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
       await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(g) FINAL REVIEW — a retry after an account switch '
+        "persists under the CAPTURED owner only: B is active when the "
+        'failed write is retried and B\'s key stays empty',
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      contStorage.writeError = StateError('disk full');
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'requiresOtp': true,
+        'data': {'reference': 'DEP-RETRY-B', 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Enter OTP'), findsOneWidget);
+      expect(contStorage.store.isEmpty, isTrue);
+
+      // The write failed; user B becomes active BEFORE the retry.
+      currentAuth!.switchTo(makeUser('user-b'));
+      contStorage.writeError = null;
+      // Let the queued snackbars (failure notice + close-guard notice)
+      // dismiss; the retry button is then scoped to the OTP view.
+      await tester.pump(const Duration(seconds: 10));
+      final otpRetry = find.descendant(
+          of: find.byType(SingleChildScrollView),
+          matching: find.text('Save receipt'));
+      expect(otpRetry, findsOneWidget);
+      await tester.tap(otpRetry);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // The retry used the CAPTURED owner (A) — never the active one.
+      final aList = await contSvc.loadForUser('user-a');
+      expect(aList, hasLength(1));
+      expect(aList.single.reference, 'DEP-RETRY-B');
+      expect(await contSvc.loadForUser('user-b'), isEmpty,
+          reason: 'a retry under a switched session must never store '
+              "A's operation under B's key");
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(h) FINAL REVIEW — the result view renders the '
+        'instructions exactly ONCE', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      const wireInstructions =
+          'Dial *170# and approve the prompt to complete this deposit.';
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {
+          'reference': 'DEP-RESULT-1',
+          'status': 'PENDING',
+          'instructions': wireInstructions,
+        },
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // The result view is up with the durable reference.
+      expect(find.text('DEP-RESULT-1'), findsOneWidget);
+      // A single instructions block — the duplicated render is gone.
+      expect(find.text(wireInstructions), findsOneWidget,
+          reason: 'the result view must render the instructions block '
+              'exactly once');
+      // Flush short-lived timers (demo auto-confirm, stagger etc.).
+      await tester.pump(const Duration(seconds: 4));
     });
   });
 }

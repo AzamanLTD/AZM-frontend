@@ -85,6 +85,35 @@ class DepositContinuationsService {
 
   static const _keyPrefix = 'azm.deposit.continuations.';
 
+  // FINAL REVIEW — SERIALIZED PER-USER MUTATIONS. save() and resolve()
+  // each load, modify, and write the SAME user-scoped list; unserialized,
+  // a socket settlement resolving mid-save lets whichever stale write
+  // finishes last resurrect a resolved reference or drop a sibling
+  // record. Every mutation for a user now queues behind that user's
+  // previous one, so the load-modify-write cycle can never interleave
+  // with itself. Different users share nothing and never queue
+  // behind each other.
+  final Map<String, Future<void>> _mutationQueues = {};
+
+  // FINAL REVIEW — TERMINAL RESOLUTION. The ledger's authoritative
+  // settlement/failure is FINAL for that (user, reference): a save or
+  // retry landing after a resolve is a no-op and can never resurrect
+  // the reference into the continuation lifecycle.
+  final Set<String> _resolvedReferences = {};
+
+  static String _terminalKey(String userId, String reference) =>
+      '$userId\u0000$reference';
+
+  /// Queue [action] behind the user's previous mutation. The queue
+  /// itself never breaks on a failed action (the chain swallows and
+  /// continues); the original caller still observes the real error.
+  Future<void> _enqueue(String userId, Future<void> Function() action) {
+    final previous = _mutationQueues[userId] ?? Future<void>.value();
+    final operation = previous.then((_) => action());
+    _mutationQueues[userId] = operation.then((_) {}, onError: (_) {});
+    return operation;
+  }
+
   String _key(String userId) => '$_keyPrefix$userId';
 
   /// Generational identity: `<userId>.<reference>`.
@@ -124,34 +153,45 @@ class DepositContinuationsService {
   }
 
   /// Record a submitted deposit reference (idempotent upsert by stable id).
+  /// SERIALIZED per user, and a NO-OP for a reference the ledger has
+  /// already resolved — a late save or retry can never resurrect it.
   Future<void> save(String userId, String reference) async {
     final ref = reference.trim();
     if (ref.isEmpty) return;
-    final list = [...await loadForUser(userId)];
-    final id = continuationId(userId, ref);
-    final fresh = DepositContinuation(
-        id: id,
-        reference: ref,
-        savedAtMs: DateTime.now().millisecondsSinceEpoch);
-    final i = list.indexWhere((c) => c.id == id);
-    if (i >= 0) {
-      list[i] = fresh;
-    } else {
-      list.add(fresh);
-    }
-    await _write(userId, list);
+    await _enqueue(userId, () async {
+      if (_resolvedReferences.contains(_terminalKey(userId, ref))) {
+        return; // resolution is terminal for this reference
+      }
+      final list = [...await loadForUser(userId)];
+      final id = continuationId(userId, ref);
+      final fresh = DepositContinuation(
+          id: id,
+          reference: ref,
+          savedAtMs: DateTime.now().millisecondsSinceEpoch);
+      final i = list.indexWhere((c) => c.id == id);
+      if (i >= 0) {
+        list[i] = fresh;
+      } else {
+        list.add(fresh);
+      }
+      await _write(userId, list);
+    });
   }
 
   /// AUTHORITATIVE resolution only: the ledger (or socket confirm) said
   /// the deposit settled or failed. This is the one way a submitted
-  /// operation leaves the continuation lifecycle. A discarded FORM
-  /// draft must never reach here.
+  /// operation leaves the continuation lifecycle — and it is TERMINAL
+  /// for the reference: a save or retry landing afterwards can never
+  /// resurrect it. A discarded FORM draft must never reach here.
   Future<void> resolve(String userId, String reference) async {
     final ref = reference.trim();
     if (ref.isEmpty) return;
-    final list = [...await loadForUser(userId)];
-    list.removeWhere((c) => c.reference == ref);
-    await _write(userId, list);
+    await _enqueue(userId, () async {
+      _resolvedReferences.add(_terminalKey(userId, ref));
+      final list = [...await loadForUser(userId)];
+      list.removeWhere((c) => c.reference == ref);
+      await _write(userId, list);
+    });
   }
 
   // NOTE (review follow-up P1): there is deliberately NO clearAll.
