@@ -241,6 +241,14 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
   }
 
   List<_Section> _sections(BalanceCardValuation v, AzamanColors colors) {
+    // Balance-readiness gate for every row sourced from the CANONICAL
+    // balance (USDC held, escrow, dispute escrow, vendor, AZM points):
+    // while balanceConfirmed is false those figures are UNKNOWN — a
+    // loading/unconfirmed balance renders a dash, never a fabricated
+    // 0.00. Independently confirmed rows (Committed: vaults/savings/
+    // susu) keep their own null-gating and are NOT hidden merely
+    // because the general balance is still loading.
+    final confirmed = v.balanceConfirmed;
     final sections = <_Section>[
       _Section(
         key: const ValueKey('bc-section-available'),
@@ -274,9 +282,12 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               label: 'USDC held',
               icon: HugeIconsSolid.coins01,
               iconSemantic: 'USDC wallet icon',
-              amount: AzMoney.amount(v.availableUsdc),
-              unit: 'USDC',
+              amount: confirmed
+                  ? AzMoney.amount(v.availableUsdc)
+                  : '—',
+              unit: confirmed ? 'USDC' : '',
               colors: colors,
+              detail: confirmed ? null : 'not confirmed yet',
             ),
           ],
         ),
@@ -350,18 +361,20 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               label: 'Escrow',
               icon: HugeIconsSolid.lock,
               iconSemantic: 'Escrow lock icon',
-              amount: AzMoney.amount(v.escrowLocked),
-              unit: 'USDC',
+              amount: confirmed ? AzMoney.amount(v.escrowLocked) : '—',
+              unit: confirmed ? 'USDC' : '',
               colors: colors,
+              detail: confirmed ? null : 'not confirmed yet',
             ),
             _BreakdownRow(
               key: const ValueKey('bc-row-dispute-escrow'),
               label: 'Dispute escrow',
               icon: HugeIconsSolid.shieldUser,
               iconSemantic: 'Dispute escrow shield icon',
-              amount: AzMoney.amount(v.disputeEscrow),
-              unit: 'USDC',
+              amount: confirmed ? AzMoney.amount(v.disputeEscrow) : '—',
+              unit: confirmed ? 'USDC' : '',
               colors: colors,
+              detail: confirmed ? null : 'not confirmed yet',
             ),
           ],
         ),
@@ -384,13 +397,19 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
                 label: 'Vendor balance',
                 icon: HugeIconsSolid.store01,
                 iconSemantic: 'Vendor storefront icon',
-                amount: AzMoney.amount(v.vendorUnallocatedUsdc),
-                unit: 'USDC',
+                amount: confirmed
+                    ? AzMoney.amount(v.vendorUnallocatedUsdc)
+                    : '—',
+                unit: confirmed ? 'USDC' : '',
                 colors: colors,
                 // Truthful, capability-free description: the backend
                 // publishes no eligibility field, and withdrawability is
-                // never inferred from the amount.
-                detail: 'unallocated · restricted',
+                // never inferred from the amount. Unconfirmed balance →
+                // the amount itself is unknown, so the description waits
+                // with it.
+                detail: confirmed
+                    ? 'unallocated · restricted'
+                    : 'not confirmed yet',
               ),
             ],
           ),
@@ -412,9 +431,12 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               iconSemantic: 'AZM points icon',
               // Never money: excluded from every monetary total, FX
               // calculation and rail.
-              amount: AzMoney.amount(v.azmPoints, decimals: 0),
-              unit: 'pts',
+              amount: confirmed
+                  ? AzMoney.amount(v.azmPoints, decimals: 0)
+                  : '—',
+              unit: confirmed ? 'pts' : '',
               colors: colors,
+              detail: confirmed ? null : 'not confirmed yet',
             ),
           ],
         ),

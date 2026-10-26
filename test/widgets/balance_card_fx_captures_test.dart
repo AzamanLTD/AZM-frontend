@@ -68,17 +68,6 @@ Future<void> _loadFonts() async {
   _fontsLoaded = true;
 }
 
-class _RefreshStub extends StatelessWidget {
-  const _RefreshStub();
-  @override
-  Widget build(BuildContext context) => Container(
-        key: const ValueKey('capture-refresh-indicator'),
-        width: 24,
-        height: 12,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      );
-}
-
 BalanceCardValuation _saved({
   bool vendor = false,
   double? susu = 5,
@@ -144,7 +133,6 @@ Future<void> _pump(
                   key: const ValueKey('bcfx-pair'),
                   valuation: valuation,
                   colors: colors,
-                  trailingRefresh: const _RefreshStub(),
                 ),
               ),
             ),
@@ -205,10 +193,6 @@ Future<void> _assertFrontContract(WidgetTester tester,
       reason: 'the headline sits below the eyebrow');
   expect(rateRow.top, greaterThan(headline.bottom),
       reason: 'the rate row sits below the headline');
-  final refresh = tester
-      .getRect(find.byKey(const ValueKey('capture-refresh-indicator')));
-  expect(refresh.right, closeTo(rateRow.right, 2),
-      reason: 'the refresh affordance is flush right');
   final infoIcon = find.byKey(const ValueKey('balance-fx-equivalent-info'));
   if (infoIcon.evaluate().isNotEmpty) {
     final eq = tester
@@ -310,8 +294,30 @@ void main() {
         theme: AzamanTheme.light, width: 360, valuation: fresh);
     _assertFrame(tester, width: 360);
     await _assertFrontContract(tester, width: 360);
-    expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
-        findsNothing);
+    // PR #203 review round: the info icon is visible BESIDE the USDC
+    // equivalent line in the LIVE state too — the disclosure honestly
+    // distinguishes the converted GHS display valuation from a native
+    // GHS wallet holding.
+    final info = find.byKey(const ValueKey('balance-fx-equivalent-info'));
+    expect(info, findsOneWidget);
+    await tester.tap(info, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+      findsOneWidget,
+    );
+    final body = tester
+        .widget<Text>(find
+            .byKey(const ValueKey('balance-fx-fallback-disclosure-body')))
+        .data!;
+    expect(body, contains('native GHS wallet'),
+        reason: 'this fixture HAS a native wallet, so the disclosure says '
+            'the total honestly combines it');
+    expect(body, isNot(contains('display valuation converted')),
+        reason: 'combined-native state is not the converted-display state');
+    await tester
+        .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+    await tester.pumpAndSettle();
     await _capture(tester, 'front_fresh_360_light');
   });
 

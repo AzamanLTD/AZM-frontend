@@ -74,7 +74,6 @@ class BalanceCardFx extends StatelessWidget {
     super.key,
     required this.valuation,
     required this.colors,
-    this.trailingRefresh,
     this.flipGuard,
   });
 
@@ -84,13 +83,9 @@ class BalanceCardFx extends StatelessWidget {
   /// Theme colours (pure widget — no provider watch).
   final AzamanColors colors;
 
-  /// The right-edge refresh affordance (the card's width contract pins it
-  /// flush right, e.g. the Home wiring passes the live RateRefreshIndicator).
-  final Widget? trailingRefresh;
-
   /// The shared frame's nested-gesture guard. Marked on pointer-down by
-  /// this face's interactive affordances (the disclosure button, the
-  /// refresh slot) so operating them never also flips the card.
+  /// this face's interactive affordances (the disclosure button) so
+  /// operating them never also flips the card.
   final ValueNotifier<bool>? flipGuard;
 
   String _observedAtLabel() {
@@ -101,31 +96,86 @@ class BalanceCardFx extends StatelessWidget {
         '${two(at.hour)}:${two(at.minute)} UTC';
   }
 
-  /// The honest disclosure for a saved/demo fallback rate.
+  /// The honest, STATE-AWARE disclosure for the figures on this card.
+  ///
+  /// Three contract states, each phrased so the user can never mistake a
+  /// converted GHS display valuation for a native GHS wallet holding:
+  ///   • fresh rate, no native-GHS wallet on the contract (the CURRENT
+  ///     live state — backend PR #367 unmerged): the GH₵ figure is a
+  ///     display valuation converted from the real USDC holding;
+  ///   • fresh rate, native wallet present (future contract): the
+  ///     total honestly combines the native holding with converted
+  ///     USDC;
+  ///   • saved/demo fallback rate: the existing indicative wording.
   String _disclosureBody() {
-    final rate = valuation.rate;
-    final isDemo = rate.kind == FxRateKind.demo;
+    final v = valuation;
+    final rate = v.rate;
     final observed = _observedAtLabel();
     final source = rate.sourceLabel;
-    final buffer = StringBuffer()
-      ..write(
-        'The current FX rate is unavailable, so this USDC figure is an '
-        'indicative display calculation',
+
+    if (rate.isFallback) {
+      final isDemo = rate.kind == FxRateKind.demo;
+      final buffer = StringBuffer()
+        ..write(
+          'The current FX rate is unavailable, so this USDC figure is an '
+          'indicative display calculation',
+        );
+      if (isDemo) {
+        buffer.write(' using a demo-seeded rate — not a real market feed');
+      } else {
+        buffer.write(' using the last saved validated rate');
+      }
+      buffer.write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
+      if (source != null && source.isNotEmpty) buffer.write(', source: $source');
+      if (observed.isNotEmpty) buffer.write(', observed $observed');
+      buffer.write(
+        '. This is not a live rate, a guaranteed execution rate or a firm '
+        'quote. USDC-enabled transactions are unavailable until a fresh rate '
+        'is restored.',
       );
-    if (isDemo) {
-      buffer.write(' using a demo-seeded rate — not a real market feed');
-    } else {
-      buffer.write(' using the last saved validated rate');
+      return buffer.toString();
     }
-    buffer.write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
-    if (source != null && source.isNotEmpty) buffer.write(', source: $source');
-    if (observed.isNotEmpty) buffer.write(', observed $observed');
-    buffer.write(
-      '. This is not a live rate, a guaranteed execution rate or a firm '
-      'quote. USDC-enabled transactions are unavailable until a fresh rate '
-      'is restored.',
-    );
+
+    // Fresh rate — distinguish converted display valuation from native.
+    final buffer = StringBuffer();
+    if (v.nativeGhsAvailable == null) {
+      buffer
+        ..write(
+          'Your available balance is held in USDC. The GH₵ figure is a '
+          'GHS display valuation converted from your USDC at the current '
+          'rate',
+        )
+        ..write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
+      if (source != null && source.isNotEmpty) buffer.write(', source: $source');
+      if (observed.isNotEmpty) buffer.write(', observed $observed');
+      buffer.write(
+        '. It is not a native GHS wallet holding: no native-GHS wallet or '
+        'combined valuation total is published by the backend yet. This '
+        'conversion is not a guaranteed execution rate or a firm quote.',
+      );
+    } else {
+      buffer
+        ..write(
+          'Your available total combines your native GHS wallet '
+          '(${AzMoney.ghs(v.nativeGhsAvailable!)}) with your USDC '
+          'converted at the current rate',
+        )
+        ..write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
+      if (source != null && source.isNotEmpty) buffer.write(', source: $source');
+      if (observed.isNotEmpty) buffer.write(', observed $observed');
+      buffer.write('. This is not a guaranteed execution rate or a firm quote.');
+    }
     return buffer.toString();
+  }
+
+  /// The disclosure trigger's semantic label — state-aware like the body.
+  String _disclosureLabel() {
+    if (valuation.rate.isFallback) {
+      return 'About the USDC equivalent and saved rate';
+    }
+    return valuation.nativeGhsAvailable == null
+        ? 'About the GHS valuation and USDC equivalent'
+        : 'About the available balance breakdown';
   }
 
   Future<void> _showDisclosure(BuildContext context) {
@@ -194,8 +244,19 @@ class BalanceCardFx extends StatelessWidget {
         // belongs on the USDC line below, which is the estimate. The
         // gutter column stays so both lines' digits stay aligned.
         approx: false,
-        semanticsLabel: 'Available balance '
-            '${AzMoney.ghs(v.availableGhsValue!)} in GHS',
+        // In the CURRENT contract state (no native-GHS wallet published,
+        // backend PR #367 unmerged) this figure is a converted GHS
+        // display valuation — the semantics must never present it as a
+        // confirmed native-GHS/combined total. When the backend's
+        // valuation contract lands and supplies native GHS + totals,
+        // the mapping (and this label) update to match the returned
+        // data.
+        semanticsLabel: v.nativeGhsAvailable == null
+            ? 'Available balance ${AzMoney.ghs(v.availableGhsValue!)} — '
+                'a GHS display valuation converted from USDC at the '
+                'current rate, not a native GHS wallet holding'
+            : 'Available balance '
+                '${AzMoney.ghs(v.availableGhsValue!)} in GHS',
       );
     } else {
       // Confirmed balance, but the combined GHS value is not computable
@@ -292,14 +353,18 @@ class BalanceCardFx extends StatelessWidget {
             ),
           ),
           // The information icon sits IMMEDIATELY BESIDE the equivalent —
-          // not by the GHS headline, not at the right edge by refresh.
-          if (rate.isFallback) ...[
+          // not by the GHS headline, not at the right edge. It is
+          // visible whenever this line renders: in the CURRENT contract
+          // state the GHS figure is a converted display valuation and
+          // the disclosure says exactly that; on fallback rates it
+          // explains the saved/demo rate.
+          ...[
             const SizedBox(width: AzSpace.xs),
             FlipGuardMarker(
               flipGuard: flipGuard,
               child: _DisclosureIconButton(
                 onTap: () => _showDisclosure(context),
-                semanticLabel: 'About the USDC equivalent and saved rate',
+                semanticLabel: _disclosureLabel(),
               ),
             ),
           ],
@@ -419,30 +484,21 @@ class BalanceCardFx extends StatelessWidget {
           // The middle block lives in the REMAINING space of the fixed
           // footprint so the rate row always stays pinned flush bottom.
           const Expanded(child: SizedBox.shrink()),
-          Row(
+          // ONE left-side status cluster: the animated dots and the
+          // 'Updating rate…' caption live adjacent to the idle rate text
+          // in this same slot. There is deliberately NO right-hand
+          // status: the rate refresh is a passive background fact, and
+          // the card never presents a second, competing status row —
+          // nor anything that reads as a refresh ACTION (the rate
+          // refreshes itself in the background; it is not user-armed).
+          Align(
             key: const ValueKey('balance-fx-rate-row'),
-            children: [
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: FittedBox(
-                    alignment: Alignment.centerLeft,
-                    fit: BoxFit.scaleDown,
-                    child: rateStatus,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AzSpace.xs),
-              if (trailingRefresh != null)
-                FlipGuardMarker(
-                  flipGuard: flipGuard,
-                  child: Semantics(
-                    key: const ValueKey('balance-fx-refresh-slot'),
-                    label: 'Refresh FX rate',
-                    child: trailingRefresh!,
-                  ),
-                ),
-            ],
+            alignment: Alignment.centerLeft,
+            child: FittedBox(
+              alignment: Alignment.centerLeft,
+              fit: BoxFit.scaleDown,
+              child: rateStatus,
+            ),
           ),
         ],
       ),
@@ -467,27 +523,36 @@ class _DisclosureIconButton extends StatelessWidget {
       label: semanticLabel,
       button: true,
       child: Tooltip(
-        message: 'USDC equivalent uses a saved fallback rate — details',
-        child: IconButton(
-          key: const ValueKey('balance-fx-equivalent-info'),
-          onPressed: onTap,
-          icon: Icon(
-            HugeIconsSolid.informationCircle,
-            size: 16,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+        // State-aware like the disclosure body itself: fresh-rate states
+        // describe a converted display valuation, fallback states the
+        // saved/demo rate.
+        message: semanticLabel,
+        // shrinkWrap keeps Material's padded 48px default target from
+        // inflating the line: the explicit 32px minimum governs, which
+        // the fixed 165px card footprint can carry at every text scale
+        // (the equivalent row was 48px tall otherwise and overflowed
+        // the card at 1.25x+ text scales).
+        child: Theme(
+          data: Theme.of(context).copyWith(
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          child: IconButton(
+            key: const ValueKey('balance-fx-equivalent-info'),
+            onPressed: onTap,
+            icon: Icon(
+              HugeIconsSolid.informationCircle,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
         ),
       ),
     );
   }
 }
 
-/// The dominant amount line of the front face:
-/// [≈ gutter][unit label][amount]. The ≈ slot precedes the amount, and
-/// both lines share the same gutter and unit-column widths so their
-/// digits align vertically — the visual relationship the owner asked for.
 class _AmountLine extends StatelessWidget {
   const _AmountLine({
     super.key,

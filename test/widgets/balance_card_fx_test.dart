@@ -96,17 +96,6 @@ BalanceCardValuation _saved({
       ),
     ).compute();
 
-class _RefreshStub extends StatelessWidget {
-  const _RefreshStub();
-  @override
-  Widget build(BuildContext context) => Container(
-        key: const ValueKey('capture-refresh-indicator'),
-        width: 24,
-        height: 12,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      );
-}
-
 Future<void> _pumpPair(
   WidgetTester tester, {
   required BalanceCardValuation valuation,
@@ -145,7 +134,6 @@ Future<void> _pumpPair(
                         key: const ValueKey('bcfx-pair'),
                         valuation: valuation,
                         colors: colors,
-                        trailingRefresh: const _RefreshStub(),
                       ),
                     ),
                   ),
@@ -256,7 +244,7 @@ void main() {
 
   group('front face — GHS-first FX-status contracts', () {
     testWidgets('stack order: eyebrow → headline → equivalent → rate row, '
-        'with the refresh flush right', (tester) async {
+        'in one left-side cluster', (tester) async {
       await _pumpPair(tester, valuation: _saved());
       final label = tester.getRect(
           find.byKey(const ValueKey('balance-fx-label')));
@@ -270,9 +258,6 @@ void main() {
       expect(label.bottom, lessThan(headline.top));
       expect(headline.bottom, lessThan(equivalent.top));
       expect(equivalent.bottom, lessThan(rateRow.top));
-      final refresh = tester
-          .getRect(find.byKey(const ValueKey('capture-refresh-indicator')));
-      expect(refresh.right, closeTo(rateRow.right, 2));
       expect(rateRow.bottom, lessThan(frame.bottom + 1),
           reason: 'the rate row pins flush to the card bottom');
     });
@@ -290,7 +275,8 @@ void main() {
       expect(info.bottom, lessThanOrEqualTo(eq.bottom + 4));
     });
 
-    testWidgets('a fresh rate shows no fallback chrome', (tester) async {
+    testWidgets('a fresh rate with a NATIVE GHS wallet shows no fallback '
+        'chrome but keeps the breakdown disclosure', (tester) async {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 100,
         availableUsdc: 50,
@@ -305,8 +291,11 @@ void main() {
       expect(find.byKey(const ValueKey('balance-fx-rate-fresh')),
           findsOneWidget);
       expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
-          findsNothing,
-          reason: 'no disclosure chrome without a fallback');
+          findsOneWidget,
+          reason: 'the disclosure stays available even without a '
+              'fallback — it explains the combined total');
+      expect(find.textContaining('Using saved rate'), findsNothing,
+          reason: 'no fallback chrome in the rate row');
 
       // OWNER CORRECTION (2026-10-26): the ≈ marks the USDC line — the
       // line being ESTIMATED. The GHS headline is the known value: its
@@ -329,6 +318,57 @@ void main() {
         findsNothing,
         reason: 'the GHS headline is the known value — no ≈ on it',
       );
+    });
+
+    testWidgets('a fresh rate with NO native GHS wallet (the current live '
+        'contract) keeps the info icon and the converted-valuation '
+        'disclosure — never a claimed native total', (tester) async {
+      final v = const BalanceCardValuation(
+        // The current backend contract publishes no native-GHS wallet.
+        nativeGhsAvailable: null,
+        availableUsdc: 50,
+        balanceConfirmed: true,
+        azmPoints: 0,
+        rate: FxRateView(
+          ghsPerUsdc: 12.03,
+          kind: FxRateKind.fresh,
+        ),
+      ).compute();
+      expect(v.availableGhsValue, 601.5,
+          reason: 'the honest interim derivation: USDC × rate');
+      await _pumpPair(tester, valuation: v);
+
+      // The info icon is visible beside the USDC line in the live state.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
+          findsOneWidget);
+
+      // The GHS headline is NEVER semantically a confirmed native total
+      // while the wallet is absent from the contract.
+      final semantics = tester.firstWidget<Semantics>(
+        find.descendant(
+          of: find.byKey(const ValueKey('balance-fx-headline')),
+          matching: find.byType(Semantics),
+        ),
+      );
+      expect(semantics.properties.label, contains('display valuation'));
+      expect(semantics.properties.label, contains('not a native GHS'));
+
+      // The disclosure says exactly what the figure is.
+      await tester.tap(
+          find.byKey(const ValueKey('balance-fx-equivalent-info')));
+      await tester.pumpAndSettle();
+      final body = find.byKey(
+          const ValueKey('balance-fx-fallback-disclosure-body'));
+      expect(body, findsOneWidget);
+      // The body key sits on the Text itself — read its data directly.
+      final bodyText = tester.widget<Text>(body).data;
+      expect(bodyText, contains('not a native GHS wallet holding'));
+      expect(bodyText, contains('held in USDC'));
+      await tester
+          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+          findsNothing);
     });
 
     testWidgets('the fallback disclosure opens on tap and does NOT flip the '

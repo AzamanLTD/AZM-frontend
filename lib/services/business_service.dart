@@ -59,7 +59,12 @@ typedef NearbyPage = ({
 
 class BusinessService {
   final ApiClient _client;
-  BusinessService() : _client = ApiClient();
+
+  /// Optional DI seam (same convention as the MarketplaceBookingService
+  /// fix in this PR): production callers use the bare `BusinessService()`
+  /// and keep their own client; tests inject a fake so route-level tests
+  /// can exercise the real screens against a controlled backend.
+  BusinessService({ApiClient? apiClient}) : _client = apiClient ?? ApiClient();
 
   // ── IMAGE UPLOAD ───────────────────────────────────────────────────────────
 

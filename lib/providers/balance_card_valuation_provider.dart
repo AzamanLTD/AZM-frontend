@@ -49,7 +49,8 @@ import 'package:azaman/providers/savings_overview_provider.dart'
     show savingsOverviewProvider;
 import 'package:azaman/providers/susu_provider.dart' show susuListProvider;
 import 'package:azaman/providers/vault_provider.dart' show vaultsProvider;
-import 'package:azaman/models/susu_model.dart' show SusuStatus;
+import 'package:azaman/models/susu_model.dart'
+    show SusuMemberStatus, SusuStatus;
 
 /// The production valuation the main Home card renders.
 ///
@@ -92,16 +93,48 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
 
   double? savingsGhs;
   if (savings.hasValue) {
-    savingsGhs = savings.value!.goals.fold<double>(
-      0.0,
-      (sum, g) => sum + ((g['currentAmountGhs'] as num?)?.toDouble() ?? 0.0),
-    );
+    // INSPECT THE RAW SHAPE — SavingsOverview.goals collapses every
+    // unknown into an empty list (missing key, non-List, malformed
+    // entries), which would read as a confirmed zero. The current
+    // /savings/overview contract does NOT guarantee that an absent or
+    // malformed goals collection means 'no savings'. Honesty rules:
+    //   • goals is a real List → fold; but ANY entry with a missing /
+    //     invalid currentAmountGhs makes the aggregate UNKNOWN (null)
+    //     — a missing amount is never read as 0.
+    //   • goals absent / not a List → UNKNOWN (null), never zero.
+    // A valid loaded EMPTY list is the only shape that yields a real 0.
+    final rawGoals = savings.value!.data['goals'];
+    if (rawGoals is List) {
+      var sum = 0.0;
+      var allKnown = true;
+      for (final entry in rawGoals) {
+        if (entry is! Map) {
+          allKnown = false;
+          break;
+        }
+        final amount = entry['currentAmountGhs'];
+        if (amount is! num || amount < 0 || !amount.isFinite) {
+          allKnown = false;
+          break;
+        }
+        sum += amount.toDouble();
+      }
+      savingsGhs = allKnown ? sum : null;
+    }
+    // else: goals collection absent/malformed → savingsGhs stays null.
   }
 
   double? susuTotal;
   if (susu.hasValue) {
+    // Committed Susu requires BOTH: an ACTIVE group and the caller's
+    // OWN membership being ACTIVE (SusuGroup.myStatus is parsed from
+    // the caller's member record). A pending-vouch, pending-contract,
+    // defaulted or removed member has NOTHING committed by this user —
+    // an active group alone does not commit the caller's funds.
     susuTotal = susu.value!
-        .where((s) => s.status == SusuStatus.active)
+        .where((s) =>
+            s.status == SusuStatus.active &&
+            s.myStatus == SusuMemberStatus.active)
         .fold<double>(0.0, (sum, s) => sum + s.contributionUsdc);
   }
 
@@ -120,6 +153,12 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
     vendorRowRelevant: isVendor,
     azmPoints: balance.azmBalance,
     rate: rateView,
-    usdcTransactionGateOpen: rateUsable,
+    // The USDC transaction gate is the BACKEND's transaction-
+    // AUTHORISATION contract — it is NOT a client-side FX predicate.
+    // No authoritative gate field exists on the current contract, so
+    // the gate is honestly CLOSED: rate usability alone must never be
+    // read as financial permission. When the backend publishes a gate
+    // field, this maps it explicitly.
+    usdcTransactionGateOpen: false,
   ).compute();
 });

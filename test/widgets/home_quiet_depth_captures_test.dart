@@ -760,10 +760,25 @@ void main() {
         // NON-BREAKING space (U+00A0) — a literal ' ' in the pattern
         // would miss it; '.' matches any character, as the old
         // 'GH₵.100\.00.available' pattern knew.
-        RegExp(r'Available balance GH₵.100\.00 in GHS')),
+        //
+        // The label is the HONEST current-contract wording: the live
+        // backend publishes no native-GHS wallet yet, so the GH₵ figure
+        // is disclosed as a converted display valuation — never as a
+        // native 'in GHS' holding.
+        RegExp(
+            r'Available balance GH₵.100\.00.{0,40}display valuation'),
+      ),
       findsOneWidget,
       reason: 'the balance semantics must carry the complete figure at '
-          'the OS\'s largest text setting',
+          'the OS\'s largest text setting, in the honest '
+          'converted-valuation wording',
+    );
+    expect(
+      find.bySemanticsLabel(RegExp(r'Available balance.{0,20} in GHS')),
+      findsNothing,
+      reason: 'no native-GHS wallet is published by the live contract — '
+          'the reader must never hear the figure announced as a native '
+          'GHS holding',
     );
 
   }, timeout: const Timeout(Duration(minutes: 2)));

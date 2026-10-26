@@ -154,10 +154,6 @@ Rect _frameRect(WidgetTester tester) =>
 
 /// The headline Text under the fitted headline widget (the key sits on
 /// the widget's root; the rich text is its descendant).
-Text _headlineText(WidgetTester tester, {required Key key}) => tester.widget(
-  find.descendant(of: find.byKey(key), matching: find.byType(Text)).first,
-);
-
 
 /// Drags the back face's section pager one section DOWN and settles.
 Future<void> _dragToNextSection(WidgetTester tester) async {
@@ -374,6 +370,109 @@ void main() {
         await tester.pumpWidget(const SizedBox());
       });
     }
+  });
+
+  group('unconfirmed balance — the back face never fabricates (PR #203 '
+      'review round)', () {
+    // A loading/unconfirmed balance still carries CACHED figures in the
+    // valuation (the adapter keeps its last-known derivation) — but none
+    // of them may be SHOWN: every row sourced from the canonical balance
+    // renders an honest dash + 'not confirmed yet', while independently
+    // confirmed rows (GHS wallet, vaults/savings) keep their real values.
+    BalanceCardValuation unconfirmed() => const BalanceCardValuation(
+          nativeGhsAvailable: 100,
+          availableUsdc: 50,
+          balanceConfirmed: false,
+          escrowLocked: 4,
+          disputeEscrow: 1,
+          vaultLocked: 10,
+          savingsLockedGhs: 20,
+          azmPoints: 1200,
+          vendorRowRelevant: true,
+          vendorUnallocatedUsdc: 7.5,
+          rate: const FxRateView(
+            ghsPerUsdc: 12.5,
+            kind: FxRateKind.fresh,
+            sourceLabel: 'oracle',
+          ),
+        ).compute();
+
+    /// The amount the row shows, judged by the TEXT the row actually
+    /// renders (rows compose rich/label spans, so widget.data can be
+    /// null — assert on the rendered strings instead).
+    Finder rowText(Key row, String containing) => find.descendant(
+          of: find.byKey(row),
+          matching: find.textContaining(containing),
+        );
+
+    testWidgets('flip to the back face of an UNCONFIRMED balance: '
+        'balance-sourced rows dash, independent rows keep real values',
+        (tester) async {
+      await _pumpPair(tester, valuation: unconfirmed());
+      await _flipToBack(tester);
+
+      // AVAILABLE page: the USDC-held row dashes (cached 50 USDC is
+      // UNKNOWN, not zero, not shown); the GHS-wallet row is
+      // independently confirmed and keeps its real amount.
+      expect(
+          rowText(const ValueKey('bc-row-usdc-held'), '—'), findsOneWidget,
+          reason: 'an unconfirmed balance is never rendered as its cached '
+              'figure');
+      expect(
+          rowText(const ValueKey('bc-row-usdc-held'), 'not confirmed yet'),
+          findsOneWidget,
+          reason: 'the dash carries its honest reason');
+      expect(
+          rowText(const ValueKey('bc-row-ghs-wallet'), '100'),
+          findsOneWidget,
+          reason: 'the native GHS wallet figure is its OWN contract — '
+              'an unconfirmed USDC balance never hides it');
+
+      // COMMITTED page: vaults/savings keep their own confirmed values.
+      await _dragToNextSection(tester);
+      expect(
+          rowText(const ValueKey('bc-row-vaults'), '10'), findsOneWidget,
+          reason: 'vault commitments are independently confirmed and are '
+              'NOT hidden by a loading general balance');
+
+      // LOCKED page: escrow + dispute escrow dash.
+      await _dragToNextSection(tester);
+      expect(rowText(const ValueKey('bc-row-escrow'), '—'),
+          findsOneWidget);
+      expect(rowText(const ValueKey('bc-row-dispute-escrow'), '—'),
+          findsOneWidget);
+
+      // VENDOR page: the vendor row dashes and its capability-free
+      // description waits with it.
+      await _dragToNextSection(tester);
+      expect(rowText(const ValueKey('bc-row-vendor'), '—'),
+          findsOneWidget);
+      expect(
+          rowText(const ValueKey('bc-row-vendor'), 'not confirmed yet'),
+          findsOneWidget,
+          reason: 'withdrawability is never inferred — and while the '
+              'amount is unknown the description never claims '
+              'unallocated funds');
+
+      // NON-CASH page: AZM points dash too (never a fabricated 0 pts).
+      await _dragToNextSection(tester);
+      expect(rowText(const ValueKey('bc-row-azm-points'), '—'),
+          findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('the same valuation CONFIRMED shows every one of those '
+        'rows with its real figure (the dash is the readiness gate, not '
+        'a broken row)', (tester) async {
+      await _pumpPair(tester, valuation: _saved(vendor: true));
+      await _flipToBack(tester);
+
+      expect(rowText(const ValueKey('bc-row-usdc-held'), '50'),
+          findsOneWidget,
+          reason: 'confirmed: the same row shows the real cached figure');
+      expect(find.text('not confirmed yet'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 
   group('E3 — back-face rhythm', () {

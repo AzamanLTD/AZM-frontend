@@ -3,11 +3,12 @@
 //
 // The seam that puts the redesigned pair (BalanceCardPair) on the REAL
 // Home deck: the typed valuation comes from the production adapter
-// (balanceCardValuationProvider — authoritative providers only), the
-// right-edge refresh slot is the live RateRefreshIndicator, and the
-// deck's large-text affordance rides its familiar 48x48 overlay at the
-// card's top-right, marking the SAME nested-gesture guard the frame
-// reads so opening the detail sheet NEVER also flips the card.
+// (balanceCardValuationProvider — authoritative providers only), and
+// the deck's large-text affordance rides its familiar 48x48 overlay at
+// the card's top-right, marking the SAME nested-gesture guard the frame
+// reads so opening the detail sheet NEVER also flips the card. There is
+// deliberately no separate right-edge refresh slot: the front face's
+// single left-side rate cluster is the ONE status surface.
 //
 // Nothing fixture lives here: every figure the card renders arrives
 // through [BalanceCardValuation] and its documented sources. The old
@@ -23,8 +24,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/balance_card_pair.dart';
 import 'package:azaman/widgets/home/large_text_deck_sheet.dart'
     show LargeTextDeckButton;
-import 'package:azaman/widgets/rate_refresh_indicator.dart';
-
 class HomeBalanceCard extends ConsumerStatefulWidget {
   const HomeBalanceCard({super.key});
 
@@ -56,7 +55,6 @@ class _HomeBalanceCardState extends ConsumerState<HomeBalanceCard> {
           key: const ValueKey('home-balance-card-pair'),
           valuation: valuation,
           colors: colors,
-          trailingRefresh: const RateRefreshIndicator(),
           flipGuard: _flipGuard,
         ),
         // LARGE-TEXT HIT TARGET — the same card-level 48x48 overlay the

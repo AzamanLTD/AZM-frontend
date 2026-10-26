@@ -27,7 +27,7 @@
 //     the back face's inner scroll. Reduced motion lands the flip on the
 //     first frame (Duration.Zero, re-checked per toggle).
 //   • ONE nested-gesture guard contract — interactive affordances hosted by
-//     a face (the equivalent's disclosure button, the refresh slot, the
+//     a face (the equivalent's disclosure button,
 //     back-face "return to balance" control) mark the shared flipGuard on
 //     pointer-down exactly like the live card's nested affordances; the
 //     frame's Listener consumes the mark on pointer-up and cedes the
@@ -68,16 +68,11 @@ class BalanceCardPair extends StatefulWidget {
     super.key,
     required this.valuation,
     required this.colors,
-    this.trailingRefresh,
     this.flipGuard,
   });
 
   final BalanceCardValuation valuation;
   final AzamanColors colors;
-
-  /// The right-edge refresh affordance slot (the live wiring will pass the
-  /// real RateRefreshIndicator; the frame pins it flush right).
-  final Widget? trailingRefresh;
 
   /// The shared nested-gesture guard. When the HOST mounts card-level
   /// affordances (the Home deck's large-text overlay), it owns the guard
@@ -231,7 +226,6 @@ class _BalanceCardPairState extends State<BalanceCardPair>
                           valuation: widget.valuation,
                           colors: widget.colors,
                           flipGuard: _flipGuard,
-                          trailingRefresh: widget.trailingRefresh,
                         ),
                       ),
                     // ── THE ONE EDGE ─────────────────────────────────────
