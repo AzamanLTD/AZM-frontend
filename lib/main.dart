@@ -57,6 +57,7 @@ import 'package:azaman/theme/az_vertical_accent.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/theme/az_motion.dart';
+import 'package:azaman/providers/deposit_settlement_monitor.dart';
 
 class P2POrder {
   final String id;
@@ -824,6 +825,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(theme_pkg.themeProvider.select((t) => t.colors));
+    // LAST REVIEW (PR #202) — the app shell keeps the deposit settlement
+    // monitor alive for the whole session: a Moolre instruction has no
+    // cancellation contract, so its settlement must resolve the active
+    // user's stored continuation for the EXACT event reference no matter
+    // which surface is on screen (or none of them).
+    ref.watch(depositSettlementMonitorProvider);
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: colors.surface,

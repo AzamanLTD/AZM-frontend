@@ -36,6 +36,7 @@ import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/saved_momo_provider.dart';
 import 'package:azaman/services/deposit_continuations.dart';
+import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/router/transitions.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
@@ -862,9 +863,12 @@ void main() {
       expect(stored.single.reference, 'DEP-OTP-1');
       expect(await contSvc.loadForUser('user-b'), isEmpty);
 
-      // With the record durable, Cancel is restored and safe.
-      expect(find.text('Cancel'), findsOneWidget);
-      await tester.tap(find.text('Cancel'));
+      // With the record durable the back action returns — under its
+      // honest label (LAST REVIEW: a local back can never cancel a
+      // submitted instruction).
+      expect(find.text('Back to Add Cash'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing);
+      await tester.tap(find.text('Back to Add Cash'));
       await tester.pump(const Duration(milliseconds: 200));
       expect(find.text('Add Cash'), findsWidgets);
     });
@@ -1071,6 +1075,261 @@ void main() {
               'exactly once');
       // Flush short-lived timers (demo auto-confirm, stagger etc.).
       await tester.pump(const Duration(seconds: 4));
+    });
+  });
+
+  // ── LAST REVIEW: pending-result cancellation semantics + settlement ────
+
+  group('7 — LAST REVIEW: pending-result cancellation semantics + '
+      'independent settlement tracking', () {
+    final contStorage = _MemSecureStorage();
+    late DepositContinuationsService contSvc;
+    _MutableAuth? currentAuth;
+
+    User makeUser(String id) => User(
+          id: id,
+          username: 'me',
+          email: 'me@example.com',
+          token: 'tok',
+          role: 'USER',
+          azamanId: 'AZM-999999999',
+        );
+
+    Widget appWithAuth() {
+      contStorage.store.clear();
+      contSvc = DepositContinuationsService(storage: contStorage);
+      return ProviderScope(
+        overrides: [
+          savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+          authProvider.overrideWith((ref) => currentAuth!),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(contSvc),
+          ),
+        ],
+        child: MaterialApp.router(routerConfig: _router()),
+      );
+    }
+
+    Future<void> openAndEnterAmount(WidgetTester tester) async {
+      _phoneSize(tester);
+      await tester.pumpWidget(appWithAuth());
+      await _openDeposit(tester);
+      await _enterAmount(tester);
+    }
+
+    /// Submit one no-OTP deposit and wait for its pending result view.
+    Future<void> submitDeposit(WidgetTester tester, String reference) async {
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'data': {'reference': reference, 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text(reference), findsOneWidget,
+          reason: 'the pending result view must be showing $reference');
+    }
+
+    /// The honest local return from a pending result view.
+    Future<void> backToAddCash(WidgetTester tester) async {
+      await tester.tap(find.text('Back to Add Cash'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    /// Deliver a settlement through the REAL socket listener fan-out
+    /// and let the async resolution chain flush.
+    Future<void> settle(WidgetTester tester, String reference) async {
+      SocketService.instance
+          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', reference);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+
+    testWidgets('(a) leaving the result view does not orphan the '
+        'operation — a settlement for the ORIGINAL reference resolves its '
+        'continuation without reopening the status screen', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+      await submitDeposit(tester, 'DEP-LEAVE-1');
+
+      await backToAddCash(tester);
+      // Back on the resting instrument — the operation is NOT on screen.
+      expect(find.text('DEP-LEAVE-1'), findsNothing);
+      final pending = await contSvc.loadForUser('user-a');
+      expect(pending, hasLength(1),
+          reason: 'the submitted operation stays durably tracked after the '
+              'honest local return');
+      expect(pending.single.reference, 'DEP-LEAVE-1');
+
+      // The settlement arrives for the EXACT original reference.
+      await settle(tester, 'DEP-LEAVE-1');
+
+      // Resolved — without ever reopening the deposit status screen.
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'the continuation is authoritatively resolved by the '
+              'settlement alone; no status screen was reopened');
+      // And the surface says so — honest user-facing status.
+      expect(find.textContaining('earlier deposit DEP-LEAVE-1 completed'),
+          findsOneWidget);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(b) the pending-state action NEVER claims or implies '
+        'that the provider instruction was cancelled', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+
+      // 1. The no-OTP pending result view: the action is a RETURN, the
+      //    caption says the instruction is still in progress.
+      await submitDeposit(tester, 'DEP-HONEST-1');
+      expect(find.text('Back to Add Cash'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing,
+          reason: 'no cancellation contract exists with the provider — '
+              'the label must never present a local reset as one');
+      expect(find.textContaining('Leaving will not cancel it'),
+          findsOneWidget,
+          reason: 'the pending action must state that the submitted '
+              'instruction may still complete');
+      await backToAddCash(tester);
+
+      // 2. The OTP entry path: same honest semantics for its back action.
+      await _enterAmount(tester);
+      _wire['POST /deposit/validate-name'] =
+          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
+        'requiresOtp': true,
+        'data': {'reference': 'DEP-HONEST-2', 'status': 'PENDING'},
+      });
+      await tester.tap(find.text('Add Cash').last);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.text('Confirm'));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Enter OTP'), findsOneWidget);
+      expect(find.text('Back to Add Cash'), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing);
+      expect(find.textContaining('going back does not cancel it'),
+          findsOneWidget);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(c) PRODUCT POLICY — a second initiation while the '
+        'first deposit is still pending is EXPLICITLY SUPPORTED: both '
+        'operations tracked independently, nothing silently ended',
+        (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+
+      await submitDeposit(tester, 'DEP-CON-1');
+      await backToAddCash(tester);
+
+      // The first operation is still pending — start a second one.
+      await _enterAmount(tester);
+      await submitDeposit(tester, 'DEP-CON-2');
+
+      // Both initiations reached the wire: neither was silently
+      // suppressed, and neither implied the first one had ended.
+      final initiates =
+          _requests.where((b) => b.containsKey('amountGhs')).toList();
+      expect(initiates, hasLength(2),
+          reason: 'the concurrent-pending policy must send BOTH '
+              'instructions to the provider');
+
+      // Both operations live in the continuation lifecycle, tracked
+      // independently by their exact references.
+      final pending = await contSvc.loadForUser('user-a');
+      expect(pending.map((c) => c.reference),
+          containsAll(['DEP-CON-1', 'DEP-CON-2']));
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(d) out-of-order settlements with two distinct pending '
+        'references resolve ONLY the matching reference each time — and '
+        'never another user\'s', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+
+      await submitDeposit(tester, 'DEP-ORDER-1');
+      await backToAddCash(tester);
+      await _enterAmount(tester);
+      await submitDeposit(tester, 'DEP-ORDER-2');
+      await backToAddCash(tester);
+      expect((await contSvc.loadForUser('user-a')), hasLength(2));
+
+      // OUT OF ORDER: the SECOND deposit settles first. Only its exact
+      // reference resolves — the first deposit's continuation is
+      // untouched.
+      await settle(tester, 'DEP-ORDER-2');
+      var pending = await contSvc.loadForUser('user-a');
+      expect(pending, hasLength(1));
+      expect(pending.single.reference, 'DEP-ORDER-1',
+          reason: 'deposit B\'s settlement must never resolve, clear or '
+              'confirm deposit A');
+
+      // An unknown reference resolves nothing.
+      await settle(tester, 'DEP-UNKNOWN-9');
+      expect(await contSvc.loadForUser('user-a'), hasLength(1));
+
+      // A SECOND user's pending reference: its settlement must NOT
+      // resolve under the active user's authority — only the matching
+      // user's reference resolves, ever.
+      await contSvc.save('user-b', 'DEP-B-1');
+      await settle(tester, 'DEP-B-1');
+      expect((await contSvc.loadForUser('user-b')), hasLength(1),
+          reason: 'a settlement event carries no identity — it can never '
+              'resolve another user\'s stored continuation');
+      expect(await contSvc.loadForUser('user-a'), hasLength(1));
+
+      // The first deposit settles last — now everything for user A is
+      // resolved, and user B is still intact.
+      await settle(tester, 'DEP-ORDER-1');
+      expect(await contSvc.loadForUser('user-a'), isEmpty);
+      expect((await contSvc.loadForUser('user-b')), hasLength(1));
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('(e) a resolved reference can NEVER be resurrected — not '
+        'by a retry, not by a delayed storage mutation, not by a '
+        'duplicate settlement event', (tester) async {
+      currentAuth = _MutableAuth(makeUser('user-a'));
+      await openAndEnterAmount(tester);
+
+      await submitDeposit(tester, 'DEP-RES-1');
+      await backToAddCash(tester);
+      await settle(tester, 'DEP-RES-1');
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'the operation must be resolved before the resurrection '
+              'assertions run');
+
+      // A DELAYED storage mutation (a late retry of the original save)
+      // for the resolved reference is a NO-OP — terminal resolution.
+      await contSvc.save('user-a', 'DEP-RES-1');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(await contSvc.loadForUser('user-a'), isEmpty,
+          reason: 'resolution is terminal: a retry or delayed save can '
+              'never resurrect the resolved reference');
+
+      // A DUPLICATE settlement event changes nothing — idempotent.
+      await settle(tester, 'DEP-RES-1');
+      expect(await contSvc.loadForUser('user-a'), isEmpty);
+      // And the surface does not double-notify: the completion snackbar
+      // from the FIRST settlement is still the only one.
+      expect(find.textContaining('earlier deposit DEP-RES-1 completed'),
+          findsOneWidget);
+      // Flush short-lived timers (pulsing-dots stagger etc.).
+      await tester.pump(const Duration(seconds: 2));
     });
   });
 }

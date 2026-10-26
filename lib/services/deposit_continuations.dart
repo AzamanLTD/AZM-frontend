@@ -260,6 +260,25 @@ class DepositContinuationsController
     if (state.userId == userId) await loadForUser(userId);
   }
 
+  /// LAST REVIEW (pending-result cancellation semantics) — a socket
+  /// settlement event, attributed to the ACTIVE user. The stored
+  /// continuation list is the AUTHORITATIVE match source (the in-memory
+  /// state may lag a just-completed save by a microtask; a settlement
+  /// landing in that seam must not be lost). Matching is by EXACT
+  /// reference: an event for deposit A resolves A only — a reference
+  /// unknown to this user's storage resolves nothing, so a late or
+  /// foreign event can never clear another operation's way back.
+  /// Idempotent by construction: the service's terminal-resolution set
+  /// makes a duplicate event (or a retry racing a resolution) a no-op.
+  Future<void> handleSettlement(String? activeUserId, String reference) async {
+    final uid = activeUserId?.trim();
+    final ref = reference.trim();
+    if (uid == null || uid.isEmpty || ref.isEmpty) return;
+    final pending = await _service.loadForUser(uid);
+    if (!pending.any((c) => c.reference == ref)) return;
+    await resolve(uid, ref);
+  }
+
   /// Logout / session invalidation. Bumps the generation FIRST so an
   /// in-flight read cannot undo the cleanup, then clears the IN-MEMORY
   /// state only. REVIEW FOLLOW-UP P1: the stored record is deliberately

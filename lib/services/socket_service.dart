@@ -55,7 +55,15 @@ class SocketService {
   final Set<void Function(Map<String, dynamic>, String)> _escrowListeners = <void Function(Map<String, dynamic>, String)>{};
   void Function(Map<String, dynamic>)? _onInvoicePaid;
   void Function(Map<String, dynamic>)? _onInvoiceReceived;
-  void Function(double, double, String, String)? _onDepositSuccess;
+  // LAST REVIEW (pending-result cancellation) — deposit settlements are
+  // consumed by TWO independent authorities: the deposit surface (its
+  // visible result + its per-operation tracking) and the continuation
+  // monitor (resolution of stored continuations, which must survive the
+  // surface being left). A single callback slot made them mutually
+  // exclusive; the established multi-listener pattern (trade updates,
+  // escrow events) is the seam both now share.
+  final Set<void Function(double, double, String, String)> _depositSuccessListeners =
+      <void Function(double, double, String, String)>{};
   void Function(Map<String, dynamic>)? _onWithdrawalProgress;
   void Function(Map<String, dynamic>)? _onWithdrawalSettled;
 
@@ -84,7 +92,47 @@ class SocketService {
   void removeEscrowEventListener(void Function(Map<String, dynamic>, String) cb) => _escrowListeners.remove(cb);
   void onInvoicePaid(void Function(Map<String, dynamic>) cb) => _onInvoicePaid = cb;
   void onInvoiceReceived(void Function(Map<String, dynamic>) cb) => _onInvoiceReceived = cb;
-  void onDepositSuccess(void Function(double, double, String, String) cb) => _onDepositSuccess = cb;
+  void onDepositSuccess(void Function(double, double, String, String) cb) =>
+      _depositSuccessListeners.add(cb);
+
+  /// Release exactly one deposit-settlement listener (the deposit surface
+  /// removes ITS handler on dispose; the continuation monitor's listener
+  /// must survive that and keep resolving stored continuations).
+  void removeDepositSuccessListener(
+          void Function(double, double, String, String) cb) =>
+      _depositSuccessListeners.remove(cb);
+
+  /// The single dispatch path for a deposit settlement — used by the live
+  /// `deposit_success` socket event and by the test seam below, so widget
+  /// regressions exercise the exact production listener fan-out.
+  void _dispatchDepositSuccess(
+    double amountGhs,
+    double amountUsdc,
+    String provider,
+    String reference,
+  ) {
+    for (final cb
+        in List<void Function(double, double, String, String)>.from(
+            _depositSuccessListeners)) {
+      try {
+        cb(amountGhs, amountUsdc, provider, reference);
+      } catch (callbackError) {
+        debugPrint('[SocketService] deposit_success listener error: $callbackError');
+      }
+    }
+  }
+
+  /// Test-only seam: deliver a deposit settlement through the REAL
+  /// listener fan-out without a live connection. No production call site
+  /// touches this.
+  @visibleForTesting
+  void emitDepositSuccessForTesting(
+    double amountGhs,
+    double amountUsdc,
+    String provider,
+    String reference,
+  ) =>
+      _dispatchDepositSuccess(amountGhs, amountUsdc, provider, reference);
   void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
   void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
 
@@ -252,7 +300,7 @@ class SocketService {
     socket.on('deposit_success', (data) {
       try {
         final raw = _toMap(data);
-        _onDepositSuccess?.call(
+        _dispatchDepositSuccess(
           _toDouble(raw['amountGhs']),
           _toDouble(raw['amountUsdc']),
           raw['provider']?.toString() ?? 'MOBILE_MONEY',
@@ -452,7 +500,7 @@ class SocketService {
     _escrowListeners.clear();
     _onInvoicePaid = null;
     _onInvoiceReceived = null;
-    _onDepositSuccess = null;
+    _depositSuccessListeners.clear();
     _onWithdrawalProgress = null;
     _onWithdrawalSettled = null;
   }
