@@ -45,6 +45,7 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
 import 'package:azaman/widgets/shell_swipe_detector.dart';
+import 'package:azaman/widgets/marketplace/profile_joystick.dart';
 
 bool _fontsLoaded = false;
 
@@ -117,7 +118,8 @@ Future<void> _scrollHomeTo(WidgetTester tester, double pixels) async {
 int _selectedIndex(WidgetTester tester) =>
     tester.widget<PremiumBottomNav>(find.byType(PremiumBottomNav)).selectedIndex;
 
-Future<void> _pumpShell(WidgetTester tester) async {
+Future<void> _pumpShell(WidgetTester tester,
+    {Size size = const Size(400, 800)}) async {
   SharedPreferences.setMockInitialValues({
     'has_seen_flippable_card_hint': true,
     // The drawer peek hint schedules a 900ms delay + a 2200ms show
@@ -126,7 +128,7 @@ Future<void> _pumpShell(WidgetTester tester) async {
     'has_seen_drawer_peek_hint': true,
   });
   await tester.runAsync(_loadFonts);
-  await tester.binding.setSurfaceSize(const Size(400, 800));
+  await tester.binding.setSurfaceSize(size);
 
   final container = ProviderContainer(
     overrides: [
@@ -144,10 +146,10 @@ Future<void> _pumpShell(WidgetTester tester) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(
+      child: MaterialApp(
         home: MediaQuery(
-          data: MediaQueryData(size: Size(400, 800)),
-          child: MainWrapper(),
+          data: MediaQueryData(size: size),
+          child: const MainWrapper(),
         ),
       ),
     ),
@@ -448,5 +450,155 @@ void main() {
       find.ancestor(of: detector, matching: find.byType(Scaffold)),
       findsOneWidget,
     );
+  });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ARENA HONESTY (closeout): nested horizontal content and the
+  // ProfileJoystick keep their own gestures — the shell swipe NEVER
+  // hijacks a deeper horizontal control.
+  // ─────────────────────────────────────────────────────────────────────
+
+  testWidgets(
+      'a nested horizontal control row keeps its drag: the strip '
+      'scrolls, the shell does NOT switch tabs', (tester) async {
+    // At 360dp the marketplace control row genuinely overflows (16px,
+    // documented in _controlRow) — so the inner horizontal scrollable
+    // has real travel and the arena contest is real.
+    await _pumpShell(tester, size: const Size(360, 800));
+    _select(tester, 2); // Marketplace
+    await tester.pump(const Duration(milliseconds: 40));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_selectedIndex(tester), 2);
+
+    // The marketplace's horizontal SingleChildScrollView control row
+    // (category dial + Mix + Near You).
+    final horizontalScrolls = find
+        .byWidgetPredicate(
+          (w) => w is SingleChildScrollView && w.scrollDirection == Axis.horizontal,
+        )
+        .evaluate();
+    StatefulElement? stripElement;
+    for (final e in horizontalScrolls) {
+      final scrollables = find
+          .descendant(of: find.byElementPredicate((el) => el == e),
+              matching: find.byType(Scrollable))
+          .evaluate();
+      for (final se in scrollables) {
+        final state = (se as StatefulElement).state as ScrollableState;
+        if (state.position.maxScrollExtent > 0) {
+          stripElement = se;
+          break;
+        }
+      }
+      if (stripElement != null) break;
+    }
+    expect(stripElement, isNotNull,
+        reason: 'at 360dp the marketplace control row must have real '
+            'travel (its documented 16px overflow)');
+    final strip =
+        (stripElement!.state as ScrollableState).position;
+    final before = strip.pixels;
+    final stripCenter = tester.getCenter(
+      find.byWidgetPredicate(
+        (w) => w is SingleChildScrollView && w.scrollDirection == Axis.horizontal,
+      ),
+    );
+
+    // A deliberate horizontal drag ON the strip (arena contest: the
+    // strip's own recognizer vs the shell's ancestor detector).
+    final gesture = await tester.startGesture(stripCenter);
+    await gesture.moveBy(const Offset(-60, 0));
+    await gesture.moveBy(const Offset(-60, 0));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 40));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(strip.pixels, greaterThan(before),
+        reason: 'the INNER horizontal strip consumed the drag');
+    expect(_selectedIndex(tester), 2,
+        reason: 'the shell swipe NEVER fires under a nested horizontal '
+            'control — the strip won its arena');
+  });
+
+  testWidgets(
+      'the ProfileJoystick keeps its own drag: the shell detector '
+      'never hijacks the dial', (tester) async {
+    // The joystick wins its arena at pointer-down (PR #204's design).
+    // Compose it DIRECTLY under a ShellSwipeDetector — a strictly
+    // harsher arena than the real shell, where pushed surfaces sit
+    // ABOVE the detector's subtree entirely — and prove a deliberate
+    // horizontal drag on the dial fires the joystick's action and
+    // never the shell's swipe.
+    var shellSwipes = 0;
+    var bookmarks = 0;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: ShellSwipeDetector(
+                onAdjacentSwipe: (_) => shellSwipes++,
+                child: SizedBox(
+                  width: 300,
+                  height: 300,
+                  child: Center(
+                    child: ProfileJoystick(
+                      semanticLabel: 'Test shortcuts',
+                      actions: ProfileJoystickActions(
+                        menu: ProfileJoystickAction(
+                          icon: Icons.menu,
+                          label: 'Menu',
+                          onRelease: () {},
+                        ),
+                        story: ProfileJoystickAction(
+                          icon: Icons.auto_awesome,
+                          label: 'Story',
+                          onRelease: () {},
+                        ),
+                        bookmark: ProfileJoystickAction(
+                          icon: Icons.bookmark_add_outlined,
+                          label: 'Save',
+                          onRelease: () => bookmarks++,
+                        ),
+                        showLess: ProfileJoystickAction(
+                          icon: Icons.expand_less,
+                          label: 'Show less',
+                          onRelease: () {},
+                        ),
+                      ),
+                      onLongPress: () {},
+                      child: const SizedBox(
+                        width: 72,
+                        height: 72,
+                        child: ColoredBox(color: Colors.amber),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final center = tester.getCenter(find.byType(ProfileJoystick));
+    final gesture = await tester.startGesture(center);
+    // A deliberate rightward drag: the joystick's SAVE (bookmark)
+    // direction — the same motion that would be a shell "previous tab"
+    // swipe if the ancestor could steal it.
+    await gesture.moveBy(const Offset(60, 0));
+    await gesture.moveBy(const Offset(60, 0));
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(bookmarks, 1,
+        reason: 'the JOYSTICK consumed the drag (its save action fired)');
+    expect(shellSwipes, 0,
+        reason: 'the shell swipe never fires on the ProfileJoystick — the '
+            'dial wins the arena at pointer-down');
   });
 }

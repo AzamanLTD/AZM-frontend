@@ -309,4 +309,164 @@ void main() {
         reason: 'press two fell through to the honest root fallback');
     expect(detailTaps, 0); // nothing else was touched
   });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // THE PLATFORM BACK ACTION (closeout): the same contract, exercised
+  // through the REAL system-back dispatch — NOT the helper. On a real
+  // phone the Android back gesture resolves through WidgetsBinding's
+  // pop-route dispatch into the router delegate's popRoute() (for
+  // MaterialApp.router: GoRouter -> root Navigator.maybePop). These
+  // tests drive exactly that path with handlePopRoute(), so the visible
+  // chevron and the phone's back gesture are proven to share ONE
+  // route-stack contract. The OS gesture itself (predictive-back
+  // preview) is not simulable in a widget test — that is documented as
+  // a limitation, not assumed away.
+  // ─────────────────────────────────────────────────────────────────────
+
+  testWidgets(
+      'PLATFORM back: a dialog on top is dismissed alone, the page and '
+      'its scroll survive', (tester) async {
+    await _pumpApp(tester);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -240));
+    await tester.pumpAndSettle();
+    final offsetBefore = _listOffset(tester);
+
+    Navigator.of(
+      tester.element(find.byKey(const Key('list-scaffold'))),
+      rootNavigator: true,
+    ).push(DialogRoute<void>(
+      context: tester.element(find.byKey(const Key('list-scaffold'))),
+      builder: (_) => const AlertDialog(
+        key: Key('test-dialog'),
+        content: Text('DIALOG BODY'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // The REAL platform dispatch: handled == true means the app consumed
+    // it (the dialog popped); the engine would NOT have exited.
+    final handled = await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(handled, isTrue, reason: 'the platform back was consumed in-app');
+    expect(find.byKey(const Key('test-dialog')), findsNothing);
+    expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
+    expect(_listOffset(tester), offsetBefore,
+        reason: 'the platform back must not touch the underlying screen');
+  });
+
+  testWidgets(
+      'PLATFORM back: an imperative route is popped, the router page '
+      'keeps its scroll', (tester) async {
+    await _pumpApp(tester);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -480));
+    await tester.pumpAndSettle();
+    final offsetBefore = _listOffset(tester);
+
+    Navigator.of(
+      tester.element(find.byKey(const Key('list-scaffold'))),
+      rootNavigator: true,
+    ).push(MaterialPageRoute<void>(
+      builder: (_) => const Scaffold(
+        key: Key('imperative-detail'),
+        body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final handled = await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(handled, isTrue);
+    expect(find.byKey(const Key('imperative-detail')), findsNothing);
+    expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
+    expect(_listOffset(tester), offsetBefore,
+        reason: 'platform back must preserve the list position');
+  });
+
+  testWidgets(
+      'PLATFORM back: a router page on top pops exactly one router page',
+      (tester) async {
+    await _pumpApp(tester);
+
+    await tester.tap(find.byKey(const Key('open-detail-fab')));
+    await tester.pumpAndSettle();
+    expect(find.text('DETAIL ROUTER PAGE'), findsOneWidget);
+
+    final handled = await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(handled, isTrue);
+    expect(find.text('DETAIL ROUTER PAGE'), findsNothing);
+    expect(find.byKey(const Key('list-scaffold')), findsOneWidget,
+        reason: 'exactly ONE router page popped — the list below survived');
+  });
+
+  testWidgets(
+      'PLATFORM back: rapid repeated backs consume one level each '
+      '(dialog then its page)', (tester) async {
+    await _pumpApp(tester);
+
+    // Stack: list + imperative detail + dialog on top.
+    Navigator.of(
+      tester.element(find.byKey(const Key('list-scaffold'))),
+      rootNavigator: true,
+    ).push(MaterialPageRoute<void>(
+      builder: (_) => const Scaffold(
+        key: Key('imperative-detail'),
+        body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    Navigator.of(
+      tester.element(find.byKey(const Key('imperative-detail'))),
+      rootNavigator: true,
+    ).push(DialogRoute<void>(
+      context: tester.element(find.byKey(const Key('imperative-detail'))),
+      builder: (_) => const AlertDialog(
+        key: Key('test-dialog'),
+        content: Text('DIALOG BODY'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    // ONE platform back: the dialog ONLY — the page under it survives.
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('test-dialog')), findsNothing);
+    expect(find.byKey(const Key('imperative-detail')), findsOneWidget,
+        reason: 'a single back gesture must not double-apply');
+
+    // The next platform back pops the imperative page.
+    expect(await tester.binding.handlePopRoute(), isTrue);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('imperative-detail')), findsNothing);
+    expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
+  });
+
+  testWidgets(
+      'PLATFORM back on a cold deep-link stack is honestly unhandled '
+      '(the OS keeps its exit behavior — no fabricated route)',
+      (tester) async {
+    await _pumpApp(tester);
+    // The list page IS the base of the stack — nothing under it.
+
+    // handlePopRoute returning FALSE is the engine's honest signal:
+    // the app has nothing to pop, so the PLATFORM decides (predictive
+    // back: leave the app). The app must NOT fabricate a "previous"
+    // route here. The visible chevron's in-app fallback (canonical
+    // home) is a separate affordance, tested above.
+    final handled = await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(handled, isFalse,
+        reason: 'a cold stack has nowhere to return: the platform back '
+            'stays with the platform, and no route is invented');
+    expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
+    final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+    expect(nav.widget.pages.length, 1,
+        reason: 'the stack was not rewritten or fabricated');
+  });
 }
