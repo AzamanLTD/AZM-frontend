@@ -132,6 +132,64 @@ const _cartIntent = ResumeIntent(
   businessProfileId: 'biz-1',
 );
 
+/// The documented backend valuation contract (backend PR #367):
+/// `data.valuation`, money = { exact, value }. The deck fixture carries
+/// the AUTHORITATIVE native-GHS balance (owner-corrected contract
+/// 2026-10-27) — the sheet and the card face consume the valuation
+/// adapter and NEVER derive GHS from USDC. `rate <= 0` maps to the
+/// payload's UNAVAILABLE rate status — the honest-unavailable state.
+Map<String, dynamic> _nativeGhsValuation(double ghs, double rate) => {
+      'pair': 'USDC/GHS',
+      'nativeGhsAvailable': {
+        'exact': ghs.toStringAsFixed(8),
+        'value': ghs,
+      },
+      'availableUsdc': {
+        'exact': '100.00000000',
+        'value': 100,
+      },
+      'usdcEquivalent': rate > 0
+          ? {
+              'exact': (ghs / rate).toStringAsFixed(8),
+              'value': ghs / rate,
+            }
+          : null,
+      'availableGhsValue': rate > 0
+          ? {
+              'exact': (ghs + 100 * rate).toStringAsFixed(8),
+              'value': ghs + 100 * rate,
+            }
+          : null,
+      'rateStatus': rate > 0 ? 'CURRENT' : 'UNAVAILABLE',
+      'valuationStatus': rate > 0 ? 'CURRENT' : 'PARTIAL_FX_UNAVAILABLE',
+      'currentRate': rate > 0
+          ? {
+              'rate': rate,
+              'rateExact': rate.toStringAsFixed(8),
+              'isFresh': true,
+              'pair': 'USDC/GHS',
+              'source': 'KOTANI',
+              'observedAt': '2026-10-26T10:00:00Z',
+            }
+          : null,
+      'savedRate': null,
+      'displayRate': rate > 0 ? {'basis': 'CURRENT', 'rate': rate} : null,
+      'usdcTransactionGateOpen': false,
+      'usdcTransactionGateReason': 'FRESH_CANONICAL_RATE',
+      'locked': {
+        'escrowUsdc': {'exact': '0E-8', 'value': 0},
+        'disputesUsdc': {'exact': '0E-8', 'value': 0},
+        'vaultsUsdc': {'exact': '0E-8', 'value': 0},
+        'savingsGhs': {'exact': '0E-8', 'value': 0},
+        'committedSusuUsdc': {'exact': '0E-8', 'value': 0},
+        'vendorUnallocatedUsdc': {'exact': '0E-8', 'value': 0},
+      },
+      'nonCash': {
+        'azmPoints': {'exact': '0E-8', 'value': 0},
+      },
+      'evaluatedAt': '2026-10-26T10:00:05Z',
+    };
+
 /// The new balance-card seam: the valuation adapter reads the pinned
 /// [fxRateProvider] snapshot, not the legacy oracle double. `rate <= 0`
 /// means NO usable snapshot — the honest-unavailable state.
@@ -185,7 +243,17 @@ Future<ProviderContainer> _pumpHome(
       transactionHistoryProvider.overrideWith((ref) => _NoopHistoryNotifier()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-        (ref) => const BalanceData(availableBalance: 100),
+        (ref) => BalanceData(
+          availableBalance: 100,
+          // The deck fixture carries the documented backend valuation
+          // contract (PR #367): the AUTHORITATIVE native-GHS balance
+          // and the rate status for the given rate. Under the
+          // owner-corrected contract the headline consumes ONLY this
+          // field — a legacy fixture (no valuation block) renders the
+          // honest UNAVAILABLE headline (pinned in the provider suite).
+          valuationFieldPresent: true,
+          valuationRaw: _nativeGhsValuation(100, rate),
+        ),
       ),
       balanceReadinessProvider.overrideWith((ref) => readiness),
       oracleRateProvider.overrideWith((ref) => rate),

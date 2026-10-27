@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
-import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/providers/balance_card_valuation_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
-import 'package:azaman/models/currency_model.dart'
-    show currencyProvider, DisplayCurrency;
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
 
@@ -60,25 +58,28 @@ class LargeTextDeckSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final azmId = (ref.watch(authProvider).user?.azamanId ?? '').trim();
-    final balance = ref.watch(balanceDataProvider);
-    final readiness = ref.watch(balanceReadinessProvider);
-    final rate = ref.watch(oracleRateProvider);
-    final pref = ref.watch(currencyProvider);
-    final ghsFirst = pref == DisplayCurrency.ghs;
 
-    // The same derivation contract as the balance card face: rate 0 is
-    // "unavailable", never a live zero; an unresolved readiness is a
-    // waiting state, never a fabricated 0.00.
-    final rateUsable = rate > 0;
-    final ghsValue = rateUsable ? balance.availableBalance * rate : 0.0;
-    final primaryValue =
-        ghsFirst && rateUsable ? ghsValue : balance.availableBalance;
-    final primaryUnit = ghsFirst && rateUsable ? 'GH₵' : 'USDC';
-    final secondaryLabel = rateUsable
-        ? (ghsFirst
-            ? AzMoney.usdcFirst(balance.availableBalance)
-            : AzMoney.ghs(ghsValue))
-        : null;
+    // OWNER-CORRECTED CONTRACT (2026-10-27): the sheet presents the
+    // SAME valuation the card face renders — it consumes the typed
+    // view-model and NEVER re-derives. The GHS headline is the
+    // AUTHORITATIVE native-GHS balance only (never a USDC-derived
+    // figure, never a currency-combined total); the USDC line is the
+    // approximate equivalent converted FROM that GHS balance. The
+    // sheet's old private derivation (availableBalance × rate — GHS
+    // from USDC) was exactly the wrong-direction logic the correction
+    // removes.
+    final v = ref.watch(balanceCardValuationProvider);
+    final ghs = v.availableGhsValue;
+    final rateUsable = v.rate.hasRate;
+    final rate = v.rate.ghsPerUsdc;
+    final primaryValue = ghs ?? 0.0;
+    const primaryUnit = 'GH₵';
+    final ghsKnown = v.balanceConfirmed && ghs != null;
+    final secondaryLabel = v.availableUsdcEquivalent != null
+        ? '\u2248 ${AzMoney.amount(v.availableUsdcEquivalent!)} USDC'
+        : (ghsKnown
+            ? null // GHS known, FX not — the rate line owns the story.
+            : 'GHS balance unavailable');
 
     // The deck's reminders, derived by the SAME shared function the
     // reminder deck renders from — one source of truth, no duplicated
@@ -150,18 +151,15 @@ class LargeTextDeckSheet extends ConsumerWidget {
                         // shrunk — the amount is never smaller than the
                         // user asked for.
                         Text(
-                          readiness == BalanceReadiness.loaded
-                              ? AzMoney.amount(primaryValue)
-                              : '—',
+                          ghsKnown ? AzMoney.amount(primaryValue) : '—',
                           key: const ValueKey('deck-sheet-balance-amount'),
                           softWrap: true,
                           maxLines: null,
-                          semanticsLabel:
-                              readiness == BalanceReadiness.loaded
-                                  ? '$primaryUnit ${AzMoney.amount(primaryValue)} available'
-                                  : 'Balance unavailable',
+                          semanticsLabel: ghsKnown
+                              ? '$primaryUnit ${AzMoney.amount(primaryValue)} available'
+                              : 'Balance unavailable',
                           style: AzText.hero.copyWith(
-                            color: readiness == BalanceReadiness.loaded
+                            color: ghsKnown
                                 ? colors.textPrimary
                                 : colors.textTertiary,
                             fontWeight: FontWeight.w600,
@@ -170,6 +168,9 @@ class LargeTextDeckSheet extends ConsumerWidget {
                         const SizedBox(height: AzSpace.xs),
                         secondaryLabel == null
                             ? Text(
+                                // GHS known but no usable rate: only the
+                                // estimate is unavailable — the GHS
+                                // headline above stays fully visible.
                                 'FX rate unavailable',
                                 key: const ValueKey(
                                     'deck-sheet-rate-unavailable'),
@@ -186,7 +187,7 @@ class LargeTextDeckSheet extends ConsumerWidget {
                         const SizedBox(height: AzSpace.xxs),
                         Text(
                           rateUsable
-                              ? '1 USDC = ${AzMoney.ghs(rate)}'
+                              ? '1 USDC = ${AzMoney.ghs(rate!)}'
                               : 'FX rate unavailable',
                           key: const ValueKey('deck-sheet-rate'),
                           style: AzText.bodyS.copyWith(
