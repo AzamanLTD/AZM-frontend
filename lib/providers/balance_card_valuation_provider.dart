@@ -41,8 +41,8 @@
 //     equivalent (the card never recalculates), the backend's rate
 //     status (CURRENT / SAVED_FALLBACK / DEMO_FALLBACK / UNAVAILABLE),
 //     the AUTHORITATIVE usdcTransactionGateOpen verbatim, and the
-//     locked.* buckets (incl. committedSusuUsdc — the ONLY legitimate
-//     source of a committed-Susu figure).
+//     locked.* buckets (committedSusuUsdc is PARSED for contract
+//     compatibility but NOT displayed — see K2A at the mapping site).
 //   • valuation EXPLICITLY NULL or malformed → the backend SAYS the
 //     valuation is unavailable. The card shows no GHS figure at all —
 //     never a silent client-side substitution for a backend failure.
@@ -99,6 +99,20 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
 
   // ── Committed funds: each list is a value only once loaded; an empty
   // loaded list is a real zero, an unloaded/failed list is unknown.
+  //
+  // WORKSTREAM K2B AUDIT (savings currentAmountGhs, backend evidence):
+  // the backend deposit path debits user.availableBalance and
+  // increments user.escrowLockedBalance inside the SAME money
+  // transaction that increments SavingsGoal.currentAmountGhs
+  // (savingsController deposit, locked-row FOR UPDATE, r25 rigor); goal
+  // creation cannot seed it (schema default 0.0, create() never accepts
+  // it from the client); the withdraw path decrements it and releases
+  // the escrow. currentAmountGhs is therefore NOT user-maintained goal
+  // progress: it is the GHS-denominated figure of a REAL escrow-backed
+  // commitment, and mapping it into the committed-savings bucket is
+  // correct under the existing contract. (Contrast Susu, K2A: there the
+  // customer-facing meaning of the #367 field is still unsettled, so
+  // that row stays UNKNOWN.)
   double? vaultTotal;
   if (vaults.hasValue) {
     vaultTotal = vaults.value!
@@ -160,8 +174,10 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
   // do not, by themselves, establish that any funds are committed. The
   // ONLY legitimate source of a committed-Susu amount is the backend
   // valuation contract's `locked.committedSusuUsdc` (backend PR #367:
-  // PAID contributions in COLLECTING/COLLECTING_GRACE cycles). Until
-  // that field is published on the live contract, the committed-Susu
+  // PAID contributions in COLLECTING/COLLECTING_GRACE cycles) — and
+  // even when that field IS published it stays parsed-not-displayed
+  // until the approved money architecture settles its final
+  // customer-facing meaning (K2A). In every branch the committed-Susu
   // row renders UNKNOWN (—) — never a scheduled contribution summed
   // as though it were held funds.
   double? susuTotal;
@@ -207,7 +223,19 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
       escrowLocked: backendValuation.locked.escrowUsdc.value,
       disputeEscrow: backendValuation.locked.disputesUsdc.value,
       vaultLocked: backendValuation.locked.vaultsUsdc.value,
-      susuCommitted: backendValuation.locked.committedSusuUsdc.value,
+      // WORKSTREAM K2A — committedSusuUsdc is PARSED for contract
+      // compatibility but deliberately NOT displayed. #367 computes it
+      // as the sum of PAID SusuContribution.amountUsdc in
+      // COLLECTING/COLLECTING_GRACE cycles — real paid-in USDC — but
+      // the money architecture has NOT yet approved it as the final
+      // customer-facing meaning of a Susu commitment: a domestic Susu
+      // product should default to a fixed GHS obligation, and GHS and
+      // USDC remain DISTINCT funding assets. A raw USDC sum therefore
+      // cannot be shown as the amount the customer is owed by a
+      // domestic Susu product until the approved contract establishes
+      // the field's meaning, currency and relation to the promised
+      // payout. Until then the committed-Susu row renders UNKNOWN (—).
+      susuCommitted: null,
       savingsLockedGhs: backendValuation.locked.savingsGhs.value,
       vendorUnallocatedUsdc:
           backendValuation.locked.vendorUnallocatedUsdc.value,

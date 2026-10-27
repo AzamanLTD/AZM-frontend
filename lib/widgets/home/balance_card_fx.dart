@@ -13,8 +13,12 @@
 //                               genuinely native-GHS-only total renders
 //                               exact, without ≈ (Workstream J2).
 //   ≈  102.79 USDC    ⓘ     ← the USDC EQUIVALENT, the estimate — the
-//                               ≈ marks this line, info when a
-//                               saved/demo fallback rate is displayed
+//                               ≈ marks this line; the ⓘ renders
+//                               whenever this line renders (its
+//                               disclosure wording is state-aware: the
+//                               converted-valuation explanation in the
+//                               current contract, the fallback-rate
+//                               explanation on saved/demo rates)
 //   [••• Updating rate…]            [refresh]
 //
 // The two amount lines share ONE leading gutter column and ONE

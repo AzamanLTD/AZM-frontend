@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
+import 'package:azaman/models/balance_valuation_payload.dart';
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/auth_provider.dart' show isVendorProvider;
 import 'package:azaman/providers/balance_card_valuation_provider.dart';
@@ -518,12 +519,44 @@ void main() {
       expect(v.disputeEscrow, 2);
       expect(v.vaultLocked, 7);
       expect(v.savingsLockedGhs, 42.5);
-      // The ONLY legitimate committed-Susu source, mapped.
-      expect(v.susuCommitted, 9);
+      // WORKSTREAM K2A — committedSusuUsdc is parsed for contract
+      // compatibility but deliberately NOT displayed: the approved
+      // money architecture has not settled its customer-facing
+      // meaning (domestic Susu = fixed GHS obligation; USDC is one
+      // distinct funding asset). The row stays UNKNOWN.
+      expect(v.susuCommitted, isNull);
       expect(v.azmPoints, 900.75);
       expect(v.rate.kind, FxRateKind.fresh);
       expect(v.rate.ghsPerUsdc, 12.5);
       expect(v.rate.sourceLabel, 'KOTANI_PAY');
+    });
+
+    test('K2A: a payload carrying committedSusuUsdc keeps the Susu row '
+        'UNKNOWN — parsed, never displayed', () async {
+      final payload = valuation367Payload();
+      // Contract compatibility: the strict parser still accepts the
+      // field (a malformed amount would flip the whole valuation to
+      // unavailable — pinned separately below).
+      final parsed = BackendBalanceValuation.parse(payload);
+      expect(parsed, isNotNull,
+          reason: 'committedSusuUsdc remains a parsed contract field');
+      expect(parsed!.locked.committedSusuUsdc.value, 9);
+      // Display: the customer-facing committed amount stays UNKNOWN
+      // until the approved contract establishes the field's meaning,
+      // currency and relation to the promised payout.
+      final v = await _val(_container(
+        balance: BalanceData(
+          availableBalance: 999,
+          valuationFieldPresent: true,
+          valuationRaw: payload,
+        ),
+      ));
+      expect(v.savingsLockedGhs, 42.5,
+          reason: 'savings (escrow-backed, server-maintained) stays '
+              'mapped per its contract');
+      expect(v.susuCommitted, isNull,
+          reason: 'a raw USDC sum is not the amount the customer is '
+              'owed by a domestic Susu product');
     });
 
     test('the backend gate is mapped VERBATIM — closed payload stays closed', () async {
