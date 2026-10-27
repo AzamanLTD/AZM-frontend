@@ -522,7 +522,13 @@ void main() {
       balanceRefreshClientOverride = MockClient((request) async =>
           http.Response(
               jsonEncode({
-                'data': {'availableBalance': 55.0}
+                'data': {
+                  'availableBalance': 55.0,
+                  'vendorUnallocatedBalance': '0',
+                  'escrowLockedBalance': '0',
+                  'disputeEscrowBalance': '0',
+                  'azmBalance': '0',
+                }
               }),
               200));
       final newRefresh = refreshCanonicalBalance(ref);
@@ -536,7 +542,13 @@ void main() {
       // A's stale response lands last and is discarded.
       gate.complete(http.Response(
           jsonEncode({
-            'data': {'availableBalance': 999.0}
+            'data': {
+              'availableBalance': 999.0,
+              'vendorUnallocatedBalance': '0',
+              'escrowLockedBalance': '0',
+              'disputeEscrowBalance': '0',
+              'azmBalance': '0',
+            }
           }),
           200));
       await oldRefresh;
@@ -570,7 +582,13 @@ void main() {
 
       gate.complete(http.Response(
           jsonEncode({
-            'data': {'availableBalance': 42.0}
+            'data': {
+              'availableBalance': 42.0,
+              'vendorUnallocatedBalance': '0',
+              'escrowLockedBalance': '0',
+              'disputeEscrowBalance': '0',
+              'azmBalance': '0',
+            }
           }),
           200));
       await a;
@@ -595,7 +613,13 @@ void main() {
       balanceRefreshClientOverride = _CloseCountingClient(
         (request) async => http.Response(
             jsonEncode({
-              'data': {'availableBalance': 10.0}
+              'data': {
+                'availableBalance': 10.0,
+                'vendorUnallocatedBalance': '0',
+                'escrowLockedBalance': '0',
+                'disputeEscrowBalance': '0',
+                'azmBalance': '0',
+              }
             }),
             200),
         () => closeCalls++,
@@ -609,6 +633,153 @@ void main() {
       expect(container.read(balanceReadinessProvider),
           BalanceReadiness.loaded);
       expect(container.read(balanceDataProvider).availableBalance, 10.0);
+    });
+  });
+  group('refreshCanonicalBalance payload validation (the strict parse)', () {
+    test('a valid full payload writes the data and marks loaded', () async {
+      _mockSecureStorage(token: 'mock');
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ref = container.read(_refProbe);
+
+      balanceRefreshClientOverride = MockClient((request) async =>
+          http.Response(jsonEncode({
+            'data': {
+              'availableBalance': 777.0,
+              'vendorUnallocatedBalance': '1',
+              'escrowLockedBalance': '2',
+              'disputeEscrowBalance': 3,
+              'azmBalance': '4',
+            },
+          }), 200));
+
+      await refreshCanonicalBalance(ref);
+      await _pump();
+
+      expect(container.read(balanceDataProvider).availableBalance, 777.0);
+      expect(container.read(balanceReadinessProvider),
+          BalanceReadiness.loaded);
+    });
+
+    test('a missing legacy field marks the attempt FAILED, writes nothing', () async {
+      _mockSecureStorage(token: 'mock');
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ref = container.read(_refProbe);
+
+      balanceRefreshClientOverride = MockClient((request) async =>
+          http.Response(jsonEncode({
+            'data': {
+              // azmBalance missing — the lenient fromJson would have
+              // read it as a confirmed 0.
+              'availableBalance': 777.0,
+              'vendorUnallocatedBalance': '1',
+              'escrowLockedBalance': '2',
+              'disputeEscrowBalance': 3,
+            },
+          }), 200));
+
+      await refreshCanonicalBalance(ref);
+      await _pump();
+
+      expect(container.read(balanceDataProvider).availableBalance, 0.0,
+          reason: 'an invalid payload must not write data');
+      expect(container.read(balanceReadinessProvider),
+          BalanceReadiness.failed,
+          reason: 'missing fields are a validation failure, not a '
+              'confirmed balance');
+    });
+
+    test('a malformed payload after a CONFIRMED balance keeps the last '
+        'confirmed figure (stays loaded)', () async {
+      _mockSecureStorage(token: 'mock');
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ref = container.read(_refProbe);
+
+      container.read(balanceDataProvider.notifier).state =
+          const BalanceData(availableBalance: 500.0);
+      container.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.loaded;
+
+      balanceRefreshClientOverride = MockClient((request) async =>
+          http.Response(jsonEncode({
+            'data': {
+              'availableBalance': 'not-a-number',
+              'vendorUnallocatedBalance': '1',
+              'escrowLockedBalance': '2',
+              'disputeEscrowBalance': 3,
+              'azmBalance': '4',
+            },
+          }), 200));
+
+      await refreshCanonicalBalance(ref);
+      await _pump();
+
+      expect(container.read(balanceDataProvider).availableBalance, 500.0,
+          reason: 'the last server-confirmed figure stays authoritative');
+      expect(container.read(balanceReadinessProvider),
+          BalanceReadiness.loaded,
+          reason: 'the failed attempt does not discard the confirmed '
+              'state (the hologram ledger\'s own law)');
+    });
+
+    test('a payload carrying data.valuation plumbs it through to the '
+        'BalanceData', () async {
+      _mockSecureStorage(token: 'mock');
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ref = container.read(_refProbe);
+
+      balanceRefreshClientOverride = MockClient((request) async =>
+          http.Response(jsonEncode({
+            'data': {
+              'availableBalance': 1,
+              'vendorUnallocatedBalance': '2',
+              'escrowLockedBalance': '3',
+              'disputeEscrowBalance': 4,
+              'azmBalance': '5',
+              'valuation': {'pair': 'USDC/GHS'},
+            },
+          }), 200));
+
+      await refreshCanonicalBalance(ref);
+      await _pump();
+
+      final b = container.read(balanceDataProvider);
+      expect(b.valuationFieldPresent, isTrue);
+      expect(b.valuationRaw, isA<Map<String, dynamic>>());
+      expect(b.valuationRaw!['pair'], 'USDC/GHS');
+    });
+
+    test('an EXPLICIT null valuation is plumbed as present-but-null', () async {
+      _mockSecureStorage(token: 'mock');
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final ref = container.read(_refProbe);
+
+      balanceRefreshClientOverride = MockClient((request) async =>
+          http.Response(jsonEncode({
+            'data': {
+              'availableBalance': 1,
+              'vendorUnallocatedBalance': '2',
+              'escrowLockedBalance': '3',
+              'disputeEscrowBalance': 4,
+              'azmBalance': '5',
+              'valuation': null,
+            },
+          }), 200));
+
+      await refreshCanonicalBalance(ref);
+      await _pump();
+
+      final b = container.read(balanceDataProvider);
+      expect(b.valuationFieldPresent, isTrue);
+      expect(b.valuationRaw, isNull);
+      expect(container.read(balanceReadinessProvider),
+          BalanceReadiness.loaded,
+          reason: 'explicit valuation unavailability is NOT a ledger '
+              'failure — the balance itself was confirmed');
     });
   });
 }
@@ -625,4 +796,6 @@ class _CloseCountingClient extends MockClient {
     onClose();
     super.close();
   }
+
+
 }

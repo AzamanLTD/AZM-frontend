@@ -6,9 +6,11 @@
 //
 //   E1 — front-face grammar: the GH₵ marker is SMALLER and subordinate to
 //        the digits; the squiggly ≈ says 'equivalent' (the trailing word
-//        is gone from the visual line); the updating dots + 'Updating
-//        rate…' caption read as ONE coherent status in the SAME slot the
-//        rate occupies when idle.
+//        is gone from the visual line, and the glyph sits on the USDC
+//        line only — the GHS headline is the known value, owner-
+//        corrected 2026-10-26); the updating dots + 'Updating rate…'
+//        caption read as ONE coherent status in the SAME slot the rate
+//        occupies when idle.
 //   E2 — the documented 320dp 4-digit overflow (PR #190 known defect) is
 //        fixed at the CAUSE: the headline is a single typographic line
 //        that responsively fits at every width, the fixture is never
@@ -20,9 +22,12 @@
 //   E4 — the celebration originates at the reminder section's HEADER and
 //        sprays DOWN over the content below — never from the card.
 //
-// The pair is demo/contract-seam only (PR #190): nothing here touches the
-// live production card, which stays unchanged until the backend valuation
-// contract is verified end-to-end.
+// PR #203 wires BalanceCardPair into the live Home deck through
+// HomeBalanceCard, so this suite pins the production card's own
+// contract. The FRONT-face figures stay interim-honest: until the
+// backend valuation contract (#367/8/9) ships and is revalidated, the
+// GHS headline is an APPROXIMATE converted display valuation, and the
+// #367 mapper activates only after that compatibility review.
 // =============================================================================
 
 import 'dart:io';
@@ -69,6 +74,21 @@ Future<void> _loadFonts() async {
 
 /// A confirmed balance with a FRESH rate over [ghs] — the headline fixture
 /// for the E2 digit-length matrix. combined = native + usdc × rate.
+/// A confirmed balance with a FRESH canonical rate — the card's
+/// default good state, and the one the disclosure control shows.
+BalanceCardValuation _fresh() {
+  const base = BalanceCardValuation(
+    availableUsdc: 100,
+    balanceConfirmed: true,
+    rate: FxRateView(
+      ghsPerUsdc: 12.5,
+      kind: FxRateKind.fresh,
+      sourceLabel: 'oracle',
+    ),
+  );
+  return base.compute();
+}
+
 BalanceCardValuation _freshGhs(double ghs) => BalanceCardValuation(
   nativeGhsAvailable: 0,
   availableUsdc: ghs / 12.5,
@@ -114,6 +134,7 @@ Future<void> _pumpPair(
   WidgetTester tester, {
   required BalanceCardValuation valuation,
   double width = 390,
+  double scale = 1.0,
 }) async {
   await tester.runAsync(_loadFonts);
   final colors = ThemeProvider.getColors(
@@ -124,7 +145,10 @@ Future<void> _pumpPair(
     MaterialApp(
       theme: ThemeProvider.getThemeData(AzamanTheme.dark),
       home: MediaQuery(
-        data: MediaQueryData(size: Size(width, 844)),
+        data: MediaQueryData(
+          size: Size(width, 844),
+          textScaler: TextScaler.linear(scale),
+        ),
         child: Scaffold(
           backgroundColor: Colors.transparent,
           body: Align(
@@ -152,9 +176,15 @@ Rect _frameRect(WidgetTester tester) =>
 
 /// The headline Text under the fitted headline widget (the key sits on
 /// the widget's root; the rich text is its descendant).
-Text _headlineText(WidgetTester tester, {required Key key}) => tester.widget(
-  find.descendant(of: find.byKey(key), matching: find.byType(Text)).first,
-);
+
+/// Drags the back face's section pager one section DOWN and settles.
+Future<void> _dragToNextSection(WidgetTester tester) async {
+  await tester.drag(
+    find.byKey(const ValueKey('bc-section-pager')),
+    const Offset(0, -120),
+  );
+  await tester.pumpAndSettle();
+}
 
 Future<void> _flipToBack(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('balance-pair-flip-listener')));
@@ -168,53 +198,69 @@ void main() {
       tester,
     ) async {
       await _pumpPair(tester, valuation: _freshGhs(1234.56));
-      final text = _headlineText(
-        tester,
-        key: const ValueKey('balance-fx-headline'),
+      // The headline is ONE amount line: [gutter][unit label][digits] —
+      // its gutter slot is EMPTY (no ≈): the glyph belongs to the USDC
+      // line below. The unit label is a quiet separate label; the
+      // digits are the hero.
+      final headline = find.byKey(const ValueKey('balance-fx-headline'));
+      final unitLabel = tester.widget<Text>(
+        find.descendant(
+          of: headline,
+          matching: find.text('GH₵'),
+        ),
       );
-      final span = text.textSpan as TextSpan;
-      // One marker span + one digits span — a single typographic line.
-      expect(span.children, hasLength(1));
-      expect(span.text, '${AzMoney.ghsSymbol}${AzMoney.nbsp}');
+      final amountText = tester.widget<Text>(
+        find.descendant(
+          of: headline,
+          matching: find.text(AzMoney.amount(1234.56)),
+        ),
+      );
+      final unitSize = unitLabel.style?.fontSize ?? 14;
+      final amountSize = amountText.style?.fontSize ?? 0;
+      expect(amountSize, AzText.sizeHero, reason: 'the AMOUNT is the hero');
       expect(
-        span.style?.fontSize,
-        16,
-        reason:
-            'the currency marker is small, never part of the hero '
-            'block',
+        unitSize,
+        lessThan(amountSize / 2),
+        reason: 'the currency marker is small, never part of the hero block',
       );
-      final digits = span.children!.single as TextSpan;
-      expect(digits.text, AzMoney.amount(1234.56));
-      expect(
-        digits.style?.fontSize,
-        AzText.sizeHero,
-        reason: 'the AMOUNT is the hero',
+      // Subordinate: the marker sits to the LEFT of the digits, same line.
+      final unitRect = tester.getRect(
+        find.descendant(of: headline, matching: find.text('GH₵')),
       );
+      final amountRect = tester.getRect(
+        find.descendant(of: headline, matching: find.text(AzMoney.amount(1234.56))),
+      );
+      expect(unitRect.right, lessThan(amountRect.left));
+      // One typographic line: the small marker rides the hero line —
+      // its centre sits inside the amount's vertical band.
+      expect(unitRect.center.dy, greaterThan(amountRect.top));
+      expect(unitRect.center.dy, lessThan(amountRect.bottom));
     });
 
     testWidgets('the squiggly ≈ says equivalent — the trailing word is '
         'gone from the visual line', (tester) async {
       await _pumpPair(tester, valuation: _saved());
-      // The VISIBLE span (not the screen-reader label, which keeps the
-      // honest full explanation): '≈ 58.31 USDC' and nothing after.
+      // The VISIBLE USDC span carries the AMOUNT ONLY — the ≈ now lives
+      // in the shared leading gutter that precedes BOTH lines, and no
+      // word follows the figure.
       final visible = tester.widget<Text>(
         find.byKey(const ValueKey('balance-fx-equivalent')),
       );
       final span = visible.textSpan as TextSpan;
-      expect(span.text, startsWith('≈ '));
-      expect(span.text, endsWith(' USDC'));
-      expect(
-        span.text!.contains('equivalent'),
-        isFalse,
-        reason:
-            "the word 'Equivalent' is dropped — the ≈ already says "
-            'it',
-      );
+      expect(span.text, isNot(contains('equivalent')));
+      expect(span.text, isNot(contains('≈')));
       expect(
         span.children ?? const <InlineSpan>[],
         isEmpty,
         reason: 'the old trailing word span is gone entirely',
       );
+      // The ≈ glyph renders in the gutter, BEFORE the USDC line's
+      // amount — the owner-corrected arrangement.
+      final approxRect = tester.getRect(find.text('≈').first);
+      final equivRect = tester.getRect(
+        find.byKey(const ValueKey('balance-fx-equivalent')),
+      );
+      expect(approxRect.right, lessThan(equivRect.left));
       // The info icon is retained beside the figure.
       expect(
         find.byKey(const ValueKey('balance-fx-equivalent-info')),
@@ -348,32 +394,214 @@ void main() {
     }
   });
 
+  group('unconfirmed balance — the back face never fabricates (PR #203 '
+      'review round)', () {
+    // A loading/unconfirmed balance still carries CACHED figures in the
+    // valuation (the adapter keeps its last-known derivation) — but none
+    // of them may be SHOWN: every row sourced from the canonical balance
+    // renders an honest dash + 'not confirmed yet', while independently
+    // confirmed rows (GHS wallet, vaults) keep their real values.
+    // Savings renders UNKNOWN regardless of confirmation: K2B-2 keeps
+    // the nominal GHS goal figure off the card (it would suggest
+    // native GHS held or a guaranteed GHS value) — the row points at
+    // the Savings screen instead.
+    BalanceCardValuation unconfirmed() => const BalanceCardValuation(
+          nativeGhsAvailable: 100,
+          availableUsdc: 50,
+          balanceConfirmed: false,
+          escrowLocked: 4,
+          disputeEscrow: 1,
+          vaultLocked: 10,
+          savingsLockedGhs: 20,
+          azmPoints: 1200,
+          vendorRowRelevant: true,
+          vendorUnallocatedUsdc: 7.5,
+          rate: const FxRateView(
+            ghsPerUsdc: 12.5,
+            kind: FxRateKind.fresh,
+            sourceLabel: 'oracle',
+          ),
+        ).compute();
+
+    /// The amount the row shows, judged by the TEXT the row actually
+    /// renders (rows compose rich/label spans, so widget.data can be
+    /// null — assert on the rendered strings instead).
+    Finder rowText(Key row, String containing) => find.descendant(
+          of: find.byKey(row),
+          matching: find.textContaining(containing),
+        );
+
+    testWidgets('flip to the back face of an UNCONFIRMED balance: '
+        'balance-sourced rows dash, independent rows keep real values',
+        (tester) async {
+      await _pumpPair(tester, valuation: unconfirmed());
+      await _flipToBack(tester);
+
+      // AVAILABLE page: the USDC-held row dashes (cached 50 USDC is
+      // UNKNOWN, not zero, not shown); the GHS-wallet row is
+      // independently confirmed and keeps its real amount.
+      expect(
+          rowText(const ValueKey('bc-row-usdc-held'), '—'), findsOneWidget,
+          reason: 'an unconfirmed balance is never rendered as its cached '
+              'figure');
+      expect(
+          rowText(const ValueKey('bc-row-usdc-held'), 'not confirmed yet'),
+          findsOneWidget,
+          reason: 'the dash carries its honest reason');
+      expect(
+          rowText(const ValueKey('bc-row-ghs-wallet'), '100'),
+          findsOneWidget,
+          reason: 'the native GHS wallet figure is its OWN contract — '
+              'an unconfirmed USDC balance never hides it');
+
+      // COMMITTED page: vaults keep their own confirmed value; savings
+      // dashes under the K2B-2 display gate (its figure is parsed but
+      // never displayed on the card this release).
+      await _dragToNextSection(tester);
+      expect(
+          rowText(const ValueKey('bc-row-vaults'), '10'), findsOneWidget,
+          reason: 'vault commitments are independently confirmed and are '
+              'NOT hidden by a loading general balance');
+      expect(
+          rowText(const ValueKey('bc-row-savings'), '—'), findsOneWidget,
+          reason: 'K2B-2: the nominal GHS savings goal figure is never '
+              'presented on the card as a monetary holding');
+      expect(
+          rowText(
+              const ValueKey('bc-row-savings'), 'on the Savings screen'),
+          findsOneWidget,
+          reason: 'the row points at the surface that shows the factual '
+              'GHS-denominated goal progress');
+      expect(
+          rowText(const ValueKey('bc-row-savings'), '20.00'),
+          findsNothing,
+          reason: 'the parsed figure (20 GHS nominal goal progress) must '
+              'not render — not as native GHS, not as guaranteed value');
+
+      // LOCKED page: escrow + dispute escrow dash.
+      await _dragToNextSection(tester);
+      expect(rowText(const ValueKey('bc-row-escrow'), '—'),
+          findsOneWidget);
+      expect(rowText(const ValueKey('bc-row-dispute-escrow'), '—'),
+          findsOneWidget);
+
+      // VENDOR page: the vendor row dashes and its capability-free
+      // description waits with it.
+      await _dragToNextSection(tester);
+      expect(rowText(const ValueKey('bc-row-vendor'), '—'),
+          findsOneWidget);
+      expect(
+          rowText(const ValueKey('bc-row-vendor'), 'not confirmed yet'),
+          findsOneWidget,
+          reason: 'withdrawability is never inferred — and while the '
+              'amount is unknown the description never claims '
+              'unallocated funds');
+
+      // NON-CASH page: AZM points dash too (never a fabricated 0 pts).
+      await _dragToNextSection(tester);
+      expect(rowText(const ValueKey('bc-row-azm-points'), '—'),
+          findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('the same valuation CONFIRMED shows every one of those '
+        'rows with its real figure (the dash is the readiness gate, not '
+        'a broken row)', (tester) async {
+      await _pumpPair(tester, valuation: _saved(vendor: true));
+      await _flipToBack(tester);
+
+      expect(rowText(const ValueKey('bc-row-usdc-held'), '50'),
+          findsOneWidget,
+          reason: 'confirmed: the same row shows the real cached figure');
+      expect(find.text('not confirmed yet'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
+
+  group('E1b — the disclosure control: full target, zero flip bleed', () {
+    // The equivalent line's info control is the card's ONLY tappable
+    // affordance besides the flip itself. Its target is the full
+    // 44 x 44 dp mobile accessibility target while the glyph stays 16px,
+    // and the fixed 165px footprint must still hold it at the pair's
+    // 1.25x text-scale clamp on the narrowest supported width.
+    for (final scale in [1.0, 1.25, 1.3]) {
+      testWidgets('info target ≥ 44 x 44 at 320dp / ${scale}x scale, '
+          'card footprint unchanged', (tester) async {
+        await _pumpPair(tester, valuation: _fresh(), width: 320, scale: scale);
+        expect(tester.takeException(), isNull);
+
+        final target = tester.getRect(
+          find.byKey(const ValueKey('balance-fx-equivalent-info')),
+        );
+        expect(target.width, greaterThanOrEqualTo(44),
+            reason: 'WCAG 2.5.8 / Material minimum touch target');
+        expect(target.height, greaterThanOrEqualTo(44));
+
+        // The footprint contract: the fixed 165px frame is untouched.
+        expect(_frameRect(tester).height, 165);
+        expect(tester.takeException(), isNull);
+      });
+    }
+
+    testWidgets('tapping the info control opens the disclosure and NEVER '
+        'flips the card', (tester) async {
+      await _pumpPair(tester, valuation: _fresh(), width: 320);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey('balance-fx-equivalent-info')),
+      );
+      await tester.pumpAndSettle();
+
+      // The disclosure dialog opened…
+      expect(
+        find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+        findsOneWidget,
+      );
+      // …and the card is STILL on its front face: the affordance
+      // tap must not have leaked into the flip gesture.
+      expect(
+        find.byKey(const ValueKey('balance-pair-front-surface')),
+        findsOneWidget,
+        reason: 'an info tap must never flip the card to the back face',
+      );
+      expect(
+        find.byKey(const ValueKey('balance-pair-back-surface')),
+        findsNothing,
+      );
+
+      // Dismiss and confirm the card settles back, still front.
+      await tester
+          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('balance-pair-front-surface')),
+        findsOneWidget,
+      );
+      expect(_frameRect(tester).height, 165);
+    });
+  });
+
   group('E3 — back-face rhythm', () {
     testWidgets('uniform hairline dividers sit BETWEEN rows within a '
         'section; the last row of a section carries none', (tester) async {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
 
-      // Lazy ListView (fixed 165px card, rows disposed when they scroll
-      // far off): the divider contract is asserted PER ROW, on whichever
-      // rows are built, rather than by a global count.
+      // Section-paged back: the divider contract is per section page.
 
-      // Between-rows contract on the visible AVAILABLE section: the
-      // ghs-wallet divider separates the two rows.
-      final ghsRow = tester.getRect(
-        find.byKey(const ValueKey('bc-row-ghs-wallet')),
-      );
-      final usdcRow = tester.getRect(
-        find.byKey(const ValueKey('bc-row-usdc-held')),
-      );
+      // AVAILABLE page: the ghs-wallet divider separates the two rows;
+      // usdc-held (the section's last row) carries none.
       final ghsDivider = tester.getRect(
         find.descendant(
           of: find.byKey(const ValueKey('bc-row-ghs-wallet')),
           matching: find.byKey(const ValueKey('bc-row-divider')),
         ),
       );
-      expect(ghsDivider.top, greaterThan(ghsRow.top));
-      expect(ghsDivider.bottom, lessThan(usdcRow.bottom));
       expect(ghsDivider.height, 1.0);
       expect(
         find.descendant(
@@ -384,33 +612,44 @@ void main() {
         reason: 'the section-last row carries no divider',
       );
 
-      // Scroll to the tail: susu (a vendor row follows) carries one;
-      // vendor and azm points (section lasts) carry none.
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('bc-row-azm-points')),
-        80,
-        scrollable: find.descendant(
-          of: find.byKey(const ValueKey('bc-breakdown-scroll')),
-          matching: find.byType(Scrollable),
-        ),
-      );
+      // COMMITTED page: vaults and savings carry dividers; susu (the
+      // section's last row) carries none.
+      await _dragToNextSection(tester);
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('bc-row-susu')),
+          of: find.byKey(const ValueKey('bc-row-vaults')),
           matching: find.byKey(const ValueKey('bc-row-divider')),
         ),
         findsOneWidget,
       );
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('bc-row-vendor')),
+          of: find.byKey(const ValueKey('bc-row-savings')),
+          matching: find.byKey(const ValueKey('bc-row-divider')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('bc-row-susu')),
           matching: find.byKey(const ValueKey('bc-row-divider')),
         ),
         findsNothing,
       );
+
+      // LOCKED page: escrow carries one; dispute escrow (the section's
+      // last row) carries none.
+      await _dragToNextSection(tester);
       expect(
         find.descendant(
-          of: find.byKey(const ValueKey('bc-row-azm-points')),
+          of: find.byKey(const ValueKey('bc-row-escrow')),
+          matching: find.byKey(const ValueKey('bc-row-divider')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('bc-row-dispute-escrow')),
           matching: find.byKey(const ValueKey('bc-row-divider')),
         ),
         findsNothing,
@@ -418,20 +657,10 @@ void main() {
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('rows sit on ONE typographic baseline; long detail text '
-        'stays readable', (tester) async {
+    testWidgets('rows sit on ONE typographic baseline; the escrow and '
+        'dispute escrow values stay DISTINCT', (tester) async {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
-      // The escrow row's detail is below the fold of the fixed frame —
-      // bring it into the built region first.
-      await tester.scrollUntilVisible(
-        find.byKey(const ValueKey('bc-row-escrow')),
-        80,
-        scrollable: find.descendant(
-          of: find.byKey(const ValueKey('bc-breakdown-scroll')),
-          matching: find.byType(Scrollable),
-        ),
-      );
       final row = find
           .descendant(
             of: find.byKey(const ValueKey('bc-row-ghs-wallet')),
@@ -445,17 +674,14 @@ void main() {
         reason: 'label, amount and unit share one baseline line',
       );
 
-      final escrowDetail = find.descendant(
-        of: find.byKey(const ValueKey('bc-row-escrow')),
-        matching: find.textContaining('Disputes'),
-      );
-      final detailText = tester.widget<Text>(escrowDetail);
+      // LOCKED page: escrow and dispute escrow are SEPARATE visible
+      // values — never a merged sum.
+      await _dragToNextSection(tester);
+      await _dragToNextSection(tester);
+      expect(find.byKey(const ValueKey('bc-row-escrow')), findsOneWidget);
       expect(
-        detailText.maxLines,
-        2,
-        reason:
-            'long detail wraps to a second line instead of '
-            'truncating mid-fact',
+        find.byKey(const ValueKey('bc-row-dispute-escrow')),
+        findsOneWidget,
       );
       await tester.pumpWidget(const SizedBox());
     });

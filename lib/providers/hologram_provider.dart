@@ -24,12 +24,29 @@ class BalanceData {
   final double disputeEscrowBalance;
   final double azmBalance;
 
+  // ── Backend valuation block (backend PR #367, additive) ────────────────
+  //
+  // The balance response may carry `data.valuation`. The THREE states the
+  // card adapter must distinguish live here:
+  //   • [valuationFieldPresent] false — LEGACY response: the contract has
+  //     not shipped; the adapter keeps its interim display-only derivation.
+  //   • [valuationFieldPresent] true + [valuationRaw] null — the backend
+  //     EXPLICITLY says valuation is unavailable. The card must NOT
+  //     silently substitute a client-side conversion for that failure.
+  //   • [valuationFieldPresent] true + a Map — the raw payload, strictly
+  //     parsed later by BackendBalanceValuation.parse (a malformed
+  //     payload rejects exactly like an explicit null).
+  final bool valuationFieldPresent;
+  final Map<String, dynamic>? valuationRaw;
+
   const BalanceData({
     this.availableBalance = 0.0,
     this.vendorUnallocatedBalance = 0.0,
     this.escrowLockedBalance = 0.0,
     this.disputeEscrowBalance = 0.0,
     this.azmBalance = 0.0,
+    this.valuationFieldPresent = false,
+    this.valuationRaw,
   });
 
   double get totalBalance => availableBalance + vendorUnallocatedBalance;
@@ -50,13 +67,71 @@ class BalanceData {
     double? escrowLockedBalance,
     double? disputeEscrowBalance,
     double? azmBalance,
+    bool? valuationFieldPresent,
+    Map<String, dynamic>? valuationRaw,
   }) => BalanceData(
         availableBalance: availableBalance ?? this.availableBalance,
         vendorUnallocatedBalance: vendorUnallocatedBalance ?? this.vendorUnallocatedBalance,
         escrowLockedBalance: escrowLockedBalance ?? this.escrowLockedBalance,
         disputeEscrowBalance: disputeEscrowBalance ?? this.disputeEscrowBalance,
         azmBalance: azmBalance ?? this.azmBalance,
+        valuationFieldPresent: valuationFieldPresent ?? this.valuationFieldPresent,
+        valuationRaw: valuationRaw ?? this.valuationRaw,
       );
+
+  /// STRICT production parse — the seam the canonical refresh uses.
+  ///
+  /// [BalanceData.fromJson] keeps its lenient legacy behaviour for the
+  /// non-authoritative call sites that predate this law, but the refresh
+  /// path must never turn a missing/malformed numeric field into a
+  /// seemingly server-confirmed zero. Rules:
+  ///   • every LEGACY balance field is required and must be a finite
+  ///     number (a numeric string counts — the backend serializes
+  ///     Decimals as strings); a GENUINE numeric zero is valid and stays
+  ///     zero.
+  ///   • any missing/malformed legacy field → the whole payload is
+  ///     invalid (null): the refresh marks the attempt failed instead
+  ///     of writing a fabricated balance.
+  ///   • `valuation` key absent → legacy response ([valuationFieldPresent]
+  ///     false); `valuation: null` → explicit unavailability (present,
+  ///     raw null); a Map → carried raw for the typed strict parse.
+  static BalanceData? tryParseValidPayload(Map<String, dynamic> json) {
+    final availableBalance = _toDoubleStrict(json['availableBalance']);
+    final vendorUnallocated =
+        _toDoubleStrict(json['vendorUnallocatedBalance']);
+    final escrowLocked = _toDoubleStrict(json['escrowLockedBalance']);
+    final disputeEscrow = _toDoubleStrict(json['disputeEscrowBalance']);
+    final azmBalance = _toDoubleStrict(json['azmBalance']);
+    if (availableBalance == null ||
+        vendorUnallocated == null ||
+        escrowLocked == null ||
+        disputeEscrow == null ||
+        azmBalance == null) {
+      return null;
+    }
+
+    bool valuationPresent = false;
+    Map<String, dynamic>? valuationRaw;
+    if (json.containsKey('valuation')) {
+      valuationPresent = true;
+      final raw = json['valuation'];
+      if (raw is Map) {
+        valuationRaw = Map<String, dynamic>.from(raw);
+      } else {
+        valuationRaw = null; // explicit backend unavailability
+      }
+    }
+
+    return BalanceData(
+      availableBalance: availableBalance,
+      vendorUnallocatedBalance: vendorUnallocated,
+      escrowLockedBalance: escrowLocked,
+      disputeEscrowBalance: disputeEscrow,
+      azmBalance: azmBalance,
+      valuationFieldPresent: valuationPresent,
+      valuationRaw: valuationRaw,
+    );
+  }
 }
 
 final balanceDataProvider = StateProvider<BalanceData>((ref) => const BalanceData());
@@ -177,7 +252,16 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
         return;
       }
 
-      final balances = BalanceData.fromJson(rawData);
+      // STRICT PARSE — a payload with missing/malformed legacy balance
+      // fields is NOT a confirmed balance: writing the lenient zeros of
+      // BalanceData.fromJson would display a fabricated 0.00 as though
+      // the server confirmed it. Invalid → this attempt fails (the last
+      // confirmed figure, if any, stays authoritative).
+      final balances = BalanceData.tryParseValidPayload(rawData);
+      if (balances == null) {
+        markFailed();
+        return;
+      }
       if (isStale()) return; // never write data for another identity
       ref.read(balanceDataProvider.notifier).state = balances;
       ref.read(userUsdcBalanceProvider.notifier).state = balances.totalBalance;
@@ -342,4 +426,17 @@ final azmBalanceProvider = Provider<double>((ref) =>
 double _toDouble(dynamic value) {
   if (value is num) return value.toDouble();
   return double.tryParse(value?.toString() ?? '') ?? 0.0;
+}
+
+/// Strict variant for the AUTHORITATIVE refresh path: null (not zero)
+/// when the field is missing, non-numeric or non-finite. A numeric
+/// string is accepted (Prisma Decimals serialize as strings); a genuine
+/// zero stays a real zero.
+double? _toDoubleStrict(dynamic value) {
+  if (value is num) return value.isFinite ? value.toDouble() : null;
+  if (value is String) {
+    final parsed = double.tryParse(value);
+    return parsed != null && parsed.isFinite ? parsed : null;
+  }
+  return null;
 }

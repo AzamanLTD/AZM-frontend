@@ -68,17 +68,6 @@ Future<void> _loadFonts() async {
   _fontsLoaded = true;
 }
 
-class _RefreshStub extends StatelessWidget {
-  const _RefreshStub();
-  @override
-  Widget build(BuildContext context) => Container(
-        key: const ValueKey('capture-refresh-indicator'),
-        width: 24,
-        height: 12,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      );
-}
-
 BalanceCardValuation _saved({
   bool vendor = false,
   double? susu = 5,
@@ -144,7 +133,6 @@ Future<void> _pump(
                   key: const ValueKey('bcfx-pair'),
                   valuation: valuation,
                   colors: colors,
-                  trailingRefresh: const _RefreshStub(),
                 ),
               ),
             ),
@@ -159,8 +147,11 @@ Future<void> _pump(
 
 /// Flip the card in place — the same instance the front capture used.
 Future<void> _flipToBack(WidgetTester tester) async {
-  await tester.tap(
-      find.byKey(const ValueKey('balance-pair-flip-listener')));
+  // Tap the EYEBROW band, not the card's center: at narrow capture
+  // widths the center falls on the disclosure info button, whose
+  // nested-gesture guard correctly suppresses the flip. The eyebrow is
+  // a neutral region — the only control in it is the flip itself.
+  await tester.tap(find.byKey(const ValueKey('balance-fx-label')));
   await tester.pump();
   await tester.pumpAndSettle();
 }
@@ -188,15 +179,13 @@ Future<void> _assertFrontContract(WidgetTester tester,
   // The headline is a single Text when the combined value is computable,
   // or a block (native amount + note) when the rate is missing.
   final headlineFinder = find.byKey(const ValueKey('balance-fx-headline'));
-  // WORKSTREAM E: the incomplete-valuation headline is the fitted NATIVE
-  // amount line now (the old wrapper block is gone) — fall back to it.
-  final nativeFinder =
-      find.byKey(const ValueKey('balance-fx-headline-native'));
-  final blockFinder =
-      find.byKey(const ValueKey('balance-fx-headline-block'));
+  // No usable rate: the headline slot renders the honest dash line
+  // ('balance-fx-headline-unavailable') — fall back to it.
+  final unavailableFinder =
+      find.byKey(const ValueKey('balance-fx-headline-unavailable'));
   final effective = headlineFinder.evaluate().isNotEmpty
       ? headlineFinder
-      : (nativeFinder.evaluate().isNotEmpty ? nativeFinder : blockFinder);
+      : unavailableFinder;
   final headline = tester.getRect(effective);
   final rateRow =
       tester.getRect(find.byKey(const ValueKey('balance-fx-rate-row')));
@@ -204,10 +193,6 @@ Future<void> _assertFrontContract(WidgetTester tester,
       reason: 'the headline sits below the eyebrow');
   expect(rateRow.top, greaterThan(headline.bottom),
       reason: 'the rate row sits below the headline');
-  final refresh = tester
-      .getRect(find.byKey(const ValueKey('capture-refresh-indicator')));
-  expect(refresh.right, closeTo(rateRow.right, 2),
-      reason: 'the refresh affordance is flush right');
   final infoIcon = find.byKey(const ValueKey('balance-fx-equivalent-info'));
   if (infoIcon.evaluate().isNotEmpty) {
     final eq = tester
@@ -220,18 +205,33 @@ Future<void> _assertFrontContract(WidgetTester tester,
   }
 }
 
-/// Structural contract — true in EVERY back capture.
+/// Structural contract — true in EVERY back capture. The back is a
+/// SECTION PAGER now: the flip lands on the AVAILABLE section, with the
+/// next section's header peeking at the bottom edge.
 void _assertBackContract(WidgetTester tester) {
   expect(
       find.byKey(const ValueKey('balance-fx-breakdown-header')),
       findsOneWidget,
       reason: 'the compact breakdown header renders');
+  expect(find.byKey(const ValueKey('bc-section-pager')), findsOneWidget,
+      reason: 'the section pager renders');
+  expect(find.byKey(const ValueKey('bc-section-available')), findsOneWidget,
+      reason: 'the flip lands on the AVAILABLE section');
   expect(find.byKey(const ValueKey('bc-row-ghs-wallet')), findsOneWidget,
       reason: 'the first available row renders');
   expect(find.byKey(const ValueKey('bc-row-usdc-held')), findsOneWidget);
-  expect(find.byKey(const ValueKey('bc-row-escrow')), findsOneWidget);
   expect(find.byKey(const ValueKey('balance-fx-share-rail')), findsNothing,
       reason: 'the old share rail is gone from the redesign');
+}
+
+/// Pages the section pager down [steps] sections and settles.
+Future<void> _pageDown(WidgetTester tester, int steps) async {
+  final pager = find.byKey(const ValueKey('bc-section-pager'));
+  final pageExtent = tester.getRect(pager).height * 0.86;
+  for (var i = 0; i < steps; i++) {
+    await tester.drag(pager, Offset(0, -(pageExtent * 0.75)));
+    await tester.pumpAndSettle();
+  }
 }
 
 Future<void> _capture(WidgetTester tester, String name) async {
@@ -294,8 +294,30 @@ void main() {
         theme: AzamanTheme.light, width: 360, valuation: fresh);
     _assertFrame(tester, width: 360);
     await _assertFrontContract(tester, width: 360);
-    expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
-        findsNothing);
+    // PR #203 review round: the info icon is visible BESIDE the USDC
+    // equivalent line in the LIVE state too — the disclosure honestly
+    // distinguishes the converted GHS display valuation from a native
+    // GHS wallet holding.
+    final info = find.byKey(const ValueKey('balance-fx-equivalent-info'));
+    expect(info, findsOneWidget);
+    await tester.tap(info, warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+      findsOneWidget,
+    );
+    final body = tester
+        .widget<Text>(find
+            .byKey(const ValueKey('balance-fx-fallback-disclosure-body')))
+        .data!;
+    expect(body, contains('native GHS wallet'),
+        reason: 'this fixture HAS a native wallet, so the disclosure says '
+            'the total honestly combines it');
+    expect(body, isNot(contains('display valuation converted')),
+        reason: 'combined-native state is not the converted-display state');
+    await tester
+        .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+    await tester.pumpAndSettle();
     await _capture(tester, 'front_fresh_360_light');
   });
 
@@ -407,19 +429,18 @@ void main() {
     await _pump(tester,
         theme: AzamanTheme.dark, width: 390, valuation: _saved(vendor: true));
     await _flipToBack(tester);
-    await tester.scrollUntilVisible(
-      find.byKey(const ValueKey('bc-row-azm-points')),
-      80,
-      scrollable: find.descendant(
-        of: find.byKey(const ValueKey('bc-breakdown-scroll')),
-        matching: find.byType(Scrollable),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('bc-row-azm-points')), findsOneWidget,
-        reason: 'the scroll reached the non-cash row');
-    expect(find.byKey(const ValueKey('bc-row-ghs-wallet')), findsNothing,
-        reason: 'still on the back face — scrolling never flips');
+    // _saved(vendor: true) = 5 sections — page to the LAST one (the
+    // non-cash section) one snap at a time.
+    await _pageDown(tester, 4);
+    final pagerRect =
+        tester.getRect(find.byKey(const ValueKey('bc-section-pager')));
+    final pointsRect =
+        tester.getRect(find.byKey(const ValueKey('bc-row-azm-points')));
+    expect(
+        pointsRect.top, greaterThanOrEqualTo(pagerRect.top),
+        reason: 'the non-cash row is on screen');
+    expect(find.byKey(const ValueKey('balance-fx-headline')), findsNothing,
+        reason: 'still on the back face — paging never flips');
     _assertFrame(tester, width: 390);
     await _capture(tester, 'back_scrolled_390_dark');
   });

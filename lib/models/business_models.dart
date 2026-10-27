@@ -109,6 +109,35 @@ class BusinessCategory {
 class BusinessCategories {
   BusinessCategories._();
 
+  /// The vertical-aware catalog label (joystick A, 2026-10-26): the ONE
+  /// source for "Menu"/"Products"/"Services"/... — the storefront's
+  /// catalogLabel and the listing-card joystick's menu satellite read
+  /// the same words.
+  static String catalogLabel(String? category) {
+    switch (category) {
+      case 'FOOD_BEVERAGE':
+        return 'Menu';
+      case 'RETAIL':
+      case 'TECHNOLOGY':
+        return 'Products';
+      case 'HEALTH_WELLNESS':
+      case 'FREELANCE_SERVICES':
+      case 'FINANCIAL_SERVICES':
+        return 'Services';
+      case 'EDUCATION':
+        return 'Courses';
+      case 'ENTERTAINMENT':
+        return 'Experiences';
+      case 'HOSPITALITY':
+      case 'REAL_ESTATE':
+        return 'Amenities';
+      case 'LOGISTICS':
+        return 'Add-ons';
+      default:
+        return 'Catalog';
+    }
+  }
+
   /// UI-only "clear filter" entry — has no wire value.
   static const all = BusinessCategory(
     wire: '',

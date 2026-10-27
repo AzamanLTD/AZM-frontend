@@ -36,7 +36,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/home/balance_card_pair.dart';
 
 bool _fontsLoaded = false;
@@ -73,15 +72,18 @@ Future<void> _loadFonts() async {
 BalanceCardValuation _saved({
   bool vendor = false,
   double? susu,
+  double? native = 100,
+  double? vault = 10,
+  double? savings = 20,
 }) =>
     BalanceCardValuation(
-      nativeGhsAvailable: 100,
+      nativeGhsAvailable: native,
       availableUsdc: 50,
       balanceConfirmed: true,
       escrowLocked: 4,
       disputeEscrow: 1,
-      vaultLocked: 10,
-      savingsLockedGhs: 20,
+      vaultLocked: vault,
+      savingsLockedGhs: savings,
       susuCommitted: susu,
       azmPoints: 1200,
       vendorRowRelevant: vendor,
@@ -93,17 +95,6 @@ BalanceCardValuation _saved({
         observedAt: DateTime.utc(2026, 10, 22, 9, 30),
       ),
     ).compute();
-
-class _RefreshStub extends StatelessWidget {
-  const _RefreshStub();
-  @override
-  Widget build(BuildContext context) => Container(
-        key: const ValueKey('capture-refresh-indicator'),
-        width: 24,
-        height: 12,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
-      );
-}
 
 Future<void> _pumpPair(
   WidgetTester tester, {
@@ -143,7 +134,6 @@ Future<void> _pumpPair(
                         key: const ValueKey('bcfx-pair'),
                         valuation: valuation,
                         colors: colors,
-                        trailingRefresh: const _RefreshStub(),
                       ),
                     ),
                   ),
@@ -163,7 +153,11 @@ Rect _frameRect(WidgetTester tester) =>
     tester.getRect(find.byKey(const ValueKey('balance-pair-frame')));
 
 Future<void> _flipToBack(WidgetTester tester) async {
-  await tester.tap(find.byKey(const ValueKey('balance-pair-flip-listener')));
+  // Tap the EYEBROW band, not the card's center: at narrow capture
+  // widths the center falls on the disclosure info button, whose
+  // nested-gesture guard correctly suppresses the flip. The eyebrow is
+  // a neutral region — the only control in it is the flip itself.
+  await tester.tap(find.byKey(const ValueKey('balance-fx-label')));
   await tester.pump();
   await tester.pumpAndSettle();
 }
@@ -177,20 +171,17 @@ Future<void> _flipToFront(WidgetTester tester) async {
 
 /// Scrolls the back face's inner breakdown until [finder] is built and
 /// visible (rows live in a lazily built ListView inside the fixed frame).
-Future<void> _scrollUntilVisible(
-  WidgetTester tester,
-  Finder finder,
-) async {
-  await tester.scrollUntilVisible(
-    finder,
-    80,
-    scrollable: find.descendant(
-      of: find.byKey(const ValueKey('bc-breakdown-scroll')),
-      matching: find.byType(Scrollable),
-    ),
-  );
+/// Drags the back face's SECTION PAGER exactly ONE section down and
+/// settles. The distance is computed from the pager's real geometry
+/// (viewportFraction 0.86): a fraction of one page, far enough to snap
+/// forward, never far enough to skip a section.
+Future<void> _pageDown(WidgetTester tester) async {
+  final pager = find.byKey(const ValueKey('bc-section-pager'));
+  final pagerHeight = tester.getRect(pager).height;
+  await tester.drag(pager, Offset(0, -(pagerHeight * 0.86 * 0.75)));
   await tester.pumpAndSettle();
 }
+
 
 void main() {
   group('shared frame — one physical card, fixed geometry', () {
@@ -253,7 +244,7 @@ void main() {
 
   group('front face — GHS-first FX-status contracts', () {
     testWidgets('stack order: eyebrow → headline → equivalent → rate row, '
-        'with the refresh flush right', (tester) async {
+        'in one left-side cluster', (tester) async {
       await _pumpPair(tester, valuation: _saved());
       final label = tester.getRect(
           find.byKey(const ValueKey('balance-fx-label')));
@@ -267,9 +258,6 @@ void main() {
       expect(label.bottom, lessThan(headline.top));
       expect(headline.bottom, lessThan(equivalent.top));
       expect(equivalent.bottom, lessThan(rateRow.top));
-      final refresh = tester
-          .getRect(find.byKey(const ValueKey('capture-refresh-indicator')));
-      expect(refresh.right, closeTo(rateRow.right, 2));
       expect(rateRow.bottom, lessThan(frame.bottom + 1),
           reason: 'the rate row pins flush to the card bottom');
     });
@@ -287,7 +275,8 @@ void main() {
       expect(info.bottom, lessThanOrEqualTo(eq.bottom + 4));
     });
 
-    testWidgets('a fresh rate shows no fallback chrome', (tester) async {
+    testWidgets('a fresh rate with a NATIVE GHS wallet shows no fallback '
+        'chrome but keeps the breakdown disclosure', (tester) async {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 100,
         availableUsdc: 50,
@@ -302,8 +291,85 @@ void main() {
       expect(find.byKey(const ValueKey('balance-fx-rate-fresh')),
           findsOneWidget);
       expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
-          findsNothing,
-          reason: 'no disclosure chrome without a fallback');
+          findsOneWidget,
+          reason: 'the disclosure stays available even without a '
+              'fallback — it explains the combined total');
+      expect(find.textContaining('Using saved rate'), findsNothing,
+          reason: 'no fallback chrome in the rate row');
+
+      // WORKSTREAM J2 (2026-10-26): this fixture is a native+USDC
+      // COMBINED total — it includes a converted USDC component, so the
+      // GHS headline itself carries the approximate marker, alongside
+      // the USDC equivalent line's. Only a genuinely native-GHS-only
+      // total renders without ≈ on the headline.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('balance-fx-equivalent-row')),
+          matching: find.text('≈'),
+        ),
+        findsOneWidget,
+        reason: 'the ≈ sits INSIDE the USDC equivalent row',
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('balance-fx-headline')),
+          matching: find.text('≈'),
+        ),
+        findsOneWidget,
+        reason: 'a total with a converted USDC component is marked '
+            'approximate on the headline too',
+      );
+    });
+
+    testWidgets('a fresh rate with NO native GHS wallet (the current live '
+        'contract) keeps the info icon and the converted-valuation '
+        'disclosure — never a claimed native total', (tester) async {
+      final v = const BalanceCardValuation(
+        // The current backend contract publishes no native-GHS wallet.
+        nativeGhsAvailable: null,
+        availableUsdc: 50,
+        balanceConfirmed: true,
+        azmPoints: 0,
+        rate: FxRateView(
+          ghsPerUsdc: 12.03,
+          kind: FxRateKind.fresh,
+        ),
+      ).compute();
+      expect(v.availableGhsValue, 601.5,
+          reason: 'the honest interim derivation: USDC × rate');
+      await _pumpPair(tester, valuation: v);
+
+      // The info icon is visible beside the USDC line in the live state.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
+          findsOneWidget);
+
+      // The GHS headline is NEVER semantically a confirmed native total
+      // while the wallet is absent from the contract.
+      final semantics = tester.firstWidget<Semantics>(
+        find.descendant(
+          of: find.byKey(const ValueKey('balance-fx-headline')),
+          matching: find.byType(Semantics),
+        ),
+      );
+      expect(semantics.properties.label, contains('display valuation'));
+      expect(semantics.properties.label, contains('not a native GHS'));
+
+      // The disclosure says exactly what the figure is.
+      await tester.tap(
+          find.byKey(const ValueKey('balance-fx-equivalent-info')));
+      await tester.pumpAndSettle();
+      final body = find.byKey(
+          const ValueKey('balance-fx-fallback-disclosure-body'));
+      expect(body, findsOneWidget);
+      // The body key sits on the Text itself — read its data directly.
+      final bodyText = tester.widget<Text>(body).data;
+      expect(bodyText, contains('not a native GHS wallet holding'));
+      expect(bodyText, contains('held in USDC'));
+      await tester
+          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+          findsNothing);
     });
 
     testWidgets('the fallback disclosure opens on tap and does NOT flip the '
@@ -355,8 +421,21 @@ void main() {
       await _pumpPair(tester, valuation: v);
       expect(find.byKey(const ValueKey('balance-fx-rate-unavailable')),
           findsOneWidget);
-      expect(find.byKey(const ValueKey('balance-fx-valuation-incomplete')),
+      // The combined GHS value is NOT computable without a rate: the
+      // headline renders an honest dash — never a fabricated GH₵ 0.00
+      // and never USDC relabelled as GHS.
+      expect(find.byKey(const ValueKey('balance-fx-headline-unavailable')),
           findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-headline-dash')),
+          findsOneWidget);
+      // The REAL USDC holding still shows beneath — a fact, not a
+      // conversion, and its leading slot carries NO ≈.
+      expect(find.byKey(const ValueKey('balance-fx-usdc-held-no-rate')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-usdc-held-amount')),
+          findsOneWidget);
+      expect(find.text('≈'), findsNothing,
+          reason: 'no rate means no equivalence claim');
     });
 
     testWidgets('GHS-only wallet, no usable rate: known GHS headline, '
@@ -413,117 +492,203 @@ void main() {
   });
 
   group('back face — compact icon-led breakdown', () {
-    testWidgets('hierarchy: available → locked/committed → non-cash, with '
-        'right-aligned amounts and explicit native units', (tester) async {
+    testWidgets('section pages: available → committed → locked → '
+        'non-cash, one section per snap step', (tester) async {
       await _pumpPair(tester, valuation: _saved());
       await _flipToBack(tester);
-      final ghs = tester.getRect(find.byKey(const ValueKey('bc-row-ghs-wallet')));
-      final usdc = tester.getRect(find.byKey(const ValueKey('bc-row-usdc-held')));
-      final escrow = tester.getRect(find.byKey(const ValueKey('bc-row-escrow')));
-      expect(ghs.top, lessThan(usdc.top));
-      expect(usdc.top, lessThan(escrow.top));
 
-      // The non-cash row is the LAST row. The ListView's OWN children
-      // list is the complete ordered source (lazy building only affects
-      // which Elements exist — never this order).
+      // The pager's own children list is the complete ordered source.
       final children = (tester
-              .widget<ListView>(
-                  find.byKey(const ValueKey('bc-breakdown-scroll')))
+              .widget<PageView>(
+                  find.byKey(const ValueKey('bc-section-pager')))
               .childrenDelegate as SliverChildListDelegate)
           .children;
-      final orderedRows = children
+      final ordered = children
           .whereType<Widget>()
           .where((w) =>
               w.key is ValueKey<String> &&
-              (w.key as ValueKey<String>).value.startsWith('bc-row-'))
+              (w.key as ValueKey<String>).value.startsWith('bc-section-'))
           .map((w) => (w.key as ValueKey<String>).value)
           .toList();
-      expect(orderedRows.first, 'bc-row-ghs-wallet');
-      expect(orderedRows.indexOf('bc-row-usdc-held'),
-          lessThan(orderedRows.indexOf('bc-row-escrow')));
-      expect(orderedRows.last, 'bc-row-azm-points',
+      expect(ordered, [
+        'bc-section-available',
+        'bc-section-committed',
+        'bc-section-locked',
+        'bc-section-noncash',
+      ], reason: 'no vendor section for a non-vendor account');
+      expect(ordered.last, 'bc-section-noncash',
           reason: 'NON-CASH sits after every monetary section');
 
-      // Native units are explicit in the rendered rows (both are visible
-      // before any scrolling). findRichText: the amounts render as
-      // Text.rich (amount + unit spans); the expected GHS string is built
-      // with the app's own formatter (a non-breaking space after ₵).
-      expect(
-        find.textContaining(AzMoney.ghs(100), findRichText: true),
-        findsOneWidget,
-      );
+      // Page 0 rows render in order with explicit native units.
+      final ghs = tester.getRect(find.byKey(const ValueKey('bc-row-ghs-wallet')));
+      final usdc = tester.getRect(find.byKey(const ValueKey('bc-row-usdc-held')));
+      expect(ghs.top, lessThan(usdc.top));
       expect(find.textContaining('50.00 USDC', findRichText: true),
           findsOneWidget);
       expect(find.byKey(const ValueKey('bc-row-vendor')), findsNothing,
           reason: 'vendor row only where relevant');
-      // Finally, scroll to the bottom so the non-cash row renders too.
-      await _scrollUntilVisible(
-          tester, find.byKey(const ValueKey('bc-row-azm-points')));
-      expect(find.byKey(const ValueKey('bc-row-azm-points')), findsOneWidget);
     });
 
-    testWidgets('escrow and disputes are grouped but BOTH values are '
-        'preserved; the split detail renders', (tester) async {
+    testWidgets('PRODUCTION SHAPE: every section fits its snap page under '
+        'the live adapter\'s unknown-field output — no wrapped rows, no '
+        'overflow', (tester) async {
+      // Mirrors balance_card_valuation_provider's REAL output today: no
+      // native GHS wallet, unknown vault/savings/susu, a vendor user —
+      // the maximum-row shape. The GHS-wallet row's long inline
+      // disclosure ("no GHS wallet on the current contract") once
+      // wrapped to a second line and pushed the AVAILABLE page 9.9dp
+      // past its snap page on the real Home; the row contract now
+      // ellipsizes to ONE line and the full disclosure rides the
+      // semantics label instead.
+      await _pumpPair(
+        tester,
+        valuation: _saved(
+          native: null,
+          vault: null,
+          savings: null,
+          susu: null,
+          vendor: true,
+        ),
+      );
+      await _flipToBack(tester);
+
+      // AVAILABLE: the long disclosure is present, single-line.
+      expect(find.byKey(const ValueKey('bc-row-ghs-wallet')),
+          findsOneWidget);
+      expect(find.textContaining('no GHS wallet', findRichText: true),
+          findsOneWidget);
+      // The screen-reader disclosure stays FULL even though the
+      // visible line ellipsizes: the semantics label carries the
+      // untruncated contract.
+      final ghsLabelText = tester.widget<Text>(
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('bc-row-ghs-wallet')),
+              matching: find.byType(Text),
+            )
+            .first,
+      );
+      expect(
+        ghsLabelText.semanticsLabel,
+        'GHS wallet · no GHS wallet on the current contract',
+      );
+
+      // Page through EVERY remaining section. Each pumpAndSettle inside
+      // _pageDown throws on any RenderFlex overflow inside the fixed
+      // 165dp card — COMMITTED (all-unknown rows), LOCKED, VENDOR
+      // (present: vendor: true), NON-CASH.
+      await _pageDown(tester); // COMMITTED
+      expect(find.byKey(const ValueKey('bc-row-vaults')), findsOneWidget);
+      await _pageDown(tester); // LOCKED
+      expect(find.byKey(const ValueKey('bc-row-escrow')), findsOneWidget);
+      await _pageDown(tester); // VENDOR
+      expect(find.byKey(const ValueKey('bc-row-vendor')), findsOneWidget);
+      await _pageDown(tester); // NON-CASH
+      expect(find.byKey(const ValueKey('bc-section-noncash')),
+          findsOneWidget);
+    });
+
+    testWidgets('escrow and dispute escrow are SEPARATE visible values on '
+        'the LOCKED page', (tester) async {
       await _pumpPair(tester, valuation: _saved());
       await _flipToBack(tester);
-      expect(find.textContaining('Escrow 4.00'), findsOneWidget);
-      expect(find.textContaining('Disputes 1.00'), findsOneWidget);
+      // Two section steps: available → committed → locked.
+      await _pageDown(tester);
+      await _pageDown(tester);
+      expect(find.byKey(const ValueKey('bc-row-escrow')), findsOneWidget);
+      expect(find.byKey(const ValueKey('bc-row-dispute-escrow')),
+          findsOneWidget);
+      expect(find.textContaining('4.00'), findsOneWidget);
+      expect(find.textContaining('1.00'), findsOneWidget);
     });
 
     testWidgets('unknown Susu renders a dash — never zero; known Susu '
         'renders the amount', (tester) async {
       await _pumpPair(tester, valuation: _saved(susu: null));
       await _flipToBack(tester);
-      await _scrollUntilVisible(
-          tester, find.byKey(const ValueKey('bc-row-susu')));
-      expect(find.textContaining('not loaded yet'), findsOneWidget);
-      expect(find.textContaining('—'), findsOneWidget,
-          reason: 'unknown Susu renders a dash, never a zero');
+      await _pageDown(tester); // COMMITTED page
+      final susuRow = find.byKey(const ValueKey('bc-row-susu'));
+      expect(find.descendant(
+              of: susuRow, matching: find.textContaining('not loaded yet')),
+          findsOneWidget);
+      expect(find.descendant(of: susuRow, matching: find.textContaining('—')),
+          findsOneWidget,
+          reason: 'unknown Susu renders a dash, never a zero (scoped to '
+              'the Susu row — savings also dashes under the K2B-2 gate)');
 
       await tester.pumpWidget(const SizedBox());
       await _pumpPair(tester, valuation: _saved(susu: 5));
       await _flipToBack(tester);
-      await _scrollUntilVisible(
-          tester, find.byKey(const ValueKey('bc-row-susu')));
-      expect(find.textContaining('not loaded yet'), findsNothing);
-      expect(find.textContaining('5.00 USDC'), findsOneWidget);
+      await _pageDown(tester);
+      expect(find.descendant(
+              of: susuRow, matching: find.textContaining('not loaded yet')),
+          findsNothing);
+      expect(find.descendant(
+              of: susuRow, matching: find.textContaining('5.00 USDC')),
+          findsOneWidget);
     });
 
-    testWidgets('savings renders GHS-denominated, with NO withdrawable '
-        'detail — the backend publishes no such field', (tester) async {
-      await _pumpPair(tester, valuation: _saved());
+    // K2B-2 regression — the card must not present the nominal GHS
+    // goal amount as native GHS holdings or as guaranteed GHS value.
+    // The fixture CARRIES a parsed savings figure (20 GHS); the gate
+    // keeps it off the card: the row renders UNKNOWN (—) with a
+    // truthful pointer to the Savings screen, which alone shows the
+    // factual GHS-denominated goal progress under its own contract.
+    testWidgets('K2B-2: savings renders UNKNOWN even when the '
+        'valuation carries the parsed figure — no native-GHS or '
+        'guaranteed-value suggestion', (tester) async {
+      final valuation = _saved(); // savingsLockedGhs: 20 — PARSED
+      expect(valuation.savingsLockedGhs, 20,
+          reason: 'fixture really carries the parsed figure');
+      await _pumpPair(tester, valuation: valuation);
       await _flipToBack(tester);
-      await _scrollUntilVisible(
-          tester, find.byKey(const ValueKey('bc-row-savings')));
-
-      // GHS denomination, never USDC — scoped to the savings ROW: other
-      // rows (USDC held, vaults) legitimately show their own units.
-      final savingsRow =
-          find.ancestor(of: find.text('Savings'), matching: find.byKey(const ValueKey('bc-row-savings')));
-      // The amount+unit render as one rich text ("20.00 GHS").
+      await _pageDown(tester); // COMMITTED page
+      final savingsRow = find.byKey(const ValueKey('bc-row-savings'));
+      expect(
+          find.descendant(
+              of: savingsRow, matching: find.textContaining('—')),
+          findsOneWidget,
+          reason: 'the K2B-2 gate renders the aggregated savings '
+              'amount UNKNOWN — the nominal GHS goal figure is not a '
+              'displayable monetary holding this release');
+      expect(
+          find.descendant(
+              of: savingsRow,
+              matching: find.textContaining('on the Savings screen')),
+          findsOneWidget,
+          reason: 'the row points at the one surface that does show '
+              'the factual GHS-denominated goal progress');
       expect(
           find.descendant(
               of: savingsRow, matching: find.textContaining('GHS')),
-          findsOneWidget,
-          reason: 'savings is cedi-denominated (SavingsGoal '
-              '.currentAmountGhs)');
+          findsNothing,
+          reason: 'no GHS unit may render beside the savings dash — '
+              'the row must not suggest native GHS is held');
+      expect(
+          find.descendant(
+              of: savingsRow, matching: find.textContaining('20.00')),
+          findsNothing,
+          reason: 'the nominal GHS goal amount (20) must not appear '
+              'on the card as a monetary amount');
       expect(
           find.descendant(
               of: savingsRow, matching: find.textContaining('USDC')),
           findsNothing,
           reason: 'no savings amount may ever render as USDC');
-      // The withdrawable detail is absent — not fabricated from the total.
       expect(find.descendant(
               of: savingsRow, matching: find.textContaining('withdrawable')),
-          findsNothing);
+          findsNothing,
+          reason: 'no withdrawable/cash inference from the goal figure');
     });
 
-    testWidgets('vendor variants: present with a truthful restricted '
-        'description, absent when irrelevant', (tester) async {
+    testWidgets('vendor variants: its OWN section when relevant, absent '
+        'when not — with a truthful restricted description', (tester) async {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
-      await _scrollUntilVisible(
-          tester, find.byKey(const ValueKey('bc-row-vendor')));
+      // Three steps: available → committed → locked → vendor.
+      await _pageDown(tester);
+      await _pageDown(tester);
+      await _pageDown(tester);
       expect(find.byKey(const ValueKey('bc-row-vendor')), findsOneWidget);
       // The backend publishes no eligibility field, so the row describes
       // a fact — restricted — and claims nothing about withdrawability.
@@ -531,29 +696,38 @@ void main() {
           findsOneWidget);
       expect(find.textContaining('withdrawable'), findsNothing,
           reason: 'withdrawability is never invented or denied');
+
+      // Non-vendor: the section list has NO vendor page at all.
+      await tester.pumpWidget(const SizedBox());
+      await _pumpPair(tester, valuation: _saved(vendor: false));
+      await _flipToBack(tester);
+      expect(find.byKey(const ValueKey('bc-section-vendor')), findsNothing);
     });
 
     testWidgets('icons carry accessible semantic labels and supplement, '
         'never replace, text', (tester) async {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
-      // The icon semantics are asserted on the Semantics widget itself —
-      // the deterministic proof that the label is present in the tree.
       Finder byIconSemantics(String label) => find.byWidgetPredicate(
           (w) => w is Semantics && w.properties.label == label);
+      // Page 0: the icons' semantics are in the tree, and the labels'
+      // text still exists — icons supplement, never replace.
       expect(byIconSemantics('GHS wallet icon'), findsOneWidget);
       expect(byIconSemantics('USDC wallet icon'), findsOneWidget);
-      expect(byIconSemantics('Escrow lock icon'), findsOneWidget);
-      // The label text still exists for every visible row — icons
-      // supplement text, never replace it.
       expect(find.text('GHS wallet'), findsOneWidget);
       expect(find.text('USDC held'), findsOneWidget);
-      await _scrollUntilVisible(
-          tester, find.byKey(const ValueKey('bc-row-vendor')));
+      // LOCKED page.
+      await _pageDown(tester);
+      await _pageDown(tester);
+      expect(byIconSemantics('Escrow lock icon'), findsOneWidget);
+      expect(byIconSemantics('Dispute escrow shield icon'), findsOneWidget);
+      // VENDOR page.
+      await _pageDown(tester);
       expect(byIconSemantics('Vendor storefront icon'), findsOneWidget);
-      expect(find.text('Vendor balance'), findsOneWidget);
-      await _scrollUntilVisible(
-          tester, find.byKey(const ValueKey('bc-row-azm-points')));
+      expect(find.textContaining('Vendor balance'), findsOneWidget);
+      // NON-CASH page.
+      await _pageDown(tester);
+      expect(byIconSemantics('AZM points icon'), findsOneWidget);
       expect(find.text('AZM points'), findsOneWidget);
     });
 
@@ -584,23 +758,16 @@ void main() {
           findsOneWidget);
     });
 
-    testWidgets('a vertical drag on the back scrolls the inner breakdown '
+    testWidgets('a vertical drag on the back PAGES the section breakdown '
         'WITHOUT flipping; the header stays fixed', (tester) async {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
-      final scroll = tester
-          .widget<ListView>(find.byKey(const ValueKey('bc-breakdown-scroll')));
-      final scrollRender = tester.renderObject<RenderBox>(
-          find.byKey(const ValueKey('bc-breakdown-scroll')));
       final headerBefore = tester
           .getRect(find.byKey(const ValueKey('balance-fx-breakdown-header')));
 
-      // Drag well past the 8px tap tolerance.
-      await tester.drag(
-        find.byKey(const ValueKey('bc-breakdown-scroll')),
-        const Offset(0, -60),
-      );
-      await tester.pumpAndSettle();
+      // Drag well past the 8px tap tolerance: the section pager steps to
+      // the next section and settles (snap), it never flips the card.
+      await _pageDown(tester);
 
       expect(find.byKey(const ValueKey('balance-fx-headline')),
           findsNothing,
@@ -609,8 +776,22 @@ void main() {
           .getRect(find.byKey(const ValueKey('balance-fx-breakdown-header')));
       expect(headerAfter.top, closeTo(headerBefore.top, 0.5),
           reason: 'the outer card and its header stay stable');
-      expect(scrollRender, isNotNull);
-      expect(scroll, isNotNull);
+      // The COMMITTED rows are now ON screen and the AVAILABLE rows are
+      // out of the viewport — the pager stepped one SECTION (the
+      // previous page may stay built for the peek, but it is no longer
+      // visible).
+      final pagerRect =
+          tester.getRect(find.byKey(const ValueKey('bc-section-pager')));
+      final vaultsRect =
+          tester.getRect(find.byKey(const ValueKey('bc-row-vaults')));
+      final ghsRect =
+          tester.getRect(find.byKey(const ValueKey('bc-row-ghs-wallet')));
+      expect(vaultsRect.top, greaterThanOrEqualTo(pagerRect.top));
+      expect(vaultsRect.bottom, lessThanOrEqualTo(pagerRect.bottom + 6));
+      expect(ghsRect.bottom, lessThan(pagerRect.top + 6),
+          reason: 'the previous section has left the viewport (it now '
+              'sits above it — the negative direction of a vertical '
+              'pager)');
     });
 
     testWidgets('the back-face "return to balance" affordance flips back '

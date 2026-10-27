@@ -49,6 +49,8 @@ import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/marketplace/profile_joystick.dart';
+import 'package:azaman/widgets/marketplace/profile_joystick_delegates.dart';
 
 // ── Published geometry (pinned by tests) ────────────────────────────────────
 
@@ -153,6 +155,60 @@ class BusinessResultCard extends ConsumerWidget {
     child: Icon(cat.icon, size: 26, color: cat.color.withValues(alpha: 0.55)),
   );
 
+  // ── Joystick delegates (Workstream A) — real seams only ──────────────────
+
+  /// The listing joystick's four directions, ALL wired to the real
+  /// seams. Unavailable directions carry a null delegate: the satellite
+  /// renders honestly dimmed and a release on it fires nothing.
+  ProfileJoystickActions _joystickActions(
+    BuildContext context,
+    WidgetRef ref,
+    BusinessProfile business, {
+    required bool saved,
+  }) {
+    // MENU — the business's real catalog destination: the profile that
+    // hosts the storefront catalog. Available only when the business
+    // actually carries catalog content (products); the label is the
+    // vertical-aware one ("Menu"/"Products"/...).
+    final hasCatalog = business.products.isNotEmpty;
+    // STORY — the AUTHORITATIVE story-state contract (the same signal
+    // that draws the ring). No story state / no active story means the
+    // satellite is honestly unavailable — never a guessed story.
+    final hasActiveStory = business.storyState?.hasActiveStory == true;
+    return ProfileJoystickActions(
+      menu: ProfileJoystickAction(
+        icon: Icons.menu_book_rounded,
+        label: BusinessCategories.catalogLabel(business.category),
+        onRelease: hasCatalog
+            ? () {
+                context.push('/business/${business.bizId}');
+              }
+            : null,
+        unavailableLabel: 'No catalog yet',
+      ),
+      story: ProfileJoystickAction(
+        icon: Icons.play_circle_outline_rounded,
+        label: 'Story',
+        onRelease: hasActiveStory
+            ? () => openJoystickStory(context, ref, business)
+            : null,
+        unavailableLabel: 'No active story',
+      ),
+      bookmark: ProfileJoystickAction(
+        icon: saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+        label: saved ? 'Saved' : 'Save',
+        onRelease: () => toggleBusinessSaved(context, ref, business),
+      ),
+      showLess: ProfileJoystickAction(
+        icon: Icons.visibility_off_outlined,
+        label: 'Show less',
+        // The release only OPENS the mandatory confirmation; the real
+        // service call happens after an explicit confirm.
+        onRelease: () => openJoystickShowLessConfirm(context, ref, business),
+      ),
+    );
+  }
+
   // ── Grounded one-line facts ────────────────────────────────────────────
 
   String _subtitleLine(WidgetRef ref) {
@@ -214,8 +270,8 @@ class BusinessResultCard extends ConsumerWidget {
                   // The notch is subtracted from the card path itself, so
                   // both the fill and the elevation shadow carry the exact
                   // designed silhouette.
-                  clipper: _NotchedCardClipper(
-                    avatarCenter: const Offset(
+                  clipper: const _NotchedCardClipper(
+                    avatarCenter: Offset(
                       kBusinessAvatarCenterInset,
                       kBusinessAvatarCenterInset,
                     ),
@@ -259,6 +315,15 @@ class BusinessResultCard extends ConsumerWidget {
                 ),
               ),
               // ── The circular avatar (its own action surface) ─────────────
+              // ── The circular avatar (its own action surface) ─────────────
+              // WORKSTREAM A (2026-10-26): touch-down starts the SHARED
+              // directional joystick — up opens the real catalog
+              // destination (this card's is the business profile that
+              // hosts the catalog), down opens the story viewer only when
+              // the AUTHORITATIVE story state says a story is active,
+              // right rides the durable bookmark seam, left opens the
+              // MANDATORY show-less confirmation. A plain tap keeps the
+              // existing action-panel behaviour.
               PositionedDirectional(
                 start: kBusinessAvatarCenterInset - kBusinessAvatarDiameter / 2,
                 top: 0,
@@ -273,6 +338,12 @@ class BusinessResultCard extends ConsumerWidget {
                     placeholder: _avatarPlaceholder(cat),
                     onTap: () => _openActionPanel(context, business, colors),
                     storyState: business.storyState,
+                    joystickActions: _joystickActions(
+                      context,
+                      ref,
+                      business,
+                      saved: isBusinessSaved(ref, business),
+                    ),
                   ),
                 ),
               ),
@@ -550,6 +621,7 @@ class _AvatarWithBadge extends ConsumerWidget {
     required this.placeholder,
     required this.onTap,
     this.storyState,
+    required this.joystickActions,
   });
 
   final String bizId;
@@ -570,9 +642,13 @@ class _AvatarWithBadge extends ConsumerWidget {
   /// honest, never a guessed fallback.
   final BusinessStoryState? storyState;
 
+  /// WORKSTREAM A — the shared directional joystick's delegate bundle
+  /// (built by BusinessResultCard from the real seams).
+  final ProfileJoystickActions joystickActions;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final d = kBusinessAvatarDiameter;
+    const d = kBusinessAvatarDiameter;
     // Story ring state — drawn ONLY from the authoritative block.
     // hasUnseenStory == null means the viewer is anonymous: the ring is
     // drawn WITHOUT unseen emphasis and the label never claims "new".
@@ -591,9 +667,10 @@ class _AvatarWithBadge extends ConsumerWidget {
                 'review. Bookmarked$storyLabel'
           : 'Actions for this business: follow, bookmark, or rate and '
                 'review$storyLabel',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: ProfileJoystick(
         key: ValueKey('business-avatar-$bizId'),
+        actions: joystickActions,
+        // Short-tap behaviour preserved: the action panel.
         onTap: () {
           AzamanHaptics.toggle();
           onTap();

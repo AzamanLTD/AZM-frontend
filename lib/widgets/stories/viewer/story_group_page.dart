@@ -372,10 +372,22 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
                         ),
                       ],
                       const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.close,
-                            color: Colors.white, size: 22),
-                        onPressed: () => Navigator.of(context).maybePop(),
+                      // WORKSTREAM J — the close button is CHROME. The
+                      // arbiter's raw opaque Listener spans the whole
+                      // viewer and the header was never marked, so a
+                      // close tap ALSO fired right-zone story navigation:
+                      // mid-group it silently advanced the underlying
+                      // group (the next story started and was marked
+                      // viewed during the pop), and on the last story it
+                      // raced the button's own maybePop. Marking the
+                      // button hands the pointer to the chrome entirely
+                      // (the F2 pattern) — one tap, one pop.
+                      StoryChromeRegion(
+                        child: IconButton(
+                          icon: const Icon(Icons.close,
+                              color: Colors.white, size: 22),
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
                       ),
                     ],
                   ),

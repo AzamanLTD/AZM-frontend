@@ -1,15 +1,18 @@
 // =============================================================================
-// MARKET STOREFRONT SHELL — JOYSTICK (directional shortcuts) widget tests
+// MARKET STOREFRONT SHELL — hero avatar joystick tests
+// (Workstream A, rewritten 2026-10-26)
 //
-// Pins the long-press radial shortcut contract on the hero avatar:
-//   1.  long-press bursts the joystick anchored on the avatar,
-//   2.  ONLY wired delegates become satellites (no dead shortcuts),
-//   3.  the Save satellite reflects the honest bookmark state
-//       (isBookmarked → 'Saved'),
-//   4.  picking a satellite closes the joystick and fires the delegate
-//       exactly once,
-//   5.  tapping the scrim dismisses without firing anything,
-//   6.  long-press with nothing wired stays silent (no route, no crash).
+// Pins the WORKSTREAM A contract on the REAL shell hero avatar:
+//   1.  pointer-down starts the directional dial immediately — no long
+//       press,
+//   2.  up + release fires the real catalog delegate exactly once, and
+//       an empty catalog honestly dims the satellite and fires nothing,
+//   3.  right + release fires the durable bookmark delegate, with the
+//       honest 'Saved' label when already bookmarked,
+//   4.  down with no authoritative story state fires nothing,
+//   5.  a plain tap still bursts the radial launcher — Share / Reviews /
+//       Follow keep working (the joystick adds, never replaces),
+//   6.  a joystick release never scrolls or breaks the sheet.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -19,10 +22,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/market_storefront_shell.dart';
+import 'package:azaman/screens/story_viewer_screen.dart';
+import 'package:azaman/widgets/marketplace/profile_joystick.dart';
 
 const _screenHeight = 600.0;
 
-BusinessProfile _business() {
+BusinessProfile _business({BusinessStoryState? storyState}) {
   return BusinessProfile(
     id: 'biz-1',
     bizId: 'BIZ-TEST01',
@@ -41,16 +46,20 @@ BusinessProfile _business() {
     description: 'Genuine Accra goods.',
     address: '12 Kojo Thompson Rd, Accra',
     logoUrl: 'https://img.example/logo.png',
+    storyState: storyState,
   );
 }
 
 Future<void> _pumpShell(
   WidgetTester tester, {
   bool isBookmarked = false,
+  bool hasCatalog = true,
+  BusinessStoryState? storyState,
   VoidCallback? onToggleBookmark,
   VoidCallback? onShare,
   VoidCallback? onToggleFollow,
   VoidCallback? onOpenReviews,
+  VoidCallback? onOpenCatalog,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -59,7 +68,7 @@ Future<void> _pumpShell(
           body: SizedBox(
             height: _screenHeight,
             child: MarketStorefrontShell(
-              business: _business(),
+              business: _business(storyState: storyState),
               colors: ThemeProvider.getColors(AzamanTheme.light),
               bannerUrl: null,
               locations: const [],
@@ -67,14 +76,14 @@ Future<void> _pumpShell(
               isFollowing: false,
               unpaidInvoices: 0,
               isBookmarked: isBookmarked,
-              hasCatalog: true,
+              hasCatalog: hasCatalog,
               catalogLabel: 'Products',
-              productsBuilder: (context) =>
-                  [const Text('Product surface')],
+              productsBuilder: (context) => [const Text('Product surface')],
               onToggleBookmark: onToggleBookmark,
               onShare: onShare,
               onToggleFollow: onToggleFollow,
               onOpenReviews: onOpenReviews,
+              onOpenCatalog: onOpenCatalog,
             ),
           ),
         ),
@@ -89,114 +98,156 @@ Future<void> _pumpShell(
   await tester.pump(const Duration(milliseconds: 50));
 }
 
-/// The HERO avatar is the large (radius 36 → 72px) CircleAvatar in the
-/// identity block, not the compact pill's 30px one.
-Finder _heroAvatar(WidgetTester tester) {
-  final candidates = find.byType(CircleAvatar);
-  for (final candidate in candidates.evaluate()) {
-    final rect = tester.getRect(find.byWidget(candidate.widget));
-    if (rect.width >= 60) return find.byWidget(candidate.widget);
-  }
-  return find.byType(CircleAvatar).first;
-}
+/// The hero avatar: the ProfileJoystick carrying the global
+/// _heroAvatarKey — the large identity-block avatar, not the compact
+/// pill's.
+Finder _heroAvatar() => find.byType(ProfileJoystick).first;
 
-Future<void> _burst(WidgetTester tester) async {
-  await tester.longPress(_heroAvatar(tester));
-  // Launch beat of the shared liquid launcher (660ms) + settle.
-  await tester.pump(const Duration(milliseconds: 700));
-  await tester.pumpAndSettle();
+Future<TestGesture> _touchDown(WidgetTester tester) async {
+  final gesture =
+      await tester.startGesture(tester.getCenter(_heroAvatar()));
+  await tester.pump();
+  return gesture;
 }
 
 void main() {
-  testWidgets('long-press on the hero avatar bursts the joystick '
-      'anchored on it', (tester) async {
+  testWidgets('pointer-down on the hero avatar starts the directional '
+      'dial immediately — no long press', (tester) async {
     await _pumpShell(
       tester,
       onToggleBookmark: () {},
-      onShare: () {},
+      onOpenCatalog: () {},
     );
-    await _burst(tester);
 
-    expect(find.byKey(const Key('market-joystick-burst')), findsOneWidget);
-    expect(find.text('Save'), findsOneWidget);
-    expect(find.text('Share'), findsOneWidget);
+    expect(find.byKey(const ValueKey('joystick-satellite-bookmark')),
+        findsNothing,
+        reason: 'nothing revealed before touch');
+
+    await _touchDown(tester);
+
+    expect(
+      find.byKey(const ValueKey('joystick-satellite-menu')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('joystick-satellite-story')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('joystick-satellite-bookmark')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('joystick-satellite-showLess')),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('nothing wired renders nothing — no dead burst',
-      (tester) async {
-    await _pumpShell(tester); // all delegates null
-    await _burst(tester);
-
-    expect(find.byKey(const Key('market-joystick-burst')), findsNothing);
-    expect(find.text('Save'), findsNothing);
-    expect(find.text('Share'), findsNothing);
-  });
-
-  testWidgets('unwired delegates stay hidden while wired ones appear',
-      (tester) async {
+  testWidgets('up + release fires the real catalog delegate exactly '
+      'once', (tester) async {
+    var catalogOpens = 0;
     await _pumpShell(
       tester,
-      onShare: () {},
-      onOpenReviews: () {},
-      // bookmark + follow deliberately NOT wired
+      onOpenCatalog: () => catalogOpens++,
     );
-    await _burst(tester);
 
-    expect(find.text('Share'), findsOneWidget);
-    expect(find.text('Reviews'), findsOneWidget);
-    expect(find.text('Save'), findsNothing,
-        reason: 'no bookmark delegate → no Save satellite');
-    expect(find.text('Follow'), findsNothing);
+    final gesture = await _touchDown(tester);
+    await gesture.moveBy(const Offset(0, -22));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(catalogOpens, 1);
+    expect(find.byKey(const ValueKey('joystick-satellite-menu')),
+        findsNothing,
+        reason: 'the dial closed after the release');
   });
 
-  testWidgets('the Save satellite reflects the honest bookmark state',
-      (tester) async {
+  testWidgets('an empty catalog honestly dims the menu satellite and a '
+      'release fires nothing', (tester) async {
+    var catalogOpens = 0;
+    await _pumpShell(
+      tester,
+      hasCatalog: false,
+      onOpenCatalog: () => catalogOpens++,
+    );
+
+    final gesture = await _touchDown(tester);
+    await gesture.moveBy(const Offset(0, -22));
+    await tester.pump();
+    expect(find.text('Products (No catalog yet)'), findsOneWidget);
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(catalogOpens, 0, reason: 'no dead delegate ever fires');
+  });
+
+  testWidgets('right + release fires the durable bookmark delegate '
+      'exactly once', (tester) async {
+    var bookmarkTaps = 0;
+    await _pumpShell(
+      tester,
+      onToggleBookmark: () => bookmarkTaps++,
+    );
+
+    final gesture = await _touchDown(tester);
+    await gesture.moveBy(const Offset(22, 0));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(bookmarkTaps, 1);
+  });
+
+  testWidgets('the bookmark satellite reflects the honest durable '
+      'state (isBookmarked -> Saved)', (tester) async {
     await _pumpShell(
       tester,
       isBookmarked: true,
       onToggleBookmark: () {},
     );
-    await _burst(tester);
 
-    expect(find.text('Saved'), findsOneWidget,
-        reason: 'already durable-saved reads Saved, not Save');
-    expect(find.text('Save'), findsNothing);
+    final gesture = await _touchDown(tester);
+    await gesture.moveBy(const Offset(22, 0));
+    await tester.pump();
+    expect(find.text('Saved'), findsOneWidget);
+    await gesture.up();
+    await tester.pumpAndSettle();
   });
 
-  testWidgets('picking a satellite closes the joystick and fires the '
-      'delegate exactly once', (tester) async {
-    var bookmarkTaps = 0;
+  testWidgets('down with no authoritative story state fires nothing '
+      'and the satellite honestly says why', (tester) async {
     await _pumpShell(
       tester,
-      onToggleBookmark: () => bookmarkTaps++,
+      storyState: null, // no story contract at all
     );
-    await _burst(tester);
 
-    await tester.tap(find.text('Save'));
+    final gesture = await _touchDown(tester);
+    await gesture.moveBy(const Offset(0, 22));
+    await tester.pump();
+    expect(find.text('Story (No active story)'), findsOneWidget);
+    await gesture.up();
     await tester.pumpAndSettle();
 
-    expect(bookmarkTaps, 1);
-    expect(find.byKey(const Key('market-joystick-burst')), findsNothing,
-        reason: 'the joystick route closed after the pick');
+    // No crash, no invented viewer, nothing fired.
+    expect(find.byType(StoryViewerScreen), findsNothing);
   });
 
-  testWidgets('tapping the scrim dismisses the joystick without firing '
-      'any delegate', (tester) async {
-    var bookmarkTaps = 0;
+  testWidgets('a plain tap still bursts the radial launcher — the '
+      'extra shortcuts keep working', (tester) async {
     var shareTaps = 0;
     await _pumpShell(
       tester,
-      onToggleBookmark: () => bookmarkTaps++,
       onShare: () => shareTaps++,
     );
-    await _burst(tester);
 
-    // Tap far from the burst box → the barrier.
-    await tester.tapAt(const Offset(20, 580));
+    await tester.tap(_heroAvatar());
+    // Launch beat of the shared liquid launcher (660ms) + settle.
+    await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('market-joystick-burst')), findsNothing);
-    expect(bookmarkTaps, 0);
-    expect(shareTaps, 0);
+    expect(find.byKey(const Key('market-joystick-burst')), findsOneWidget,
+        reason: 'the radial launcher is still reachable via tap');
+    expect(find.text('Share'), findsOneWidget);
   });
 }
