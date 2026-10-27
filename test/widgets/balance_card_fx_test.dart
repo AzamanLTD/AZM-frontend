@@ -35,6 +35,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/balance_card_pair.dart';
 
@@ -447,11 +448,10 @@ void main() {
       expect(find.textContaining('Using saved rate'), findsNothing,
           reason: 'no fallback chrome in the rate row');
 
-      // WORKSTREAM J2 (2026-10-26): this fixture is a native+USDC
-      // COMBINED total — it includes a converted USDC component, so the
-      // GHS headline itself carries the approximate marker, alongside
-      // the USDC equivalent line's. Only a genuinely native-GHS-only
-      // total renders without ≈ on the headline.
+      // Owner correction (2026-10-27): GHS is the app's MAIN currency —
+      // the headline is the canonical balance figure and NEVER carries
+      // the ≈. Only the USDC equivalent line is the estimate (converted
+      // FROM the GHS balance at the display rate).
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('balance-fx-equivalent-row')),
@@ -465,9 +465,9 @@ void main() {
           of: find.byKey(const ValueKey('balance-fx-headline')),
           matching: find.text('≈'),
         ),
-        findsOneWidget,
-        reason: 'a total with a converted USDC component is marked '
-            'approximate on the headline too',
+        findsNothing,
+        reason: 'the GHS headline is the canonical figure — the ≈ '
+            'never marks it, on any fixture',
       );
     });
 
@@ -493,18 +493,21 @@ void main() {
       expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
           findsOneWidget);
 
-      // The GHS headline is NEVER semantically a confirmed native total
-      // while the wallet is absent from the contract.
+      // Owner correction (2026-10-27): GHS is the app's MAIN currency —
+      // the headline is announced as the available balance in GHS,
+      // exactly, on every fixture. The estimate language lives only on
+      // the USDC line.
       final semantics = tester.firstWidget<Semantics>(
         find.descendant(
           of: find.byKey(const ValueKey('balance-fx-headline')),
           matching: find.byType(Semantics),
         ),
       );
-      expect(semantics.properties.label, contains('display valuation'));
-      expect(semantics.properties.label, contains('not a native GHS'));
+      expect(semantics.properties.label,
+          'Available balance ${AzMoney.ghs(601.5)} in GHS');
 
-      // The disclosure says exactly what the figure is.
+      // The disclosure says the USDC line is the equivalent converted
+      // FROM the GHS balance — never GHS derived from USDC.
       await tester.tap(
           find.byKey(const ValueKey('balance-fx-equivalent-info')));
       await tester.pumpAndSettle();
@@ -513,8 +516,9 @@ void main() {
       expect(body, findsOneWidget);
       // The body key sits on the Text itself — read its data directly.
       final bodyText = tester.widget<Text>(body).data;
-      expect(bodyText, contains('not a native GHS wallet holding'));
-      expect(bodyText, contains('held in USDC'));
+      expect(bodyText, contains('Azaman\u2019s main currency'));
+      expect(bodyText, contains('converted from it'));
+      expect(bodyText, isNot(contains('held in USDC')));
       await tester
           .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
       await tester.pumpAndSettle();

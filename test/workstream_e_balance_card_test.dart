@@ -24,10 +24,11 @@
 //
 // PR #203 wires BalanceCardPair into the live Home deck through
 // HomeBalanceCard, so this suite pins the production card's own
-// contract. The FRONT-face figures stay interim-honest: until the
-// backend valuation contract (#367/8/9) ships and is revalidated, the
-// GHS headline is an APPROXIMATE converted display valuation, and the
-// #367 mapper activates only after that compatibility review.
+// contract. The FRONT-face contract (owner-corrected 2026-10-27):
+// GHS is the app's MAIN currency — the GH₵ headline is the canonical
+// balance figure and renders EXACT (never ≈); only the USDC line
+// carries ≈ as the equivalent converted from the GHS balance. The
+// #367 mapper activates only after the compatibility review.
 // =============================================================================
 
 import 'dart:io';

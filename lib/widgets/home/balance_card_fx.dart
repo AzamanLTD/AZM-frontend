@@ -1,35 +1,33 @@
 // =============================================================================
 // AZAMAN — BALANCE CARD (FX-STATUS FRONT FACE)
 //
-// FRONT LAYOUT (owner-corrected 2026-10-26 — GHS headline dominant, as
-// the live main card's rhythm, never USDC-first):
+// FRONT LAYOUT (owner-corrected 2026-10-27 — GHS is the app's MAIN
+// currency; the headline is exact, never USDC-first):
 //
 //   AVAILABLE BALANCE
-//   ≈ GH₵ 1,234.56           ← the dominant headline; the ≈ marks it
-//                               APPROXIMATE whenever the total includes
-//                               a converted USDC component (the current
-//                               live contract: the whole figure is a
-//                               converted display valuation). A
-//                               genuinely native-GHS-only total renders
-//                               exact, without ≈ (Workstream J2).
+//   GH₵ 1,234.56             ← the dominant headline — the canonical
+//                               balance in GHS, the app's main currency.
+//                               It is NEVER marked ≈: GHS is the money
+//                               frame of record, not a derivation.
 //   ≈  102.79 USDC    ⓘ     ← the USDC EQUIVALENT, the estimate — the
-//                               ≈ marks this line; the ⓘ renders
-//                               whenever this line renders (its
-//                               disclosure wording is state-aware: the
-//                               converted-valuation explanation in the
-//                               current contract, the fallback-rate
-//                               explanation on saved/demo rates)
+//                               ONLY line the ≈ marks. It is converted
+//                               FROM the GHS balance at the display
+//                               rate. The ⓘ renders whenever this line
+//                               renders (its disclosure wording is
+//                               state-aware: the equivalent-from-GHS
+//                               explanation on a fresh rate, the
+//                               fallback-rate explanation on saved/demo
+//                               rates)
 //   [••• Updating rate…]            [refresh]
 //
 // The two amount lines share ONE leading gutter column and ONE
 // unit-label column, so their digits sit in a clean vertical
-// alignment. The ≈ marks the GHS headline whenever it includes a
-// converted USDC component, and always marks the USDC line — both are
-// estimates of the other's frame, never exact holdings of both. The visual
-// USDC line never says the word "equivalent": ≈ already communicates
-// the relationship; the full accessible semantics keep the honest
-// explanation (an equivalent calculation, not necessarily USDC
-// actually held).
+// alignment. The ≈ lives ONLY on the USDC line — the equivalent is
+// the estimate; the GHS headline is the app's canonical figure and
+// renders exact. The visual USDC line never says the word
+// "equivalent": ≈ already communicates the relationship; the full
+// accessible semantics keep the honest explanation (an equivalent
+// calculation, not necessarily USDC actually held).
 //
 // STATE LAWS (product contract):
 //   • Balance readiness and FX readiness are SEPARATE states. FX loading
@@ -108,15 +106,13 @@ class BalanceCardFx extends StatelessWidget {
 
   /// The honest, STATE-AWARE disclosure for the figures on this card.
   ///
-  /// Three contract states, each phrased so the user can never mistake a
-  /// converted GHS display valuation for a native GHS wallet holding:
-  ///   • fresh rate, no native-GHS wallet on the contract (the CURRENT
-  ///     live state — backend PR #367 unmerged): the GH₵ figure is a
-  ///     display valuation converted from the real USDC holding;
-  ///   • fresh rate, native wallet present (future contract): the
-  ///     total honestly combines the native holding with converted
-  ///     USDC;
-  ///   • saved/demo fallback rate: the existing indicative wording.
+  /// GHS is the app's MAIN currency: the GH₵ headline is the canonical
+  /// balance figure and the USDC line is the EQUIVALENT derived from
+  /// it — never the other way round. Two contract states:
+  ///   • fresh rate: the USDC figure is the approximate equivalent of
+  ///     the available GHS balance at the current rate;
+  ///   • saved/demo fallback rate: the same equivalent explanation plus
+  ///     the indicative-rate wording.
   String _disclosureBody() {
     final v = valuation;
     final rate = v.rate;
@@ -153,41 +149,24 @@ class BalanceCardFx extends StatelessWidget {
       return buffer.toString();
     }
 
-    // Fresh rate — distinguish converted display valuation from native.
-    final buffer = StringBuffer();
-    if (v.nativeGhsAvailable == null) {
-      buffer
-        ..write(
-          'Your available balance is held in USDC. The GH₵ figure is an '
-          'approximate GHS display valuation converted from your USDC '
-          'at the current rate',
-        )
-        ..write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
-      if (source != null && source.isNotEmpty) {
-        buffer.write(', source: $source');
-      }
-      if (observed.isNotEmpty) buffer.write(', observed $observed');
-      buffer.write(
-        '. It is not a native GHS wallet holding: no native-GHS wallet or '
-        'combined valuation total is published by the backend yet. This '
-        'conversion is not a guaranteed execution rate or a firm quote.',
-      );
-    } else {
-      buffer
-        ..write(
-          'Your available total is approximate: it combines your native '
-          'GHS wallet (${AzMoney.ghs(v.nativeGhsAvailable!)}) with your '
-          'USDC converted at the current rate',
-        )
-        ..write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
-      if (source != null && source.isNotEmpty) {
-        buffer.write(', source: $source');
-      }
-      if (observed.isNotEmpty) buffer.write(', observed $observed');
-      buffer.write(
-        '. This is not a guaranteed execution rate or a firm quote.',
-      );
+    // Fresh rate — GHS is the main currency; the USDC line is the
+    // equivalent derived FROM the GHS balance, never GHS derived from
+    // USDC.
+    final buffer = StringBuffer()
+      ..write(
+        'Your available balance is shown in GH₵ — Azaman\u2019s main '
+        'currency. The USDC figure is the approximate USDC equivalent '
+        'of that balance, converted from it at the current rate',
+      )
+      ..write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
+    if (source != null && source.isNotEmpty) {
+      buffer.write(', source: $source');
     }
+    if (observed.isNotEmpty) buffer.write(', observed $observed');
+    buffer.write(
+      '. It is an equivalent calculation, not necessarily USDC held, and '
+      'this rate is not a guaranteed execution rate or a firm quote.',
+    );
     return buffer.toString();
   }
 
@@ -196,9 +175,7 @@ class BalanceCardFx extends StatelessWidget {
     if (valuation.rate.isFallback) {
       return 'About the USDC equivalent and saved rate';
     }
-    return valuation.nativeGhsAvailable == null
-        ? 'About the GHS valuation and USDC equivalent'
-        : 'About the available balance breakdown';
+    return 'About the USDC equivalent';
   }
 
   Future<void> _showDisclosure(BuildContext context) {
@@ -269,30 +246,19 @@ class BalanceCardFx extends StatelessWidget {
           tracking: 0,
         ),
         unitStyle: AzText.label.copyWith(color: colors.textTertiary),
-        // Workstream J2: the headline carries the ≈ whenever its total
-        // includes a converted USDC component (nativeGhsAvailable == null
-        // on the current contract — the whole figure is a converted
-        // display valuation; a future native+USDC combined total also
-        // converts). ONLY a genuinely native-GHS-only total renders
-        // exact. GHS stays visually dominant; the marker is honesty,
-        // never a redesign of the financial backend. The gutter column
-        // stays so both lines' digits stay aligned.
-        approx: v.headlineIncludesConvertedUsdc,
-        // The semantics follow the visual state exactly (Workstream J2):
-        // a total with a converted USDC component is announced as an
-        // APPROXIMATE GHS display valuation — never a guaranteed GHS
-        // amount or a native holding. Only a genuinely native-GHS-only
-        // total keeps the exact 'in GHS' language.
-        semanticsLabel: v.headlineIncludesConvertedUsdc
-            ? (v.nativeGhsAvailable == null
-                  ? 'Approximately ${AzMoney.ghs(v.availableGhsValue!)} — '
-                        'a GHS display valuation converted from USDC at '
-                        'the current rate, not a native GHS wallet holding'
-                  : 'Approximately ${AzMoney.ghs(v.availableGhsValue!)} — '
-                        'combines your native GHS wallet with USDC '
-                        'converted at the current rate')
-            : 'Available balance '
-                  '${AzMoney.ghs(v.availableGhsValue!)} in GHS',
+        // GHS is the app's MAIN currency — the headline is the
+        // canonical balance figure and NEVER carries the ≈. Only the
+        // USDC equivalent line is an estimate (it is converted FROM
+        // this GHS balance at the display rate). The shared gutter
+        // column stays so both lines' digits stay aligned; the ≈
+        // glyph itself renders only on the USDC line.
+        approx: false,
+        // The semantics follow the visual state exactly: the GHS
+        // headline is announced as the available balance in GHS —
+        // the app's main currency, never as a USDC-derived estimate.
+        // The estimate language lives ONLY on the USDC line.
+        semanticsLabel: 'Available balance '
+            '${AzMoney.ghs(v.availableGhsValue!)} in GHS',
       );
     } else {
       // Confirmed balance, but the combined GHS value is not computable
@@ -398,10 +364,10 @@ class BalanceCardFx extends StatelessWidget {
           ),
           // The information icon sits IMMEDIATELY BESIDE the equivalent —
           // not by the GHS headline, not at the right edge. It is
-          // visible whenever this line renders: in the CURRENT contract
-          // state the GHS figure is a converted display valuation and
-          // the disclosure says exactly that; on fallback rates it
-          // explains the saved/demo rate.
+          // visible whenever this line renders: the USDC line is the
+          // estimate (the equivalent converted from the GHS balance)
+          // and the disclosure explains exactly that; on fallback rates
+          // it also explains the saved/demo rate.
           ...[
             const SizedBox(width: AzSpace.xs),
             FlipGuardMarker(
@@ -644,8 +610,8 @@ class _DisclosureIconButton extends StatelessWidget {
       button: true,
       child: Tooltip(
         // State-aware like the disclosure body itself: fresh-rate states
-        // describe a converted display valuation, fallback states the
-        // saved/demo rate.
+        // explain the USDC equivalent, fallback states the saved/demo
+        // rate.
         message: semanticLabel,
         // HIT TARGET CONTRACT: the control's effective touch target is the
         // full 44 x 44 dp mobile accessibility target (WCAG 2.5.8 /
