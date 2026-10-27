@@ -79,6 +79,10 @@ Future<void> _loadFonts() async {
 /// default good state, and the one the disclosure control shows.
 BalanceCardValuation _fresh() {
   const base = BalanceCardValuation(
+    // Owner-corrected contract (2026-10-27): the headline is the
+    // authoritative native-GHS balance — a fixture for the card's good
+    // state carries it natively, never as USDC-derived GHS.
+    nativeGhsAvailable: 100,
     availableUsdc: 100,
     balanceConfirmed: true,
     rate: FxRateView(
@@ -91,8 +95,11 @@ BalanceCardValuation _fresh() {
 }
 
 BalanceCardValuation _freshGhs(double ghs) => BalanceCardValuation(
-  nativeGhsAvailable: 0,
-  availableUsdc: ghs / 12.5,
+  // The given figure IS the native GHS balance (owner-corrected
+  // contract) — never a USDC holding masquerading as GHS via the old
+  // (removed) combined-total derivation.
+  nativeGhsAvailable: ghs,
+  availableUsdc: 25,
   balanceConfirmed: true,
   azmPoints: 0,
   rate: const FxRateView(

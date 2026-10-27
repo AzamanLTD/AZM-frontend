@@ -444,9 +444,43 @@ void main() {
       expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
           findsOneWidget,
           reason: 'the disclosure stays available even without a '
-              'fallback — it explains the combined total');
+              'fallback — it explains the equivalent');
       expect(find.textContaining('Using saved rate'), findsNothing,
           reason: 'no fallback chrome in the rate row');
+
+      // The headline is the NATIVE GHS balance only — USDC held never
+      // enters it (owner-corrected contract 2026-10-27): 100 native GHS,
+      // NOT 100 + 50 × 12.03 = 701.50.
+      final semantics = tester.firstWidget<Semantics>(
+        find.descendant(
+          of: find.byKey(const ValueKey('balance-fx-headline')),
+          matching: find.byType(Semantics),
+        ),
+      );
+      expect(semantics.properties.label,
+          'Available balance ${AzMoney.ghs(100)} in GHS');
+      // The equivalent is derived FROM that GHS balance: 100 / 12.03.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent')),
+          findsOneWidget);
+
+      // The disclosure says the USDC line is the equivalent converted
+      // FROM the GHS balance — never GHS derived from USDC.
+      await tester.tap(
+          find.byKey(const ValueKey('balance-fx-equivalent-info')));
+      await tester.pumpAndSettle();
+      final body = find.byKey(
+          const ValueKey('balance-fx-fallback-disclosure-body'));
+      expect(body, findsOneWidget);
+      // The body key sits on the Text itself — read its data directly.
+      final bodyText = tester.widget<Text>(body).data;
+      expect(bodyText, contains('Azaman\u2019s main currency'));
+      expect(bodyText, contains('converted from it'));
+      expect(bodyText, isNot(contains('held in USDC')));
+      await tester
+          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+          findsNothing);
 
       // Owner correction (2026-10-27): GHS is the app's MAIN currency —
       // the headline is the canonical balance figure and NEVER carries
@@ -471,11 +505,14 @@ void main() {
       );
     });
 
-    testWidgets('a fresh rate with NO native GHS wallet (the current live '
-        'contract) keeps the info icon and the converted-valuation '
-        'disclosure — never a claimed native total', (tester) async {
+    testWidgets('NO native GHS wallet (the current live contract): an '
+        'honest UNAVAILABLE headline — never a USDC-derived figure',
+        (tester) async {
       final v = const BalanceCardValuation(
-        // The current backend contract publishes no native-GHS wallet.
+        // The current backend contract publishes no native-GHS wallet:
+        // there is NO authoritative GHS source, so the headline may
+        // never be derived from the USDC holding (owner-corrected
+        // contract 2026-10-27).
         nativeGhsAvailable: null,
         availableUsdc: 50,
         balanceConfirmed: true,
@@ -485,45 +522,35 @@ void main() {
           kind: FxRateKind.fresh,
         ),
       ).compute();
-      expect(v.availableGhsValue, 601.5,
-          reason: 'the honest interim derivation: USDC × rate');
+      expect(v.availableGhsValue, isNull,
+          reason: 'NO client-side derivation of GHS from USDC — ever');
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.headlineKnown, isFalse);
       await _pumpPair(tester, valuation: v);
 
-      // The info icon is visible beside the USDC line in the live state.
-      expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
-          findsOneWidget);
-
-      // Owner correction (2026-10-27): GHS is the app's MAIN currency —
-      // the headline is announced as the available balance in GHS,
-      // exactly, on every fixture. The estimate language lives only on
-      // the USDC line.
-      final semantics = tester.firstWidget<Semantics>(
-        find.descendant(
-          of: find.byKey(const ValueKey('balance-fx-headline')),
-          matching: find.byType(Semantics),
-        ),
-      );
-      expect(semantics.properties.label,
-          'Available balance ${AzMoney.ghs(601.5)} in GHS');
-
-      // The disclosure says the USDC line is the equivalent converted
-      // FROM the GHS balance — never GHS derived from USDC.
-      await tester.tap(
-          find.byKey(const ValueKey('balance-fx-equivalent-info')));
-      await tester.pumpAndSettle();
-      final body = find.byKey(
-          const ValueKey('balance-fx-fallback-disclosure-body'));
-      expect(body, findsOneWidget);
-      // The body key sits on the Text itself — read its data directly.
-      final bodyText = tester.widget<Text>(body).data;
-      expect(bodyText, contains('Azaman\u2019s main currency'));
-      expect(bodyText, contains('converted from it'));
-      expect(bodyText, isNot(contains('held in USDC')));
-      await tester
-          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+      // The headline renders the honest unavailable dash — never a
+      // fabricated GH₵ 0.00, never USDC relabelled as GHS, and never a
+      // loading state.
+      expect(find.byKey(const ValueKey('balance-fx-headline')),
           findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-headline-unavailable')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-headline-dash')),
+          findsOneWidget);
+      // No equivalent either: it is derived FROM the GHS balance, which
+      // does not exist on this fixture.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-unavailable')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-row')),
+          findsNothing);
+      // No estimate on screen → no ≈ and no disclosure icon.
+      expect(find.text('≈'), findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
+          findsNothing);
+      // The rate row keeps its own informational state — a rate fact is
+      // not a valuation.
+      expect(find.byKey(const ValueKey('balance-fx-rate-fresh')),
+          findsOneWidget);
     });
 
     testWidgets('the fallback disclosure opens on tap and does NOT flip the '
@@ -564,8 +591,9 @@ void main() {
       expect(find.byKey(const ValueKey('balance-fx-headline')), findsNothing);
     });
 
-    testWidgets('no rate and no fallback: stable unavailable state',
-        (tester) async {
+    testWidgets('no rate and no fallback: the GHS headline stays KNOWN — '
+        'GHS never needed a rate — and only the USDC estimate goes '
+        'unavailable', (tester) async {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 100,
         availableUsdc: 50,
@@ -575,19 +603,22 @@ void main() {
       await _pumpPair(tester, valuation: v);
       expect(find.byKey(const ValueKey('balance-fx-rate-unavailable')),
           findsOneWidget);
-      // The combined GHS value is NOT computable without a rate: the
-      // headline renders an honest dash — never a fabricated GH₵ 0.00
-      // and never USDC relabelled as GHS.
+      // The GHS headline is the native balance — it was NEVER a
+      // conversion, so it needs no rate. It renders in full.
+      expect(find.byKey(const ValueKey('balance-fx-headline')),
+          findsOneWidget);
       expect(find.byKey(const ValueKey('balance-fx-headline-unavailable')),
+          findsNothing);
+      // Only the USDC estimate is unavailable — an honest dash in the
+      // estimate slot. The REAL USDC holding never sits in that slot
+      // (it is a separate concept, shown on the back face); ≈ would
+      // claim a relationship that does not exist in this state.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-unavailable')),
           findsOneWidget);
-      expect(find.byKey(const ValueKey('balance-fx-headline-dash')),
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-dash')),
           findsOneWidget);
-      // The REAL USDC holding still shows beneath — a fact, not a
-      // conversion, and its leading slot carries NO ≈.
-      expect(find.byKey(const ValueKey('balance-fx-usdc-held-no-rate')),
-          findsOneWidget);
-      expect(find.byKey(const ValueKey('balance-fx-usdc-held-amount')),
-          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-row')),
+          findsNothing);
       expect(find.text('≈'), findsNothing,
           reason: 'no rate means no equivalence claim');
     });
@@ -609,14 +640,13 @@ void main() {
       // The GHS headline IS shown — no rate was ever needed for it.
       expect(find.byKey(const ValueKey('balance-fx-headline')),
           findsOneWidget);
-      // No equivalent row at all — and specifically no zero figure.
+      // The estimate slot renders the honest unavailable dash — never
+      // a fabricated "≈ 0.00 USDC" conversion.
       expect(find.byKey(const ValueKey('balance-fx-equivalent-row')),
           findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-unavailable')),
+          findsOneWidget);
       expect(find.textContaining('0.00 USDC'), findsNothing);
-      // Not an incomplete valuation: there is nothing missing from the
-      // GHS total, only from its USDC translation.
-      expect(find.byKey(const ValueKey('balance-fx-valuation-incomplete')),
-          findsNothing);
       expect(find.byKey(const ValueKey('balance-fx-rate-unavailable')),
           findsOneWidget);
     });

@@ -384,11 +384,17 @@ void main() {
   });
 
   group('Native GHS and balance readiness', () {
-    test('nativeGhsAvailable is NULL on the current contract', () async {
+    test('nativeGhsAvailable is NULL on the current contract — and the '
+        'headline is honestly UNAVAILABLE, never derived from USDC',
+        () async {
       final v = await _val(_container());
       expect(v.nativeGhsAvailable, isNull);
-      expect(v.availableGhsValue, 50 * 12.0,
-          reason: 'the honest interim derivation: USDC × usable rate');
+      expect(v.availableGhsValue, isNull,
+          reason: 'NO client-side derivation of GHS from USDC exists '
+              '(owner-corrected contract 2026-10-27): without an '
+              'authoritative GHS source the headline is unavailable');
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.headlineKnown, isFalse);
     });
 
     test('unresolved readiness → balanceConfirmed false', () async {
@@ -579,12 +585,17 @@ void main() {
           valuationRaw: payload,
         ),
       ));
-      // The backend's own totals win; the client never recalculates and
-      // the legacy availableBalance is superseded.
+      // OWNER-CORRECTED CONTRACT (2026-10-27): the GHS headline maps the
+      // documented AUTHORITATIVE native-GHS balance verbatim. The
+      // backend's own COMBINED totals (1450 = native + converted USDC;
+      // 116 = its equivalent) are parsed for contract compatibility but
+      // deliberately NOT consumed — the headline is native GHS only.
       expect(v.nativeGhsAvailable, 20);
       expect(v.availableUsdc, 100);
-      expect(v.availableGhsValue, 1450);
-      expect(v.availableUsdcEquivalent, 116);
+      expect(v.availableGhsValue, 20);
+      expect(v.availableUsdcEquivalent, closeTo(20 / 12.5, 1e-9),
+          reason: 'the estimate is derived FROM the native GHS balance '
+              'at the display rate — never the backend combined figure');
       expect(v.escrowLocked, 5);
       expect(v.disputeEscrow, 2);
       expect(v.vaultLocked, 7);
@@ -648,29 +659,77 @@ void main() {
               'labelled current/fresh');
     });
 
-    test('backend-authoritative branch never recomputes the totals', () async {
-      // The payload's own GHS total deliberately disagrees with any
-      // client derivation (100 USDC × 12.5 client rate = 1250 ≠ 1450):
-      // the card must show 1450, the backend's number.
+    test('the payload\u2019s COMBINED totals are NOT consumed — the '
+        'headline is the native-GHS balance only', () async {
+      // The payload's own combined GHS total (1450 = 20 native + 100
+      // USDC × 12.5, rounded) folds a converted USDC component into
+      // the figure. The owner-corrected contract forbids exactly that:
+      // the headline maps nativeGhsAvailable (20) and NEVER the
+      // combined total, whatever the backend computes.
       final v = await _val(_container(
         balance: BalanceData(
           availableBalance: 100,
           valuationFieldPresent: true,
           valuationRaw: valuation367Payload(
+            nativeGhs: 20,
             availableGhsValue: {'exact': '1450.00000000', 'value': 1450},
             usdcEquivalent: {'exact': '116.00000000', 'value': 116},
           ),
         ),
       ));
-      expect(v.availableGhsValue, 1450);
-      expect(v.availableUsdcEquivalent, 116);
+      expect(v.availableGhsValue, 20,
+          reason: 'native GHS only — the 1450 combined figure must '
+              'never reach the headline');
+      expect(v.availableUsdcEquivalent, closeTo(20 / 12.5, 1e-9),
+          reason: 'the estimate derives from the GHS headline, not from '
+              'the backend\u2019s combined equivalent (116)');
+      expect(v.availableUsdc, 100,
+          reason: 'the real USDC holding passes through as its own fact');
     });
 
-    test('a PARTIAL_FX_UNAVAILABLE payload shows no GHS total', () async {
+    test('REGRESSION: changes to actual USDC held do NOT affect the GHS '
+        'headline — and the USDC estimate is derived FROM the GHS '
+        'balance', () async {
+      // Same native GHS (20), wildly different USDC held: the headline
+      // and its derived estimate must be identical in both.
+      Map<String, dynamic> payloadFor(double usdc) =>
+          valuation367Payload(nativeGhs: 20, availableUsdc: usdc);
+      final small = await _val(_container(
+        balance: BalanceData(
+          valuationFieldPresent: true,
+          valuationRaw: payloadFor(1),
+        ),
+      ));
+      final large = await _val(_container(
+        balance: BalanceData(
+          valuationFieldPresent: true,
+          valuationRaw: payloadFor(10000),
+        ),
+      ));
+      expect(small.availableGhsValue, 20);
+      expect(large.availableGhsValue, 20,
+          reason: '10,000 USDC held must not move the GHS headline');
+      expect(small.availableUsdcEquivalent, closeTo(20 / 12.5, 1e-9));
+      expect(large.availableUsdcEquivalent, closeTo(20 / 12.5, 1e-9),
+          reason: 'the estimate follows the GHS balance, never the '
+              'USDC holding');
+      // The holding itself passes through truthfully.
+      expect(small.availableUsdc, 1);
+      expect(large.availableUsdc, 10000);
+    });
+
+    test('a PARTIAL_FX_UNAVAILABLE payload: the native GHS headline '
+        'still shows — GHS never needed a rate — and only the USDC '
+        'estimate is unavailable', () async {
+      // Owner-corrected contract (2026-10-27): FX unavailability may
+      // never take down the GHS headline (the main-currency balance is
+      // not a conversion). Only the USDC equivalent estimate goes
+      // unavailable, and the gate stays the backend's own fact.
       final v = await _val(_container(
         balance: BalanceData(
           valuationFieldPresent: true,
           valuationRaw: valuation367Payload(
+            nativeGhs: 30,
             usdcEquivalent: null,
             availableGhsValue: null,
             rateStatus: 'UNAVAILABLE',
@@ -679,8 +738,11 @@ void main() {
           ),
         ),
       ));
-      expect(v.availableGhsValue, isNull);
-      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.availableGhsValue, 30,
+          reason: 'the native GHS balance survives FX unavailability');
+      expect(v.availableUsdcEquivalent, isNull,
+          reason: 'the estimate needs the rate and is honestly '
+              'unavailable without one');
       expect(v.usdcTransactionGateOpen, isFalse);
       expect(v.rate.kind, FxRateKind.none);
     });
@@ -755,14 +817,26 @@ void main() {
     });
   });
 
-  group('legacy response (valuation field absent) → interim derivation', () {
-    test('the interim GHS figure remains the display-only derivation', () async {
+  group('legacy response (valuation field absent) → NO authoritative GHS '
+      'source', () {
+    test('REGRESSION: no derivation — the headline is UNAVAILABLE whatever '
+        'the USDC holding and the rate', () async {
       final v = await _val(_container());
       final rate = _usableRate();
-      expect(v.availableGhsValue, 50 * rate.ghsPerUsdc);
+      expect(v.availableGhsValue, isNull,
+          reason: 'the legacy fallback derivation (USDC × rate) was '
+              'REMOVED (owner-corrected contract 2026-10-27): GHS may '
+              'never be derived from USDC');
+      expect(v.availableUsdcEquivalent, isNull);
       expect(v.nativeGhsAvailable, isNull);
       expect(v.usdcTransactionGateOpen, isFalse);
+      // The rate row keeps its own informational state — a rate fact
+      // is not a valuation.
       expect(v.rate.kind, FxRateKind.fresh);
+      expect(v.rate.ghsPerUsdc, rate.ghsPerUsdc);
+      // The REAL USDC holding still passes through as its own fact (the
+      // back-face row) — it just never becomes a GHS figure.
+      expect(v.availableUsdc, 50);
     });
   });
 }

@@ -261,16 +261,17 @@ class BalanceCardFx extends StatelessWidget {
             '${AzMoney.ghs(v.availableGhsValue!)} in GHS',
       );
     } else {
-      // Confirmed balance, but the combined GHS value is not computable
-      // (no usable rate, no native GHS wallet). Honest dash — never a
-      // fabricated GH₵ 0.00, never USDC relabelled as GHS.
+      // Confirmed balance, but the backend published NO authoritative
+      // native-GHS balance (the only source the headline may consume —
+      // owner-corrected contract 2026-10-27). Honest dash — never a
+      // fabricated GH₵ 0.00, never USDC-derived GHS.
       // WORKSTREAM J3 — the unavailable state is announced as
-      // UNAVAILABLE: no usable rate and no native GHS total published.
-      // It must never read as a zero balance or a loading state.
+      // UNAVAILABLE. It must never read as a zero balance or a loading
+      // state.
       headline = Semantics(
         label:
-            'Available balance in GHS is unavailable — no usable '
-            'exchange rate',
+            'Available balance in GHS is unavailable — the backend '
+            'published no authoritative GHS balance',
         child: Row(
           key: const ValueKey('balance-fx-headline-unavailable'),
           children: [
@@ -380,36 +381,42 @@ class BalanceCardFx extends StatelessWidget {
           ],
         ],
       );
-    } else if (v.availableUsdc > 0) {
-      // No usable rate: there is NO equivalent. The REAL USDC holding
-      // still shows — it is a fact, not a conversion — and the leading
-      // slot stays empty: ≈ would claim a relationship that does not
-      // exist in this state.
-      secondary = Row(
-        key: const ValueKey('balance-fx-usdc-held-no-rate'),
-        children: [
-          const SizedBox(width: kApproxGutter, child: SizedBox.shrink()),
-          SizedBox(
-            width: kUnitColumn,
-            child: Text(
-              'USDC',
-              style: AzText.bodyS.copyWith(color: colors.textTertiary),
-            ),
-          ),
-          Text(
-            AzMoney.amount(v.availableUsdc),
-            key: const ValueKey('balance-fx-usdc-held-amount'),
-            style: AzText.money(
-              colors.textSecondary,
-              size: 16,
-              weight: FontWeight.w600,
-              tracking: 0,
-            ),
-          ),
-        ],
-      );
     } else {
-      secondary = const SizedBox(height: 20);
+      // No equivalent exists (no authoritative GHS balance, or no usable
+      // rate): the estimate is honestly UNAVAILABLE in this slot. The
+      // REAL USDC holding is a separate concept (owner-corrected
+      // contract 2026-10-27) — it never sits in the estimate slot; it
+      // shows on the back face as its own fact. The leading slot stays
+      // empty: ≈ would claim a relationship that does not exist in this
+      // state.
+      secondary = Semantics(
+        label:
+            'The USDC equivalent is unavailable — the GHS balance or a '
+            'usable exchange rate is missing',
+        child: Row(
+          key: const ValueKey('balance-fx-equivalent-unavailable'),
+          children: [
+            const SizedBox(width: kApproxGutter, child: SizedBox.shrink()),
+            SizedBox(
+              width: kUnitColumn,
+              child: Text(
+                'USDC',
+                style: AzText.bodyS.copyWith(color: colors.textTertiary),
+              ),
+            ),
+            Text(
+              '—',
+              key: const ValueKey('balance-fx-equivalent-dash'),
+              style: AzText.money(
+                colors.textTertiary,
+                size: 16,
+                weight: FontWeight.w600,
+                tracking: 0,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     // ── Bottom-left FX rate/status cluster ─────────────────────────────
