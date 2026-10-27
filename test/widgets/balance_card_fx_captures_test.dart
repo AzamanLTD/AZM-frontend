@@ -20,7 +20,7 @@
 //   MOTION — reduced-motion front and back (390 dark).
 //
 // Contract proven per capture:
-//   • the frame is exactly the Home deck footprint (165px) at every
+//   • the frame is exactly the Home deck footprint (180px) at every
 //     width and on BOTH faces — the surrounding layout cannot move;
 //   • front: eyebrow → headline → equivalent → rate row, refresh flush
 //     right, info icon beside the equivalent (fallback states only);
@@ -127,7 +127,7 @@ Future<void> _pump(
               child: RepaintBoundary(
                 key: const ValueKey('bcfx-capture-root'),
                 // The pair carries the Home deck's own fixed geometry
-                // (165px) and fills the parent width exactly as the
+                // (180px) and fills the parent width exactly as the
                 // Home layout does — never stretched to the surface.
                 child: BalanceCardPair(
                   key: const ValueKey('bcfx-pair'),

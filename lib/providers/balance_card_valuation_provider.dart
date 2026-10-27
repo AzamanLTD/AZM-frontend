@@ -86,14 +86,37 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
   final confirmed = readiness == BalanceReadiness.loaded;
 
   // ── FX: the oracle snapshot is a usable rate only while its full
-  // freshness contract holds. Loading is genuine when the fetch is in
-  // flight AND no usable snapshot is being displayed.
-  final rateUsable = fxSnapshot.asData?.value?.isUsable ?? false;
-  final usableRate = rateUsable ? fxSnapshot.asData!.value! : null;
+  // freshness contract holds. `loading` is the TRUTHFUL in-flight signal —
+  // a fetch is in progress — independent of whether a usable snapshot is
+  // still on screen. Riverpod keeps the previous value during an
+  // invalidate/refresh, so a refresh with a rate already displayed is
+  // exactly the case where isLoading is true AND hasRate is true: the
+  // card must show its inline updating indication while KEEPING the
+  // valid rate visible (it is not a return to the initial-fetch dots).
+  // The old gate (`isLoading && !rateUsable`) flattened this to
+  // loading=false and silently suppressed the refresh indication.
+  // `.value`, NOT `asData`: through an invalidate/refresh (and through a
+  // failed re-fetch) Riverpod keeps the PREVIOUS snapshot in `.value`
+  // while the state is AsyncLoading/AsyncError — `asData` is null there,
+  // which is exactly how the valid rate used to vanish from the card for
+  // the whole refresh window. The freshness contract (`isUsable`,
+  // re-verified against the caller's clock on every read) stays the ONLY
+  // authority on whether the retained snapshot may still be presented as
+  // a rate: a snapshot that has gone stale is never shown, retained or
+  // not. Loading is reported TRUTHFULLY alongside (in-flight fetch), so
+  // the card can show its inline updating indication while KEEPING the
+  // valid rate on screen.
+  // hasValue guard: `.value` on an AsyncError WITHOUT a previous snapshot
+  // rethrows the error — only a RETAINED snapshot (refresh/error window)
+  // may be read here. A first-fetch failure is the honest unavailable
+  // state, never a thrown error on the card.
+  final fxSnapshotRetained = fxSnapshot.hasValue ? fxSnapshot.value : null;
+  final rateUsable = fxSnapshotRetained?.isUsable ?? false;
+  final usableRate = rateUsable ? fxSnapshotRetained! : null;
   final rateView = FxRateView(
     ghsPerUsdc: usableRate?.ghsPerUsdc,
     kind: rateUsable ? FxRateKind.fresh : FxRateKind.none,
-    loading: fxSnapshot.isLoading && !rateUsable,
+    loading: fxSnapshot.isLoading,
     observedAt: usableRate?.lastExternalSync,
   );
 

@@ -74,7 +74,7 @@ const double kApproxGutter = 16;
 const double kUnitColumn = 46;
 
 /// The headline's amount size — the live main card's hero rhythm
-/// (AzText.money, w600, tabular figures) scaled to the pair card's 165dp
+/// (AzText.money, w600, tabular figures) scaled to the pair card's 180dp
 /// footprint with the secondary line beneath.
 const double _kHeadlineSize = AzText.sizeHero;
 
@@ -461,7 +461,7 @@ class BalanceCardFx extends StatelessWidget {
         FxRateKind.demo => ' · Demo rate (seeded)',
         FxRateKind.none => '',
       };
-      rateStatus = Text(
+      final rateWidget = Text(
         '1 USDC ≈ ${AzMoney.ghs(rate.ghsPerUsdc!)}$suffix',
         key: ValueKey(switch (rate.kind) {
           FxRateKind.saved => 'balance-fx-rate-saved',
@@ -470,6 +470,50 @@ class BalanceCardFx extends StatelessWidget {
         }),
         style: AzText.caption.copyWith(color: colors.textTertiary),
       );
+      // REFRESH WITH A RATE ON SCREEN: the provider is truthfully
+      // reporting an in-flight fetch while a usable rate is already
+      // displayed (fxRateProvider keeps its previous value through an
+      // invalidate/refresh). The valid rate STAYS visible — it is never
+      // swapped for dots — and a compact updating indication appears
+      // beside it in the SAME reserved slot, same cluster height as the
+      // initial-fetch dots so nothing around the row reflows.
+      rateStatus = rate.loading
+          ? SizedBox(
+              height: 12 * 1.45,
+              child: Row(
+                key: const ValueKey('balance-fx-rate-refreshing'),
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  rateWidget,
+                  const SizedBox(width: AzSpace.sm),
+                  Semantics(
+                    label: 'Updating exchange rate',
+                    excludeSemantics: true,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FxTypingDots(
+                          key: const ValueKey('balance-fx-rate-refresh-dots'),
+                          color: colors.textSecondary,
+                        ),
+                        const SizedBox(width: AzSpace.xs),
+                        Text(
+                          'Updating…',
+                          key: const ValueKey(
+                            'balance-fx-rate-refresh-label',
+                          ),
+                          style: AzText.caption.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : rateWidget;
     } else if (rate.loading) {
       rateStatus = SizedBox(
         height: 12 * 1.45,
@@ -505,7 +549,7 @@ class BalanceCardFx extends StatelessWidget {
     // and nothing here can influence the card's layout size.
     // CONTENT INSET — AzSpace.md (12), not lg (16): the equivalent line's
     // disclosure control carries the full 44 x 44 dp accessibility touch
-    // target, and the fixed 165px footprint must hold the headline, the
+    // target, and the fixed 180px footprint must hold the headline, the
     // 44px equivalent row and the pinned rate row at the pair's 1.25x
     // text-scale clamp on every supported width (320dp included). The
     // denser inset buys that target without shrinking any glyph.
@@ -523,14 +567,40 @@ class BalanceCardFx extends StatelessWidget {
           const SizedBox(height: AzSpace.sm),
           // The dominant GHS line, scaled down only as much as the card
           // width demands (never pre-shrunk, never unreadable).
-          FittedBox(
-            key: const ValueKey('balance-fx-headline-fitted'),
-            alignment: Alignment.centerLeft,
-            fit: BoxFit.scaleDown,
-            child: headline,
+          //
+          // PERMANENT SLOT: every headline state (value, loading dots,
+          // unavailable dash) occupies the SAME fixed-height region — the
+          // money style's own line height (_kHeadlineSize at height 1.0) —
+          // so the secondary line below can never shift vertically when a
+          // value is absent, loading or unavailable. The GHS headline is
+          // the card's dominant region; its geometry is data-independent.
+          SizedBox(
+            key: const ValueKey('balance-fx-headline-slot'),
+            height: _kHeadlineSize,
+            width: double.infinity,
+            child: FittedBox(
+              key: const ValueKey('balance-fx-headline-fitted'),
+              alignment: Alignment.centerLeft,
+              fit: BoxFit.scaleDown,
+              child: headline,
+            ),
           ),
           const SizedBox(height: AzSpace.xxs),
-          secondary,
+          // PERMANENT SLOT, same doctrine as the headline: the USDC line
+          // occupies ONE fixed-height region (the equivalent row's own
+          // 44dp accessibility-target height) in EVERY state — equivalent,
+          // held-without-rate, balance-loading, empty — so the section's
+          // geometry is data-independent and the rate row below never
+          // moves. Content is center-aligned inside the region.
+          SizedBox(
+            key: const ValueKey('balance-fx-secondary-slot'),
+            height: 44,
+            width: double.infinity,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: secondary,
+            ),
+          ),
           // The middle block lives in the REMAINING space of the fixed
           // footprint so the rate row always stays pinned flush bottom.
           const Expanded(child: SizedBox.shrink()),
@@ -583,7 +653,7 @@ class _DisclosureIconButton extends StatelessWidget {
         // keeps Material's extra default padding from inflating the
         // target further; the explicit 44px minimum is the target, and
         // the pair's internal 1.25x text-scale clamp guarantees the
-        // resulting 44px row fits the fixed 165px card footprint at
+        // resulting 44px row fits the fixed 180px card footprint at
         // every supported width and text scale (48px did not: it
         // overflowed the card at 1.25x+ scales).
         child: Theme(

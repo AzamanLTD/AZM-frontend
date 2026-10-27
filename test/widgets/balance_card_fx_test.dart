@@ -10,7 +10,7 @@
 // Groups:
 //   1. Shared-frame geometry — the card's outer bounds, width and height
 //      are IDENTICAL across the flip (within an explicit 0.5px tolerance)
-//      and its footprint is exactly the Home deck contract (165px). The
+//      and its footprint is exactly the Home deck contract (180px). The
 //      surrounding layout does not move when the card flips.
 //   2. Front-face contracts — GHS-first stack order, FX state laws, the
 //      equivalent + info icon placement, the disclosure dialog, keyboard
@@ -185,7 +185,7 @@ Future<void> _pageDown(WidgetTester tester) async {
 
 void main() {
   group('shared frame — one physical card, fixed geometry', () {
-    testWidgets('the footprint is exactly the Home deck contract: 165px tall',
+    testWidgets('the footprint is exactly the Home deck contract: 180px tall',
         (tester) async {
       await _pumpPair(tester, valuation: _saved());
       final frame = _frameRect(tester);
@@ -227,7 +227,7 @@ void main() {
       expect(find.byKey(const ValueKey('bc-row-ghs-wallet')), findsOneWidget);
     });
 
-    testWidgets('the frame stays 165px on the back at 320dp and 390dp',
+    testWidgets('the frame stays 180px on the back at 320dp and 390dp',
         (tester) async {
       for (final width in [320.0, 390.0]) {
         await _pumpPair(tester, valuation: _saved(), width: width);
@@ -239,6 +239,156 @@ void main() {
             reason: 'the card fills the parent width at every size');
         await tester.pumpWidget(const SizedBox());
       }
+    });
+  });
+
+
+  group('PR-C: data-independent geometry + truthful FX refresh states', () {
+    // ───────────────────────────────────────────────────────────────────
+    // The 2026-10-27 UX pass: the restored 180px footprint reserves ONE
+    // fixed region per section (GHS headline / USDC line / FX status) and
+    // NO data state may move them; the FX row reports a genuine refresh
+    // truthfully — the valid rate STAYS on screen with an inline updating
+    // indication, instead of vanishing behind the initial-fetch dots.
+    // ───────────────────────────────────────────────────────────────────
+
+    BalanceCardValuation freshVal({bool loading = false}) =>
+        BalanceCardValuation(
+          nativeGhsAvailable: 100,
+          availableUsdc: 50,
+          balanceConfirmed: true,
+          rate: FxRateView(
+            ghsPerUsdc: 12.03,
+            kind: FxRateKind.fresh,
+            loading: loading,
+          ),
+        ).compute();
+
+    testWidgets('the three reserved regions NEVER move across every '
+        'data state — and the footprint is 180px in all of them',
+        (tester) async {
+      final states = <String, BalanceCardValuation>{
+        'fresh rate': freshVal(),
+        'genuine refresh (rate retained + loading)': freshVal(loading: true),
+        'saved fallback': _saved(),
+        'unavailable rate': const BalanceCardValuation(
+          nativeGhsAvailable: 100,
+          availableUsdc: 50,
+          balanceConfirmed: true,
+          rate: FxRateView(kind: FxRateKind.none),
+        ).compute(),
+        'USDC held, no GHS valuation (no rate, no native wallet)':
+            const BalanceCardValuation(
+          availableUsdc: 50,
+          balanceConfirmed: true,
+          rate: FxRateView(kind: FxRateKind.none),
+        ).compute(),
+        'balance loading': const BalanceCardValuation(
+          balanceConfirmed: false,
+          rate: FxRateView(kind: FxRateKind.none, loading: true),
+        ).compute(),
+      };
+
+      Rect? headline;
+      Rect? secondary;
+      Rect? rateRow;
+      double? frameHeight;
+      for (final entry in states.entries) {
+        await _pumpPair(tester, valuation: entry.value);
+        final h = tester
+            .getRect(find.byKey(const ValueKey('balance-fx-headline-slot')));
+        final sec = tester.getRect(
+            find.byKey(const ValueKey('balance-fx-secondary-slot')));
+        final rr = tester
+            .getRect(find.byKey(const ValueKey('balance-fx-rate-row')));
+        final fh = _frameRect(tester).height;
+        expect(fh, BalanceCardGeometry.height,
+            reason: '${entry.key}: the footprint is the fixed 180px deck '
+                'contract in EVERY state');
+        if (headline != null) {
+          expect(h.top, closeTo(headline.top, 0.5),
+              reason: '${entry.key}: the GHS headline region must be '
+                  'identical whether its value is present, loading or '
+                  'unavailable');
+          expect(sec.top, closeTo(secondary!.top, 0.5),
+              reason: '${entry.key}: the USDC line region never moves');
+          expect(rr.bottom, closeTo(rateRow!.bottom, 0.5),
+              reason: '${entry.key}: the FX status region stays pinned flush '
+                  'to the card bottom');
+        }
+        headline = h;
+        secondary = sec;
+        rateRow = rr;
+        frameHeight = fh;
+      }
+      expect(frameHeight, BalanceCardGeometry.height);
+    });
+
+    testWidgets('a genuine refresh KEEPS the valid rate on screen and adds '
+        'the inline updating indication — never the initial-fetch dots',
+        (tester) async {
+      await _pumpPair(tester, valuation: freshVal(loading: true));
+
+      // The rate stays visible, in its own node, unchanged.
+      expect(find.byKey(const ValueKey('balance-fx-rate-fresh')),
+          findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(
+                find.byKey(const ValueKey('balance-fx-rate-fresh')))
+            .data,
+        startsWith('1 USDC ≈ GH'),
+        reason: 'the valid rate value is not removed during a refresh');
+      // The refresh indication appears beside it.
+      expect(find.byKey(const ValueKey('balance-fx-rate-refreshing')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-rate-refresh-dots')),
+          findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(
+                find.byKey(const ValueKey('balance-fx-rate-refresh-label')))
+            .data,
+        'Updating…',
+      );
+      // The initial-fetch presentation (dots REPLACING the rate) must NOT
+      // be used when a rate is already on screen.
+      expect(find.byKey(const ValueKey('balance-fx-rate-dots')),
+          findsNothing);
+      expect(find.text('Updating rate…'), findsNothing);
+      expect(_frameRect(tester).height, BalanceCardGeometry.height);
+    });
+
+    testWidgets('an initial fetch (NO rate yet) still shows the animated '
+        'dots + updating caption — and never the refresh row',
+        (tester) async {
+      await _pumpPair(
+        tester,
+        valuation: const BalanceCardValuation(
+          nativeGhsAvailable: 100,
+          availableUsdc: 50,
+          balanceConfirmed: true,
+          rate: FxRateView(kind: FxRateKind.none, loading: true),
+        ).compute(),
+      );
+      expect(find.byKey(const ValueKey('balance-fx-rate-dots')),
+          findsOneWidget);
+      expect(find.text('Updating rate…'), findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-rate-refreshing')),
+          findsNothing);
+    });
+
+    testWidgets('an idle fresh rate shows NO indicator at all — the dots '
+        'are never decorative', (tester) async {
+      await _pumpPair(tester, valuation: freshVal());
+      expect(find.byKey(const ValueKey('balance-fx-rate-fresh')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-rate-refreshing')),
+          findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-rate-dots')),
+          findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-rate-updating')),
+          findsNothing);
     });
   });
 
@@ -575,7 +725,7 @@ void main() {
 
       // Page through EVERY remaining section. Each pumpAndSettle inside
       // _pageDown throws on any RenderFlex overflow inside the fixed
-      // 165dp card — COMMITTED (all-unknown rows), LOCKED, VENDOR
+      // 180dp card — COMMITTED (all-unknown rows), LOCKED, VENDOR
       // (present: vendor: true), NON-CASH.
       await _pageDown(tester); // COMMITTED
       expect(find.byKey(const ValueKey('bc-row-vaults')), findsOneWidget);

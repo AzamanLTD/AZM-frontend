@@ -434,6 +434,76 @@ void main() {
       expect(v.availableUsdcEquivalent, isNull);
       expect(v.usdcTransactionGateOpen, isFalse);
     });
+ 
+    test('REFRESH WINDOW: an in-flight re-fetch keeps the valid rate on '
+        'screen and reports loading truthfully (PR-C)', () async {
+      final c = _container();
+      final settled = await _val(c);
+      expect(settled.rate.hasRate, isTrue,
+          reason: 'sanity: the snapshot landed before the refresh');
+      expect(settled.rate.loading, isFalse);
+
+      // The refresh window: invalidate WITHOUT awaiting the new future —
+      // Riverpod keeps the previous snapshot in `.value` while the state
+      // is AsyncLoading, exactly like a live invalidate/refresh.
+      c.invalidate(fxRateProvider);
+      final during = c.read(balanceCardValuationProvider);
+
+      expect(during.rate.hasRate, isTrue,
+          reason: 'the valid rate must survive the refresh window — it '
+              'is never swapped for the initial-fetch dots');
+      expect(during.rate.kind, FxRateKind.fresh);
+      expect(during.rate.loading, isTrue,
+          reason: 'the in-flight fetch is reported TRUTHFULLY so the card '
+              'can show its inline updating indication');
+      expect(during.availableGhsValue, settled.availableGhsValue,
+          reason: 'the displayed valuation is unchanged while refreshing');
+
+      // Once the re-fetch lands, loading clears.
+      final after = await _val(c);
+      expect(after.rate.hasRate, isTrue);
+      expect(after.rate.loading, isFalse);
+    });
+
+    test('FAILED re-fetch with a previous usable snapshot: the last known '
+        'rate stays honest (freshness-gated), loading is reported',
+        () async {
+      // First fetch succeeds, then the provider is replaced by one that
+      // fails — the refresh-error window (AsyncError keeps `.value`).
+      var calls = 0;
+      final c = ProviderContainer(overrides: [
+        balanceDataProvider.overrideWith((ref) => const BalanceData(
+            availableBalance: 50)),
+        balanceReadinessProvider
+            .overrideWith((ref) => BalanceReadiness.loaded),
+        fxRateProvider.overrideWith((ref) async {
+          calls++;
+          if (calls == 1) return _usableRate();
+          throw Exception('refresh failed');
+        }),
+        vaultsProvider.overrideWith(() => _FakeVaultsNotifier(const [])),
+        savingsOverviewProvider.overrideWith(
+            () => _FakeSavingsNotifier(const SavingsOverview({}))),
+        susuListProvider.overrideWith(() => _FakeSusuListNotifier(const [])),
+        isVendorProvider.overrideWithValue(false),
+      ]);
+      addTearDown(c.dispose);
+
+      final settled = await _val(c);
+      expect(settled.rate.hasRate, isTrue);
+      c.invalidate(fxRateProvider);
+      await c.read(fxRateProvider.future).catchError(
+          (Object _) => null as FxRateSnapshot?);
+      // AsyncError retains the previous value: the freshness contract
+      // (isUsable, re-verified per read) stays the only authority on
+      // whether it may still be presented as a rate.
+      final after = c.read(balanceCardValuationProvider);
+      expect(after.rate.hasRate, isTrue,
+          reason: 'a failed background refresh does not erase the last '
+              'known usable rate — staleness is gated by isUsable, not by '
+              'the error');
+      expect(after.rate.kind, FxRateKind.fresh);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────
