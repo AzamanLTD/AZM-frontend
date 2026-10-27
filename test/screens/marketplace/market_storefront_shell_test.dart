@@ -6,11 +6,13 @@
 //   2.  the sheet starts at the overview/arrival snap,
 //   3.  dragging down reveals the information behind the sheet,
 //   4.  dragging up locks the shopping snap,
-//   5.  the discovery animation runs exactly once per screen,
+//   5.  STILLNESS: the sheet never moves on its own — after the first
+//       frame it stays at the arrival snap until the user interacts
+//       (no automatic entrance peek, in ANY motion preference).
 //   6.  the compact market pill only appears at the collapse threshold,
 //   7.  the market name stays visible in the compact pill,
 //   8.  product content stays reachable after the hero collapses,
-//   9.  reduced motion disables the discovery choreography,
+//   9.  reduced motion users get the identical still arrival frame,
 //   10. no-banner markets render a coherent gradient hero,
 //   11. missing info fields never produce empty information blocks,
 //   12. the vertical content entry points (catalog shortcut / primary CTA)
@@ -22,8 +24,9 @@
 //       reachable again, announced to screen readers as the live value.
 //   15. (PR D) the grab handle accepts a real DRAG: down reveals info, up
 //       re-locks shopping, the release snaps.
-//   16. (PR D) the discovery choreography yields the instant the user
-//       touches the sheet — it never repossesses the surface.
+//   16. (AUDIT) the automatic entrance peek is GONE: stillness is the
+//       contract — the sheet opens at overview and only user gestures
+//       (handle tap/drag, list drag) ever move it.
 //
 // Extents are measured behaviorally via the sheet's on-screen rect, so the
 // tests survive any internal controller refactor.
@@ -151,15 +154,9 @@ Rect _sheetRect(WidgetTester tester) {
 double _extentOf(WidgetTester tester) =>
     1.0 - (_sheetRect(tester).top / _screenHeight);
 
-Future<void> _settleDiscovery(WidgetTester tester) async {
-  // Advance explicitly through the choreography timeline:
-  // entrance beat (180ms) → dip (220ms) → hold (220ms) → settle (350ms).
-  // (pumpAndSettle alone stops while no frame is scheduled even though a
-  // discovery timer is still pending, which would freeze the sheet mid-way.)
-  await tester.pump(const Duration(milliseconds: 200));
-  await tester.pump(const Duration(milliseconds: 240));
-  await tester.pump(const Duration(milliseconds: 260));
-  await tester.pump(const Duration(milliseconds: 420));
+Future<void> _settle(WidgetTester tester) async {
+  // No entrance choreography exists anymore — the sheet opens at the
+  // overview (arrival) snap and stays there. A plain settle is enough.
   await tester.pumpAndSettle();
 }
 
@@ -191,7 +188,7 @@ void main() {
     tester,
   ) async {
     await _pumpShell(tester, locations: [_location()]);
-    await _settleDiscovery(tester);
+    await _settle(tester);
 
     // Pull the sheet down from shopping — information appears behind it.
     await tester.drag(
@@ -214,7 +211,7 @@ void main() {
     tester,
   ) async {
     await _pumpShell(tester, locations: [_location()]);
-    await _settleDiscovery(tester);
+    await _settle(tester);
 
     // Down to info first...
     await tester.drag(
@@ -225,10 +222,11 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
 
-    // ...then lift back into shopping.
+    // ...then lift back into shopping (from the info rest the ride must
+    // clear the overview snap — the release lands nearest shopping).
     await tester.drag(
       find.byType(ListView).last,
-      const Offset(0, -340),
+      const Offset(0, -400),
       warnIfMissed: false,
     );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
@@ -236,40 +234,50 @@ void main() {
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
   });
 
-  testWidgets('discovery animation runs exactly once for the screen', (
-    tester,
-  ) async {
-    final biz = _business();
-    var following = false;
-    Widget buildShell(bool isFollowing) => _wrap(
-      MarketStorefrontShell(
-        business: biz,
-        colors: ThemeProvider.getColors(AzamanTheme.light),
-        bannerUrl: biz.coverImageUrl,
-        locations: const [],
-        showcaseSlides: const [],
-        isFollowing: isFollowing,
-        unpaidInvoices: 0,
-        hasCatalog: false,
-        catalogLabel: 'Catalog',
-        productsBuilder: (context) => [const Text('Product surface')],
-      ),
-    );
+  testWidgets(
+    'AUDIT: the sheet never moves on its own — no automatic entrance peek',
+    (tester) async {
+      final biz = _business();
+      var following = false;
+      Widget buildShell(bool isFollowing) => _wrap(
+        MarketStorefrontShell(
+          business: biz,
+          colors: ThemeProvider.getColors(AzamanTheme.light),
+          bannerUrl: biz.coverImageUrl,
+          locations: const [],
+          showcaseSlides: const [],
+          isFollowing: isFollowing,
+          unpaidInvoices: 0,
+          hasCatalog: false,
+          catalogLabel: 'Catalog',
+          productsBuilder: (context) => [const Text('Product surface')],
+        ),
+      );
 
-    await tester.pumpWidget(buildShell(following));
-    // Let the full dip-and-settle play out.
-    await _settleDiscovery(tester);
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+      await tester.pumpWidget(buildShell(following));
+      // First frame: the arrival snap.
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
 
-    // Rebuild the SAME screen state (e.g. follow state flipped after a tap) —
-    // the discovery choreography must not replay.
-    following = true;
-    await tester.pumpWidget(buildShell(following));
-    await tester.pump(const Duration(milliseconds: 1200));
-    await tester.pumpAndSettle();
+      // The ENTIRE old choreography timeline passes — no timers exist
+      // anymore, and none may be reintroduced: the sheet must not dip,
+      // spring, or reposition itself by a single pixel.
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 240));
+      await tester.pump(const Duration(milliseconds: 260));
+      await tester.pump(const Duration(milliseconds: 420));
+      await tester.pumpAndSettle();
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
 
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
-  });
+      // A rebuild of the SAME screen state (e.g. follow state flipped
+      // after a tap) must not trigger any movement either.
+      following = true;
+      await tester.pumpWidget(buildShell(following));
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pumpAndSettle();
+
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
+    },
+  );
 
   testWidgets(
     'compact market identity appears only after the collapse threshold',
@@ -293,7 +301,18 @@ void main() {
       expect(pillOpacity(tester).opacity, 0.0);
       expect(pill, findsOneWidget); // tree presence, not visibility
 
-      await _settleDiscovery(tester);
+      // The sheet stays put: no choreography collapses it.
+      await _settle(tester);
+      expect(pillOpacity(tester).opacity, 0.0);
+
+      // The USER collapses it — handle drag up to the shopping snap.
+      await tester.drag(
+        find.byKey(const Key('market-storefront-handle')),
+        const Offset(0, -240),
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 50));
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
       // Collapsed to shopping: the pill is fully opaque.
       expect(pillOpacity(tester).opacity, 1.0);
     },
@@ -301,7 +320,13 @@ void main() {
 
   testWidgets('market name stays visible in the compact state', (tester) async {
     await _pumpShell(tester);
-    await _settleDiscovery(tester);
+    await _settle(tester);
+    await tester.drag(
+      find.byKey(const Key('market-storefront-handle')),
+      const Offset(0, -240),
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     final nameInPill = find.descendant(
       of: find.byKey(const Key('market-compact-pill')),
@@ -325,7 +350,7 @@ void main() {
       ),
       locations: [_location()],
     );
-    await _settleDiscovery(tester);
+    await _settle(tester);
     expect(tester.takeException(), isNull);
 
     await tester.drag(
@@ -346,7 +371,14 @@ void main() {
         for (var i = 1; i <= 20; i++) Text('Product item $i'),
       ],
     );
-    await _settleDiscovery(tester);
+    await _settle(tester);
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
+    await tester.drag(
+      find.byKey(const Key('market-storefront-handle')),
+      const Offset(0, -240),
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
 
     // The sheet's product list still scrolls while locked at shopping.
@@ -358,7 +390,7 @@ void main() {
     expect(find.text('Product item 20'), findsOneWidget);
   });
 
-  testWidgets('reduced motion disables the discovery choreography', (
+  testWidgets('reduced motion users get the identical still arrival frame', (
     tester,
   ) async {
     // The app's own reduced-motion seam (TASK-026): AzMotion consults the
@@ -384,12 +416,13 @@ void main() {
       ),
     );
 
-    // No dip: the sheet goes straight to the shopping snap and stays there.
+    // Stillness is the SAME contract under reduced motion: the arrival
+    // snap, then nothing moves without the user.
     await tester.pump(const Duration(milliseconds: 60));
     await tester.pump(const Duration(milliseconds: 16));
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
     await tester.pump(const Duration(milliseconds: 600));
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
   });
 
   testWidgets('businesses with no banner still render a coherent hero', (
@@ -399,13 +432,13 @@ void main() {
       tester,
       business: _business(coverImageUrl: null, logoUrl: null),
     );
-    await _settleDiscovery(tester);
+    await _settle(tester);
 
     // No network image in the hero at all — the accent gradient fallback
     // carries the identity instead of a broken layout.
     expect(find.byType(AzamanNetworkImage), findsNothing);
     expect(find.text('Makola Fresh Market'), findsWidgets);
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
     expect(tester.takeException(), isNull);
   });
 
@@ -424,7 +457,7 @@ void main() {
         ),
         locations: const [], // no locations → no hours either
       );
-      await _settleDiscovery(tester);
+      await _settle(tester);
 
       // Pull down to the info snap: with no info at all, no section shells.
       await tester.drag(
@@ -453,7 +486,7 @@ void main() {
         ),
         locations: const [],
       );
-      await _settleDiscovery(tester);
+      await _settle(tester);
       await tester.drag(
         find.byType(ListView).last,
         const Offset(0, 300),
@@ -489,7 +522,7 @@ void main() {
         ),
       ),
     );
-    await _settleDiscovery(tester);
+    await _settle(tester);
 
     // The vertical's full catalog experience (flip-book / catalog storefront)
     // remains reachable from the sheet action row.
@@ -515,8 +548,8 @@ void main() {
         return [for (var i = 1; i <= 8; i++) Text('Product item $i')];
       },
     );
-    await _settleDiscovery(tester);
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+    await _settle(tester);
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
     final buildsBeforeDrag = productBuilds;
 
     // Drag the handle down toward the info snap in small steps — each
@@ -550,34 +583,38 @@ void main() {
     );
   });
 
-  testWidgets('PR D: handle TAP cycles all three snaps — shopping → '
-      'overview → info → shopping', (tester) async {
-    await _pumpShell(tester, locations: [_location()]);
-    await _settleDiscovery(tester);
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+  testWidgets(
+    'AUDIT: handle TAP cycles all three snaps from the arrival rest — '
+    'overview → info → shopping → overview',
+    (tester) async {
+      await _pumpShell(tester, locations: [_location()]);
+      await _settle(tester);
+      // The screen opens at overview — the arrival hero composition.
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
 
-    final handle = find.byKey(const Key('market-storefront-handle'));
-    // Shopping → OVERVIEW: the arrival hero is reachable again by tap.
-    await tester.tap(handle, warnIfMissed: false);
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
+      final handle = find.byKey(const Key('market-storefront-handle'));
+      // Overview → INFO.
+      await tester.tap(handle, warnIfMissed: false);
+      await tester.pumpAndSettle(const Duration(milliseconds: 50));
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
+      expect(find.text('About this market'), findsOneWidget);
 
-    // Overview → INFO.
-    await tester.tap(handle, warnIfMissed: false);
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
-    expect(find.text('About this market'), findsOneWidget);
+      // Info → SHOPPING: the products own the surface.
+      await tester.tap(handle, warnIfMissed: false);
+      await tester.pumpAndSettle(const Duration(milliseconds: 50));
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
 
-    // Info → SHOPPING: the cycle closes.
-    await tester.tap(handle, warnIfMissed: false);
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
-  });
+      // Shopping → OVERVIEW: the arrival hero is reachable again by tap.
+      await tester.tap(handle, warnIfMissed: false);
+      await tester.pumpAndSettle(const Duration(milliseconds: 50));
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
+    },
+  );
 
   testWidgets('PR D: the handle announces its current snap to screen '
       'readers', (tester) async {
     await _pumpShell(tester, locations: [_location()]);
-    await _settleDiscovery(tester);
+    await _settle(tester);
     final semantics = tester.ensureSemantics();
 
     final handle = find.byKey(const Key('market-storefront-handle'));
@@ -591,17 +628,21 @@ void main() {
     expect(handleSemantics().label, 'Market sheet');
     expect(
       handleSemantics().value,
-      'Products',
-      reason: 'the shopping snap announces the product surface',
+      'Overview',
+      reason: 'the arrival snap announces the overview composition',
     );
 
     await tester.tap(handle, warnIfMissed: false);
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(handleSemantics().value, 'Overview');
+    expect(handleSemantics().value, 'Market information');
 
     await tester.tap(handle, warnIfMissed: false);
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(handleSemantics().value, 'Market information');
+    expect(handleSemantics().value, 'Products');
+
+    await tester.tap(handle, warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(handleSemantics().value, 'Overview');
 
     semantics.dispose();
   });
@@ -609,7 +650,7 @@ void main() {
   testWidgets('PR D: the handle accepts a real DRAG — down reveals the '
       'information, up re-locks shopping', (tester) async {
     await _pumpShell(tester, locations: [_location()]);
-    await _settleDiscovery(tester);
+    await _settle(tester);
 
     final handle = find.byKey(const Key('market-storefront-handle'));
     // Down: the sheet recedes to the information snap (240px on a 600px
@@ -624,40 +665,6 @@ void main() {
     // ride, well past the touch slop so the release lands nearest
     // SHOPPING, not overview).
     await tester.drag(handle, const Offset(0, -240), warnIfMissed: false);
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
-  });
-
-  testWidgets('PR D: the discovery choreography yields the moment the user '
-      'touches the sheet', (tester) async {
-    await _pumpShell(tester, locations: [_location()]);
-    // First frame only — the entrance beat (180ms) has NOT fired yet.
-    await tester.pump();
-
-    // The user's finger lands on the product surface mid-beat.
-    final productArea = find.text('Product surface');
-    final gesture = await tester.startGesture(tester.getCenter(productArea));
-    await tester.pump();
-
-    // The full choreography timeline passes underneath the held
-    // finger — the sheet must NOT be yanked away (dip or settle).
-    await tester.pump(const Duration(milliseconds: 240));
-    await tester.pump(const Duration(milliseconds: 260));
-    await tester.pump(const Duration(milliseconds: 420));
-    await tester.pumpAndSettle();
-    expect(
-      _extentOf(tester),
-      closeTo(MarketStorefrontSnaps.overview, 0.01),
-      reason:
-          "a touched sheet is the user's — the discovery never "
-          'repossesses it',
-    );
-    await gesture.up();
-
-    // The takeover leaves a fully working sheet: the handle still
-    // moves it, and the drag contract still snaps.
-    final handle = find.byKey(const Key('market-storefront-handle'));
-    await tester.drag(handle, const Offset(0, -120), warnIfMissed: false);
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
   });
