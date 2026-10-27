@@ -32,6 +32,12 @@ on:
         options:
           - prod
         default: prod
+  # Runs on PR updates too: workflow_dispatch only works for workflows
+  # already registered on the default branch, so PR-triggered runs are
+  # how the artifact gets produced on this branch. The environment
+  # falls back to prod (see the ENVIRONMENT env below).
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -44,6 +50,9 @@ jobs:
   owner-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # pull_request runs carry no inputs — prod is the intended default.
+      ENVIRONMENT: ${{ inputs.environment || 'prod' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -112,8 +121,8 @@ jobs:
           }
           GSJSON
 
-      - name: Build debug APK (ENV=${{ inputs.environment }})
-        run: flutter build apk --debug --dart-define=ENV=${{ inputs.environment }}
+      - name: Build debug APK (ENV=${{ env.ENVIRONMENT }})
+        run: flutter build apk --debug --dart-define=ENV=${{ env.ENVIRONMENT }}
 
       - name: Record SHA-256 checksum
         shell: bash
