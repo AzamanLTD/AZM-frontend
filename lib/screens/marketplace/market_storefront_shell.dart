@@ -143,7 +143,8 @@ class MarketStorefrontShell extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<MarketStorefrontShell> createState() => _MarketStorefrontShellState();
+  ConsumerState<MarketStorefrontShell> createState() =>
+      _MarketStorefrontShellState();
 }
 
 class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
@@ -167,6 +168,22 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   double _lastExtent = MarketStorefrontSnaps.overview;
   Timer? _discoveryTimer;
 
+  /// PR D (hero + sheet collapse): the extent now flows through a
+  /// ValueNotifier so ONLY the back layer (hero / pill / info) rebuilds
+  /// during a drag. The old per-tick setState rebuilt the WHOLE shell —
+  /// including the product sheet's ListView — on every frame of the
+  /// collapse, a real jank source on the low-end Androids this app
+  /// targets.
+  final ValueNotifier<double> _extentNotifier = ValueNotifier<double>(
+    MarketStorefrontSnaps.overview,
+  );
+
+  /// PR D: set the moment a real pointer interacts with the sheet —
+  /// the discovery choreography must NEVER yank the surface out from
+  /// under the user's thumb. Once set, the chain is dead for good
+  /// (it is a once-per-screen beat, not a recurring nag).
+  bool _userTookSheet = false;
+
   @override
   void initState() {
     super.initState();
@@ -179,6 +196,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   @override
   void dispose() {
     _discoveryTimer?.cancel();
+    _extentNotifier.dispose();
     _sheetController.dispose();
     super.dispose();
   }
@@ -191,15 +209,18 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
 
   /// 0 at/below overview → 1 at shopping. Drives the hero collapse and the
   /// compact pill appearance.
-  double get _pillProgress {
-    final t = (_extent - _overviewSnap) / (_shoppingSnap - _overviewSnap);
+  /// [e] is the CURRENT extent value (from [_extentNotifier] during a
+  /// back-layer build) — the getters no longer read the controller, so
+  /// the back layer can be driven by the notifier alone.
+  double _pillProgressOf(double e) {
+    final t = (e - _overviewSnap) / (_shoppingSnap - _overviewSnap);
     return t.clamp(0.0, 1.0);
   }
 
   /// 1 at/below the info-visible line → 0 at overview. Drives the info
   /// panel reveal.
-  double get _infoProgress {
-    final t = (_extent - _infoSnap) / (_infoVisibleBelow - _infoSnap);
+  double _infoProgressOf(double e) {
+    final t = (e - _infoSnap) / (_infoVisibleBelow - _infoSnap);
     return (1.0 - t).clamp(0.0, 1.0);
   }
 
@@ -214,11 +235,13 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   /// [_infoVisibleBelow]'s contract: the panel is fully faded out by
   /// 0.56, so the two surfaces never fight) is that the identity fades
   /// IN from 0.56 → overview, reaching FULL exactly at the overview snap.
-  double get _identityOpacity {
-    final fromInfo = ((_extent - _infoVisibleBelow) /
-            (_overviewSnap - _infoVisibleBelow))
-        .clamp(0.0, 1.0);
-    return (1.0 - _pillProgress) * fromInfo;
+  double _identityOpacityOf(double e) {
+    final fromInfo =
+        ((e - _infoVisibleBelow) / (_overviewSnap - _infoVisibleBelow)).clamp(
+          0.0,
+          1.0,
+        );
+    return (1.0 - _pillProgressOf(e)) * fromInfo;
   }
 
   void _onExtentChanged() {
@@ -229,7 +252,9 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
       AzamanHaptics.selection();
     }
     _lastExtent = e;
-    setState(() {});
+    // Notifies ONLY the back layer (hero / pill / info crossfades) —
+    // the product sheet is NOT rebuilt by the collapse.
+    _extentNotifier.value = e;
   }
 
   // ── Initial discovery animation ────────────────────────────────────────────
@@ -254,7 +279,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
     }
     // Small entrance beat so the arrival composition registers first.
     _discoveryTimer = Timer(MotionTokens.control, () {
-      if (!mounted) return;
+      if (!mounted || _userTookSheet) return;
       // Reveal: dip to the info snap — "there is something behind me".
       _animateSheetTo(
         _infoSnap,
@@ -262,7 +287,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
         curve: MotionTokens.enter,
         onDone: () {
           _discoveryTimer = Timer(const Duration(milliseconds: 220), () {
-            if (!mounted) return;
+            if (!mounted || _userTookSheet) return;
             // Settle into shopping with a soft spring.
             _animateSheetTo(
               _shoppingSnap,
@@ -273,6 +298,15 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
         },
       );
     });
+  }
+
+  /// A real pointer interaction with the sheet surface: the user owns
+  /// the sheet from this moment. Cancels any pending discovery beat —
+  /// the choreography must never fight or repossess the surface.
+  void _userTookOver() {
+    if (_userTookSheet) return;
+    _userTookSheet = true;
+    _discoveryTimer?.cancel();
   }
 
   void _animateSheetTo(
@@ -289,20 +323,111 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
           curve: curve,
         );
       } catch (_) {
-        // The sheet can be disposed mid-flight; never crash the entrance.
+        // The sheet can be disposed mid-flight; never crash the
+        // entrance — and never continue the chain either.
+        return;
       }
-      if (mounted) onDone?.call();
+      // The user grabbing the sheet mid-flight ends the choreography:
+      // onDone (the next beat) is only honoured while the sheet is
+      // still the discovery's to move.
+      if (!mounted || _userTookSheet) return;
+      onDone?.call();
     });
   }
 
-  /// Tap on the grab handle: at shopping → reveal information; anywhere
-  /// else → lift into shopping.
+  // ── Grab handle: the deterministic way to change snap states ─────────
+  //
+  // PR D (hero + sheet collapse). The handle is the ONLY control that
+  // guarantees every snap is reachable:
+  //   • TAP cycles all three states in a fixed order —
+  //     shopping → overview (the arrival hero RETURNS) → info → shopping.
+  //     Before, the overview composition was reachable only by a
+  //     precise drag, and a tap merely toggled the outer two states.
+  //   • DRAG rides the extent directly: down reveals the information
+  //     layer, up re-locks shopping, and the release snaps to the
+  //     nearest (or flung) state with the shell's spring. Before, a
+  //     vertical drag on the handle did NOTHING (the sheet's drag only
+  //     lived on the product list).
+  // Both mark the user as the sheet's owner (no discovery fights).
+
+  static const List<double> _cycle = [_shoppingSnap, _overviewSnap, _infoSnap];
+
+  /// The snap nearest to [e].
+  double _nearestSnapOf(double e) {
+    var best = _cycle.first;
+    for (final snap in _cycle) {
+      if ((e - snap).abs() < (e - best).abs()) best = snap;
+    }
+    return best;
+  }
+
+  /// The accessibility label for the sheet's current snap.
+  String _snapLabelOf(double e) {
+    final nearest = _nearestSnapOf(e);
+    if (nearest == _shoppingSnap) return 'Products';
+    if (nearest == _infoSnap) return 'Market information';
+    return 'Overview';
+  }
+
   void _onHandleTap() {
     if (!_sheetController.isAttached) return;
+    _userTookOver();
     AzamanHaptics.nav();
-    final target = _extent >= (_overviewSnap + _shoppingSnap) / 2
-        ? _infoSnap
-        : _shoppingSnap;
+    final nearest = _nearestSnapOf(_extent);
+    final next = nearest == _shoppingSnap
+        ? _overviewSnap
+        : (nearest == _overviewSnap ? _infoSnap : _shoppingSnap);
+    _sheetController.animateTo(
+      next,
+      duration: MotionTokens.emphasized,
+      curve: MotionTokens.spring,
+    );
+  }
+
+  void _onHandleDragStart(DragStartDetails details) {
+    _userTookOver();
+  }
+
+  void _onHandleDragUpdate(DragUpdateDetails details) {
+    if (!_sheetController.isAttached) return;
+    // The extent is a fraction of the sheet's available height. Read the
+    // REAL render height — the shell's own RenderBox — never
+    // MediaQuery.sizeOf: some embedding surfaces (and every widget test
+    // harness that overrides the ambient MediaQuery) report a zero size,
+    // and a zero height would silently kill the drag.
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox) return;
+    final height = renderObject.size.height;
+    if (height <= 0) return;
+    // Finger down → sheet recedes; finger up → sheet lifts.
+    final target = (_extent - details.delta.dy / height).clamp(
+      _infoSnap,
+      _shoppingSnap,
+    );
+    try {
+      _sheetController.jumpTo(target);
+    } catch (_) {
+      // Detached mid-drag: nothing to drive.
+    }
+  }
+
+  void _onHandleDragEnd(DragEndDetails details) {
+    if (!_sheetController.isAttached) return;
+    AzamanHaptics.nav();
+    final e = _extent;
+    final v = details.velocity.pixelsPerSecond.dy;
+    double target = _nearestSnapOf(e);
+    if (v.abs() > 700) {
+      // A fling commits ONE step in its direction, never past it; at a
+      // boundary the nearest snap keeps the sheet honest.
+      final candidates = v > 0
+          ? _cycle.where((snap) => snap < e - 0.01).toList()
+          : _cycle.where((snap) => snap > e + 0.01).toList();
+      if (candidates.isNotEmpty) {
+        candidates.sort();
+        target = v > 0 ? candidates.last : candidates.first;
+      }
+    }
     _sheetController.animateTo(
       target,
       duration: MotionTokens.emphasized,
@@ -314,9 +439,6 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    final pillT = _pillProgress;
-    final infoT = _infoProgress;
-    final identityT = _identityOpacity;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -324,7 +446,19 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
         fit: StackFit.expand,
         children: [
           // ── Back layer: banner + identity + information (behind sheet) ──
-          _backLayer(colors, pillT, infoT, identityT),
+          // Rebuilt on every extent tick — and ONLY this layer is: the
+          // hero crossfade needs the live extent, the product sheet does
+          // not. (PR D jank fix: per-tick setState used to rebuild the
+          // whole sheet, products included, on every frame of a drag.)
+          ValueListenableBuilder<double>(
+            valueListenable: _extentNotifier,
+            builder: (context, e, _) {
+              final pillT = _pillProgressOf(e);
+              final infoT = _infoProgressOf(e);
+              final identityT = _identityOpacityOf(e);
+              return _backLayer(colors, pillT, infoT, identityT);
+            },
+          ),
           // ── The sheet ────────────────────────────────────────────────────
           Positioned.fill(
             child: DraggableScrollableSheet(
@@ -526,7 +660,8 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
         ProfileJoystick(
           key: _heroAvatarKey,
           semanticLabel: 'Market shortcuts',
-          semanticHint: 'Tap to open quick actions. Drag up for '
+          semanticHint:
+              'Tap to open quick actions. Drag up for '
               '${widget.catalogLabel.toLowerCase()}, down for story, '
               'right to save, left to show less. Hold for the full menu.',
           actions: _joystickActions(),
@@ -582,10 +717,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   /// ever claims "Followed by", never "visited by".
   Widget _identitySocialProof(BusinessProfile business, AzamanColors colors) {
     final proof = ref.watch(serverSocialProofProvider(business.id));
-    final line = proof.maybeWhen(
-      data: socialProofLine,
-      orElse: () => null,
-    );
+    final line = proof.maybeWhen(data: socialProofLine, orElse: () => null);
     if (line == null) return const SizedBox.shrink();
     return Text(
       line,
@@ -703,8 +835,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
         label: 'Show less',
         // The release only OPENS the mandatory confirmation; the real
         // service call happens after an explicit confirm.
-        onRelease: () =>
-            openJoystickShowLessConfirm(context, ref, business),
+        onRelease: () => openJoystickShowLessConfirm(context, ref, business),
       ),
     );
   }
@@ -712,14 +843,16 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   List<LiquidLauncherItem> _joystickItems() {
     final items = <LiquidLauncherItem>[];
     void add(IconData icon, String label, VoidCallback action) {
-      items.add(LiquidLauncherItem(
-        icon: icon,
-        label: label,
-        onTap: () {
-          Navigator.of(context).pop(); // close the open surface
-          action();
-        },
-      ));
+      items.add(
+        LiquidLauncherItem(
+          icon: icon,
+          label: label,
+          onTap: () {
+            Navigator.of(context).pop(); // close the open surface
+            action();
+          },
+        ),
+      );
     }
 
     if (widget.onToggleBookmark != null) {
@@ -1125,60 +1258,89 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   // ── The sheet ──────────────────────────────────────────────────────────────
   Widget _sheet(AzamanColors colors, ScrollController scrollController) {
     final business = widget.business;
-    return Container(
-      key: const Key('market-storefront-sheet'),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, -6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Grab handle — physical but extremely subtle. Tap cycles the
-          // sheet between its locked states; the ride of the discovery
-          // dip gives it its only "lift".
-          GestureDetector(
-            key: const Key('market-storefront-handle'),
-            behavior: HitTestBehavior.opaque,
-            onTap: _onHandleTap,
-            child: Container(
-              width: double.infinity,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(
-                vertical: AzSpace.sm,
-                horizontal: AzSpace.lg,
-              ),
-              child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.textTertiary.withValues(alpha: 0.28),
-                  borderRadius: BorderRadius.circular(AzRadius.pill),
+    return Listener(
+      // PR D: the first REAL pointer interaction hands the sheet's
+      // motion to the user — the discovery choreography is cancelled
+      // from that moment and never repossesses the surface.
+      onPointerDown: (_) => _userTookOver(),
+      child: Container(
+        key: const Key('market-storefront-sheet'),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Grab handle — physical but extremely subtle. TAP cycles
+            // the three locked states deterministically; DRAG rides the
+            // extent and snaps on release. Screen readers get the sheet
+            // as a real button with its current snap announced.
+            //
+            // The GestureDetector is the ValueListenableBuilder's CHILD,
+            // deliberately: a per-tick builder rebuild would hand
+            // RawGestureDetector a fresh set of tear-off callbacks and
+            // RESET the drag recognizers mid-drag — exactly the gesture
+            // this handle owns. The stable child keeps the recognizers
+            // alive while only the Semantics value follows the extent.
+            ValueListenableBuilder<double>(
+              valueListenable: _extentNotifier,
+              child: GestureDetector(
+                key: const Key('market-storefront-handle'),
+                behavior: HitTestBehavior.opaque,
+                onTap: _onHandleTap,
+                onVerticalDragStart: _onHandleDragStart,
+                onVerticalDragUpdate: _onHandleDragUpdate,
+                onVerticalDragEnd: _onHandleDragEnd,
+                child: Container(
+                  width: double.infinity,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: AzSpace.sm,
+                    horizontal: AzSpace.lg,
+                  ),
+                  child: Container(
+                    width: 38,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.textTertiary.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(AzRadius.pill),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          // Action row: primary market CTA + the vertical content
-          // shortcuts + rare utilities.
-          _sheetActions(business, colors),
-          // Product/content surface — the sheet's one and only scrollable.
-          Expanded(
-            child: ListView(
-              controller: scrollController,
-              padding: EdgeInsets.only(
-                top: AzSpace.md,
-                bottom: MediaQuery.of(context).padding.bottom + AzSpace.xxl,
+              builder: (context, e, child) => Semantics(
+                button: true,
+                label: 'Market sheet',
+                value: _snapLabelOf(e),
+                hint:
+                    'Tap to move between products, overview and '
+                    'market information. Drag to change directly.',
+                child: child,
               ),
-              children: widget.productsBuilder(context),
             ),
-          ),
-        ],
+            // Action row: primary market CTA + the vertical content
+            // shortcuts + rare utilities.
+            _sheetActions(business, colors),
+            // Product/content surface — the sheet's one and only scrollable.
+            Expanded(
+              child: ListView(
+                controller: scrollController,
+                padding: EdgeInsets.only(
+                  top: AzSpace.md,
+                  bottom: MediaQuery.of(context).padding.bottom + AzSpace.xxl,
+                ),
+                children: widget.productsBuilder(context),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1474,4 +1636,3 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
     }
   }
 }
-

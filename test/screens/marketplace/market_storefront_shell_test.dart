@@ -15,12 +15,22 @@
 //   11. missing info fields never produce empty information blocks,
 //   12. the vertical content entry points (catalog shortcut / primary CTA)
 //       still fire their delegates.
+//   13. (PR D) the collapse NEVER rebuilds the product sheet — only the
+//       back layer listens to the extent (per-frame setState is gone).
+//   14. (PR D) the grab handle TAP cycles all three snaps deterministically
+//       (shopping → overview → info → shopping) — the arrival hero is
+//       reachable again, announced to screen readers as the live value.
+//   15. (PR D) the grab handle accepts a real DRAG: down reveals info, up
+//       re-locks shopping, the release snaps.
+//   16. (PR D) the discovery choreography yields the instant the user
+//       touches the sheet — it never repossesses the surface.
 //
 // Extents are measured behaviorally via the sheet's on-screen rect, so the
 // tests survive any internal controller refactor.
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show SemanticsProperties;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -81,7 +91,8 @@ BusinessLocation _location({Map<String, dynamic>? hours}) {
     galleryUrls: const [],
     isPrimary: true,
     isActive: true,
-    operatingHours: hours ??
+    operatingHours:
+        hours ??
         const {
           'mon': '08:00-18:00',
           'tue': '08:00-18:00',
@@ -102,10 +113,7 @@ Widget _wrap(Widget child, {bool disableAnimations = false}) {
   return ProviderScope(
     child: MediaQuery(
       data: media,
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: child,
-      ),
+      child: MaterialApp(debugShowCheckedModeBanner: false, home: child),
     ),
   );
 }
@@ -156,18 +164,22 @@ Future<void> _settleDiscovery(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('market loads with banner + logo + name + initial product content',
-      (tester) async {
-    await _pumpShell(tester,
-        products: (context) => [const Text('Kente Cloth — 40 USDC')]);
+  testWidgets(
+    'market loads with banner + logo + name + initial product content',
+    (tester) async {
+      await _pumpShell(
+        tester,
+        products: (context) => [const Text('Kente Cloth — 40 USDC')],
+      );
 
-    expect(find.byType(AzamanNetworkImage), findsWidgets);
-    expect(find.text('Makola Fresh Market'), findsWidgets);
-    // Products are visible in the arrival state — the user lands in a store,
-    // not an information screen.
-    expect(find.text('Kente Cloth — 40 USDC'), findsOneWidget);
-    expect(find.byKey(const Key('market-storefront-handle')), findsOneWidget);
-  });
+      expect(find.byType(AzamanNetworkImage), findsWidgets);
+      expect(find.text('Makola Fresh Market'), findsWidgets);
+      // Products are visible in the arrival state — the user lands in a store,
+      // not an information screen.
+      expect(find.text('Kente Cloth — 40 USDC'), findsOneWidget);
+      expect(find.byKey(const Key('market-storefront-handle')), findsOneWidget);
+    },
+  );
 
   testWidgets('sheet begins at the arrival/overview snap', (tester) async {
     await _pumpShell(tester);
@@ -175,8 +187,9 @@ void main() {
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
   });
 
-  testWidgets('sheet can move to the information state and reveal the panel',
-      (tester) async {
+  testWidgets('sheet can move to the information state and reveal the panel', (
+    tester,
+  ) async {
     await _pumpShell(tester, locations: [_location()]);
     await _settleDiscovery(tester);
 
@@ -190,46 +203,58 @@ void main() {
 
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
     expect(find.text('About this market'), findsOneWidget);
-    expect(find.text('Genuine Accra goods, straight from the source.'),
-        findsOneWidget);
+    expect(
+      find.text('Genuine Accra goods, straight from the source.'),
+      findsOneWidget,
+    );
     expect(find.text('Hours'), findsOneWidget);
   });
 
-  testWidgets('sheet snaps back cleanly into the shopping state', (tester) async {
+  testWidgets('sheet snaps back cleanly into the shopping state', (
+    tester,
+  ) async {
     await _pumpShell(tester, locations: [_location()]);
     await _settleDiscovery(tester);
 
     // Down to info first...
-    await tester.drag(find.byType(ListView).last, const Offset(0, 300),
-        warnIfMissed: false);
+    await tester.drag(
+      find.byType(ListView).last,
+      const Offset(0, 300),
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
 
     // ...then lift back into shopping.
-    await tester.drag(find.byType(ListView).last, const Offset(0, -340),
-        warnIfMissed: false);
+    await tester.drag(
+      find.byType(ListView).last,
+      const Offset(0, -340),
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
 
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
   });
 
-  testWidgets('discovery animation runs exactly once for the screen',
-      (tester) async {
+  testWidgets('discovery animation runs exactly once for the screen', (
+    tester,
+  ) async {
     final biz = _business();
     var following = false;
-    late StateSetter? ignore;
-    Widget buildShell(bool isFollowing) => _wrap(MarketStorefrontShell(
-          business: biz,
-          colors: ThemeProvider.getColors(AzamanTheme.light),
-          bannerUrl: biz.coverImageUrl,
-          locations: const [],
-          showcaseSlides: const [],
-          isFollowing: isFollowing,
-          unpaidInvoices: 0,
-          hasCatalog: false,
-          catalogLabel: 'Catalog',
-          productsBuilder: (context) => [const Text('Product surface')],
-        ));
+    Widget buildShell(bool isFollowing) => _wrap(
+      MarketStorefrontShell(
+        business: biz,
+        colors: ThemeProvider.getColors(AzamanTheme.light),
+        bannerUrl: biz.coverImageUrl,
+        locations: const [],
+        showcaseSlides: const [],
+        isFollowing: isFollowing,
+        unpaidInvoices: 0,
+        hasCatalog: false,
+        catalogLabel: 'Catalog',
+        productsBuilder: (context) => [const Text('Product surface')],
+      ),
+    );
 
     await tester.pumpWidget(buildShell(following));
     // Let the full dip-and-settle play out.
@@ -246,29 +271,33 @@ void main() {
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
   });
 
-  testWidgets('compact market identity appears only after the collapse threshold',
-      (tester) async {
-    await _pumpShell(tester, locations: [_location()]);
-    // First frame: overview state — the pill is present in the tree but
-    // fully transparent and untouchable.
-    final pill = find.descendant(
-      of: find.byKey(const Key('market-compact-pill')),
-      matching: find.byType(Text),
-    );
-    Opacity pillOpacity(WidgetTester t) => t.widget<Opacity>(
-          find.ancestor(
-            of: find.byKey(const Key('market-compact-pill')),
-            matching: find.byType(Opacity),
-          ).first,
-        );
+  testWidgets(
+    'compact market identity appears only after the collapse threshold',
+    (tester) async {
+      await _pumpShell(tester, locations: [_location()]);
+      // First frame: overview state — the pill is present in the tree but
+      // fully transparent and untouchable.
+      final pill = find.descendant(
+        of: find.byKey(const Key('market-compact-pill')),
+        matching: find.byType(Text),
+      );
+      Opacity pillOpacity(WidgetTester t) => t.widget<Opacity>(
+        find
+            .ancestor(
+              of: find.byKey(const Key('market-compact-pill')),
+              matching: find.byType(Opacity),
+            )
+            .first,
+      );
 
-    expect(pillOpacity(tester).opacity, 0.0);
-    expect(pill, findsOneWidget); // tree presence, not visibility
+      expect(pillOpacity(tester).opacity, 0.0);
+      expect(pill, findsOneWidget); // tree presence, not visibility
 
-    await _settleDiscovery(tester);
-    // Collapsed to shopping: the pill is fully opaque.
-    expect(pillOpacity(tester).opacity, 1.0);
-  });
+      await _settleDiscovery(tester);
+      // Collapsed to shopping: the pill is fully opaque.
+      expect(pillOpacity(tester).opacity, 1.0);
+    },
+  );
 
   testWidgets('market name stays visible in the compact state', (tester) async {
     await _pumpShell(tester);
@@ -280,34 +309,37 @@ void main() {
     );
     expect(nameInPill, findsOneWidget);
     final opacity = tester.widget<Opacity>(
-      find.ancestor(
-        of: nameInPill,
-        matching: find.byType(Opacity),
-      ).first,
+      find.ancestor(of: nameInPill, matching: find.byType(Opacity)).first,
     );
     expect(opacity.opacity, 1.0);
   });
 
-  testWidgets('long business name does not overflow in hero or pill',
-      (tester) async {
+  testWidgets('long business name does not overflow in hero or pill', (
+    tester,
+  ) async {
     await _pumpShell(
       tester,
       business: _business(
-          name:
-              'Makola International Fresh Produce and Handwoven Textiles Enterprise'),
+        name:
+            'Makola International Fresh Produce and Handwoven Textiles Enterprise',
+      ),
       locations: [_location()],
     );
     await _settleDiscovery(tester);
     expect(tester.takeException(), isNull);
 
-    await tester.drag(find.byType(ListView).last, const Offset(0, 260),
-        warnIfMissed: false);
+    await tester.drag(
+      find.byType(ListView).last,
+      const Offset(0, 260),
+      warnIfMissed: false,
+    );
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('product content remains accessible after the hero collapses',
-      (tester) async {
+  testWidgets('product content remains accessible after the hero collapses', (
+    tester,
+  ) async {
     await _pumpShell(
       tester,
       products: (context) => [
@@ -326,28 +358,31 @@ void main() {
     expect(find.text('Product item 20'), findsOneWidget);
   });
 
-  testWidgets('reduced motion disables the discovery choreography',
-      (tester) async {
+  testWidgets('reduced motion disables the discovery choreography', (
+    tester,
+  ) async {
     // The app's own reduced-motion seam (TASK-026): AzMotion consults the
     // AzSensory override before the OS flag.
     AzSensory.apply(const SensoryPreferences(forceReduceMotion: true));
     addTearDown(() => AzSensory.apply(const SensoryPreferences()));
     final biz = _business();
-    await tester.pumpWidget(_wrap(
-      MarketStorefrontShell(
-        business: biz,
-        colors: ThemeProvider.getColors(AzamanTheme.light),
-        bannerUrl: biz.coverImageUrl,
-        locations: const [],
-        showcaseSlides: const [],
-        isFollowing: false,
-        unpaidInvoices: 0,
-        hasCatalog: true,
-        catalogLabel: 'Products',
-        productsBuilder: (context) => [const Text('Product surface')],
+    await tester.pumpWidget(
+      _wrap(
+        MarketStorefrontShell(
+          business: biz,
+          colors: ThemeProvider.getColors(AzamanTheme.light),
+          bannerUrl: biz.coverImageUrl,
+          locations: const [],
+          showcaseSlides: const [],
+          isFollowing: false,
+          unpaidInvoices: 0,
+          hasCatalog: true,
+          catalogLabel: 'Products',
+          productsBuilder: (context) => [const Text('Product surface')],
+        ),
+        disableAnimations: true,
       ),
-      disableAnimations: true,
-    ));
+    );
 
     // No dip: the sheet goes straight to the shopping snap and stays there.
     await tester.pump(const Duration(milliseconds: 60));
@@ -357,8 +392,9 @@ void main() {
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
   });
 
-  testWidgets('businesses with no banner still render a coherent hero',
-      (tester) async {
+  testWidgets('businesses with no banner still render a coherent hero', (
+    tester,
+  ) async {
     await _pumpShell(
       tester,
       business: _business(coverImageUrl: null, logoUrl: null),
@@ -373,69 +409,86 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('missing description/contact/website creates no empty info blocks',
-      (tester) async {
-    await _pumpShell(
-      tester,
-      business: _business(
-        description: '  ', // whitespace only — counts as absent
-        phoneNumber: null,
-        website: null,
-        contactEmail: null,
-        address: null,
-        reviewCount: 0,
-      ),
-      locations: const [], // no locations → no hours either
-    );
-    await _settleDiscovery(tester);
+  testWidgets(
+    'missing description/contact/website creates no empty info blocks',
+    (tester) async {
+      await _pumpShell(
+        tester,
+        business: _business(
+          description: '  ', // whitespace only — counts as absent
+          phoneNumber: null,
+          website: null,
+          contactEmail: null,
+          address: null,
+          reviewCount: 0,
+        ),
+        locations: const [], // no locations → no hours either
+      );
+      await _settleDiscovery(tester);
 
-    // Pull down to the info snap: with no info at all, no section shells.
-    await tester.drag(find.byType(ListView).last, const Offset(0, 300),
-        warnIfMissed: false);
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
+      // Pull down to the info snap: with no info at all, no section shells.
+      await tester.drag(
+        find.byType(ListView).last,
+        const Offset(0, 300),
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 50));
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
 
-    expect(find.text('About this market'), findsNothing);
-    expect(find.text('Hours'), findsNothing);
-    expect(find.text('Location'), findsNothing);
-    expect(find.text('Contact'), findsNothing);
-    expect(tester.takeException(), isNull);
+      expect(find.text('About this market'), findsNothing);
+      expect(find.text('Hours'), findsNothing);
+      expect(find.text('Location'), findsNothing);
+      expect(find.text('Contact'), findsNothing);
+      expect(tester.takeException(), isNull);
 
-    // And the partially-filled variant: description renders, but the
-    // contact section with no data does not.
-    await _pumpShell(
-      tester,
-      business: _business(
-          phoneNumber: null, website: null, contactEmail: null, address: null),
-      locations: const [],
-    );
-    await _settleDiscovery(tester);
-    await tester.drag(find.byType(ListView).last, const Offset(0, 300),
-        warnIfMissed: false);
-    await tester.pumpAndSettle(const Duration(milliseconds: 50));
-    expect(find.text('About this market'), findsOneWidget);
-    expect(find.text('Contact'), findsNothing);
-  });
+      // And the partially-filled variant: description renders, but the
+      // contact section with no data does not.
+      await _pumpShell(
+        tester,
+        business: _business(
+          phoneNumber: null,
+          website: null,
+          contactEmail: null,
+          address: null,
+        ),
+        locations: const [],
+      );
+      await _settleDiscovery(tester);
+      await tester.drag(
+        find.byType(ListView).last,
+        const Offset(0, 300),
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 50));
+      expect(find.text('About this market'), findsOneWidget);
+      expect(find.text('Contact'), findsNothing);
+    },
+  );
 
-  testWidgets('vertical content entry points still fire their delegates',
-      (tester) async {
+  testWidgets('vertical content entry points still fire their delegates', (
+    tester,
+  ) async {
     var catalogOpened = false;
     var ctaFired = false;
     final biz = _business();
-    await tester.pumpWidget(_wrap(MarketStorefrontShell(
-      business: biz,
-      colors: ThemeProvider.getColors(AzamanTheme.light),
-      bannerUrl: biz.coverImageUrl,
-      locations: const [],
-      showcaseSlides: const [],
-      isFollowing: false,
-      unpaidInvoices: 0,
-      hasCatalog: true,
-      catalogLabel: 'Menu',
-      productsBuilder: (context) => [const Text('Product surface')],
-      onOpenCatalog: () => catalogOpened = true,
-      onPrimaryCta: () => ctaFired = true,
-    )));
+    await tester.pumpWidget(
+      _wrap(
+        MarketStorefrontShell(
+          business: biz,
+          colors: ThemeProvider.getColors(AzamanTheme.light),
+          bannerUrl: biz.coverImageUrl,
+          locations: const [],
+          showcaseSlides: const [],
+          isFollowing: false,
+          unpaidInvoices: 0,
+          hasCatalog: true,
+          catalogLabel: 'Menu',
+          productsBuilder: (context) => [const Text('Product surface')],
+          onOpenCatalog: () => catalogOpened = true,
+          onPrimaryCta: () => ctaFired = true,
+        ),
+      ),
+    );
     await _settleDiscovery(tester);
 
     // The vertical's full catalog experience (flip-book / catalog storefront)
@@ -448,5 +501,164 @@ void main() {
     await tester.tap(find.byKey(const Key('market-primary-cta')));
     await tester.pump();
     expect(ctaFired, isTrue);
+  });
+
+  // ── PR D: hero + sheet collapse ─────────────────────────────────────────
+
+  testWidgets('PR D: a handle-driven collapse never rebuilds the product '
+      'sheet (per-frame setState is gone)', (tester) async {
+    var productBuilds = 0;
+    await _pumpShell(
+      tester,
+      products: (context) {
+        productBuilds++;
+        return [for (var i = 1; i <= 8; i++) Text('Product item $i')];
+      },
+    );
+    await _settleDiscovery(tester);
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+    final buildsBeforeDrag = productBuilds;
+
+    // Drag the handle down toward the info snap in small steps — each
+    // step changes the extent (the hero crossfade animates) but must
+    // NOT re-invoke the products builder.
+    final handle = find.byKey(const Key('market-storefront-handle'));
+    final gesture = await tester.startGesture(tester.getCenter(handle));
+    await gesture.moveBy(const Offset(0, 60));
+    await tester.pump();
+    await gesture.moveBy(const Offset(0, 60));
+    await tester.pump();
+    final buildsMidDrag = productBuilds;
+    await gesture.moveBy(const Offset(0, 120));
+    await tester.pump();
+    expect(
+      productBuilds,
+      buildsMidDrag,
+      reason:
+          'the extent ticks must rebuild only the back layer '
+          '(hero/pill/info crossfades) — never the product sheet',
+    );
+    await gesture.up();
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
+    expect(
+      productBuilds,
+      buildsBeforeDrag,
+      reason:
+          'the whole drag-and-snap pass leaves the product surface '
+          'untouched',
+    );
+  });
+
+  testWidgets('PR D: handle TAP cycles all three snaps — shopping → '
+      'overview → info → shopping', (tester) async {
+    await _pumpShell(tester, locations: [_location()]);
+    await _settleDiscovery(tester);
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+
+    final handle = find.byKey(const Key('market-storefront-handle'));
+    // Shopping → OVERVIEW: the arrival hero is reachable again by tap.
+    await tester.tap(handle, warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.overview, 0.01));
+
+    // Overview → INFO.
+    await tester.tap(handle, warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
+    expect(find.text('About this market'), findsOneWidget);
+
+    // Info → SHOPPING: the cycle closes.
+    await tester.tap(handle, warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+  });
+
+  testWidgets('PR D: the handle announces its current snap to screen '
+      'readers', (tester) async {
+    await _pumpShell(tester, locations: [_location()]);
+    await _settleDiscovery(tester);
+    final semantics = tester.ensureSemantics();
+
+    final handle = find.byKey(const Key('market-storefront-handle'));
+    SemanticsProperties handleSemantics() => tester
+        .widget<Semantics>(
+          find.ancestor(of: handle, matching: find.byType(Semantics)).first,
+        )
+        .properties;
+
+    expect(handleSemantics().button, true);
+    expect(handleSemantics().label, 'Market sheet');
+    expect(
+      handleSemantics().value,
+      'Products',
+      reason: 'the shopping snap announces the product surface',
+    );
+
+    await tester.tap(handle, warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(handleSemantics().value, 'Overview');
+
+    await tester.tap(handle, warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(handleSemantics().value, 'Market information');
+
+    semantics.dispose();
+  });
+
+  testWidgets('PR D: the handle accepts a real DRAG — down reveals the '
+      'information, up re-locks shopping', (tester) async {
+    await _pumpShell(tester, locations: [_location()]);
+    await _settleDiscovery(tester);
+
+    final handle = find.byKey(const Key('market-storefront-handle'));
+    // Down: the sheet recedes to the information snap (240px on a 600px
+    // screen carries the extent past overview, and the release snaps to
+    // the nearest state — info).
+    await tester.drag(handle, const Offset(0, 240), warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
+    expect(find.text('About this market'), findsOneWidget);
+
+    // Up: the sheet snaps back into the locked shopping state (a full
+    // ride, well past the touch slop so the release lands nearest
+    // SHOPPING, not overview).
+    await tester.drag(handle, const Offset(0, -240), warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+  });
+
+  testWidgets('PR D: the discovery choreography yields the moment the user '
+      'touches the sheet', (tester) async {
+    await _pumpShell(tester, locations: [_location()]);
+    // First frame only — the entrance beat (180ms) has NOT fired yet.
+    await tester.pump();
+
+    // The user's finger lands on the product surface mid-beat.
+    final productArea = find.text('Product surface');
+    final gesture = await tester.startGesture(tester.getCenter(productArea));
+    await tester.pump();
+
+    // The full choreography timeline passes underneath the held
+    // finger — the sheet must NOT be yanked away (dip or settle).
+    await tester.pump(const Duration(milliseconds: 240));
+    await tester.pump(const Duration(milliseconds: 260));
+    await tester.pump(const Duration(milliseconds: 420));
+    await tester.pumpAndSettle();
+    expect(
+      _extentOf(tester),
+      closeTo(MarketStorefrontSnaps.overview, 0.01),
+      reason:
+          "a touched sheet is the user's — the discovery never "
+          'repossesses it',
+    );
+    await gesture.up();
+
+    // The takeover leaves a fully working sheet: the handle still
+    // moves it, and the drag contract still snaps.
+    final handle = find.byKey(const Key('market-storefront-handle'));
+    await tester.drag(handle, const Offset(0, -120), warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 50));
+    expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
   });
 }
