@@ -551,9 +551,15 @@ void main() {
           valuationRaw: payload,
         ),
       ));
+      // K2B-2: the savings aggregate stays MAPPED here — it is the
+      // nominal GHS-denominated goal progress (server-maintained,
+      // guards below). The card's DISPLAY gate lives in
+      // balance_card_breakdown.dart and renders the row UNKNOWN; this
+      // mapping is what keeps the parse semantics test-covered.
       expect(v.savingsLockedGhs, 42.5,
-          reason: 'savings (escrow-backed, server-maintained) stays '
-              'mapped per its contract');
+          reason: 'savings stays mapped as the nominal GHS goal '
+              'progress — display-gated in the breakdown widget '
+              '(K2B-2), never presented as native GHS held');
       expect(v.susuCommitted, isNull,
           reason: 'a raw USDC sum is not the amount the customer is '
               'owed by a domestic Susu product');

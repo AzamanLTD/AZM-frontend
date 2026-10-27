@@ -100,19 +100,34 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
   // ── Committed funds: each list is a value only once loaded; an empty
   // loaded list is a real zero, an unloaded/failed list is unknown.
   //
-  // WORKSTREAM K2B AUDIT (savings currentAmountGhs, backend evidence):
-  // the backend deposit path debits user.availableBalance and
-  // increments user.escrowLockedBalance inside the SAME money
-  // transaction that increments SavingsGoal.currentAmountGhs
-  // (savingsController deposit, locked-row FOR UPDATE, r25 rigor); goal
-  // creation cannot seed it (schema default 0.0, create() never accepts
-  // it from the client); the withdraw path decrements it and releases
-  // the escrow. currentAmountGhs is therefore NOT user-maintained goal
-  // progress: it is the GHS-denominated figure of a REAL escrow-backed
-  // commitment, and mapping it into the committed-savings bucket is
-  // correct under the existing contract. (Contrast Susu, K2A: there the
-  // customer-facing meaning of the #367 field is still unsettled, so
-  // that row stays UNKNOWN.)
+  // WORKSTREAM K2B (savings currentAmountGhs, corrected semantics):
+  // the aggregate below is the NOMINAL GHS amount recorded toward
+  // ACTIVE/PAUSED savings goals — server-maintained (schema default
+  // 0.0, client create() never seeds it, deposit increments it under a
+  // locked-row FOR UPDATE transaction). It is NOT proof of native GHS
+  // held: the same deposit debits user.availableBalance in USDC and
+  // increments user.escrowLockedBalance in USDC (savingsController),
+  // so the actual funds are USDC under the current escrow accounting.
+  // Four distinct meanings, never conflated:
+  //   1. the nominal GHS goal progress (this figure),
+  //   2. the actual USDC moved into escrow,
+  //   3. a current GHS display valuation of those assets (changes
+  //      with the rate),
+  //   4. a guaranteed/promised GHS payout (none established).
+  // The figure therefore REMAINS MAPPED here — the parse and its
+  // honesty guards (status filter, malformed → unknown, empty-loaded
+  // list → real zero) stay executable and test-covered — but the
+  // balance card does not DISPLAY it: the K2B-2 gate
+  // (kCardDisplaysSavingsAggregate, balance_card_breakdown.dart)
+  // renders the row UNKNOWN (—) for this release because a compact
+  // row cannot carry the required disclosure without suggesting
+  // native GHS held or a guaranteed GHS value. The Savings screen
+  // keeps the factual GHS-denominated goal progress under its own
+  // contract. The multi-asset settlement doctrine that would settle
+  // this is the PROPOSED architecture in AZM-Planning PR #75 (OPEN,
+  // not merged — not an approved money contract). (Contrast Susu,
+  // K2A: there the customer-facing meaning of the #367 field is still
+  // unsettled, so that row stays UNKNOWN at the mapping site.)
   double? vaultTotal;
   if (vaults.hasValue) {
     vaultTotal = vaults.value!

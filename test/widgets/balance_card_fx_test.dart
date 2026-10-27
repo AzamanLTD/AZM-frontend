@@ -607,31 +607,69 @@ void main() {
       await _pumpPair(tester, valuation: _saved(susu: null));
       await _flipToBack(tester);
       await _pageDown(tester); // COMMITTED page
-      expect(find.textContaining('not loaded yet'), findsOneWidget);
-      expect(find.textContaining('—'), findsOneWidget,
-          reason: 'unknown Susu renders a dash, never a zero');
+      final susuRow = find.byKey(const ValueKey('bc-row-susu'));
+      expect(find.descendant(
+              of: susuRow, matching: find.textContaining('not loaded yet')),
+          findsOneWidget);
+      expect(find.descendant(of: susuRow, matching: find.textContaining('—')),
+          findsOneWidget,
+          reason: 'unknown Susu renders a dash, never a zero (scoped to '
+              'the Susu row — savings also dashes under the K2B-2 gate)');
 
       await tester.pumpWidget(const SizedBox());
       await _pumpPair(tester, valuation: _saved(susu: 5));
       await _flipToBack(tester);
       await _pageDown(tester);
-      expect(find.textContaining('not loaded yet'), findsNothing);
-      expect(find.textContaining('5.00 USDC'), findsOneWidget);
+      expect(find.descendant(
+              of: susuRow, matching: find.textContaining('not loaded yet')),
+          findsNothing);
+      expect(find.descendant(
+              of: susuRow, matching: find.textContaining('5.00 USDC')),
+          findsOneWidget);
     });
 
-    testWidgets('savings renders GHS-denominated, with NO withdrawable '
-        'detail — the backend publishes no such field', (tester) async {
-      await _pumpPair(tester, valuation: _saved());
+    // K2B-2 regression — the card must not present the nominal GHS
+    // goal amount as native GHS holdings or as guaranteed GHS value.
+    // The fixture CARRIES a parsed savings figure (20 GHS); the gate
+    // keeps it off the card: the row renders UNKNOWN (—) with a
+    // truthful pointer to the Savings screen, which alone shows the
+    // factual GHS-denominated goal progress under its own contract.
+    testWidgets('K2B-2: savings renders UNKNOWN even when the '
+        'valuation carries the parsed figure — no native-GHS or '
+        'guaranteed-value suggestion', (tester) async {
+      final valuation = _saved(); // savingsLockedGhs: 20 — PARSED
+      expect(valuation.savingsLockedGhs, 20,
+          reason: 'fixture really carries the parsed figure');
+      await _pumpPair(tester, valuation: valuation);
       await _flipToBack(tester);
       await _pageDown(tester); // COMMITTED page
-      final savingsRow = find
-          .ancestor(of: find.text('Savings'), matching: find.byKey(const ValueKey('bc-row-savings')));
+      final savingsRow = find.byKey(const ValueKey('bc-row-savings'));
+      expect(
+          find.descendant(
+              of: savingsRow, matching: find.textContaining('—')),
+          findsOneWidget,
+          reason: 'the K2B-2 gate renders the aggregated savings '
+              'amount UNKNOWN — the nominal GHS goal figure is not a '
+              'displayable monetary holding this release');
+      expect(
+          find.descendant(
+              of: savingsRow,
+              matching: find.textContaining('on the Savings screen')),
+          findsOneWidget,
+          reason: 'the row points at the one surface that does show '
+              'the factual GHS-denominated goal progress');
       expect(
           find.descendant(
               of: savingsRow, matching: find.textContaining('GHS')),
-          findsOneWidget,
-          reason: 'savings is cedi-denominated (SavingsGoal '
-              '.currentAmountGhs)');
+          findsNothing,
+          reason: 'no GHS unit may render beside the savings dash — '
+              'the row must not suggest native GHS is held');
+      expect(
+          find.descendant(
+              of: savingsRow, matching: find.textContaining('20.00')),
+          findsNothing,
+          reason: 'the nominal GHS goal amount (20) must not appear '
+              'on the card as a monetary amount');
       expect(
           find.descendant(
               of: savingsRow, matching: find.textContaining('USDC')),
@@ -639,7 +677,8 @@ void main() {
           reason: 'no savings amount may ever render as USDC');
       expect(find.descendant(
               of: savingsRow, matching: find.textContaining('withdrawable')),
-          findsNothing);
+          findsNothing,
+          reason: 'no withdrawable/cash inference from the goal figure');
     });
 
     testWidgets('vendor variants: its OWN section when relevant, absent '

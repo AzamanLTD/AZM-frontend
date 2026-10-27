@@ -400,7 +400,11 @@ void main() {
     // valuation (the adapter keeps its last-known derivation) — but none
     // of them may be SHOWN: every row sourced from the canonical balance
     // renders an honest dash + 'not confirmed yet', while independently
-    // confirmed rows (GHS wallet, vaults/savings) keep their real values.
+    // confirmed rows (GHS wallet, vaults) keep their real values.
+    // Savings renders UNKNOWN regardless of confirmation: K2B-2 keeps
+    // the nominal GHS goal figure off the card (it would suggest
+    // native GHS held or a guaranteed GHS value) — the row points at
+    // the Savings screen instead.
     BalanceCardValuation unconfirmed() => const BalanceCardValuation(
           nativeGhsAvailable: 100,
           availableUsdc: 50,
@@ -450,12 +454,29 @@ void main() {
           reason: 'the native GHS wallet figure is its OWN contract — '
               'an unconfirmed USDC balance never hides it');
 
-      // COMMITTED page: vaults/savings keep their own confirmed values.
+      // COMMITTED page: vaults keep their own confirmed value; savings
+      // dashes under the K2B-2 display gate (its figure is parsed but
+      // never displayed on the card this release).
       await _dragToNextSection(tester);
       expect(
           rowText(const ValueKey('bc-row-vaults'), '10'), findsOneWidget,
           reason: 'vault commitments are independently confirmed and are '
               'NOT hidden by a loading general balance');
+      expect(
+          rowText(const ValueKey('bc-row-savings'), '—'), findsOneWidget,
+          reason: 'K2B-2: the nominal GHS savings goal figure is never '
+              'presented on the card as a monetary holding');
+      expect(
+          rowText(
+              const ValueKey('bc-row-savings'), 'on the Savings screen'),
+          findsOneWidget,
+          reason: 'the row points at the surface that shows the factual '
+              'GHS-denominated goal progress');
+      expect(
+          rowText(const ValueKey('bc-row-savings'), '20.00'),
+          findsNothing,
+          reason: 'the parsed figure (20 GHS nominal goal progress) must '
+              'not render — not as native GHS, not as guaranteed value');
 
       // LOCKED page: escrow + dispute escrow dash.
       await _dragToNextSection(tester);

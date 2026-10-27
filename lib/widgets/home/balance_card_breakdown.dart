@@ -11,8 +11,9 @@
 //   1. AVAILABLE     GHS wallet (unknown until the native-GHS contract
 //                     lands — a dash, never GH₵ 0.00) · USDC held (the
 //                     REAL holding, never the equivalent figure)
-//   2. COMMITTED     Vaults · Savings (GHS-native) · Susu — each a dash
-//                     while unknown, never a zero
+//   2. COMMITTED     Vaults · Savings (a dash while the K2B-2 display
+//                     gate is closed — see kCardDisplaysSavingsAggregate)
+//                     · Susu — each a dash while unknown, never a zero
 //   3. LOCKED        Escrow · Dispute escrow (separate visible values)
 //   4. VENDOR        Unallocated vendor balance — present ONLY when the
 //                     account is a vendor; never padded otherwise
@@ -58,6 +59,36 @@ import 'package:azaman/widgets/home/balance_card_pair.dart'
 /// tone (the meaning lives in the text, not in colour-coded tiles), a
 /// clear label, an optional one-line secondary detail, and the amount
 /// right-aligned with its explicit native unit.
+/// K2B-2 SAVINGS DISPLAY GATE (this release: CLOSED).
+///
+/// The provider still PARSES the aggregated savings figure (the
+/// honesty guards are executable and test-covered there), but the
+/// card does not display it. Backend evidence (savingsController
+/// deposit): a deposit debits user.availableBalance in USDC,
+/// increments user.escrowLockedBalance in USDC, and independently
+/// increments SavingsGoal.currentAmountGhs in GHS; SavingsDeposit
+/// records both denominations. The goal figure is therefore NOMINAL
+/// GHS-denominated goal progress while the actual funds are USDC
+/// under the current escrow accounting — four distinct things that
+/// must never be conflated:
+///   1. the nominal GHS amount recorded toward the goal,
+///   2. the actual USDC moved into escrow,
+///   3. a current GHS display valuation of those assets (it can
+///      change with the rate),
+///   4. a guaranteed or contractually promised GHS payout (none is
+///      established on the current contract).
+/// A compact breakdown row cannot carry that disclosure without
+/// suggesting native GHS is held or that the displayed GHS value is
+/// guaranteed by the underlying assets, so the row renders UNKNOWN
+/// (—) with a pointer to the Savings screen, which keeps showing the
+/// factual GHS-denominated goal progress under its own contract.
+/// The multi-asset settlement doctrine that would settle this is the
+/// PROPOSED architecture in AZM-Planning PR #75 — OPEN, not merged,
+/// not an approved money contract. When it (or an equivalent
+/// approved contract) lands, flip this gate and give the row its
+/// required disclosure.
+const bool kCardDisplaysSavingsAggregate = false;
+
 class _BreakdownRow extends StatelessWidget {
   const _BreakdownRow({
     super.key,
@@ -320,13 +351,23 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               label: 'Savings',
               icon: HugeIconsSolid.piggyBank,
               iconSemantic: 'Savings piggy bank icon',
-              // The savings goal is GHS-denominated (SavingsGoal
-              // .currentAmountGhs). Explicit GHS unit — never USDC.
-              amount: v.savingsLockedGhs != null
+              // K2B-2: the parsed aggregate is NOT shown as a
+              // monetary holding while the display gate is closed —
+              // see kCardDisplaysSavingsAggregate above. Unknown is a
+              // dash, never zero, and the detail points at the one
+              // surface that does show the factual figure.
+              amount: kCardDisplaysSavingsAggregate &&
+                      v.savingsLockedGhs != null
                   ? AzMoney.amount(v.savingsLockedGhs!)
                   : '—',
-              unit: v.savingsLockedGhs != null ? 'GHS' : '',
+              unit: kCardDisplaysSavingsAggregate &&
+                      v.savingsLockedGhs != null
+                  ? 'GHS'
+                  : '',
               colors: colors,
+              detail: !kCardDisplaysSavingsAggregate || v.savingsLockedGhs == null
+                  ? 'on the Savings screen'
+                  : null,
             ),
             _BreakdownRow(
               key: const ValueKey('bc-row-susu'),
