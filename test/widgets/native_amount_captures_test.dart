@@ -413,7 +413,15 @@ class _Gallery extends ConsumerWidget {
           style: TextStyle(color: colors.textTertiary, fontSize: 11),
         ),
         section('Vault progress (same-unit comparison)'),
-        VaultProgressCard(vault: _vault(), colors: colors, onTap: () {}),
+        VaultProgressCard(
+          vault: _vault(),
+          colors: colors,
+          onTap: () {},
+          // Pinned clock: the maturity countdown is measured against the
+          // SAME fixed instant the fixture anchors to (_kGoldenNow), so the
+          // 'Matures in' label can never decrement between CI runs.
+          nowFn: () => _kGoldenNow,
+        ),
         section('Escrow panel (collapsed + estimate strip)'),
         EscrowStatusPanel(
           escrow: _escrow(),

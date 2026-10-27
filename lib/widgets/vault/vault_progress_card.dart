@@ -23,11 +23,20 @@ class VaultProgressCard extends ConsumerWidget {
   final AzamanColors colors;
   final VoidCallback onTap;
 
+  /// Clock seam (same contract as VaultDetailScreen.nowFn): goldens pin
+  /// the countdown to a fixed instant, production defaults to the real
+  /// clock. A live DateTime.now() against a fixture anchored to a FIXED
+  /// _kGoldenNow makes the 'Matures in Nd' label decrement every UTC day,
+  /// which silently expired the native_amount gallery goldens on 2026-10-27
+  /// 12:00 UTC ('73d' -> '72d') and failed every later quality run.
+  final DateTime Function()? nowFn;
+
   const VaultProgressCard({
     super.key,
     required this.vault,
     required this.colors,
     required this.onTap,
+    this.nowFn,
   });
 
   String _shortDuration(Duration d) {
@@ -40,7 +49,8 @@ class VaultProgressCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final progress = vault.progressFraction;
     final isActive = vault.status == 'ACTIVE';
-    final remaining = vault.maturityDate.difference(DateTime.now());
+    final now = nowFn?.call() ?? DateTime.now();
+    final remaining = vault.maturityDate.difference(now);
     final accent = isActive ? colors.accent : colors.textTertiary;
     const rate = 0.08;
     final daysTotal = vault.maturityDate.difference(vault.startDate).inDays;
