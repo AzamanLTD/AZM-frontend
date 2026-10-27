@@ -1,0 +1,135 @@
+# Owner-device UX-testing APK (debug, environment-selectable).
+#
+# WHY THIS EXISTS: the Android Prod Smoke workflow (android-prod-smoke.yml)
+# is the fully-featured device build, but it requires the repository secret
+# AZM_ANDROID_GOOGLE_SERVICES_JSON_B64 (the real Android Firebase config),
+# which only the owner can add. Until that secret is present, this variant
+# gives the owner an INSTALLABLE debug APK from the exact PR head for
+# hands-on UX testing, using:
+#   • the real backend environment via --dart-define=ENV=prod
+#     (https://azm-backend-9o0b.onrender.com — PRODUCTION backend; real
+#     account data and live money rails are reachable), and
+#   • the CI placeholder Firebase configuration (same one the Android
+#     Integration workflow compiles against). The placeholder is valid for
+#     Gradle/plugin integration and Firebase.initializeApp() is wrapped in
+#     a try/catch in StartupCoordinator, so the app runs normally — but
+#     PUSH NOTIFICATIONS WILL NOT FUNCTION in this build.
+#
+# This is NOT a release path: debug build, unobfuscated, dispatch-only,
+# artifact retention only. Never published as a GitHub release.
+# When the owner adds the google-services secret, prefer dispatching
+# android-prod-smoke.yml for a fully-featured device build instead.
+
+name: Owner Device APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Backend environment compiled into the APK"
+        required: true
+        type: choice
+        options:
+          - prod
+        default: prod
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owner-device-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  owner-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Keep in lockstep with flutter-ci.yml / android-integration.yml.
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Reclaim runner disk space
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/lib/android/sdk/system-images
+          sudo rm -rf /usr/local/lib/android/sdk/emulator
+          sudo rm -rf /opt/ghc
+
+      # Same CI placeholder Firebase configuration the Android Integration
+      # workflow compiles against. See the header comment: the app's
+      # StartupCoordinator catches Firebase/FCM init failure, so this builds
+      # a runnable APK; push notifications are non-functional in it.
+      - name: Create CI Firebase configuration
+        run: |
+          cat > android/app/google-services.json << 'GSJSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "storage_bucket": "azaman-ci.appspot.com",
+              "project_id": "azaman-ci"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                  "android_client_info": {
+                    "package_name": "com.example.azaman"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  { "current_key": "AIzaSyCI00000000000000000000000000000000" }
+                ],
+                "services": {
+                  "appinvite_service": { "other_platform_oauth_client": [] }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          GSJSON
+
+      - name: Build debug APK (ENV=${{ inputs.environment }})
+        run: flutter build apk --debug --dart-define=ENV=${{ inputs.environment }}
+
+      - name: Record SHA-256 checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build/app/outputs/flutter-apk
+          sha256sum app-debug.apk | tee app-debug.apk.sha256
+          echo "SHA256 of app-debug.apk:"
+          cat app-debug.apk.sha256
+
+      - name: Upload owner-device APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: azaman-owner-device-debug
+          path: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/flutter-apk/app-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
