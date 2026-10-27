@@ -3,8 +3,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'dial_goo_painter.dart';
 import 'liquid_engine.dart';
 import 'liquid_placement.dart';
+
+// The satellite launch timing lives with the shared DialGooPainter now;
+// re-exported so existing imports of this library keep working.
+export 'dial_goo_painter.dart' show satelliteScale, satelliteTravel;
 
 class CategoryDialItem {
   final String? wire;
@@ -49,7 +54,6 @@ const double _pillHPad = 16;
 const double _pillRadius = 22;
 const double _iconSize = 17;
 const double _labelFS = 13;
-const double _restScale = 0.12;
 
 // Satellites render a bit smaller than the main/selected pill so the one in
 // focus reads as bigger while every satellite label still fits on one line.
@@ -502,25 +506,6 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
   }
 }
 
-/// Two-beat launch: OOZE (0.16s to 0.42) then LAUNCH on the pop spring, with
-/// the width axis 30 ms behind the height axis.
-({double sx, double sy}) satelliteScale(double t, int index) {
-  final at = 0.03 + index * 0.045;
-  final local = t - at;
-  if (local <= 0) return (sx: _restScale, sy: _restScale);
-  if (local < 0.16) {
-    final k = Curves.easeInOut.transform(local / 0.16);
-    final s = _restScale + (0.42 - _restScale) * k;
-    return (sx: s, sy: s);
-  }
-  final ky = kPopSpring.transform(((local - 0.16) / 0.30).clamp(0.0, 1.0));
-  final kx = kPopSpring.transform(((local - 0.19) / 0.30).clamp(0.0, 1.0));
-  return (sx: 0.42 + 0.58 * kx, sy: 0.42 + 0.58 * ky);
-}
-
-double satelliteTravel(double t, int index) =>
-    kHouseSpring.transform(((t - 0.03 - index * 0.045) / 0.46).clamp(0.0, 1.0));
-
 class _DialOverlay extends StatelessWidget {
   final AnimationController controller;
   final LayerLink link;
@@ -594,7 +579,7 @@ class _DialOverlay extends StatelessWidget {
                   child: AnimatedBuilder(
                     animation: controller,
                     builder: (_, __) => CustomPaint(
-                      painter: _DialGooPainter(
+                      painter: DialGooPainter(
                         t: reduced ? 1 : controller.value,
                         origin: bounds.topLeft,
                         anchor: anchor,
@@ -605,6 +590,11 @@ class _DialOverlay extends StatelessWidget {
                         // surrounding screen in BOTH light and dark mode.
                         body: kDialGooBody,
                         rim: kDialGooRim,
+                        // Verbatim the metrics the private painter used,
+                        // so the category dial's appearance is unchanged.
+                        anchorRadius: _pillRadius,
+                        satelliteRadius: _pillRadius,
+                        neckBaseRadius: _pillHeight * 0.30,
                       ),
                     ),
                   ),
@@ -810,70 +800,4 @@ class _SatellitePill extends StatelessWidget {
   }
 }
 
-class _DialGooPainter extends CustomPainter {
-  final double t;
-  final Offset origin;
-  final Rect anchor;
-  final List<ArcSlot> slots;
-  final Color body, rim;
 
-  _DialGooPainter({
-    required this.t,
-    required this.origin,
-    required this.anchor,
-    required this.slots,
-    required this.body,
-    required this.rim,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (t <= 0.001) return;
-    final flight =
-        (t / 0.45).clamp(0.0, 1.0) * (1 - ((t - 0.62) / 0.38).clamp(0.0, 1.0));
-    final sigma = kGooBlurRest + (kGooBlurActive - kGooBlurRest) * flight;
-    final a = anchor.shift(-origin);
-
-    paintGoo(
-      canvas,
-      bounds: Offset.zero & size,
-      sigma: sigma,
-      body: body,
-      rim: rim,
-      shapes: (c, paint) {
-        c.drawRRect(
-          RRect.fromRectAndRadius(
-            a.inflate(2 * flight),
-            const Radius.circular(_pillRadius),
-          ),
-          paint,
-        );
-        for (final slot in slots) {
-          final s = satelliteScale(t, slot.index);
-          final travel = satelliteTravel(t, slot.index);
-          if (travel <= 0) continue;
-          final target = slot.rect.shift(-origin);
-          final centre = Offset.lerp(a.center, target.center, travel)!;
-          final r = Rect.fromCenter(
-            center: centre,
-            width: target.width * s.sx,
-            height: target.height * s.sy,
-          );
-          drawNeck(
-            c,
-            paint,
-            from: a.center,
-            to: centre,
-            baseRadius: _pillHeight * 0.30,
-            t: (travel * 1.4).clamp(0.0, 1.0),
-            tension: flight,
-          );
-          c.drawPath(squirclePath(r, _pillRadius * s.sy), paint);
-        }
-      },
-    );
-  }
-
-  @override
-  bool shouldRepaint(_DialGooPainter old) => old.t != t || old.slots != slots;
-}

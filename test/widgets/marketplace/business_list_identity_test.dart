@@ -21,6 +21,7 @@
 
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -219,6 +220,16 @@ Future<void> _pumpCard(
   await tester.pump();
 }
 
+/// The avatar's action panel opens on press-and-hold now — the plain
+/// tap belongs to the persistent liquid dial.
+Future<void> _holdForPanel(WidgetTester tester) async {
+  final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('business-avatar-BIZ-1'))));
+  await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -302,7 +313,7 @@ void main() {
           reason: 'unsaved businesses show no indicator');
 
       // Save through the REAL panel path, then reopen the card.
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await _holdForPanel(tester);
       await tester.pumpAndSettle();
       await tester.tap(
           find.byKey(const ValueKey('business-action-bookmark')));
@@ -336,7 +347,7 @@ void main() {
         'state', (tester) async {
       await _pumpCard(tester, _business());
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await _holdForPanel(tester);
       await tester.pumpAndSettle();
       await tester.tap(
           find.byKey(const ValueKey('business-action-bookmark')));
@@ -347,7 +358,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Reopen: still accurate.
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await _holdForPanel(tester);
       await tester.pumpAndSettle();
       expect(find.text('Remove bookmark'), findsOneWidget);
       expect(find.text('Bookmark'), findsNothing);
@@ -367,7 +378,7 @@ void main() {
         };
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await _holdForPanel(tester);
       await tester.pumpAndSettle();
 
       expect(client.calls, contains(
@@ -388,7 +399,7 @@ void main() {
         };
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await _holdForPanel(tester);
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('business-action-watch-story')),
@@ -400,7 +411,7 @@ void main() {
         'breaks nothing else', (tester) async {
       await _pumpCard(tester, _business(), client: _FailingStoriesClient());
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await _holdForPanel(tester);
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('business-action-watch-story')),
@@ -426,7 +437,7 @@ void main() {
         };
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await _holdForPanel(tester);
       await tester.pumpAndSettle();
 
       expect(find.text('2 stories'), findsNothing);
@@ -443,7 +454,7 @@ void main() {
         };
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      await _holdForPanel(tester);
       await tester.pumpAndSettle();
       await tester.tap(
           find.byKey(const ValueKey('business-action-watch-story')));

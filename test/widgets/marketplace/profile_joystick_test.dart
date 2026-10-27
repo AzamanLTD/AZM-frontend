@@ -1,32 +1,50 @@
 // =============================================================================
-// PROFILE JOYSTICK — component-level tests (Workstream A5, 2026-10-26)
+// PROFILE JOYSTICK / LIQUID DIAL — component-level tests (2026-10-27
+// redesign: persistent icon-only goo dial + tap/drag/hold state machine).
 //
-// Pins the shared directional contract on the REAL ProfileJoystick:
-//   * touch-down starts the interaction — no long press,
-//   * ~16px activation slop (14-20 band), deterministic dominant axis,
-//   * dead zone + axis hysteresis (tremor never thrashes selection),
-//   * actions fire EXACTLY once, only on release, never during the
-//     drag and never for an unavailable direction,
-//   * the preserved short-tap behaviour below the slop,
-//   * cancellation / second pointer / dispose close cleanly with no
-//     action and no stuck overlay,
-//   * the parent scrollable never scrolls for a gesture that began on
-//     the avatar, while scrolling outside it keeps working,
-//   * reduced motion stays usable — no perpetual animations.
+// Pins the shared contract on the REAL ProfileJoystick, per the required
+// regression matrix:
+//   1-2.   tap opens the persistent icon dial (no visible action text) and
+//          it STAYS open after the opening tap.
+//   3.     tapping an available icon runs the correct delegate exactly
+//          once and closes the dial.
+//   4-5.   outside tap closes silently (no action, no feed scroll); the
+//          anchor dismisses the open dial.
+//   6.     directional drag highlights the correct icon, executes once on
+//          release and closes.
+//   7.     cancel / no-direction release / second pointer never fire.
+//   8.     long press opens the full action menu ONLY — the same pointer
+//          sequence produces nothing else.
+//   9.     unavailable directions render visibly disabled and never
+//          execute.
+//   10.    show-less fires once per deliberate activation — no double
+//          invoke from gesture overlap.
+//   11.    a profile-started gesture never scrolls the parent; scrolling
+//          that begins outside still works.
+//   12.    geometry: 44×44 targets, uniform spacing, fully on-screen at
+//          320/360/390dp.
+//   13.    reduced motion: instantly readable, instantly closed.
+//   a11y.  action labels preserved; tap/dial/menu semantics exposed;
+//          unavailable directions never advertised; no duplicate stops
+//          from the transient dial; satellites carry honest labels.
 // =============================================================================
 
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
+import 'dart:ui' show Tristate;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/widgets/marketplace/profile_joystick.dart';
 
-// WORKSTREAM J1 helpers — read the semantics tree and invoke custom
-// actions exactly the way a TalkBack/VoiceOver activation does.
-SemanticsNode _nodeFor(WidgetTester tester) =>
-    tester.getSemantics(find.byKey(const ValueKey('avatar')));
+// Semantics helpers — read the tree and invoke actions exactly the way
+// TalkBack/VoiceOver activation does.
+SemanticsNode _nodeFor(WidgetTester tester, Key key) =>
+    tester.getSemantics(find.byKey(key));
+
+SemanticsData _dataFor(WidgetTester tester, Key key) =>
+    _nodeFor(tester, key).getSemanticsData();
 
 int _idFor(String label) =>
     CustomSemanticsAction.getIdentifier(CustomSemanticsAction(label: label));
@@ -37,17 +55,17 @@ bool _exposes(SemanticsData data, String label) =>
 SemanticsOwner _ownerOf(WidgetTester tester) =>
     tester.binding.renderViews.first.owner!.semanticsOwner!;
 
-void _invoke(WidgetTester tester, String label) {
+void _invokeCustom(WidgetTester tester, Key key, String label) {
   _ownerOf(tester).performAction(
-    _nodeFor(tester).id,
+    _nodeFor(tester, key).id,
     SemanticsAction.customAction,
     _idFor(label),
   );
 }
 
-void _invokeTap(WidgetTester tester) {
+void _invokeTap(WidgetTester tester, Key key) {
   _ownerOf(tester).performAction(
-    _nodeFor(tester).id,
+    _nodeFor(tester, key).id,
     SemanticsAction.tap,
   );
 }
@@ -68,6 +86,8 @@ List<SemanticsData> _allNodes(SemanticsNode root) {
   return result;
 }
 
+const _avatarKey = ValueKey('avatar');
+
 Widget _host(Widget child, {bool disableAnimations = false}) {
   return ProviderScope(
     child: MaterialApp(
@@ -83,19 +103,20 @@ Widget _host(Widget child, {bool disableAnimations = false}) {
 }
 
 Widget _avatar() => const SizedBox(
-  key: ValueKey('avatar'),
+  key: _avatarKey,
   width: 64,
   height: 64,
   child: ColoredBox(color: Colors.blue),
 );
 
-/// A Joystick with spy delegates for every direction.
+/// Joystick with spy delegates for every direction + the hold outcome.
 class _Spies {
   int menu = 0;
   int story = 0;
   int bookmark = 0;
   int showLess = 0;
-  int taps = 0;
+  int holds = 0;
+  int taps = 0; // nothing should ever fire this — tap belongs to the dial
 
   ProfileJoystickActions actions({bool storyAvailable = true}) =>
       ProfileJoystickActions(
@@ -121,19 +142,26 @@ class _Spies {
           onRelease: () => showLess++,
         ),
       );
+
+  int get total => menu + story + bookmark + showLess;
 }
 
-Future<Offset> _center(WidgetTester tester) async =>
-    tester.getCenter(find.byKey(const ValueKey('avatar')));
+Widget _joystick(_Spies spies, {bool storyAvailable = true}) => ProfileJoystick(
+  actions: spies.actions(storyAvailable: storyAvailable),
+  onLongPress: () => spies.holds++,
+  child: _avatar(),
+);
 
-/// Start the joystick: pointer-down + one frame so the overlay reveals.
-Future<TestGesture> _start(WidgetTester tester) async {
-  final gesture = await tester.startGesture(await _center(tester));
-  await tester.pump();
-  return gesture;
+Future<void> _tapAvatar(WidgetTester tester) async {
+  await tester.tap(find.byKey(_avatarKey));
+  await tester.pumpAndSettle();
 }
 
-Future<void> _move(WidgetTester tester, TestGesture gesture, Offset by) async {
+Future<TestGesture> _press(WidgetTester tester) =>
+    tester.startGesture(tester.getCenter(find.byKey(_avatarKey)));
+
+Future<void> _pumpMove(WidgetTester tester, TestGesture gesture,
+    Offset by) async {
   await gesture.moveBy(by);
   await tester.pump();
 }
@@ -141,448 +169,582 @@ Future<void> _move(WidgetTester tester, TestGesture gesture, Offset by) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('pointer-down starts the interaction', () {
-    testWidgets('the dial reveals immediately on pointer-down — no '
-        'long press (matrix 1)', (tester) async {
+  const dialKey = ValueKey('profile-dial');
+  const barrierKey = ValueKey('profile-dial-barrier');
+  const anchorKey = ValueKey('profile-dial-anchor');
+  Key sat(String name) => ValueKey('profile-dial-satellite-$name');
+
+  group('outcome 1 — tap opens the persistent dial (regressions 1, 2)', () {
+    testWidgets('a short tap opens the FOUR icon-only satellites with NO '
+        'visible action text', (tester) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      await _tapAvatar(tester);
+
+      expect(find.byKey(dialKey), findsOneWidget);
+      expect(find.byKey(barrierKey), findsOneWidget);
+      for (final name in ['menu', 'story', 'bookmark', 'showLess']) {
+        expect(find.byKey(sat(name)), findsOneWidget, reason: name);
+      }
+      // Icon-only: no label text anywhere in the dial.
       expect(
-        find.byKey(const ValueKey('joystick-satellite-menu')),
+        find.descendant(of: find.byKey(dialKey), matching: find.byType(Text)),
         findsNothing,
-        reason: 'nothing is revealed before touch',
       );
-
-      await _start(tester);
-
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-menu')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-story')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-bookmark')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-showLess')),
-        findsOneWidget,
-      );
+      // And nothing fired from the opening tap itself.
+      expect(spies.total, 0);
+      expect(spies.holds, 0);
     });
 
-    testWidgets('nothing fires on pointer-down itself (matrix 8)', (
-      tester,
-    ) async {
+    testWidgets('the dial STAYS open after the opening tap', (tester) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
+      await tester.pumpWidget(_host(_joystick(spies)));
 
-      await _start(tester);
+      await _tapAvatar(tester);
+      // Long after the open animation (and no interaction): still open.
+      await tester.pump(const Duration(seconds: 3));
 
-      expect(spies.menu, 0);
-      expect(spies.story, 0);
-      expect(spies.bookmark, 0);
-      expect(spies.showLess, 0);
-      expect(spies.taps, 0);
-    });
-  });
-
-  group('directional selection and release', () {
-    testWidgets('a small upward drag selects Menu and the release '
-        'invokes the delegate exactly once (matrix 2, 8)', (tester) async {
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
-
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, -20)); // up, past slop
-      expect(spies.menu, 0, reason: 'never during the drag');
-
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      expect(spies.menu, 1);
-      expect(spies.story, 0);
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-menu')),
-        findsNothing,
-        reason: 'the dial closed after the release',
-      );
+      expect(find.byKey(dialKey), findsOneWidget);
     });
 
-    testWidgets('a small rightward drag selects Bookmark (matrix 4)', (
-      tester,
-    ) async {
+    testWidgets('regression 3 — tapping an available icon runs the correct '
+        'delegate EXACTLY once and closes the dial', (tester) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
+      await tester.pumpWidget(_host(_joystick(spies)));
 
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(20, 0));
-      await gesture.up();
+      await _tapAvatar(tester);
+      await tester.tap(find.byKey(sat('bookmark')));
       await tester.pumpAndSettle();
 
       expect(spies.bookmark, 1);
-      expect(spies.menu, 0);
+      expect(spies.total, 1);
+      expect(find.byKey(dialKey), findsNothing, reason: 'dial closed');
     });
 
-    testWidgets('a small leftward drag selects Show less (matrix 5 seam)', (
-      tester,
-    ) async {
+    testWidgets('regression 4 — tapping OUTSIDE closes silently: no action, '
+        'and the barrier swallows the tap', (tester) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
+      await tester.pumpWidget(_host(_joystick(spies)));
 
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(-20, 0));
-      await gesture.up();
+      await _tapAvatar(tester);
+      await tester.tap(find.byKey(barrierKey));
       await tester.pumpAndSettle();
 
-      expect(spies.showLess, 1);
+      expect(find.byKey(dialKey), findsNothing);
+      expect(spies.total, 0);
+      expect(spies.holds, 0);
     });
 
-    testWidgets('a small downward drag selects Story when available '
-        '(matrix 3)', (tester) async {
+    testWidgets('regression 5 — tapping the anchor again dismisses the open '
+        'dial with no action', (tester) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(
-          ProfileJoystick(
-            actions: spies.actions(storyAvailable: true),
-            child: _avatar(),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_host(_joystick(spies)));
 
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, 20));
-      await gesture.up();
+      await _tapAvatar(tester);
+      expect(find.byKey(anchorKey), findsOneWidget);
+      await tester.tap(find.byKey(anchorKey));
       await tester.pumpAndSettle();
 
-      expect(spies.story, 1);
-    });
-
-    testWidgets('diagonals select the DOMINANT axis deterministically', (
-      tester,
-    ) async {
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
-
-      // Mostly up with horizontal drift -> Menu.
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(6, -26));
-      await gesture.up();
-      await tester.pumpAndSettle();
-      expect(spies.menu, 1);
-      expect(spies.bookmark, 0);
+      expect(find.byKey(dialKey), findsNothing);
+      expect(spies.total, 0);
     });
   });
 
-  group('thresholds, hysteresis and the preserved tap', () {
-    testWidgets('movement below the slop is a tap, not a direction '
-        '(matrix 9)', (tester) async {
+  group('outcome 2 — directional drag (transient dial, regressions 6, 7)', () {
+    testWidgets('a decisive up-drag highlights the Menu satellite and the '
+        'release executes EXACTLY once, then closes', (tester) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(
-          ProfileJoystick(
-            actions: spies.actions(),
-            onTap: () => spies.taps++,
-            child: _avatar(),
-          ),
-        ),
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, -26));
+
+      // Transient dial is up while the pointer is still down.
+      expect(find.byKey(dialKey), findsOneWidget);
+      // The dragged direction is highlighted: its icon colour differs
+      // from a non-selected satellite's (accent vs neutral ink).
+      final menuIcon = tester.widget<Icon>(
+        find.descendant(of: find.byKey(sat('menu')), matching: find.byType(Icon)),
       );
-
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, -10)); // under 16
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      expect(spies.menu, 0, reason: 'below the activation slop');
-      expect(spies.taps, 1, reason: 'the short-tap behaviour survives');
-    });
-
-    testWidgets('a plain tap still fires onTap (matrix 9)', (tester) async {
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(
-          ProfileJoystick(
-            actions: spies.actions(),
-            onTap: () => spies.taps++,
-            child: _avatar(),
-          ),
-        ),
+      final storyIcon = tester.widget<Icon>(
+        find.descendant(of: find.byKey(sat('story')), matching: find.byType(Icon)),
       );
+      expect(menuIcon.color, isNot(storyIcon.color),
+          reason: 'the selected satellite is visually highlighted');
 
-      await tester.tap(find.byKey(const ValueKey('avatar')));
-      await tester.pumpAndSettle();
-
-      expect(spies.taps, 1);
-      expect(spies.menu, 0);
-    });
-
-    testWidgets('axis hysteresis keeps tremor from thrashing the '
-        'selection', (tester) async {
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
-
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, -26)); // Menu
-      // Small horizontal drift must NOT flip the axis (margin 4).
-      await _move(tester, gesture, const Offset(10, 0));
       await gesture.up();
       await tester.pumpAndSettle();
 
       expect(spies.menu, 1);
-      expect(
-        spies.bookmark,
-        0,
-        reason: '10px of horizontal drift is tremor, not intent',
-      );
+      expect(spies.total, 1);
+      expect(find.byKey(dialKey), findsNothing);
     });
 
-    testWidgets('a clear axis switch DOES flip after the margin', (
+    testWidgets('regression 7a — pointer CANCELLATION executes nothing', (
       tester,
     ) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
+      await tester.pumpWidget(_host(_joystick(spies)));
 
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, -26)); // Menu
-      await _move(tester, gesture, const Offset(32, 0)); // decisively right
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      expect(
-        spies.bookmark,
-        1,
-        reason: 'a dominant rightward travel flips to Bookmark',
-      );
-    });
-
-    testWidgets('returning into the dead zone clears the selection', (
-      tester,
-    ) async {
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
-
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, -26)); // Menu
-      await _move(tester, gesture, const Offset(0, 18)); // back inside slop
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      expect(spies.menu, 0, reason: 'released inside the dead zone');
-    });
-  });
-
-  group('unavailable directions (matrix 13)', () {
-    testWidgets('an unavailable story direction renders dimmed and a '
-        'release on it fires nothing', (tester) async {
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(
-          ProfileJoystick(
-            actions: spies.actions(storyAvailable: false),
-            child: _avatar(),
-          ),
-        ),
-      );
-
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, 20));
-      expect(
-        find.text('Story (No active story)'),
-        findsOneWidget,
-        reason:
-            'the unavailable satellite renders its honest reason '
-            'while the session is live',
-      );
-
-      await gesture.up();
-      await tester.pumpAndSettle();
-
-      expect(spies.story, 0, reason: 'no dead delegate ever fires');
-    });
-  });
-
-  group('cancellation and teardown (matrix 10)', () {
-    testWidgets('pointer cancellation closes the dial without firing', (
-      tester,
-    ) async {
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
-
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, -26));
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, -26));
       await gesture.cancel();
       await tester.pumpAndSettle();
 
-      expect(spies.menu, 0);
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-menu')),
-        findsNothing,
-        reason: 'no stuck overlay after cancellation',
-      );
+      expect(spies.total, 0);
+      expect(find.byKey(dialKey), findsNothing);
     });
 
-    testWidgets('a second pointer cancels the session and the first '
-        'pointer release fires nothing', (tester) async {
+    testWidgets('regression 7b — release BACK INSIDE the dead zone executes '
+        'nothing (no valid direction selected)', (tester) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, -26)); // select menu…
+      await _pumpMove(tester, gesture, const Offset(0, 26)); // …then return to dead
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(spies.total, 0);
+      expect(find.byKey(dialKey), findsNothing);
+    });
+
+    testWidgets('regression 7c — a SECOND POINTER cancels the session and '
+        'the first pointer\'s release fires nothing', (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final first = await _press(tester);
+      await _pumpMove(tester, first, const Offset(0, -26));
+      final second = await tester.startGesture(
+        // ignore: avoid_redundant_argument_values
+        const Offset(300, 300),
       );
-
-      final first = await _start(tester);
-      await _move(tester, first, const Offset(0, -26));
-
-      // A second finger lands elsewhere on the screen.
-      final second = await tester.startGesture(const Offset(300, 500));
       await tester.pump();
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-menu')),
-        findsNothing,
-        reason: 'the second pointer closed the dial',
-      );
-
       await first.up();
       await second.up();
       await tester.pumpAndSettle();
 
-      expect(spies.menu, 0, reason: 'cancelled sessions never fire');
-    });
-
-    testWidgets('widget disposal mid-session removes the overlay and '
-        'fires nothing', (tester) async {
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies.actions(), child: _avatar())),
-      );
-
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, -26));
-
-      await tester.pumpWidget(const SizedBox.shrink()); // route disposal
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-menu')),
-        findsNothing,
-      );
-      expect(spies.menu, 0);
+      expect(spies.total, 0);
+      expect(find.byKey(dialKey), findsNothing);
     });
   });
 
-  group('gesture-arena arbitration vs the parent scroll (matrix 11, 12)', () {
-    testWidgets('a drag that begins on the avatar never scrolls the '
-        'parent list', (tester) async {
+  group('outcome 3 — long press (regression 8)', () {
+    testWidgets('press-and-hold opens the full action menu ONLY: no dial, '
+        'no direction, and the SAME pointer\'s release fires nothing',
+        (tester) async {
       final spies = _Spies();
-      final controller = ScrollController();
-      await tester.pumpWidget(
-        _host(
-          SizedBox(
-            height: 300,
-            child: ListView(
-              controller: controller,
-              children: [
-                ProfileJoystick(actions: spies.actions(), child: _avatar()),
-                for (var i = 0; i < 40; i++) ListTile(title: Text('row $i')),
-              ],
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(_host(_joystick(spies)));
 
-      final gesture = await _start(tester);
-      // A decisive VERTICAL drag — exactly the movement a scroll
-      // recogniser would love to claim.
-      await _move(tester, gesture, const Offset(0, 40));
+      final gesture = await _press(tester);
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+
+      expect(spies.holds, 1, reason: 'the hold opened the full menu');
+      expect(find.byKey(dialKey), findsNothing, reason: 'no dial from a hold');
+      expect(spies.total, 0);
+
+      // The gesture is CONSUMED: the release must not open the
+      // persistent dial either.
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(spies.holds, 1);
+      expect(spies.total, 0);
+      expect(find.byKey(dialKey), findsNothing);
+    });
+
+    testWidgets('a drag that wins the arena first KILLS the hold — the same '
+        'sequence can never produce both', (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, -26)); // drag wins
+      // Hold the finger still well past the long-press timeout.
+      await tester.pump(kLongPressTimeout * 2);
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(
-        controller.offset,
-        0.0,
-        reason: 'the joystick won the arena before the scroll could',
-      );
-      expect(spies.story, 1, reason: 'down selected Story');
+      expect(spies.menu, 1);
+      expect(spies.holds, 0);
     });
 
-    testWidgets('a drag that begins OUTSIDE the avatar scrolls '
-        'normally', (tester) async {
+    testWidgets('small sub-slop drift does NOT cancel the hold', (
+      tester,
+    ) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, -10)); // below the slop
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+
+      expect(spies.holds, 1);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(spies.holds, 1);
+      expect(spies.total, 0);
+    });
+  });
+
+  group('honest unavailability (regression 9)', () {
+    testWidgets('transient release on an unavailable direction fires '
+        'NOTHING and the dial still closes', (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies, storyAvailable: false)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, 26)); // down = story
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(spies.story, 0);
+      expect(spies.total, 0);
+      expect(find.byKey(dialKey), findsNothing);
+    });
+
+    testWidgets('persistent dial: the unavailable satellite is present, '
+        'visibly dimmed, and tapping it neither fires NOR closes',
+        (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies, storyAvailable: false)));
+
+      await _tapAvatar(tester);
+      final storyPositioned = find.byKey(sat('story'));
+      expect(storyPositioned, findsOneWidget);
+
+      // Dimmed: the unavailable satellite renders at 0.45 opacity,
+      // clearly below an available satellite's 0.9.
+      // The dimming wrapper is layered under LiquidReveal's own
+      // reveal Opacity — pin it BY VALUE, order-independent.
+      List<double> opacitiesOf(Finder finder) => [
+            for (final w in find
+                .descendant(of: finder, matching: find.byType(Opacity))
+                .evaluate())
+              (w.widget as Opacity).opacity,
+      ];
+      expect(
+        opacitiesOf(storyPositioned).contains(0.45),
+        isTrue,
+        reason: 'unavailable renders visibly dimmed',
+      );
+      expect(
+        opacitiesOf(find.byKey(sat('menu'))).contains(0.9),
+        isTrue,
+        reason: 'available stays fully readable',
+      );
+
+      await tester.tap(storyPositioned);
+      await tester.pumpAndSettle();
+
+      expect(spies.story, 0);
+      expect(find.byKey(dialKey), findsOneWidget, reason: 'dial stays open');
+    });
+
+    testWidgets('all four positions stay STABLE when a direction is '
+        'unavailable — never removed, never rearranged', (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies, storyAvailable: false)));
+
+      await _tapAvatar(tester);
+      for (final name in ['menu', 'story', 'bookmark', 'showLess']) {
+        expect(find.byKey(sat(name)), findsOneWidget, reason: name);
+      }
+    });
+  });
+
+  group('show-less + no double invoke (regression 10)', () {
+    testWidgets('a left drag fires show-less exactly ONCE per activation',
+        (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(-26, 0));
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(spies.showLess, 1);
+      expect(spies.total, 1);
+    });
+
+    testWidgets('one held diagonal tremor cannot double-invoke: the release '
+        'fires the FINAL direction once', (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(-26, 0));
+      await _pumpMove(tester, gesture, const Offset(0, -26)); // diagonal flip denied
+      await _pumpMove(tester, gesture, const Offset(-8, 8)); // tremor back
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(spies.showLess + spies.menu, 1, reason: 'exactly one outcome');
+    });
+
+    testWidgets('a drag release and a LATER deliberate dial tap are two '
+        'distinct activations (both legitimate)', (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(-26, 0));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(spies.showLess, 1);
+
+      // A second, separate gesture: tap-open then pick the same icon.
+      await _tapAvatar(tester);
+      await tester.tap(find.byKey(sat('showLess')));
+      await tester.pumpAndSettle();
+      expect(spies.showLess, 2, reason: 'two deliberate activations');
+    });
+  });
+
+  group('gesture ownership vs the parent scroll (regression 11)', () {
+    Widget scrollHost(_Spies spies, ScrollController controller) => _host(
+      SizedBox(
+        height: 300,
+        child: ListView(
+          controller: controller,
+          children: [
+            _joystick(spies),
+            for (var i = 0; i < 40; i++) ListTile(title: Text('row $i')),
+          ],
+        ),
+      ),
+    );
+
+    testWidgets('a drag that begins on the avatar NEVER scrolls the list',
+        (tester) async {
       final spies = _Spies();
       final controller = ScrollController();
-      await tester.pumpWidget(
-        _host(
-          SizedBox(
-            height: 300,
-            child: ListView(
-              controller: controller,
-              children: [
-                ProfileJoystick(actions: spies.actions(), child: _avatar()),
-                for (var i = 0; i < 40; i++) ListTile(title: Text('row $i')),
-              ],
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(scrollHost(spies, controller));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, 40)); // pure vertical
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, 0.0, reason: 'the joystick won the arena');
+      expect(spies.story, 1);
+    });
+
+    testWidgets('the OPEN persistent dial owns the screen: a vertical drag '
+        'on the barrier never scrolls the feed', (tester) async {
+      final spies = _Spies();
+      final controller = ScrollController();
+      await tester.pumpWidget(scrollHost(spies, controller));
+
+      await _tapAvatar(tester);
+      await tester.drag(find.byKey(barrierKey), const Offset(0, -80));
+      await tester.pumpAndSettle();
+
+      expect(controller.offset, 0.0, reason: 'the barrier ate the drag');
+      expect(find.byKey(dialKey), findsOneWidget, reason: 'drag ≠ dismissal');
+      expect(spies.total, 0);
+    });
+
+    testWidgets('a drag that begins OUTSIDE the avatar scrolls normally',
+        (tester) async {
+      final spies = _Spies();
+      final controller = ScrollController();
+      await tester.pumpWidget(scrollHost(spies, controller));
 
       await tester.drag(find.text('row 1'), const Offset(0, -60));
       await tester.pumpAndSettle();
 
       expect(controller.offset, greaterThan(0.0));
-      expect(spies.story, 0);
+      expect(spies.total, 0);
     });
   });
 
-  group('reduced motion (matrix 14)', () {
-    testWidgets('with disableAnimations the dial is instantly readable '
-        'and closes without perpetual animation', (tester) async {
+  group('geometry (regression 12)', () {
+    for (final width in [320.0, 360.0, 390.0]) {
+      testWidgets('at ${width.toInt()}dp every satellite keeps its 44×44 '
+          'target fully on-screen with uniform spacing', (tester) async {
+        final spies = _Spies();
+        tester.view.physicalSize = Size(width, 640);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        // The listing-like left-leaning anchor — the hard case.
+        await tester.pumpWidget(
+          _host(
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 54),
+                child: _joystick(spies),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await _tapAvatar(tester);
+        await tester.pumpAndSettle();
+
+        final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+        final anchorRect = tester.getRect(find.byKey(anchorKey));
+        final anchorCenter =
+            anchorRect.center; // central zone centre == avatar centre
+
+        for (final name in ['menu', 'story', 'bookmark', 'showLess']) {
+          final rect = tester.getRect(find.byKey(sat(name)));
+          expect(rect.width, 44.0, reason: '$name hit target width');
+          expect(rect.height, 44.0, reason: '$name hit target height');
+          expect(rect.left, greaterThanOrEqualTo(0.0),
+              reason: '$name never off the left edge');
+          expect(rect.right, lessThanOrEqualTo(screen.width),
+              reason: '$name never off the right edge');
+          expect(rect.top, greaterThanOrEqualTo(0.0));
+          expect(rect.bottom, lessThanOrEqualTo(screen.height));
+        }
+
+        // Uniform ring: every satellite centre equidistant from the
+        // anchor centre (the solve may shift the whole ring, never one
+        // satellite on its own).
+        final distances = [
+          for (final name in ['menu', 'story', 'bookmark', 'showLess'])
+            (tester.getRect(find.byKey(sat(name))).center - anchorCenter)
+                .distance,
+        ];
+        for (final d in distances) {
+          expect(
+            d,
+            closeTo(distances.first, 0.5),
+            reason: 'uniform spacing, not per-direction fitting',
+          );
+        }
+      });
+    }
+  });
+
+  group('reduced motion (regression 13)', () {
+    testWidgets('with disableAnimations the dial is instantly readable and '
+        'closes instantly with no pending animation', (tester) async {
       final spies = _Spies();
       await tester.pumpWidget(
-        _host(
-          ProfileJoystick(actions: spies.actions(), child: _avatar()),
-          disableAnimations: true,
-        ),
+        _host(_joystick(spies), disableAnimations: true),
       );
 
-      final gesture = await _start(tester);
-      await _move(tester, gesture, const Offset(0, -26));
+      await _tapAvatar(tester); // reduced: open is instant
+      expect(find.byKey(dialKey), findsOneWidget);
+      expect(tester.hasRunningAnimations, isFalse);
 
-      final satellite =
-          find
-                  .byKey(const ValueKey('joystick-satellite-menu'))
-                  .evaluate()
-                  .first
-                  .widget
-              as Positioned;
-      final animated = satellite.child as AnimatedOpacity;
-      expect(animated.opacity, 1.0);
+      await tester.tap(find.byKey(barrierKey));
+      await tester.pump();
+      expect(find.byKey(dialKey), findsNothing, reason: 'instant close');
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+  });
 
+  group('accessibility (A5)', () {
+    testWidgets('the avatar node exposes tap (open/close), every AVAILABLE '
+        'direction and the Open-full-menu action — an unavailable direction '
+        'is never advertised', (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies, storyAvailable: false)));
+
+      final data = _dataFor(tester, _avatarKey);
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+      expect(_exposes(data, 'Menu'), isTrue);
+      expect(_exposes(data, 'Save'), isTrue);
+      expect(_exposes(data, 'Show less'), isTrue);
+      expect(_exposes(data, 'Story'), isFalse,
+          reason: 'unavailable directions are never advertised');
+      expect(_exposes(data, 'Open full action menu'), isTrue);
+
+      // The semantic activations drive the REAL delegates exactly once.
+      _invokeCustom(tester, _avatarKey, 'Menu');
+      await tester.pumpAndSettle();
+      expect(spies.menu, 1);
+
+      _invokeCustom(tester, _avatarKey, 'Open full action menu');
+      await tester.pumpAndSettle();
+      expect(spies.holds, 1);
+
+      // The semantic TAP opens the persistent dial.
+      _invokeTap(tester, _avatarKey);
+      await tester.pumpAndSettle();
+      expect(find.byKey(dialKey), findsOneWidget);
+      // …and toggles it closed again.
+      _invokeTap(tester, _avatarKey);
+      await tester.pumpAndSettle();
+      expect(find.byKey(dialKey), findsNothing);
+    });
+
+    testWidgets('the persistent dial\'s satellites are honest semantic '
+        'buttons: labels kept, unavailable carries disabled', (tester) async {
+      final spies = _Spies();
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(_host(_joystick(spies, storyAvailable: false)));
+
+      await _tapAvatar(tester);
+      await tester.pumpAndSettle();
+
+      final nodes = _allNodes(_ownerOf(tester).rootSemanticsNode!);
+
+      SemanticsData? nodeWith(String label) {
+        for (final n in nodes) {
+          if (n.label == label) return n;
+        }
+        return null;
+      }
+
+      final menu = nodeWith('Menu');
+      expect(menu, isNotNull, reason: 'icon-only is visual; labels are kept');
+      expect(menu!.flagsCollection.isButton, isTrue);
+
+      final story = nodeWith('Story (No active story)');
+      expect(story, isNotNull);
+      expect(story!.flagsCollection.isButton, isTrue);
+      expect(story.flagsCollection.isEnabled, Tristate.isFalse,
+          reason: 'disabled state is carried');
+      expect(story.flagsCollection.isEnabled, Tristate.isFalse,
+          reason: 'honestly disabled');
+      expect(menu.flagsCollection.isEnabled, Tristate.isTrue);
+      semantics.dispose();
+    });
+
+    testWidgets('the TRANSIENT dial adds NO duplicate screen-reader stops',
+        (tester) async {
+      final spies = _Spies();
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, -26));
+
+      final labels = _allNodes(_ownerOf(tester).rootSemanticsNode!)
+          .map((n) => n.label)
+          .toSet();
+      expect(labels.contains('Menu'), isFalse,
+          reason: 'satellite labels exist only on the persistent dial');
+      await gesture.up();
+      await tester.pumpAndSettle();
+      semantics.dispose();
+    });
+  });
+
+  group('teardown honesty', () {
+    testWidgets('widget disposal mid-session removes the overlay and fires '
+        'nothing', (tester) async {
+      final spies = _Spies();
+      await tester.pumpWidget(_host(_joystick(spies)));
+
+      final gesture = await _press(tester);
+      await _pumpMove(tester, gesture, const Offset(0, -26));
+
+      await tester.pumpWidget(const SizedBox.shrink());
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('joystick-satellite-menu')),
-        findsNothing,
-      );
-      expect(spies.menu, 1);
+      expect(find.byKey(dialKey), findsNothing);
+      expect(spies.total, 0);
     });
   });
 
@@ -606,177 +768,5 @@ void main() {
       ProfileJoystickDirection.bookmark,
     );
     expect(directionFor(const Offset(20, -20)), ProfileJoystickDirection.menu);
-  });
-
-  group('Workstream J1 — usable WITHOUT directional touch gestures', () {
-    testWidgets('every AVAILABLE direction is exposed as a custom '
-        'semantics action and invoking it fires the real callback exactly '
-        'once', (tester) async {
-      final handle = tester.ensureSemantics();
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(
-          ProfileJoystick(
-            actions: spies.actions(),
-            onTap: () => spies.taps++,
-            child: _avatar(),
-          ),
-        ),
-      );
-
-      final data = _nodeFor(tester).getSemanticsData();
-      for (final label in ['Menu', 'Story', 'Save', 'Show less']) {
-        expect(
-          _exposes(data, label),
-          isTrue,
-          reason:
-              'the available action "$label" must be exposed to '
-              'screen readers',
-        );
-      }
-
-      // Each invocation fires the REAL delegate exactly once — the same
-      // guarded execution path as a gesture release.
-      _invoke(tester, 'Menu');
-      expect(spies.menu, 1);
-      _invoke(tester, 'Story');
-      expect(spies.story, 1);
-      _invoke(tester, 'Save');
-      expect(spies.bookmark, 1);
-      _invoke(tester, 'Show less');
-      expect(spies.showLess, 1);
-
-      // And not more than once per activation — no double fire.
-      _invoke(tester, 'Save');
-      expect(spies.bookmark, 2);
-      handle.dispose();
-    });
-
-    testWidgets('an UNAVAILABLE story is not exposed and cannot be '
-        'executed through semantics', (tester) async {
-      final handle = tester.ensureSemantics();
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(
-          ProfileJoystick(
-            actions: spies.actions(storyAvailable: false),
-            onTap: () => spies.taps++,
-            child: _avatar(),
-          ),
-        ),
-      );
-
-      final data = _nodeFor(tester).getSemanticsData();
-      expect(
-        _exposes(data, 'Story'),
-        isFalse,
-        reason:
-            'no active story means no story action — never an '
-            'advertised shortcut that fires nothing',
-      );
-      expect(_exposes(data, 'Menu'), isTrue);
-      expect(_exposes(data, 'Save'), isTrue);
-      expect(_exposes(data, 'Show less'), isTrue);
-
-      // Even a forced dispatch through the raw owner is refused — the
-      // delegate simply is not registered.
-      _invoke(tester, 'Story');
-      expect(spies.story, 0);
-      handle.dispose();
-    });
-
-    testWidgets('the semantic tap fires the real short-tap callback; '
-        'without onTap no button/tap is advertised', (tester) async {
-      final handle = tester.ensureSemantics();
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(
-          ProfileJoystick(
-            actions: spies.actions(),
-            onTap: () => spies.taps++,
-            child: _avatar(),
-          ),
-        ),
-      );
-
-      final data = _nodeFor(tester).getSemanticsData();
-      expect(
-        data.hasAction(SemanticsAction.tap),
-        isTrue,
-        reason: 'a short tap exists, so the tap action is advertised',
-      );
-      expect(data.flagsCollection.isButton, isTrue);
-      _invokeTap(tester);
-      expect(spies.taps, 1);
-
-      // Without an onTap, the joystick must not advertise a button tap
-      // that does nothing.
-      final spies2 = _Spies();
-      await tester.pumpWidget(
-        _host(ProfileJoystick(actions: spies2.actions(), child: _avatar())),
-      );
-      final data2 = _nodeFor(tester).getSemanticsData();
-      expect(data2.hasAction(SemanticsAction.tap), isFalse);
-      expect(
-        data2.flagsCollection.isButton,
-        isFalse,
-        reason: 'J1: never advertise a button role with no tap',
-      );
-      // The custom actions remain — the shortcuts are the real fallback.
-      expect(_exposes(data2, 'Menu'), isTrue);
-      handle.dispose();
-    });
-
-    testWidgets('the open dial adds NO duplicate screen-reader stops — '
-        'the satellites are semantics-free', (tester) async {
-      final handle = tester.ensureSemantics();
-      final spies = _Spies();
-      await tester.pumpWidget(
-        _host(
-          ProfileJoystick(
-            actions: spies.actions(storyAvailable: false),
-            onTap: () => spies.taps++,
-            child: _avatar(),
-          ),
-        ),
-      );
-      await tester.pump();
-
-      // BEFORE the dial: one node carries the custom actions.
-      final owner = _ownerOf(tester);
-      var carriersBefore = _allNodes(
-        owner.rootSemanticsNode!,
-      ).where((d) => (d.customSemanticsActionIds ?? []).isNotEmpty).length;
-
-      final gesture = await _start(tester);
-
-      // WHILE the dial is open: the satellites (which render 'Story (No
-      // active story)' etc. VISUALLY) must not have appeared as any
-      // semantics node — no duplicate or confusing stops.
-      final nodes = _allNodes(owner.rootSemanticsNode!);
-      var carriersDuring = nodes
-          .where((d) => (d.customSemanticsActionIds ?? []).isNotEmpty)
-          .length;
-      expect(
-        carriersDuring,
-        carriersBefore,
-        reason: 'the dial adds no second node carrying the actions',
-      );
-      final allLabels = nodes
-          .map((d) => '${d.attributedLabel.string} ${d.attributedValue.string}')
-          .join(' | ');
-      expect(
-        allLabels.contains('No active story'),
-        isFalse,
-        reason:
-            'the display-only satellites stay out of the semantics '
-            'tree (IgnorePointer)',
-      );
-      expect(allLabels.contains('joystick-satellite'), isFalse);
-
-      await gesture.cancel();
-      await tester.pump();
-      handle.dispose();
-    });
   });
 }

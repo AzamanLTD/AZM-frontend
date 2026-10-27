@@ -514,22 +514,26 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Logo / profile image, straddling the banner. WORKSTREAM A
-        // (2026-10-26): touch-down starts the SHARED directional joystick
+        // Logo / profile image, straddling the banner. PROFILE LIQUID
+        // DIAL (2026-10-27): tap opens the persistent icon-only goo dial
         // — up opens the real catalog destination, down opens the story
         // viewer only when the authoritative story contract says a story
         // is active, right rides the durable bookmark seam, left opens
-        // the MANDATORY show-less confirmation. A plain tap still bursts
-        // the radial launcher so the extra shortcuts (Share, Reviews,
-        // Follow) stay reachable — the joystick does not replace them.
+        // the MANDATORY show-less confirmation. HOLD opens the full
+        // action menu as a bottom sheet so the extra shortcuts (Share,
+        // Reviews, Follow) stay reachable — the joystick does not
+        // replace them.
         ProfileJoystick(
           key: _heroAvatarKey,
           semanticLabel: 'Market shortcuts',
-          semanticHint: 'Touch, then drag: up for ${widget.catalogLabel
-              .toLowerCase()}, down for story, right to '
-              'bookmark, left to show less. Tap for more actions.',
+          semanticHint: 'Tap to open quick actions. Drag up for '
+              '${widget.catalogLabel.toLowerCase()}, down for story, '
+              'right to save, left to show less. Hold for the full menu.',
           actions: _joystickActions(),
-          onTap: _openJoystick,
+          // HOLD presents the FULL action menu from the bottom, reusing
+          // the shell's real wired shortcuts (bookmark / share / follow /
+          // reviews) with their real availability conditions.
+          onLongPress: _openShortcutsSheet,
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
@@ -712,7 +716,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
         icon: icon,
         label: label,
         onTap: () {
-          Navigator.of(context).pop(); // close the joystick route
+          Navigator.of(context).pop(); // close the open surface
           action();
         },
       ));
@@ -743,18 +747,55 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
     return items;
   }
 
-  void _openJoystick() {
+  /// HOLD outcome (2026-10-27): the full action menu from the BOTTOM.
+  /// Reuses the shell's real wired shortcuts and their real
+  /// availability conditions — no invented actions, no second radial.
+  /// Nothing wired → nothing opens (honest silence).
+  void _openShortcutsSheet() {
     final items = _joystickItems();
-    if (items.isEmpty) return; // nothing wired — stay silent, no dead burst
-
-    final avatarCtx = _heroAvatarKey.currentContext;
-    if (avatarCtx == null) return;
-    final render = avatarCtx.findRenderObject();
-    if (render is! RenderBox || !render.attached) return;
-    final anchor =
-        render.localToGlobal(Offset.zero) & render.size; // GLOBAL rect
-    Navigator.of(context, rootNavigator: true)
-        .push(_JoystickRoute(anchor: anchor, items: items));
+    if (items.isEmpty) return;
+    final colors = ref.read(themeProvider).colors;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          key: const Key('market-shortcuts-sheet'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+              child: Text(
+                'Market shortcuts',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+            for (final item in items)
+              ListTile(
+                key: Key('market-shortcut-${item.label}'),
+                leading: Icon(item.icon, color: colors.accent),
+                title: Text(
+                  item.label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                onTap: item.onTap,
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _logoAvatar(
@@ -1434,70 +1475,3 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   }
 }
 
-/// The joystick surface: a transparent route whose only content is the
-/// LiquidLauncher burst box, anchored (centered, screen-clamped) on the
-/// hero avatar's live rect at open time. The PopupRoute's own barrier
-/// owns scrim + tap-outside dismissal (barrierDismissible); the launcher
-/// owns the burst animation and its haptic contract.
-class _JoystickRoute extends PopupRoute<void> {
-  _JoystickRoute({required this.anchor, required this.items});
-
-  /// The avatar's global rect when the joystick opened.
-  final Rect anchor;
-  final List<LiquidLauncherItem> items;
-
-  @override
-  Color get barrierColor => Colors.black38;
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => 'Dismiss shortcuts';
-
-  @override
-  Duration get transitionDuration => Duration.zero;
-
-  @override
-  Duration get reverseTransitionDuration => Duration.zero;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    final screen = MediaQuery.sizeOf(context);
-    const boxW = 300.0;
-    const boxH = 280.0;
-    // Center the burst box on the avatar, clamped fully on-screen.
-    final left =
-        (anchor.center.dx - boxW / 2).clamp(8.0, screen.width - boxW - 8);
-    final top =
-        (anchor.center.dy - boxH / 2).clamp(8.0, screen.height - boxH - 8);
-    return Stack(
-      children: [
-        Positioned(
-          key: const Key('market-joystick-burst'),
-          left: left,
-          top: top,
-          width: boxW,
-          height: boxH,
-          child: LiquidLauncher(
-            semanticLabel: 'Market shortcuts',
-            items: items,
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) =>
-      child; // the launcher animates its own satellites
-}

@@ -1,20 +1,23 @@
 // =============================================================================
-// MARKET STOREFRONT SHELL — hero avatar joystick tests
-// (Workstream A, rewritten 2026-10-26)
+// MARKET STOREFRONT SHELL — hero avatar liquid dial tests
+// (Workstream A, updated 2026-10-27: persistent icon-only dial)
 //
-// Pins the WORKSTREAM A contract on the REAL shell hero avatar:
-//   1.  pointer-down starts the directional dial immediately — no long
-//       press,
-//   2.  up + release fires the real catalog delegate exactly once, and
-//       an empty catalog honestly dims the satellite and fires nothing,
-//   3.  right + release fires the durable bookmark delegate, with the
-//       honest 'Saved' label when already bookmarked,
-//   4.  down with no authoritative story state fires nothing,
-//   5.  a plain tap still bursts the radial launcher — Share / Reviews /
-//       Follow keep working (the joystick adds, never replaces),
+// Pins the UPDATED hero-avatar contract on the REAL shell:
+//   1.  a plain tap opens the PERSISTENT icon-only dial — four goo
+//       satellites, no visible action text, no radial launcher,
+//   2.  up + release fires the real catalog delegate exactly once; an
+//       empty catalog honestly dims the satellite (semantics carry the
+//       reason) and a release fires nothing,
+//   3.  right + release fires the durable bookmark delegate; the
+//       honest 'Saved' state is disclosed through the dial semantics,
+//   4.  down with no authoritative story state fires nothing, with the
+//       reason disclosed through the dial semantics,
+//   5.  press-and-hold opens the market SHORTCUTS SHEET (Share etc.),
+//       never the dial; tap and hold are distinct outcomes,
 //   6.  a joystick release never scrolls or breaks the sheet.
 // =============================================================================
 
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -110,37 +113,42 @@ Future<TestGesture> _touchDown(WidgetTester tester) async {
   return gesture;
 }
 
+/// Opens the persistent dial with a plain tap, at the arrival beat.
+Future<void> _openDial(WidgetTester tester) async {
+  await tester.tap(_heroAvatar());
+  await tester.pumpAndSettle();
+}
+
+Key _sat(String name) => ValueKey('profile-dial-satellite-$name');
+
 void main() {
-  testWidgets('pointer-down on the hero avatar starts the directional '
-      'dial immediately — no long press', (tester) async {
+  testWidgets('a plain tap opens the persistent icon-only dial — no '
+      'radial launcher, no visible action text', (tester) async {
     await _pumpShell(
       tester,
       onToggleBookmark: () {},
       onOpenCatalog: () {},
     );
 
-    expect(find.byKey(const ValueKey('joystick-satellite-bookmark')),
-        findsNothing,
+    expect(find.byKey(_sat('bookmark')), findsNothing,
         reason: 'nothing revealed before touch');
 
-    await _touchDown(tester);
+    await _openDial(tester);
 
+    expect(find.byKey(const ValueKey('profile-dial')), findsOneWidget);
+    for (final name in ['menu', 'story', 'bookmark', 'showLess']) {
+      expect(find.byKey(_sat(name)), findsOneWidget, reason: name);
+    }
+    // Icon-only dial: no action text is rendered…
     expect(
-      find.byKey(const ValueKey('joystick-satellite-menu')),
-      findsOneWidget,
+      find.descendant(
+        of: find.byKey(const ValueKey('profile-dial')),
+        matching: find.byType(Text),
+      ),
+      findsNothing,
     );
-    expect(
-      find.byKey(const ValueKey('joystick-satellite-story')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('joystick-satellite-bookmark')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('joystick-satellite-showLess')),
-      findsOneWidget,
-    );
+    // …and the old radial launcher is NOT the tap outcome anymore.
+    expect(find.byKey(const Key('market-joystick-burst')), findsNothing);
   });
 
   testWidgets('up + release fires the real catalog delegate exactly '
@@ -158,13 +166,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(catalogOpens, 1);
-    expect(find.byKey(const ValueKey('joystick-satellite-menu')),
-        findsNothing,
+    expect(find.byKey(_sat('menu')), findsNothing,
         reason: 'the dial closed after the release');
   });
 
-  testWidgets('an empty catalog honestly dims the menu satellite and a '
-      'release fires nothing', (tester) async {
+  testWidgets('an empty catalog: a release fires nothing — no dead '
+      'delegate ever navigates', (tester) async {
     var catalogOpens = 0;
     await _pumpShell(
       tester,
@@ -175,11 +182,36 @@ void main() {
     final gesture = await _touchDown(tester);
     await gesture.moveBy(const Offset(0, -22));
     await tester.pump();
-    expect(find.text('Products (No catalog yet)'), findsOneWidget);
     await gesture.up();
     await tester.pumpAndSettle();
 
     expect(catalogOpens, 0, reason: 'no dead delegate ever fires');
+  });
+
+  testWidgets('an empty catalog honestly dims the menu satellite and '
+      'discloses the reason in the dial semantics — and tapping the '
+      'dimmed icon never fires nor closes', (tester) async {
+    var catalogOpens = 0;
+    final semantics = tester.ensureSemantics();
+    await _pumpShell(
+      tester,
+      hasCatalog: false,
+      onOpenCatalog: () => catalogOpens++,
+    );
+
+    // Tap at the ARRIVAL beat (the choreography pointer-ignores the
+    // avatar once settled — drag tests cover the transient path).
+    await _openDial(tester);
+    expect(find.bySemanticsLabel('Products (No catalog yet)'),
+        findsOneWidget,
+        reason: 'the dimmed satellite says exactly why');
+
+    await tester.tap(find.byKey(_sat('menu')));
+    await tester.pumpAndSettle();
+    expect(catalogOpens, 0, reason: 'the dimmed icon never executes');
+    expect(find.byKey(const ValueKey('profile-dial')), findsOneWidget,
+        reason: 'tapping a disabled icon keeps the dial open');
+    semantics.dispose();
   });
 
   testWidgets('right + release fires the durable bookmark delegate '
@@ -201,22 +233,21 @@ void main() {
 
   testWidgets('the bookmark satellite reflects the honest durable '
       'state (isBookmarked -> Saved)', (tester) async {
+    final semantics = tester.ensureSemantics();
     await _pumpShell(
       tester,
       isBookmarked: true,
       onToggleBookmark: () {},
     );
 
-    final gesture = await _touchDown(tester);
-    await gesture.moveBy(const Offset(22, 0));
-    await tester.pump();
-    expect(find.text('Saved'), findsOneWidget);
-    await gesture.up();
-    await tester.pumpAndSettle();
+    await _openDial(tester);
+    expect(find.bySemanticsLabel('Saved'), findsOneWidget,
+        reason: 'the durable server state names the satellite honestly');
+    semantics.dispose();
   });
 
   testWidgets('down with no authoritative story state fires nothing '
-      'and the satellite honestly says why', (tester) async {
+      'and never invents a viewer', (tester) async {
     await _pumpShell(
       tester,
       storyState: null, // no story contract at all
@@ -225,7 +256,6 @@ void main() {
     final gesture = await _touchDown(tester);
     await gesture.moveBy(const Offset(0, 22));
     await tester.pump();
-    expect(find.text('Story (No active story)'), findsOneWidget);
     await gesture.up();
     await tester.pumpAndSettle();
 
@@ -233,21 +263,47 @@ void main() {
     expect(find.byType(StoryViewerScreen), findsNothing);
   });
 
-  testWidgets('a plain tap still bursts the radial launcher — the '
-      'extra shortcuts keep working', (tester) async {
+  testWidgets('the story satellite discloses its unavailable reason in '
+      'the dial semantics', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpShell(
+      tester,
+      storyState: null, // no story contract at all
+    );
+
+    await _openDial(tester);
+    expect(find.bySemanticsLabel('Story (No active story)'),
+        findsOneWidget,
+        reason: 'the unavailable direction discloses its reason');
+    semantics.dispose();
+  });
+
+  testWidgets('press-and-hold opens the market shortcuts SHEET — '
+      'never the dial; tap and hold are distinct outcomes',
+      (tester) async {
     var shareTaps = 0;
     await _pumpShell(
       tester,
       onShare: () => shareTaps++,
     );
 
-    await tester.tap(_heroAvatar());
-    // Launch beat of the shared liquid launcher (660ms) + settle.
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pumpAndSettle();
+    // Hold on the hero avatar.
+    final gesture = await _touchDown(tester);
+    await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
 
-    expect(find.byKey(const Key('market-joystick-burst')), findsOneWidget,
-        reason: 'the radial launcher is still reachable via tap');
+    expect(find.byKey(const Key('market-shortcuts-sheet')), findsOneWidget,
+        reason: 'the hold opens the full shortcuts menu');
+    expect(find.byKey(const ValueKey('profile-dial')), findsNothing,
+        reason: 'a hold never opens the dial');
     expect(find.text('Share'), findsOneWidget);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(shareTaps, 0, reason: 'the hold itself fires no action');
+
+    // A real pick from the sheet executes the real delegate.
+    await tester.tap(find.text('Share'));
+    await tester.pumpAndSettle();
+    expect(shareTaps, 1);
   });
 }
