@@ -761,35 +761,33 @@ void main() {
         // would miss it; '.' matches any character, as the old
         // 'GH₵.100\.00.available' pattern knew.
         //
-        // The label is the HONEST current-contract wording
-        // (Workstream J2): the live backend publishes no native-GHS
-        // wallet yet, so the GH₵ figure — a total that includes a
-        // CONVERTED USDC component — is disclosed as an APPROXIMATE
-        // converted display valuation, never as a native 'in GHS'
-        // holding. The approximate framing travels with the figure
-        // wherever it is announced.
-        RegExp(
-            r'Approximately GH₵.100\.00.{0,40}display valuation'),
+        // Owner correction (2026-10-27): GHS is the app's MAIN
+        // currency — the headline is announced EXACTLY, as the
+        // available balance in GHS, on every fixture and at every
+        // text scale. The estimate framing lives ONLY on the USDC
+        // equivalent line, never on the GHS figure.
+        RegExp(r'Available balance GH₵.100\.00 in GHS'),
       ),
       findsOneWidget,
       reason: 'the balance semantics must carry the complete figure at '
-          'the OS\'s largest text setting, in the honest '
-          'approximate-converted-valuation wording',
+          'the OS\'s largest text setting, in the exact '
+          'main-currency wording — GHS is canonical, never a '
+          'USDC-derived estimate',
     );
     expect(
       find.bySemanticsLabel(
-        RegExp(r'not a native GHS wallet holding'),
+        RegExp(r'Approximately GH₵.{0,40}display valuation'),
       ),
-      findsOneWidget,
-      reason: 'the disclosure must state explicitly that the figure is '
-          'not a native GHS wallet holding',
+      findsNothing,
+      reason: 'the GHS figure is never announced as an approximate '
+          'converted display valuation — that framing was the wrong '
+          'conversion direction',
     );
     expect(
-      find.bySemanticsLabel(RegExp(r'Available balance.{0,20} in GHS')),
+      find.bySemanticsLabel(RegExp(r'not a native GHS wallet holding')),
       findsNothing,
-      reason: 'no native-GHS wallet is published by the live contract — '
-          'the reader must never hear the figure announced as a native '
-          'GHS holding',
+      reason: 'the corrected contract never announces the GHS balance '
+          'as anything other than the main-currency figure',
     );
 
   }, timeout: const Timeout(Duration(minutes: 2)));
