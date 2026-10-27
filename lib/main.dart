@@ -26,6 +26,7 @@ import 'package:azaman/widgets/settings_drawer.dart';
 import 'package:azaman/widgets/drawer_peek_hint.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
+import 'package:azaman/widgets/shell_swipe_detector.dart';
 import 'package:azaman/widgets/contextual_nav_band.dart';
 import 'package:azaman/router/app_router.dart';
 import 'package:azaman/router/route_depth.dart';
@@ -492,6 +493,11 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     with TickerProviderStateMixin {
   int _selectedIndex = 0;
 
+  /// GlobalKeys for the shell pages (see _pageFor). Kept alive for the
+  /// State's lifetime so element reparenting preserves page state.
+  final _pageKeys = <int, GlobalKey>{};
+
+
   /// The + launcher open/close state, shared between the trigger (in the
   /// nav band) and the overlay (in the body stack).
   final PlusLauncherController _plus = PlusLauncherController();
@@ -519,7 +525,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     // 2026-10-12 Home refresh: Home's profile button opens the EXISTING
     // settings end drawer through an explicit callback — the shell owns the
     // Scaffold, so openEndDrawer is wired here at the widget boundary.
-    _pages = [AzamanHomePage(onOpenSettings: _openSettingsDrawer), null, null];
+    // PR-B: home also goes through _pageFor so it gets its GlobalKey
+    // (state preservation — see _pageFor).
+    _pages = [_pageFor(0), null, null];
 
     _retap = NavRetapController(vsync: this);
     // NEW-C: publish the shell's presence + active tab to the contextual
@@ -555,14 +563,29 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     _scaffoldKey.currentState?.openEndDrawer();
   }
 
+  // PR-B state preservation: each page keeps a GlobalKey so its element
+  // tree SURVIVES the incoming/outgoing re-parenting that every tab
+  // transition performs. Without the key the direct-child ↔
+  // FadeTransition wrapper change around _pages[index] remounts the
+  // page — wiping scroll offsets, text fields and filters on EVERY
+  // tab switch (verified: State identity changed pre-fix).
   Widget _pageFor(int index) {
     switch (index) {
       case 1:
-        return const FriendsHubScreen();
+        return KeyedSubtree(
+          key: _pageKeys[1] ??= GlobalKey(debugLabel: 'shell-page-chat'),
+          child: const FriendsHubScreen(),
+        );
       case 2:
-        return const MarketplaceHomeScreen();
+        return KeyedSubtree(
+          key: _pageKeys[2] ??= GlobalKey(debugLabel: 'shell-page-market'),
+          child: const MarketplaceHomeScreen(),
+        );
       default:
-        return AzamanHomePage(onOpenSettings: _openSettingsDrawer);
+        return KeyedSubtree(
+          key: _pageKeys[0] ??= GlobalKey(debugLabel: 'shell-page-home'),
+          child: AzamanHomePage(onOpenSettings: _openSettingsDrawer),
+        );
     }
   }
 
@@ -627,6 +650,20 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       registry: TabScrollRegistry.instance,
       context: context,
     );
+  }
+
+  // ═════════════════════════════════════════════════════════════════
+  // PR-B — swipe between the three primary destinations (Home ↔ Chat ↔
+  // Marketplace). The recognizer + thresholds live in
+  // [ShellSwipeDetector]; this seam only maps a committed direction to
+  // the shell's own selection contract (no wrap, retap untouched,
+  // launcher-safe), so tapping the bottom nav and swiping the shell
+  // are the SAME navigation.
+  void _onShellSwipe(int direction) {
+    if (_plus.isOpen) return; // the launcher owns the screen
+    final target = _selectedIndex + direction;
+    if (target < 0 || target >= _pages.length) return; // no wrap
+    _onNavItemSelected(target);
   }
 
   /// Ticker budget (milestone 2026-09-30): only the page participating in
@@ -868,7 +905,12 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
       // keeps the pill compressed (it does not pop back on ScrollEnd) and
       // returning to the top restores it. Reduced motion is honoured by the
       // reader in the nav, not here.
-      body: NotificationListener<ScrollNotification>(
+      body: ShellSwipeDetector(
+        onAdjacentSwipe: _onShellSwipe,
+        // The + launcher owns the screen while open: swipes are not
+        // tab switches there.
+        enabled: !_plus.isOpen,
+        child: NotificationListener<ScrollNotification>(
         // TASK-010 compression + NEW-C per-tab scroll recording share this
         // one listener above every page. The registry keeps each tab's
         // OUTERMOST vertical scrollable so the retap contract can spring
@@ -926,6 +968,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
               ),
             ],
           ),
+        ),
         ),
       ),
     );
