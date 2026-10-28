@@ -46,18 +46,35 @@ class MarketplaceDetailSurface extends StatelessWidget {
             tween: Tween(begin: 0.94, end: 1),
             duration: duration,
             curve: MotionTokens.enter,
-            builder: (_, value, child) => Transform.scale(scale: value, child: child),
+            builder: (_, value, child) =>
+                Transform.scale(scale: value, child: child),
             child: _card(maxHeight: 680),
           ),
         );
       case MarketplaceDetailPresentation.dishDossier:
-        return _slideFromBottom(context, child: _dossierCard(context), distanceFactor: 1);
+        return _slideFromBottom(
+          context,
+          child: _dossierCard(context),
+          distanceFactor: 1,
+        );
       case MarketplaceDetailPresentation.productDossier:
-        return _slideFromRight(context, child: _dossierCard(context), scale: 0.98);
+        return _slideFromRight(
+          context,
+          child: _dossierCard(context),
+          scale: 0.98,
+        );
       case MarketplaceDetailPresentation.roomDossier:
-        return _slideFromBottomRight(context, child: _dossierCard(context), scale: 0.985);
+        return _slideFromBottomRight(
+          context,
+          child: _dossierCard(context),
+          scale: 0.985,
+        );
       case MarketplaceDetailPresentation.seatDossier:
-        return _slideFromRight(context, child: _dossierCard(context), scale: 0.975);
+        return _slideFromRight(
+          context,
+          child: _dossierCard(context),
+          scale: 0.975,
+        );
       case MarketplaceDetailPresentation.serviceDossier:
         return Center(
           child: TweenAnimationBuilder<double>(
@@ -86,7 +103,10 @@ class MarketplaceDetailSurface extends StatelessWidget {
         duration: duration,
         curve: MotionTokens.enter,
         builder: (_, value, child) => Transform.translate(
-          offset: Offset(0, MediaQuery.sizeOf(context).height * distanceFactor * (1 - value)),
+          offset: Offset(
+            0,
+            MediaQuery.sizeOf(context).height * distanceFactor * (1 - value),
+          ),
           child: child,
         ),
         child: child,
@@ -147,7 +167,9 @@ class MarketplaceDetailSurface extends StatelessWidget {
   }
 
   Widget _dossierCard(BuildContext context) {
-    final width = (MediaQuery.sizeOf(context).width - 16).clamp(280.0, 430.0).toDouble();
+    final width = (MediaQuery.sizeOf(context).width - 16)
+        .clamp(280.0, 430.0)
+        .toDouble();
     return SizedBox(
       width: width,
       child: Padding(
@@ -163,7 +185,10 @@ class MarketplaceDetailSurface extends StatelessWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: 430, maxHeight: maxHeight),
         child: Material(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28), bottom: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(28),
+            bottom: Radius.circular(24),
+          ),
           clipBehavior: Clip.antiAlias,
           color: colors.card,
           child: Column(
@@ -173,7 +198,10 @@ class MarketplaceDetailSurface extends StatelessWidget {
                 child: Container(
                   width: 42,
                   height: 4,
-                  decoration: BoxDecoration(color: colors.textTertiary.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(999)),
+                  decoration: BoxDecoration(
+                    color: colors.textTertiary.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
               ),
               Expanded(child: child),

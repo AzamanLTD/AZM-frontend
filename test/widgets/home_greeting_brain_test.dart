@@ -23,13 +23,15 @@ void main() {
 
   group('priority: money events beat pleasantries', () {
     test('a settled inflow today outranks everything, even at 8:30am', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        username: 'Kwame Mensah',
-        moneyArrivedToday: '400.00 USDC',
-        escrowReleasingInHours: 3,
-        susuDueTomorrow: true,
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(
+          now: morning,
+          username: 'Kwame Mensah',
+          moneyArrivedToday: '400.00 USDC',
+          escrowReleasingInHours: 3,
+          susuDueTomorrow: true,
+        ),
+      );
       expect(line.text, 'Your 400.00 USDC cleared');
       expect(line.tone, AzGreetingTone.positive);
       // Only a REAL settled event may announce itself (TASK-020 pairing).
@@ -37,131 +39,152 @@ void main() {
     });
 
     test('an empty money string is not a money event — it skips', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        username: 'Kwame',
-        moneyArrivedToday: '',
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(
+          now: morning,
+          username: 'Kwame',
+          moneyArrivedToday: '',
+        ),
+      );
       expect(line.text, 'Good morning, Kwame');
       expect(line.announceable, isFalse);
     });
 
     test('escrow timing outranks susu, deposit and time of day', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        username: 'Kwame',
-        escrowReleasingInHours: 3,
-        susuDueTomorrow: true,
-        depositAwaitingApproval: true,
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(
+          now: morning,
+          username: 'Kwame',
+          escrowReleasingInHours: 3,
+          susuDueTomorrow: true,
+          depositAwaitingApproval: true,
+        ),
+      );
       expect(line.text, 'Escrow releases in 3h');
       expect(line.tone, AzGreetingTone.attention);
     });
 
     test('susu due tomorrow outranks deposit and time of day', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        username: 'Kwame',
-        susuDueTomorrow: true,
-        depositAwaitingApproval: true,
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(
+          now: morning,
+          username: 'Kwame',
+          susuDueTomorrow: true,
+          depositAwaitingApproval: true,
+        ),
+      );
       expect(line.text, 'Susu due tomorrow');
     });
 
     test('deposit awaiting approval outranks time of day', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        username: 'Kwame',
-        depositAwaitingApproval: true,
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(
+          now: morning,
+          username: 'Kwame',
+          depositAwaitingApproval: true,
+        ),
+      );
       expect(line.text, 'Waiting on your mobile-money approval');
     });
   });
 
   group('escrow hours format honestly', () {
     test('zero hours never renders "in 0h"', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        escrowReleasingInHours: 0,
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(now: morning, escrowReleasingInHours: 0),
+      );
       expect(line.text, 'Escrow releases now');
       expect(line.text.contains('0h'), isFalse);
     });
 
     test('under one hour says so instead of rounding to "0h"', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        escrowReleasingInHours: 0,
-        // 0 is the only integer "under an hour" case; the wording branch
-        // is pinned by the ≥0 and <1 paths together.
-      ));
-      expect(line.text, anyOf('Escrow releases now', contains('under an hour')));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(
+          now: morning,
+          escrowReleasingInHours: 0,
+          // 0 is the only integer "under an hour" case; the wording branch
+          // is pinned by the ≥0 and <1 paths together.
+        ),
+      );
+      expect(
+        line.text,
+        anyOf('Escrow releases now', contains('under an hour')),
+      );
     });
 
     test('one hour is "1h", not "1 hours"', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        escrowReleasingInHours: 1,
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(now: morning, escrowReleasingInHours: 1),
+      );
       expect(line.text, 'Escrow releases in 1h');
     });
 
     test('a negative (past) remainder is skipped, never rendered', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        username: 'Kwame',
-        escrowReleasingInHours: -2,
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(
+          now: morning,
+          username: 'Kwame',
+          escrowReleasingInHours: -2,
+        ),
+      );
       // Falls through to the time fallback — no negative durations.
       expect(line.text, 'Good morning, Kwame');
       expect(line.text.contains('-'), isFalse);
     });
 
     test('unknown (null) escrow timing is skipped, not invented', () {
-      final line = AzGreetingBrain.resolve(AzGreetingInputs(
-        now: morning,
-        username: 'Kwame',
-        escrowReleasingInHours: null,
-      ));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(
+          now: morning,
+          username: 'Kwame',
+          escrowReleasingInHours: null,
+        ),
+      );
       expect(line.text, 'Good morning, Kwame');
     });
   });
 
   group('time fallback', () {
     test('before 12:00 is morning', () {
-      final line =
-          AzGreetingBrain.resolve(AzGreetingInputs(now: morning, username: 'Ama'));
+      final line = AzGreetingBrain.resolve(
+        AzGreetingInputs(now: morning, username: 'Ama'),
+      );
       expect(line.text, 'Good morning, Ama');
     });
 
     test('12:00 exactly is afternoon (the cut point)', () {
       final line = AzGreetingBrain.resolve(
-          AzGreetingInputs(now: noon, username: 'Ama'));
+        AzGreetingInputs(now: noon, username: 'Ama'),
+      );
       expect(line.text, 'Good afternoon, Ama');
     });
 
     test('17:00 exactly is evening (the cut point)', () {
       final line = AzGreetingBrain.resolve(
-          AzGreetingInputs(now: evening, username: 'Ama'));
+        AzGreetingInputs(now: evening, username: 'Ama'),
+      );
       expect(line.text, 'Good evening, Ama');
     });
 
     test('first name only — a full name reads like a bank statement', () {
       final line = AzGreetingBrain.resolve(
-          AzGreetingInputs(now: morning, username: 'Kwame Mensah'));
+        AzGreetingInputs(now: morning, username: 'Kwame Mensah'),
+      );
       expect(line.text, 'Good morning, Kwame');
     });
 
     test('null username degrades to "there" — never a dangling comma', () {
       final line = AzGreetingBrain.resolve(
-          AzGreetingInputs(now: morning, username: null));
+        AzGreetingInputs(now: morning, username: null),
+      );
       expect(line.text, 'Good morning, there');
       expect(line.text.contains(',,'), isFalse);
     });
 
     test('blank username degrades to "there"', () {
       final line = AzGreetingBrain.resolve(
-          AzGreetingInputs(now: morning, username: '   '));
+        AzGreetingInputs(now: morning, username: '   '),
+      );
       expect(line.text, 'Good morning, there');
     });
   });
@@ -169,18 +192,26 @@ void main() {
   group('§H.7: no streak path, no flame glyph', () {
     test('no tone renders the flame icon', () {
       for (final tone in AzGreetingTone.values) {
-        expect(AzGreetingBrain.glyphFor(tone),
-            isNot(Icons.local_fire_department));
+        expect(
+          AzGreetingBrain.glyphFor(tone),
+          isNot(Icons.local_fire_department),
+        );
       }
     });
 
     test('the glyph set is exactly the three calm glyphs', () {
-      expect(AzGreetingBrain.glyphFor(AzGreetingTone.positive),
-          Icons.trending_up_rounded);
-      expect(AzGreetingBrain.glyphFor(AzGreetingTone.attention),
-          Icons.schedule_rounded);
-      expect(AzGreetingBrain.glyphFor(AzGreetingTone.neutral),
-          Icons.wb_sunny_outlined);
+      expect(
+        AzGreetingBrain.glyphFor(AzGreetingTone.positive),
+        Icons.trending_up_rounded,
+      );
+      expect(
+        AzGreetingBrain.glyphFor(AzGreetingTone.attention),
+        Icons.schedule_rounded,
+      );
+      expect(
+        AzGreetingBrain.glyphFor(AzGreetingTone.neutral),
+        Icons.wb_sunny_outlined,
+      );
     });
   });
 }

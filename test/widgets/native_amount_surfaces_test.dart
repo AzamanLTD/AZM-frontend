@@ -70,24 +70,22 @@ FxRateSnapshot _staleSnapshot() {
 }
 
 Widget _host(Widget child, {FxRateSnapshot? snapshot}) => ProviderScope(
-      overrides: [
-        fxRateProvider.overrideWith((ref) async => snapshot),
-      ],
-      child: MaterialApp(
-        home: Scaffold(
-          body: SizedBox(width: 390, child: child),
-        ),
-      ),
-    );
+  overrides: [fxRateProvider.overrideWith((ref) async => snapshot)],
+  child: MaterialApp(
+    home: Scaffold(body: SizedBox(width: 390, child: child)),
+  ),
+);
 
 /// The Semantics label of the first AmountEntryEquivalent's wrapper —
 /// the a11y tree must carry the same truthful context as the pixels.
 String _semanticsLabel(WidgetTester tester) {
   final props = tester
-      .widgetList<Semantics>(find.descendant(
-        of: find.byType(AmountEntryEquivalent),
-        matching: find.byType(Semantics),
-      ))
+      .widgetList<Semantics>(
+        find.descendant(
+          of: find.byType(AmountEntryEquivalent),
+          matching: find.byType(Semantics),
+        ),
+      )
       .map((s) => s.properties.label ?? '')
       .where((l) => l.isNotEmpty)
       .join(' ');
@@ -97,16 +95,16 @@ String _semanticsLabel(WidgetTester tester) {
 /// All Text data inside the first AmountEntryEquivalent on the surface.
 String _equivalentText(WidgetTester tester) {
   final texts = tester
-      .widgetList<Text>(find.descendant(
-        of: find.byType(AmountEntryEquivalent),
-        matching: find.byType(Text),
-      ))
+      .widgetList<Text>(
+        find.descendant(
+          of: find.byType(AmountEntryEquivalent),
+          matching: find.byType(Text),
+        ),
+      )
       .map((t) => t.data ?? '')
       .join(' ');
   return texts;
 }
-
-
 
 // ═════════════════════════════════════════════════════════════════════════════
 // D1 REVIEW CORRECTIONS — every changed display path, pinned.
@@ -119,56 +117,53 @@ String _equivalentText(WidgetTester tester) {
 // ═════════════════════════════════════════════════════════════════════════════
 
 Vault _vault({double current = 500, double target = 1000}) => Vault(
-      id: 'v1',
-      name: 'Emergency fund',
-      targetAmountUsdc: target,
-      currentAmountUsdc: current,
-      status: 'ACTIVE',
-      startDate: DateTime.now().subtract(const Duration(days: 10)),
-      maturityDate: DateTime.now().add(const Duration(days: 80)),
-      isLocked: true,
-      earlyBreakPenaltyPct: 5,
-      autoRuleEnabled: false,
-      streakCount: 3,
-      longestStreak: 3,
-      missedCount: 0,
-      consistencyScore: 1,
-      totalAzmEarned: 12,
-    );
+  id: 'v1',
+  name: 'Emergency fund',
+  targetAmountUsdc: target,
+  currentAmountUsdc: current,
+  status: 'ACTIVE',
+  startDate: DateTime.now().subtract(const Duration(days: 10)),
+  maturityDate: DateTime.now().add(const Duration(days: 80)),
+  isLocked: true,
+  earlyBreakPenaltyPct: 5,
+  autoRuleEnabled: false,
+  streakCount: 3,
+  longestStreak: 3,
+  missedCount: 0,
+  consistencyScore: 1,
+  totalAzmEarned: 12,
+);
 
 SmartEscrow _escrow({double amount = 20}) => SmartEscrow(
-      id: 'esc_1',
-      ticketId: 'tkt_1',
-      payerId: 10,
-      payeeId: 20,
-      amountUsdc: amount,
-      feeUsdc: 0.5,
-      status: EscrowStatus.funded,
-      payerSatisfied: false,
-      payeeSatisfied: false,
-      fundedAt: DateTime.now(),
-      expiresAt: DateTime.now().add(const Duration(days: 3)),
-    );
+  id: 'esc_1',
+  ticketId: 'tkt_1',
+  payerId: 10,
+  payeeId: 20,
+  amountUsdc: amount,
+  feeUsdc: 0.5,
+  status: EscrowStatus.funded,
+  payerSatisfied: false,
+  payeeSatisfied: false,
+  fundedAt: DateTime.now(),
+  expiresAt: DateTime.now().add(const Duration(days: 3)),
+);
 
 /// A fresh container with the pinned rate snapshot and the display
 /// preference set on the REAL CurrencyNotifier (the loader's prefs call
 /// cannot resolve in the test env, so the assigned state stands).
-ProviderContainer _container(
-        {FxRateSnapshot? snapshot, DisplayCurrency pref = DisplayCurrency.usdc}) =>
-    ProviderContainer(overrides: [
-      fxRateProvider.overrideWith((ref) async => snapshot),
-    ])
-      ..read(currencyProvider.notifier).state = pref;
+ProviderContainer _container({
+  FxRateSnapshot? snapshot,
+  DisplayCurrency pref = DisplayCurrency.usdc,
+}) => ProviderContainer(
+  overrides: [fxRateProvider.overrideWith((ref) async => snapshot)],
+)..read(currencyProvider.notifier).state = pref;
 
-Widget _surface(ProviderContainer c, Widget child) =>
-    UncontrolledProviderScope(
-      container: c,
-      child: MaterialApp(
-        home: Scaffold(
-          body: SizedBox(width: 390, child: child),
-        ),
-      ),
-    );
+Widget _surface(ProviderContainer c, Widget child) => UncontrolledProviderScope(
+  container: c,
+  child: MaterialApp(
+    home: Scaffold(body: SizedBox(width: 390, child: child)),
+  ),
+);
 
 /// Wraps a colors-dependent widget with the live theme provider, exactly the
 /// way the real screens feed their cards.
@@ -186,12 +181,16 @@ String _texts(WidgetTester tester, Finder of) => tester
     .join(' § ');
 
 void main() {
-
   group('SusuConfig contribution field', () {
-    testWidgets('shows the labelled GHS estimate under a usable rate',
-        (tester) async {
-      await tester.pumpWidget(_host(const SusuConfigScreen(groupChatId: 'gc_1'),
-          snapshot: _freshSnapshot()));
+    testWidgets('shows the labelled GHS estimate under a usable rate', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const SusuConfigScreen(groupChatId: 'gc_1'),
+          snapshot: _freshSnapshot(),
+        ),
+      );
       await tester.enterText(find.byType(TextField).first, '20');
       await tester.pump();
       expect(find.byType(AmountEntryEquivalent), findsOneWidget);
@@ -201,8 +200,10 @@ void main() {
       expect(_equivalentText(tester), contains('307.60'));
       // Configuration context, NOT a settlement claim: the note says the
       // contribution is DENOMINATED in USDC — nothing has settled yet.
-      expect(_equivalentText(tester),
-          contains('contribution amount denominated in USDC'));
+      expect(
+        _equivalentText(tester),
+        contains('contribution amount denominated in USDC'),
+      );
       expect(_equivalentText(tester), isNot(contains('settled')));
       // Accessibility semantics carry the same truthful context.
       final semantics = _semanticsLabel(tester);
@@ -210,10 +211,15 @@ void main() {
       expect(semantics, isNot(contains('settled')));
     });
 
-    testWidgets('honestly omits the estimate when the rate is stale',
-        (tester) async {
-      await tester.pumpWidget(_host(const SusuConfigScreen(groupChatId: 'gc_1'),
-          snapshot: _staleSnapshot()));
+    testWidgets('honestly omits the estimate when the rate is stale', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          const SusuConfigScreen(groupChatId: 'gc_1'),
+          snapshot: _staleSnapshot(),
+        ),
+      );
       await tester.enterText(find.byType(TextField).first, '20');
       await tester.pump();
       expect(find.byType(AmountEntryEquivalent), findsOneWidget);
@@ -225,21 +231,27 @@ void main() {
     });
 
     testWidgets('never offers a currency wheel', (tester) async {
-      await tester.pumpWidget(_host(const SusuConfigScreen(groupChatId: 'gc_1'),
-          snapshot: _freshSnapshot()));
+      await tester.pumpWidget(
+        _host(
+          const SusuConfigScreen(groupChatId: 'gc_1'),
+          snapshot: _freshSnapshot(),
+        ),
+      );
       expect(find.byType(CurrencyWheelToggle), findsNothing);
     });
   });
 
   group('SmartRouteCreate amount field', () {
-    testWidgets('shows the labelled GHS estimate under a usable rate',
-        (tester) async {
-      await tester.pumpWidget(_host(const SmartRouteCreateScreen(),
-          snapshot: _freshSnapshot()));
+    testWidgets('shows the labelled GHS estimate under a usable rate', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(const SmartRouteCreateScreen(), snapshot: _freshSnapshot()),
+      );
       // Field order: Name, Amount — target the amount by its hint.
-      final amountField = find.byWidgetPredicate((w) =>
-          w is TextField &&
-          (w.decoration?.hintText ?? '') == '100.00');
+      final amountField = find.byWidgetPredicate(
+        (w) => w is TextField && (w.decoration?.hintText ?? '') == '100.00',
+      );
       await tester.enterText(amountField, '100');
       await tester.pump();
       expect(find.byType(AmountEntryEquivalent), findsOneWidget);
@@ -247,21 +259,27 @@ void main() {
       expect(_equivalentText(tester), contains('1,538'));
       expect(_equivalentText(tester), contains('estimate'));
       // Planned route, not a settlement: the note is denominated-only.
-      expect(_equivalentText(tester),
-          contains('planned amount denominated in USDC'));
+      expect(
+        _equivalentText(tester),
+        contains('planned amount denominated in USDC'),
+      );
       expect(_equivalentText(tester), isNot(contains('settled')));
-      expect(_semanticsLabel(tester),
-          contains('planned amount denominated in USDC'));
+      expect(
+        _semanticsLabel(tester),
+        contains('planned amount denominated in USDC'),
+      );
       expect(find.byType(CurrencyWheelToggle), findsNothing);
     });
 
-    testWidgets('honestly omits the estimate when the rate is stale',
-        (tester) async {
-      await tester.pumpWidget(_host(const SmartRouteCreateScreen(),
-          snapshot: _staleSnapshot()));
-      final amountField = find.byWidgetPredicate((w) =>
-          w is TextField &&
-          (w.decoration?.hintText ?? '') == '100.00');
+    testWidgets('honestly omits the estimate when the rate is stale', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(const SmartRouteCreateScreen(), snapshot: _staleSnapshot()),
+      );
+      final amountField = find.byWidgetPredicate(
+        (w) => w is TextField && (w.decoration?.hintText ?? '') == '100.00',
+      );
       await tester.enterText(amountField, '100');
       await tester.pump();
       expect(_equivalentText(tester), contains('unavailable'));
@@ -275,7 +293,9 @@ void main() {
     /// (scroll the contract, consent, agree) exactly as a user does.
     Future<void> acceptRules(WidgetTester tester) async {
       final rulesScroll = find.ancestor(
-          of: find.text('1. Lockup'), matching: find.byType(Scrollable));
+        of: find.text('1. Lockup'),
+        matching: find.byType(Scrollable),
+      );
       // Scroll to the CONTRACT'S BOTTOM, not merely until the last rule
       // is visible: the consent gate reads maxScrollExtent, and stopping
       // early leaves the checkbox disabled (flaky on font metric shifts).
@@ -287,33 +307,49 @@ void main() {
       position.jumpTo(position.maxScrollExtent);
       await tester.pump();
       // The gate is honest: consent only arms once fully scrolled.
-      final consent =
-          tester.widget<CheckboxListTile>(find.byType(CheckboxListTile));
-      expect(consent.onChanged, isNotNull,
-          reason: 'consent checkbox must arm after scrolling the contract');
+      final consent = tester.widget<CheckboxListTile>(
+        find.byType(CheckboxListTile),
+      );
+      expect(
+        consent.onChanged,
+        isNotNull,
+        reason: 'consent checkbox must arm after scrolling the contract',
+      );
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pump();
-      expect(tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
-          isTrue,
-          reason: 'consent checkbox must flip on tap');
+      expect(
+        tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+        isTrue,
+        reason: 'consent checkbox must flip on tap',
+      );
       final agree = tester
-          .widget<ElevatedButton>(find.ancestor(
+          .widget<ElevatedButton>(
+            find.ancestor(
               of: find.text('I Agree — Continue'),
-              matching: find.byType(ElevatedButton)))
+              matching: find.byType(ElevatedButton),
+            ),
+          )
           .onPressed;
-      expect(agree, isNotNull,
-          reason: 'accept button must arm once scrolled + consented');
+      expect(
+        agree,
+        isNotNull,
+        reason: 'accept button must arm once scrolled + consented',
+      );
       await tester.tap(find.text('I Agree — Continue'));
       // The sheet's exit route animation needs elapsed frames; explicit pumps.
       for (var i = 0; i < 10; i++) {
         await tester.pump(const Duration(milliseconds: 60));
       }
-      expect(find.text('I Agree — Continue'), findsNothing,
-          reason: 'rules sheet must close after agreement');
+      expect(
+        find.text('I Agree — Continue'),
+        findsNothing,
+        reason: 'rules sheet must close after agreement',
+      );
     }
 
-    testWidgets('shows the labelled estimate under both editable amounts',
-        (tester) async {
+    testWidgets('shows the labelled estimate under both editable amounts', (
+      tester,
+    ) async {
       // A real Ghanaian phone surface (390x844 @3x): the rules sheet's
       // consent row sits below the fold on the default 800x600 test
       // surface. tester.view (not binding.setSurfaceSize — whose metrics
@@ -322,8 +358,9 @@ void main() {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(_host(const VaultCreateScreen(),
-          snapshot: _freshSnapshot()));
+      await tester.pumpWidget(
+        _host(const VaultCreateScreen(), snapshot: _freshSnapshot()),
+      );
       // Frame 1 pushes the rules route via a post-frame callback; the
       // entrance then needs real elapsed frames to settle. Explicit pumps,
       // never pumpAndSettle — the screen behind runs perpetual animations.
@@ -333,8 +370,9 @@ void main() {
       }
       await acceptRules(tester);
       // Field order: name, target, auto-deposit amount.
-      final targetField = find.byWidgetPredicate((w) =>
-          w is TextField && (w.decoration?.hintText ?? '') == '500.00');
+      final targetField = find.byWidgetPredicate(
+        (w) => w is TextField && (w.decoration?.hintText ?? '') == '500.00',
+      );
       await tester.enterText(targetField, '500');
       await tester.pump();
       expect(find.byType(AmountEntryEquivalent), findsAtLeast(1));
@@ -356,33 +394,41 @@ void main() {
       await tester.ensureVisible(ruleSwitch);
       await tester.tap(ruleSwitch);
       await tester.pump();
-      final autoField = find.byWidgetPredicate((w) => w is TextField &&
-          (w.decoration?.hintText ?? '') == 'Amount per deposit (USDC)');
+      final autoField = find.byWidgetPredicate(
+        (w) =>
+            w is TextField &&
+            (w.decoration?.hintText ?? '') == 'Amount per deposit (USDC)',
+      );
       expect(autoField, findsOneWidget);
       await tester.ensureVisible(autoField);
       await tester.pump();
       await tester.enterText(autoField, '50');
       await tester.pump();
       expect(find.byType(AmountEntryEquivalent), findsAtLeast(2));
-      expect(_equivalentText(tester),
-          contains('auto-deposit amount denominated in USDC'));
+      expect(
+        _equivalentText(tester),
+        contains('auto-deposit amount denominated in USDC'),
+      );
       expect(_equivalentText(tester), isNot(contains('settled')));
     });
 
-    testWidgets('honestly omits the estimate when the rate is stale',
-        (tester) async {
+    testWidgets('honestly omits the estimate when the rate is stale', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3.0;
       addTearDown(tester.view.reset);
-      await tester.pumpWidget(_host(const VaultCreateScreen(),
-          snapshot: _staleSnapshot()));
+      await tester.pumpWidget(
+        _host(const VaultCreateScreen(), snapshot: _staleSnapshot()),
+      );
       await tester.pump();
       for (var i = 0; i < 12; i++) {
         await tester.pump(const Duration(milliseconds: 60));
       }
       await acceptRules(tester);
-      final targetField = find.byWidgetPredicate((w) =>
-          w is TextField && (w.decoration?.hintText ?? '') == '500.00');
+      final targetField = find.byWidgetPredicate(
+        (w) => w is TextField && (w.decoration?.hintText ?? '') == '500.00',
+      );
       await tester.enterText(targetField, '500');
       await tester.pump();
       // A stale observation must yield NO converted figure: the honest
@@ -396,14 +442,18 @@ void main() {
   group('VaultProgressCard comparison row', () {
     testWidgets('GHS preference: both comparison slots stay USDC; the GHS '
         'estimate is its own labelled line', (tester) async {
-      await tester.pumpWidget(_surface(
-        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
-        _Themed((colors) => VaultProgressCard(
+      await tester.pumpWidget(
+        _surface(
+          _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+          _Themed(
+            (colors) => VaultProgressCard(
               vault: _vault(),
               colors: colors,
               onTap: () {},
-            )),
-      ));
+            ),
+          ),
+        ),
+      );
       await tester.pump();
 
       final row = _texts(tester, find.byType(VaultProgressCard));
@@ -421,14 +471,18 @@ void main() {
 
     testWidgets('stale rate: no GHS figure anywhere, equivalence named '
         'unavailable, comparison intact', (tester) async {
-      await tester.pumpWidget(_surface(
-        _container(snapshot: _staleSnapshot(), pref: DisplayCurrency.ghs),
-        _Themed((colors) => VaultProgressCard(
+      await tester.pumpWidget(
+        _surface(
+          _container(snapshot: _staleSnapshot(), pref: DisplayCurrency.ghs),
+          _Themed(
+            (colors) => VaultProgressCard(
               vault: _vault(),
               colors: colors,
               onTap: () {},
-            )),
-      ));
+            ),
+          ),
+        ),
+      );
       await tester.pump();
 
       final row = _texts(tester, find.byType(VaultProgressCard));
@@ -443,13 +497,15 @@ void main() {
   group('Susu pool stacked composition', () {
     testWidgets('GHS preference leads with the estimate, secondary names the '
         'native amount', (tester) async {
-      await tester.pumpWidget(_surface(
-        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
-        const NativeAmountDisplay(
-          amountUsdc: 20,
-          primaryStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+      await tester.pumpWidget(
+        _surface(
+          _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+          const NativeAmountDisplay(
+            amountUsdc: 20,
+            primaryStyle: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+          ),
         ),
-      ));
+      );
       await tester.pump();
 
       final t = _texts(tester, find.byType(NativeAmountDisplay));
@@ -459,12 +515,15 @@ void main() {
       expect(t, contains('20.00 USDC'));
     });
 
-    testWidgets('stale rate: native amount leads and the omission is named',
-        (tester) async {
-      await tester.pumpWidget(_surface(
-        _container(snapshot: _staleSnapshot(), pref: DisplayCurrency.ghs),
-        const NativeAmountDisplay(amountUsdc: 20),
-      ));
+    testWidgets('stale rate: native amount leads and the omission is named', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _surface(
+          _container(snapshot: _staleSnapshot(), pref: DisplayCurrency.ghs),
+          const NativeAmountDisplay(amountUsdc: 20),
+        ),
+      );
       await tester.pump();
 
       final t = _texts(tester, find.byType(NativeAmountDisplay));
@@ -478,9 +537,11 @@ void main() {
   group('Escrow money surfaces', () {
     testWidgets('collapsed panel keeps a native title and a labelled '
         'estimate line under GHS preference', (tester) async {
-      await tester.pumpWidget(_surface(
-        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
-        _Themed((colors) => EscrowStatusPanel(
+      await tester.pumpWidget(
+        _surface(
+          _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+          _Themed(
+            (colors) => EscrowStatusPanel(
               escrow: _escrow(),
               currentUserId: 10,
               isLoading: false,
@@ -489,8 +550,10 @@ void main() {
               onDispute: (String reason, List<String> files) async {},
               onUpdateTerms: (String terms) async {},
               onCancel: () async {},
-            )),
-      ));
+            ),
+          ),
+        ),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -506,14 +569,16 @@ void main() {
 
     testWidgets('rail slots stay native-only under GHS preference — a '
         'truncated estimate would be worse than none', (tester) async {
-      await tester.pumpWidget(_surface(
-        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
-        EscrowVaultRail(
-          escrow: _escrow(amount: 20),
-          currentUserId: 10,
-          isLoading: false,
+      await tester.pumpWidget(
+        _surface(
+          _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+          EscrowVaultRail(
+            escrow: _escrow(amount: 20),
+            currentUserId: 10,
+            isLoading: false,
+          ),
         ),
-      ));
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -531,9 +596,11 @@ void main() {
   group('SmartRouteCard caption', () {
     testWidgets('the card names the native denomination and shows no '
         'conversion claim or wheel', (tester) async {
-      await tester.pumpWidget(_surface(
-        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
-        _Themed((colors) => SmartRouteCard(
+      await tester.pumpWidget(
+        _surface(
+          _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+          _Themed(
+            (colors) => SmartRouteCard(
               route: SmartRoute(
                 id: 'sr1',
                 name: 'Rent savings',
@@ -547,8 +614,10 @@ void main() {
                 totalRoutedUsdc: 60,
               ),
               colors: colors,
-            )),
-      ));
+            ),
+          ),
+        ),
+      );
       await tester.pump();
 
       final card = _texts(tester, find.byType(SmartRouteCard));
@@ -566,22 +635,24 @@ void main() {
         snapshot: _freshSnapshot(),
         pref: DisplayCurrency.usdc,
       );
-      await tester.pumpWidget(_surface(
-        c,
-        const NativeAmountText(
-          key: ValueKey('flip-target'),
-          amountUsdc: 20,
+      await tester.pumpWidget(
+        _surface(
+          c,
+          const NativeAmountText(key: ValueKey('flip-target'), amountUsdc: 20),
         ),
-      ));
+      );
       await tester.pump();
 
       // The inline widget keeps BOTH parts verbatim: one RichText when
       // the composed line fits, lead + tail as two nodes when it wraps.
       // The truth test must read the whole rendered surface, not one node.
       String read() => tester
-          .widgetList<RichText>(find.descendant(
+          .widgetList<RichText>(
+            find.descendant(
               of: find.byKey(const ValueKey('flip-target')),
-              matching: find.byType(RichText)))
+              matching: find.byType(RichText),
+            ),
+          )
           .map((r) => r.text.toPlainText())
           .join(' ');
 
@@ -605,16 +676,19 @@ void main() {
 
   // ── Deposit rows (vault detail): native amount only, type stays beside ───
   group('Vault deposit row composition', () {
-    testWidgets('forceNative + no equivalent renders the plain USDC amount',
-        (tester) async {
-      await tester.pumpWidget(_surface(
-        _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
-        const NativeAmountText(
-          amountUsdc: 20,
-          forceNative: true,
-          showEquivalent: false,
+    testWidgets('forceNative + no equivalent renders the plain USDC amount', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _surface(
+          _container(snapshot: _freshSnapshot(), pref: DisplayCurrency.ghs),
+          const NativeAmountText(
+            amountUsdc: 20,
+            forceNative: true,
+            showEquivalent: false,
+          ),
         ),
-      ));
+      );
       await tester.pump();
 
       final t = _texts(tester, find.byType(NativeAmountText));

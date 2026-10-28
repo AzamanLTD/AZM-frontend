@@ -18,7 +18,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/foundation.dart';
 import 'package:azaman/widgets/logo_trace_loader.dart';
 
-
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -42,7 +41,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    _fadeAnimation = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _fadeAnimation = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    );
     _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
     );
@@ -79,8 +81,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// trip on top. It now runs CONCURRENTLY with the auth/version/onboarding
   /// work — the splash still holds for its branding beat, but the network
   /// is never idled behind it: startup is max(2s, waterfall), not 2s+waterfall.
-  late final Future<void> _brandingFloor =
-      Future<void>.delayed(const Duration(seconds: 2));
+  late final Future<void> _brandingFloor = Future<void>.delayed(
+    const Duration(seconds: 2),
+  );
 
   /// Every splash exit goes through here, so the branding floor elapses
   /// while the network work runs — never before it.
@@ -102,11 +105,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _checkAuthStatus() async {
-
     // ── Auto-demo fallback for web ──────────────────────────────────────
     if (!AppConfig.demoMode && kIsWeb) {
       try {
-        await apiClient.get('/health', requireAuth: false)
+        await apiClient
+            .get('/health', requireAuth: false)
             .timeout(const Duration(seconds: 3));
         debugPrint('[Splash] Backend reachable, staying in live mode');
       } catch (_) {
@@ -118,16 +121,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Demo mode: skip version gate + auth, go straight to the app with seeded data
     if (AppConfig.demoMode) {
       final auth = ref.read(authProvider);
-      auth.setUser(User(
-        id: DemoSeedData.demoUserId,
-        username: DemoSeedData.demoUsername,
-        email: 'pyrax@demo.azaman.app',
-        token: DemoSeedData.demoToken,
-        role: 'USER',
-        azmBalance: 12450.00,
-        availableBalance: 12450.00,
-        kycStatus: KycStatus.verified,
-      ));
+      auth.setUser(
+        User(
+          id: DemoSeedData.demoUserId,
+          username: DemoSeedData.demoUsername,
+          email: 'pyrax@demo.azaman.app',
+          token: DemoSeedData.demoToken,
+          role: 'USER',
+          azmBalance: 12450.00,
+          availableBalance: 12450.00,
+          kycStatus: KycStatus.verified,
+        ),
+      );
       AuthGuard.isAuthenticated = true;
       ref.read(themeProvider).loadFromBackend();
       ref.read(settingsProvider).loadFromBackend();
@@ -163,9 +168,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         final userRole = await _storage.read(key: 'user_role') ?? 'user';
 
         if (userId != null && token != null) {
-          final status = await auth.setSessionFromLogin(User(
-            id: userId, username: 'Loading…', email: '', token: token, role: userRole,
-          ));
+          final status = await auth.setSessionFromLogin(
+            User(
+              id: userId,
+              username: 'Loading…',
+              email: '',
+              token: token,
+              role: userRole,
+            ),
+          );
           if (!mounted) return;
 
           switch (status) {
@@ -183,14 +194,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               if (!mounted) return;
               final needsOnboarding = results[3] == true;
               await _exitTo(
-                  needsOnboarding ? AzRoutes.onboarding : AzRoutes.shell);
+                needsOnboarding ? AzRoutes.onboarding : AzRoutes.shell,
+              );
               return;
             case AuthStatus.profileNotFound:
               // The snackbar must be shown BEFORE the go(): the root
               // ScaffoldMessenger survives the route change, but this
               // context does not (the login page is a different route).
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No profile found for this account. Please sign up.')));
+                const SnackBar(
+                  content: Text(
+                    'No profile found for this account. Please sign up.',
+                  ),
+                ),
+              );
               await _exitTo(AzRoutes.login);
               return;
             case AuthStatus.unauthenticated:
@@ -240,30 +257,33 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   const SizedBox(height: 28),
                   // ── Azaman wordmark — refined ────────────────────────────
                   ShaderMask(
-                    shaderCallback: (bounds) {
-                      return LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.35),
-                          Colors.black,
-                          Colors.black.withValues(alpha: 0.35),
-                        ],
-                        stops: const [0.0, 0.5, 1.0],
-                      ).createShader(bounds);
-                    },
-                    child: const Text(
-                      'AZAMAN',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 8,
+                        shaderCallback: (bounds) {
+                          return LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0.35),
+                              Colors.black,
+                              Colors.black.withValues(alpha: 0.35),
+                            ],
+                            stops: const [0.0, 0.5, 1.0],
+                          ).createShader(bounds);
+                        },
+                        child: const Text(
+                          'AZAMAN',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 8,
+                          ),
+                        ),
+                      )
+                      .animate(onPlay: (c) => c.repeat())
+                      .shimmer(
+                        duration: 2200.ms,
+                        color: Colors.black.withValues(alpha: 0.12),
                       ),
-                    ),
-                  )
-                  .animate(onPlay: (c) => c.repeat())
-                  .shimmer(duration: 2200.ms, color: Colors.black.withValues(alpha: 0.12)),
                 ],
               ),
             ),
@@ -273,4 +293,3 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
   }
 }
-

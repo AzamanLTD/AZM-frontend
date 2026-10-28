@@ -13,7 +13,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/services/api_client.dart';
 
-
 class TradeSummaryScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> tradeData;
   final bool isVendor; // To customize the text based on who is looking at it
@@ -31,7 +30,7 @@ class TradeSummaryScreen extends ConsumerStatefulWidget {
 class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
   bool? _isPositive; // true = Thumbs Up, false = Thumbs Down, null = unselected
   final TextEditingController _commentController = TextEditingController();
-  
+
   bool _isSubmitting = false;
   bool _hasReviewed = false; // To hide the review box once submitted
   bool _isDownloadingReceipt = false;
@@ -51,7 +50,10 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final cleanId = widget.tradeData['tradeId'].toString().replaceAll('#', '');
+      final cleanId = widget.tradeData['tradeId'].toString().replaceAll(
+        '#',
+        '',
+      );
 
       final response = await apiClient.post('/trades/review', {
         "tradeId": cleanId,
@@ -105,20 +107,26 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
     final colors = ref.watch(themeProvider).colors;
 
     // Format the date if available, otherwise use 'Just now'
-    final dateObj = widget.tradeData['completedAt'] != null 
-        ? DateTime.parse(widget.tradeData['completedAt']).toLocal() 
+    final dateObj = widget.tradeData['completedAt'] != null
+        ? DateTime.parse(widget.tradeData['completedAt']).toLocal()
         : DateTime.now();
-    final String formattedDate = "${dateObj.year}-${dateObj.month.toString().padLeft(2,'0')}-${dateObj.day.toString().padLeft(2,'0')} ${dateObj.hour.toString().padLeft(2,'0')}:${dateObj.minute.toString().padLeft(2,'0')}";
+    final String formattedDate =
+        "${dateObj.year}-${dateObj.month.toString().padLeft(2, '0')}-${dateObj.day.toString().padLeft(2, '0')} ${dateObj.hour.toString().padLeft(2, '0')}:${dateObj.minute.toString().padLeft(2, '0')}";
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        automaticallyImplyLeading: false, // Force them to use the "Done" button at the bottom
+        automaticallyImplyLeading:
+            false, // Force them to use the "Done" button at the bottom
         title: Text(
           "Order Completed",
-          style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
       ),
@@ -165,7 +173,11 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
             color: colors.success.withValues(alpha: 0.1),
             border: Border.all(color: colors.success, width: 2),
           ),
-          child: Icon(Icons.check_circle_outline, color: colors.success, size: 50),
+          child: Icon(
+            Icons.check_circle_outline,
+            color: colors.success,
+            size: 50,
+          ),
         ),
         const SizedBox(height: 20),
         Text(
@@ -174,18 +186,22 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
         ),
         const SizedBox(height: 5),
         Text(
-          widget.isVendor 
-              ? "\$${widget.tradeData['amountCrypto'] ?? widget.tradeData['amount']}" 
+          widget.isVendor
+              ? "\$${widget.tradeData['amountCrypto'] ?? widget.tradeData['amount']}"
               : "\$${widget.tradeData['amountFiat'] ?? widget.tradeData['amount']}",
-          style: TextStyle(color: colors.accent, fontSize: 32, fontWeight: FontWeight.w900),
+          style: TextStyle(
+            color: colors.accent,
+            fontSize: 32,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ],
     );
   }
 
   Widget _buildReceiptCard(String date, AzamanColors colors) {
-    final otherParty = widget.isVendor 
-        ? (widget.tradeData['userName'] ?? "Buyer") 
+    final otherParty = widget.isVendor
+        ? (widget.tradeData['userName'] ?? "Buyer")
         : (widget.tradeData['vendorName'] ?? "Vendor");
 
     return Container(
@@ -197,13 +213,21 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
       ),
       child: Column(
         children: [
-          _rowDetail("Order ID", widget.tradeData['tradeId']?.toString() ?? "N/A", colors),
+          _rowDetail(
+            "Order ID",
+            widget.tradeData['tradeId']?.toString() ?? "N/A",
+            colors,
+          ),
           Divider(color: colors.divider, height: 25),
           _rowDetail("Date", date, colors),
           Divider(color: colors.divider, height: 25),
           _rowDetail(widget.isVendor ? "Buyer" : "Vendor", otherParty, colors),
           Divider(color: colors.divider, height: 25),
-          _rowDetail("Payment Method", widget.tradeData['paymentMethod'] ?? "Bank Transfer", colors),
+          _rowDetail(
+            "Payment Method",
+            widget.tradeData['paymentMethod'] ?? "Bank Transfer",
+            colors,
+          ),
         ],
       ),
     );
@@ -214,7 +238,14 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 13)),
-        Text(value, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
+        Text(
+          value,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
       ],
     );
   }
@@ -222,13 +253,20 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
   Widget _buildReviewSection(AzamanColors colors) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             "How was your trading experience?",
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
           ),
           const SizedBox(height: 15),
           Row(
@@ -242,16 +280,36 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                   child: Container(
                     height: 50,
                     decoration: BoxDecoration(
-                      color: _isPositive == true ? colors.success.withValues(alpha: 0.2) : colors.background,
-                      border: Border.all(color: _isPositive == true ? colors.success : colors.divider),
+                      color: _isPositive == true
+                          ? colors.success.withValues(alpha: 0.2)
+                          : colors.background,
+                      border: Border.all(
+                        color: _isPositive == true
+                            ? colors.success
+                            : colors.divider,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.thumb_up_outlined, color: _isPositive == true ? colors.success : colors.textTertiary, size: 18),
+                        Icon(
+                          Icons.thumb_up_outlined,
+                          color: _isPositive == true
+                              ? colors.success
+                              : colors.textTertiary,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
-                        Text("Positive", style: TextStyle(color: _isPositive == true ? colors.success : colors.textTertiary, fontWeight: FontWeight.bold)),
+                        Text(
+                          "Positive",
+                          style: TextStyle(
+                            color: _isPositive == true
+                                ? colors.success
+                                : colors.textTertiary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -267,16 +325,36 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                   child: Container(
                     height: 50,
                     decoration: BoxDecoration(
-                      color: _isPositive == false ? colors.danger.withValues(alpha: 0.2) : colors.background,
-                      border: Border.all(color: _isPositive == false ? colors.danger : colors.divider),
+                      color: _isPositive == false
+                          ? colors.danger.withValues(alpha: 0.2)
+                          : colors.background,
+                      border: Border.all(
+                        color: _isPositive == false
+                            ? colors.danger
+                            : colors.divider,
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.thumb_down_outlined, color: _isPositive == false ? colors.danger : colors.textTertiary, size: 18),
+                        Icon(
+                          Icons.thumb_down_outlined,
+                          color: _isPositive == false
+                              ? colors.danger
+                              : colors.textTertiary,
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
-                        Text("Negative", style: TextStyle(color: _isPositive == false ? colors.danger : colors.textTertiary, fontWeight: FontWeight.bold)),
+                        Text(
+                          "Negative",
+                          style: TextStyle(
+                            color: _isPositive == false
+                                ? colors.danger
+                                : colors.textTertiary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -294,8 +372,14 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                 hintStyle: TextStyle(color: colors.textTertiary),
                 filled: true,
                 fillColor: colors.background,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 15,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
               ),
               maxLines: 2,
             ),
@@ -306,10 +390,12 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 onPressed: _isSubmitting ? null : _submitReview,
-                child: _isSubmitting 
+                child: _isSubmitting
                     ? SizedBox(
                         height: 15,
                         width: 15,
@@ -326,8 +412,8 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                         ),
                       ),
               ),
-            )
-          ]
+            ),
+          ],
         ],
       ),
     );
@@ -348,7 +434,11 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
           const SizedBox(height: 10),
           Text(
             "Feedback Submitted",
-            style: TextStyle(color: colors.success, fontWeight: FontWeight.bold, fontSize: 16),
+            style: TextStyle(
+              color: colors.success,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
           const SizedBox(height: 5),
           Text(
@@ -397,7 +487,8 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
 
   Future<void> _handleDownloadReceipt() async {
     final colors = ref.read(themeProvider).colors;
-    final tradeId = widget.tradeData['tradeId']?.toString().replaceAll('#', '') ?? '';
+    final tradeId =
+        widget.tradeData['tradeId']?.toString().replaceAll('#', '') ?? '';
     if (tradeId.isEmpty) return;
 
     setState(() => _isDownloadingReceipt = true);
@@ -432,21 +523,25 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
     final data = widget.tradeData;
     final steps = [
       _TimelineStep(
-          label: 'Trade Opened',
-          done: true,
-          time: data['createdAt']?.toString()),
+        label: 'Trade Opened',
+        done: true,
+        time: data['createdAt']?.toString(),
+      ),
       _TimelineStep(
-          label: 'Payment Sent',
-          done: (data['isPaid'] ?? false) as bool,
-          time: data['paidAt']?.toString()),
+        label: 'Payment Sent',
+        done: (data['isPaid'] ?? false) as bool,
+        time: data['paidAt']?.toString(),
+      ),
       _TimelineStep(
-          label: 'Payment Confirmed',
-          done: (data['isCompleted'] ?? false) as bool,
-          time: data['completedAt']?.toString()),
+        label: 'Payment Confirmed',
+        done: (data['isCompleted'] ?? false) as bool,
+        time: data['completedAt']?.toString(),
+      ),
       _TimelineStep(
-          label: 'Released to Wallet',
-          done: (data['isCompleted'] ?? false) as bool,
-          time: data['releasedAt']?.toString()),
+        label: 'Released to Wallet',
+        done: (data['isCompleted'] ?? false) as bool,
+        time: data['releasedAt']?.toString(),
+      ),
     ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -464,16 +559,22 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
           ),
           const SizedBox(height: 12),
           for (int i = 0; i < steps.length; i++) ...[
-            _timelineRow(steps[i],
-                isLast: i == steps.length - 1, colors: colors),
+            _timelineRow(
+              steps[i],
+              isLast: i == steps.length - 1,
+              colors: colors,
+            ),
           ],
         ],
       ),
     );
   }
 
-  Widget _timelineRow(_TimelineStep step,
-      {required bool isLast, required AzamanColors colors}) {
+  Widget _timelineRow(
+    _TimelineStep step, {
+    required bool isLast,
+    required AzamanColors colors,
+  }) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -523,8 +624,9 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                   Text(
                     step.label,
                     style: TextStyle(
-                      color:
-                          step.done ? colors.textPrimary : colors.textTertiary,
+                      color: step.done
+                          ? colors.textPrimary
+                          : colors.textTertiary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
@@ -533,8 +635,10 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
                     const SizedBox(height: 2),
                     Text(
                       _formatTime(step.time!),
-                      style:
-                          TextStyle(color: colors.textTertiary, fontSize: 11),
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ],
@@ -569,7 +673,9 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: colors.surface,
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
           onPressed: () {
             // Pop all the way back to the Dashboard
@@ -577,7 +683,11 @@ class _TradeSummaryScreenState extends ConsumerState<TradeSummaryScreen> {
           },
           child: Text(
             "Back to Home",
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold, letterSpacing: 1),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
           ),
         ),
       ),

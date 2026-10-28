@@ -31,7 +31,8 @@ class StorefrontOrderSheet extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<StorefrontOrderSheet> createState() => _StorefrontOrderSheetState();
+  ConsumerState<StorefrontOrderSheet> createState() =>
+      _StorefrontOrderSheetState();
 }
 
 class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
@@ -47,8 +48,10 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
     super.dispose();
   }
 
-  double get _unitPrice => (widget.product['priceUsdc'] as num?)?.toDouble() ?? 0.0;
+  double get _unitPrice =>
+      (widget.product['priceUsdc'] as num?)?.toDouble() ?? 0.0;
   double get _total => _unitPrice * _quantity;
+
   /// Strict exact-2dp GHS listing price (canonical contract: only a
   /// non-empty String matching ^\d+\.\d{2}$ — everything else is absent).
   /// Displayed as a SEPARATE fact from the payable USDC amount; absent
@@ -60,6 +63,7 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
     if (t.isEmpty) return null;
     return RegExp(r'^\d+\.\d{2}$').hasMatch(t) ? t : null;
   }
+
   String get _productName => widget.product['name'] as String? ?? 'Product';
   String? get _imageUrl {
     final urls = (widget.product['imageUrls'] as List?)?.cast<String>();
@@ -80,7 +84,9 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
         businessProfileId: widget.businessProfileId,
         productId: widget.product['id'] as String,
         quantity: _quantity,
-        customerNotes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        customerNotes: _notesCtrl.text.trim().isEmpty
+            ? null
+            : _notesCtrl.text.trim(),
         operationType: _orderActionId,
         ref: _orderRef,
       );
@@ -100,7 +106,9 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(storefrontFailureMessage(failure, e)),
-            backgroundColor: failure.isUnconfirmed ? colors.warning : colors.danger,
+            backgroundColor: failure.isUnconfirmed
+                ? colors.warning
+                : colors.danger,
           ),
         );
         setState(() => _submitting = false);
@@ -120,7 +128,9 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
         color: colors.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -131,9 +141,13 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
               // Drag handle
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                    color: colors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
 
@@ -144,11 +158,27 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: SizedBox(
-                      width: 64, height: 64,
+                      width: 64,
+                      height: 64,
                       child: _imageUrl != null
-                          ? AzamanNetworkImage(imageUrl: _imageUrl!, fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => Container(color: colors.background, child: Icon(Icons.inventory_2, color: colors.textSecondary)))
-                          : Container(color: colors.background, child: Icon(Icons.inventory_2, color: colors.textSecondary)),
+                          ? AzamanNetworkImage(
+                              imageUrl: _imageUrl!,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Container(
+                                color: colors.background,
+                                child: Icon(
+                                  Icons.inventory_2,
+                                  color: colors.textSecondary,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: colors.background,
+                              child: Icon(
+                                Icons.inventory_2,
+                                color: colors.textSecondary,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -156,10 +186,25 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(_productName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        Text(
+                          _productName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textPrimary,
+                          ),
+                        ),
                         if (description != null) ...[
                           const SizedBox(height: 2),
-                          Text(description, style: TextStyle(fontSize: 12, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(
+                            description,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colors.textSecondary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                         if (_priceGhs != null) ...[
                           const SizedBox(height: 2),
@@ -168,24 +213,62 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                           // asking price; the USDC figure below is the
                           // payable order rail amount. No conversion, no
                           // implied GHS settlement capability.
-                          Text('Listed: GH₵$_priceGhs', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                          Text(
+                            'Listed: GH₵$_priceGhs',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: colors.textSecondary,
+                            ),
+                          ),
                         ],
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Text('${_unitPrice.toStringAsFixed(2)} USDC', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.accent)),
+                            Text(
+                              '${_unitPrice.toStringAsFixed(2)} USDC',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: colors.accent,
+                              ),
+                            ),
                             if (prepMins != null) ...[
                               const SizedBox(width: 8),
-                              Text('~${prepMins}min', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                              Text(
+                                '~${prepMins}min',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: colors.textSecondary,
+                                ),
+                              ),
                             ],
                             if (tags.isNotEmpty) ...[
                               const SizedBox(width: 8),
-                              ...tags.take(2).map((t) => Container(
-                                margin: const EdgeInsets.only(right: 4),
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                                child: Text(t, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: colors.accent)),
-                              )),
+                              ...tags
+                                  .take(2)
+                                  .map(
+                                    (t) => Container(
+                                      margin: const EdgeInsets.only(right: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: colors.accent.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        t,
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          color: colors.accent,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                             ],
                           ],
                         ),
@@ -198,7 +281,14 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
               const SizedBox(height: 20),
 
               // Quantity selector
-              Text('Quantity', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+              Text(
+                'Quantity',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 8),
               // Wrap, not Row: at phone widths (320-390dp) the quantity
               // stepper plus the Total chip cannot share one line — the
@@ -211,26 +301,63 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _QtyButton(icon: Icons.remove, onTap: () => setState(() { if (_quantity > 1) _quantity--; })),
+                      _QtyButton(
+                        icon: Icons.remove,
+                        onTap: () => setState(() {
+                          if (_quantity > 1) _quantity--;
+                        }),
+                      ),
                       Container(
-                        width: 56, height: 44,
+                        width: 56,
+                        height: 44,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           border: Border.all(color: colors.divider),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text('$_quantity', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+                        child: Text(
+                          '$_quantity',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textPrimary,
+                          ),
+                        ),
                       ),
-                      _QtyButton(icon: Icons.add, onTap: () => setState(() { if (_quantity < 99) _quantity++; })),
+                      _QtyButton(
+                        icon: Icons.add,
+                        onTap: () => setState(() {
+                          if (_quantity < 99) _quantity++;
+                        }),
+                      ),
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                     child: Row(
                       children: [
-                        Text('Total: ', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
-                        Text('${_total.toStringAsFixed(2)} USDC', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: colors.accent)),
+                        Text(
+                          'Total: ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                        Text(
+                          '${_total.toStringAsFixed(2)} USDC',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: colors.accent,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -246,12 +373,28 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                 style: TextStyle(color: colors.textPrimary, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Add notes (optional)...',
-                  hintStyle: TextStyle(color: colors.textSecondary, fontSize: 14),
-                  filled: true, fillColor: colors.background,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.divider)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.divider)),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.accent, width: 1.5)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  hintStyle: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 14,
+                  ),
+                  filled: true,
+                  fillColor: colors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.divider),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.accent, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                 ),
               ),
 
@@ -266,17 +409,32 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
                   child: _submitting
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
                       : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(Icons.shopping_bag, size: 18),
                             const SizedBox(width: 8),
-                            Text('Place Order · ${_total.toStringAsFixed(2)} USDC', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            Text(
+                              'Place Order · ${_total.toStringAsFixed(2)} USDC',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ],
                         ),
                 ),
@@ -299,9 +457,13 @@ class _StorefrontOrderSheetState extends ConsumerState<StorefrontOrderSheet> {
   Widget _QtyButton({required IconData icon, required VoidCallback onTap}) {
     final colors = ref.read(themeProvider).colors;
     return GestureDetector(
-      onTap: () { AzamanHaptics.nav(); onTap(); },
+      onTap: () {
+        AzamanHaptics.nav();
+        onTap();
+      },
       child: Container(
-        width: 44, height: 44,
+        width: 44,
+        height: 44,
         margin: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: colors.background,

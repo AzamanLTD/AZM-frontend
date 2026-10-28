@@ -44,33 +44,31 @@ class _RecordingSearchNotifier extends BusinessSearchNotifier {
 }
 
 Widget _wrap(Widget child) => ProviderScope(
-      child: MaterialApp(
-        theme: ThemeProvider.getThemeData(AzamanTheme.dark),
-        home: Scaffold(body: Center(child: child)),
-      ),
-    );
+  child: MaterialApp(
+    theme: ThemeProvider.getThemeData(AzamanTheme.dark),
+    home: Scaffold(body: Center(child: child)),
+  ),
+);
 
-Future<void> _pumpDial(
-  WidgetTester tester, {
-  String? selectedWire,
-}) async {
+Future<void> _pumpDial(WidgetTester tester, {String? selectedWire}) async {
   await tester.pumpWidget(
     _wrap(
       CategorySpeedDial(
         key: const ValueKey('marketplace-category-dial'),
         categories: const [
+          CategoryDialItem(wire: null, icon: Icons.apps_rounded, label: 'All'),
           CategoryDialItem(
-              wire: null, icon: Icons.apps_rounded, label: 'All'),
+            wire: 'FOOD_BEVERAGE',
+            icon: Icons.restaurant_rounded,
+            label: 'Eat',
+            accent: _eatAccent,
+          ),
           CategoryDialItem(
-              wire: 'FOOD_BEVERAGE',
-              icon: Icons.restaurant_rounded,
-              label: 'Eat',
-              accent: _eatAccent),
-          CategoryDialItem(
-              wire: 'RETAIL',
-              icon: Icons.shopping_bag_rounded,
-              label: 'Shop',
-              accent: Color(0xFF00D97E)),
+            wire: 'RETAIL',
+            icon: Icons.shopping_bag_rounded,
+            label: 'Shop',
+            accent: Color(0xFF00D97E),
+          ),
         ],
         selectedWire: selectedWire,
         colors: ThemeProvider.getColors(AzamanTheme.dark),
@@ -83,9 +81,7 @@ Future<void> _pumpDial(
 
 BoxDecoration _anchorDecoration(WidgetTester tester, String label) {
   final container = tester.widget<Container>(
-    find
-        .ancestor(of: find.text(label), matching: find.byType(Container))
-        .first,
+    find.ancestor(of: find.text(label), matching: find.byType(Container)).first,
   );
   final decoration = container.decoration!;
   return decoration as BoxDecoration;
@@ -95,13 +91,17 @@ Text _anchorText(WidgetTester tester, String label) =>
     tester.widget<Text>(find.text(label));
 
 void main() {
-  testWidgets('All selected: the anchor stays the neutral theme-card pill',
-      (tester) async {
+  testWidgets('All selected: the anchor stays the neutral theme-card pill', (
+    tester,
+  ) async {
     await _pumpDial(tester, selectedWire: null);
     final deco = _anchorDecoration(tester, 'All');
     final colors = ThemeProvider.getColors(AzamanTheme.dark);
-    expect(deco.color, colors.card,
-        reason: 'All is the only neutral/base selector');
+    expect(
+      deco.color,
+      colors.card,
+      reason: 'All is the only neutral/base selector',
+    );
     expect(_anchorText(tester, 'All').style!.color, colors.textPrimary);
   });
 
@@ -109,10 +109,13 @@ void main() {
       '(no generic gray/theme card takeover)', (tester) async {
     await _pumpDial(tester, selectedWire: 'FOOD_BEVERAGE');
     final deco = _anchorDecoration(tester, 'Eat');
-    expect(deco.color, _eatAccent,
-        reason:
-            'the selected anchor must stay in its category identity, not a '
-            'generic gray/theme card');
+    expect(
+      deco.color,
+      _eatAccent,
+      reason:
+          'the selected anchor must stay in its category identity, not a '
+          'generic gray/theme card',
+    );
     // The ink is the measured readable foreground for the accent.
     final ink = dialInk(_eatAccent, ThemeProvider.getColors(AzamanTheme.dark));
     expect(_anchorText(tester, 'Eat').style!.color, ink);
@@ -140,27 +143,33 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [businessSearchProvider.overrideWith((ref) => notifier)],
-        child: MaterialApp(
-          home: MarketplaceHomeScreen(),
-        ),
+        child: MaterialApp(home: MarketplaceHomeScreen()),
       ),
     );
     await tester.pump(const Duration(milliseconds: 600));
 
     final dial = tester.getRect(
-        find.byKey(const ValueKey('marketplace-category-dial')));
+      find.byKey(const ValueKey('marketplace-category-dial')),
+    );
     final nearYou = tester.getRect(
-        find.byKey(const ValueKey('marketplace-near-you')));
+      find.byKey(const ValueKey('marketplace-near-you')),
+    );
 
     // Near You is FAR right of the dial, at the end of the row.
-    expect(nearYou.left, greaterThan(dial.right),
-        reason: 'Near You must not sit next to the category pill');
+    expect(
+      nearYou.left,
+      greaterThan(dial.right),
+      reason: 'Near You must not sit next to the category pill',
+    );
     // It reads as the row's end utility: its right edge is within the
     // row's standard 16px horizontal inset of the screen edge.
     final logicalWidth =
         tester.view.physicalSize.width / tester.view.devicePixelRatio;
-    expect(nearYou.right, greaterThan(logicalWidth - 40),
-        reason: 'Near You must reach the far end of the control row');
+    expect(
+      nearYou.right,
+      greaterThan(logicalWidth - 40),
+      reason: 'Near You must reach the far end of the control row',
+    );
     // And the dial itself stays anchored left.
     expect(dial.left, lessThan(30));
 
@@ -170,30 +179,46 @@ void main() {
     // on narrow phones (unbounded width). The dial+Mix cluster must sit
     // adjacent (same cluster, no stretch between them), with the free row
     // width falling between that cluster and Near You.
-    final mixEntry = tester
-        .getRect(find.byKey(const ValueKey('marketplace-mix-entry')));
-    expect(mixEntry.left, greaterThanOrEqualTo(dial.right),
-        reason: 'the Mix pill must sit in the dial\'s own cluster, not '
-            'floating in the row\'s free space');
-    expect(nearYou.left, greaterThan(mixEntry.right + 8),
-        reason: 'the free row width must separate the dial+Mix cluster '
-            'from Near You — Near You never hugs the cluster');
+    final mixEntry = tester.getRect(
+      find.byKey(const ValueKey('marketplace-mix-entry')),
+    );
+    expect(
+      mixEntry.left,
+      greaterThanOrEqualTo(dial.right),
+      reason:
+          'the Mix pill must sit in the dial\'s own cluster, not '
+          'floating in the row\'s free space',
+    );
+    expect(
+      nearYou.left,
+      greaterThan(mixEntry.right + 8),
+      reason:
+          'the free row width must separate the dial+Mix cluster '
+          'from Near You — Near You never hugs the cluster',
+    );
     final controlRowFinder = find.ancestor(
       of: find.byKey(const ValueKey('marketplace-near-you')),
       matching: find.byWidgetPredicate(
-          (w) => w is Row && w.mainAxisAlignment == MainAxisAlignment.spaceBetween),
+        (w) =>
+            w is Row && w.mainAxisAlignment == MainAxisAlignment.spaceBetween,
+      ),
     );
-    expect(controlRowFinder, findsOneWidget,
-        reason: 'the control row must pin the clusters apart with '
-            'spaceBetween — no flex Spacer inside the scrollable strip');
+    expect(
+      controlRowFinder,
+      findsOneWidget,
+      reason:
+          'the control row must pin the clusters apart with '
+          'spaceBetween — no flex Spacer inside the scrollable strip',
+    );
     expect(controlRowFinder.evaluate().single.widget is Row, true);
   });
 
   // ── Workstream D selector pass (2026-10-21) ──────────────────────────────
 
   testWidgets('open fan: the selected category is announced EXACTLY ONCE '
-      '— the goo ghost pill never duplicates the anchor semantics',
-      (tester) async {
+      '— the goo ghost pill never duplicates the anchor semantics', (
+    tester,
+  ) async {
     final notifier = _RecordingSearchNotifier();
     await tester.pumpWidget(
       ProviderScope(
@@ -215,12 +240,12 @@ void main() {
     // ghost pill on the blob is excluded, so TalkBack never hears the
     // selected category twice (pre-fix the ghost duplicated a bare
     // 'All' node alongside the anchor).
+    expect(find.bySemanticsLabel(RegExp('Category: All')), findsOneWidget);
     expect(
-      find.bySemanticsLabel(RegExp('Category: All')),
-      findsOneWidget,
+      find.bySemanticsLabel('All'),
+      findsNothing,
+      reason: 'the goo ghost is a visual echo, not a second node',
     );
-    expect(find.bySemanticsLabel('All'), findsNothing,
-        reason: 'the goo ghost is a visual echo, not a second node');
 
     semanticsHandle.dispose();
   });

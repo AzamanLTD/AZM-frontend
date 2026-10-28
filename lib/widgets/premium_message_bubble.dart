@@ -16,19 +16,19 @@ import 'package:hugeicons_pro/hugeicons.dart';
 /// Callback typedef for swipe-to-reply gesture.
 typedef OnReplyCallback = void Function(ChatMessage message);
 typedef OnReactCallback = void Function(String messageId, String emoji);
-typedef OnEditCallback  = void Function(ChatMessage message);
+typedef OnEditCallback = void Function(ChatMessage message);
 typedef OnDeleteCallback = void Function(String messageId);
 
 /// Single unified bubble — paste into any chat ListView.builder.
 class PremiumMessageBubble extends ConsumerStatefulWidget {
   final bool isHighlighted;
   final ChatMessage message;
-  final bool showAvatar;   // show sender avatar (groups only)
+  final bool showAvatar; // show sender avatar (groups only)
   final bool showSenderName; // show name above bubble (groups only)
   final int myUserId;
   final OnReplyCallback? onReply;
   final OnReactCallback? onReact;
-  final OnEditCallback?  onEdit;
+  final OnEditCallback? onEdit;
   final OnDeleteCallback? onDelete;
   final VoidCallback? onRetry; // called on failed bubble tap
 
@@ -61,13 +61,20 @@ class _State extends ConsumerState<PremiumMessageBubble>
   void initState() {
     super.initState();
     _replyCtrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 300));
-    _replyAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _replyCtrl, curve: Curves.easeOut));
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _replyAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _replyCtrl, curve: Curves.easeOut));
   }
 
   @override
-  void dispose() { _replyCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _replyCtrl.dispose();
+    super.dispose();
+  }
 
   bool get _isMe => widget.message.isMe;
   bool get _isDeleted => widget.message.isDeleted;
@@ -76,21 +83,43 @@ class _State extends ConsumerState<PremiumMessageBubble>
   Widget _statusTick(AzamanColors c) {
     switch (widget.message.status) {
       case MessageStatus.sending:
-        return Icon(Icons.access_time_rounded, size: 12, color: c.textTertiary.withValues(alpha: 0.5));
+        return Icon(
+          Icons.access_time_rounded,
+          size: 12,
+          color: c.textTertiary.withValues(alpha: 0.5),
+        );
       case MessageStatus.sent:
-        return Icon(HugeIconsSolid.checkmarkCircle01, size: 12, color: c.textTertiary);
+        return Icon(
+          HugeIconsSolid.checkmarkCircle01,
+          size: 12,
+          color: c.textTertiary,
+        );
       case MessageStatus.delivered:
-        return Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(HugeIconsSolid.checkmarkCircle01, size: 11, color: c.textTertiary),
-          const SizedBox(width: -3),
-          Icon(HugeIconsSolid.checkmarkCircle01, size: 11, color: c.textTertiary),
-        ]);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              HugeIconsSolid.checkmarkCircle01,
+              size: 11,
+              color: c.textTertiary,
+            ),
+            const SizedBox(width: -3),
+            Icon(
+              HugeIconsSolid.checkmarkCircle01,
+              size: 11,
+              color: c.textTertiary,
+            ),
+          ],
+        );
       case MessageStatus.read:
-        return Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(HugeIconsSolid.checkmarkCircle02, size: 11, color: c.accent),
-          const SizedBox(width: -3),
-          Icon(HugeIconsSolid.checkmarkCircle02, size: 11, color: c.accent),
-        ]);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(HugeIconsSolid.checkmarkCircle02, size: 11, color: c.accent),
+            const SizedBox(width: -3),
+            Icon(HugeIconsSolid.checkmarkCircle02, size: 11, color: c.accent),
+          ],
+        );
       case MessageStatus.failed:
         return GestureDetector(
           onTap: widget.onRetry,
@@ -108,25 +137,41 @@ class _State extends ConsumerState<PremiumMessageBubble>
       padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
       decoration: BoxDecoration(
         color: _isMe
-          ? Colors.white.withValues(alpha: 0.15)
-          : c.accent.withValues(alpha: 0.08),
+            ? Colors.white.withValues(alpha: 0.15)
+            : c.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(8),
-        border: Border(left: BorderSide(
-          color: _isMe ? Colors.white.withValues(alpha: 0.6) : c.accent,
-          width: 3)),
+        border: Border(
+          left: BorderSide(
+            color: _isMe ? Colors.white.withValues(alpha: 0.6) : c.accent,
+            width: 3,
+          ),
+        ),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(msg.replyToSenderName ?? 'Message',
-          style: TextStyle(
-            color: _isMe ? Colors.white : c.accent,
-            fontSize: 11, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(msg.replyToText ?? '',
-          maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: _isMe ? Colors.white.withValues(alpha: 0.75) : c.textSecondary,
-            fontSize: 11)),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            msg.replyToSenderName ?? 'Message',
+            style: TextStyle(
+              color: _isMe ? Colors.white : c.accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            msg.replyToText ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: _isMe
+                  ? Colors.white.withValues(alpha: 0.75)
+                  : c.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -136,7 +181,9 @@ class _State extends ConsumerState<PremiumMessageBubble>
     if (reactions.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 4),
-      child: Wrap(spacing: 4, runSpacing: 4,
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
         alignment: _isMe ? WrapAlignment.end : WrapAlignment.start,
         children: reactions.entries.map((e) {
           final iMine = e.value.contains(widget.myUserId);
@@ -148,21 +195,28 @@ class _State extends ConsumerState<PremiumMessageBubble>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: iMine
-                  ? c.accent.withValues(alpha: 0.18)
-                  : c.softSurface,
+                color: iMine ? c.accent.withValues(alpha: 0.18) : c.softSurface,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: iMine ? c.accent.withValues(alpha: 0.5) : c.divider,
-                  width: 0.8)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(e.key, style: const TextStyle(fontSize: 13)),
-                const SizedBox(width: 3),
-                Text('${e.value.length}',
-                  style: TextStyle(
-                    color: iMine ? c.accent : c.textSecondary,
-                    fontSize: 11, fontWeight: FontWeight.w600)),
-              ]),
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(e.key, style: const TextStyle(fontSize: 13)),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${e.value.length}',
+                    style: TextStyle(
+                      color: iMine ? c.accent : c.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -174,7 +228,11 @@ class _State extends ConsumerState<PremiumMessageBubble>
   // Only shown to the payer (the person who received the request, i.e.
   // !isMe on a TRANSFER_REQUEST message). Calls the same endpoints the
   // rest of the app already uses for this (friend_service.dart).
-  void _respondToTransferRequest(BuildContext ctx, AzamanColors c, ChatMessage msg) {
+  void _respondToTransferRequest(
+    BuildContext ctx,
+    AzamanColors c,
+    ChatMessage msg,
+  ) {
     final meta = msg.metadata ?? const {};
     final transferId = meta['transferId']?.toString();
     if (transferId == null || _isMe) return; // only the payer can respond
@@ -186,33 +244,50 @@ class _State extends ConsumerState<PremiumMessageBubble>
       builder: (sheetCtx) => Container(
         margin: const EdgeInsets.all(12),
         padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(color: c.surface, borderRadius: BorderRadius.circular(20)),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(20),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('${msg.senderUsername ?? 'They'} requested ${(msg.amount ?? 0).toStringAsFixed(2)} ${msg.currency ?? 'USDC'}',
+            Text(
+              '${msg.senderUsername ?? 'They'} requested ${(msg.amount ?? 0).toStringAsFixed(2)} ${msg.currency ?? 'USDC'}',
               textAlign: TextAlign.center,
-              style: TextStyle(color: c.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+              style: TextStyle(
+                color: c.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 18),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: c.accent, foregroundColor: Colors.white,
+                backgroundColor: c.accent,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () async {
                 Navigator.of(sheetCtx).pop();
                 await _fulfillOrDecline(ctx, transferId, fulfill: true);
               },
-              child: const Text('Pay', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text(
+                'Pay',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
             const SizedBox(height: 10),
             OutlinedButton(
               style: OutlinedButton.styleFrom(
                 foregroundColor: c.textSecondary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () async {
                 Navigator.of(sheetCtx).pop();
@@ -226,7 +301,11 @@ class _State extends ConsumerState<PremiumMessageBubble>
     );
   }
 
-  Future<void> _fulfillOrDecline(BuildContext ctx, String transferId, {required bool fulfill}) async {
+  Future<void> _fulfillOrDecline(
+    BuildContext ctx,
+    String transferId, {
+    required bool fulfill,
+  }) async {
     final token = ref.read(authProvider).user?.token;
     if (token == null) return;
     try {
@@ -241,7 +320,13 @@ class _State extends ConsumerState<PremiumMessageBubble>
     } catch (e) {
       if (ctx.mounted) {
         ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(content: Text(fulfill ? 'Could not complete payment' : 'Could not decline request')),
+          SnackBar(
+            content: Text(
+              fulfill
+                  ? 'Could not complete payment'
+                  : 'Could not decline request',
+            ),
+          ),
         );
       }
     }
@@ -276,22 +361,36 @@ class _State extends ConsumerState<PremiumMessageBubble>
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
         child: Row(
-          mainAxisAlignment:
-            _isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment: _isMe
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
                 color: c.softSurface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: c.divider, width: 0.8)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.not_interested_rounded, size: 13, color: c.textTertiary),
-                const SizedBox(width: 6),
-                Text('This message was deleted',
-                  style: TextStyle(color: c.textTertiary,
-                    fontSize: 12, fontStyle: FontStyle.italic)),
-              ]),
+                border: Border.all(color: c.divider, width: 0.8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.not_interested_rounded,
+                    size: 13,
+                    color: c.textTertiary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'This message was deleted',
+                    style: TextStyle(
+                      color: c.textTertiary,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -300,14 +399,21 @@ class _State extends ConsumerState<PremiumMessageBubble>
 
     // Peer-to-peer money transfer — rendered as an animated card instead of
     // the normal text bubble chrome (2026-07-06).
-    if (msg.kind == MessageKind.peerTransfer || msg.kind == MessageKind.transferRequest) {
+    if (msg.kind == MessageKind.peerTransfer ||
+        msg.kind == MessageKind.transferRequest) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
         child: Row(
-          mainAxisAlignment: _isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment: _isMe
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
           children: [
             if (!_isMe && widget.showAvatar) ...[
-              _AvatarChip(username: msg.senderUsername ?? '?', avatarUrl: msg.senderAvatar, colors: c),
+              _AvatarChip(
+                username: msg.senderUsername ?? '?',
+                avatarUrl: msg.senderAvatar,
+                colors: c,
+              ),
               const SizedBox(width: 6),
             ],
             ChatMoneyCard(
@@ -315,7 +421,9 @@ class _State extends ConsumerState<PremiumMessageBubble>
               currency: msg.currency ?? 'USDC',
               isMe: _isMe,
               contactName: !_isMe ? (msg.senderUsername ?? 'Unknown') : '',
-              status: msg.metadata?['status']?.toString().toLowerCase() ?? 'completed',
+              status:
+                  msg.metadata?['status']?.toString().toLowerCase() ??
+                  'completed',
               isRequest: msg.kind == MessageKind.transferRequest,
               reference: msg.metadata?['reference']?.toString(),
               memo: msg.text.isNotEmpty ? msg.text : null,
@@ -351,15 +459,19 @@ class _State extends ConsumerState<PremiumMessageBubble>
           widget.onReply?.call(msg);
           _replyCtrl.forward(from: 0).then((_) => _replyCtrl.reverse());
         }
-        setState(() { _swipeDx = 0; _swipeTriggered = false; });
+        setState(() {
+          _swipeDx = 0;
+          _swipeTriggered = false;
+        });
       },
       child: Transform.translate(
         offset: Offset(_isMe ? -_swipeDx : _swipeDx, 0),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
           child: Row(
-            mainAxisAlignment:
-              _isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            mainAxisAlignment: _isMe
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               // Avatar (groups only)
@@ -379,8 +491,11 @@ class _State extends ConsumerState<PremiumMessageBubble>
                 AnimatedOpacity(
                   opacity: (_swipeDx / 60).clamp(0.0, 1.0),
                   duration: const Duration(milliseconds: 80),
-                  child: Icon(HugeIconsSolid.arrowTurnBackward,
-                    size: 18, color: c.accent),
+                  child: Icon(
+                    HugeIconsSolid.arrowTurnBackward,
+                    size: 18,
+                    color: c.accent,
+                  ),
                 ),
               if (_swipeDx > 12) const SizedBox(width: 6),
 
@@ -390,16 +505,21 @@ class _State extends ConsumerState<PremiumMessageBubble>
                   onLongPress: () => _showContextMenu(context, c),
                   child: Column(
                     crossAxisAlignment: _isMe
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.start,
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
                     children: [
                       // Sender name (groups only)
                       if (!_isMe && widget.showSenderName)
                         Padding(
                           padding: const EdgeInsets.only(left: 4, bottom: 2),
-                          child: Text(msg.senderUsername ?? '',
-                            style: TextStyle(color: c.accent,
-                              fontSize: 11, fontWeight: FontWeight.w700)),
+                          child: Text(
+                            msg.senderUsername ?? '',
+                            style: TextStyle(
+                              color: c.accent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
 
                       // Bubble body
@@ -407,10 +527,13 @@ class _State extends ConsumerState<PremiumMessageBubble>
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
                         constraints: BoxConstraints(
-                          maxWidth: MediaQuery.of(context).size.width * 0.72),
+                          maxWidth: MediaQuery.of(context).size.width * 0.72,
+                        ),
                         decoration: BoxDecoration(
                           color: widget.isHighlighted
-                              ? (c.isDark ? c.accent.withValues(alpha: 0.3) : c.accent.withValues(alpha: 0.15))
+                              ? (c.isDark
+                                    ? c.accent.withValues(alpha: 0.3)
+                                    : c.accent.withValues(alpha: 0.15))
                               : (_isMe ? c.accent : c.card),
                           borderRadius: BorderRadius.only(
                             topLeft: const Radius.circular(18),
@@ -419,43 +542,62 @@ class _State extends ConsumerState<PremiumMessageBubble>
                             bottomRight: Radius.circular(_isMe ? 4 : 18),
                           ),
                           boxShadow: widget.isHighlighted
-                              ? [BoxShadow(
-                                  color: c.accent.withValues(alpha: 0.4),
-                                  blurRadius: 16, offset: const Offset(0,0),
-                                  spreadRadius: 2)]
-                              : [BoxShadow(
-                                  color: Colors.black.withValues(alpha: 
-                                    c.isDark ? 0.3 : 0.06),
-                                  blurRadius: 8, offset: const Offset(0,2))],
+                              ? [
+                                  BoxShadow(
+                                    color: c.accent.withValues(alpha: 0.4),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 0),
+                                    spreadRadius: 2,
+                                  ),
+                                ]
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(
+                                      alpha: c.isDark ? 0.3 : 0.06,
+                                    ),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(12,10,12,8),
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Reply quote
                               _replyHeader(c),
                               // Media bubble
-                              if (msg.mediaUrl != null && msg.mediaUrl!.isNotEmpty)
+                              if (msg.mediaUrl != null &&
+                                  msg.mediaUrl!.isNotEmpty)
                                 ChatMediaBubble(
                                   payload: ChatMediaPayload(
-                                    type: (msg.mediaType ?? 'IMAGE').toUpperCase(),
+                                    type: (msg.mediaType ?? 'IMAGE')
+                                        .toUpperCase(),
                                     url: msg.mediaUrl,
                                     mimeType: msg.mediaMimeType,
                                     duration: msg.mediaDuration,
                                     waveformPeaks: msg.waveformPeaks,
-                                    linkPreview: msg.linkPreview != null ? LinkPreview.fromJson(msg.linkPreview!) : null,
-                                    caption: msg.text.isNotEmpty ? msg.text : null,
+                                    linkPreview: msg.linkPreview != null
+                                        ? LinkPreview.fromJson(msg.linkPreview!)
+                                        : null,
+                                    caption: msg.text.isNotEmpty
+                                        ? msg.text
+                                        : null,
                                   ),
                                   isMe: _isMe,
                                 ),
                               // Text content
                               if (msg.text.isNotEmpty && msg.mediaUrl == null)
-                                Text(msg.text,
+                                Text(
+                                  msg.text,
                                   style: TextStyle(
                                     color: _isMe ? Colors.white : c.textPrimary,
-                                    fontSize: 14.5, height: 1.4,
-                                    fontWeight: FontWeight.w400)),
+                                    fontSize: 14.5,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
                               if (msg.text.isNotEmpty && msg.mediaUrl == null)
                                 InlineLinkPreview(text: msg.text, isMe: _isMe),
                               const SizedBox(height: 4),
@@ -465,30 +607,40 @@ class _State extends ConsumerState<PremiumMessageBubble>
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
                                   if (msg.disappearAfterSeconds != null) ...[
-                                    Icon(Icons.timer_outlined,
-                                        size: 11,
-                                        color: _isMe
-                                            ? Colors.white.withValues(alpha: 0.5)
-                                            : c.textTertiary),
+                                    Icon(
+                                      Icons.timer_outlined,
+                                      size: 11,
+                                      color: _isMe
+                                          ? Colors.white.withValues(alpha: 0.5)
+                                          : c.textTertiary,
+                                    ),
                                     const SizedBox(width: 3),
                                   ],
                                   if (msg.isEdited)
                                     Padding(
                                       padding: const EdgeInsets.only(right: 4),
-                                      child: Text('edited',
+                                      child: Text(
+                                        'edited',
                                         style: TextStyle(
                                           color: _isMe
-                                            ? Colors.white.withValues(alpha: 0.6)
-                                            : c.textTertiary,
+                                              ? Colors.white.withValues(
+                                                  alpha: 0.6,
+                                                )
+                                              : c.textTertiary,
                                           fontSize: 10,
-                                          fontStyle: FontStyle.italic)),
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
                                     ),
-                                  Text(_fmtTime(msg.timestamp),
+                                  Text(
+                                    _fmtTime(msg.timestamp),
                                     style: TextStyle(
                                       color: _isMe
-                                        ? Colors.white.withValues(alpha: 0.65)
-                                        : c.textTertiary,
-                                      fontSize: 10)),
+                                          ? Colors.white.withValues(alpha: 0.65)
+                                          : c.textTertiary,
+                                      fontSize: 10,
+                                    ),
+                                  ),
                                   if (_isMe) ...[
                                     const SizedBox(width: 4),
                                     _statusTick(c),
@@ -524,19 +676,29 @@ class _AvatarChip extends StatelessWidget {
   final String username;
   final String? avatarUrl;
   final AzamanColors colors;
-  const _AvatarChip({required this.username, this.avatarUrl, required this.colors});
+  const _AvatarChip({
+    required this.username,
+    this.avatarUrl,
+    required this.colors,
+  });
   @override
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: 14,
       backgroundColor: colors.accent.withValues(alpha: 0.2),
       backgroundImage: avatarUrl != null && avatarUrl!.isNotEmpty
-        ? NetworkImage(avatarUrl!) : null,
+          ? NetworkImage(avatarUrl!)
+          : null,
       child: avatarUrl == null || avatarUrl!.isEmpty
-        ? Text(username.isNotEmpty ? username[0].toUpperCase() : '?',
-            style: TextStyle(color: colors.accent, fontSize: 11,
-              fontWeight: FontWeight.w700))
-        : null,
+          ? Text(
+              username.isNotEmpty ? username[0].toUpperCase() : '?',
+              style: TextStyle(
+                color: colors.accent,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          : null,
     );
   }
 }
@@ -549,15 +711,20 @@ class _ContextMenuSheet extends StatelessWidget {
   final bool isMe;
   final OnReactCallback? onReact;
   final OnReplyCallback? onReply;
-  final OnEditCallback?  onEdit;
+  final OnEditCallback? onEdit;
   final OnDeleteCallback? onDelete;
 
   const _ContextMenuSheet({
-    required this.message, required this.colors, required this.isMe,
-    this.onReact, this.onReply, this.onEdit, this.onDelete,
+    required this.message,
+    required this.colors,
+    required this.isMe,
+    this.onReact,
+    this.onReply,
+    this.onEdit,
+    this.onDelete,
   });
 
-  static const _emojis = ['👍','❤️','😂','😮','😢','🙏','🔥','✅'];
+  static const _emojis = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅'];
 
   @override
   Widget build(BuildContext context) {
@@ -565,66 +732,110 @@ class _ContextMenuSheet extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        // Drag handle
-        Center(child: Container(
-          width: 36, height: 4,
-          decoration: BoxDecoration(
-            color: colors.divider,
-            borderRadius: BorderRadius.circular(2)))),
-        const SizedBox(height: 16),
-        // Emoji reaction bar
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: _emojis.map((e) => GestureDetector(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Center(
+            child: Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colors.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Emoji reaction bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: _emojis
+                .map(
+                  (e) => GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      onReact?.call(message.id, e);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: message.reactions[e]?.isNotEmpty == true
+                            ? colors.accent.withValues(alpha: 0.1)
+                            : Colors.transparent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(e, style: const TextStyle(fontSize: 24)),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: colors.divider),
+          const SizedBox(height: 8),
+          // Action list
+          _ActionRow(
+            icon: HugeIconsSolid.arrowTurnBackward,
+            label: 'Reply',
+            colors: colors,
             onTap: () {
-              HapticFeedback.selectionClick();
-              onReact?.call(message.id, e);
+              Navigator.pop(context);
+              onReply?.call(message);
+            },
+          ),
+          if (isMe && !message.isDeleted) ...[
+            _ActionRow(
+              icon: HugeIconsSolid.pencilEdit01,
+              label: 'Edit',
+              colors: colors,
+              onTap: () {
+                Navigator.pop(context);
+                onEdit?.call(message);
+              },
+            ),
+            _ActionRow(
+              icon: HugeIconsSolid.delete01,
+              label: 'Delete',
+              colors: colors,
+              isDestructive: true,
+              onTap: () {
+                Navigator.pop(context);
+                onDelete?.call(message.id);
+              },
+            ),
+          ],
+          _ActionRow(
+            icon: HugeIconsSolid.copy01,
+            label: 'Copy',
+            colors: colors,
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: message.text));
               Navigator.pop(context);
             },
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: message.reactions[e]?.isNotEmpty == true
-                  ? colors.accent.withValues(alpha: 0.1) : Colors.transparent,
-                shape: BoxShape.circle),
-              child: Text(e, style: const TextStyle(fontSize: 24)),
-            ),
-          )).toList(),
-        ),
-        const SizedBox(height: 12),
-        Divider(height: 1, color: colors.divider),
-        const SizedBox(height: 8),
-        // Action list
-        _ActionRow(icon: HugeIconsSolid.arrowTurnBackward,
-          label: 'Reply', colors: colors,
-          onTap: () { Navigator.pop(context); onReply?.call(message); }),
-        if (isMe && !message.isDeleted) ...[
-          _ActionRow(icon: HugeIconsSolid.pencilEdit01,
-            label: 'Edit', colors: colors,
-            onTap: () { Navigator.pop(context); onEdit?.call(message); }),
-          _ActionRow(icon: HugeIconsSolid.delete01,
-            label: 'Delete', colors: colors, isDestructive: true,
-            onTap: () { Navigator.pop(context); onDelete?.call(message.id); }),
+          ),
         ],
-        _ActionRow(icon: HugeIconsSolid.copy01,
-          label: 'Copy', colors: colors,
-          onTap: () {
-            Clipboard.setData(ClipboardData(text: message.text));
-            Navigator.pop(context);
-          }),
-      ]),
+      ),
     );
   }
 }
 
 class _ActionRow extends StatelessWidget {
-  final IconData icon; final String label;
-  final AzamanColors colors; final VoidCallback onTap;
+  final IconData icon;
+  final String label;
+  final AzamanColors colors;
+  final VoidCallback onTap;
   final bool isDestructive;
-  const _ActionRow({required this.icon, required this.label,
-    required this.colors, required this.onTap, this.isDestructive = false});
+  const _ActionRow({
+    required this.icon,
+    required this.label,
+    required this.colors,
+    required this.onTap,
+    this.isDestructive = false,
+  });
   @override
   Widget build(BuildContext context) {
     final color = isDestructive ? colors.danger : colors.textPrimary;
@@ -632,9 +843,14 @@ class _ActionRow extends StatelessWidget {
       onTap: onTap,
       dense: true,
       leading: Icon(icon, size: 20, color: color),
-      title: Text(label,
-        style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w500)),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
     );
   }
 }
-

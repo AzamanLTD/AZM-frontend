@@ -310,8 +310,9 @@ void main() {
 
   // ── 2026-10-20 discovery refinement ────────────────────────────────────────
 
-  testWidgets('Stories stay in their normal position while Mix is active',
-      (tester) async {
+  testWidgets('Stories stay in their normal position while Mix is active', (
+    tester,
+  ) async {
     await _pumpHome(tester);
 
     // Stories visible in normal (non-Mix) mode.
@@ -341,30 +342,39 @@ void main() {
         .getTopLeft(find.byKey(const ValueKey('marketplace-mix-entry')))
         .dx;
 
-    expect(dividerDx > dialRight, isTrue,
-        reason: 'the divider must sit AFTER the category dial');
-    expect(dividerDx < mixLeft, isTrue,
-        reason: 'the divider must sit BEFORE the Mix control');
+    expect(
+      dividerDx > dialRight,
+      isTrue,
+      reason: 'the divider must sit AFTER the category dial',
+    );
+    expect(
+      dividerDx < mixLeft,
+      isTrue,
+      reason: 'the divider must sit BEFORE the Mix control',
+    );
   });
 
-  testWidgets('the whole Mix button dips on press and springs back on release',
-      (tester) async {
-    await _pumpHome(tester);
+  testWidgets(
+    'the whole Mix button dips on press and springs back on release',
+    (tester) async {
+      await _pumpHome(tester);
 
-    final entry = find.byKey(const ValueKey('marketplace-mix-entry'));
-    AnimatedScale scaleOf() => tester.widget<AnimatedScale>(
-        find.descendant(of: entry, matching: find.byType(AnimatedScale)));
+      final entry = find.byKey(const ValueKey('marketplace-mix-entry'));
+      AnimatedScale scaleOf() => tester.widget<AnimatedScale>(
+        find.descendant(of: entry, matching: find.byType(AnimatedScale)),
+      );
 
-    expect(scaleOf().scale, 1.0);
+      expect(scaleOf().scale, 1.0);
 
-    // Hold: the whole pill (die + label) dips.
-    final gesture = await tester.startGesture(tester.getCenter(entry));
-    await tester.pumpAndSettle();
-    expect(scaleOf().scale, lessThan(1.0));
+      // Hold: the whole pill (die + label) dips.
+      final gesture = await tester.startGesture(tester.getCenter(entry));
+      await tester.pumpAndSettle();
+      expect(scaleOf().scale, lessThan(1.0));
 
-    // Release: springs back; the completed tap still toggles the mode.
-    await gesture.up();
-    await tester.pumpAndSettle();
-    expect(scaleOf().scale, 1.0);
-  });
+      // Release: springs back; the completed tap still toggles the mode.
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(scaleOf().scale, 1.0);
+    },
+  );
 }

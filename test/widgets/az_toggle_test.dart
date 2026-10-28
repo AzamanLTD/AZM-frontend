@@ -47,27 +47,30 @@ void main() {
       var value = false;
       bool? lastValue;
       Widget host() => MaterialApp(
-            home: Scaffold(
-              body: StatefulBuilder(
-                builder: (context, setState) => AzToggle(
-                  value: value,
-                  colors: theme.colors,
-                  semanticLabel: 'Push Notifications',
-                  onChanged: (v) {
-                    lastValue = v;
-                    setState(() => value = v);
-                  },
-                ),
-              ),
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => AzToggle(
+              value: value,
+              colors: theme.colors,
+              semanticLabel: 'Push Notifications',
+              onChanged: (v) {
+                lastValue = v;
+                setState(() => value = v);
+              },
             ),
-          );
+          ),
+        ),
+      );
 
       await tester.pumpWidget(host());
 
       await tester.tap(find.byType(AzToggle));
       await tester.pump(const Duration(milliseconds: 300));
-      expect(lastValue, isTrue,
-          reason: 'the branded toggle drives the caller callback');
+      expect(
+        lastValue,
+        isTrue,
+        reason: 'the branded toggle drives the caller callback',
+      );
       expect(find.byType(AzToggle), findsOneWidget);
 
       await tester.tap(find.byType(AzToggle));
@@ -81,37 +84,47 @@ void main() {
         SharedPreferences.setMockInitialValues({});
         final theme = await _loadTheme(tester);
 
-        await tester.pumpWidget(MaterialApp(
-          home: Scaffold(
-            body: AzToggle(
-              value: true,
-              colors: theme.colors,
-              semanticLabel: 'Push Notifications',
-              onChanged: (_) {},
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: AzToggle(
+                value: true,
+                colors: theme.colors,
+                semanticLabel: 'Push Notifications',
+                onChanged: (_) {},
+              ),
             ),
           ),
-        ));
+        );
 
         final semantics = find.bySemanticsLabel('Push Notifications');
-        expect(semantics, findsOneWidget,
-            reason: 'the toggle is discoverable by label');
+        expect(
+          semantics,
+          findsOneWidget,
+          reason: 'the toggle is discoverable by label',
+        );
 
         // a11y activation flips it without any visual gesture
         bool? activated;
-        await tester.pumpWidget(MaterialApp(
-          home: Scaffold(
-            body: AzToggle(
-              value: false,
-              colors: theme.colors,
-              semanticLabel: 'Push Notifications',
-              onChanged: (v) => activated = v,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: AzToggle(
+                value: false,
+                colors: theme.colors,
+                semanticLabel: 'Push Notifications',
+                onChanged: (v) => activated = v,
+              ),
             ),
           ),
-        ));
+        );
         await tester.tap(find.bySemanticsLabel('Push Notifications'));
         await tester.pump(const Duration(milliseconds: 300));
-        expect(activated, isTrue,
-            reason: 'semantics onTap is the accessible control path');
+        expect(
+          activated,
+          isTrue,
+          reason: 'semantics onTap is the accessible control path',
+        );
       },
     );
   });
@@ -122,64 +135,70 @@ void main() {
   // may flip the value, fire haptics and persist.
   // ---------------------------------------------------------------------
   group('AzToggle gesture arbitration', () {
-    testWidgets(
-      'a drag that starts on the toggle and is won by the scrollable '
-      'never commits the setting or its persistence',
-      (tester) async {
-        SharedPreferences.setMockInitialValues(<String, Object>{});
-        final prefs = await SharedPreferences.getInstance();
-        final theme = await _loadTheme(tester);
+    testWidgets('a drag that starts on the toggle and is won by the scrollable '
+        'never commits the setting or its persistence', (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = await _loadTheme(tester);
 
-        var changes = 0;
-        bool? lastValue;
-        Widget host() => MaterialApp(
-              home: Scaffold(
-                // A REAL scrollable parent with enough content to win the
-                // gesture arena when the pointer drags vertically.
-                body: ListView(
-                  children: [
-                    const SizedBox(height: 48),
-                    Center(
-                      child: AzToggle(
-                        value: false,
-                        colors: theme.colors,
-                        semanticLabel: 'Push Notifications',
-                        onChanged: (v) {
-                          changes++;
-                          lastValue = v;
-                          prefs.setBool('az_toggle_probe', v);
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 1200),
-                  ],
+      var changes = 0;
+      bool? lastValue;
+      Widget host() => MaterialApp(
+        home: Scaffold(
+          // A REAL scrollable parent with enough content to win the
+          // gesture arena when the pointer drags vertically.
+          body: ListView(
+            children: [
+              const SizedBox(height: 48),
+              Center(
+                child: AzToggle(
+                  value: false,
+                  colors: theme.colors,
+                  semanticLabel: 'Push Notifications',
+                  onChanged: (v) {
+                    changes++;
+                    lastValue = v;
+                    prefs.setBool('az_toggle_probe', v);
+                  },
                 ),
               ),
-            );
+              const SizedBox(height: 1200),
+            ],
+          ),
+        ),
+      );
 
-        await tester.pumpWidget(host());
-        await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpWidget(host());
+      await tester.pump(const Duration(milliseconds: 300));
 
-        final gesture = await tester.startGesture(
-          tester.getCenter(find.byType(AzToggle)),
-        );
-        await tester.pump(const Duration(milliseconds: 60));
-        // The drag exceeds touch slop: the Scrollable claims the arena and
-        // the tap recognizer is rejected (this is the cancelled-tap path).
-        await gesture.moveBy(const Offset(0, -140));
-        await tester.pump();
-        await gesture.up();
-        await tester.pumpAndSettle();
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(AzToggle)),
+      );
+      await tester.pump(const Duration(milliseconds: 60));
+      // The drag exceeds touch slop: the Scrollable claims the arena and
+      // the tap recognizer is rejected (this is the cancelled-tap path).
+      await gesture.moveBy(const Offset(0, -140));
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
 
-        expect(changes, 0,
-            reason: 'a scroll-won drag must not toggle the setting');
-        expect(lastValue, isNull,
-            reason: 'the caller callback must not fire at all');
-        expect(prefs.getBool('az_toggle_probe'), isNull,
-            reason: 'nothing may be persisted by a cancelled gesture');
-        expect(find.byType(AzToggle), findsOneWidget);
-      },
-    );
+      expect(
+        changes,
+        0,
+        reason: 'a scroll-won drag must not toggle the setting',
+      );
+      expect(
+        lastValue,
+        isNull,
+        reason: 'the caller callback must not fire at all',
+      );
+      expect(
+        prefs.getBool('az_toggle_probe'),
+        isNull,
+        reason: 'nothing may be persisted by a cancelled gesture',
+      );
+      expect(find.byType(AzToggle), findsOneWidget);
+    });
 
     testWidgets(
       'pointer-down alone never commits; the completed tap commits exactly '
@@ -192,21 +211,21 @@ void main() {
         var changes = 0;
         bool? lastValue;
         Widget host() => MaterialApp(
-              home: Scaffold(
-                body: Center(
-                  child: AzToggle(
-                    value: false,
-                    colors: theme.colors,
-                    semanticLabel: 'Push Notifications',
-                    onChanged: (v) {
-                      changes++;
-                      lastValue = v;
-                      prefs.setBool('az_toggle_probe', v);
-                    },
-                  ),
-                ),
+          home: Scaffold(
+            body: Center(
+              child: AzToggle(
+                value: false,
+                colors: theme.colors,
+                semanticLabel: 'Push Notifications',
+                onChanged: (v) {
+                  changes++;
+                  lastValue = v;
+                  prefs.setBool('az_toggle_probe', v);
+                },
               ),
-            );
+            ),
+          ),
+        );
 
         await tester.pumpWidget(host());
         await tester.pump(const Duration(milliseconds: 300));
@@ -215,16 +234,22 @@ void main() {
           tester.getCenter(find.byType(AzToggle)),
         );
         await tester.pump(const Duration(milliseconds: 120));
-        expect(changes, 0,
-            reason: 'a pointer-down/hold must never flip a setting');
+        expect(
+          changes,
+          0,
+          reason: 'a pointer-down/hold must never flip a setting',
+        );
 
         await gesture.up();
         await tester.pumpAndSettle();
 
         expect(changes, 1, reason: 'one completed tap, exactly one toggle');
         expect(lastValue, isTrue);
-        expect(prefs.getBool('az_toggle_probe'), isTrue,
-            reason: 'a completed tap persists');
+        expect(
+          prefs.getBool('az_toggle_probe'),
+          isTrue,
+          reason: 'a completed tap persists',
+        );
       },
     );
 
@@ -236,20 +261,20 @@ void main() {
 
       var changes = 0;
       Widget host() => MaterialApp(
-            home: Scaffold(
-              body: Center(
-                child: AzToggle(
-                  value: false,
-                  colors: theme.colors,
-                  semanticLabel: 'Push Notifications',
-                  onChanged: (v) {
-                    changes++;
-                    prefs.setBool('az_toggle_probe', v);
-                  },
-                ),
-              ),
+        home: Scaffold(
+          body: Center(
+            child: AzToggle(
+              value: false,
+              colors: theme.colors,
+              semanticLabel: 'Push Notifications',
+              onChanged: (v) {
+                changes++;
+                prefs.setBool('az_toggle_probe', v);
+              },
             ),
-          );
+          ),
+        ),
+      );
 
       await tester.pumpWidget(host());
       await tester.pump(const Duration(milliseconds: 300));
@@ -305,8 +330,11 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Push Notifications'));
         await tester.pumpAndSettle();
 
-        expect(changes, 1,
-            reason: 'the semantic action is the accessible activation path');
+        expect(
+          changes,
+          1,
+          reason: 'the semantic action is the accessible activation path',
+        );
         expect(value, isFalse);
         expect(prefs.getBool('az_toggle_probe'), isFalse);
         handle.dispose();
@@ -321,10 +349,12 @@ void main() {
       (tester) async {
         SharedPreferences.setMockInitialValues(<String, Object>{});
         final theme = await _loadTheme(tester);
-        final container = ProviderContainer(overrides: [
-          themeProvider.overrideWith((ref) => theme),
-          currentUserProvider.overrideWith((ref) => Stream.value(null)),
-        ]);
+        final container = ProviderContainer(
+          overrides: [
+            themeProvider.overrideWith((ref) => theme),
+            currentUserProvider.overrideWith((ref) => Stream.value(null)),
+          ],
+        );
         addTearDown(container.dispose);
 
         await tester.pumpWidget(
@@ -337,10 +367,16 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 300));
 
-        expect(find.byType(AzToggle), findsWidgets,
-            reason: 'the branded toggle replaces the Switch treatment');
-        expect(find.byType(Switch), findsNothing,
-            reason: 'the green stock Switch is gone from Settings toggles');
+        expect(
+          find.byType(AzToggle),
+          findsWidgets,
+          reason: 'the branded toggle replaces the Switch treatment',
+        );
+        expect(
+          find.byType(Switch),
+          findsNothing,
+          reason: 'the green stock Switch is gone from Settings toggles',
+        );
       },
     );
   });

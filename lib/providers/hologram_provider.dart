@@ -14,7 +14,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
-import 'package:azaman/providers/currency_provider.dart' show parseFxRateSnapshot;
+import 'package:azaman/providers/currency_provider.dart'
+    show parseFxRateSnapshot;
 import 'package:azaman/services/oracle_rates_client.dart';
 
 class BalanceData {
@@ -54,12 +55,12 @@ class BalanceData {
   double get netWorth => totalBalance + totalLocked + azmBalance;
 
   factory BalanceData.fromJson(Map<String, dynamic> json) => BalanceData(
-        availableBalance: _toDouble(json['availableBalance']),
-        vendorUnallocatedBalance: _toDouble(json['vendorUnallocatedBalance']),
-        escrowLockedBalance: _toDouble(json['escrowLockedBalance']),
-        disputeEscrowBalance: _toDouble(json['disputeEscrowBalance']),
-        azmBalance: _toDouble(json['azmBalance']),
-      );
+    availableBalance: _toDouble(json['availableBalance']),
+    vendorUnallocatedBalance: _toDouble(json['vendorUnallocatedBalance']),
+    escrowLockedBalance: _toDouble(json['escrowLockedBalance']),
+    disputeEscrowBalance: _toDouble(json['disputeEscrowBalance']),
+    azmBalance: _toDouble(json['azmBalance']),
+  );
 
   BalanceData copyWith({
     double? availableBalance,
@@ -70,14 +71,15 @@ class BalanceData {
     bool? valuationFieldPresent,
     Map<String, dynamic>? valuationRaw,
   }) => BalanceData(
-        availableBalance: availableBalance ?? this.availableBalance,
-        vendorUnallocatedBalance: vendorUnallocatedBalance ?? this.vendorUnallocatedBalance,
-        escrowLockedBalance: escrowLockedBalance ?? this.escrowLockedBalance,
-        disputeEscrowBalance: disputeEscrowBalance ?? this.disputeEscrowBalance,
-        azmBalance: azmBalance ?? this.azmBalance,
-        valuationFieldPresent: valuationFieldPresent ?? this.valuationFieldPresent,
-        valuationRaw: valuationRaw ?? this.valuationRaw,
-      );
+    availableBalance: availableBalance ?? this.availableBalance,
+    vendorUnallocatedBalance:
+        vendorUnallocatedBalance ?? this.vendorUnallocatedBalance,
+    escrowLockedBalance: escrowLockedBalance ?? this.escrowLockedBalance,
+    disputeEscrowBalance: disputeEscrowBalance ?? this.disputeEscrowBalance,
+    azmBalance: azmBalance ?? this.azmBalance,
+    valuationFieldPresent: valuationFieldPresent ?? this.valuationFieldPresent,
+    valuationRaw: valuationRaw ?? this.valuationRaw,
+  );
 
   /// STRICT production parse — the seam the canonical refresh uses.
   ///
@@ -97,8 +99,7 @@ class BalanceData {
   ///     raw null); a Map → carried raw for the typed strict parse.
   static BalanceData? tryParseValidPayload(Map<String, dynamic> json) {
     final availableBalance = _toDoubleStrict(json['availableBalance']);
-    final vendorUnallocated =
-        _toDoubleStrict(json['vendorUnallocatedBalance']);
+    final vendorUnallocated = _toDoubleStrict(json['vendorUnallocatedBalance']);
     final escrowLocked = _toDoubleStrict(json['escrowLockedBalance']);
     final disputeEscrow = _toDoubleStrict(json['disputeEscrowBalance']);
     final azmBalance = _toDoubleStrict(json['azmBalance']);
@@ -134,7 +135,9 @@ class BalanceData {
   }
 }
 
-final balanceDataProvider = StateProvider<BalanceData>((ref) => const BalanceData());
+final balanceDataProvider = StateProvider<BalanceData>(
+  (ref) => const BalanceData(),
+);
 
 /// WORKSTREAM B — an explicit hydration state for the canonical balance.
 /// The provider's default [BalanceData] is all zeros, and a default object
@@ -153,8 +156,9 @@ enum BalanceReadiness { unresolved, loaded, failed }
 
 /// The canonical balance readiness, driven by [refreshCanonicalBalance]
 /// and the login-path balance seeding in auth_provider.
-final balanceReadinessProvider =
-    StateProvider<BalanceReadiness>((ref) => BalanceReadiness.unresolved);
+final balanceReadinessProvider = StateProvider<BalanceReadiness>(
+  (ref) => BalanceReadiness.unresolved,
+);
 final userUsdcBalanceProvider = StateProvider<double>((ref) => 0.0);
 
 /// IDENTITY BOUNDARIES (review follow-up) — an in-flight balance refresh
@@ -218,24 +222,25 @@ Future<void> refreshCanonicalBalance(dynamic ref) {
       // foreground refreshes. The test override stays under TEST
       // ownership: this code never creates (and so never needs to
       // close) the injected client.
-      final response = await (balanceRefreshClientOverride != null
-          ? balanceRefreshClientOverride!.get(
-            Uri.parse('${AppConfig.apiUrl}/users/balance'),
-            headers: {
-              'Content-Type': 'application/json',
-              'ngrok-skip-browser-warning': 'true',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          : http.get(
-            Uri.parse('${AppConfig.apiUrl}/users/balance'),
-            headers: {
-              'Content-Type': 'application/json',
-              'ngrok-skip-browser-warning': 'true',
-              'Authorization': 'Bearer $token',
-            },
-          ))
-          .timeout(AppConfig.requestTimeout);
+      final response =
+          await (balanceRefreshClientOverride != null
+                  ? balanceRefreshClientOverride!.get(
+                      Uri.parse('${AppConfig.apiUrl}/users/balance'),
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true',
+                        'Authorization': 'Bearer $token',
+                      },
+                    )
+                  : http.get(
+                      Uri.parse('${AppConfig.apiUrl}/users/balance'),
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true',
+                        'Authorization': 'Bearer $token',
+                      },
+                    ))
+              .timeout(AppConfig.requestTimeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         markFailed();
         return;
@@ -305,12 +310,14 @@ class OracleRateMetadata {
 
   double get progress {
     if (refreshInterval.inMilliseconds <= 0) return 1.0;
-    return (timeUntilRefresh.inMilliseconds / refreshInterval.inMilliseconds).clamp(0.0, 1.0);
+    return (timeUntilRefresh.inMilliseconds / refreshInterval.inMilliseconds)
+        .clamp(0.0, 1.0);
   }
 }
 
-final oracleRateMetadataProvider = StateProvider<OracleRateMetadata>((ref) =>
-    OracleRateMetadata(fetchedAt: DateTime.now(), stale: true));
+final oracleRateMetadataProvider = StateProvider<OracleRateMetadata>(
+  (ref) => OracleRateMetadata(fetchedAt: DateTime.now(), stale: true),
+);
 
 Map<String, dynamic> _unwrapOraclePayload(Map<String, dynamic> decoded) {
   final data = decoded['data'];
@@ -371,7 +378,9 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
       ref.read(oracleRateProvider.notifier).state = rate;
       ref.read(oracleRateMetadataProvider.notifier).state = OracleRateMetadata(
         fetchedAt: DateTime.now(),
-        sourceLastSync: DateTime.tryParse(payload['lastSync']?.toString() ?? ''),
+        sourceLastSync: DateTime.tryParse(
+          payload['lastSync']?.toString() ?? '',
+        ),
         refreshInterval: interval,
         stale: false,
       );
@@ -392,7 +401,10 @@ final StateProvider<double> oracleRateProvider = StateProvider<double>((ref) {
     }
   }
 
-  final timer = Timer.periodic(const Duration(seconds: refreshSeconds), (_) => refresh());
+  final timer = Timer.periodic(
+    const Duration(seconds: refreshSeconds),
+    (_) => refresh(),
+  );
   ref.onDispose(timer.cancel);
   Future.microtask(refresh);
   // Never inject a fabricated or legacy FX rate. Until the server returns a
@@ -414,14 +426,17 @@ final hologramBalanceProvider = Provider<double>((ref) {
 
 final balanceVisibleProvider = StateProvider<bool>((ref) => true);
 
-final availableBalanceProvider = Provider<double>((ref) =>
-    ref.watch(balanceDataProvider).availableBalance);
+final availableBalanceProvider = Provider<double>(
+  (ref) => ref.watch(balanceDataProvider).availableBalance,
+);
 
-final escrowBalanceProvider = Provider<double>((ref) =>
-    ref.watch(balanceDataProvider).escrowLockedBalance);
+final escrowBalanceProvider = Provider<double>(
+  (ref) => ref.watch(balanceDataProvider).escrowLockedBalance,
+);
 
-final azmBalanceProvider = Provider<double>((ref) =>
-    ref.watch(balanceDataProvider).azmBalance);
+final azmBalanceProvider = Provider<double>(
+  (ref) => ref.watch(balanceDataProvider).azmBalance,
+);
 
 double _toDouble(dynamic value) {
   if (value is num) return value.toDouble();

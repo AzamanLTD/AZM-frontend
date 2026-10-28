@@ -230,13 +230,9 @@ class ProfileDialGeometry {
   /// Arc slots for the shared goo painter, in launch-stagger order
   /// (menu, story, bookmark, show-less).
   List<ArcSlot> slots() => [
-        for (final d in ProfileJoystickDirection.values)
-          ArcSlot(
-            index: d.index,
-            rect: hitRects[d]!,
-            angle: _angleFor(d),
-          ),
-      ];
+    for (final d in ProfileJoystickDirection.values)
+      ArcSlot(index: d.index, rect: hitRects[d]!, angle: _angleFor(d)),
+  ];
 
   static double _angleFor(ProfileJoystickDirection d) {
     switch (d) {
@@ -259,8 +255,9 @@ class ProfileDialGeometry {
     required Size screen,
     required EdgeInsets padding,
   }) {
-    final anchorHalf =
-        anchor.width >= anchor.height ? anchor.width / 2 : anchor.height / 2;
+    final anchorHalf = anchor.width >= anchor.height
+        ? anchor.width / 2
+        : anchor.height / 2;
     const visualHalf = kProfileDialVisualSize / 2;
 
     // Uniform ring: satellites clear the avatar rim by the goo merge.
@@ -557,11 +554,13 @@ class _ProfileJoystickState extends ConsumerState<ProfileJoystick>
     _persistentEntry = entry;
     Overlay.of(context, rootOverlay: true).insert(entry);
     setState(() => _persistentPhase = LiquidPhase.opening);
-    _startDialAnimation(onSettled: () {
-      if (mounted && _persistentPhase == LiquidPhase.opening) {
-        setState(() => _persistentPhase = LiquidPhase.open);
-      }
-    });
+    _startDialAnimation(
+      onSettled: () {
+        if (mounted && _persistentPhase == LiquidPhase.opening) {
+          setState(() => _persistentPhase = LiquidPhase.open);
+        }
+      },
+    );
   }
 
   void _closePersistentDial() {
@@ -570,11 +569,14 @@ class _ProfileJoystickState extends ConsumerState<ProfileJoystick>
     final entry = _persistentEntry;
     _persistentEntry = null;
     if (entry != null) {
-      _removeEntryWithReverse(entry, onDone: () {
-        if (mounted && _persistentPhase == LiquidPhase.closing) {
-          setState(() => _persistentPhase = LiquidPhase.closed);
-        }
-      });
+      _removeEntryWithReverse(
+        entry,
+        onDone: () {
+          if (mounted && _persistentPhase == LiquidPhase.closing) {
+            setState(() => _persistentPhase = LiquidPhase.closed);
+          }
+        },
+      );
     }
   }
 
@@ -941,9 +943,7 @@ class _ProfileDialOverlay extends StatelessWidget {
       // selection is by movement only.
       return <Widget>[
         ExcludeSemantics(
-          child: IgnorePointer(
-            child: Stack(children: children),
-          ),
+          child: IgnorePointer(child: Stack(children: children)),
         ),
       ];
     }
@@ -1197,8 +1197,10 @@ class _JoystickGestureRecognizer extends OneSequenceGestureRecognizer {
     final current = _direction;
     if (raw == null || current == null) return raw;
     final rawVertical =
-        raw == ProfileJoystickDirection.menu || raw == ProfileJoystickDirection.story;
-    final currentVertical = current == ProfileJoystickDirection.menu ||
+        raw == ProfileJoystickDirection.menu ||
+        raw == ProfileJoystickDirection.story;
+    final currentVertical =
+        current == ProfileJoystickDirection.menu ||
         current == ProfileJoystickDirection.story;
     if (rawVertical == currentVertical) return raw; // same axis: follow
     // Axis flip only with clear dominance (hysteresis vs tremor).

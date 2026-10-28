@@ -9,7 +9,11 @@ import 'package:azaman/providers/hologram_provider.dart';
 class ChatTransferSheet extends ConsumerStatefulWidget {
   final String contactName;
   final bool initialIsRequest;
-  const ChatTransferSheet({super.key, required this.contactName, this.initialIsRequest = false});
+  const ChatTransferSheet({
+    super.key,
+    required this.contactName,
+    this.initialIsRequest = false,
+  });
 
   @override
   ConsumerState<ChatTransferSheet> createState() => _ChatTransferSheetState();
@@ -44,7 +48,9 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
   void _onKeypadTap(String val) {
     if (val == '<') {
       if (_amountStr.isNotEmpty) {
-        setState(() => _amountStr = _amountStr.substring(0, _amountStr.length - 1));
+        setState(
+          () => _amountStr = _amountStr.substring(0, _amountStr.length - 1),
+        );
         HapticFeedback.lightImpact();
       }
       return;
@@ -94,7 +100,7 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Premium Card Area
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -112,11 +118,17 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              Color.alphaBlend(_cardGold.withValues(alpha: 0.16), _gradTopBase),
+                              Color.alphaBlend(
+                                _cardGold.withValues(alpha: 0.16),
+                                _gradTopBase,
+                              ),
                               _gradBottom,
                             ],
                           ),
-                          border: Border.all(color: _cardGold.withValues(alpha: 0.22), width: 1),
+                          border: Border.all(
+                            color: _cardGold.withValues(alpha: 0.22),
+                            width: 1,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: _cardGold.withValues(alpha: 0.14),
@@ -136,7 +148,10 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                         height: 200,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: _cardGold.withValues(alpha: 0.04), width: 1),
+                          border: Border.all(
+                            color: _cardGold.withValues(alpha: 0.04),
+                            width: 1,
+                          ),
                         ),
                       ),
                     ),
@@ -148,12 +163,18 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                         height: 260,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: _cardGold.withValues(alpha: 0.03), width: 1.5),
+                          border: Border.all(
+                            color: _cardGold.withValues(alpha: 0.03),
+                            width: 1.5,
+                          ),
                         ),
                       ),
                     ),
                     Positioned.fill(
-                      child: _CardSheen(controller: _sheenController, width: MediaQuery.of(context).size.width - 40),
+                      child: _CardSheen(
+                        controller: _sheenController,
+                        width: MediaQuery.of(context).size.width - 40,
+                      ),
                     ),
                     // Content
                     Padding(
@@ -164,7 +185,10 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _ModeToggle(isRequest: _isRequest, onToggle: _toggleMode),
+                              _ModeToggle(
+                                isRequest: _isRequest,
+                                onToggle: _toggleMode,
+                              ),
                               Container(
                                 width: 28,
                                 height: 20,
@@ -221,7 +245,9 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                _isRequest ? 'Requesting from ${widget.contactName}' : 'Sending to ${widget.contactName}',
+                                _isRequest
+                                    ? 'Requesting from ${widget.contactName}'
+                                    : 'Sending to ${widget.contactName}',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.5),
                                   fontSize: 11,
@@ -232,7 +258,9 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
                                 Text(
                                   'Bal: \$${balance.toStringAsFixed(2)}',
                                   style: TextStyle(
-                                    color: amount > balance ? Colors.redAccent : Colors.white.withValues(alpha: 0.5),
+                                    color: amount > balance
+                                        ? Colors.redAccent
+                                        : Colors.white.withValues(alpha: 0.5),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -247,9 +275,9 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
               ),
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // Keypad
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -265,27 +293,38 @@ class _ChatTransferSheetState extends ConsumerState<ChatTransferSheet>
               ],
             ),
           ),
-          
+
           const SizedBox(height: 32),
-          
+
           // Action Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: GestureDetector(
-              onTap: canProceed ? () => Navigator.pop(context, {'amount': amount, 'isRequest': _isRequest}) : null,
+              onTap: canProceed
+                  ? () => Navigator.pop(context, {
+                      'amount': amount,
+                      'isRequest': _isRequest,
+                    })
+                  : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 18),
                 decoration: BoxDecoration(
-                  color: canProceed ? _cardGold : Colors.white.withValues(alpha: 0.05),
+                  color: canProceed
+                      ? _cardGold
+                      : Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  _isRequest ? 'Request \$${amount.toStringAsFixed(2)}' : 'Send \$${amount.toStringAsFixed(2)}',
+                  _isRequest
+                      ? 'Request \$${amount.toStringAsFixed(2)}'
+                      : 'Send \$${amount.toStringAsFixed(2)}',
                   style: TextStyle(
-                    color: canProceed ? const Color(0xFF0E1116) : Colors.white.withValues(alpha: 0.3),
+                    color: canProceed
+                        ? const Color(0xFF0E1116)
+                        : Colors.white.withValues(alpha: 0.3),
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
@@ -338,7 +377,9 @@ class _TogglePill extends StatelessWidget {
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: isActive ? Colors.white.withValues(alpha: 0.15) : Colors.transparent,
+        color: isActive
+            ? Colors.white.withValues(alpha: 0.15)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
@@ -371,7 +412,11 @@ class _KeypadRow extends StatelessWidget {
             height: 50,
             alignment: Alignment.center,
             child: k == '<'
-                ? Icon(HugeIconsStroke.arrowLeft01, color: Colors.white.withValues(alpha: 0.8), size: 24)
+                ? Icon(
+                    HugeIconsStroke.arrowLeft01,
+                    color: Colors.white.withValues(alpha: 0.8),
+                    size: 24,
+                  )
                 : Text(
                     k,
                     style: TextStyle(

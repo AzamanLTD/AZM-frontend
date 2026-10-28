@@ -32,22 +32,19 @@ class NearbyBusinessRow extends ConsumerWidget {
     final colors = ref.watch(themeProvider).colors;
 
     final categoryWire = location.businessCategory;
-    final categoryLabel =
-        categoryWire == null || categoryWire.isEmpty
-            ? 'Business'
-            : BusinessCategories.labelFor(categoryWire);
-    final categoryColor =
-        categoryWire == null || categoryWire.isEmpty
-            ? colors.textTertiary
-            : BusinessCategories.fromWire(categoryWire).color;
+    final categoryLabel = categoryWire == null || categoryWire.isEmpty
+        ? 'Business'
+        : BusinessCategories.labelFor(categoryWire);
+    final categoryColor = categoryWire == null || categoryWire.isEmpty
+        ? colors.textTertiary
+        : BusinessCategories.fromWire(categoryWire).color;
 
     final distance = location.distanceKm;
-    final String? distanceLabel =
-        distance == null
-            ? null
-            : distance < 1
-            ? '${(distance * 1000).round()} m away'
-            : '${distance.toStringAsFixed(1)} km away';
+    final String? distanceLabel = distance == null
+        ? null
+        : distance < 1
+        ? '${(distance * 1000).round()} m away'
+        : '${distance.toStringAsFixed(1)} km away';
 
     final name = location.businessName ?? location.label;
 
@@ -84,19 +81,18 @@ class NearbyBusinessRow extends ConsumerWidget {
                   shape: BoxShape.circle,
                 ),
                 clipBehavior: Clip.antiAlias,
-                child:
-                    (location.businessLogoUrl ?? '').isEmpty
-                        ? Icon(
-                          _glyphFor(categoryWire),
-                          size: 20,
-                          color: categoryColor,
-                        )
-                        : AzamanNetworkImage(
-                          imageUrl: location.businessLogoUrl,
-                          width: 44,
-                          height: 44,
-                          fit: BoxFit.cover,
-                        ),
+                child: (location.businessLogoUrl ?? '').isEmpty
+                    ? Icon(
+                        _glyphFor(categoryWire),
+                        size: 20,
+                        color: categoryColor,
+                      )
+                    : AzamanNetworkImage(
+                        imageUrl: location.businessLogoUrl,
+                        width: 44,
+                        height: 44,
+                        fit: BoxFit.cover,
+                      ),
               ),
               const SizedBox(width: 12),
               Expanded(

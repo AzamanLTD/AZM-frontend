@@ -65,7 +65,9 @@ class _BusinessNotificationsScreenState
     final seen = <String>{};
     _items
       ..clear()
-      ..addAll(feed.notifications.where((notification) => seen.add(notification.id)));
+      ..addAll(
+        feed.notifications.where((notification) => seen.add(notification.id)),
+      );
     _hasMore = feed.hasMore;
     _cursor = feed.nextCursor;
   }
@@ -174,8 +176,9 @@ class _BusinessNotificationsScreenState
             );
           });
           final count = ref.read(bizUnreadCountProvider);
-          ref.read(bizUnreadCountProvider.notifier).state =
-              count > 0 ? count - 1 : 0;
+          ref.read(bizUnreadCountProvider.notifier).state = count > 0
+              ? count - 1
+              : 0;
         }
       } catch (_) {}
     }
@@ -199,11 +202,14 @@ class _BusinessNotificationsScreenState
         backgroundColor: colors.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        title: Text('Business Alerts',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          'Business Alerts',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'Mark all read',
@@ -215,39 +221,38 @@ class _BusinessNotificationsScreenState
       body: _loading
           ? const SkeletonList(itemHeight: 64, count: 6)
           : _items.isEmpty
-              ? const AzamanEmptyState(
-                  icon: Icons.notifications_outlined,
-                  title: 'No notifications yet',
-                  subtitle: 'Order and payment alerts will appear here.',
-                )
-              : AzPullToRefresh(
-                  onRefresh: _refresh,
-                  child: ListView.separated(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _items.length + (_hasMore ? 1 : 0),
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) {
-                      if (i >= _items.length) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16),
-                            child: SizedBox(
-                              width: 22,
-                              height: 22,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        );
-                      }
-                      return BizNotificationCard(
-                        notification: _items[i],
-                        onTap: () => _onTap(_items[i]),
-                      );
-                    },
-                  ),
-                ),
+          ? const AzamanEmptyState(
+              icon: Icons.notifications_outlined,
+              title: 'No notifications yet',
+              subtitle: 'Order and payment alerts will appear here.',
+            )
+          : AzPullToRefresh(
+              onRefresh: _refresh,
+              child: ListView.separated(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.all(16),
+                itemCount: _items.length + (_hasMore ? 1 : 0),
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, i) {
+                  if (i >= _items.length) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                    );
+                  }
+                  return BizNotificationCard(
+                    notification: _items[i],
+                    onTap: () => _onTap(_items[i]),
+                  );
+                },
+              ),
+            ),
     );
   }
 }

@@ -14,7 +14,9 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 
 void main() {
-  testWidgets('FriendChatScreen + LiquidMenuButton tap does not throw', (tester) async {
+  testWidgets('FriendChatScreen + LiquidMenuButton tap does not throw', (
+    tester,
+  ) async {
     AppConfig.enableDemoMode();
 
     final container = ProviderContainer();

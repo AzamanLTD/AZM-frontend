@@ -226,8 +226,10 @@ abstract final class AzamanSheet {
     // still reads as a whisper, never a panel.
     double maxHeightFraction = AzSheetGeometry.whisperMaxFraction,
   }) {
-    assert(maxHeightFraction > 0 && maxHeightFraction <= 0.68,
-        'a raised whisper must stay a whisper, not become a panel');
+    assert(
+      maxHeightFraction > 0 && maxHeightFraction <= 0.68,
+      'a raised whisper must stay a whisper, not become a panel',
+    );
     final viewport = MediaQuery.of(context).size.height;
     return showModalBottomSheet<T>(
       context: context,
@@ -239,10 +241,12 @@ abstract final class AzamanSheet {
         alpha: AzSheetGeometry.whisperScrimOpacity,
       ),
       constraints: BoxConstraints(
-        maxHeight: AzSheetGeometry.whisperHeight(
-          viewportHeight: viewport,
-          contentHeight: double.infinity,
-        ) * (maxHeightFraction / AzSheetGeometry.whisperMaxFraction),
+        maxHeight:
+            AzSheetGeometry.whisperHeight(
+              viewportHeight: viewport,
+              contentHeight: double.infinity,
+            ) *
+            (maxHeightFraction / AzSheetGeometry.whisperMaxFraction),
       ),
       builder: (ctx) => AzSheetSurface(
         weight: AzSheetWeight.whisper,

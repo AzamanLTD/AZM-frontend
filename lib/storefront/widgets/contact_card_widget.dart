@@ -6,7 +6,11 @@ class ContactCardWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const ContactCardWidget({super.key, required this.props, required this.business});
+  const ContactCardWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,11 +28,21 @@ class ContactCardWidget extends StatelessWidget {
       buttons.add(_contactButton(Icons.phone, 'Call', 'tel:$rawPhone'));
     }
     if (showWhatsApp && phone != null && phone.isNotEmpty) {
-      final waNumber = rawPhone.startsWith('+') ? rawPhone.substring(1) : rawPhone;
-      buttons.add(_contactButton(Icons.chat, 'WhatsApp', 'https://wa.me/$waNumber'));
+      final waNumber = rawPhone.startsWith('+')
+          ? rawPhone.substring(1)
+          : rawPhone;
+      buttons.add(
+        _contactButton(Icons.chat, 'WhatsApp', 'https://wa.me/$waNumber'),
+      );
     }
-    if (showEmail) buttons.add(_contactButton(Icons.email, 'Email', 'mailto:contact@example.com'));
-    if (showWebsite) buttons.add(_contactButton(Icons.language, 'Website', 'https://example.com'));
+    if (showEmail)
+      buttons.add(
+        _contactButton(Icons.email, 'Email', 'mailto:contact@example.com'),
+      );
+    if (showWebsite)
+      buttons.add(
+        _contactButton(Icons.language, 'Website', 'https://example.com'),
+      );
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -42,15 +56,29 @@ class ContactCardWidget extends StatelessWidget {
   }
 
   Widget _contactButton(IconData icon, String label, String url) {
-    return Builder(builder: (ctx) {
-      return ActionChip(
-        avatar: Icon(icon, size: 16, color: Theme.of(ctx).colorScheme.primary),
-        label: Text(label, style: TextStyle(fontSize: 13, color: Theme.of(ctx).colorScheme.onSurface)),
-        onPressed: () => _launchUrl(url),
-        backgroundColor: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.08),
-        side: BorderSide.none,
-      );
-    });
+    return Builder(
+      builder: (ctx) {
+        return ActionChip(
+          avatar: Icon(
+            icon,
+            size: 16,
+            color: Theme.of(ctx).colorScheme.primary,
+          ),
+          label: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(ctx).colorScheme.onSurface,
+            ),
+          ),
+          onPressed: () => _launchUrl(url),
+          backgroundColor: Theme.of(
+            ctx,
+          ).colorScheme.primary.withValues(alpha: 0.08),
+          side: BorderSide.none,
+        );
+      },
+    );
   }
 
   Future<void> _launchUrl(String url) async {

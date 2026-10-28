@@ -303,10 +303,7 @@ class _WalletPocketPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.1
       ..isAntiAlias = true;
-    canvas.drawPath(
-      g.mouthPath(w).shift(Offset(0, mouthTop)),
-      mouthGlow,
-    );
+    canvas.drawPath(g.mouthPath(w).shift(Offset(0, mouthTop)), mouthGlow);
 
     canvas.restore();
 
@@ -327,8 +324,12 @@ class _WalletPocketPainter extends CustomPainter {
       ..moveTo(0, mouthTop - 7)
       ..lineTo(w, mouthTop - 7)
       ..lineTo(w, mouthTop + concavity * 2)
-      ..quadraticBezierTo(w * 0.5, mouthTop + concavity * 4 - 7, 0,
-          mouthTop + concavity * 2)
+      ..quadraticBezierTo(
+        w * 0.5,
+        mouthTop + concavity * 4 - 7,
+        0,
+        mouthTop + concavity * 2,
+      )
       ..close();
     canvas.drawPath(shadowPath, shadow);
   }

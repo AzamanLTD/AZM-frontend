@@ -40,9 +40,8 @@ void main() {
     AppConfig.enableDemoMode();
   });
 
-  Finder restoreeListFinder() => find.byWidgetPredicate(
-        (w) => w is ListView && w.controller != null,
-      );
+  Finder restoreeListFinder() =>
+      find.byWidgetPredicate((w) => w is ListView && w.controller != null);
 
   double listOffset(WidgetTester tester) =>
       tester.widget<ListView>(restoreeListFinder()).controller!.position.pixels;
@@ -59,52 +58,52 @@ void main() {
     return listOffset(tester);
   }
 
-  testWidgets(
-    'AccountActivityScreen scroll offset survives app restart '
-    '(serialized restoration data, all in-memory state destroyed)',
-    (tester) async {
-      Widget harness() => const ProviderScope(
-            child: MaterialApp(
-              restorationScopeId: 'root',
-              home: AccountActivityScreen(),
-            ),
-          );
+  testWidgets('AccountActivityScreen scroll offset survives app restart '
+      '(serialized restoration data, all in-memory state destroyed)', (
+    tester,
+  ) async {
+    Widget harness() => const ProviderScope(
+      child: MaterialApp(
+        restorationScopeId: 'root',
+        home: AccountActivityScreen(),
+      ),
+    );
 
-      await tester.pumpWidget(harness());
-      await tester.pumpAndSettle();
-      expect(listOffset(tester), 0);
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    expect(listOffset(tester), 0);
 
-      final recorded = await scrollDownList(tester);
-      expect(recorded, greaterThan(0));
+    final recorded = await scrollDownList(tester);
+    expect(recorded, greaterThan(0));
 
-      // Framework-blessed app-restart simulation: serializes restoration
-      // data, tears down the ENTIRE widget tree (every State, the scroll
-      // controller, the loaded entries are destroyed), then rebuilds from
-      // the serialized data. The offset can only come back from the
-      // restoration system — no custom cache exists.
-      await tester.restartAndRestore();
-      await tester.pumpAndSettle();
+    // Framework-blessed app-restart simulation: serializes restoration
+    // data, tears down the ENTIRE widget tree (every State, the scroll
+    // controller, the loaded entries are destroyed), then rebuilds from
+    // the serialized data. The offset can only come back from the
+    // restoration system — no custom cache exists.
+    await tester.restartAndRestore();
+    await tester.pumpAndSettle();
 
-      expect(
-        listOffset(tester),
-        moreOrLessEquals(recorded, epsilon: 0.5),
-        reason: 'scroll offset must be restored from serialized '
-            'restoration data after the app restart, not from any '
-            'surviving in-memory state',
-      );
-    },
-  );
+    expect(
+      listOffset(tester),
+      moreOrLessEquals(recorded, epsilon: 0.5),
+      reason:
+          'scroll offset must be restored from serialized '
+          'restoration data after the app restart, not from any '
+          'surviving in-memory state',
+    );
+  });
 
   testWidgets(
     'router harness: route restoration identity + scroll offset restore '
     'through the real GoRouter page stack',
     (tester) async {
       Widget harness() => ProviderScope(
-            child: MaterialApp.router(
-              restorationScopeId: 'root',
-              routerConfig: appRouter,
-            ),
-          );
+        child: MaterialApp.router(
+          restorationScopeId: 'root',
+          routerConfig: appRouter,
+        ),
+      );
 
       // Navigate before the first build so the harness boots straight
       // into Account Activity (demo mode bypasses the auth redirect).
@@ -123,8 +122,9 @@ void main() {
       // ...and the account-activity page was deemed restorable with its
       // stable route-name restoration id, so ModalRoute wraps the
       // screen subtree in a RestorationScope.
-      final route =
-          ModalRoute.of(tester.element(find.byType(AccountActivityScreen)))!;
+      final route = ModalRoute.of(
+        tester.element(find.byType(AccountActivityScreen)),
+      )!;
       // The framework prefixes page-based route restoration ids with
       // 'p+'; the stable identity after the prefix is the route name.
       expect(
@@ -143,48 +143,47 @@ void main() {
       expect(
         listOffset(tester),
         moreOrLessEquals(recorded, epsilon: 0.5),
-        reason: 'the scroll offset must come back through the route-level '
+        reason:
+            'the scroll offset must come back through the route-level '
             'RestorationScope after the app restart',
       );
     },
   );
 
-  testWidgets(
-    'a SECOND restart restores the offset written during the '
-    'reconstructed session (restoration data stays live)',
-    (tester) async {
-      Widget harness() => const ProviderScope(
-            child: MaterialApp(
-              restorationScopeId: 'root',
-              home: AccountActivityScreen(),
-            ),
-          );
+  testWidgets('a SECOND restart restores the offset written during the '
+      'reconstructed session (restoration data stays live)', (tester) async {
+    Widget harness() => const ProviderScope(
+      child: MaterialApp(
+        restorationScopeId: 'root',
+        home: AccountActivityScreen(),
+      ),
+    );
 
-      await tester.pumpWidget(harness());
-      await tester.pumpAndSettle();
-      // One drag — stays well below the trailing load-more tile's
-      // visibility zone, whose permanently-animating spinner would
-      // legitimately prevent quiescence (it is an infinite animation).
-      final first = await scrollDownList(tester, drags: 1);
-      expect(first, greaterThan(0));
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    // One drag — stays well below the trailing load-more tile's
+    // visibility zone, whose permanently-animating spinner would
+    // legitimately prevent quiescence (it is an infinite animation).
+    final first = await scrollDownList(tester, drags: 1);
+    expect(first, greaterThan(0));
 
-      await tester.restartAndRestore();
-      await tester.pumpAndSettle();
-      expect(listOffset(tester), moreOrLessEquals(first, epsilon: 0.5));
+    await tester.restartAndRestore();
+    await tester.pumpAndSettle();
+    expect(listOffset(tester), moreOrLessEquals(first, epsilon: 0.5));
 
-      // Scroll FURTHER in the reconstructed session.
-      final second = await scrollDownList(tester, drags: 1);
-      expect(second, greaterThan(first));
+    // Scroll FURTHER in the reconstructed session.
+    final second = await scrollDownList(tester, drags: 1);
+    expect(second, greaterThan(first));
 
-      // Restart again — the newest offset, not the first, must restore.
-      await tester.restartAndRestore();
-      await tester.pumpAndSettle();
-      expect(
-        listOffset(tester),
-        moreOrLessEquals(second, epsilon: 0.5),
-        reason: 'restoration must reflect the latest recorded offset, not '
-            'a stale snapshot',
-      );
-    },
-  );
+    // Restart again — the newest offset, not the first, must restore.
+    await tester.restartAndRestore();
+    await tester.pumpAndSettle();
+    expect(
+      listOffset(tester),
+      moreOrLessEquals(second, epsilon: 0.5),
+      reason:
+          'restoration must reflect the latest recorded offset, not '
+          'a stale snapshot',
+    );
+  });
 }

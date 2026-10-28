@@ -24,10 +24,15 @@ class GroupIdentityAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final core = _core();
-    if (!group.isSusuEnabled) return SizedBox(width: size, height: size, child: core);
+    if (!group.isSusuEnabled)
+      return SizedBox(width: size, height: size, child: core);
     final ringColor = group.isSusuActive ? colors.accent : colors.textTertiary;
     return Container(
-      key: ValueKey(group.isSusuActive ? 'group_susu_ring_active' : 'group_susu_ring_configuring'),
+      key: ValueKey(
+        group.isSusuActive
+            ? 'group_susu_ring_active'
+            : 'group_susu_ring_configuring',
+      ),
       width: size,
       height: size,
       padding: const EdgeInsets.all(2),
@@ -62,7 +67,11 @@ class GroupIdentityAvatar extends StatelessWidget {
       height: inner,
       child: Stack(
         children: [
-          Positioned(top: 0, left: inner * 0.16, child: _gradientBubble(group.name, big)),
+          Positioned(
+            top: 0,
+            left: inner * 0.16,
+            child: _gradientBubble(group.name, big),
+          ),
           if (members.isNotEmpty)
             Positioned(
               bottom: 2,
@@ -86,7 +95,11 @@ class GroupIdentityAvatar extends StatelessWidget {
               ),
             )
           else if (members.length == 1)
-            Positioned(bottom: 0, right: 2, child: _countBubble('+', small, colors.success)),
+            Positioned(
+              bottom: 0,
+              right: 2,
+              child: _countBubble('+', small, colors.success),
+            ),
         ],
       ),
     );
@@ -133,31 +146,43 @@ class GroupIdentityAvatar extends StatelessWidget {
             fit: BoxFit.cover,
             width: d,
             height: d,
-            placeholder: (_, __) => _countBubble(name.isEmpty ? '?' : name[0].toUpperCase(), d - 4, fallback),
-            errorWidget: (_, __, ___) => _countBubble(name.isEmpty ? '?' : name[0].toUpperCase(), d - 4, fallback),
+            placeholder: (_, __) => _countBubble(
+              name.isEmpty ? '?' : name[0].toUpperCase(),
+              d - 4,
+              fallback,
+            ),
+            errorWidget: (_, __, ___) => _countBubble(
+              name.isEmpty ? '?' : name[0].toUpperCase(),
+              d - 4,
+              fallback,
+            ),
           ),
         ),
       );
     }
-    return _countBubble(name.isEmpty ? '?' : name[0].toUpperCase(), d, fallback);
+    return _countBubble(
+      name.isEmpty ? '?' : name[0].toUpperCase(),
+      d,
+      fallback,
+    );
   }
 
   Widget _countBubble(String char, double d, Color color) => Container(
-        width: d,
-        height: d,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color,
-          border: Border.all(color: colors.surface, width: 2),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          char,
-          style: TextStyle(
-            color: colors.isDark ? Colors.black : Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: d * 0.4,
-          ),
-        ),
-      );
+    width: d,
+    height: d,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: color,
+      border: Border.all(color: colors.surface, width: 2),
+    ),
+    alignment: Alignment.center,
+    child: Text(
+      char,
+      style: TextStyle(
+        color: colors.isDark ? Colors.black : Colors.white,
+        fontWeight: FontWeight.w800,
+        fontSize: d * 0.4,
+      ),
+    ),
+  );
 }

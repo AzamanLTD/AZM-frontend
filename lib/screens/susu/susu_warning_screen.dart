@@ -13,7 +13,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 class SusuWarningScreen extends ConsumerStatefulWidget {
   final String susuGroupId;
   final double contributionUsdc;
@@ -66,7 +65,9 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -76,7 +77,8 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final canAccept = _scrolledToBottom && _accSeverity && _accSeizure && !_busy;
+    final canAccept =
+        _scrolledToBottom && _accSeverity && _accSeizure && !_busy;
     final pool = widget.contributionUsdc * widget.totalCycles;
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -87,9 +89,14 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Susu Contract',
-            style: TextStyle(
-                color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Text(
+          'Susu Contract',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Column(
@@ -100,7 +107,9 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
               decoration: BoxDecoration(
                 color: colors.danger.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.danger.withValues(alpha: 0.30)),
+                border: Border.all(
+                  color: colors.danger.withValues(alpha: 0.30),
+                ),
               ),
               child: Row(
                 children: [
@@ -129,32 +138,62 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
                     Text(
                       'Susu Cycle Summary',
                       style: TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8),
+                        color: colors.textTertiary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
                     ),
                     const SizedBox(height: 6),
-                    _summary(colors,
-                        '• Contribution: \$${widget.contributionUsdc.toStringAsFixed(2)} USDC per cycle'),
-                    _summary(colors, '• Frequency: ${widget.frequency.toLowerCase()}'),
+                    _summary(
+                      colors,
+                      '• Contribution: \$${widget.contributionUsdc.toStringAsFixed(2)} USDC per cycle',
+                    ),
+                    _summary(
+                      colors,
+                      '• Frequency: ${widget.frequency.toLowerCase()}',
+                    ),
                     _summary(colors, '• Cycles: ${widget.totalCycles}'),
-                    _summary(colors, '• Pool size: \$${pool.toStringAsFixed(2)} USDC'),
+                    _summary(
+                      colors,
+                      '• Pool size: \$${pool.toStringAsFixed(2)} USDC',
+                    ),
                     const SizedBox(height: 16),
-                    _clause(colors, '1. Binding Obligation',
-                        'Once you accept this contract, you owe the contribution every cycle until completion. There is no opt-out, no pause, no skip.'),
-                    _clause(colors, '2. Auto-Seizure',
-                        'On collection day the platform atomically deducts your contribution from your available balance. If your balance is short, we seize whatever is available.'),
-                    _clause(colors, '3. Default = Theft',
-                        'Failing to pay constitutes theft of the pool. Your account is frozen, all balances are locked pending admin review, and local authorities may be notified.'),
-                    _clause(colors, '4. Voucher Penalty',
-                        'The two members who vouched for you suffer immediate trust-score penalties on every Susu they belong to. Your default damages their credibility on the platform.'),
-                    _clause(colors, '5. Smart Rotation',
-                        'Cycle order is determined by your trust score at start time. Newly vouched-in members are placed at the back of the rotation. Admins go first.'),
-                    _clause(colors, '6. Payout',
-                        'On your scheduled cycle the entire pool is routed to your available balance instantly.'),
-                    _clause(colors, '7. Disputes',
-                        'Admin decisions on Susu defaults are final. There is no chargeback or refund window once contributions are routed.'),
+                    _clause(
+                      colors,
+                      '1. Binding Obligation',
+                      'Once you accept this contract, you owe the contribution every cycle until completion. There is no opt-out, no pause, no skip.',
+                    ),
+                    _clause(
+                      colors,
+                      '2. Auto-Seizure',
+                      'On collection day the platform atomically deducts your contribution from your available balance. If your balance is short, we seize whatever is available.',
+                    ),
+                    _clause(
+                      colors,
+                      '3. Default = Theft',
+                      'Failing to pay constitutes theft of the pool. Your account is frozen, all balances are locked pending admin review, and local authorities may be notified.',
+                    ),
+                    _clause(
+                      colors,
+                      '4. Voucher Penalty',
+                      'The two members who vouched for you suffer immediate trust-score penalties on every Susu they belong to. Your default damages their credibility on the platform.',
+                    ),
+                    _clause(
+                      colors,
+                      '5. Smart Rotation',
+                      'Cycle order is determined by your trust score at start time. Newly vouched-in members are placed at the back of the rotation. Admins go first.',
+                    ),
+                    _clause(
+                      colors,
+                      '6. Payout',
+                      'On your scheduled cycle the entire pool is routed to your available balance instantly.',
+                    ),
+                    _clause(
+                      colors,
+                      '7. Disputes',
+                      'Admin decisions on Susu defaults are final. There is no chargeback or refund window once contributions are routed.',
+                    ),
                   ],
                 ),
               ),
@@ -205,10 +244,13 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.danger,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: colors.danger.withValues(alpha: 0.3),
+                        disabledBackgroundColor: colors.danger.withValues(
+                          alpha: 0.3,
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape:
-                            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                       child: Text(
@@ -230,36 +272,33 @@ class _SusuWarningScreenState extends ConsumerState<SusuWarningScreen> {
   }
 
   Widget _summary(AzamanColors colors, String s) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Text(
-          s,
-          style: TextStyle(color: colors.textSecondary, fontSize: 12),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Text(s, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+  );
 
   Widget _clause(AzamanColors colors, String head, String body) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              head,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              body,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 12,
-                height: 1.5,
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          head,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
         ),
-      );
+        const SizedBox(height: 4),
+        Text(
+          body,
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 12,
+            height: 1.5,
+          ),
+        ),
+      ],
+    ),
+  );
 }

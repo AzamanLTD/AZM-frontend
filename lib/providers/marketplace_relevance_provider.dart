@@ -56,7 +56,9 @@ bool _openable(BusinessProfile b) =>
 /// stale. Freshness and recency both come from the existing world-memory
 /// contract (30-minute window) — nothing new is invented here.
 MapEntry<String, WorldMemory>? _mostRecentFreshContext(
-    Map<String, WorldMemory> memories, DateTime now) {
+  Map<String, WorldMemory> memories,
+  DateTime now,
+) {
   MapEntry<String, WorldMemory>? best;
   for (final e in memories.entries) {
     if (!e.value.isFresh(now)) continue;
@@ -84,13 +86,19 @@ final marketplaceRelevanceProvider = Provider<MarketplaceRelevance?>((ref) {
   for (final b in snapshot.featured) {
     if (b.category == wire && _openable(b)) {
       return MarketplaceRelevance(
-          worldWire: wire, categoryLabel: categoryLabel, business: b);
+        worldWire: wire,
+        categoryLabel: categoryLabel,
+        business: b,
+      );
     }
   }
   for (final b in snapshot.catalog) {
     if (b.category == wire && _openable(b)) {
       return MarketplaceRelevance(
-          worldWire: wire, categoryLabel: categoryLabel, business: b);
+        worldWire: wire,
+        categoryLabel: categoryLabel,
+        business: b,
+      );
     }
   }
   // The user visited a category with nothing real to offer — say nothing.

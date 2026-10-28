@@ -33,7 +33,6 @@ import 'package:azaman/widgets/susu/susu_wheel.dart';
 import 'package:azaman/widgets/susu/verification_chip.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class GroupProfileScreen extends ConsumerWidget {
   final String groupId;
   const GroupProfileScreen({super.key, required this.groupId});
@@ -51,15 +50,17 @@ class GroupProfileScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
-        title: Text('Group',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          'Group',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: SafeArea(
         child: AzPullToRefresh(
@@ -102,9 +103,7 @@ class GroupProfileScreen extends ConsumerWidget {
                     )
                   else if (init?.isActive == true)
                     _ActiveSusuPreview(
-                      susuGroupId: init?.susuGroupId ??
-                          group.susuGroupId ??
-                          '',
+                      susuGroupId: init?.susuGroupId ?? group.susuGroupId ?? '',
                       meUserId: me?.id,
                       colors: colors,
                     )
@@ -131,13 +130,19 @@ class GroupProfileScreen extends ConsumerWidget {
                       if (iAmAdmin && !hasSusu)
                         TextButton.icon(
                           onPressed: () => _addMember(context, ref),
-                          icon: Icon(Icons.person_add_outlined,
-                              size: 15, color: colors.accent),
-                          label: Text('Add',
-                              style: TextStyle(
-                                  color: colors.accent,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800)),
+                          icon: Icon(
+                            Icons.person_add_outlined,
+                            size: 15,
+                            color: colors.accent,
+                          ),
+                          label: Text(
+                            'Add',
+                            style: TextStyle(
+                              color: colors.accent,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -186,9 +191,10 @@ class GroupProfileScreen extends ConsumerWidget {
                     ? gm.username![0].toUpperCase()
                     : '?',
                 style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800),
+                  color: colors.accent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -210,14 +216,14 @@ class GroupProfileScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      if (isMe) ...[
-                        const SizedBox(width: 6),
-                        _youTag(colors),
-                      ],
+                      if (isMe) ...[const SizedBox(width: 6), _youTag(colors)],
                       if (gm.role == 'ADMIN') ...[
                         const SizedBox(width: 4),
-                        Icon(Icons.shield_outlined,
-                            color: colors.warning, size: 12),
+                        Icon(
+                          Icons.shield_outlined,
+                          color: colors.warning,
+                          size: 12,
+                        ),
                       ],
                     ],
                   ),
@@ -238,8 +244,11 @@ class GroupProfileScreen extends ConsumerWidget {
                         ),
                         if (proj.ready) ...[
                           const SizedBox(width: 6),
-                          Icon(Icons.check_circle_outline,
-                              color: colors.success, size: 14),
+                          Icon(
+                            Icons.check_circle_outline,
+                            color: colors.success,
+                            size: 14,
+                          ),
                         ],
                       ],
                     ),
@@ -254,21 +263,27 @@ class GroupProfileScreen extends ConsumerWidget {
   }
 
   Widget _youTag(AzamanColors colors) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-        decoration: BoxDecoration(
-          color: colors.accent.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text('YOU',
-            style: TextStyle(
-                color: colors.accent,
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5)),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+    decoration: BoxDecoration(
+      color: colors.accent.withValues(alpha: 0.15),
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Text(
+      'YOU',
+      style: TextStyle(
+        color: colors.accent,
+        fontSize: 9,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.5,
+      ),
+    ),
+  );
 
   void _openInitiateSheet(
-      BuildContext context, WidgetRef ref, GroupSummary group) {
+    BuildContext context,
+    WidgetRef ref,
+    GroupSummary group,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -287,8 +302,10 @@ class GroupProfileScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
-        title: Text('Add member',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16)),
+        title: Text(
+          'Add member',
+          style: TextStyle(color: colors.textPrimary, fontSize: 16),
+        ),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.phone,
@@ -301,8 +318,10 @@ class GroupProfileScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel',
-                style: TextStyle(color: colors.textSecondary)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: colors.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, controller.text.trim()),
@@ -317,15 +336,15 @@ class GroupProfileScreen extends ConsumerWidget {
       await ref.read(groupActionsProvider).addMember(groupId, phone: phone);
       ref.invalidate(groupDetailProvider(groupId));
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Member added')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Member added')));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -366,9 +385,10 @@ class _Header extends StatelessWidget {
                           ? bubbles[i].username![0].toUpperCase()
                           : '?',
                       style: TextStyle(
-                          color: colors.accent,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16),
+                        color: colors.accent,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ),
@@ -380,9 +400,10 @@ class _Header extends StatelessWidget {
           group.name,
           textAlign: TextAlign.center,
           style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900),
+            color: colors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
         ),
         if (group.description != null && group.description!.isNotEmpty) ...[
           const SizedBox(height: 4),
@@ -413,26 +434,37 @@ class _InitiateCta extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [
-          colors.warning.withValues(alpha: 0.16),
-          colors.accent.withValues(alpha: 0.05),
-        ]),
+        gradient: LinearGradient(
+          colors: [
+            colors.warning.withValues(alpha: 0.16),
+            colors.accent.withValues(alpha: 0.05),
+          ],
+        ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
+        border: Border.all(
+          color: colors.warning.withValues(alpha: 0.30),
+          width: 0.8,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.account_balance_outlined,
-                  color: colors.warning, size: 18),
+              Icon(
+                Icons.account_balance_outlined,
+                color: colors.warning,
+                size: 18,
+              ),
               const SizedBox(width: 8),
-              Text('Start a Susu in this group',
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800)),
+              Text(
+                'Start a Susu in this group',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -441,7 +473,10 @@ class _InitiateCta extends StatelessWidget {
             'verifies KYC + proof of residency within a countdown window, '
             'then payouts rotate by AZM rank.',
             style: TextStyle(
-                color: colors.textSecondary, fontSize: 12, height: 1.4),
+              color: colors.textSecondary,
+              fontSize: 12,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -454,7 +489,9 @@ class _InitiateCta extends StatelessWidget {
                     ? 'Initiate Susu'
                     : 'Need 2–24 members (have $memberCount)',
                 style: const TextStyle(
-                    fontWeight: FontWeight.w800, letterSpacing: 0.3),
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.3,
+                ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.warning,
@@ -462,7 +499,8 @@ class _InitiateCta extends StatelessWidget {
                 disabledBackgroundColor: colors.warning.withValues(alpha: 0.30),
                 padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(11)),
+                  borderRadius: BorderRadius.circular(11),
+                ),
                 elevation: 0,
               ),
             ),
@@ -497,7 +535,10 @@ class _InitiationSummary extends ConsumerWidget {
       decoration: BoxDecoration(
         color: colors.warning.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
+        border: Border.all(
+          color: colors.warning.withValues(alpha: 0.30),
+          width: 0.8,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,26 +547,38 @@ class _InitiationSummary extends ConsumerWidget {
             children: [
               Icon(Icons.access_time, color: colors.warning, size: 16),
               const SizedBox(width: 6),
-              Text('Susu configuring',
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800)),
+              Text(
+                'Susu configuring',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const Spacer(),
-              Text('${init.readyCount}/${init.memberCount} ready',
-                  style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700)),
+              Text(
+                '${init.readyCount}/${init.memberCount} ready',
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          _row(colors, 'Per cycle',
-              '\$${contribution.toStringAsFixed(2)}'
-              '${ghsRate > 0 ? '  ≈ GH₵ ${(contribution * ghsRate).toStringAsFixed(2)}' : ''}'),
-          _row(colors, 'Projected pool / cycle',
-              '\$${pool.toStringAsFixed(2)}'
-              '${ghsRate > 0 ? '  ≈ GH₵ ${(pool * ghsRate).toStringAsFixed(2)}' : ''}'),
+          _row(
+            colors,
+            'Per cycle',
+            '\$${contribution.toStringAsFixed(2)}'
+                '${ghsRate > 0 ? '  ≈ GH₵ ${(contribution * ghsRate).toStringAsFixed(2)}' : ''}',
+          ),
+          _row(
+            colors,
+            'Projected pool / cycle',
+            '\$${pool.toStringAsFixed(2)}'
+                '${ghsRate > 0 ? '  ≈ GH₵ ${(pool * ghsRate).toStringAsFixed(2)}' : ''}',
+          ),
           _row(colors, 'Frequency', init.frequency ?? '—'),
           if (init.deadline != null)
             _row(colors, 'Verify before', _fmt(init.deadline!)),
@@ -541,9 +594,9 @@ class _InitiationSummary extends ConsumerWidget {
                         .cancelInitiation(groupId);
                   } catch (e) {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(e.toString())),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text(e.toString())));
                     }
                   }
                 },
@@ -551,9 +604,13 @@ class _InitiationSummary extends ConsumerWidget {
                   side: BorderSide(color: colors.danger.withValues(alpha: 0.5)),
                   padding: const EdgeInsets.symmetric(vertical: 11),
                 ),
-                child: Text('Cancel initiation',
-                    style: TextStyle(
-                        color: colors.danger, fontWeight: FontWeight.w800)),
+                child: Text(
+                  'Cancel initiation',
+                  style: TextStyle(
+                    color: colors.danger,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
           ],
@@ -563,22 +620,25 @@ class _InitiationSummary extends ConsumerWidget {
   }
 
   Widget _row(AzamanColors colors, String k, String v) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(k, style: TextStyle(color: colors.textTertiary, fontSize: 11.5)),
-            Flexible(
-              child: Text(v,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700)),
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(k, style: TextStyle(color: colors.textTertiary, fontSize: 11.5)),
+        Flexible(
+          child: Text(
+            v,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
             ),
-          ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   String _fmt(DateTime d) {
     final l = d.toLocal();
@@ -661,13 +721,12 @@ class _ActiveSusuPreview extends ConsumerWidget {
                 c.status == SusuCycleStatus.pending ||
                 c.status == SusuCycleStatus.collecting ||
                 c.status == SusuCycleStatus.collectingGrace,
-            orElse: () => schedule.isEmpty
-                ? susu.cycles.first
-                : schedule.first,
+            orElse: () => schedule.isEmpty ? susu.cycles.first : schedule.first,
           );
           final payee = roster
-              .where((m) =>
-                  m.userId.toString() == upcoming.payoutUserId.toString())
+              .where(
+                (m) => m.userId.toString() == upcoming.payoutUserId.toString(),
+              )
               .firstOrNull;
 
           return Column(
@@ -703,9 +762,9 @@ class _ActiveSusuPreview extends ConsumerWidget {
       onTap: susuGroupId.isEmpty
           ? null
           : () => pushWithVerticalTransition(
-                context,
-                SusuDashboardScreen(susuId: susuGroupId),
-              ),
+              context,
+              SusuDashboardScreen(susuId: susuGroupId),
+            ),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
@@ -718,8 +777,7 @@ class _ActiveSusuPreview extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.workspaces_outline,
-                    color: colors.success, size: 16),
+                Icon(Icons.workspaces_outline, color: colors.success, size: 16),
                 const SizedBox(width: 8),
                 Text(
                   'ACTIVE SUSU',
@@ -731,8 +789,7 @@ class _ActiveSusuPreview extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
-                Icon(Icons.chevron_right,
-                    color: colors.textTertiary, size: 18),
+                Icon(Icons.chevron_right, color: colors.textTertiary, size: 18),
               ],
             ),
             const SizedBox(height: 12),

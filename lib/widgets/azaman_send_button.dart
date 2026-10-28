@@ -231,20 +231,28 @@ Path _parsePath(String data) {
   for (final cmd in commands) {
     if (cmd.isEmpty) continue;
     final letter = cmd[0];
-    final args = cmd.substring(1).trim().split(RegExp(r'[\s,]+'))
-        .where((s) => s.isNotEmpty).map(double.parse).toList();
+    final args = cmd
+        .substring(1)
+        .trim()
+        .split(RegExp(r'[\s,]+'))
+        .where((s) => s.isNotEmpty)
+        .map(double.parse)
+        .toList();
     switch (letter) {
       case 'M':
-        currentX = args[0]; currentY = args[1];
+        currentX = args[0];
+        currentY = args[1];
         path.moveTo(currentX, currentY);
         for (int i = 2; i < args.length; i += 2) {
-          currentX = args[i]; currentY = args[i + 1];
+          currentX = args[i];
+          currentY = args[i + 1];
           path.lineTo(currentX, currentY);
         }
         break;
       case 'L':
         for (int i = 0; i < args.length; i += 2) {
-          currentX = args[i]; currentY = args[i + 1];
+          currentX = args[i];
+          currentY = args[i + 1];
           path.lineTo(currentX, currentY);
         }
         break;

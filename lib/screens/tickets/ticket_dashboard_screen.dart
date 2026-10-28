@@ -18,7 +18,6 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class TicketDashboardScreen extends ConsumerStatefulWidget {
   final String friendshipId;
   final String friendUsername;
@@ -77,8 +76,13 @@ class _TicketDashboardScreenState extends ConsumerState<TicketDashboardScreen>
   }
 
   void _openTicket(Ticket t) {
-    pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: t.id,
-          friendUsername: widget.friendUsername,));
+    pushWithVerticalTransition(
+      context,
+      TicketWorkspaceScreen(
+        ticketId: t.id,
+        friendUsername: widget.friendUsername,
+      ),
+    );
   }
 
   @override
@@ -106,10 +110,7 @@ class _TicketDashboardScreenState extends ConsumerState<TicketDashboardScreen>
             ),
             Text(
               'with ${widget.friendUsername}',
-              style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 11,
-              ),
+              style: TextStyle(color: colors.textTertiary, fontSize: 11),
             ),
           ],
         ),
@@ -134,11 +135,14 @@ class _TicketDashboardScreenState extends ConsumerState<TicketDashboardScreen>
                 labelColor: colors.isDark ? Colors.black : Colors.white,
                 unselectedLabelColor: colors.textSecondary,
                 labelStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                ),
                 unselectedLabelStyle: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w600),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
                 dividerColor: Colors.transparent,
                 splashFactory: NoSplash.splashFactory,
                 overlayColor: WidgetStateProperty.all(Colors.transparent),
@@ -235,24 +239,28 @@ class _List extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline,
-                  color: colors.danger, size: 36),
+              Icon(Icons.error_outline, color: colors.danger, size: 36),
               const SizedBox(height: 10),
-              Text('Could not load tickets',
-                  style: TextStyle(
-                      color: colors.textPrimary, fontWeight: FontWeight.w700)),
+              Text(
+                'Could not load tickets',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(error!,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+              Text(
+                error!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textTertiary, fontSize: 11),
+              ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: onRetry,
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
                 ),
-                child: Text('Retry',
-                    style: TextStyle(color: colors.accent)),
+                child: Text('Retry', style: TextStyle(color: colors.accent)),
               ),
             ],
           ),
@@ -266,18 +274,25 @@ class _List extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.confirmation_number_outlined,
-                  color: colors.textTertiary, size: 44),
+              Icon(
+                Icons.confirmation_number_outlined,
+                color: colors.textTertiary,
+                size: 44,
+              ),
               const SizedBox(height: 10),
-              Text(emptyLabel,
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  )),
+              Text(
+                emptyLabel,
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 6),
-              Text('Tap the + button to start one.',
-                  style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+              Text(
+                'Tap the + button to start one.',
+                style: TextStyle(color: colors.textTertiary, fontSize: 11),
+              ),
             ],
           ),
         ),
@@ -310,9 +325,12 @@ class _TicketTile extends StatelessWidget {
 
   Color get _statusColor {
     switch (ticket.status) {
-      case TicketStatus.open: return colors.success;
-      case TicketStatus.closed: return colors.textTertiary;
-      case TicketStatus.cancelled: return colors.danger;
+      case TicketStatus.open:
+        return colors.success;
+      case TicketStatus.closed:
+        return colors.textTertiary;
+      case TicketStatus.cancelled:
+        return colors.danger;
     }
   }
 
@@ -337,8 +355,11 @@ class _TicketTile extends StatelessWidget {
                 color: colors.accent.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.confirmation_number_outlined,
-                  color: colors.accent, size: 20),
+              child: Icon(
+                Icons.confirmation_number_outlined,
+                color: colors.accent,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -362,7 +383,9 @@ class _TicketTile extends StatelessWidget {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: _statusColor.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(4),
@@ -382,10 +405,7 @@ class _TicketTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${ticket.type.label} · ${ticket.targetAmount.toStringAsFixed(2)} ${ticket.targetCurrency}',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
                   ),
                   if (ticket.memo != null && ticket.memo!.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -394,15 +414,16 @@ class _TicketTile extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11),
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ],
               ),
             ),
             const SizedBox(width: 6),
-            Icon(Icons.arrow_forward,
-                color: colors.textTertiary, size: 18),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
           ],
         ),
       ),

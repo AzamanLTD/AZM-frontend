@@ -177,11 +177,7 @@ class _FlowPainter extends CustomPainter {
       ..color = accent.withValues(alpha: animate ? 0.18 : 0.3)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(4, cy),
-      Offset(size.width - 4, cy),
-      lane,
-    );
+    canvas.drawLine(Offset(4, cy), Offset(size.width - 4, cy), lane);
 
     if (!animate) {
       // Reduced motion: static arrowheads carry the direction.
@@ -197,8 +193,9 @@ class _FlowPainter extends CustomPainter {
       final t = toVisa ? phase : 1 - phase;
       final x = 4 + (size.width - 8) * t;
       final dotPaint = Paint()
-        ..color = accent
-            .withValues(alpha: 0.25 + 0.45 * (1 - (t - 0.5).abs() * 2));
+        ..color = accent.withValues(
+          alpha: 0.25 + 0.45 * (1 - (t - 0.5).abs() * 2),
+        );
       canvas.drawCircle(Offset(x, cy), 3.2, dotPaint);
     }
   }
@@ -255,8 +252,8 @@ class CompactBalancePreview extends ConsumerWidget {
         : AzMoney.usdcFirst(balance.availableBalance);
     final secondary = usable
         ? (ghsFirst
-            ? AzMoney.usdcFirst(balance.availableBalance)
-            : AzMoney.ghs(ghsValue))
+              ? AzMoney.usdcFirst(balance.availableBalance)
+              : AzMoney.ghs(ghsValue))
         : 'GH₵ unavailable';
 
     return Semantics(
@@ -282,8 +279,11 @@ class CompactBalancePreview extends ConsumerWidget {
                     ),
                   ),
                   const Spacer(),
-                  Icon(Icons.account_balance_wallet_outlined,
-                      size: 13, color: colors.accent.withValues(alpha: 0.9)),
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 13,
+                    color: colors.accent.withValues(alpha: 0.9),
+                  ),
                 ],
               ),
               const Spacer(),
@@ -491,12 +491,9 @@ class CompactCardPair extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: CompactBalancePreview(rate: rate),
-          ),
+          Expanded(child: CompactBalancePreview(rate: rate)),
           DirectionalMoneyFlow(
-            key: ValueKey(
-                'card-transfer-flow-${toVisa ? 'to' : 'from'}-visa'),
+            key: ValueKey('card-transfer-flow-${toVisa ? 'to' : 'from'}-visa'),
             toVisa: toVisa,
             colors: colors,
             reduceMotion: reduceMotion,
@@ -550,8 +547,10 @@ class CardTransferEntranceState extends State<CardTransferEntrance>
     duration: MotionTokens.emphasized,
   );
 
-  late final CurvedAnimation _curve =
-      CurvedAnimation(parent: _entrance, curve: MotionTokens.enter);
+  late final CurvedAnimation _curve = CurvedAnimation(
+    parent: _entrance,
+    curve: MotionTokens.enter,
+  );
 
   @override
   void initState() {
@@ -593,10 +592,7 @@ class CardTransferEntranceState extends State<CardTransferEntrance>
           opacity: t,
           child: Transform.translate(
             offset: Offset(0, 28 * (1 - t)),
-            child: Transform.scale(
-              scale: 0.96 + 0.04 * t,
-              child: child,
-            ),
+            child: Transform.scale(scale: 0.96 + 0.04 * t, child: child),
           ),
         );
       },

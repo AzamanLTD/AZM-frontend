@@ -31,14 +31,14 @@ import 'package:azaman/providers/premium_chat_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 
 User _demoUser() => User(
-      id: DemoSeedData.demoUserId,
-      username: DemoSeedData.demoUsername,
-      email: 'pyrax@demo.azaman.app',
-      token: DemoSeedData.demoToken,
-      role: 'USER',
-      azmBalance: 12450.00,
-      availableBalance: 12450.00,
-    );
+  id: DemoSeedData.demoUserId,
+  username: DemoSeedData.demoUsername,
+  email: 'pyrax@demo.azaman.app',
+  token: DemoSeedData.demoToken,
+  role: 'USER',
+  azmBalance: 12450.00,
+  availableBalance: 12450.00,
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -62,30 +62,37 @@ void main() {
       );
       // autoDispose family — hold a listener so the notifier survives
       // across the awaits below.
-      final sub = container.listen(
-        premiumChatProvider(params),
-        (_, __) {},
-      );
+      final sub = container.listen(premiumChatProvider(params), (_, __) {});
       final notifier = container.read(premiumChatProvider(params).notifier);
       await Future<void>.delayed(
-          const Duration(milliseconds: 200)); // loadMessages resolves
+        const Duration(milliseconds: 200),
+      ); // loadMessages resolves
       await notifier.sendTextMessage('See you at Republic Bar');
 
       // Drain the HTTP round-trip (demo interceptor answers immediately).
       await Future<void>.delayed(const Duration(milliseconds: 200));
 
       final state = sub.read();
-      expect(state.messages, isNotEmpty,
-          reason: 'the optimistic row must exist');
+      expect(
+        state.messages,
+        isNotEmpty,
+        reason: 'the optimistic row must exist',
+      );
       final msg = state.messages.first;
       expect(msg.text, 'See you at Republic Bar');
-      expect(msg.status, MessageStatus.sent,
-          reason:
-              'the demo must answer the send with the REAL backend '
-              'contract (201 {success: true, message: {...}}) so the '
-              'optimistic row is acknowledged, never generically failed.');
-      expect(msg.id, isNot(msg.localId),
-          reason: 'the ack must upgrade the row with the server id');
+      expect(
+        msg.status,
+        MessageStatus.sent,
+        reason:
+            'the demo must answer the send with the REAL backend '
+            'contract (201 {success: true, message: {...}}) so the '
+            'optimistic row is acknowledged, never generically failed.',
+      );
+      expect(
+        msg.id,
+        isNot(msg.localId),
+        reason: 'the ack must upgrade the row with the server id',
+      );
     });
   });
 
@@ -99,10 +106,7 @@ void main() {
         context: ChatContext.group,
         contextId: 'grp-1',
       );
-      final sub = container.listen(
-        premiumChatProvider(params),
-        (_, __) {},
-      );
+      final sub = container.listen(premiumChatProvider(params), (_, __) {});
       final notifier = container.read(premiumChatProvider(params).notifier);
       await Future<void>.delayed(const Duration(milliseconds: 200));
       await notifier.sendTextMessage('Rolling out — who is in?');
@@ -112,8 +116,11 @@ void main() {
       final state = sub.read();
       final msg = state.messages.first;
       expect(msg.text, 'Rolling out — who is in?');
-      expect(msg.status, MessageStatus.sent,
-          reason: 'group sends ride the same contract.');
+      expect(
+        msg.status,
+        MessageStatus.sent,
+        reason: 'group sends ride the same contract.',
+      );
       expect(msg.id, isNot(msg.localId));
     });
   });

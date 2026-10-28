@@ -35,83 +35,92 @@ class _ScriptedService extends BusinessService {
 }
 
 BusinessLocation _loc(String id, String name) => BusinessLocation.fromJson({
-      'id': id,
-      'businessProfileId': 'bp-$id',
-      'label': name,
-      'address': 'Accra',
-      'latitude': 5.56,
-      'longitude': -0.19,
-      'galleryUrls': <String>[],
-      'isPrimary': true,
-      'isActive': true,
-    });
+  'id': id,
+  'businessProfileId': 'bp-$id',
+  'label': name,
+  'address': 'Accra',
+  'latitude': 5.56,
+  'longitude': -0.19,
+  'galleryUrls': <String>[],
+  'isPrimary': true,
+  'isActive': true,
+});
 
 void main() {
-  test('a STALE searchNearby response can never overwrite the newer one',
-      () async {
-    final service = _ScriptedService();
-    final notifier = NearbySearchNotifier(service);
+  test(
+    'a STALE searchNearby response can never overwrite the newer one',
+    () async {
+      final service = _ScriptedService();
+      final notifier = NearbySearchNotifier(service);
 
-    // First search (position A) — in flight.
-    final f1 = notifier.searchNearby(lat: 5.60, lng: -0.20);
-    // Second search (position B) supersedes it before either lands.
-    final f2 = notifier.searchNearby(lat: 5.61, lng: -0.19);
+      // First search (position A) — in flight.
+      final f1 = notifier.searchNearby(lat: 5.60, lng: -0.20);
+      // Second search (position B) supersedes it before either lands.
+      final f2 = notifier.searchNearby(lat: 5.61, lng: -0.19);
 
-    expect(service._pending.length, 2);
+      expect(service._pending.length, 2);
 
-    // The STALE (A) response completes LAST — the classic
-    // slow-network reorder. It must be discarded whole.
-    service._pending[1].complete((
-      locations: [_loc('b1', 'Newest result')],
-      hasMore: false,
-      nextPage: null,
-    ));
-    await Future<void>.delayed(Duration.zero);
-    // A lands after B's state was applied — must NOT touch the state.
-    service._pending[0].complete((
-      locations: [_loc('a1', 'Stale result'), _loc('a2', 'Stale 2')],
-      hasMore: false,
-      nextPage: null,
-    ));
-    await f1;
-    await f2;
+      // The STALE (A) response completes LAST — the classic
+      // slow-network reorder. It must be discarded whole.
+      service._pending[1].complete((
+        locations: [_loc('b1', 'Newest result')],
+        hasMore: false,
+        nextPage: null,
+      ));
+      await Future<void>.delayed(Duration.zero);
+      // A lands after B's state was applied — must NOT touch the state.
+      service._pending[0].complete((
+        locations: [_loc('a1', 'Stale result'), _loc('a2', 'Stale 2')],
+        hasMore: false,
+        nextPage: null,
+      ));
+      await f1;
+      await f2;
 
-    final state = notifier.state;
-    expect(state.locations.length, 1,
-        reason: 'stale page must be discarded, not spliced');
-    expect(state.locations.single.id, 'b1');
-    expect(state.lat, 5.61, reason: 'the NEW origin must survive');
-    expect(state.isLoading, isFalse);
-  });
+      final state = notifier.state;
+      expect(
+        state.locations.length,
+        1,
+        reason: 'stale page must be discarded, not spliced',
+      );
+      expect(state.locations.single.id, 'b1');
+      expect(state.lat, 5.61, reason: 'the NEW origin must survive');
+      expect(state.isLoading, isFalse);
+    },
+  );
 
-  test('clear() kills in-flight responses — the feed cannot be resurrected',
-      () async {
-    final service = _ScriptedService();
-    final notifier = NearbySearchNotifier(service);
+  test(
+    'clear() kills in-flight responses — the feed cannot be resurrected',
+    () async {
+      final service = _ScriptedService();
+      final notifier = NearbySearchNotifier(service);
 
-    final f = notifier.searchNearby(lat: 5.60, lng: -0.20);
-    expect(notifier.state.isLoading, isTrue);
+      final f = notifier.searchNearby(lat: 5.60, lng: -0.20);
+      expect(notifier.state.isLoading, isTrue);
 
-    notifier.clear();
-    expect(notifier.state.locations, isEmpty);
-    expect(notifier.state.isLoading, isFalse);
+      notifier.clear();
+      expect(notifier.state.locations, isEmpty);
+      expect(notifier.state.isLoading, isFalse);
 
-    // The late response arrives after the user left the surface.
-    service._pending.single.complete((
-      locations: [_loc('ghost', 'Should not resurrect')],
-      hasMore: true,
-      nextPage: 2,
-    ));
-    await f;
-    await Future<void>.delayed(Duration.zero);
+      // The late response arrives after the user left the surface.
+      service._pending.single.complete((
+        locations: [_loc('ghost', 'Should not resurrect')],
+        hasMore: true,
+        nextPage: 2,
+      ));
+      await f;
+      await Future<void>.delayed(Duration.zero);
 
-    expect(notifier.state.locations, isEmpty,
-        reason: 'a cleared feed must never be resurrected by a late page');
-    expect(notifier.state.hasMore, isFalse);
-  });
+      expect(
+        notifier.state.locations,
+        isEmpty,
+        reason: 'a cleared feed must never be resurrected by a late page',
+      );
+      expect(notifier.state.hasMore, isFalse);
+    },
+  );
 
-  test('a stale loadMore tail cannot splice into a superseded feed',
-      () async {
+  test('a stale loadMore tail cannot splice into a superseded feed', () async {
     final service = _ScriptedService();
     final notifier = NearbySearchNotifier(service);
 
@@ -149,13 +158,13 @@ void main() {
 
     final state = notifier.state;
     expect(state.category, 'FOOD');
-    expect(state.locations.map((l) => l.id), ['f1'],
-        reason: 'the stale retail tail must never splice into the food feed');
+    expect(state.locations.map((l) => l.id), [
+      'f1',
+    ], reason: 'the stale retail tail must never splice into the food feed');
     expect(state.isLoadingMore, isFalse);
   });
 
-  test('a genuine loadMore still appends when nothing supersedes it',
-      () async {
+  test('a genuine loadMore still appends when nothing supersedes it', () async {
     final service = _ScriptedService();
     final notifier = NearbySearchNotifier(service);
 
@@ -199,8 +208,11 @@ void main() {
     await f2;
 
     final state = notifier.state;
-    expect(state.error, isNull,
-        reason: 'a stale failure must not poison fresh data');
+    expect(
+      state.error,
+      isNull,
+      reason: 'a stale failure must not poison fresh data',
+    );
     expect(state.locations.single.id, 'ok');
     expect(state.isLoading, isFalse);
   });

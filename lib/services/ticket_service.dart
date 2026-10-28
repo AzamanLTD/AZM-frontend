@@ -17,34 +17,48 @@ import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
 
 enum TicketType { buy, sell, escrow, serviceSwap }
+
 enum TicketStatus { open, closed, cancelled }
 
 extension TicketTypeWire on TicketType {
   String get wire {
     switch (this) {
-      case TicketType.buy: return 'BUY';
-      case TicketType.sell: return 'SELL';
-      case TicketType.escrow: return 'ESCROW';
-      case TicketType.serviceSwap: return 'SERVICE_SWAP';
+      case TicketType.buy:
+        return 'BUY';
+      case TicketType.sell:
+        return 'SELL';
+      case TicketType.escrow:
+        return 'ESCROW';
+      case TicketType.serviceSwap:
+        return 'SERVICE_SWAP';
     }
   }
 
   String get label {
     switch (this) {
-      case TicketType.buy: return 'Buy';
-      case TicketType.sell: return 'Sell';
-      case TicketType.escrow: return 'Escrow';
-      case TicketType.serviceSwap: return 'Service Swap';
+      case TicketType.buy:
+        return 'Buy';
+      case TicketType.sell:
+        return 'Sell';
+      case TicketType.escrow:
+        return 'Escrow';
+      case TicketType.serviceSwap:
+        return 'Service Swap';
     }
   }
 
   static TicketType fromWire(String wire) {
     switch (wire.toUpperCase()) {
-      case 'BUY': return TicketType.buy;
-      case 'SELL': return TicketType.sell;
-      case 'ESCROW': return TicketType.escrow;
-      case 'SERVICE_SWAP': return TicketType.serviceSwap;
-      default: return TicketType.buy;
+      case 'BUY':
+        return TicketType.buy;
+      case 'SELL':
+        return TicketType.sell;
+      case 'ESCROW':
+        return TicketType.escrow;
+      case 'SERVICE_SWAP':
+        return TicketType.serviceSwap;
+      default:
+        return TicketType.buy;
     }
   }
 }
@@ -52,26 +66,36 @@ extension TicketTypeWire on TicketType {
 extension TicketStatusWire on TicketStatus {
   String get wire {
     switch (this) {
-      case TicketStatus.open: return 'OPEN';
-      case TicketStatus.closed: return 'CLOSED';
-      case TicketStatus.cancelled: return 'CANCELLED';
+      case TicketStatus.open:
+        return 'OPEN';
+      case TicketStatus.closed:
+        return 'CLOSED';
+      case TicketStatus.cancelled:
+        return 'CANCELLED';
     }
   }
 
   String get label {
     switch (this) {
-      case TicketStatus.open: return 'Open';
-      case TicketStatus.closed: return 'Closed';
-      case TicketStatus.cancelled: return 'Cancelled';
+      case TicketStatus.open:
+        return 'Open';
+      case TicketStatus.closed:
+        return 'Closed';
+      case TicketStatus.cancelled:
+        return 'Cancelled';
     }
   }
 
   static TicketStatus fromWire(String wire) {
     switch (wire.toUpperCase()) {
-      case 'OPEN': return TicketStatus.open;
-      case 'CLOSED': return TicketStatus.closed;
-      case 'CANCELLED': return TicketStatus.cancelled;
-      default: return TicketStatus.open;
+      case 'OPEN':
+        return TicketStatus.open;
+      case 'CLOSED':
+        return TicketStatus.closed;
+      case 'CANCELLED':
+        return TicketStatus.cancelled;
+      default:
+        return TicketStatus.open;
     }
   }
 }
@@ -130,7 +154,8 @@ class Ticket {
       status: TicketStatusWire.fromWire((json['status'] ?? 'OPEN').toString()),
       createdAt: DateTime.parse(json['createdAt'].toString()),
       lastActivityAt: DateTime.parse(
-          (json['lastActivityAt'] ?? json['createdAt']).toString()),
+        (json['lastActivityAt'] ?? json['createdAt']).toString(),
+      ),
       closedAt: json['closedAt'] != null
           ? DateTime.tryParse(json['closedAt'].toString())
           : null,
@@ -193,10 +218,12 @@ class TicketMessageRow {
       mediaType: json['mediaType']?.toString(),
       mediaMimeType: json['mediaMimeType']?.toString(),
       mediaSize: json['mediaSize'] is int ? json['mediaSize'] as int : null,
-      mediaDuration:
-          json['mediaDuration'] is int ? json['mediaDuration'] as int : null,
-      mediaWaveformPeaks:
-          waveform is List ? waveform.whereType<int>().toList() : null,
+      mediaDuration: json['mediaDuration'] is int
+          ? json['mediaDuration'] as int
+          : null,
+      mediaWaveformPeaks: waveform is List
+          ? waveform.whereType<int>().toList()
+          : null,
       linkPreview: json['linkPreview'] is Map<String, dynamic>
           ? json['linkPreview'] as Map<String, dynamic>
           : null,
@@ -268,7 +295,10 @@ class TicketService {
       if (cursor != null) 'cursor': cursor,
     };
     final query = params.entries
-        .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
     final res = await apiClient.get('/tickets?$query');
     final body = jsonDecode(res.body);

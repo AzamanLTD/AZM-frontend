@@ -52,25 +52,27 @@ class _NullApiClient implements ApiClient {
 /// Ten deterministic businesses so the results list actually scrolls.
 class _SeededSearch extends BusinessSearchNotifier {
   _SeededSearch() : super(BusinessService()) {
-    state = state.copyWith(results: [
-      for (var i = 0; i < 10; i++)
-        BusinessProfile(
-          id: 'biz-$i',
-          bizId: 'BIZ-$i',
-          businessName: 'Business $i',
-          category: 'RETAIL',
-          isVerified: true,
-          isSuspended: false,
-          kybStatus: 'VERIFIED',
-          totalEscrows: 4,
-          completedEscrows: 4,
-          userId: 1,
-          totalVolume: 0,
-          averageRating: 0,
-          username: 'biz-$i',
-          createdAt: DateTime(2026, 10, 20 - i),
-        ),
-    ]);
+    state = state.copyWith(
+      results: [
+        for (var i = 0; i < 10; i++)
+          BusinessProfile(
+            id: 'biz-$i',
+            bizId: 'BIZ-$i',
+            businessName: 'Business $i',
+            category: 'RETAIL',
+            isVerified: true,
+            isSuspended: false,
+            kybStatus: 'VERIFIED',
+            totalEscrows: 4,
+            completedEscrows: 4,
+            userId: 1,
+            totalVolume: 0,
+            averageRating: 0,
+            username: 'biz-$i',
+            createdAt: DateTime(2026, 10, 20 - i),
+          ),
+      ],
+    );
   }
 
   @override
@@ -104,33 +106,33 @@ class _MutableFollowing extends FollowingListNotifier {
   }
 
   List<Map<String, dynamic>> _list({required bool unseen}) => [
-        {
-          'id': 'b1',
-          'businessName': 'Adinkra Lounge',
-          'logoUrl': null,
-          'isVerified': true,
-          'lastStoryAt': '2026-10-20T10:00:00Z',
-          'lastViewedAt':
-              unseen ? null : '2026-10-21T00:00:00Z', // seen after the story
-        },
-        {
-          'id': 'b2',
-          'businessName': 'Cocoa Line',
-          'logoUrl': null,
-          'isVerified': false,
-          'lastStoryAt': '2026-10-20T11:00:00Z',
-          'lastViewedAt':
-              unseen ? '2026-10-19T00:00:00Z' : '2026-10-21T00:00:00Z',
-        },
-        {
-          'id': 'b3',
-          'businessName': 'Trotro Threads',
-          'logoUrl': null,
-          'isVerified': false,
-          'lastStoryAt': '2026-10-18T09:00:00Z',
-          'lastViewedAt': '2026-10-18T10:00:00Z', // stays seen either way
-        },
-      ];
+    {
+      'id': 'b1',
+      'businessName': 'Adinkra Lounge',
+      'logoUrl': null,
+      'isVerified': true,
+      'lastStoryAt': '2026-10-20T10:00:00Z',
+      'lastViewedAt': unseen
+          ? null
+          : '2026-10-21T00:00:00Z', // seen after the story
+    },
+    {
+      'id': 'b2',
+      'businessName': 'Cocoa Line',
+      'logoUrl': null,
+      'isVerified': false,
+      'lastStoryAt': '2026-10-20T11:00:00Z',
+      'lastViewedAt': unseen ? '2026-10-19T00:00:00Z' : '2026-10-21T00:00:00Z',
+    },
+    {
+      'id': 'b3',
+      'businessName': 'Trotro Threads',
+      'logoUrl': null,
+      'isVerified': false,
+      'lastStoryAt': '2026-10-18T09:00:00Z',
+      'lastViewedAt': '2026-10-18T10:00:00Z', // stays seen either way
+    },
+  ];
 
   /// Flips every unseen story to seen (the "avatar dims" transition).
   void markAllSeen() {
@@ -229,8 +231,9 @@ Future<void> _teardownHome(WidgetTester tester) async {
 Future<void> _pinOpen(WidgetTester tester, ScrollController ctrl) async {
   ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
   await _settleFrames(tester, frames: 6);
-  await tester
-      .tap(find.byKey(const ValueKey('marketplace_story_rail_compact')));
+  await tester.tap(
+    find.byKey(const ValueKey('marketplace_story_rail_compact')),
+  );
   for (var i = 0; i < 14; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
@@ -249,30 +252,42 @@ void main() {
 
     ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
     await _settleFrames(tester, frames: 6);
-    expect(_extentHeight(tester), closeTo(0, 0.5),
-        reason: 'scrolled down: the rail is fully collapsed');
+    expect(
+      _extentHeight(tester),
+      closeTo(0, 0.5),
+      reason: 'scrolled down: the rail is fully collapsed',
+    );
 
     final offsetBefore = ctrl.offset;
-    await tester
-        .tap(find.byKey(const ValueKey('marketplace_story_rail_compact')));
+    await tester.tap(
+      find.byKey(const ValueKey('marketplace_story_rail_compact')),
+    );
     for (var i = 0; i < 14; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
     // F1 contract: the anchor is PRESERVED, not destroyed. The offset grows
     // by exactly the rail's extent (the compensation), and never drops to 0.
-    expect(ctrl.offset, closeTo(offsetBefore + StoryRailCollapse.extentPx, 1.0),
-        reason: 'the list scrolls DOWN by the rail growth (anchor preserved)');
+    expect(
+      ctrl.offset,
+      closeTo(offsetBefore + StoryRailCollapse.extentPx, 1.0),
+      reason: 'the list scrolls DOWN by the rail growth (anchor preserved)',
+    );
     expect(ctrl.offset, greaterThan(offsetBefore));
-    expect(ctrl.offset, greaterThan(StoryRailCollapse.extentPx),
-        reason: 'the page is never dragged back to the top');
+    expect(
+      ctrl.offset,
+      greaterThan(StoryRailCollapse.extentPx),
+      reason: 'the page is never dragged back to the top',
+    );
 
     // The rail is fully open, at the shared extent, with the seeded rings.
     expect(_extentHeight(tester), closeTo(StoryRailCollapse.extentPx, 0.5));
-    final rings = tester.widgetList<StoryRing>(find.descendant(
-      of: find.byType(MarketplaceExpandedStories),
-      matching: find.byType(StoryRing),
-    ));
+    final rings = tester.widgetList<StoryRing>(
+      find.descendant(
+        of: find.byType(MarketplaceExpandedStories),
+        matching: find.byType(StoryRing),
+      ),
+    );
     expect(rings.length, 3);
     await _teardownHome(tester);
   });
@@ -288,10 +303,14 @@ void main() {
     // frozen on screen), so the anchor assertion targets the LOWEST
     // visible result — it stays fully visible throughout.
     final names = tester
-        .widgetList<Text>(find.byWidgetPredicate((w) =>
-            w is Text &&
-            w.data != null &&
-            RegExp(r'^Business \d$').hasMatch(w.data!)))
+        .widgetList<Text>(
+          find.byWidgetPredicate(
+            (w) =>
+                w is Text &&
+                w.data != null &&
+                RegExp(r'^Business \d$').hasMatch(w.data!),
+          ),
+        )
         .map((t) => t.data!)
         .toSet();
     expect(names, isNotEmpty, reason: 'seeded results render in the list');
@@ -307,16 +326,21 @@ void main() {
     }
     final rectBefore = tester.getRect(find.text(anchor).first);
 
-    await tester
-        .tap(find.byKey(const ValueKey('marketplace_story_rail_compact')));
+    await tester.tap(
+      find.byKey(const ValueKey('marketplace_story_rail_compact')),
+    );
     for (var i = 0; i < 14; i++) {
       await tester.pump(const Duration(milliseconds: 50));
     }
 
     final rectAfter = tester.getRect(find.text(anchor).first);
-    expect(rectAfter.top, closeTo(rectBefore.top, 0.75),
-        reason: 'the compensation scroll keeps the visible content fixed '
-            'on screen while the rail grows in over the window top');
+    expect(
+      rectAfter.top,
+      closeTo(rectBefore.top, 0.75),
+      reason:
+          'the compensation scroll keeps the visible content fixed '
+          'on screen while the rail grows in over the window top',
+    );
     expect(_extentHeight(tester), closeTo(StoryRailCollapse.extentPx, 0.5));
     await _teardownHome(tester);
   });
@@ -332,8 +356,11 @@ void main() {
     // does NOT collapse again behind the user's back.
     ctrl.jumpTo(ctrl.offset + 400);
     await _settleFrames(tester, frames: 6);
-    expect(_extentHeight(tester), closeTo(StoryRailCollapse.extentPx, 0.5),
-        reason: 'the pin is an explicit expansion state, not a scroll trick');
+    expect(
+      _extentHeight(tester),
+      closeTo(StoryRailCollapse.extentPx, 0.5),
+      reason: 'the pin is an explicit expansion state, not a scroll trick',
+    );
     await _teardownHome(tester);
   });
 
@@ -349,14 +376,20 @@ void main() {
     // invisible: same height, same frame budget.
     ctrl.jumpTo(0);
     await _settleFrames(tester, frames: 6);
-    expect(_extentHeight(tester), closeTo(pinnedExtent, 0.5),
-        reason: 'the pin handback at the top is seamless — no height jump');
+    expect(
+      _extentHeight(tester),
+      closeTo(pinnedExtent, 0.5),
+      reason: 'the pin handback at the top is seamless — no height jump',
+    );
 
     // The scroll grammar owns the rail again: scrolling down collapses it.
     ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
     await _settleFrames(tester, frames: 6);
-    expect(_extentHeight(tester), closeTo(0, 0.5),
-        reason: 'after the handback the scroll-driven collapse resumes');
+    expect(
+      _extentHeight(tester),
+      closeTo(0, 0.5),
+      reason: 'after the handback the scroll-driven collapse resumes',
+    );
     await _teardownHome(tester);
   });
 
@@ -369,32 +402,45 @@ void main() {
     expect(_extentHeight(tester), closeTo(StoryRailCollapse.extentPx, 0.5));
 
     // Tap the first expanded ring: the REAL viewer route opens.
-    final ring = find.descendant(
-      of: find.byType(MarketplaceExpandedStories),
-      matching: find.byType(StoryRing),
-    ).first;
+    final ring = find
+        .descendant(
+          of: find.byType(MarketplaceExpandedStories),
+          matching: find.byType(StoryRing),
+        )
+        .first;
     await tester.tap(ring, warnIfMissed: false);
     await _settleFrames(tester, frames: 12);
-    expect(find.byType(StoryViewerScreen), findsOneWidget,
-        reason: 'the tap opened the real story viewer route');
+    expect(
+      find.byType(StoryViewerScreen),
+      findsOneWidget,
+      reason: 'the tap opened the real story viewer route',
+    );
 
     // Return from the viewer: the pin AND the anchor survived the round trip.
     // The immersive viewer has no back button (vertical-drag dismissal
     // grammar); return the way a route return does.
     final navigator = tester.state<NavigatorState>(
-        find.byType(Navigator).first);
+      find.byType(Navigator).first,
+    );
     navigator.pop();
     await _settleFrames(tester, frames: 12);
     expect(find.byType(StoryViewerScreen), findsNothing);
-    expect(_extentHeight(tester), closeTo(StoryRailCollapse.extentPx, 0.5),
-        reason: 'the explicit expansion state survives the viewer');
-    expect(ctrl.offset, closeTo(offsetAfterPin, 1.0),
-        reason: 'the scroll anchor survives the viewer');
+    expect(
+      _extentHeight(tester),
+      closeTo(StoryRailCollapse.extentPx, 0.5),
+      reason: 'the explicit expansion state survives the viewer',
+    );
+    expect(
+      ctrl.offset,
+      closeTo(offsetAfterPin, 1.0),
+      reason: 'the scroll anchor survives the viewer',
+    );
     await _teardownHome(tester);
   });
 
-  testWidgets('reduced motion: the pin lands directly — no fractional slide',
-      (tester) async {
+  testWidgets('reduced motion: the pin lands directly — no fractional slide', (
+    tester,
+  ) async {
     final (ctrl, _) = await _pumpHome(tester, reducedMotion: true);
 
     ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
@@ -402,13 +448,17 @@ void main() {
     final offsetBefore = ctrl.offset;
     expect(_extentHeight(tester), closeTo(0, 0.5));
 
-    await tester
-        .tap(find.byKey(const ValueKey('marketplace_story_rail_compact')));
+    await tester.tap(
+      find.byKey(const ValueKey('marketplace_story_rail_compact')),
+    );
     await tester.pump(const Duration(milliseconds: 50));
 
     // Direct landing: full extent and full compensation in the SAME frame.
     expect(_extentHeight(tester), closeTo(StoryRailCollapse.extentPx, 0.5));
-    expect(ctrl.offset, closeTo(offsetBefore + StoryRailCollapse.extentPx, 1.0));
+    expect(
+      ctrl.offset,
+      closeTo(offsetBefore + StoryRailCollapse.extentPx, 1.0),
+    );
     await _teardownHome(tester);
   });
 
@@ -418,8 +468,9 @@ void main() {
 
     ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
     await _settleFrames(tester, frames: 6);
-    final affordance =
-        find.byKey(const ValueKey('marketplace_story_rail_compact'));
+    final affordance = find.byKey(
+      const ValueKey('marketplace_story_rail_compact'),
+    );
     final rectBefore = tester.getRect(affordance);
 
     // Every unseen story becomes seen — the rings dim, the label changes.
@@ -427,11 +478,17 @@ void main() {
     await _settleFrames(tester, frames: 6);
 
     final rectAfter = tester.getRect(affordance);
-    expect(rectAfter.height, closeTo(rectBefore.height, 0.5),
-        reason: 'the dims transition never resizes the affordance');
+    expect(
+      rectAfter.height,
+      closeTo(rectBefore.height, 0.5),
+      reason: 'the dims transition never resizes the affordance',
+    );
     expect(rectAfter.width, closeTo(rectBefore.width, 0.5));
-    expect(rectAfter.top, closeTo(rectBefore.top, 0.5),
-        reason: 'and never moves it — no layout jump');
+    expect(
+      rectAfter.top,
+      closeTo(rectBefore.top, 0.5),
+      reason: 'and never moves it — no layout jump',
+    );
     await _teardownHome(tester);
   });
 }

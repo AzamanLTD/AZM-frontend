@@ -214,14 +214,17 @@ List<ArcSlot> solveRadialFan({
   final radii = List<double>.filled(n, 0.0);
   for (var i = 0; i < n; i++) {
     final pw = sizes[i].width / 2, ph = sizes[i].height / 2;
-    radii[i] = (anchor.width / 2 + pw) * math.cos(angles[i]).abs() +
+    radii[i] =
+        (anchor.width / 2 + pw) * math.cos(angles[i]).abs() +
         (anchor.height / 2 + ph) * math.sin(angles[i]).abs() +
-        gap + 6;
+        gap +
+        6;
   }
 
   Offset centreAt(int i) => anchor.center.translate(
-      math.cos(angles[i]) * xSign * radii[i],
-      math.sin(angles[i]) * vSign * radii[i]);
+    math.cos(angles[i]) * xSign * radii[i],
+    math.sin(angles[i]) * vSign * radii[i],
+  );
 
   // Separation need per pair: two satellites on the SAME ray are vertically
   // aligned, so pill WIDTHS are the real bound (the conservative
@@ -478,9 +481,12 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
                           color: dialInk(_current.accent, c),
                         ),
                         const SizedBox(width: 8),
-                        Text(_current.label, style: _labelStyle.copyWith(
-                          color: dialInk(_current.accent, c),
-                        )),
+                        Text(
+                          _current.label,
+                          style: _labelStyle.copyWith(
+                            color: dialInk(_current.accent, c),
+                          ),
+                        ),
                         const SizedBox(width: 4),
                         Transform.rotate(
                           angle: _c.value * 3.14159,
@@ -489,8 +495,10 @@ class _CategorySpeedDialState extends State<CategorySpeedDial>
                             size: 18,
                             color: _current.accent == null
                                 ? c.textSecondary
-                                : dialInk(_current.accent, c)
-                                    .withValues(alpha: 0.8),
+                                : dialInk(
+                                    _current.accent,
+                                    c,
+                                  ).withValues(alpha: 0.8),
                           ),
                         ),
                       ],
@@ -627,60 +635,65 @@ class _DialOverlay extends StatelessWidget {
           offset: Offset.zero,
           child: ExcludeSemantics(
             child: AnimatedBuilder(
-            animation: controller,
-            builder: (_, __) {
-              final t = reduced ? 1.0 : controller.value;
-              return Container(
-                height: pillHeight,
-                padding: EdgeInsets.symmetric(horizontal: pillHPad),
-                decoration: BoxDecoration(
-                  // Same identity grammar as the closed anchor: the ghost
-                  // that stays on top of the goo keeps the selected
-                  // category's own accent, never grays it.
-                  color: currentItem.accent ?? colors.card,
-                  borderRadius: BorderRadius.circular(pillRadius),
-                  border: currentItem.accent == null
-                      ? Border.all(color: colors.divider)
-                      : null,
-                  boxShadow: currentItem.accent == null
-                      ? null
-                      : [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.14),
-                            blurRadius: 12,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      currentItem.icon,
-                      size: iconSize,
-                      color: dialInk(currentItem.accent, colors),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(currentItem.label, style: labelStyle.copyWith(
-                      color: dialInk(currentItem.accent, colors),
-                    )),
-                    const SizedBox(width: 4),
-                    Transform.rotate(
-                      angle: t * 3.14159,
-                      child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 18,
-                        color: currentItem.accent == null
-                            ? colors.textSecondary
-                            : dialInk(currentItem.accent, colors)
-                                .withValues(alpha: 0.8),
+              animation: controller,
+              builder: (_, __) {
+                final t = reduced ? 1.0 : controller.value;
+                return Container(
+                  height: pillHeight,
+                  padding: EdgeInsets.symmetric(horizontal: pillHPad),
+                  decoration: BoxDecoration(
+                    // Same identity grammar as the closed anchor: the ghost
+                    // that stays on top of the goo keeps the selected
+                    // category's own accent, never grays it.
+                    color: currentItem.accent ?? colors.card,
+                    borderRadius: BorderRadius.circular(pillRadius),
+                    border: currentItem.accent == null
+                        ? Border.all(color: colors.divider)
+                        : null,
+                    boxShadow: currentItem.accent == null
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.14),
+                              blurRadius: 12,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        currentItem.icon,
+                        size: iconSize,
+                        color: dialInk(currentItem.accent, colors),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+                      const SizedBox(width: 8),
+                      Text(
+                        currentItem.label,
+                        style: labelStyle.copyWith(
+                          color: dialInk(currentItem.accent, colors),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Transform.rotate(
+                        angle: t * 3.14159,
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: currentItem.accent == null
+                              ? colors.textSecondary
+                              : dialInk(
+                                  currentItem.accent,
+                                  colors,
+                                ).withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ],
@@ -764,8 +777,9 @@ class _SatellitePill extends StatelessWidget {
               // blob.
               color: item.accent ?? colors.card,
               borderRadius: BorderRadius.circular(_satPillRadius),
-              border:
-                  item.accent == null ? Border.all(color: colors.divider) : null,
+              border: item.accent == null
+                  ? Border.all(color: colors.divider)
+                  : null,
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.14),
@@ -799,5 +813,3 @@ class _SatellitePill extends StatelessWidget {
     );
   }
 }
-
-

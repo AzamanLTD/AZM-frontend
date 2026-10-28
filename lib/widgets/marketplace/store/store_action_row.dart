@@ -39,7 +39,9 @@ class StoreActionRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final label = MarketplaceExperienceCatalog.fromCategory(business.category).primaryActionLabel;
+    final label = MarketplaceExperienceCatalog.fromCategory(
+      business.category,
+    ).primaryActionLabel;
     return Padding(
       padding: const EdgeInsets.fromLTRB(AzSpace.xl, 0, AzSpace.xl, AzSpace.md),
       child: Row(
@@ -54,7 +56,9 @@ class StoreActionRow extends ConsumerWidget {
                       onPrimary!();
                     },
               style: FilledButton.styleFrom(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AzRadius.pill)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AzRadius.pill),
+                ),
                 padding: const EdgeInsets.symmetric(vertical: AzSpace.md),
               ),
               child: Text(label, style: AzText.button),
@@ -76,7 +80,9 @@ class StoreActionRow extends ConsumerWidget {
             const SizedBox(width: AzSpace.xs),
             _RoundIcon(
               key: ValueKey('store_follow_${isFollowing ? 'on' : 'off'}'),
-              icon: isFollowing ? HugeIconsSolid.userCheck01 : HugeIconsSolid.userAdd01,
+              icon: isFollowing
+                  ? HugeIconsSolid.userCheck01
+                  : HugeIconsSolid.userAdd01,
               tooltip: isFollowing ? 'Following' : 'Follow',
               active: isFollowing,
               colors: colors,
@@ -144,7 +150,11 @@ class _RoundIcon extends StatelessWidget {
           child: SizedBox(
             width: 44,
             height: 44,
-            child: Icon(icon, size: 20, color: active ? colors.accent : colors.textSecondary),
+            child: Icon(
+              icon,
+              size: 20,
+              color: active ? colors.accent : colors.textSecondary,
+            ),
           ),
         ),
       ),

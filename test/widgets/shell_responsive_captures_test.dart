@@ -123,9 +123,9 @@ Future<void> _pumpShell(
         theme: ThemeProvider.getThemeData(theme),
         home: RepaintBoundary(
           child: MediaQuery(
-            data: MediaQueryData(size: size).copyWith(
-              disableAnimations: reducedMotion,
-            ),
+            data: MediaQueryData(
+              size: size,
+            ).copyWith(disableAnimations: reducedMotion),
             child: const MainWrapper(),
           ),
         ),
@@ -169,10 +169,13 @@ void main() {
   for (final dark in [false, true]) {
     final theme = dark ? AzamanTheme.dark : AzamanTheme.light;
     final mode = dark ? 'dark' : 'light';
-    testWidgets('shell 360 $mode reduced-motion rest state',
-        (tester) async {
-      await _pumpShell(tester,
-          size: const Size(360, 800), theme: theme, reducedMotion: true);
+    testWidgets('shell 360 $mode reduced-motion rest state', (tester) async {
+      await _pumpShell(
+        tester,
+        size: const Size(360, 800),
+        theme: theme,
+        reducedMotion: true,
+      );
       await expectLater(
         find.byType(RepaintBoundary).first,
         matchesGoldenFile('goldens/shell/shell_360_${mode}_rm.png'),

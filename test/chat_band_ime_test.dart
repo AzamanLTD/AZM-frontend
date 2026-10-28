@@ -74,22 +74,27 @@ void main() {
     // pill (NavScrollCompression.expandedHeight), so the contextual
     // morph reads as the band continuing, not as two unrelated
     // surfaces.
-    final pillFinder = find.byWidgetPredicate((w) =>
-        w is Container &&
-        (w.constraints?.maxHeight ?? double.infinity) ==
-            NavScrollCompression.expandedHeight);
+    final pillFinder = find.byWidgetPredicate(
+      (w) =>
+          w is Container &&
+          (w.constraints?.maxHeight ?? double.infinity) ==
+              NavScrollCompression.expandedHeight,
+    );
     expect(pillFinder, findsOneWidget);
     final restingHeight = tester.getRect(pillFinder).height;
 
     // Focus the composer's field, then open a 300px keyboard.
     await tester.tap(find.byType(TextField).first);
-    tester.view.viewInsets =
-        FakeViewPadding(bottom: 300 * tester.view.devicePixelRatio);
+    tester.view.viewInsets = FakeViewPadding(
+      bottom: 300 * tester.view.devicePixelRatio,
+    );
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
     final imeTop = 900.0 - 300.0;
-    expect(tester.getRect(composerFinder).bottom,
-        lessThanOrEqualTo(imeTop + 1));
+    expect(
+      tester.getRect(composerFinder).bottom,
+      lessThanOrEqualTo(imeTop + 1),
+    );
     // The field is still hit-testable where it renders.
     expect(find.byType(TextField).first.hitTestable(), findsOneWidget);
     // Same pill geometry while riding — the surface is attached to the

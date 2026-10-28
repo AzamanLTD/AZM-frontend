@@ -5,7 +5,11 @@ class ShowcaseGalleryWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const ShowcaseGalleryWidget({super.key, required this.props, required this.business});
+  const ShowcaseGalleryWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +35,11 @@ class ShowcaseGalleryWidget extends StatelessWidget {
                 color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(Icons.image, size: 36, color: Theme.of(ctx).colorScheme.primary),
+              child: Icon(
+                Icons.image,
+                size: 36,
+                color: Theme.of(ctx).colorScheme.primary,
+              ),
             ),
           ),
         ),

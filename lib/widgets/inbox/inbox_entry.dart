@@ -8,7 +8,14 @@ import 'package:azaman/providers/group_chat_provider.dart';
 
 enum InboxKind { friend, group }
 
-enum InboxSignal { none, moneyIn, moneyOut, request, susuActive, susuConfiguring }
+enum InboxSignal {
+  none,
+  moneyIn,
+  moneyOut,
+  request,
+  susuActive,
+  susuConfiguring,
+}
 
 class InboxEntry {
   final InboxKind kind;
@@ -59,7 +66,10 @@ class InboxEntry {
 
   /// Keys mirror the existing `_buildFriendTile` / `_friendSortTime` reads on
   /// the live `/friends` payload. A missing key defaults — never invents.
-  static InboxEntry fromFriend(Map<String, dynamic> friend, {String currentUsername = ''}) {
+  static InboxEntry fromFriend(
+    Map<String, dynamic> friend, {
+    String currentUsername = '',
+  }) {
     final f = friend['friend'] is Map<String, dynamic>
         ? friend['friend'] as Map<String, dynamic>
         : const <String, dynamic>{};
@@ -67,21 +77,34 @@ class InboxEntry {
         ? friend['latestMessage'] as Map<String, dynamic>
         : null;
 
-    final title = (f['username'] ?? friend['username'] ?? friend['friendUsername'] ?? 'Unknown').toString();
-    final preview = (latest?['content'] ?? friend['lastMessage'] ?? '').toString();
+    final title =
+        (f['username'] ??
+                friend['username'] ??
+                friend['friendUsername'] ??
+                'Unknown')
+            .toString();
+    final preview = (latest?['content'] ?? friend['lastMessage'] ?? '')
+        .toString();
     final rawAt = latest?['createdAt'] ?? friend['lastMessageTime'];
-    final lastAt = rawAt is DateTime ? rawAt : DateTime.tryParse(rawAt?.toString() ?? '');
+    final lastAt = rawAt is DateTime
+        ? rawAt
+        : DateTime.tryParse(rawAt?.toString() ?? '');
 
     final unreadRaw = friend['unreadCount'];
-    final unread = unreadRaw is int ? unreadRaw : int.tryParse('$unreadRaw') ?? 0;
+    final unread = unreadRaw is int
+        ? unreadRaw
+        : int.tryParse('$unreadRaw') ?? 0;
 
     final friendIdRaw = f['id'] ?? friend['friendId'] ?? friend['userId'];
-    final friendId = friendIdRaw is int ? friendIdRaw : int.tryParse('$friendIdRaw');
+    final friendId = friendIdRaw is int
+        ? friendIdRaw
+        : int.tryParse('$friendIdRaw');
 
     final kind = latest?['kind']?.toString().toUpperCase();
     final isMe = latest?['isMe'] == true;
     final signal = switch (kind) {
-      'MONEY' || 'TRANSFER' => isMe ? InboxSignal.moneyOut : InboxSignal.moneyIn,
+      'MONEY' ||
+      'TRANSFER' => isMe ? InboxSignal.moneyOut : InboxSignal.moneyIn,
       'REQUEST' => InboxSignal.request,
       _ => InboxSignal.none,
     };
@@ -95,7 +118,8 @@ class InboxEntry {
       lastAt: lastAt,
       unread: unread,
       signal: signal,
-      mentioned: currentUsername.isNotEmpty && preview.contains('@$currentUsername'),
+      mentioned:
+          currentUsername.isNotEmpty && preview.contains('@$currentUsername'),
       friendId: friendId,
       isOnline: f['isOnline'] == true,
       isVerifiedVendor: f['isVerifiedVendor'] == true,
@@ -103,17 +127,19 @@ class InboxEntry {
   }
 
   static InboxEntry fromGroup(GroupSummary g) => InboxEntry(
-        kind: InboxKind.group,
-        id: g.id,
-        title: g.name,
-        avatarUrl: g.avatarUrl,
-        preview: g.description ?? '${g.members.length} members',
-        lastAt: g.updatedAt,
-        signal: g.isSusuActive
-            ? InboxSignal.susuActive
-            : (g.isSusuConfiguring ? InboxSignal.susuConfiguring : InboxSignal.none),
-        group: g,
-      );
+    kind: InboxKind.group,
+    id: g.id,
+    title: g.name,
+    avatarUrl: g.avatarUrl,
+    preview: g.description ?? '${g.members.length} members',
+    lastAt: g.updatedAt,
+    signal: g.isSusuActive
+        ? InboxSignal.susuActive
+        : (g.isSusuConfiguring
+              ? InboxSignal.susuConfiguring
+              : InboxSignal.none),
+    group: g,
+  );
 
   /// Pinned first, then most-recent activity; undated rows sink.
   static int compare(InboxEntry a, InboxEntry b) {

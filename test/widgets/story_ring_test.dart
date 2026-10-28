@@ -39,26 +39,30 @@ import 'package:flutter_test/flutter_test.dart';
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 StoryItem _story({required bool seen}) => StoryItem(
-      id: 's${seen ? 1 : 0}-${DateTime.now().microsecondsSinceEpoch}',
-      mediaUrl: 'https://example.com/s.jpg',
-      mediaType: 'IMAGE',
-      durationSeconds: 5,
-      boosted: false,
-      seen: seen,
-      createdAt: DateTime(2026, 10, 6),
-    );
+  id: 's${seen ? 1 : 0}-${DateTime.now().microsecondsSinceEpoch}',
+  mediaUrl: 'https://example.com/s.jpg',
+  mediaType: 'IMAGE',
+  durationSeconds: 5,
+  boosted: false,
+  seen: seen,
+  createdAt: DateTime(2026, 10, 6),
+);
 
 StoryGroup _group(List<StoryItem> stories) => StoryGroup(
-      authorId: 7,
-      authorUsername: 'ama',
-      authorAvatarUrl: null,
-      hasUnseen: stories.any((s) => !s.seen),
-      isBoosted: false,
-      stories: stories,
-    );
+  authorId: 7,
+  authorUsername: 'ama',
+  authorAvatarUrl: null,
+  hasUnseen: stories.any((s) => !s.seen),
+  isBoosted: false,
+  stories: stories,
+);
 
-Future<void> _pumpRing(WidgetTester tester, StoryRingCounts counts,
-    {bool isBoosted = false, String? avatarUrl}) async {
+Future<void> _pumpRing(
+  WidgetTester tester,
+  StoryRingCounts counts, {
+  bool isBoosted = false,
+  String? avatarUrl,
+}) async {
   await tester.binding.setSurfaceSize(const Size(200, 200));
   await tester.pumpWidget(
     ProviderScope(
@@ -85,7 +89,10 @@ bool _hasGlowLayer(WidgetTester tester) =>
     tester.widgetList<ImageFiltered>(find.byType(ImageFiltered)).isNotEmpty ||
     tester
         .widgetList<Container>(
-            find.byWidgetPredicate((w) => w is Container && _hasBoxShadowBlur(w as Container)))
+          find.byWidgetPredicate(
+            (w) => w is Container && _hasBoxShadowBlur(w as Container),
+          ),
+        )
         .isNotEmpty;
 
 bool _hasBoxShadowBlur(Container c) {
@@ -101,41 +108,67 @@ void main() {
     test('only silent unviewed → ONE solid dash, centred on 12', () {
       final dashes = storyRingTopDashes(3, 0);
       expect(dashes, hasLength(1));
-      expect(dashes.single.isSound, isFalse,
-          reason: 'silent stories must render the no-sound (red) dash');
+      expect(
+        dashes.single.isSound,
+        isFalse,
+        reason: 'silent stories must render the no-sound (red) dash',
+      );
       expect(dashes.single.texture, StoryDashTexture.solid);
-      expect(dashes.single.centerHour, 12,
-          reason: 'single-type state stays symmetric: centred on 12');
+      expect(
+        dashes.single.centerHour,
+        12,
+        reason: 'single-type state stays symmetric: centred on 12',
+      );
     });
 
     test('only sound unviewed → ONE twin-line dash, centred on 12', () {
       final dashes = storyRingTopDashes(0, 2);
       expect(dashes, hasLength(1));
-      expect(dashes.single.isSound, isTrue,
-          reason: 'sound stories render the has-sound (purple) dash');
-      expect(dashes.single.texture, StoryDashTexture.twinLine,
-          reason: 'the colour-independent cue must survive colour-blindness');
+      expect(
+        dashes.single.isSound,
+        isTrue,
+        reason: 'sound stories render the has-sound (purple) dash',
+      );
+      expect(
+        dashes.single.texture,
+        StoryDashTexture.twinLine,
+        reason: 'the colour-independent cue must survive colour-blindness',
+      );
       expect(dashes.single.centerHour, 12);
     });
 
     test('both sound states → mirrored pair straddling 12, never more', () {
       final dashes = storyRingTopDashes(80, 20);
-      expect(dashes, hasLength(2),
-          reason: '§4: at most two dashes, however many stories exist');
-      expect(dashes[0].centerHour, lessThan(12),
-          reason: 'silent dash sits left of 12');
-      expect(dashes[1].centerHour, greaterThan(12),
-          reason: 'sound dash sits right of 12');
-      expect(12 - dashes[0].centerHour,
-          closeTo(dashes[1].centerHour - 12, 0.0001),
-          reason: 'the pair is MIRRORED around 12');
+      expect(
+        dashes,
+        hasLength(2),
+        reason: '§4: at most two dashes, however many stories exist',
+      );
+      expect(
+        dashes[0].centerHour,
+        lessThan(12),
+        reason: 'silent dash sits left of 12',
+      );
+      expect(
+        dashes[1].centerHour,
+        greaterThan(12),
+        reason: 'sound dash sits right of 12',
+      );
+      expect(
+        12 - dashes[0].centerHour,
+        closeTo(dashes[1].centerHour - 12, 0.0001),
+        reason: 'the pair is MIRRORED around 12',
+      );
       expect(dashes[0].texture, StoryDashTexture.solid);
       expect(dashes[1].texture, StoryDashTexture.twinLine);
     });
 
     test('zero unviewed → no dashes at all (resting arc territory)', () {
-      expect(storyRingTopDashes(0, 0), isEmpty,
-          reason: 'the caught-up state must not leave stale colored dashes');
+      expect(
+        storyRingTopDashes(0, 0),
+        isEmpty,
+        reason: 'the caught-up state must not leave stale colored dashes',
+      );
     });
   });
 
@@ -174,8 +207,11 @@ void main() {
 
     test('caps at 5 visible dots — no bead chain', () {
       expect(storyRingViewedDotHours(5), hasLength(5));
-      expect(storyRingViewedDotHours(6), hasLength(5),
-          reason: '§8: past the cap the badge carries the count instead');
+      expect(
+        storyRingViewedDotHours(6),
+        hasLength(5),
+        reason: '§8: past the cap the badge carries the count instead',
+      );
       expect(storyRingViewedDotHours(50), hasLength(5));
     });
 
@@ -202,67 +238,104 @@ void main() {
       expect(counts.viewedCount, 2);
       expect(counts.unviewedTotal, 2);
       expect(counts.unviewedSilentCount, 2);
-      expect(counts.unviewedCountKnown, isTrue,
-          reason: 'a per-story feed carries the real count');
+      expect(
+        counts.unviewedCountKnown,
+        isTrue,
+        reason: 'a per-story feed carries the real count',
+      );
       expect(counts.hasUnviewed, isTrue);
       expect(counts.isEmpty, isFalse);
-      expect(counts.badgeMayRender, isTrue,
-          reason: 'a real count may show a real number');
+      expect(
+        counts.badgeMayRender,
+        isTrue,
+        reason: 'a real count may show a real number',
+      );
     });
 
     test('fromGroup all-seen → zero unviewed (caught up)', () {
-      final counts =
-          StoryRingCounts.fromGroup(_group([_story(seen: true), _story(seen: true)]));
+      final counts = StoryRingCounts.fromGroup(
+        _group([_story(seen: true), _story(seen: true)]),
+      );
       expect(counts.unviewedTotal, 0);
       expect(counts.viewedCount, 2);
       expect(counts.hasUnviewed, isFalse);
       expect(counts.isEmpty, isFalse, reason: 'viewed stories still exist');
-      expect(storyRingTopDashSpecs(counts), isEmpty,
-          reason: 'caught up — the resting arc, no dash');
+      expect(
+        storyRingTopDashSpecs(counts),
+        isEmpty,
+        reason: 'caught up — the resting arc, no dash',
+      );
     });
 
-    test(
-        'sound split stays 0/0 until the backend exposes an audio flag '
-        '(contract gap, 2026-10-06 audit — do not invent)',
-        () {
+    test('sound split stays 0/0 until the backend exposes an audio flag '
+        '(contract gap, 2026-10-06 audit — do not invent)', () {
       final counts = StoryRingCounts.fromGroup(_group([_story(seen: false)]));
-      expect(counts.unviewedSoundCount, 0,
-          reason: 'prisma Story has no audio field; feed map sends none. '
-              'Wire the purple dash when real data exists — never before.');
-      expect(counts.unviewedSilentCount, 1,
-          reason: 'the unviewed story still counts, in the no-sound dash');
+      expect(
+        counts.unviewedSoundCount,
+        0,
+        reason:
+            'prisma Story has no audio field; feed map sends none. '
+            'Wire the purple dash when real data exists — never before.',
+      );
+      expect(
+        counts.unviewedSilentCount,
+        1,
+        reason: 'the unviewed story still counts, in the no-sound dash',
+      );
     });
 
     test(
-        'count-less unseen → presence dash visible, numeric badge suppressed',
-        () {
-      final counts = StoryRingCounts.fromUnseenFlag(true);
-      expect(counts.hasUnviewed, isTrue,
-          reason: 'existence is explicit, not encoded as a count');
-      expect(counts.isEmpty, isFalse,
-          reason: 'an unseen story is known to exist');
-      expect(counts.unviewedBadgeVisible, isFalse,
-          reason: 'the marketplace feed has timestamps, not counts — '
-              'the badge only ever shows a real number');
-      expect(counts.badgeMayRender, isFalse);
-      final dashes = storyRingTopDashSpecs(counts);
-      expect(dashes, hasLength(1), reason: 'exactly one presence dash');
-      expect(dashes.single.texture, StoryDashTexture.solid,
-          reason: 'the no-sound dash — the documented fallback for '
-              'missing audio metadata, not a sound classification');
-      expect(dashes.single.isSound, isFalse,
-          reason: 'the purple branch stays dormant without real data');
-    });
+      'count-less unseen → presence dash visible, numeric badge suppressed',
+      () {
+        final counts = StoryRingCounts.fromUnseenFlag(true);
+        expect(
+          counts.hasUnviewed,
+          isTrue,
+          reason: 'existence is explicit, not encoded as a count',
+        );
+        expect(
+          counts.isEmpty,
+          isFalse,
+          reason: 'an unseen story is known to exist',
+        );
+        expect(
+          counts.unviewedBadgeVisible,
+          isFalse,
+          reason:
+              'the marketplace feed has timestamps, not counts — '
+              'the badge only ever shows a real number',
+        );
+        expect(counts.badgeMayRender, isFalse);
+        final dashes = storyRingTopDashSpecs(counts);
+        expect(dashes, hasLength(1), reason: 'exactly one presence dash');
+        expect(
+          dashes.single.texture,
+          StoryDashTexture.solid,
+          reason:
+              'the no-sound dash — the documented fallback for '
+              'missing audio metadata, not a sound classification',
+        );
+        expect(
+          dashes.single.isSound,
+          isFalse,
+          reason: 'the purple branch stays dormant without real data',
+        );
+      },
+    );
 
-    test(
-        'count-less unseen does NOT expose a fake total '
-        '(regression: fromUnseenFlag once manufactured 1)',
-        () {
+    test('count-less unseen does NOT expose a fake total '
+        '(regression: fromUnseenFlag once manufactured 1)', () {
       final counts = StoryRingCounts.fromUnseenFlag(true);
-      expect(counts.unviewedTotal, 0,
-          reason: 'never encode "unknown" as a number');
-      expect(counts.unviewedSilentCount, 0,
-          reason: 'no fake 1 in the data model');
+      expect(
+        counts.unviewedTotal,
+        0,
+        reason: 'never encode "unknown" as a number',
+      );
+      expect(
+        counts.unviewedSilentCount,
+        0,
+        reason: 'no fake 1 in the data model',
+      );
       expect(counts.unviewedCountKnown, isFalse);
     });
 
@@ -271,15 +344,23 @@ void main() {
       expect(counts.hasUnviewed, isFalse);
       expect(counts.isEmpty, isTrue);
       expect(counts.badgeMayRender, isFalse);
-      expect(storyRingTopDashSpecs(counts), isEmpty,
-          reason: 'no dash, no badge — the plain resting ring');
+      expect(
+        storyRingTopDashSpecs(counts),
+        isEmpty,
+        reason: 'no dash, no badge — the plain resting ring',
+      );
     });
 
     test('empty counts → no story state at all', () {
       const counts = StoryRingCounts.empty();
       expect(counts.isEmpty, isTrue);
-      expect(storyRingTopDashes(counts.unviewedSilentCount, counts.unviewedSoundCount),
-          isEmpty);
+      expect(
+        storyRingTopDashes(
+          counts.unviewedSilentCount,
+          counts.unviewedSoundCount,
+        ),
+        isEmpty,
+      );
       expect(storyRingViewedDotHours(counts.viewedCount), isEmpty);
     });
   });
@@ -287,46 +368,67 @@ void main() {
   // ── widget structure (§1, §2, §12) ─────────────────────────────────────────
 
   group('widget structure', () {
-    testWidgets('avatar is CIRCULAR (ClipOval), never a squircle',
-        (tester) async {
-      await _pumpRing(tester, const StoryRingCounts(unviewedSilentCount: 2),
-          avatarUrl: 'https://example.com/a.jpg');
+    testWidgets('avatar is CIRCULAR (ClipOval), never a squircle', (
+      tester,
+    ) async {
+      await _pumpRing(
+        tester,
+        const StoryRingCounts(unviewedSilentCount: 2),
+        avatarUrl: 'https://example.com/a.jpg',
+      );
       expect(find.byKey(const ValueKey('story-ring-avatar')), findsOneWidget);
       expect(
-          find.descendant(
-              of: find.byKey(const ValueKey('story-ring-avatar')),
-              matching: find.byType(ClipOval)),
-          findsOneWidget,
-          reason: '§1: a real circular profile photo, not a squircle clip');
+        find.descendant(
+          of: find.byKey(const ValueKey('story-ring-avatar')),
+          matching: find.byType(ClipOval),
+        ),
+        findsOneWidget,
+        reason: '§1: a real circular profile photo, not a squircle clip',
+      );
       expect(
-          find.descendant(
-              of: find.byKey(const ValueKey('story-ring-avatar')),
-              matching: find.byType(ClipPath)),
-          findsNothing);
+        find.descendant(
+          of: find.byKey(const ValueKey('story-ring-avatar')),
+          matching: find.byType(ClipPath),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('NO glow layer exists anywhere in the ring', (tester) async {
-      await _pumpRing(tester, const StoryRingCounts(unviewedSilentCount: 2, viewedCount: 3));
-      expect(_hasGlowLayer(tester), isFalse,
-          reason: '§2: no glow, no halo, no blurred/luminous ring, ever');
+      await _pumpRing(
+        tester,
+        const StoryRingCounts(unviewedSilentCount: 2, viewedCount: 3),
+      );
+      expect(
+        _hasGlowLayer(tester),
+        isFalse,
+        reason: '§2: no glow, no halo, no blurred/luminous ring, ever',
+      );
     });
 
-    testWidgets('zero stories → plain ring still renders (no crash, no glow)',
-        (tester) async {
+    testWidgets('zero stories → plain ring still renders (no crash, no glow)', (
+      tester,
+    ) async {
       await _pumpRing(tester, const StoryRingCounts.empty());
       expect(find.byKey(const ValueKey('story-ring-paint')), findsOneWidget);
       expect(_hasGlowLayer(tester), isFalse);
     });
 
-    testWidgets('boosted → independent check micro-indicator, never a ring recolour',
-        (tester) async {
-      await _pumpRing(tester, const StoryRingCounts.empty(), isBoosted: true);
-      expect(find.byIcon(Icons.check), findsOneWidget,
-          reason: '§12: boosted gets its own small badge, not ring colours');
-    });
+    testWidgets(
+      'boosted → independent check micro-indicator, never a ring recolour',
+      (tester) async {
+        await _pumpRing(tester, const StoryRingCounts.empty(), isBoosted: true);
+        expect(
+          find.byIcon(Icons.check),
+          findsOneWidget,
+          reason: '§12: boosted gets its own small badge, not ring colours',
+        );
+      },
+    );
 
-    testWidgets('geometry is derived from size (24dp compact rail renders)',
-        (tester) async {
+    testWidgets('geometry is derived from size (24dp compact rail renders)', (
+      tester,
+    ) async {
       await tester.binding.setSurfaceSize(const Size(100, 100));
       await tester.pumpWidget(
         ProviderScope(
@@ -345,9 +447,14 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('story-ring-paint')), findsOneWidget);
-      final box = tester.getSize(find.byKey(const ValueKey('story-ring-paint')));
-      expect(box, const Size(24, 24),
-          reason: "§13: the ring's geometry follows the requested size");
+      final box = tester.getSize(
+        find.byKey(const ValueKey('story-ring-paint')),
+      );
+      expect(
+        box,
+        const Size(24, 24),
+        reason: "§13: the ring's geometry follows the requested size",
+      );
     });
   });
 }

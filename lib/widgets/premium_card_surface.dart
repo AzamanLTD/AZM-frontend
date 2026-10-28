@@ -58,8 +58,9 @@ class PremiumCardSurface extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [
                     Color.alphaBlend(
-                        gold.withValues(alpha: 0.16),
-                        PremiumCardPalette.gradTopBase),
+                      gold.withValues(alpha: 0.16),
+                      PremiumCardPalette.gradTopBase,
+                    ),
                     PremiumCardPalette.gradBottom,
                   ],
                 ),
@@ -85,7 +86,9 @@ class PremiumCardSurface extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                      color: gold.withValues(alpha: 0.10), width: 22),
+                    color: gold.withValues(alpha: 0.10),
+                    width: 22,
+                  ),
                 ),
               ),
             ),
@@ -94,7 +97,8 @@ class PremiumCardSurface extends StatelessWidget {
           Positioned.fill(
             child: IgnorePointer(
               child: _PremiumCardSheen(
-                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.05)),
+                color: const Color(0xFFFFFFFF).withValues(alpha: 0.05),
+              ),
             ),
           ),
         ],
@@ -105,11 +109,7 @@ class PremiumCardSurface extends StatelessWidget {
 
 /// Convenience wrapper: [PremiumCardSurface] painted behind [child].
 class PremiumCardFrame extends StatelessWidget {
-  const PremiumCardFrame({
-    super.key,
-    this.radius = 22,
-    required this.child,
-  });
+  const PremiumCardFrame({super.key, this.radius = 22, required this.child});
 
   final double radius;
   final Widget child;

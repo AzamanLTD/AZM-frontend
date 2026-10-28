@@ -32,8 +32,9 @@ void main() {
   });
 
   group('MarketplaceTempo — the standard ladder', () {
-    testWidgets('preserves the shipped blueprint.motionDuration values',
-        (tester) async {
+    testWidgets('preserves the shipped blueprint.motionDuration values', (
+      tester,
+    ) async {
       await tester.pumpWidget(_host(const SizedBox(key: Key('tempo-context'))));
       final context = tester.element(find.byKey(const Key('tempo-context')));
 
@@ -54,10 +55,12 @@ void main() {
 
   group('MarketplaceTempo — reduced motion', () {
     testWidgets('collapses durations to zero', (tester) async {
-      await tester.pumpWidget(_host(
-        const SizedBox(key: Key('tempo-context')),
-        disableAnimations: true,
-      ));
+      await tester.pumpWidget(
+        _host(
+          const SizedBox(key: Key('tempo-context')),
+          disableAnimations: true,
+        ),
+      );
       final context = tester.element(find.byKey(const Key('tempo-context')));
 
       expect(
@@ -77,17 +80,20 @@ void main() {
 
   group('MarketplaceTempo — the multiplier', () {
     test('is monotonic: relaxed > balanced > quick', () {
-      final relaxed =
-          MarketplaceTempo.multiplierOf(MarketplaceMotionTempo.relaxed);
-      final balanced =
-          MarketplaceTempo.multiplierOf(MarketplaceMotionTempo.balanced);
+      final relaxed = MarketplaceTempo.multiplierOf(
+        MarketplaceMotionTempo.relaxed,
+      );
+      final balanced = MarketplaceTempo.multiplierOf(
+        MarketplaceMotionTempo.balanced,
+      );
       final quick = MarketplaceTempo.multiplierOf(MarketplaceMotionTempo.quick);
       expect(relaxed, greaterThan(balanced));
       expect(balanced, greaterThan(quick));
     });
 
-    testWidgets('scaled() applies the multiplier to any duration',
-        (tester) async {
+    testWidgets('scaled() applies the multiplier to any duration', (
+      tester,
+    ) async {
       await tester.pumpWidget(_host(const SizedBox(key: Key('tempo-context'))));
       final context = tester.element(find.byKey(const Key('tempo-context')));
 
@@ -109,8 +115,9 @@ void main() {
       );
     });
 
-    testWidgets('stagger() is tempo-aware and monotonic per index',
-        (tester) async {
+    testWidgets('stagger() is tempo-aware and monotonic per index', (
+      tester,
+    ) async {
       await tester.pumpWidget(_host(const SizedBox(key: Key('tempo-context'))));
       final context = tester.element(find.byKey(const Key('tempo-context')));
 
@@ -125,11 +132,21 @@ void main() {
       );
 
       for (var i = 1; i < 4; i++) {
-        final quick = MarketplaceTempo.stagger(context, MarketplaceMotionTempo.quick, i);
-        final balanced =
-            MarketplaceTempo.stagger(context, MarketplaceMotionTempo.balanced, i);
-        final relaxed =
-            MarketplaceTempo.stagger(context, MarketplaceMotionTempo.relaxed, i);
+        final quick = MarketplaceTempo.stagger(
+          context,
+          MarketplaceMotionTempo.quick,
+          i,
+        );
+        final balanced = MarketplaceTempo.stagger(
+          context,
+          MarketplaceMotionTempo.balanced,
+          i,
+        );
+        final relaxed = MarketplaceTempo.stagger(
+          context,
+          MarketplaceMotionTempo.relaxed,
+          i,
+        );
         expect(relaxed > balanced, isTrue, reason: 'index $i');
         expect(balanced > quick, isTrue, reason: 'index $i');
       }

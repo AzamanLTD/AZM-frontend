@@ -5,11 +5,7 @@ class SuccessCelebration extends StatefulWidget {
   final VoidCallback? onComplete;
   final Widget child;
 
-  const SuccessCelebration({
-    super.key,
-    this.onComplete,
-    required this.child,
-  });
+  const SuccessCelebration({super.key, this.onComplete, required this.child});
 
   @override
   State<SuccessCelebration> createState() => _SuccessCelebrationState();
@@ -36,20 +32,22 @@ class _SuccessCelebrationState extends State<SuccessCelebration>
 
     // Generate particles
     for (int i = 0; i < 40; i++) {
-      _particles.add(_Particle(
-        x: _random.nextDouble(),
-        y: _random.nextDouble() * 0.3,
-        color: [
-          const Color(0xFFD4AF37),
-          const Color(0xFF02C076),
-          const Color(0xFF00E5FF),
-          const Color(0xFFBB86FC),
-          const Color(0xFFF0B90B),
-        ][_random.nextInt(5)],
-        size: _random.nextDouble() * 8 + 4,
-        velocity: _random.nextDouble() * 2 + 1,
-        angle: _random.nextDouble() * pi * 2,
-      ));
+      _particles.add(
+        _Particle(
+          x: _random.nextDouble(),
+          y: _random.nextDouble() * 0.3,
+          color: [
+            const Color(0xFFD4AF37),
+            const Color(0xFF02C076),
+            const Color(0xFF00E5FF),
+            const Color(0xFFBB86FC),
+            const Color(0xFFF0B90B),
+          ][_random.nextInt(5)],
+          size: _random.nextDouble() * 8 + 4,
+          velocity: _random.nextDouble() * 2 + 1,
+          angle: _random.nextDouble() * pi * 2,
+        ),
+      );
     }
 
     _scaleController.forward();
@@ -136,7 +134,11 @@ class _ConfettiPainter extends CustomPainter {
       canvas.rotate(progress * p.angle * 3);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.6),
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: p.size,
+            height: p.size * 0.6,
+          ),
           Radius.circular(p.size * 0.2),
         ),
         paint,

@@ -28,25 +28,28 @@ class _FakeSusuListNotifier extends SusuListNotifier {
 }
 
 SusuSummary _activeSusu(DateTime runAt) => SusuSummary(
-      id: 's1',
-      name: 'Circle Susu',
-      status: SusuStatus.active,
-      contributionUsdc: 10,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 10,
-      nextCycle: SusuCycleSummary(
-        id: 'c4',
-        cycleNumber: 4,
-        scheduledRunAt: runAt,
-        payoutUserId: 2,
-        isMe: false,
-      ),
-      myCycleSlot: 4,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+  id: 's1',
+  name: 'Circle Susu',
+  status: SusuStatus.active,
+  contributionUsdc: 10,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 10,
+  nextCycle: SusuCycleSummary(
+    id: 'c4',
+    cycleNumber: 4,
+    scheduledRunAt: runAt,
+    payoutUserId: 2,
+    isMe: false,
+  ),
+  myCycleSlot: 4,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
-Future<void> _pumpDeck(WidgetTester tester, {List<SusuSummary> susu = const []}) async {
+Future<void> _pumpDeck(
+  WidgetTester tester, {
+  List<SusuSummary> susu = const [],
+}) async {
   await tester.binding.setSurfaceSize(_surfaceSize);
   await tester.pumpWidget(
     ProviderScope(
@@ -82,7 +85,9 @@ void main() {
 
     // Immediately ABOVE the cards: separator bottom < card top, and the
     // separator is inside the deck subtree (collapses with it).
-    final card = tester.getRect(find.byKey(const ValueKey('reminder-card-susu-s1')));
+    final card = tester.getRect(
+      find.byKey(const ValueKey('reminder-card-susu-s1')),
+    );
     final sep = tester.getRect(find.byType(HomeDeckSeparator));
     expect(sep.bottom, lessThanOrEqualTo(card.top + 1));
   });
@@ -93,14 +98,17 @@ void main() {
     // PLACEHOLDER PASS (owner direction): the slot is never blank, so the
     // separator is never stranded above nothing — it labels the honest
     // placeholder exactly as it labels the living deck.
-    expect(find.byKey(const ValueKey('reminder-deck-placeholder')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reminder-deck-placeholder')),
+      findsOneWidget,
+    );
     expect(find.byType(HomeDeckSeparator), findsOneWidget);
     expect(find.text('Reminders'), findsOneWidget);
     // Still immediately above the (placeholder) front card — the front
     // face is the last of the three fanned copies in the stack.
-    final card = tester
-        .getRect(find.byKey(const ValueKey('reminder-card-placeholder')).last);
+    final card = tester.getRect(
+      find.byKey(const ValueKey('reminder-card-placeholder')).last,
+    );
     final sep = tester.getRect(find.byType(HomeDeckSeparator));
     expect(sep.bottom, lessThanOrEqualTo(card.top + 1));
   });

@@ -24,32 +24,31 @@ class StoryProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        child: RepaintBoundary(
-          child: AnimatedBuilder(
-            animation: progress,
-            builder: (_, __) => Row(
-              children: [
-                for (var i = 0; i < count; i++) ...[
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: LinearProgressIndicator(
-                        minHeight: 3,
-                        value: i < index
-                            ? 1
-                            : (i == index ? progress.value : 0),
-                        backgroundColor: Colors.white.withValues(alpha: 0.2),
-                        valueColor: AlwaysStoppedAnimation(
-                            boosted ? Colors.amberAccent : Colors.white),
-                      ),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+    child: RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: progress,
+        builder: (_, __) => Row(
+          children: [
+            for (var i = 0; i < count; i++) ...[
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: LinearProgressIndicator(
+                    minHeight: 3,
+                    value: i < index ? 1 : (i == index ? progress.value : 0),
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    valueColor: AlwaysStoppedAnimation(
+                      boosted ? Colors.amberAccent : Colors.white,
                     ),
                   ),
-                  if (i < count - 1) const SizedBox(width: 3),
-                ],
-              ],
-            ),
-          ),
+                ),
+              ),
+              if (i < count - 1) const SizedBox(width: 3),
+            ],
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

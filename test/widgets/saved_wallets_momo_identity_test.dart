@@ -63,8 +63,7 @@ class _FakeHttpClientRequest implements HttpClientRequest {
   bool persistentConnection = true;
 
   @override
-  Future addStream(Stream<List<int>> stream) async {
-  }
+  Future addStream(Stream<List<int>> stream) async {}
 
   @override
   Future<HttpClientResponse> close() async {
@@ -78,8 +77,11 @@ class _FakeHttpClientRequest implements HttpClientRequest {
 
 class _FakeHttpClientResponse extends Stream<List<int>>
     implements HttpClientResponse {
-  _FakeHttpClientResponse(this.statusCode, this.body,
-      {required this.reasonPhrase});
+  _FakeHttpClientResponse(
+    this.statusCode,
+    this.body, {
+    required this.reasonPhrase,
+  });
 
   @override
   final int statusCode;
@@ -94,8 +96,12 @@ class _FakeHttpClientResponse extends Stream<List<int>>
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return _singleShot().listen(onData,
-        onError: onError, onDone: onDone, cancelOnError: cancelOnError);
+    return _singleShot().listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
   }
 
   Stream<Uint8List> _singleShot() async* {
@@ -143,8 +149,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = _TestHttpOverrides();
 
-  const secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
 
   setUp(() {
     _wire.clear();
@@ -205,8 +212,10 @@ void main() {
     // The badge Semantics merges with the tile's own label, so match by
     // substring — the network identity is what must be announced.
     expect(find.bySemanticsLabel(RegExp('MTN Mobile Money')), findsOneWidget);
-    expect(find.bySemanticsLabel(RegExp('Telecel Mobile Money')),
-        findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('Telecel Mobile Money')),
+      findsOneWidget,
+    );
 
     // The badge colors are the networks' brand colors, not colors.success.
     final mtn = MomoNetwork.of('MTN_MOMO');

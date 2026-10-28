@@ -36,18 +36,23 @@ class SeatIconCache {
   });
 
   /// Get the picture for a given slot state (considering local selection).
-  ui.Picture? pictureFor({
-    required GridSlot slot,
-    required bool isSelected,
-  }) {
-    if (!slot.isSeat) { return null; }
+  ui.Picture? pictureFor({required GridSlot slot, required bool isSelected}) {
+    if (!slot.isSeat) {
+      return null;
+    }
 
-    if (slot.status == SeatBookStatus.booked) { return occupied; }
+    if (slot.status == SeatBookStatus.booked) {
+      return occupied;
+    }
     if (slot.status == SeatBookStatus.blocked ||
-        slot.status == SeatBookStatus.reserved) { return blocked; }
+        slot.status == SeatBookStatus.reserved) {
+      return blocked;
+    }
 
     // Available: check if locally selected
-    if (isSelected) { return selected; }
+    if (isSelected) {
+      return selected;
+    }
     return available;
   }
 }
@@ -151,7 +156,12 @@ class SeatCanvasPainter extends CustomPainter {
         canvas.restore();
       } else {
         // Fallback: draw a simple rect if icon not yet decoded
-        _drawFallbackSeat(canvas, slotRect.visualRect, slotRect.slot, isSelected);
+        _drawFallbackSeat(
+          canvas,
+          slotRect.visualRect,
+          slotRect.slot,
+          isSelected,
+        );
       }
 
       // ── VIP badge overlay (top-left corner) ──────────────────────────
@@ -179,7 +189,12 @@ class SeatCanvasPainter extends CustomPainter {
     }
   }
 
-  void _drawSeatLabel(Canvas canvas, Rect seatRect, GridSlot slot, bool isSelected) {
+  void _drawSeatLabel(
+    Canvas canvas,
+    Rect seatRect,
+    GridSlot slot,
+    bool isSelected,
+  ) {
     // Choose text color that contrasts with the seat fill
     final Color textColor;
     if (isSelected) {
@@ -271,11 +286,7 @@ class SeatCanvasPainter extends CustomPainter {
       const dashGap = 6.0;
       double x = geometry.totalBounds.left + 20;
       while (x < geometry.totalBounds.right - 20) {
-        canvas.drawLine(
-          Offset(x, y),
-          Offset(x + dashWidth, y),
-          paint,
-        );
+        canvas.drawLine(Offset(x, y), Offset(x + dashWidth, y), paint);
         x += dashWidth + dashGap;
       }
     }
@@ -283,7 +294,10 @@ class SeatCanvasPainter extends CustomPainter {
 
   void _drawVipBadge(Canvas canvas, Rect seatRect) {
     const badgeSize = 18.0;
-    final center = Offset(seatRect.left + badgeSize / 2 + 2, seatRect.top + badgeSize / 2 + 2);
+    final center = Offset(
+      seatRect.left + badgeSize / 2 + 2,
+      seatRect.top + badgeSize / 2 + 2,
+    );
     const radius = badgeSize / 2;
 
     // Amber circle background
@@ -348,10 +362,9 @@ class SeatCanvasPainter extends CustomPainter {
     if (light.intensity <= 0) return;
 
     canvas.save();
-    canvas.clipRRect(RRect.fromRectAndRadius(
-      bounds,
-      Radius.circular(hullStyle.borderRadius),
-    ));
+    canvas.clipRRect(
+      RRect.fromRectAndRadius(bounds, Radius.circular(hullStyle.borderRadius)),
+    );
 
     // Aisle-centred light pool — the aisle is the vehicle's horizontal
     // centre, so a radial pool centred on the hull middle reads as cabin
@@ -359,14 +372,10 @@ class SeatCanvasPainter extends CustomPainter {
     final center = bounds.center;
     final radius = math.max(bounds.width, bounds.height) * 0.55;
     final lightPaint = Paint()
-      ..shader = ui.Gradient.radial(
-        center,
-        radius,
-        [
-          const Color(0xFFFFFFFF).withValues(alpha: 0.10 * light.intensity),
-          const Color(0xFFFFFFFF).withValues(alpha: 0.0),
-        ],
-      );
+      ..shader = ui.Gradient.radial(center, radius, [
+        const Color(0xFFFFFFFF).withValues(alpha: 0.10 * light.intensity),
+        const Color(0xFFFFFFFF).withValues(alpha: 0.0),
+      ]);
     canvas.drawRect(bounds, lightPaint);
 
     // End vignettes — the cabin darkens toward the windshield and rear.
@@ -438,7 +447,12 @@ class SeatCanvasPainter extends CustomPainter {
     canvas.drawCircle(Offset(dx, dy), 3.2, rim);
   }
 
-  void _drawFallbackSeat(Canvas canvas, Rect rect, GridSlot slot, bool isSelected) {
+  void _drawFallbackSeat(
+    Canvas canvas,
+    Rect rect,
+    GridSlot slot,
+    bool isSelected,
+  ) {
     // Simple colored rect fallback when SVG picture isn't decoded yet
     Color color;
     if (slot.status == SeatBookStatus.booked) {

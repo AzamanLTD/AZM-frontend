@@ -28,7 +28,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
-
 class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -37,8 +36,7 @@ class ChangePasswordScreen extends ConsumerStatefulWidget {
       _ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState
-    extends ConsumerState<ChangePasswordScreen> {
+class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   final _currentCtrl = TextEditingController();
   final _newCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -67,8 +65,9 @@ class _ChangePasswordScreenState
       return;
     }
     if (next.length < 8) {
-      setState(() =>
-          _error = 'New password must be at least 8 characters long.');
+      setState(
+        () => _error = 'New password must be at least 8 characters long.',
+      );
       return;
     }
     if (next != confirm) {
@@ -76,8 +75,10 @@ class _ChangePasswordScreenState
       return;
     }
     if (next == current) {
-      setState(() =>
-          _error = 'New password must be different from your current password.');
+      setState(
+        () => _error =
+            'New password must be different from your current password.',
+      );
       return;
     }
 
@@ -87,13 +88,10 @@ class _ChangePasswordScreenState
     });
 
     try {
-      final response = await apiClient.post(
-        '/security/change-password',
-        {
-          'currentPassword': current,
-          'newPassword': next,
-        },
-      );
+      final response = await apiClient.post('/security/change-password', {
+        'currentPassword': current,
+        'newPassword': next,
+      });
 
       final data = jsonDecode(response.body);
 
@@ -112,10 +110,11 @@ class _ChangePasswordScreenState
         );
         Navigator.pop(context);
       } else {
-        setState(() => _error =
-            (data is Map<String, dynamic>)
-                ? (data['message']?.toString() ?? 'Could not update password.')
-                : 'Could not update password.');
+        setState(
+          () => _error = (data is Map<String, dynamic>)
+              ? (data['message']?.toString() ?? 'Could not update password.')
+              : 'Could not update password.',
+        );
       }
     } on ApiException catch (e) {
       // Surface the backend message verbatim — it carries the right
@@ -164,8 +163,7 @@ class _ChangePasswordScreenState
               color: colors.accentSurface,
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.lock_outline,
-                color: colors.accent, size: 28),
+            child: Icon(Icons.lock_outline, color: colors.accent, size: 28),
           ),
           const SizedBox(height: 16),
           Text(
@@ -195,7 +193,9 @@ class _ChangePasswordScreenState
               decoration: BoxDecoration(
                 color: colors.danger.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: colors.danger.withValues(alpha: 0.45)),
+                border: Border.all(
+                  color: colors.danger.withValues(alpha: 0.45),
+                ),
               ),
               child: Text(
                 _error!,
@@ -208,8 +208,7 @@ class _ChangePasswordScreenState
             label: 'Current password',
             controller: _currentCtrl,
             obscure: _obscureCurrent,
-            onToggle: () =>
-                setState(() => _obscureCurrent = !_obscureCurrent),
+            onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
           ),
           const SizedBox(height: 14),
           _passwordField(
@@ -225,8 +224,7 @@ class _ChangePasswordScreenState
             label: 'Confirm new password',
             controller: _confirmCtrl,
             obscure: _obscureConfirm,
-            onToggle: () =>
-                setState(() => _obscureConfirm = !_obscureConfirm),
+            onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
           ),
           const SizedBox(height: 24),
 

@@ -11,9 +11,11 @@ import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/screens/receive_screen.dart';
 import 'package:azaman/services/api_client.dart';
 
-http.Response _json(int status, Map<String, dynamic> body) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
+http.Response _json(int status, Map<String, dynamic> body) => http.Response(
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
 
 class _RequestApiClient extends ApiClient {
   String? endpoint;
@@ -57,11 +59,7 @@ class _SeedFriendProvider extends FriendProvider {
       'id': 'friendship-999',
       'friendshipId': 'friendship-999',
       'friendUsername': 'ama',
-      'friend': {
-        'id': '42',
-        'username': 'ama',
-        'displayName': 'Ama Boateng',
-      },
+      'friend': {'id': '42', 'username': 'ama', 'displayName': 'Ama Boateng'},
     });
   }
 
@@ -82,7 +80,8 @@ class _SeedFriendProvider extends FriendProvider {
     }
     if (failingQueries.contains(query)) {
       searchResults = [];
-      searchError = 'Contact search failed. Check your connection and try again.';
+      searchError =
+          'Contact search failed. Check your connection and try again.';
       notifyListeners();
       return;
     }
@@ -122,92 +121,95 @@ void main() {
     sharedTexts = [];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('dev.fluttercommunity.plus/share'),
-      (call) async {
-        if (call.method == 'share' &&
-            call.arguments is Map &&
-            (call.arguments as Map).containsKey('text')) {
-          sharedTexts.add((call.arguments as Map)['text'] as String?);
-        }
-        return null;
-      },
-    );
+          const MethodChannel('dev.fluttercommunity.plus/share'),
+          (call) async {
+            if (call.method == 'share' &&
+                call.arguments is Map &&
+                (call.arguments as Map).containsKey('text')) {
+              sharedTexts.add((call.arguments as Map)['text'] as String?);
+            }
+            return null;
+          },
+        );
   });
 
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('dev.fluttercommunity.plus/share'),
-      null,
-    );
+          const MethodChannel('dev.fluttercommunity.plus/share'),
+          null,
+        );
   });
 
   testWidgets(
-      'direct Request selects one contact via the picker and sends the exact '
-      'two-decimal GHS contract, reusing its identity on repeat',
-      (tester) async {
-    _phoneSize(tester);
-    final api = _RequestApiClient();
+    'direct Request selects one contact via the picker and sends the exact '
+    'two-decimal GHS contract, reusing its identity on repeat',
+    (tester) async {
+      _phoneSize(tester);
+      final api = _RequestApiClient();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          apiClientProvider.overrideWithValue(api),
-          friendProvider.overrideWith((ref) => _SeedFriendProvider(ref)),
-        ],
-        child: const MaterialApp(home: ReceiveScreen()),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            apiClientProvider.overrideWithValue(api),
+            friendProvider.overrideWith((ref) => _SeedFriendProvider(ref)),
+          ],
+          child: const MaterialApp(home: ReceiveScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    await _openComposer(tester);
+      await _openComposer(tester);
 
-    // The compact resting row replaces the old inline contact list.
-    expect(find.text('Choose contact'), findsOneWidget);
-    expect(find.text('ama'), findsNothing);
+      // The compact resting row replaces the old inline contact list.
+      expect(find.text('Choose contact'), findsOneWidget);
+      expect(find.text('ama'), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('receive-request-contact-row')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    // The sheet offers exactly one selection per tap; picking pops it.
-    await tester.tap(find.text('Ama Boateng'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Choose contact'), findsNothing);
-    // The compact row shows the selected person (username-first, like the
-    // pre-PR composer) — with change and clear affordances.
-    expect(find.text('ama'), findsOneWidget);
-    expect(find.text('@ama'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('receive-request-contact-row')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      // The sheet offers exactly one selection per tap; picking pops it.
+      await tester.tap(find.text('Ama Boateng'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Choose contact'), findsNothing);
+      // The compact row shows the selected person (username-first, like the
+      // pre-PR composer) — with change and clear affordances.
+      expect(find.text('ama'), findsOneWidget);
+      expect(find.text('@ama'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ActionChip, 'GH₵ 10'));
-    await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('receive-request-submit')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.widgetWithText(ActionChip, 'GH₵ 10'));
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('receive-request-submit')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Request created'), findsOneWidget);
-    expect(api.endpoint, '/payment-requests');
-    expect(api.operationType, 'payment.request.create');
-    expect(api.body, {
-      'amount': '10.00',
-      'currency': 'GHS',
-      'requestMode': 'DIRECT',
-      'recipientUserId': '42',
-    });
-    expect(api.postCount, 1);
+      expect(find.text('Request created'), findsOneWidget);
+      expect(api.endpoint, '/payment-requests');
+      expect(api.operationType, 'payment.request.create');
+      expect(api.body, {
+        'amount': '10.00',
+        'currency': 'GHS',
+        'requestMode': 'DIRECT',
+        'recipientUserId': '42',
+      });
+      expect(api.postCount, 1);
 
-    await tester.tap(find.text('Done'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.text('Done'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    // Repeating the SAME request must reuse the created record: no duplicate
-    // economics call against the idempotent backend authority.
-    await tester.tap(find.byKey(const ValueKey('receive-request-submit')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(api.postCount, 1);
-  });
+      // Repeating the SAME request must reuse the created record: no duplicate
+      // economics call against the idempotent backend authority.
+      await tester.tap(find.byKey(const ValueKey('receive-request-submit')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(api.postCount, 1);
+    },
+  );
 
   testWidgets('open request link creates a LINK request and shares the '
       'server-issued shareUrl', (tester) async {
@@ -234,15 +236,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(api.body?['requestMode'], 'LINK');
-    expect(api.body?.containsKey('recipientUserId'), isFalse,
-        reason: 'a LINK request has no preselected recipient');
+    expect(
+      api.body?.containsKey('recipientUserId'),
+      isFalse,
+      reason: 'a LINK request has no preselected recipient',
+    );
     expect(api.body?['amount'], '20.00');
     expect(api.body?['currency'], 'GHS');
     // The canonical shareUrl comes from the create response only.
     expect(
       sharedTexts,
-      contains('Pay my request on Azaman: '
-          'https://pay.azaman.test/request/req-42'),
+      contains(
+        'Pay my request on Azaman: '
+        'https://pay.azaman.test/request/req-42',
+      ),
     );
   });
 
@@ -256,8 +263,10 @@ void main() {
       ProviderScope(
         overrides: [
           apiClientProvider.overrideWithValue(api),
-          friendProvider.overrideWith((ref) =>
-              contacts = _SeedFriendProvider(ref, failingQueries: {'aku'})),
+          friendProvider.overrideWith(
+            (ref) =>
+                contacts = _SeedFriendProvider(ref, failingQueries: {'aku'}),
+          ),
         ],
         child: const MaterialApp(home: ReceiveScreen()),
       ),
@@ -270,7 +279,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('receive-request-contact-row')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(const ValueKey('contact-picker-results')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('contact-picker-results')),
+      findsOneWidget,
+    );
     expect(find.text('Ama Boateng'), findsOneWidget);
 
     // Failed search: honest error state with a retry affordance — never a
@@ -291,7 +303,10 @@ void main() {
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.textContaining('No matching Azaman users found'), findsOneWidget);
+    expect(
+      find.textContaining('No matching Azaman users found'),
+      findsOneWidget,
+    );
     expect(contacts.searchQueries, containsAll(['aku', 'zz']));
 
     // Select, then clear from the compact row.
@@ -323,61 +338,71 @@ void main() {
   });
 
   testWidgets(
-      'with the system keyboard up, picker results stay above the keyboard '
-      'and the composer actions clear the home-indicator inset',
-      (tester) async {
-    _phoneSize(tester, size: const Size(390, 844));
-    tester.view.padding = const FakeViewPadding(bottom: 34);
-    addTearDown(tester.view.resetPadding);
-    final api = _RequestApiClient();
+    'with the system keyboard up, picker results stay above the keyboard '
+    'and the composer actions clear the home-indicator inset',
+    (tester) async {
+      _phoneSize(tester, size: const Size(390, 844));
+      tester.view.padding = const FakeViewPadding(bottom: 34);
+      addTearDown(tester.view.resetPadding);
+      final api = _RequestApiClient();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          apiClientProvider.overrideWithValue(api),
-          friendProvider.overrideWith((ref) => _SeedFriendProvider(ref)),
-        ],
-        child: const MaterialApp(home: ReceiveScreen()),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            apiClientProvider.overrideWithValue(api),
+            friendProvider.overrideWith((ref) => _SeedFriendProvider(ref)),
+          ],
+          child: const MaterialApp(home: ReceiveScreen()),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    // Request composer actions must not sit under the home-indicator inset.
-    await _openComposer(tester);
-    final submitBox = tester.renderObject(
-      find.byKey(const ValueKey('receive-request-submit')),
-    ) as RenderBox;
-    expect(submitBox.localToGlobal(Offset.zero).dy + submitBox.size.height,
-        lessThan(844 - 34));
+      // Request composer actions must not sit under the home-indicator inset.
+      await _openComposer(tester);
+      final submitBox =
+          tester.renderObject(
+                find.byKey(const ValueKey('receive-request-submit')),
+              )
+              as RenderBox;
+      expect(
+        submitBox.localToGlobal(Offset.zero).dy + submitBox.size.height,
+        lessThan(844 - 34),
+      );
 
-    // Keyboard interaction: the sheet lifts its content above the keyboard.
-    await tester.tap(find.byKey(const ValueKey('receive-request-contact-row')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      // Keyboard interaction: the sheet lifts its content above the keyboard.
+      await tester.tap(
+        find.byKey(const ValueKey('receive-request-contact-row')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    final resultsBox = tester.renderObject(
-      find.byKey(const ValueKey('contact-picker-results')),
-    ) as RenderBox;
-    final sheetTop = tester.getTopLeft(
-      find.byKey(const ValueKey('contact-picker-search')),
-    ).dy;
-    expect(sheetTop, lessThan(844 - 280),
-        reason: 'the search field must remain visible above the keyboard');
-    expect(
-      resultsBox.size.height,
-      greaterThan(0),
-      reason: 'the results list remains reachable above the keyboard',
-    );
-  });
+      final resultsBox =
+          tester.renderObject(
+                find.byKey(const ValueKey('contact-picker-results')),
+              )
+              as RenderBox;
+      final sheetTop = tester
+          .getTopLeft(find.byKey(const ValueKey('contact-picker-search')))
+          .dy;
+      expect(
+        sheetTop,
+        lessThan(844 - 280),
+        reason: 'the search field must remain visible above the keyboard',
+      );
+      expect(
+        resultsBox.size.height,
+        greaterThan(0),
+        reason: 'the results list remains reachable above the keyboard',
+      );
+    },
+  );
 
-  testWidgets(
-      'receive details bottom content scrolls fully clear of the home '
-      'indicator inset on a 430x932 viewport',
-      (tester) async {
+  testWidgets('receive details bottom content scrolls fully clear of the home '
+      'indicator inset on a 430x932 viewport', (tester) async {
     _phoneSize(tester, size: const Size(430, 932));
     tester.view.padding = const FakeViewPadding(bottom: 34);
     addTearDown(tester.view.resetPadding);
@@ -409,9 +434,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     final box = tester.renderObject(finder) as RenderBox;
-    final bottom =
-        box.localToGlobal(Offset.zero).dy + box.size.height;
-    expect(bottom, lessThan(932 - 34),
-        reason: 'the last receive-details content must clear the inset');
+    final bottom = box.localToGlobal(Offset.zero).dy + box.size.height;
+    expect(
+      bottom,
+      lessThan(932 - 34),
+      reason: 'the last receive-details content must clear the inset',
+    );
   });
 }

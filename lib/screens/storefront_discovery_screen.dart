@@ -23,10 +23,12 @@ class StorefrontDiscoveryScreen extends ConsumerStatefulWidget {
   const StorefrontDiscoveryScreen({super.key});
 
   @override
-  ConsumerState<StorefrontDiscoveryScreen> createState() => _StorefrontDiscoveryScreenState();
+  ConsumerState<StorefrontDiscoveryScreen> createState() =>
+      _StorefrontDiscoveryScreenState();
 }
 
-class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryScreen> {
+class _StorefrontDiscoveryScreenState
+    extends ConsumerState<StorefrontDiscoveryScreen> {
   final TextEditingController _searchCtrl = TextEditingController();
   String? _search;
   String? _category;
@@ -50,7 +52,9 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
 
   void _doSearch() {
     setState(() {
-      _search = _searchCtrl.text.trim().isEmpty ? null : _searchCtrl.text.trim();
+      _search = _searchCtrl.text.trim().isEmpty
+          ? null
+          : _searchCtrl.text.trim();
       _offset = 0;
       _allResults = [];
       _hasMore = true;
@@ -84,7 +88,8 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
   void initState() {
     super.initState();
     _scrollCtrl.addListener(() {
-      if (_scrollCtrl.position.pixels >= _scrollCtrl.position.maxScrollExtent - 200) {
+      if (_scrollCtrl.position.pixels >=
+          _scrollCtrl.position.maxScrollExtent - 200) {
         _loadMore();
       }
     });
@@ -111,7 +116,14 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: Text('Discover Storefronts', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+        title: Text(
+          'Discover Storefronts',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         backgroundColor: colors.surface,
         foregroundColor: colors.textPrimary,
         elevation: 0,
@@ -136,11 +148,22 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
               decoration: InputDecoration(
                 hintText: 'Search businesses...',
                 hintStyle: TextStyle(color: colors.textSecondary, fontSize: 14),
-                prefixIcon: Icon(Icons.search, color: colors.textSecondary, size: 20),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: colors.textSecondary,
+                  size: 20,
+                ),
                 suffixIcon: _search != null
                     ? IconButton(
-                        icon: Icon(Icons.close, color: colors.textSecondary, size: 18),
-                        onPressed: () { _searchCtrl.clear(); _doSearch(); },
+                        icon: Icon(
+                          Icons.close,
+                          color: colors.textSecondary,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _doSearch();
+                        },
                       )
                     : null,
                 filled: true,
@@ -157,7 +180,10 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: colors.accent, width: 1.5),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
             ),
           ),
@@ -188,7 +214,9 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
                   labelStyle: TextStyle(
                     color: isSelected ? Colors.white : colors.textSecondary,
                     fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                   backgroundColor: colors.surface,
                   side: BorderSide(color: colors.divider),
@@ -201,18 +229,38 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
           // Results
           Expanded(
             child: asyncResults.when(
-              loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+              loading: () => Center(
+                child: CircularProgressIndicator(color: colors.accent),
+              ),
               error: (err, _) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(32),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.cloud_off, size: 48, color: colors.textSecondary),
+                      Icon(
+                        Icons.cloud_off,
+                        size: 48,
+                        color: colors.textSecondary,
+                      ),
                       const SizedBox(height: 16),
-                      Text('Could not load storefronts', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                      Text(
+                        'Could not load storefronts',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Text(err.toString(), style: TextStyle(fontSize: 13, color: colors.textSecondary), textAlign: TextAlign.center),
+                      Text(
+                        err.toString(),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ],
                   ),
                 ),
@@ -227,11 +275,28 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.storefront_outlined, size: 48, color: colors.textSecondary),
+                          Icon(
+                            Icons.storefront_outlined,
+                            size: 48,
+                            color: colors.textSecondary,
+                          ),
                           const SizedBox(height: 16),
-                          Text('No storefronts found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                          Text(
+                            'No storefronts found',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: colors.textPrimary,
+                            ),
+                          ),
                           const SizedBox(height: 8),
-                          Text('Try a different search or category filter.', style: TextStyle(fontSize: 13, color: colors.textSecondary)),
+                          Text(
+                            'Try a different search or category filter.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: colors.textSecondary,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -244,18 +309,38 @@ class _StorefrontDiscoveryScreenState extends ConsumerState<StorefrontDiscoveryS
                   itemCount: display.length + (_isLoadingMore ? 1 : 0),
                   itemBuilder: (ctx, i) {
                     if (i >= display.length) {
-                      return Center(child: Padding(padding: const EdgeInsets.all(16), child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2)));
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: CircularProgressIndicator(
+                            color: colors.accent,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      );
                     }
                     return _StorefrontCard(
                       data: display[i],
                       colors: colors,
                       onTap: () {
                         final bizId = display[i]['businessProfileId'] as String;
-                        final bizName = (display[i]['business'] as Map<String, dynamic>?)?['businessName'] as String?;
+                        final bizName =
+                            (display[i]['business']
+                                    as Map<String, dynamic>?)?['businessName']
+                                as String?;
                         // Track discovery tap
-                        StorefrontTrackingService.instance.trackEvent(bizId, 'storefront_view', {'source': 'discovery'});
-                        pushWithVerticalTransition(context, StorefrontScreen(businessProfileId: bizId,
-                              businessName: bizName,));
+                        StorefrontTrackingService.instance.trackEvent(
+                          bizId,
+                          'storefront_view',
+                          {'source': 'discovery'},
+                        );
+                        pushWithVerticalTransition(
+                          context,
+                          StorefrontScreen(
+                            businessProfileId: bizId,
+                            businessName: bizName,
+                          ),
+                        );
                       },
                     );
                   },
@@ -274,7 +359,11 @@ class _StorefrontCard extends StatelessWidget {
   final AzamanColors colors;
   final VoidCallback onTap;
 
-  const _StorefrontCard({required this.data, required this.colors, required this.onTap});
+  const _StorefrontCard({
+    required this.data,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -284,11 +373,14 @@ class _StorefrontCard extends StatelessWidget {
     final category = business['category'] as String? ?? '';
     final logoUrl = business['logoUrl'] as String?;
     final coverUrl = business['coverPhotoUrl'] as String?;
-    final rating = business['averageRating'] != null ? (business['averageRating'] as num).toDouble() : null;
+    final rating = business['averageRating'] != null
+        ? (business['averageRating'] as num).toDouble()
+        : null;
     final reviewCount = business['reviewCount'] as int? ?? 0;
     final description = business['description'] as String?;
     final tileCount = data['tileCount'] as int? ?? 0;
-    final accent = theme['accent'] as String? ?? 
+    final accent =
+        theme['accent'] as String? ??
         '#${colors.accent.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
 
     return GestureDetector(
@@ -312,12 +404,19 @@ class _StorefrontCard extends StatelessWidget {
           children: [
             // Cover image or accent gradient
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(14),
+              ),
               child: SizedBox(
                 height: 120,
                 width: double.infinity,
                 child: coverUrl != null
-                    ? AzamanNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover, errorWidget: (_, __, ___) => _CoverFallback(accent: accent))
+                    ? AzamanNetworkImage(
+                        imageUrl: coverUrl,
+                        fit: BoxFit.cover,
+                        errorWidget: (_, __, ___) =>
+                            _CoverFallback(accent: accent),
+                      )
                     : _CoverFallback(accent: accent),
               ),
             ),
@@ -340,8 +439,20 @@ class _StorefrontCard extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(12),
                       child: logoUrl != null
-                          ? AzamanNetworkImage(imageUrl: logoUrl, fit: BoxFit.cover, errorWidget: (_, __, ___) => Icon(Icons.store, color: colors.textSecondary, size: 24))
-                          : Icon(Icons.store, color: colors.textSecondary, size: 24),
+                          ? AzamanNetworkImage(
+                              imageUrl: logoUrl,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => Icon(
+                                Icons.store,
+                                color: colors.textSecondary,
+                                size: 24,
+                              ),
+                            )
+                          : Icon(
+                              Icons.store,
+                              color: colors.textSecondary,
+                              size: 24,
+                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -351,24 +462,64 @@ class _StorefrontCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(name, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: colors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: colors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 2),
                         Row(
                           children: [
                             if (rating != null && rating > 0) ...[
-                              Icon(Icons.star, size: 14, color: Colors.amber[600]),
+                              Icon(
+                                Icons.star,
+                                size: 14,
+                                color: Colors.amber[600],
+                              ),
                               const SizedBox(width: 2),
-                              Text(rating.toStringAsFixed(1), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                              Text(
+                                rating.toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.textPrimary,
+                                ),
+                              ),
                               const SizedBox(width: 4),
-                              Text('($reviewCount)', style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                              Text(
+                                '($reviewCount)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: colors.textSecondary,
+                                ),
+                              ),
                               const SizedBox(width: 8),
                             ],
-                            Text(_categoryLabel(category), style: TextStyle(fontSize: 11, color: colors.textSecondary)),
+                            Text(
+                              _categoryLabel(category),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: colors.textSecondary,
+                              ),
+                            ),
                           ],
                         ),
                         if (description != null && description.isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text(description, style: TextStyle(fontSize: 12, color: colors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          Text(
+                            description,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: colors.textSecondary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ],
                     ),
@@ -376,14 +527,21 @@ class _StorefrontCard extends StatelessWidget {
 
                   // Tile count badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       '$tileCount widgets',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.accent),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: colors.accent,
+                      ),
                     ),
                   ),
                 ],
@@ -397,14 +555,22 @@ class _StorefrontCard extends StatelessWidget {
 
   String _categoryLabel(String category) {
     switch (category) {
-      case 'FOOD_BEVERAGE': return 'Food & Beverage';
-      case 'RETAIL': return 'Retail';
-      case 'HOSPITALITY': return 'Hospitality';
-      case 'HEALTH_BEAUTY': return 'Health & Beauty';
-      case 'SERVICES': return 'Services';
-      case 'LOGISTICS': return 'Logistics';
-      case 'REAL_ESTATE': return 'Real Estate';
-      default: return 'Business';
+      case 'FOOD_BEVERAGE':
+        return 'Food & Beverage';
+      case 'RETAIL':
+        return 'Retail';
+      case 'HOSPITALITY':
+        return 'Hospitality';
+      case 'HEALTH_BEAUTY':
+        return 'Health & Beauty';
+      case 'SERVICES':
+        return 'Services';
+      case 'LOGISTICS':
+        return 'Logistics';
+      case 'REAL_ESTATE':
+        return 'Real Estate';
+      default:
+        return 'Business';
     }
   }
 }
@@ -421,12 +587,22 @@ class _CoverFallback extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(int.parse('0xFF${accent.replaceAll('#', '')}')).withValues(alpha: 0.3),
-            Color(int.parse('0xFF${accent.replaceAll('#', '')}')).withValues(alpha: 0.1),
+            Color(
+              int.parse('0xFF${accent.replaceAll('#', '')}'),
+            ).withValues(alpha: 0.3),
+            Color(
+              int.parse('0xFF${accent.replaceAll('#', '')}'),
+            ).withValues(alpha: 0.1),
           ],
         ),
       ),
-      child: Center(child: Icon(Icons.storefront, size: 36, color: Color(int.parse('0xFF${accent.replaceAll('#', '')}')))),
+      child: Center(
+        child: Icon(
+          Icons.storefront,
+          size: 36,
+          color: Color(int.parse('0xFF${accent.replaceAll('#', '')}')),
+        ),
+      ),
     );
   }
 }

@@ -36,7 +36,6 @@ import 'package:azaman/widgets/audio_recorder_button.dart';
 import 'package:azaman/widgets/chat_media_bubble.dart';
 import 'package:azaman/widgets/escrow_status_panel.dart';
 
-
 class TicketWorkspaceScreen extends ConsumerStatefulWidget {
   final String ticketId;
   final String friendUsername;
@@ -68,16 +67,13 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      await ref
-          .read(ticketWorkspaceProvider(widget.ticketId).notifier)
-          .load();
+      await ref.read(ticketWorkspaceProvider(widget.ticketId).notifier).load();
       _joinRoom();
       _scrollToBottom();
       // Once the ticket is loaded we know whether it's an escrow; if so, load
       // the escrow state and subscribe to the ticket-scoped realtime stream.
       if (!mounted) return;
-      final loaded =
-          ref.read(ticketWorkspaceProvider(widget.ticketId)).ticket;
+      final loaded = ref.read(ticketWorkspaceProvider(widget.ticketId)).ticket;
       if (loaded?.type == TicketType.escrow) {
         ref.read(escrowProvider(widget.ticketId).notifier).load();
         _unsubscribeEscrow = EscrowSubscriptionRegistry.instance.subscribe(
@@ -193,10 +189,12 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
       _scrollToBottom();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Voice note failed: $e'),
-          backgroundColor: colors.danger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Voice note failed: $e'),
+            backgroundColor: colors.danger,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploadingAudio = false);
@@ -205,19 +203,22 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
 
   Future<void> _confirmAndChange(TicketStatus target) async {
     final colors = ref.read(themeProvider).colors;
-    final notifier =
-        ref.read(ticketWorkspaceProvider(widget.ticketId).notifier);
+    final notifier = ref.read(
+      ticketWorkspaceProvider(widget.ticketId).notifier,
+    );
     final verb = target == TicketStatus.closed
         ? 'close'
         : target == TicketStatus.cancelled
-            ? 'cancel'
-            : 'reopen';
+        ? 'cancel'
+        : 'reopen';
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
-        title: Text('${verb[0].toUpperCase()}${verb.substring(1)} ticket?',
-            style: TextStyle(color: colors.textPrimary)),
+        title: Text(
+          '${verb[0].toUpperCase()}${verb.substring(1)} ticket?',
+          style: TextStyle(color: colors.textPrimary),
+        ),
         content: Text(
           'You are about to $verb this ticket. ${target == TicketStatus.open ? 'Both parties will be able to post again.' : 'Posting will be locked thereafter; the ticket history is preserved.'}',
           style: TextStyle(color: colors.textSecondary),
@@ -229,13 +230,15 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(verb.toUpperCase(),
-                style: TextStyle(
-                  color: target == TicketStatus.cancelled
-                      ? colors.danger
-                      : colors.accent,
-                  fontWeight: FontWeight.w800,
-                )),
+            child: Text(
+              verb.toUpperCase(),
+              style: TextStyle(
+                color: target == TicketStatus.cancelled
+                    ? colors.danger
+                    : colors.accent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -259,8 +262,9 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
 
     // V3 Marketplace Sprint: escrow status panel (only for ESCROW tickets).
     final isEscrow = state.ticket?.type == TicketType.escrow;
-    final escrowState =
-        isEscrow ? ref.watch(escrowProvider(widget.ticketId)) : null;
+    final escrowState = isEscrow
+        ? ref.watch(escrowProvider(widget.ticketId))
+        : null;
     final currentUser = ref.watch(authProvider).user;
 
     return Scaffold(
@@ -270,11 +274,14 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
         title: state.ticket == null
-            ? Text('Ticket',
+            ? Text(
+                'Ticket',
                 style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800))
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              )
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -291,10 +298,7 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
                   ),
                   Text(
                     'with ${widget.friendUsername} · ${state.ticket!.status.label}',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
                   ),
                 ],
               ),
@@ -308,23 +312,34 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
                 final cur = state.ticket!.status;
                 final items = <PopupMenuEntry<TicketStatus>>[];
                 if (cur == TicketStatus.open) {
-                  items.add(PopupMenuItem(
-                    value: TicketStatus.closed,
-                    child: _menuRow(Icons.check_circle_outline,
-                        'Close ticket', colors),
-                  ));
-                  items.add(PopupMenuItem(
-                    value: TicketStatus.cancelled,
-                    child: _menuRow(Icons.cancel_outlined,
-                        'Cancel ticket', colors,
-                        danger: true),
-                  ));
+                  items.add(
+                    PopupMenuItem(
+                      value: TicketStatus.closed,
+                      child: _menuRow(
+                        Icons.check_circle_outline,
+                        'Close ticket',
+                        colors,
+                      ),
+                    ),
+                  );
+                  items.add(
+                    PopupMenuItem(
+                      value: TicketStatus.cancelled,
+                      child: _menuRow(
+                        Icons.cancel_outlined,
+                        'Cancel ticket',
+                        colors,
+                        danger: true,
+                      ),
+                    ),
+                  );
                 } else {
-                  items.add(PopupMenuItem(
-                    value: TicketStatus.open,
-                    child: _menuRow(Icons.refresh,
-                        'Reopen ticket', colors),
-                  ));
+                  items.add(
+                    PopupMenuItem(
+                      value: TicketStatus.open,
+                      child: _menuRow(Icons.refresh, 'Reopen ticket', colors),
+                    ),
+                  );
                 }
                 return items;
               },
@@ -352,26 +367,32 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
               onCancel: () =>
                   ref.read(escrowProvider(widget.ticketId).notifier).cancel(),
             ),
-          if (state.ticket != null) _Header(ticket: state.ticket!, colors: colors, friendUsername: widget.friendUsername),
+          if (state.ticket != null)
+            _Header(
+              ticket: state.ticket!,
+              colors: colors,
+              friendUsername: widget.friendUsername,
+            ),
           if (state.counterpartyViewingUserId != null)
             _PresenceBanner(colors: colors, friendName: widget.friendUsername),
           Expanded(
             child: state.isLoading && state.messages.isEmpty
                 ? Center(child: CircularProgressIndicator(color: colors.accent))
                 : state.messages.isEmpty
-                    ? _EmptyState(colors: colors)
-                    : ListView.builder(
-                        controller: _scrollCtrl,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        itemCount: state.messages.length,
-                        itemBuilder: (_, i) {
-                          final msg = state.messages[i];
-                          final isMe = msg.senderId.toString() == myId;
-                          return _Bubble(
-                              msg: msg, isMe: isMe, colors: colors);
-                        },
-                      ),
+                ? _EmptyState(colors: colors)
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    itemCount: state.messages.length,
+                    itemBuilder: (_, i) {
+                      final msg = state.messages[i];
+                      final isMe = msg.senderId.toString() == myId;
+                      return _Bubble(msg: msg, isMe: isMe, colors: colors);
+                    },
+                  ),
           ),
           if (state.ticket?.status == TicketStatus.open)
             _InputBar(
@@ -389,17 +410,27 @@ class _TicketWorkspaceScreenState extends ConsumerState<TicketWorkspaceScreen>
     );
   }
 
-  Widget _menuRow(IconData icon, String label, AzamanColors colors,
-      {bool danger = false}) {
+  Widget _menuRow(
+    IconData icon,
+    String label,
+    AzamanColors colors, {
+    bool danger = false,
+  }) {
     return Row(
       children: [
-        Icon(icon,
-            color: danger ? colors.danger : colors.textPrimary, size: 18),
+        Icon(
+          icon,
+          color: danger ? colors.danger : colors.textPrimary,
+          size: 18,
+        ),
         const SizedBox(width: 10),
-        Text(label,
-            style: TextStyle(
-                color: danger ? colors.danger : colors.textPrimary,
-                fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: TextStyle(
+            color: danger ? colors.danger : colors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }
@@ -445,16 +476,16 @@ class _HeaderState extends State<_Header> with SingleTickerProviderStateMixin {
   }
 
   Color get _statusColor => switch (widget.ticket.status) {
-        TicketStatus.open     => const Color(0xFFF59E0B),
-        TicketStatus.closed   => const Color(0xFF22C55E),
-        TicketStatus.cancelled=> const Color(0xFFEF4444),
-      };
+    TicketStatus.open => const Color(0xFFF59E0B),
+    TicketStatus.closed => const Color(0xFF22C55E),
+    TicketStatus.cancelled => const Color(0xFFEF4444),
+  };
 
   String get _statusLabel => switch (widget.ticket.status) {
-        TicketStatus.open     => 'ACTIVE',
-        TicketStatus.closed   => 'CLOSED',
-        TicketStatus.cancelled=> 'CANCELLED',
-      };
+    TicketStatus.open => 'ACTIVE',
+    TicketStatus.closed => 'CLOSED',
+    TicketStatus.cancelled => 'CANCELLED',
+  };
 
   String _fmtAmount(double v) {
     if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(2)}M';
@@ -482,13 +513,14 @@ class _HeaderState extends State<_Header> with SingleTickerProviderStateMixin {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Color.alphaBlend(
-                          _gold.withValues(alpha: 0.18), _gradTop),
+                      Color.alphaBlend(_gold.withValues(alpha: 0.18), _gradTop),
                       _gradBottom,
                     ],
                   ),
                   border: Border.all(
-                      color: _gold.withValues(alpha: 0.28), width: 1),
+                    color: _gold.withValues(alpha: 0.28),
+                    width: 1,
+                  ),
                 ),
               ),
             ),
@@ -503,7 +535,9 @@ class _HeaderState extends State<_Header> with SingleTickerProviderStateMixin {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: _gold.withValues(alpha: 0.08), width: 22),
+                      color: _gold.withValues(alpha: 0.08),
+                      width: 22,
+                    ),
                   ),
                 ),
               ),
@@ -580,13 +614,16 @@ class _HeaderState extends State<_Header> with SingleTickerProviderStateMixin {
                       // Status badge
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: _statusColor.withValues(alpha: 0.20),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: _statusColor.withValues(alpha: 0.55),
-                              width: 0.8),
+                            color: _statusColor.withValues(alpha: 0.55),
+                            width: 0.8,
+                          ),
                         ),
                         child: Text(
                           _statusLabel,
@@ -650,7 +687,9 @@ class _HeaderState extends State<_Header> with SingleTickerProviderStateMixin {
                       if (t.memo != null && t.memo!.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.09),
                             borderRadius: BorderRadius.circular(10),
@@ -703,9 +742,7 @@ class _PresenceBanner extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.accent,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(color: colors.accent, blurRadius: 4),
-              ],
+              boxShadow: [BoxShadow(color: colors.accent, blurRadius: 4)],
             ),
           ),
           const SizedBox(width: 10),
@@ -764,13 +801,12 @@ class _Bubble extends StatelessWidget {
       );
     }
 
-
     // TRANSFER messages render as premium ChatMoneyCards
     final isTransfer = const {
       'TRANSFER_SENT',
       'TRANSFER_REQUEST',
       'TRANSFER_COMPLETED',
-      'TRANSFER_DECLINED'
+      'TRANSFER_DECLINED',
     }.contains(msg.type);
 
     if (isTransfer) {
@@ -779,7 +815,7 @@ class _Bubble extends StatelessWidget {
       final isRequest = msg.type == 'TRANSFER_REQUEST';
       // If we don't have senderUsername, we can fall back to 'Unknown' or ''
       final contactName = msg.sender?['username']?.toString() ?? '';
-      
+
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 4),
         child: ChatMoneyCard(
@@ -787,7 +823,8 @@ class _Bubble extends StatelessWidget {
           currency: cur,
           isMe: isMe,
           contactName: contactName,
-          status: msg.metadata?['status']?.toString().toLowerCase() ?? 'completed',
+          status:
+              msg.metadata?['status']?.toString().toLowerCase() ?? 'completed',
           isRequest: isRequest,
           reference: msg.metadata?['reference']?.toString(),
           memo: msg.content,
@@ -837,8 +874,9 @@ class _Bubble extends StatelessWidget {
           ),
         ),
         child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMe
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
             Text(
               msg.content ?? '',
@@ -881,15 +919,20 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.chat_bubble_outline,
-                color: colors.textTertiary, size: 36),
+            Icon(
+              Icons.chat_bubble_outline,
+              color: colors.textTertiary,
+              size: 36,
+            ),
             const SizedBox(height: 8),
-            Text('No messages yet.',
-                style:
-                    TextStyle(color: colors.textSecondary, fontSize: 13)),
-            Text('Start the conversation about this deal.',
-                style:
-                    TextStyle(color: colors.textTertiary, fontSize: 11)),
+            Text(
+              'No messages yet.',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+            Text(
+              'Start the conversation about this deal.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 11),
+            ),
           ],
         ),
       ),
@@ -904,7 +947,7 @@ class _InputBar extends StatefulWidget {
   final TextEditingController controller;
   final Future<void> Function() onSend;
   final Future<void> Function(File file, int durationSec, List<int> peaks)
-      onAudioRecorded;
+  onAudioRecorded;
   final bool isSending;
   final bool isUploadingAudio;
   final AzamanColors colors;
@@ -962,7 +1005,9 @@ class _InputBarState extends State<_InputBar> {
                   borderSide: BorderSide.none,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 10),
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 isDense: true,
               ),
             ),
@@ -989,16 +1034,14 @@ class _InputBarState extends State<_InputBar> {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: colors.isDark
-                              ? Colors.black
-                              : Colors.white,
+                          color: colors.isDark ? Colors.black : Colors.white,
                         ),
                       )
-                    : Icon(Icons.send_outlined,
-                        color: colors.isDark
-                            ? Colors.black
-                            : Colors.white,
-                        size: 20),
+                    : Icon(
+                        Icons.send_outlined,
+                        color: colors.isDark ? Colors.black : Colors.white,
+                        size: 20,
+                      ),
                 onPressed: widget.isSending
                     ? null
                     : () {
@@ -1038,16 +1081,16 @@ class _LockedFooter extends StatelessWidget {
       color: colors.surface,
       child: Row(
         children: [
-          Icon(Icons.lock_outline,
-              color: colors.textTertiary, size: 16),
+          Icon(Icons.lock_outline, color: colors.textTertiary, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
               style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600),
+                color: colors.textTertiary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

@@ -57,7 +57,8 @@ class FlipBook extends StatefulWidget {
   State<FlipBook> createState() => FlipBookState();
 }
 
-class FlipBookState extends State<FlipBook> with SingleTickerProviderStateMixin {
+class FlipBookState extends State<FlipBook>
+    with SingleTickerProviderStateMixin {
   late FlipBookController _controller;
   bool _ownsController = false;
 
@@ -81,15 +82,22 @@ class FlipBookState extends State<FlipBook> with SingleTickerProviderStateMixin 
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ??
-        FlipBookController(physics: widget.physics, hapticsEnabled: widget.hapticsEnabled);
+    _controller =
+        widget.controller ??
+        FlipBookController(
+          physics: widget.physics,
+          hapticsEnabled: widget.hapticsEnabled,
+        );
     _ownsController = widget.controller == null;
     _controller
       ..attach(this)
       ..addListener(_onControllerTick);
     _lastPage = _controller.page;
     if (widget.idleHint) {
-      _idleTimer = Timer.periodic(const Duration(milliseconds: 900), _onIdleTick);
+      _idleTimer = Timer.periodic(
+        const Duration(milliseconds: 900),
+        _onIdleTick,
+      );
     }
   }
 
@@ -134,8 +142,12 @@ class FlipBookState extends State<FlipBook> with SingleTickerProviderStateMixin 
     final obj = key.currentContext?.findRenderObject();
     if (obj is! RenderRepaintBoundary) return null;
     final boundary = obj;
-    if (!boundary.attached || !boundary.hasSize || boundary.size.isEmpty) return null;
-    final dpr = (MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0).clamp(1.0, 2.0);
+    if (!boundary.attached || !boundary.hasSize || boundary.size.isEmpty)
+      return null;
+    final dpr = (MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0).clamp(
+      1.0,
+      2.0,
+    );
     try {
       return boundary.toImageSync(pixelRatio: dpr);
     } catch (_) {
@@ -151,7 +163,9 @@ class FlipBookState extends State<FlipBook> with SingleTickerProviderStateMixin 
       _previousTextureIndex = -1;
       return;
     }
-    final img = _capture(leafIndex == _controller.page ? _leafKey : _prerasterKey);
+    final img = _capture(
+      leafIndex == _controller.page ? _leafKey : _prerasterKey,
+    );
     if (img != null) {
       _leafTexture?.dispose();
       _leafTexture = img;
@@ -194,8 +208,9 @@ class FlipBookState extends State<FlipBook> with SingleTickerProviderStateMixin 
         pageRect: Offset.zero & _size,
         anchorCorner: _controller.anchorCorner,
         touch: _controller.touch,
-        textureSize:
-            tex == null ? _size : Size(tex.width.toDouble(), tex.height.toDouble()),
+        textureSize: tex == null
+            ? _size
+            : Size(tex.width.toDouble(), tex.height.toDouble()),
       ),
       progress: _controller.progress,
     );

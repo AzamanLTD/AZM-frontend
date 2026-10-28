@@ -339,41 +339,44 @@ void main() {
   });
 
   group('Demo business stories — truthful seeded path', () {
-    test(
-      'interceptor serves the real production rail shape, no Unsplash',
-      () {
-        final res = DemoInterceptor.tryGet(
-          '/marketplace/business/${DemoMarketplaceSeed.restaurantBizId}/stories',
+    test('interceptor serves the real production rail shape, no Unsplash', () {
+      final res = DemoInterceptor.tryGet(
+        '/marketplace/business/${DemoMarketplaceSeed.restaurantBizId}/stories',
+      );
+      expect(res, isNotNull);
+      final body = jsonDecode(res!.body) as Map<String, dynamic>;
+
+      // Never Unsplash media in the demo story path.
+      expect(res.body, isNot(contains('images.unsplash.com')));
+
+      // Production shape parity: {success, stories} — never the legacy
+      // {groups} envelope, which no backend route ever sent.
+      expect(body['success'], true);
+      expect(body, isNot(contains('groups')));
+      final stories = body['stories'] as List;
+      expect(
+        stories,
+        isNotEmpty,
+        reason: 'seeded business must have story rows',
+      );
+      for (final st in stories.whereType<Map<String, dynamic>>()) {
+        expect(
+          (st['id'] as String).startsWith('bs-'),
+          true,
+          reason: 'story IDs come from the seed, not DateTime.now() fakes',
         );
-        expect(res, isNotNull);
-        final body = jsonDecode(res!.body) as Map<String, dynamic>;
-
-        // Never Unsplash media in the demo story path.
-        expect(res.body, isNot(contains('images.unsplash.com')));
-
-        // Production shape parity: {success, stories} — never the legacy
-        // {groups} envelope, which no backend route ever sent.
-        expect(body['success'], true);
-        expect(body, isNot(contains('groups')));
-        final stories = body['stories'] as List;
-        expect(stories, isNotEmpty,
-            reason: 'seeded business must have story rows');
-        for (final st in stories.whereType<Map<String, dynamic>>()) {
-          expect((st['id'] as String).startsWith('bs-'), true,
-              reason: 'story IDs come from the seed, not DateTime.now() fakes');
-          expect(st['mediaUrl'], isNot(contains('images.unsplash.com')));
-          expect(st['businessProfileId'],
-              DemoMarketplaceSeed.restaurantBizId);
-          // Every row must parse as the real-rail model.
-          expect(() => BusinessStory.fromJson(st), returnsNormally);
-        }
-      },
-    );
+        expect(st['mediaUrl'], isNot(contains('images.unsplash.com')));
+        expect(st['businessProfileId'], DemoMarketplaceSeed.restaurantBizId);
+        // Every row must parse as the real-rail model.
+        expect(() => BusinessStory.fromJson(st), returnsNormally);
+      }
+    });
 
     test('unknown business stories throw the typed not-seeded signal', () {
       expect(
         () => DemoInterceptor.tryGet(
-            '/marketplace/business/BIZ-NOPE-999/stories'),
+          '/marketplace/business/BIZ-NOPE-999/stories',
+        ),
         throwsA(isA<DemoEndpointNotSeededException>()),
       );
     });

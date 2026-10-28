@@ -74,7 +74,7 @@ GoRouter _router() {
         builder: (context, state) => Scaffold(
           body: Center(
             child: VisaTransferSeamAnchor(
-                            onTransfer: () => context.push(AzRoutes.cardTransfer),
+              onTransfer: () => context.push(AzRoutes.cardTransfer),
               child: const SizedBox(
                 key: _standInDeckKey,
                 width: 400,
@@ -105,9 +105,7 @@ Widget _app(
     child: MaterialApp.router(
       debugShowCheckedModeBanner: false,
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          disableAnimations: reduceMotion,
-        ),
+        data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
         child: child ?? const SizedBox.shrink(),
       ),
       routerConfig: router,
@@ -151,7 +149,6 @@ Future<void> _pumpTransfer(
   await tester.pump(const Duration(milliseconds: 400));
 }
 
-
 /// Taps a keypad key, scoped INSIDE the keypad — the balance card renders
 /// its own digits and must never race the tap target.
 Future<void> _tapKey(WidgetTester tester, String label) async {
@@ -187,7 +184,7 @@ void main() {
             home: Scaffold(
               body: Center(
                 child: VisaTransferSeamAnchor(
-                                    onTransfer: () => tapped++,
+                  onTransfer: () => tapped++,
                   child: const SizedBox(
                     key: _standInDeckKey,
                     width: 400,
@@ -214,16 +211,24 @@ void main() {
           WalletCardDeckState.visaHeaderTop +
           WalletCardDeckState.visaPeek +
           WalletCardDeckState.balanceHeaderBand;
-      expect(rect.top - deckRect.top,
-          moreOrLessEquals(pocketMouthY, epsilon: 0.5),
-          reason: 'the clasp starts exactly at the pocket mouth — below it, '
-              'the balance header band must stay fully tappable');
-      expect(rect.bottom - deckRect.top,
-          moreOrLessEquals(pocketMouthY + kSeamControlSize, epsilon: 0.5));
-      expect(rect.center.dx - deckRect.left,
-          moreOrLessEquals(deckRect.width / 2, epsilon: 0.5),
-          reason: 'the clasp sits in the pocket mouth\'s clear center — '
-              'AZM / SAMPLE / VISA marks stay visible at the sides');
+      expect(
+        rect.top - deckRect.top,
+        moreOrLessEquals(pocketMouthY, epsilon: 0.5),
+        reason:
+            'the clasp starts exactly at the pocket mouth — below it, '
+            'the balance header band must stay fully tappable',
+      );
+      expect(
+        rect.bottom - deckRect.top,
+        moreOrLessEquals(pocketMouthY + kSeamControlSize, epsilon: 0.5),
+      );
+      expect(
+        rect.center.dx - deckRect.left,
+        moreOrLessEquals(deckRect.width / 2, epsilon: 0.5),
+        reason:
+            'the clasp sits in the pocket mouth\'s clear center — '
+            'AZM / SAMPLE / VISA marks stay visible at the sides',
+      );
 
       await tester.tap(control);
       await tester.pump();
@@ -258,7 +263,8 @@ void main() {
       expect(
         find.byKey(const ValueKey('visa-transfer-seam-control')),
         findsNothing,
-        reason: 'an out card owns the deck surface — the clasp must not '
+        reason:
+            'an out card owns the deck surface — the clasp must not '
             'mount over it',
       );
     });
@@ -323,8 +329,9 @@ void main() {
       expect(find.byType(CardTransferScreen), findsNothing);
     });
 
-    testWidgets('the review stage consumes a pull before the surface closes',
-        (tester) async {
+    testWidgets('the review stage consumes a pull before the surface closes', (
+      tester,
+    ) async {
       await _pumpTransfer(tester);
 
       // Type an amount, reach the review stage.
@@ -332,8 +339,10 @@ void main() {
       await _tapKey(tester, '2');
       await tester.tap(find.byKey(const ValueKey('card-transfer-review-cta')));
       await tester.pump();
-      expect(find.byKey(const ValueKey('card-transfer-review-title')),
-          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('card-transfer-review-title')),
+        findsOneWidget,
+      );
 
       await tester.fling(
         find.byType(CardTransferScreen),
@@ -345,10 +354,14 @@ void main() {
 
       // Still open — the pull returned to the amount stage, not home.
       expect(find.byType(CardTransferScreen), findsOneWidget);
-      expect(find.byKey(const ValueKey('card-transfer-amount')),
-          findsOneWidget);
-      expect(find.byKey(const ValueKey('card-transfer-review-title')),
-          findsNothing);
+      expect(
+        find.byKey(const ValueKey('card-transfer-amount')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('card-transfer-review-title')),
+        findsNothing,
+      );
     });
   });
 
@@ -367,26 +380,40 @@ void main() {
 
       // The COMPACT pair — purpose-designed previews, side by side, never
       // the full-height Home card renderers squeezed into half-width.
-      expect(find.byKey(const ValueKey('card-transfer-card-pair')),
-          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('card-transfer-card-pair')),
+        findsOneWidget,
+      );
       expect(find.byType(CompactBalancePreview), findsOneWidget);
       expect(find.byType(CompactVisaPreview), findsOneWidget);
-      expect(find.byType(HomeBalanceCard), findsNothing,
-          reason: 'the full-height Home balance card must not be mounted '
-              'on the transfer surface');
-      expect(find.byType(AzmVisaCard), findsNothing,
-          reason: 'the full-height Home Visa card must not be mounted '
-              'on the transfer surface');
+      expect(
+        find.byType(HomeBalanceCard),
+        findsNothing,
+        reason:
+            'the full-height Home balance card must not be mounted '
+            'on the transfer surface',
+      );
+      expect(
+        find.byType(AzmVisaCard),
+        findsNothing,
+        reason:
+            'the full-height Home Visa card must not be mounted '
+            'on the transfer surface',
+      );
 
       // SIDE BY SIDE: the balance tile is LEFT of the Visa tile, and both
       // fit inside the surface.
-      final balanceRect = tester
-          .getRect(find.byKey(const ValueKey('card-transfer-compact-balance')));
-      final visaRect = tester
-          .getRect(find.byKey(const ValueKey('card-transfer-compact-visa')));
+      final balanceRect = tester.getRect(
+        find.byKey(const ValueKey('card-transfer-compact-balance')),
+      );
+      final visaRect = tester.getRect(
+        find.byKey(const ValueKey('card-transfer-compact-visa')),
+      );
       expect(balanceRect.right, lessThan(visaRect.left));
-      expect(balanceRect.height, moreOrLessEquals(kCompactCardHeight,
-          epsilon: 1));
+      expect(
+        balanceRect.height,
+        moreOrLessEquals(kCompactCardHeight, epsilon: 1),
+      );
     });
 
     testWidgets('tapping From Visa flips source and destination', (
@@ -398,17 +425,25 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.byKey(const ValueKey('card-transfer-route-from-visa')),
-          findsOneWidget);
-      expect(find.byKey(const ValueKey('card-transfer-route-to-visa')),
-          findsNothing);
+      expect(
+        find.byKey(const ValueKey('card-transfer-route-from-visa')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('card-transfer-route-to-visa')),
+        findsNothing,
+      );
       // From Visa: the CARD is the source, the balance the destination.
       final routeText = tester
           .widget<Text>(
-            find.descendant(
-              of: find.byKey(const ValueKey('card-transfer-route-from-visa')),
-              matching: find.byType(Text),
-            ).first,
+            find
+                .descendant(
+                  of: find.byKey(
+                    const ValueKey('card-transfer-route-from-visa'),
+                  ),
+                  matching: find.byType(Text),
+                )
+                .first,
           )
           .data;
       expect(routeText, 'AZM Visa card');
@@ -428,15 +463,19 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
 
-      expect(find.byKey(const ValueKey('card-transfer-route-from-visa')),
-          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('card-transfer-route-from-visa')),
+        findsOneWidget,
+      );
 
       // And back: tap the first tab, the page returns.
       await tester.tap(find.text('To Visa'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
-      expect(find.byKey(const ValueKey('card-transfer-route-to-visa')),
-          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('card-transfer-route-to-visa')),
+        findsOneWidget,
+      );
     });
   });
 
@@ -451,17 +490,18 @@ void main() {
       // The compact redesign: exactly ONE flow lane lives BETWEEN the two
       // tiles (screen level, above the swipe pages) — never one per pane.
       expect(find.byType(DirectionalMoneyFlow), findsOneWidget);
-      final lane =
-          find.byKey(const ValueKey('card-transfer-flow-to-visa'));
+      final lane = find.byKey(const ValueKey('card-transfer-flow-to-visa'));
       expect(lane, findsOneWidget);
       expect(tester.widget<DirectionalMoneyFlow>(lane).toVisa, isTrue);
 
       // The lane sits BETWEEN the tiles: its centre is right of the
       // balance tile and left of the Visa tile.
-      final balanceRect = tester
-          .getRect(find.byKey(const ValueKey('card-transfer-compact-balance')));
-      final visaRect = tester
-          .getRect(find.byKey(const ValueKey('card-transfer-compact-visa')));
+      final balanceRect = tester.getRect(
+        find.byKey(const ValueKey('card-transfer-compact-balance')),
+      );
+      final visaRect = tester.getRect(
+        find.byKey(const ValueKey('card-transfer-compact-visa')),
+      );
       final laneRect = tester.getRect(lane);
       expect(laneRect.center.dx, greaterThan(balanceRect.right));
       expect(laneRect.center.dx, lessThan(visaRect.left));
@@ -471,22 +511,27 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      final reversed =
-          find.byKey(const ValueKey('card-transfer-flow-from-visa'));
+      final reversed = find.byKey(
+        const ValueKey('card-transfer-flow-from-visa'),
+      );
       expect(reversed, findsOneWidget);
       expect(tester.widget<DirectionalMoneyFlow>(reversed).toVisa, isFalse);
-      expect(find.byType(DirectionalMoneyFlow), findsOneWidget,
-          reason: 'reversing the direction must not grow a second lane');
+      expect(
+        find.byType(DirectionalMoneyFlow),
+        findsOneWidget,
+        reason: 'reversing the direction must not grow a second lane',
+      );
     });
 
     testWidgets('the lane loops while motion is allowed', (tester) async {
       await _pumpTransfer(tester);
 
-      final lane =
-          find.byKey(const ValueKey('card-transfer-flow-to-visa'));
-      expect(tester.state<DirectionalMoneyFlowState>(lane).isLooping,
-          isTrue,
-          reason: 'the visible lane owns the one loop');
+      final lane = find.byKey(const ValueKey('card-transfer-flow-to-visa'));
+      expect(
+        tester.state<DirectionalMoneyFlowState>(lane).isLooping,
+        isTrue,
+        reason: 'the visible lane owns the one loop',
+      );
 
       // A swipe does not double the loop — the lane is screen-level and
       // survives the pane transition unchanged.
@@ -501,7 +546,8 @@ void main() {
       expect(
         tester
             .state<DirectionalMoneyFlowState>(
-                find.byKey(const ValueKey('card-transfer-flow-from-visa')))
+              find.byKey(const ValueKey('card-transfer-flow-from-visa')),
+            )
             .isLooping,
         isTrue,
       );
@@ -520,44 +566,53 @@ void main() {
       expect(
         tester
             .state<DirectionalMoneyFlowState>(
-                find.byKey(const ValueKey('card-transfer-flow-to-visa')))
+              find.byKey(const ValueKey('card-transfer-flow-to-visa')),
+            )
             .isLooping,
         isFalse,
         reason: 'reduced motion must never travel the lane',
       );
     });
 
-    testWidgets('a runtime reduced-motion change stops — and re-allows — the loop',
-        (tester) async {
-      await tester.binding.setSurfaceSize(const Size(400, 890));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      final router = _router();
-      final container = _container();
-      await tester.pumpWidget(_app(container, router, reduceMotion: false));
-      router.go(AzRoutes.cardTransfer);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
+    testWidgets(
+      'a runtime reduced-motion change stops — and re-allows — the loop',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(400, 890));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final router = _router();
+        final container = _container();
+        await tester.pumpWidget(_app(container, router, reduceMotion: false));
+        router.go(AzRoutes.cardTransfer);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
 
-      final toVisa = find.byKey(const ValueKey('card-transfer-flow-to-visa'));
-      expect(tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
-          isTrue);
-
-      // The preference flips at runtime (settings → AzMotion rebuild).
-      // The widget state persists; only the inherited motion changes —
-      // didUpdateWidget must react by stopping the loop.
-      await tester.pumpWidget(_app(container, router, reduceMotion: true));
-      await tester.pump();
-      expect(tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
-          isFalse,
-          reason: 'reduced motion lands mid-flight: the loop stops');
-
-      // And back: re-allowing motion resumes the loop.
-      await tester.pumpWidget(_app(container, router, reduceMotion: false));
-      await tester.pump();
-      expect(tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
+        final toVisa = find.byKey(const ValueKey('card-transfer-flow-to-visa'));
+        expect(
+          tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
           isTrue,
-          reason: 'the loop resumes when motion is re-allowed');
-    });
+        );
+
+        // The preference flips at runtime (settings → AzMotion rebuild).
+        // The widget state persists; only the inherited motion changes —
+        // didUpdateWidget must react by stopping the loop.
+        await tester.pumpWidget(_app(container, router, reduceMotion: true));
+        await tester.pump();
+        expect(
+          tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
+          isFalse,
+          reason: 'reduced motion lands mid-flight: the loop stops',
+        );
+
+        // And back: re-allowing motion resumes the loop.
+        await tester.pumpWidget(_app(container, router, reduceMotion: false));
+        await tester.pump();
+        expect(
+          tester.state<DirectionalMoneyFlowState>(toVisa).isLooping,
+          isTrue,
+          reason: 'the loop resumes when motion is re-allowed',
+        );
+      },
+    );
   });
 
   // ── 5. AMOUNT ENTRY ─────────────────────────────────────────────────────
@@ -605,8 +660,10 @@ void main() {
       // Zero amount: the CTA must not open the review stage.
       await tester.tap(cta);
       await tester.pump();
-      expect(find.byKey(const ValueKey('card-transfer-review-title')),
-          findsNothing);
+      expect(
+        find.byKey(const ValueKey('card-transfer-review-title')),
+        findsNothing,
+      );
     });
 
     testWidgets('the review statement restates the transfer truthfully', (
@@ -620,13 +677,18 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.byKey(const ValueKey('card-transfer-review-title')),
-          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('card-transfer-review-title')),
+        findsOneWidget,
+      );
       // The review title restates the chosen direction (the tab carries
       // the same words, so this is two matches).
       expect(find.text('To Visa'), findsWidgets);
-      expect(find.text('12 GH₵'), findsOneWidget,
-          reason: 'the entry amount keeps its GHS denomination in review');
+      expect(
+        find.text('12 GH₵'),
+        findsOneWidget,
+        reason: 'the entry amount keeps its GHS denomination in review',
+      );
 
       // The rail pairing is honest: 12 GH₵ → 0.78 USDC, labelled a
       // PREVIEW — never a settlement claim, never a payable value.
@@ -641,14 +703,17 @@ void main() {
       expect(find.text('Azaman Balance'), findsOneWidget);
 
       // THE GATE: truthful copy, disabled submission, never a success.
-      expect(
-        find.text("Card transfers aren't available yet"),
-        findsOneWidget,
-      );
+      expect(find.text("Card transfers aren't available yet"), findsOneWidget);
       final submit = find.byKey(const ValueKey('card-transfer-submit'));
-      expect(tester.widget<Semantics>(
-        find.ancestor(of: submit, matching: find.byType(Semantics)).first,
-      ).properties.enabled, isFalse);
+      expect(
+        tester
+            .widget<Semantics>(
+              find.ancestor(of: submit, matching: find.byType(Semantics)).first,
+            )
+            .properties
+            .enabled,
+        isFalse,
+      );
       expect(find.text('Transfer unavailable'), findsOneWidget);
       expect(find.text('Transfer sent'), findsNothing);
       expect(find.text('Success'), findsNothing);
@@ -657,16 +722,12 @@ void main() {
 
     testWidgets('a programme CLAIMING supportsTransfers still cannot imply '
         'that a transfer can be made here', (tester) async {
-      await _pumpTransfer(
-        tester,
-        programme: _ProgrammeClaimingTransfers(),
-      );
+      await _pumpTransfer(tester, programme: _ProgrammeClaimingTransfers());
 
       // Drive to the review stage so the gate is visible.
       await _tapKey(tester, '1');
       await _tapKey(tester, '2');
-      await tester
-          .tap(find.byKey(const ValueKey('card-transfer-review-cta')));
+      await tester.tap(find.byKey(const ValueKey('card-transfer-review-cta')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -674,15 +735,22 @@ void main() {
       // no transfer execution path, so it cannot claim enablement.
       expect(find.textContaining('transfers are enabled'), findsNothing);
       expect(find.textContaining('programme is ready'), findsNothing);
-      expect(find.textContaining('sample preview'), findsOneWidget,
-          reason: 'the honest gate copy is state-independent');
+      expect(
+        find.textContaining('sample preview'),
+        findsOneWidget,
+        reason: 'the honest gate copy is state-independent',
+      );
       final submit = find.byKey(const ValueKey('card-transfer-submit'));
       expect(
-        tester.widget<Semantics>(
-          find.ancestor(of: submit, matching: find.byType(Semantics)).first,
-        ).properties.enabled,
+        tester
+            .widget<Semantics>(
+              find.ancestor(of: submit, matching: find.byType(Semantics)).first,
+            )
+            .properties
+            .enabled,
         isFalse,
-        reason: 'submit stays structurally disabled regardless of the flag');
+        reason: 'submit stays structurally disabled regardless of the flag',
+      );
     });
   });
 
@@ -698,8 +766,9 @@ void main() {
       // ground — the stage scrolls, the tiles never clip.
       const Size(320, 540),
     ]) {
-      testWidgets('no layout exception at ${surface.width}x${surface.height}',
-          (tester) async {
+      testWidgets('no layout exception at ${surface.width}x${surface.height}', (
+        tester,
+      ) async {
         await _pumpTransfer(tester, surface: surface);
 
         expect(tester.takeException(), isNull);
@@ -708,9 +777,11 @@ void main() {
         expect(find.byType(CompactBalancePreview), findsOneWidget);
         expect(find.byType(CompactVisaPreview), findsOneWidget);
         final balanceRect = tester.getRect(
-            find.byKey(const ValueKey('card-transfer-compact-balance')));
+          find.byKey(const ValueKey('card-transfer-compact-balance')),
+        );
         final visaRect = tester.getRect(
-            find.byKey(const ValueKey('card-transfer-compact-visa')));
+          find.byKey(const ValueKey('card-transfer-compact-visa')),
+        );
         expect(balanceRect.left, greaterThanOrEqualTo(0));
         expect(visaRect.right, lessThanOrEqualTo(surface.width));
         expect(balanceRect.right, lessThan(visaRect.left));

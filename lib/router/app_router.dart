@@ -192,8 +192,10 @@ GoRouter _buildAppRouter() => GoRouter(
         // is almost always an over-eager AuthGuard flip, and the path plus
         // the flag are the only two facts needed to spot it. No tokens,
         // no credentials, no personal data in the log.
-        debugPrint('[Router] auth redirect: "$path" → / '
-            '(AuthGuard.isAuthenticated=false)');
+        debugPrint(
+          '[Router] auth redirect: "$path" → / '
+          '(AuthGuard.isAuthenticated=false)',
+        );
         return '/';
       }
     } catch (e) {

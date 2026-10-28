@@ -33,20 +33,20 @@ enum ProofOfResidencyStatus {
   }
 
   String get wire => switch (this) {
-        ProofOfResidencyStatus.notSubmitted => 'NOT_SUBMITTED',
-        ProofOfResidencyStatus.pendingReview => 'PENDING_REVIEW',
-        ProofOfResidencyStatus.verified => 'VERIFIED',
-        ProofOfResidencyStatus.rejected => 'REJECTED',
-        ProofOfResidencyStatus.expired => 'EXPIRED',
-      };
+    ProofOfResidencyStatus.notSubmitted => 'NOT_SUBMITTED',
+    ProofOfResidencyStatus.pendingReview => 'PENDING_REVIEW',
+    ProofOfResidencyStatus.verified => 'VERIFIED',
+    ProofOfResidencyStatus.rejected => 'REJECTED',
+    ProofOfResidencyStatus.expired => 'EXPIRED',
+  };
 
   String get label => switch (this) {
-        ProofOfResidencyStatus.notSubmitted => 'Not submitted',
-        ProofOfResidencyStatus.pendingReview => 'Pending review',
-        ProofOfResidencyStatus.verified => 'Verified',
-        ProofOfResidencyStatus.rejected => 'Rejected',
-        ProofOfResidencyStatus.expired => 'Expired — re-upload required',
-      };
+    ProofOfResidencyStatus.notSubmitted => 'Not submitted',
+    ProofOfResidencyStatus.pendingReview => 'Pending review',
+    ProofOfResidencyStatus.verified => 'Verified',
+    ProofOfResidencyStatus.rejected => 'Rejected',
+    ProofOfResidencyStatus.expired => 'Expired — re-upload required',
+  };
 
   /// True iff the caller can submit a new PoR document. Mirrors Req 3.11.
   bool get canSubmit =>
@@ -69,15 +69,16 @@ class ProofOfResidencyState {
   });
 
   const ProofOfResidencyState.notSubmitted()
-      : status = ProofOfResidencyStatus.notSubmitted,
-        submittedAt = null,
-        verifiedAt = null,
-        rejectionReason = null;
+    : status = ProofOfResidencyStatus.notSubmitted,
+      submittedAt = null,
+      verifiedAt = null,
+      rejectionReason = null;
 
   factory ProofOfResidencyState.fromJson(Map<String, dynamic> j) =>
       ProofOfResidencyState(
         status: ProofOfResidencyStatus.fromString(
-            j['proofOfResidencyStatus'] ?? j['status']),
+          j['proofOfResidencyStatus'] ?? j['status'],
+        ),
         submittedAt: j['proofOfResidencySubmittedAt'] == null
             ? null
             : DateTime.tryParse(j['proofOfResidencySubmittedAt'].toString()),

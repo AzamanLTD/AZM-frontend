@@ -202,11 +202,11 @@ class TabScrollRegistry {
 /// same code in the app and in the regression tests.
 class NavRetapController {
   NavRetapController({required TickerProvider vsync})
-      : liftCtrl = AnimationController(
-          vsync: vsync,
-          duration: MotionTokens.control,
-          value: 1.0,
-        );
+    : liftCtrl = AnimationController(
+        vsync: vsync,
+        duration: MotionTokens.control,
+        value: 1.0,
+      );
 
   final AnimationController liftCtrl;
 
@@ -214,13 +214,17 @@ class NavRetapController {
   /// by design — it acknowledges the tap, it does not perform.
   static final Animatable<double> _liftTween = TweenSequence<double>([
     TweenSequenceItem(
-      tween: Tween(begin: 1.0, end: 0.985)
-          .chain(CurveTween(curve: Curves.easeOut)),
+      tween: Tween(
+        begin: 1.0,
+        end: 0.985,
+      ).chain(CurveTween(curve: Curves.easeOut)),
       weight: 35,
     ),
     TweenSequenceItem(
-      tween: Tween(begin: 0.985, end: 1.0)
-          .chain(CurveTween(curve: Curves.easeOutCubic)),
+      tween: Tween(
+        begin: 0.985,
+        end: 1.0,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)),
       weight: 65,
     ),
   ]);
@@ -393,148 +397,159 @@ class PremiumBottomNav extends ConsumerWidget {
         // the composition is symmetric at rest.
         return _ImeBandPad(
           child: Padding(
-            padding:
-                const EdgeInsets.only(right: NavScrollCompression.outerRightInset),
+            padding: const EdgeInsets.only(
+              right: NavScrollCompression.outerRightInset,
+            ),
             child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: inset),
-                  child: Opacity(
-            // Never below `compressedOpacity` (0.92): the page must not show
-            // through a floating pill, or it reads as a rendering bug.
-            opacity:
-                1.0 - ((1.0 - NavScrollCompression.compressedOpacity) * t),
-            child: AnimatedContainer(
-              duration: AzMotion.duration(context, MotionTokens.fast),
-              height: h,
-              decoration: BoxDecoration(
-                // UX-CORRECTION §1 (dark nav separation): a #0A0A0A pill
-                // on a #000000 page is one luma step apart — the nav read
-                // as having vanished into the background. The pill now
-                // sits on the CARD step of the dark elevation ramp
-                // (#161616) and carries an explicit rim + a top highlight
-                // so the floating surface is unmistakable even before
-                // its shadow is seen. Light keeps its existing surface +
-                // shadow treatment (the new #F2F3F5 page already gives
-                // it strong separation).
-                color: colors.isDark ? colors.card : colors.surface,
-                // `pill` (999) self-clamps to half the height, so the shape
-                // is a true pill at 62px and at 52px without tracking two radii.
-                borderRadius: AzRadius.brPill,
-                border: colors.isDark
-                    ? Border.all(color: AzElevation.rimHighlight(true))
-                    : null,
-                // Subtle vertical highlight over the card step in dark:
-                // BoxDecoration paints a gradient INSTEAD of its color, so
-                // the ramp is baked into the gradient itself.
-                gradient: colors.isDark
-                    ? LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Color.alphaBlend(
-                              Colors.white.withValues(alpha: 0.05),
-                              colors.card),
-                          colors.card,
-                          Color.alphaBlend(
-                              Colors.white.withValues(alpha: 0.02),
-                              colors.card),
-                        ],
-                        stops: const [0.0, 0.55, 1.0],
-                      )
-                    : null,
-                boxShadow: AzElevation.level3(colors.isDark),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  Widget normalRow() => Row(
-                        children: List.generate(
-                          _kNavItems.length,
-                          (i) => _NavButton(
-                            item: _kNavItems[i],
-                            isSelected: selectedIndex == i,
-                            index: i,
-                            colors: colors,
-                            reduceMotion: reduceMotion,
-                            onTap: () => _handleTap(i),
-                            onLongPress: onTabLongPress == null
-                                ? null
-                                : () => _handleLongPress(i),
-                          ),
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: inset),
+                    child: Opacity(
+                      // Never below `compressedOpacity` (0.92): the page must not show
+                      // through a floating pill, or it reads as a rendering bug.
+                      opacity:
+                          1.0 -
+                          ((1.0 - NavScrollCompression.compressedOpacity) * t),
+                      child: AnimatedContainer(
+                        duration: AzMotion.duration(context, MotionTokens.fast),
+                        height: h,
+                        decoration: BoxDecoration(
+                          // UX-CORRECTION §1 (dark nav separation): a #0A0A0A pill
+                          // on a #000000 page is one luma step apart — the nav read
+                          // as having vanished into the background. The pill now
+                          // sits on the CARD step of the dark elevation ramp
+                          // (#161616) and carries an explicit rim + a top highlight
+                          // so the floating surface is unmistakable even before
+                          // its shadow is seen. Light keeps its existing surface +
+                          // shadow treatment (the new #F2F3F5 page already gives
+                          // it strong separation).
+                          color: colors.isDark ? colors.card : colors.surface,
+                          // `pill` (999) self-clamps to half the height, so the shape
+                          // is a true pill at 62px and at 52px without tracking two radii.
+                          borderRadius: AzRadius.brPill,
+                          border: colors.isDark
+                              ? Border.all(
+                                  color: AzElevation.rimHighlight(true),
+                                )
+                              : null,
+                          // Subtle vertical highlight over the card step in dark:
+                          // BoxDecoration paints a gradient INSTEAD of its color, so
+                          // the ramp is baked into the gradient itself.
+                          gradient: colors.isDark
+                              ? LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Color.alphaBlend(
+                                      Colors.white.withValues(alpha: 0.05),
+                                      colors.card,
+                                    ),
+                                    colors.card,
+                                    Color.alphaBlend(
+                                      Colors.white.withValues(alpha: 0.02),
+                                      colors.card,
+                                    ),
+                                  ],
+                                  stops: const [0.0, 0.55, 1.0],
+                                )
+                              : null,
+                          boxShadow: AzElevation.level3(colors.isDark),
                         ),
-                      );
-                  // Correction G: selected state is communicated by the
-                  // accent COLOR of the active icon/label — no glow, no
-                  // translucent backdrop blob behind the selected tab.
-                  final content = normalRow();
-                  // EXPERIENCE PASS §13: normal nav → search field is a
-                  // MORPH inside the SAME pill surface, never one widget
-                  // popping out as an unrelated TextField appears. The
-                  // pill container (height, radius, material, shadow)
-                  // is the persistent surface; only its CONTENT
-                  // cross-fades — a fast 8% vertical slide keeps the
-                  // direction of the change legible. Reduced motion
-                  // honours the fade only (no slide). LayoutBuilder
-                  // rebuilds drive AnimatedSwitcher key changes; the
-                  // fade runs on the fast token so the field is usable
-                  // almost immediately.
-                  if (reduceMotion) return content;
-                  return AnimatedSwitcher(
-                    duration: AzMotion.duration(context, MotionTokens.fast),
-                    switchInCurve: Curves.easeOut,
-                    switchOutCurve: Curves.easeIn,
-                    layoutBuilder: (currentChild, outgoingChildren) =>
-                        Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        ...outgoingChildren,
-                        if (currentChild != null) currentChild,
-                      ],
-                    ),
-                    transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween(
-                          begin: const Offset(0, 0.08),
-                          end: Offset.zero,
-                        ).animate(anim),
-                        child: child,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            Widget normalRow() => Row(
+                              children: List.generate(
+                                _kNavItems.length,
+                                (i) => _NavButton(
+                                  item: _kNavItems[i],
+                                  isSelected: selectedIndex == i,
+                                  index: i,
+                                  colors: colors,
+                                  reduceMotion: reduceMotion,
+                                  onTap: () => _handleTap(i),
+                                  onLongPress: onTabLongPress == null
+                                      ? null
+                                      : () => _handleLongPress(i),
+                                ),
+                              ),
+                            );
+                            // Correction G: selected state is communicated by the
+                            // accent COLOR of the active icon/label — no glow, no
+                            // translucent backdrop blob behind the selected tab.
+                            final content = normalRow();
+                            // EXPERIENCE PASS §13: normal nav → search field is a
+                            // MORPH inside the SAME pill surface, never one widget
+                            // popping out as an unrelated TextField appears. The
+                            // pill container (height, radius, material, shadow)
+                            // is the persistent surface; only its CONTENT
+                            // cross-fades — a fast 8% vertical slide keeps the
+                            // direction of the change legible. Reduced motion
+                            // honours the fade only (no slide). LayoutBuilder
+                            // rebuilds drive AnimatedSwitcher key changes; the
+                            // fade runs on the fast token so the field is usable
+                            // almost immediately.
+                            if (reduceMotion) return content;
+                            return AnimatedSwitcher(
+                              duration: AzMotion.duration(
+                                context,
+                                MotionTokens.fast,
+                              ),
+                              switchInCurve: Curves.easeOut,
+                              switchOutCurve: Curves.easeIn,
+                              layoutBuilder: (currentChild, outgoingChildren) =>
+                                  Stack(
+                                    alignment: Alignment.center,
+                                    children: [
+                                      ...outgoingChildren,
+                                      if (currentChild != null) currentChild,
+                                    ],
+                                  ),
+                              transitionBuilder: (child, anim) =>
+                                  FadeTransition(
+                                    opacity: anim,
+                                    child: SlideTransition(
+                                      position: Tween(
+                                        begin: const Offset(0, 0.08),
+                                        end: Offset.zero,
+                                      ).animate(anim),
+                                      child: child,
+                                    ),
+                                  ),
+                              child: marketplaceFocused
+                                  ? KeyedSubtree(
+                                      key: const ValueKey('nav-band-focused'),
+                                      child: _FocusedMarketplaceRow(
+                                        colors: colors,
+                                      ),
+                                    )
+                                  : KeyedSubtree(
+                                      key: const ValueKey('nav-band-normal'),
+                                      child: content,
+                                    ),
+                            );
+                          },
+                        ),
                       ),
                     ),
-                    child: marketplaceFocused
-                        ? KeyedSubtree(
-                            key: const ValueKey('nav-band-focused'),
-                            child:
-                                _FocusedMarketplaceRow(colors: colors),
-                          )
-                        : KeyedSubtree(
-                            key: const ValueKey('nav-band-normal'),
-                            child: content,
-                          ),
-                  );
-                },
-              ),
                   ),
                 ),
-              ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: AzSpace.sm),
-                // Correction I: entering the focused Marketplace state
-                // pushes the + horizontally out of the composition to the
-                // right (a subtle easeInBack push/bounce), and it glides
-                // back in with an easeOutBack when the normal nav is
-                // restored.
-                _PlusExit(
-                  visible: !marketplaceFocused,
-                  reduceMotion: reduceMotion,
-                  child: trailing!,
-                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: AzSpace.sm),
+                  // Correction I: entering the focused Marketplace state
+                  // pushes the + horizontally out of the composition to the
+                  // right (a subtle easeInBack push/bounce), and it glides
+                  // back in with an easeOutBack when the normal nav is
+                  // restored.
+                  _PlusExit(
+                    visible: !marketplaceFocused,
+                    reduceMotion: reduceMotion,
+                    child: trailing!,
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
           ),
         );
       },
@@ -577,34 +592,33 @@ class _NavButton extends StatelessWidget {
         selected: isSelected,
         label: item.label,
         child: GestureDetector(
-        key: ValueKey('nav-item-$index'),
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Icon with scale bounce + cross-fade between outline/solid.
-            //
-            // NOTE (pre-existing, kept deliberately — F-026): `end` is
-            // `isSelected ? 1.0 : 0.92`, so the SELECTED icon is the full-size
-            // one and unselected icons are scaled down. That is the opposite
-            // of the usual convention, but it is the shipped behaviour and
-            // changing it belongs to a task about the nav's identity, not to
-            // scroll reactivity. `MotionTokens.spring` IS `Curves.easeOutBack`
-            // — the curve this icon always used, now via the token.
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 1.0, end: isSelected ? 1.0 : 0.92),
-              duration: reduceMotion ? Duration.zero : MotionTokens.fast,
-              curve: MotionTokens.spring,
-              builder: (context, scale, child) =>
-                  Transform.scale(scale: scale, child: child),
-              child: _badge(context, color),
-            ),
-
-          ],
+          key: ValueKey('nav-item-$index'),
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Icon with scale bounce + cross-fade between outline/solid.
+              //
+              // NOTE (pre-existing, kept deliberately — F-026): `end` is
+              // `isSelected ? 1.0 : 0.92`, so the SELECTED icon is the full-size
+              // one and unselected icons are scaled down. That is the opposite
+              // of the usual convention, but it is the shipped behaviour and
+              // changing it belongs to a task about the nav's identity, not to
+              // scroll reactivity. `MotionTokens.spring` IS `Curves.easeOutBack`
+              // — the curve this icon always used, now via the token.
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 1.0, end: isSelected ? 1.0 : 0.92),
+                duration: reduceMotion ? Duration.zero : MotionTokens.fast,
+                curve: MotionTokens.spring,
+                builder: (context, scale, child) =>
+                    Transform.scale(scale: scale, child: child),
+                child: _badge(context, color),
+              ),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -855,8 +869,7 @@ class _ImeBandPad extends StatefulWidget {
   State<_ImeBandPad> createState() => _ImeBandPadState();
 }
 
-class _ImeBandPadState extends State<_ImeBandPad>
-    with WidgetsBindingObserver {
+class _ImeBandPadState extends State<_ImeBandPad> with WidgetsBindingObserver {
   double _ime = 0;
 
   @override
@@ -920,7 +933,8 @@ class _FocusedMarketplaceRow extends ConsumerStatefulWidget {
       _FocusedMarketplaceRowState();
 }
 
-class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> {
+class _FocusedMarketplaceRowState
+    extends ConsumerState<_FocusedMarketplaceRow> {
   late final TextEditingController _ctrl;
   late final FocusNode _focus;
 
@@ -929,8 +943,9 @@ class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> 
   @override
   void initState() {
     super.initState();
-    _ctrl =
-        TextEditingController(text: ref.read(marketplaceSearchProvider).text);
+    _ctrl = TextEditingController(
+      text: ref.read(marketplaceSearchProvider).text,
+    );
     _focus = FocusNode();
     _focus.addListener(() {
       if (mounted) _binding.onFocus(_focus.hasFocus);
@@ -977,7 +992,9 @@ class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> 
             onTap: _restoreNormalNav,
             child: Padding(
               padding: const EdgeInsets.symmetric(
-                  horizontal: AzSpace.md, vertical: AzSpace.sm),
+                horizontal: AzSpace.md,
+                vertical: AzSpace.sm,
+              ),
               child: Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
@@ -1007,15 +1024,22 @@ class _FocusedMarketplaceRowState extends ConsumerState<_FocusedMarketplaceRow> 
               hintStyle: AzText.caption.copyWith(color: colors.textTertiary),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AzSpace.md, vertical: 8),
+                horizontal: AzSpace.md,
+                vertical: 8,
+              ),
               filled: true,
               fillColor: colors.isDark
                   ? Colors.white.withValues(alpha: 0.06)
                   : Colors.black.withValues(alpha: 0.04),
-              prefixIcon: Icon(HugeIconsStroke.search01,
-                  size: 16, color: colors.textTertiary),
-              prefixIconConstraints:
-                  const BoxConstraints(minWidth: 34, minHeight: 34),
+              prefixIcon: Icon(
+                HugeIconsStroke.search01,
+                size: 16,
+                color: colors.textTertiary,
+              ),
+              prefixIconConstraints: const BoxConstraints(
+                minWidth: 34,
+                minHeight: 34,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(999),
                 borderSide: BorderSide.none,

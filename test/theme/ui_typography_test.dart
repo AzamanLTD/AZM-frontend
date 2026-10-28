@@ -20,24 +20,28 @@ import 'package:azaman/theme/az_text.dart';
 
 void main() {
   group('AzText — font family pins', () {
-    test('money() stays on Inter — tabular figures, immune to UI font change',
-        () {
-      final style = AzText.money(Colors.black);
-      expect(style.fontFamily, 'Inter');
-      expect(style.fontFeatures, AzText.tabular);
-      // An explicit size override keeps the pin.
-      expect(AzText.money(Colors.black, size: 64).fontFamily, 'Inter');
-    });
+    test(
+      'money() stays on Inter — tabular figures, immune to UI font change',
+      () {
+        final style = AzText.money(Colors.black);
+        expect(style.fontFamily, 'Inter');
+        expect(style.fontFeatures, AzText.tabular);
+        // An explicit size override keeps the pin.
+        expect(AzText.money(Colors.black, size: 64).fontFamily, 'Inter');
+      },
+    );
 
     test('delta() stays on Inter', () {
       expect(AzText.delta(Colors.black).fontFamily, 'Inter');
     });
 
-    test('the numeric family constant is Inter, the UI family is ComicNeue',
-        () {
-      expect(AzText.numericFamily, 'Inter');
-      expect(AzText.uiFamily, 'ComicNeue');
-    });
+    test(
+      'the numeric family constant is Inter, the UI family is ComicNeue',
+      () {
+        expect(AzText.numericFamily, 'Inter');
+        expect(AzText.uiFamily, 'ComicNeue');
+      },
+    );
   });
 
   group('AzText.mapUiWeight — deliberate weight mapping', () {
@@ -55,11 +59,21 @@ void main() {
     test('every slot carries the Comic Neue family', () {
       final t = AzText.uiTheme();
       final slots = [
-        t.displayLarge, t.displayMedium, t.displaySmall,
-        t.headlineLarge, t.headlineMedium, t.headlineSmall,
-        t.titleLarge, t.titleMedium, t.titleSmall,
-        t.bodyLarge, t.bodyMedium, t.bodySmall,
-        t.labelLarge, t.labelMedium, t.labelSmall,
+        t.displayLarge,
+        t.displayMedium,
+        t.displaySmall,
+        t.headlineLarge,
+        t.headlineMedium,
+        t.headlineSmall,
+        t.titleLarge,
+        t.titleMedium,
+        t.titleSmall,
+        t.bodyLarge,
+        t.bodyMedium,
+        t.bodySmall,
+        t.labelLarge,
+        t.labelMedium,
+        t.labelSmall,
       ];
       expect(slots.length, 15);
       for (final slot in slots) {
@@ -67,8 +81,7 @@ void main() {
       }
     });
 
-    test('unavailable weights are mapped: w800 → w700, w600/w500 → w400',
-        () {
+    test('unavailable weights are mapped: w800 → w700, w600/w500 → w400', () {
       final t = AzText.uiTheme();
       // hero (w800) and display (w800) render Bold.
       expect(t.displayLarge!.fontWeight, FontWeight.w700);
@@ -80,21 +93,22 @@ void main() {
       expect(t.labelLarge!.fontWeight, FontWeight.w700);
     });
 
-    test('the Inter ladder (theme()) is untouched — money keeps its weights',
-        () {
-      final t = AzText.theme();
-      expect(t.displayLarge!.fontWeight, FontWeight.w800);
-      expect(t.titleLarge!.fontWeight, FontWeight.w600);
-      expect(t.labelLarge!.fontWeight, FontWeight.w700);
-      // The Inter-based ladder carries no pinned family — money factories
-      // do that themselves.
-      expect(t.displayLarge!.fontFamily, isNull);
-    });
+    test(
+      'the Inter ladder (theme()) is untouched — money keeps its weights',
+      () {
+        final t = AzText.theme();
+        expect(t.displayLarge!.fontWeight, FontWeight.w800);
+        expect(t.titleLarge!.fontWeight, FontWeight.w600);
+        expect(t.labelLarge!.fontWeight, FontWeight.w700);
+        // The Inter-based ladder carries no pinned family — money factories
+        // do that themselves.
+        expect(t.displayLarge!.fontFamily, isNull);
+      },
+    );
   });
 
   group('ThemeProvider — the app theme uses the Comic-Neue UI family', () {
-    test('the app theme is Comic-Neue throughout; money text stays Inter',
-        () {
+    test('the app theme is Comic-Neue throughout; money text stays Inter', () {
       for (final theme in AzamanTheme.values) {
         final data = ThemeProvider.getThemeData(theme);
         // The theme's text theme carries the mapped Comic-Neue styles —

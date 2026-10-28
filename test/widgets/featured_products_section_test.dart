@@ -6,7 +6,8 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/widgets/featured_products_section.dart';
 
-BusinessProduct _fakeProduct(String id, String name, int orders) => BusinessProduct(
+BusinessProduct _fakeProduct(String id, String name, int orders) =>
+    BusinessProduct(
       id: id,
       businessProfileId: 'biz-1',
       name: name,
@@ -19,8 +20,9 @@ BusinessProduct _fakeProduct(String id, String name, int orders) => BusinessProd
     );
 
 void main() {
-  testWidgets('orders preview by popular demand and exposes peek carousel',
-      (tester) async {
+  testWidgets('orders preview by popular demand and exposes peek carousel', (
+    tester,
+  ) async {
     final products = <BusinessProduct>[
       _fakeProduct('p1', 'Quiet seller', 2),
       _fakeProduct('p2', 'Popular dish', 20),
@@ -33,11 +35,8 @@ void main() {
           home: Scaffold(
             body: FeaturedProductsSection(
               bizId: 'biz-1',
-              productLoader: (_) async => (
-                products: products,
-                hasMore: false,
-                nextCursor: null,
-              ),
+              productLoader: (_) async =>
+                  (products: products, hasMore: false, nextCursor: null),
             ),
           ),
         ),

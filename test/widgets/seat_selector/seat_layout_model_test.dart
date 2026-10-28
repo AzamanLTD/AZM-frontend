@@ -86,20 +86,23 @@ void main() {
       expect(slot.isTappable, false);
     });
 
-    test('VIP + Selected (local UI state): status stays available, selection is UI', () {
-      const slot = GridSlot(
-        type: SlotType.seat,
-        row: 0,
-        col: 0,
-        seatId: '1A',
-        tier: SeatTier.vip,
-        status: SeatBookStatus.available,
-      );
-      // Backend status is still 'available' — selection is local UI state
-      expect(slot.tier, SeatTier.vip);
-      expect(slot.status, SeatBookStatus.available);
-      expect(slot.isTappable, true);
-    });
+    test(
+      'VIP + Selected (local UI state): status stays available, selection is UI',
+      () {
+        const slot = GridSlot(
+          type: SlotType.seat,
+          row: 0,
+          col: 0,
+          seatId: '1A',
+          tier: SeatTier.vip,
+          status: SeatBookStatus.available,
+        );
+        // Backend status is still 'available' — selection is local UI state
+        expect(slot.tier, SeatTier.vip);
+        expect(slot.status, SeatBookStatus.available);
+        expect(slot.isTappable, true);
+      },
+    );
   });
 
   group('SeatTier', () {
@@ -144,13 +147,7 @@ void main() {
         vehicleType: 'VAN',
         vehicleMake: 'Toyota',
         vehicleModel: 'HiAce',
-        decks: [
-          Deck(
-            deckIndex: 0,
-            label: 'Main',
-            grid: _buildVanGrid(),
-          ),
-        ],
+        decks: [Deck(deckIndex: 0, label: 'Main', grid: _buildVanGrid())],
       );
 
       final json = layout.toJson();
@@ -171,12 +168,7 @@ void main() {
         vehicleType: 'COACH',
         vehicleMake: 'Mercedes-Benz',
         vehicleModel: 'Sprinter 450',
-        decks: [
-          Deck(
-            deckIndex: 0,
-            grid: _buildCoachGrid(rows: 10, cols: 4),
-          ),
-        ],
+        decks: [Deck(deckIndex: 0, grid: _buildCoachGrid(rows: 10, cols: 4))],
       );
 
       final json = layout.toJson();
@@ -223,12 +215,32 @@ void main() {
       final layout = VehicleLayout(
         id: 'dd-002',
         decks: [
-          Deck(deckIndex: 0, grid: [
-            [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'L1A')],
-          ]),
-          Deck(deckIndex: 1, grid: [
-            [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'U1A')],
-          ]),
+          Deck(
+            deckIndex: 0,
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: 'L1A',
+                ),
+              ],
+            ],
+          ),
+          Deck(
+            deckIndex: 1,
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: 'U1A',
+                ),
+              ],
+            ],
+          ),
         ],
       );
 
@@ -241,12 +253,32 @@ void main() {
       final layout = VehicleLayout(
         id: 'dd-003',
         decks: [
-          Deck(deckIndex: 0, grid: [
-            [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'L1A')],
-          ]),
-          Deck(deckIndex: 1, grid: [
-            [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'U1A')],
-          ]),
+          Deck(
+            deckIndex: 0,
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: 'L1A',
+                ),
+              ],
+            ],
+          ),
+          Deck(
+            deckIndex: 1,
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: 'U1A',
+                ),
+              ],
+            ],
+          ),
         ],
       );
 
@@ -261,19 +293,64 @@ void main() {
       final layout = VehicleLayout(
         id: 'mixed-001',
         decks: [
-          Deck(deckIndex: 0, grid: [
-            [
-              const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: '1A', tier: SeatTier.vip, fare: 30),
-              const GridSlot(type: SlotType.seat, row: 0, col: 1, seatId: '1B', tier: SeatTier.vip, fare: 30),
-              const GridSlot(type: SlotType.aisle, row: 0, col: 2),
-              const GridSlot(type: SlotType.seat, row: 0, col: 3, seatId: '1C', tier: SeatTier.standard, fare: 18),
-              const GridSlot(type: SlotType.seat, row: 0, col: 4, seatId: '1D', tier: SeatTier.standard, fare: 18),
+          Deck(
+            deckIndex: 0,
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: '1A',
+                  tier: SeatTier.vip,
+                  fare: 30,
+                ),
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 1,
+                  seatId: '1B',
+                  tier: SeatTier.vip,
+                  fare: 30,
+                ),
+                const GridSlot(type: SlotType.aisle, row: 0, col: 2),
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 3,
+                  seatId: '1C',
+                  tier: SeatTier.standard,
+                  fare: 18,
+                ),
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 4,
+                  seatId: '1D',
+                  tier: SeatTier.standard,
+                  fare: 18,
+                ),
+              ],
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 1,
+                  col: 0,
+                  seatId: '2A',
+                  tier: SeatTier.executive,
+                  fare: 22,
+                ),
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 1,
+                  col: 1,
+                  seatId: '2B',
+                  tier: SeatTier.standard,
+                  fare: 18,
+                ),
+              ],
             ],
-            [
-              const GridSlot(type: SlotType.seat, row: 1, col: 0, seatId: '2A', tier: SeatTier.executive, fare: 22),
-              const GridSlot(type: SlotType.seat, row: 1, col: 1, seatId: '2B', tier: SeatTier.standard, fare: 18),
-            ],
-          ]),
+          ),
         ],
       );
 
@@ -313,14 +390,16 @@ List<List<GridSlot>> _buildCoachGrid({required int rows, required int cols}) {
         rowSlots.add(GridSlot(type: SlotType.aisle, row: row, col: col));
       }
       final letter = String.fromCharCode(65 + col);
-      rowSlots.add(GridSlot(
-        type: SlotType.seat,
-        row: row,
-        col: col,
-        seatId: '${row + 1}$letter',
-        tier: row < 2 ? SeatTier.vip : SeatTier.standard,
-        fare: row < 2 ? 25.0 : 18.0,
-      ));
+      rowSlots.add(
+        GridSlot(
+          type: SlotType.seat,
+          row: row,
+          col: col,
+          seatId: '${row + 1}$letter',
+          tier: row < 2 ? SeatTier.vip : SeatTier.standard,
+          fare: row < 2 ? 25.0 : 18.0,
+        ),
+      );
     }
     grid.add(rowSlots);
   }

@@ -37,10 +37,7 @@ class VersionGateService {
   ///   - The client version is >= minVersion
   Future<VersionGateResult> check(String clientVersion) async {
     try {
-      final response = await apiClient.get(
-        '/health',
-        requireAuth: false,
-      );
+      final response = await apiClient.get('/health', requireAuth: false);
 
       final data = jsonDecode(response.body);
       final versionGate = data['versionGate'];

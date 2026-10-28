@@ -129,7 +129,8 @@ void main() {
       expect(
         staticCells(tester),
         '1,240.42'.length,
-        reason: 'rebuild with the same string must not animate: an unchanged '
+        reason:
+            'rebuild with the same string must not animate: an unchanged '
             'digit keeps its key, so no outgoing child is mounted',
       );
     });

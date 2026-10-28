@@ -14,7 +14,6 @@ import 'package:azaman/widgets/smart_route/smart_route_card.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class SmartRouteListScreen extends ConsumerWidget {
   const SmartRouteListScreen({super.key});
 
@@ -33,7 +32,11 @@ class SmartRouteListScreen extends ConsumerWidget {
         ),
         title: Text(
           'Smart Routes',
-          style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
       body: AzPullToRefresh(
@@ -41,12 +44,15 @@ class SmartRouteListScreen extends ConsumerWidget {
         backgroundColor: colors.card,
         onRefresh: () => ref.read(smartRoutesProvider.notifier).refresh(),
         child: routesAsync.when(
-          loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+          loading: () =>
+              Center(child: CircularProgressIndicator(color: colors.accent)),
           error: (e, _) => Center(child: Text(e.toString())),
           data: (routes) {
             if (routes.isEmpty) {
               return ListView(
-                physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
+                ),
                 children: [
                   const SizedBox(height: 80),
                   Icon(Icons.turn_left, size: 56, color: colors.textTertiary),
@@ -68,7 +74,10 @@ class SmartRouteListScreen extends ConsumerWidget {
                       child: Text(
                         'Set-and-forget recurring transfers, MoMo payouts, savings, and vault deposits.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -76,7 +85,9 @@ class SmartRouteListScreen extends ConsumerWidget {
               );
             }
             return ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: ClampingScrollPhysics(),
+              ),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
               itemCount: routes.length,
               itemBuilder: (context, i) => Padding(

@@ -26,42 +26,123 @@ void main() {
   const backgroundColor = Color(0xFFFAFAFA);
 
   VehicleLayout testLayout() => VehicleLayout(
-        id: 'test-bus',
-        vehicleType: 'COACH',
-        vehicleMake: 'Mercedes-Benz',
-        vehicleModel: 'Sprinter 450',
-        decks: [
-          Deck(
-            deckIndex: 0,
-            label: 'Main',
-            grid: [
-              [
-                const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: '1A', tier: SeatTier.vip, fare: 30),
-                const GridSlot(type: SlotType.seat, row: 0, col: 1, seatId: '1B', tier: SeatTier.vip, fare: 30),
-                const GridSlot(type: SlotType.aisle, row: 0, col: 2),
-                const GridSlot(type: SlotType.seat, row: 0, col: 3, seatId: '1C', tier: SeatTier.standard, fare: 18),
-                const GridSlot(type: SlotType.seat, row: 0, col: 4, seatId: '1D', tier: SeatTier.standard, fare: 18),
-              ],
-              [
-                const GridSlot(type: SlotType.seat, row: 1, col: 0, seatId: '2A', status: SeatBookStatus.booked, fare: 18),
-                const GridSlot(type: SlotType.seat, row: 1, col: 1, seatId: '2B', fare: 18),
-                const GridSlot(type: SlotType.aisle, row: 1, col: 2),
-                const GridSlot(type: SlotType.seat, row: 1, col: 3, seatId: '2C', status: SeatBookStatus.blocked, fare: 18),
-                const GridSlot(type: SlotType.seat, row: 1, col: 4, seatId: '2D', fare: 18),
-              ],
-              [
-                const GridSlot(type: SlotType.seat, row: 2, col: 0, seatId: '3A', fare: 18),
-                const GridSlot(type: SlotType.seat, row: 2, col: 1, seatId: '3B', fare: 18),
-                const GridSlot(type: SlotType.aisle, row: 2, col: 2),
-                const GridSlot(type: SlotType.seat, row: 2, col: 3, seatId: '3C', fare: 18),
-                const GridSlot(type: SlotType.seat, row: 2, col: 4, seatId: '3D', fare: 18),
-              ],
-            ],
-          ),
+    id: 'test-bus',
+    vehicleType: 'COACH',
+    vehicleMake: 'Mercedes-Benz',
+    vehicleModel: 'Sprinter 450',
+    decks: [
+      Deck(
+        deckIndex: 0,
+        label: 'Main',
+        grid: [
+          [
+            const GridSlot(
+              type: SlotType.seat,
+              row: 0,
+              col: 0,
+              seatId: '1A',
+              tier: SeatTier.vip,
+              fare: 30,
+            ),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 0,
+              col: 1,
+              seatId: '1B',
+              tier: SeatTier.vip,
+              fare: 30,
+            ),
+            const GridSlot(type: SlotType.aisle, row: 0, col: 2),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 0,
+              col: 3,
+              seatId: '1C',
+              tier: SeatTier.standard,
+              fare: 18,
+            ),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 0,
+              col: 4,
+              seatId: '1D',
+              tier: SeatTier.standard,
+              fare: 18,
+            ),
+          ],
+          [
+            const GridSlot(
+              type: SlotType.seat,
+              row: 1,
+              col: 0,
+              seatId: '2A',
+              status: SeatBookStatus.booked,
+              fare: 18,
+            ),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 1,
+              col: 1,
+              seatId: '2B',
+              fare: 18,
+            ),
+            const GridSlot(type: SlotType.aisle, row: 1, col: 2),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 1,
+              col: 3,
+              seatId: '2C',
+              status: SeatBookStatus.blocked,
+              fare: 18,
+            ),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 1,
+              col: 4,
+              seatId: '2D',
+              fare: 18,
+            ),
+          ],
+          [
+            const GridSlot(
+              type: SlotType.seat,
+              row: 2,
+              col: 0,
+              seatId: '3A',
+              fare: 18,
+            ),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 2,
+              col: 1,
+              seatId: '3B',
+              fare: 18,
+            ),
+            const GridSlot(type: SlotType.aisle, row: 2, col: 2),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 2,
+              col: 3,
+              seatId: '3C',
+              fare: 18,
+            ),
+            const GridSlot(
+              type: SlotType.seat,
+              row: 2,
+              col: 4,
+              seatId: '3D',
+              fare: 18,
+            ),
+          ],
         ],
-      );
+      ),
+    ],
+  );
 
-  Widget buildTestApp({VehicleLayout? layout, SeatSelectorController? controller}) {
+  Widget buildTestApp({
+    VehicleLayout? layout,
+    SeatSelectorController? controller,
+  }) {
     return MaterialApp(
       home: Scaffold(
         body: BusSeatSelector(
@@ -77,7 +158,8 @@ void main() {
           successColor: successColor,
           dangerColor: dangerColor,
           backgroundColor: backgroundColor,
-          showMinimap: false, // Minimap uses CustomPaint, simpler to test without
+          showMinimap:
+              false, // Minimap uses CustomPaint, simpler to test without
           showLegend: true,
           showCheckoutDock: true,
         ),
@@ -126,7 +208,9 @@ void main() {
   });
 
   group('BusSeatSelector interaction', () {
-    testWidgets('tapping a seat via controller updates the checkout dock', (tester) async {
+    testWidgets('tapping a seat via controller updates the checkout dock', (
+      tester,
+    ) async {
       final controller = SeatSelectorController();
       await tester.pumpWidget(buildTestApp(controller: controller));
       await tester.pump(const Duration(milliseconds: 500));
@@ -172,8 +256,9 @@ void main() {
       expect(find.text('0 seats'), findsOneWidget);
     });
 
-    testWidgets('selecting multiple seats shows correct count and total',
-        (tester) async {
+    testWidgets('selecting multiple seats shows correct count and total', (
+      tester,
+    ) async {
       final controller = SeatSelectorController();
       controller.loadLayout(testLayout());
 
@@ -200,29 +285,31 @@ void main() {
       final controller = SeatSelectorController();
       controller.loadLayout(testLayout());
 
-      await tester.pumpWidget(MaterialApp(
-        home: Scaffold(
-          body: BusSeatSelector(
-            layout: testLayout(),
-            controller: controller,
-            accentColor: accentColor,
-            surfaceColor: surfaceColor,
-            cardColor: cardColor,
-            dividerColor: dividerColor,
-            textPrimary: textPrimary,
-            textSecondary: textSecondary,
-            textTertiary: textTertiary,
-            successColor: successColor,
-            dangerColor: dangerColor,
-            backgroundColor: backgroundColor,
-            showMinimap: false,
-            onBook: (seats, total) {
-              bookedSeats = seats.toString();
-              bookedTotal = total;
-            },
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: BusSeatSelector(
+              layout: testLayout(),
+              controller: controller,
+              accentColor: accentColor,
+              surfaceColor: surfaceColor,
+              cardColor: cardColor,
+              dividerColor: dividerColor,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              textTertiary: textTertiary,
+              successColor: successColor,
+              dangerColor: dangerColor,
+              backgroundColor: backgroundColor,
+              showMinimap: false,
+              onBook: (seats, total) {
+                bookedSeats = seats.toString();
+                bookedTotal = total;
+              },
+            ),
           ),
         ),
-      ));
+      );
       await tester.pump(const Duration(milliseconds: 500));
 
       // Select a seat
@@ -243,12 +330,36 @@ void main() {
       final multiDeckLayout = VehicleLayout(
         id: 'test-double',
         decks: [
-          Deck(deckIndex: 0, label: 'Lower', grid: [
-            [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'L1A', fare: 20)],
-          ]),
-          Deck(deckIndex: 1, label: 'Upper', grid: [
-            [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'U1A', fare: 25)],
-          ]),
+          Deck(
+            deckIndex: 0,
+            label: 'Lower',
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: 'L1A',
+                  fare: 20,
+                ),
+              ],
+            ],
+          ),
+          Deck(
+            deckIndex: 1,
+            label: 'Upper',
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: 'U1A',
+                  fare: 25,
+                ),
+              ],
+            ],
+          ),
         ],
       );
 
@@ -265,19 +376,45 @@ void main() {
       final multiDeckLayout = VehicleLayout(
         id: 'test-double-2',
         decks: [
-          Deck(deckIndex: 0, label: 'Lower', grid: [
-            [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'L1A', fare: 20)],
-          ]),
-          Deck(deckIndex: 1, label: 'Upper', grid: [
-            [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'U1A', fare: 25)],
-          ]),
+          Deck(
+            deckIndex: 0,
+            label: 'Lower',
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: 'L1A',
+                  fare: 20,
+                ),
+              ],
+            ],
+          ),
+          Deck(
+            deckIndex: 1,
+            label: 'Upper',
+            grid: [
+              [
+                const GridSlot(
+                  type: SlotType.seat,
+                  row: 0,
+                  col: 0,
+                  seatId: 'U1A',
+                  fare: 25,
+                ),
+              ],
+            ],
+          ),
         ],
       );
 
       final controller = SeatSelectorController();
       controller.loadLayout(multiDeckLayout);
 
-      await tester.pumpWidget(buildTestApp(layout: multiDeckLayout, controller: controller));
+      await tester.pumpWidget(
+        buildTestApp(layout: multiDeckLayout, controller: controller),
+      );
       await tester.pump(const Duration(milliseconds: 500));
 
       // Initially on Lower deck
@@ -290,8 +427,9 @@ void main() {
       expect(controller.currentDeck, 1);
     });
 
-    testWidgets('single-deck vehicle does not show deck switcher',
-        (tester) async {
+    testWidgets('single-deck vehicle does not show deck switcher', (
+      tester,
+    ) async {
       await tester.pumpWidget(buildTestApp());
       await tester.pump(const Duration(milliseconds: 500));
 
@@ -315,14 +453,16 @@ void main() {
       expect(vipSeats.length, 2);
 
       // Check booked seat exists
-      final bookedSeats =
-          layout.allSeats.where((s) => s.status == SeatBookStatus.booked);
+      final bookedSeats = layout.allSeats.where(
+        (s) => s.status == SeatBookStatus.booked,
+      );
       expect(bookedSeats.length, 1);
       expect(bookedSeats.first.seatId, '2A');
 
       // Check blocked seat exists
-      final blockedSeats =
-          layout.allSeats.where((s) => s.status == SeatBookStatus.blocked);
+      final blockedSeats = layout.allSeats.where(
+        (s) => s.status == SeatBookStatus.blocked,
+      );
       expect(blockedSeats.length, 1);
       expect(blockedSeats.first.seatId, '2C');
     });

@@ -27,39 +27,41 @@ class _FakeSusuListNotifier extends SusuListNotifier {
   Future<List<SusuSummary>> build() async => groups;
 }
 
-SusuSummary _activeSusu(DateTime runAt,
-        {String id = 's1', String name = 'Circle Susu'}) =>
-    SusuSummary(
-      id: id,
-      name: name,
-      status: SusuStatus.active,
-      contributionUsdc: 10,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 10,
-      nextCycle: SusuCycleSummary(
-        id: 'c4',
-        cycleNumber: 4,
-        scheduledRunAt: runAt,
-        payoutUserId: 1,
-        isMe: false,
-      ),
-      myCycleSlot: 4,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+SusuSummary _activeSusu(
+  DateTime runAt, {
+  String id = 's1',
+  String name = 'Circle Susu',
+}) => SusuSummary(
+  id: id,
+  name: name,
+  status: SusuStatus.active,
+  contributionUsdc: 10,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 10,
+  nextCycle: SusuCycleSummary(
+    id: 'c4',
+    cycleNumber: 4,
+    scheduledRunAt: runAt,
+    payoutUserId: 1,
+    isMe: false,
+  ),
+  myCycleSlot: 4,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 SusuSummary _inactiveSusu(String id) => SusuSummary(
-      id: id,
-      name: 'Dormant Susu',
-      status: SusuStatus.completed,
-      contributionUsdc: 5,
-      frequency: SusuFrequency.monthly,
-      totalCycles: 2,
-      nextCycle: null,
-      myCycleSlot: 1,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+  id: id,
+  name: 'Dormant Susu',
+  status: SusuStatus.completed,
+  contributionUsdc: 5,
+  frequency: SusuFrequency.monthly,
+  totalCycles: 2,
+  nextCycle: null,
+  myCycleSlot: 1,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 Future<void> _pumpRow(
   WidgetTester tester, {
@@ -100,9 +102,8 @@ void main() {
         GoRoute(
           path: '/marketplace',
           name: AzRouteNames.marketplace,
-          builder: (_, __) => const Scaffold(
-            body: Center(child: Text('MARKETPLACE PAGE')),
-          ),
+          builder: (_, __) =>
+              const Scaffold(body: Center(child: Text('MARKETPLACE PAGE'))),
         ),
       ],
     );
@@ -119,13 +120,18 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('wallet-module-p2p')));
     await tester.pumpAndSettle();
 
-    expect(find.text('MARKETPLACE PAGE'), findsOneWidget,
-        reason: 'the P2P pill must route to the canonical /marketplace '
-            'page — no second P2P destination');
+    expect(
+      find.text('MARKETPLACE PAGE'),
+      findsOneWidget,
+      reason:
+          'the P2P pill must route to the canonical /marketplace '
+          'page — no second P2P destination',
+    );
   });
 
-  testWidgets('the row renders exactly the three pills — no descriptions',
-      (tester) async {
+  testWidgets('the row renders exactly the three pills — no descriptions', (
+    tester,
+  ) async {
     await _pumpRow(tester);
 
     expect(find.byKey(const ValueKey('wallet-module-save')), findsOneWidget);
@@ -136,19 +142,29 @@ void main() {
     expect(find.text('Susu'), findsOneWidget);
 
     // The old educational/progress sentences are GONE from Home space.
-    expect(find.text("Put money aside for something you're building."),
-        findsNothing);
-    expect(find.text('Buy or sell directly with verified vendors.'),
-        findsNothing);
+    expect(
+      find.text("Put money aside for something you're building."),
+      findsNothing,
+    );
+    expect(
+      find.text('Buy or sell directly with verified vendors.'),
+      findsNothing,
+    );
     expect(find.text('Save together with your circle.'), findsNothing);
   });
 
   test('chooseMostRelevantSusu picks the active group with the earliest '
       'scheduled run — deterministically', () {
-    final early = _activeSusu(DateTime(2026, 10, 5),
-        id: 'early', name: 'Early Susu');
-    final late = _activeSusu(DateTime(2026, 11, 1),
-        id: 'late', name: 'Late Susu');
+    final early = _activeSusu(
+      DateTime(2026, 10, 5),
+      id: 'early',
+      name: 'Early Susu',
+    );
+    final late = _activeSusu(
+      DateTime(2026, 11, 1),
+      id: 'late',
+      name: 'Late Susu',
+    );
     final dormant = _inactiveSusu('dormant');
     // No groups → null.
     expect(chooseMostRelevantSusu(const []), isNull);
@@ -175,9 +191,6 @@ void main() {
       myRole: 'MEMBER',
     );
     expect(chooseMostRelevantSusu([unscheduledGroup])?.id, 'unsched');
-    expect(
-      chooseMostRelevantSusu([unscheduledGroup, late])?.id,
-      'late',
-    );
+    expect(chooseMostRelevantSusu([unscheduledGroup, late])?.id, 'late');
   });
 }

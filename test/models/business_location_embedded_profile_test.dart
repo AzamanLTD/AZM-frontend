@@ -9,43 +9,45 @@ import 'package:azaman/models/business_models.dart';
 /// without the embedding degrade to nulls, never guesses.
 
 Map<String, dynamic> _rowWithProfile(Map<String, dynamic> profile) => {
-      'id': 'loc-1',
-      'businessProfileId': 'bp-1',
-      'label': 'Main branch',
-      'address': 'Osu, Accra',
-      'latitude': 5.56,
-      'longitude': -0.19,
-      'galleryUrls': <String>[],
-      'isPrimary': true,
-      'isActive': true,
-      'distanceKm': 1.23,
-      'businessProfile': profile,
-    };
+  'id': 'loc-1',
+  'businessProfileId': 'bp-1',
+  'label': 'Main branch',
+  'address': 'Osu, Accra',
+  'latitude': 5.56,
+  'longitude': -0.19,
+  'galleryUrls': <String>[],
+  'isPrimary': true,
+  'isActive': true,
+  'distanceKm': 1.23,
+  'businessProfile': profile,
+};
 
 Map<String, dynamic> _legacyRow() => {
-      'id': 'loc-1',
-      'businessProfileId': 'bp-1',
-      'label': 'Main branch',
-      'address': 'Osu, Accra',
-      'latitude': 5.56,
-      'longitude': -0.19,
-      'galleryUrls': <String>[],
-      'isPrimary': true,
-      'isActive': true,
-    };
+  'id': 'loc-1',
+  'businessProfileId': 'bp-1',
+  'label': 'Main branch',
+  'address': 'Osu, Accra',
+  'latitude': 5.56,
+  'longitude': -0.19,
+  'galleryUrls': <String>[],
+  'isPrimary': true,
+  'isActive': true,
+};
 
 void main() {
   test('parses the full embedded profile from a nearby row', () {
-    final loc = BusinessLocation.fromJson(_rowWithProfile({
-      'id': 'bp-1',
-      'bizId': 'BIZ-RESTAURANT-1',
-      'businessName': "Chef Abby's",
-      'category': 'FOOD_BEVERAGE',
-      'logoUrl': 'https://example.com/logo.png',
-      'isVerified': true,
-      'averageRating': 4.7,
-      'totalEscrows': 340,
-    }));
+    final loc = BusinessLocation.fromJson(
+      _rowWithProfile({
+        'id': 'bp-1',
+        'bizId': 'BIZ-RESTAURANT-1',
+        'businessName': "Chef Abby's",
+        'category': 'FOOD_BEVERAGE',
+        'logoUrl': 'https://example.com/logo.png',
+        'isVerified': true,
+        'averageRating': 4.7,
+        'totalEscrows': 340,
+      }),
+    );
 
     expect(loc.businessCategory, 'FOOD_BEVERAGE');
     expect(loc.bizId, 'BIZ-RESTAURANT-1');
@@ -56,18 +58,19 @@ void main() {
   });
 
   test('verified=false is preserved (not collapsed to null)', () {
-    final loc = BusinessLocation.fromJson(_rowWithProfile({
-      'id': 'bp-1',
-      'bizId': 'BIZ-X',
-      'businessName': 'Kiosk',
-      'category': 'RETAIL',
-      'isVerified': false,
-    }));
+    final loc = BusinessLocation.fromJson(
+      _rowWithProfile({
+        'id': 'bp-1',
+        'bizId': 'BIZ-X',
+        'businessName': 'Kiosk',
+        'category': 'RETAIL',
+        'isVerified': false,
+      }),
+    );
     expect(loc.businessVerified, isFalse);
   });
 
-  test('legacy row without an embedding degrades to nulls — never guesses',
-      () {
+  test('legacy row without an embedding degrades to nulls — never guesses', () {
     final loc = BusinessLocation.fromJson(_legacyRow());
     expect(loc.businessCategory, isNull);
     expect(loc.bizId, isNull);
@@ -77,13 +80,14 @@ void main() {
   });
 
   test('empty-string embedded values degrade to nulls', () {
-    final loc = BusinessLocation.fromJson(_rowWithProfile({
-      'id': 'bp-1',
-      'category': '',
-      'businessName': '',
-    }));
-    expect(loc.businessCategory, isNull,
-        reason: 'an empty category must not render as a category');
+    final loc = BusinessLocation.fromJson(
+      _rowWithProfile({'id': 'bp-1', 'category': '', 'businessName': ''}),
+    );
+    expect(
+      loc.businessCategory,
+      isNull,
+      reason: 'an empty category must not render as a category',
+    );
     expect(loc.businessName, isNull);
   });
 

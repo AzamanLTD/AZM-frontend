@@ -38,8 +38,9 @@ void main() {
   // EscrowService posts with requireAuth (production default), so the
   // secure-storage channel must answer instead of throwing
   // MissingPluginException.
-  const secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
 
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -55,43 +56,55 @@ void main() {
   });
 
   http.Response _json(Object body, int status) => http.Response(
-        jsonEncode(body),
-        status,
-        headers: {'content-type': 'application/json'},
-      );
+    jsonEncode(body),
+    status,
+    headers: {'content-type': 'application/json'},
+  );
 
   test('5xx RETAINS the durable instance — the retry reuses the SAME key '
       '(a 5xx may have committed the dispute)', () async {
     final sent = <http.Request>[];
     var calls = 0;
-    final service = EscrowService(client: ApiClient(client: MockClient((r) async {
-      sent.add(r);
-      calls += 1;
-      if (calls == 1) {
-        return _json({'message': 'internal error'}, 500);
-      }
-      return _json({
-        'escrow': {'id': 'esc-1', 'status': 'DISPUTED'},
-      }, 200);
-    })));
+    final service = EscrowService(
+      client: ApiClient(
+        client: MockClient((r) async {
+          sent.add(r);
+          calls += 1;
+          if (calls == 1) {
+            return _json({'message': 'internal error'}, 500);
+          }
+          return _json({
+            'escrow': {'id': 'esc-1', 'status': 'DISPUTED'},
+          }, 200);
+        }),
+      ),
+    );
 
     await expectLater(
-        service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods'),
-        throwsA(isA<ApiException>()));
+      service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods'),
+      throwsA(isA<ApiException>()),
+    );
     expect(sent, hasLength(1));
 
     // The instance must STILL be pending — not retired, not replaced.
-    var ops = await DurableOperationRegistry.pending(account: account, type: type);
+    var ops = await DurableOperationRegistry.pending(
+      account: account,
+      type: type,
+    );
     expect(ops, hasLength(1));
 
     // The user's retry: SAME instance, SAME key.
     final escrow = await service.raiseDispute(
-        escrowId: 'esc-1', reason: 'damaged goods');
+      escrowId: 'esc-1',
+      reason: 'damaged goods',
+    );
     expect(escrow.id, 'esc-1');
     expect(sent, hasLength(2));
-    expect(sent[0].headers['Idempotency-Key'],
-        sent[1].headers['Idempotency-Key'],
-        reason: 'a 5xx must never mint a second identity');
+    expect(
+      sent[0].headers['Idempotency-Key'],
+      sent[1].headers['Idempotency-Key'],
+      reason: 'a 5xx must never mint a second identity',
+    );
 
     // The answered 2xx retires it.
     ops = await DurableOperationRegistry.pending(account: account, type: type);
@@ -102,70 +115,100 @@ void main() {
       'genuinely new action may mint a fresh key', () async {
     final sent = <http.Request>[];
     var calls = 0;
-    final service = EscrowService(client: ApiClient(client: MockClient((r) async {
-      sent.add(r);
-      calls += 1;
-      if (calls == 1) {
-        return _json({'message': 'escrow already settled'}, 400);
-      }
-      return _json({
-        'escrow': {'id': 'esc-1', 'status': 'DISPUTED'},
-      }, 200);
-    })));
+    final service = EscrowService(
+      client: ApiClient(
+        client: MockClient((r) async {
+          sent.add(r);
+          calls += 1;
+          if (calls == 1) {
+            return _json({'message': 'escrow already settled'}, 400);
+          }
+          return _json({
+            'escrow': {'id': 'esc-1', 'status': 'DISPUTED'},
+          }, 200);
+        }),
+      ),
+    );
 
     await expectLater(
-        service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods'),
-        throwsA(isA<ApiException>()));
+      service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods'),
+      throwsA(isA<ApiException>()),
+    );
     expect(sent, hasLength(1));
 
     // A definitive 400 means the handler refused BEFORE any economic
     // effect: the instance retires and does not linger as a zombie.
-    final ops =
-        await DurableOperationRegistry.pending(account: account, type: type);
+    final ops = await DurableOperationRegistry.pending(
+      account: account,
+      type: type,
+    );
     expect(ops, isEmpty);
 
     // A genuinely new dispute action mints a fresh key.
     await service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods');
     expect(sent, hasLength(2));
-    expect(sent[0].headers['Idempotency-Key'],
-        isNot(sent[1].headers['Idempotency-Key']));
+    expect(
+      sent[0].headers['Idempotency-Key'],
+      isNot(sent[1].headers['Idempotency-Key']),
+    );
   });
 
   test('409 RETAINS the instance — the backend replay conflict is an '
       'authoritative in-progress answer, not a failure', () async {
     final sent = <http.Request>[];
-    final service = EscrowService(client: ApiClient(client: MockClient((r) async {
-      sent.add(r);
-      return _json({'message': 'operation already in progress'}, 409);
-    })));
+    final service = EscrowService(
+      client: ApiClient(
+        client: MockClient((r) async {
+          sent.add(r);
+          return _json({'message': 'operation already in progress'}, 409);
+        }),
+      ),
+    );
 
     await expectLater(
-        service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods'),
-        throwsA(isA<ApiException>()));
+      service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods'),
+      throwsA(isA<ApiException>()),
+    );
 
-    final ops =
-        await DurableOperationRegistry.pending(account: account, type: type);
-    expect(ops, hasLength(1),
-        reason: 'a 409 idempotency replay keeps the instance armed');
+    final ops = await DurableOperationRegistry.pending(
+      account: account,
+      type: type,
+    );
+    expect(
+      ops,
+      hasLength(1),
+      reason: 'a 409 idempotency replay keeps the instance armed',
+    );
   });
 
   test('malformed 2xx RETAINS the instance — the HTTP answer was '
       'successful, so the dispute may have committed', () async {
     final sent = <http.Request>[];
-    final service = EscrowService(client: ApiClient(client: MockClient((r) async {
-      sent.add(r);
-      // 2xx but the body is not an escrow payload.
-      return _json({'unexpected': true}, 200);
-    })));
+    final service = EscrowService(
+      client: ApiClient(
+        client: MockClient((r) async {
+          sent.add(r);
+          // 2xx but the body is not an escrow payload.
+          return _json({'unexpected': true}, 200);
+        }),
+      ),
+    );
 
     await expectLater(
-        service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods'),
-        throwsA(isA<EscrowServiceException>()));
+      service.raiseDispute(escrowId: 'esc-1', reason: 'damaged goods'),
+      throwsA(isA<EscrowServiceException>()),
+    );
 
-    final ops =
-        await DurableOperationRegistry.pending(account: account, type: type);
-    expect(ops, hasLength(1),
-        reason: 'a successful HTTP answer with a garbage body may still '
-            'have committed — retiring would let a re-tap fund twice');
+    final ops = await DurableOperationRegistry.pending(
+      account: account,
+      type: type,
+    );
+    expect(
+      ops,
+      hasLength(1),
+      reason:
+          'a successful HTTP answer with a garbage body may still '
+          'have committed — retiring would let a re-tap fund twice',
+    );
   });
 }

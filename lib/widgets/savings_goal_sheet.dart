@@ -154,7 +154,8 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           // (auto-filled from the durable registry by postFinancial).
           'clientRequestId': '',
         },
-        operationType: _depositActionId, ref: _depositRef,
+        operationType: _depositActionId,
+        ref: _depositRef,
       );
 
       final body = jsonDecode(res.body);
@@ -186,7 +187,8 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       final res = await apiClient.postFinancial(
         '/savings/goals/$_goalId/withdraw',
         amountGhs == null ? {} : {'amountGhs': amountGhs},
-        operationType: _withdrawActionId, ref: _withdrawRef,
+        operationType: _withdrawActionId,
+        ref: _withdrawRef,
       );
 
       final body = jsonDecode(res.body);

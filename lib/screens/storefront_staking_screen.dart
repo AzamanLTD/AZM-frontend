@@ -8,10 +8,12 @@ class StorefrontStakingScreen extends ConsumerStatefulWidget {
   const StorefrontStakingScreen({super.key});
 
   @override
-  ConsumerState<StorefrontStakingScreen> createState() => _StorefrontStakingScreenState();
+  ConsumerState<StorefrontStakingScreen> createState() =>
+      _StorefrontStakingScreenState();
 }
 
-class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScreen> {
+class _StorefrontStakingScreenState
+    extends ConsumerState<StorefrontStakingScreen> {
   final _amountController = TextEditingController();
   bool _loading = false;
 
@@ -24,9 +26,9 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
   Future<void> _stake() async {
     final amount = int.tryParse(_amountController.text.trim());
     if (amount == null || amount <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid AZM amount')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a valid AZM amount')));
       return;
     }
     setState(() => _loading = true);
@@ -42,9 +44,9 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Stake failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Stake failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -56,10 +58,18 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Request Unstake'),
-        content: Text('Unstake ${stake.amountAzm} AZM? A cooldown period applies before funds are available.'),
+        content: Text(
+          'Unstake ${stake.amountAzm} AZM? A cooldown period applies before funds are available.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Unstake')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Unstake'),
+          ),
         ],
       ),
     );
@@ -72,14 +82,16 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
       ref.invalidate(storefrontEligibilityProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unstake requested. Cooldown period active.')),
+          const SnackBar(
+            content: Text('Unstake requested. Cooldown period active.'),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unstake failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Unstake failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -121,14 +133,28 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Stake AZM', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Stake AZM',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Lock AZM to unlock premium themes and widgets', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                  Text(
+                    'Lock AZM to unlock premium themes and widgets',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                  ),
                   const SizedBox(height: 16),
                   TextField(
                     controller: _amountController,
                     keyboardType: TextInputType.number,
-                    style: TextStyle(color: colors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
                     decoration: InputDecoration(
                       hintText: '0',
                       suffixText: 'AZM',
@@ -155,7 +181,8 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
                           label: Text('$amount AZM'),
                           backgroundColor: colors.background,
                           side: BorderSide(color: colors.divider),
-                          onPressed: () => _amountController.text = amount.toString(),
+                          onPressed: () =>
+                              _amountController.text = amount.toString(),
                         ),
                       );
                     }).toList(),
@@ -169,11 +196,26 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.accent,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: _loading
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : const Text('Stake Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Stake Now',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -183,7 +225,14 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
             const SizedBox(height: 20),
 
             // Active stakes
-            Text('Active Stakes', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'Active Stakes',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             stakes.when(
               data: (stakeList) {
@@ -196,22 +245,43 @@ class _StorefrontStakingScreenState extends ConsumerState<StorefrontStakingScree
                       border: Border.all(color: colors.divider),
                     ),
                     child: Center(
-                      child: Text('No active stakes yet', style: TextStyle(color: colors.textSecondary)),
+                      child: Text(
+                        'No active stakes yet',
+                        style: TextStyle(color: colors.textSecondary),
+                      ),
                     ),
                   );
                 }
                 return Column(
-                  children: stakeList.map((stake) => _StakeItem(stake: stake, colors: colors, onUnstake: () => _unstake(stake), loading: _loading)).toList(),
+                  children: stakeList
+                      .map(
+                        (stake) => _StakeItem(
+                          stake: stake,
+                          colors: colors,
+                          onUnstake: () => _unstake(stake),
+                          loading: _loading,
+                        ),
+                      )
+                      .toList(),
                 );
               },
-              loading: () => const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator())),
-              error: (e, _) => Text('Error: $e', style: TextStyle(color: colors.danger)),
+              loading: () => const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ),
+              ),
+              error: (e, _) =>
+                  Text('Error: $e', style: TextStyle(color: colors.danger)),
             ),
 
             const SizedBox(height: 20),
 
             // Tier ladder
-            _TierLadder(colors: colors, currentStake: (eligibility?.stakedBalance ?? 0).toInt()),
+            _TierLadder(
+              colors: colors,
+              currentStake: (eligibility?.stakedBalance ?? 0).toInt(),
+            ),
           ],
         ),
       ),
@@ -237,7 +307,10 @@ class _TierCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [tierColor.withValues(alpha: 0.15), tierColor.withValues(alpha: 0.05)],
+          colors: [
+            tierColor.withValues(alpha: 0.15),
+            tierColor.withValues(alpha: 0.05),
+          ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: tierColor.withValues(alpha: 0.3)),
@@ -245,7 +318,8 @@ class _TierCard extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 56, height: 56,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(color: tierColor, shape: BoxShape.circle),
             child: const Icon(Icons.bolt, color: Colors.white, size: 28),
           ),
@@ -254,16 +328,36 @@ class _TierCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Current Tier', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-                Text(tier.replaceAll('NITRO_', ''), style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+                Text(
+                  'Current Tier',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                ),
+                Text(
+                  tier.replaceAll('NITRO_', ''),
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('Staked', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-              Text('$staked AZM', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                'Staked',
+                style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              ),
+              Text(
+                '$staked AZM',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ],
@@ -273,10 +367,14 @@ class _TierCard extends StatelessWidget {
 
   Color _tierColor(String tier) {
     switch (tier) {
-      case 'NITRO_BRONZE': return const Color(0x00cd7f32);
-      case 'NITRO_SILVER': return const Color(0x00c0c0c0);
-      case 'NITRO_GOLD': return const Color(0x00ffd700);
-      default: return const Color(0x006c4fd1);
+      case 'NITRO_BRONZE':
+        return const Color(0x00cd7f32);
+      case 'NITRO_SILVER':
+        return const Color(0x00c0c0c0);
+      case 'NITRO_GOLD':
+        return const Color(0x00ffd700);
+      default:
+        return const Color(0x006c4fd1);
     }
   }
 }
@@ -287,11 +385,18 @@ class _StakeItem extends StatelessWidget {
   final VoidCallback onUnstake;
   final bool loading;
 
-  const _StakeItem({required this.stake, required this.colors, required this.onUnstake, required this.loading});
+  const _StakeItem({
+    required this.stake,
+    required this.colors,
+    required this.onUnstake,
+    required this.loading,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final canUnstake = stake.unstakeAvailableAt != null && DateTime.now().isAfter(stake.unstakeAvailableAt!);
+    final canUnstake =
+        stake.unstakeAvailableAt != null &&
+        DateTime.now().isAfter(stake.unstakeAvailableAt!);
     final inCooldown = stake.unstakeRequestedAt != null && !canUnstake;
 
     return Container(
@@ -308,11 +413,24 @@ class _StakeItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${stake.amountAzm} AZM', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  '${stake.amountAzm} AZM',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text('Staked ${_formatDate(stake.stakedAt)}', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                Text(
+                  'Staked ${_formatDate(stake.stakedAt)}',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                ),
                 if (inCooldown && stake.unstakeAvailableAt != null)
-                  Text('Available ${_formatDate(stake.unstakeAvailableAt!)}', style: TextStyle(color: colors.warning, fontSize: 12)),
+                  Text(
+                    'Available ${_formatDate(stake.unstakeAvailableAt!)}',
+                    style: TextStyle(color: colors.warning, fontSize: 12),
+                  ),
               ],
             ),
           ),
@@ -325,14 +443,34 @@ class _StakeItem extends StatelessWidget {
           else if (canUnstake)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: colors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-              child: Text('Ready to claim', style: TextStyle(color: colors.success, fontSize: 12, fontWeight: FontWeight.w600)),
+              decoration: BoxDecoration(
+                color: colors.success.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Ready to claim',
+                style: TextStyle(
+                  color: colors.success,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             )
           else
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: colors.warning.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-              child: Text('Cooldown', style: TextStyle(color: colors.warning, fontSize: 12, fontWeight: FontWeight.w600)),
+              decoration: BoxDecoration(
+                color: colors.warning.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Cooldown',
+                style: TextStyle(
+                  color: colors.warning,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
         ],
       ),
@@ -351,8 +489,16 @@ class _TierLadder extends StatelessWidget {
   static const _tiers = [
     {'name': 'FREE', 'min': 0, 'unlocks': '4 themes, 8 widgets'},
     {'name': 'BRONZE', 'min': 500, 'unlocks': '+2 themes, +3 widgets'},
-    {'name': 'SILVER', 'min': 1500, 'unlocks': '+2 themes, +2 widgets, drag/reorder'},
-    {'name': 'GOLD', 'min': 5000, 'unlocks': '+1 theme, +2 widgets, custom typography'},
+    {
+      'name': 'SILVER',
+      'min': 1500,
+      'unlocks': '+2 themes, +2 widgets, drag/reorder',
+    },
+    {
+      'name': 'GOLD',
+      'min': 5000,
+      'unlocks': '+1 theme, +2 widgets, custom typography',
+    },
   ];
 
   @override
@@ -367,7 +513,14 @@ class _TierLadder extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Tier Ladder', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            'Tier Ladder',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 12),
           ..._tiers.map((tier) {
             final unlocked = currentStake >= (tier['min'] as int);
@@ -375,18 +528,42 @@ class _TierLadder extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  Icon(unlocked ? Icons.check_circle : Icons.lock, size: 20, color: unlocked ? colors.success : colors.textSecondary),
+                  Icon(
+                    unlocked ? Icons.check_circle : Icons.lock,
+                    size: 20,
+                    color: unlocked ? colors.success : colors.textSecondary,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(tier['name'] as String, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.bold)),
-                        Text(tier['unlocks'] as String, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                        Text(
+                          tier['name'] as String,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          tier['unlocks'] as String,
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  Text('${tier['min']} AZM', style: TextStyle(color: unlocked ? colors.success : colors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(
+                    '${tier['min']} AZM',
+                    style: TextStyle(
+                      color: unlocked ? colors.success : colors.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
               ),
             );

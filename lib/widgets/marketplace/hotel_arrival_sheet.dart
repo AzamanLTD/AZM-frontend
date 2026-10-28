@@ -70,8 +70,7 @@ class HotelArrivalSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<HotelArrivalSheet> createState() =>
-      _HotelArrivalSheetState();
+  ConsumerState<HotelArrivalSheet> createState() => _HotelArrivalSheetState();
 }
 
 class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
@@ -95,13 +94,17 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
     super.didChangeDependencies();
     if (_started) return;
     _started = true;
-    final doorDuration =
-        MotionTokens.accessibleDuration(context, MotionTokens.spatial);
+    final doorDuration = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.spatial,
+    );
     _door = AnimationController(vsync: this, duration: doorDuration);
     _card = AnimationController(
       vsync: this,
       duration: MotionTokens.accessibleDuration(
-          context, MotionTokens.emphasized),
+        context,
+        MotionTokens.emphasized,
+      ),
     );
     _card.addStatusListener((status) {
       // The flight path is measured ONCE, when the card sets off: the door
@@ -148,24 +151,48 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
             children: [
               _doorStage(colors),
               const SizedBox(height: AzSpace.xl),
-              Text('YOUR ROOM IS READY',
-                  style: AzText.eyebrow.copyWith(color: colors.textTertiary)),
+              Text(
+                'YOUR ROOM IS READY',
+                style: AzText.eyebrow.copyWith(color: colors.textTertiary),
+              ),
               const SizedBox(height: AzSpace.xs),
-              Text('Welcome to your stay',
-                  style: AzText.titleXl.copyWith(color: colors.textPrimary)),
+              Text(
+                'Welcome to your stay',
+                style: AzText.titleXl.copyWith(color: colors.textPrimary),
+              ),
               const SizedBox(height: AzSpace.lg),
               _staysSlot(colors),
               const SizedBox(height: AzSpace.xl),
-              _row(colors, Icons.meeting_room_outlined, 'Room',
-                  '${room.displayType} · Room ${room.roomNumber}'),
-              _row(colors, Icons.calendar_today_rounded, 'Check-in',
-                  '${widget.checkIn.day}/${widget.checkIn.month}'),
-              _row(colors, Icons.nightlight_outlined, 'Nights',
-                  '${widget.nights}'),
-              _row(colors, Icons.payments_rounded, 'Total paid',
-                  '\$${widget.totalUsdc.toStringAsFixed(2)} USDC'),
-              _row(colors, Icons.receipt_long_outlined, 'Reference',
-                  widget.reservationRef),
+              _row(
+                colors,
+                Icons.meeting_room_outlined,
+                'Room',
+                '${room.displayType} · Room ${room.roomNumber}',
+              ),
+              _row(
+                colors,
+                Icons.calendar_today_rounded,
+                'Check-in',
+                '${widget.checkIn.day}/${widget.checkIn.month}',
+              ),
+              _row(
+                colors,
+                Icons.nightlight_outlined,
+                'Nights',
+                '${widget.nights}',
+              ),
+              _row(
+                colors,
+                Icons.payments_rounded,
+                'Total paid',
+                '\$${widget.totalUsdc.toStringAsFixed(2)} USDC',
+              ),
+              _row(
+                colors,
+                Icons.receipt_long_outlined,
+                'Reference',
+                widget.reservationRef,
+              ),
               const SizedBox(height: AzSpace.xl),
               SizedBox(
                 width: double.infinity,
@@ -174,7 +201,8 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
                     backgroundColor: colors.accent,
                     foregroundColor: Colors.white,
                     shape: const RoundedRectangleBorder(
-                        borderRadius: AzRadius.brMd),
+                      borderRadius: AzRadius.brMd,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed: () => Navigator.pop(context),
@@ -262,7 +290,9 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
         children: [
           Container(
             padding: const EdgeInsets.symmetric(
-                horizontal: AzSpace.sm, vertical: AzSpace.xs),
+              horizontal: AzSpace.sm,
+              vertical: AzSpace.xs,
+            ),
             decoration: BoxDecoration(
               color: colors.accent,
               borderRadius: AzRadius.brSm,
@@ -278,8 +308,7 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
           Container(
             height: 44,
             decoration: BoxDecoration(
-              border:
-                  Border.all(color: colors.divider.withValues(alpha: 0.6)),
+              border: Border.all(color: colors.divider.withValues(alpha: 0.6)),
               borderRadius: AzRadius.brSm,
             ),
           ),
@@ -308,10 +337,8 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
     final slotBox = _slotKey.currentContext?.findRenderObject();
     if (doorBox is! RenderBox || slotBox is! RenderBox) return Offset.zero;
     if (!doorBox.attached || !slotBox.attached) return Offset.zero;
-    final doorCentre = doorBox
-        .localToGlobal(doorBox.size.center(Offset.zero));
-    final slotCentre = slotBox
-        .localToGlobal(slotBox.size.center(Offset.zero));
+    final doorCentre = doorBox.localToGlobal(doorBox.size.center(Offset.zero));
+    final slotCentre = slotBox.localToGlobal(slotBox.size.center(Offset.zero));
     return doorCentre - slotCentre;
   }
 
@@ -319,8 +346,10 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('YOUR STAYS',
-            style: AzText.eyebrow.copyWith(color: colors.textTertiary)),
+        Text(
+          'YOUR STAYS',
+          style: AzText.eyebrow.copyWith(color: colors.textTertiary),
+        ),
         const SizedBox(height: AzSpace.sm),
         Container(
           key: _slotKey,
@@ -350,8 +379,10 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
                   offset: flight,
                   child: Opacity(
                     opacity: _card.value.clamp(0.0, 1.0).toDouble(),
-                    child:
-                        Transform.scale(scale: 0.6 + 0.4 * pop, child: child),
+                    child: Transform.scale(
+                      scale: 0.6 + 0.4 * pop,
+                      child: child,
+                    ),
                   ),
                 );
               },
@@ -366,8 +397,10 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
   Widget _keyCard(AzamanColors colors) {
     return Container(
       height: 72,
-      padding:
-          const EdgeInsets.symmetric(horizontal: AzSpace.lg, vertical: AzSpace.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AzSpace.lg,
+        vertical: AzSpace.sm,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

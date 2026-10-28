@@ -14,7 +14,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 class VouchFormScreen extends ConsumerStatefulWidget {
   final PendingVouch vouch;
   const VouchFormScreen({super.key, required this.vouch});
@@ -43,7 +42,9 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
         _reason.text.trim().isEmpty ||
         !_ackPenalty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fill out all fields and confirm the penalty clause.')),
+        const SnackBar(
+          content: Text('Fill out all fields and confirm the penalty clause.'),
+        ),
       );
       return;
     }
@@ -51,7 +52,9 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
     try {
       await ref.read(susuActionsProvider).submitVouch(widget.vouch.id, {
         'relationship': _relationship.text.trim(),
-        'durationKnown': _duration.text.trim().isEmpty ? 'unspecified' : _duration.text.trim(),
+        'durationKnown': _duration.text.trim().isEmpty
+            ? 'unspecified'
+            : _duration.text.trim(),
         'reasonForTrust': _reason.text.trim(),
         'acknowledgesPenalty': true,
       });
@@ -60,7 +63,9 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -69,7 +74,8 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final inviteeLabel = widget.vouch.inviteeUsername ??
+    final inviteeLabel =
+        widget.vouch.inviteeUsername ??
         widget.vouch.inviteePhone ??
         'this user';
     return Scaffold(
@@ -81,9 +87,14 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Vouch Form',
-            style: TextStyle(
-                color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Text(
+          'Vouch Form',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
@@ -151,12 +162,17 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
                 backgroundColor: colors.warning,
                 foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
               child: Text(
                 _busy ? 'Submitting…' : 'Submit Vouch',
-                style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.4),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                ),
               ),
             ),
           ),
@@ -166,20 +182,24 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
   }
 
   Widget _label(AzamanColors colors, String s) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(
-          s.toUpperCase(),
-          style: TextStyle(
-            color: colors.textTertiary,
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Text(
+      s.toUpperCase(),
+      style: TextStyle(
+        color: colors.textTertiary,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+      ),
+    ),
+  );
 
-  Widget _input(AzamanColors colors, TextEditingController c,
-      {String? hint, int maxLines = 1}) {
+  Widget _input(
+    AzamanColors colors,
+    TextEditingController c, {
+    String? hint,
+    int maxLines = 1,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: colors.card,
@@ -190,7 +210,11 @@ class _VouchFormScreenState extends ConsumerState<VouchFormScreen> {
       child: TextField(
         controller: c,
         maxLines: maxLines,
-        style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hint,

@@ -158,7 +158,8 @@ class MediaSoundBackend implements AzSoundBackend {
         await player.load(path);
         _players[id] = player;
       } catch (_) {
-        player.dispose(); // asset absent or unreadable — stay silent for this id
+        player
+            .dispose(); // asset absent or unreadable — stay silent for this id
       }
     }
   }
@@ -207,8 +208,9 @@ class AzSound {
   static bool get isAudible => _backend.kind != AzSoundBackendKind.silent;
 
   /// Ids the active backend actually loaded (media backend only).
-  static Set<AzSoundId> get loadedIds =>
-      _backend is MediaSoundBackend ? (_backend as MediaSoundBackend).loadedIds : const {};
+  static Set<AzSoundId> get loadedIds => _backend is MediaSoundBackend
+      ? (_backend as MediaSoundBackend).loadedIds
+      : const {};
 
   /// Called ONCE from the app shell. Safe to call repeatedly.
   static void usePlatformSystemSounds() {

@@ -38,15 +38,15 @@ import 'package:azaman/theme/az_elevation.dart';
 
 class PremiumGlassContainer extends StatelessWidget {
   final Widget child;
-  final double blur;           // sigma for BackdropFilter (default 20)
-  final double opacity;        // overlay tint opacity (default 0.08)
-  final Color? tintColor;      // override tint color (defaults to white)
-  final double borderRadius;   // default 20
-  final Border? border;        // optional custom border
-  final Gradient? gradient;    // optional sheen gradient on top
+  final double blur; // sigma for BackdropFilter (default 20)
+  final double opacity; // overlay tint opacity (default 0.08)
+  final Color? tintColor; // override tint color (defaults to white)
+  final double borderRadius; // default 20
+  final Border? border; // optional custom border
+  final Gradient? gradient; // optional sheen gradient on top
   final EdgeInsets? padding;
   final EdgeInsets? margin;
-  final bool enableShadow;     // default true
+  final bool enableShadow; // default true
 
   // ── v2 additions (all optional — v1 call sites are unaffected) ──────────
 
@@ -109,7 +109,8 @@ class PremiumGlassContainer extends StatelessWidget {
     // the directional rim is painted as a gradient stroke (see the rim layer in
     // the Stack) and `rim` stays null. The v1 uniform hairline is preserved
     // exactly for callers that relied on it.
-    final Border? rim = border ??
+    final Border? rim =
+        border ??
         (directionalLight
             ? null
             : Border.all(
@@ -119,38 +120,39 @@ class PremiumGlassContainer extends StatelessWidget {
 
     final shadows = enableShadow
         ? (directionalLight
-            ? AzElevation.level2(isDark, color: shadowColor).map((s) {
-                // Rebuild each shadow with the strength multiplier applied so a
-                // caller can settle or lift a single surface.
-                if (shadowStrength == 1.0) return s;
-                return BoxShadow(
-                  // Clamp so the documented shadowStrength > 1 lift affordance
-                  // can never produce an invalid colour alpha.
-                  color: s.color.withValues(
-                    alpha:
-                        (s.color.a * shadowStrength).clamp(0.0, 1.0).toDouble(),
+              ? AzElevation.level2(isDark, color: shadowColor)
+                    .map((s) {
+                      // Rebuild each shadow with the strength multiplier applied so a
+                      // caller can settle or lift a single surface.
+                      if (shadowStrength == 1.0) return s;
+                      return BoxShadow(
+                        // Clamp so the documented shadowStrength > 1 lift affordance
+                        // can never produce an invalid colour alpha.
+                        color: s.color.withValues(
+                          alpha: (s.color.a * shadowStrength)
+                              .clamp(0.0, 1.0)
+                              .toDouble(),
+                        ),
+                        blurRadius: s.blurRadius,
+                        spreadRadius: s.spreadRadius,
+                        offset: s.offset,
+                      );
+                    })
+                    .toList(growable: false)
+              : <BoxShadow>[
+                  BoxShadow(
+                    color: (shadowColor ?? Colors.black).withValues(
+                      alpha: (isDark ? 0.3 : 0.08) * shadowStrength,
+                    ),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
                   ),
-                  blurRadius: s.blurRadius,
-                  spreadRadius: s.spreadRadius,
-                  offset: s.offset,
-                );
-              }).toList(growable: false)
-            : <BoxShadow>[
-                BoxShadow(
-                  color: (shadowColor ?? Colors.black)
-                      .withValues(alpha: (isDark ? 0.3 : 0.08) * shadowStrength),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ])
+                ])
         : null;
 
     return Container(
       margin: margin,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: shadows,
-      ),
+      decoration: BoxDecoration(borderRadius: radius, boxShadow: shadows),
       child: ClipRRect(
         borderRadius: radius,
         child: BackdropFilter(
@@ -206,10 +208,7 @@ class PremiumGlassContainer extends StatelessWidget {
                         end: Alignment.bottomRight,
                         colors: <Color>[Colors.white, Colors.white],
                       ).createShader(rect),
-                      child: _GradientRim(
-                        radius: radius,
-                        isDark: isDark,
-                      ),
+                      child: _GradientRim(radius: radius, isDark: isDark),
                     ),
                   ),
                 ),

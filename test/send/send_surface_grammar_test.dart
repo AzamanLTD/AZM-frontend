@@ -34,8 +34,9 @@ import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/widgets/amount_keypad.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 
-const _storageChannel =
-    MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+const _storageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
 
 class _FixedAuth extends AuthProvider {
   _FixedAuth(this.sessionUser);
@@ -65,40 +66,39 @@ class _FakeFriends extends FriendProvider {
 }
 
 User _user() => User(
-      id: '7',
-      username: 'me',
-      email: 'me@example.com',
-      token: 'tok',
-      role: 'USER',
-      azamanId: 'AZM-999999999',
-      availableBalance: 50.0,
-    );
+  id: '7',
+  username: 'me',
+  email: 'me@example.com',
+  token: 'tok',
+  role: 'USER',
+  azamanId: 'AZM-999999999',
+  availableBalance: 50.0,
+);
 
 SendRecipient _friendRecipient() => SendRecipient(
-      username: 'ama',
-      displayName: 'Ama Mensah',
-      userId: 101,
-      friendshipId: 'fs-1',
-      source: SendRecipientSource.friend,
-    );
+  username: 'ama',
+  displayName: 'Ama Mensah',
+  userId: 101,
+  friendshipId: 'fs-1',
+  source: SendRecipientSource.friend,
+);
 
 Future<void> _mockSecureStorage() async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
-    if (call.method == 'read') return 'mock-token';
-    return null;
-  });
+        if (call.method == 'read') return 'mock-token';
+        return null;
+      });
 }
 
 /// Pumps Home (base-marker) and pushes the Send surface on top, the way
 /// production does (a stacked full-page surface). After this returns the
 /// composer is mounted above [ValueKey('base-marker')].
-Future<void> _pumpStacked(
-  WidgetTester tester, {
-  required Widget screen,
-}) async {
-  SharedPreferences.setMockInitialValues(
-      {'azaman_theme': 1, 'biometric_lock_enabled': false});
+Future<void> _pumpStacked(WidgetTester tester, {required Widget screen}) async {
+  SharedPreferences.setMockInitialValues({
+    'azaman_theme': 1,
+    'biometric_lock_enabled': false,
+  });
   await _mockSecureStorage();
   final tp = ThemeProvider();
   await tester.pumpWidget(
@@ -114,9 +114,9 @@ Future<void> _pumpStacked(
             body: Center(
               child: TextButton(
                 key: const ValueKey('base-marker'),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => screen),
-                ),
+                onPressed: () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute<void>(builder: (_) => screen)),
                 child: const Text('base'),
               ),
             ),
@@ -128,15 +128,18 @@ Future<void> _pumpStacked(
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('base-marker')));
   await tester.pumpAndSettle();
-  expect(find.byKey(const ValueKey('base-marker')), findsNothing,
-      reason: 'the send surface covers the base page');
+  expect(
+    find.byKey(const ValueKey('base-marker')),
+    findsNothing,
+    reason: 'the send surface covers the base page',
+  );
 }
 
 Widget _surface({PeerSendOverride? sendOverride}) => SendMoneyScreen.toFriend(
-      fxRateOverride: 15.38,
-      recipient: _friendRecipient(),
-      sendOverride: sendOverride,
-    );
+  fxRateOverride: 15.38,
+  recipient: _friendRecipient(),
+  sendOverride: sendOverride,
+);
 
 Future<void> _tapKey(WidgetTester tester, String key) async {
   final finder = find.descendant(
@@ -179,8 +182,9 @@ Future<void> _slideToConfirm(WidgetTester tester) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('the X closes the surface — the stack returns to base',
-      (tester) async {
+  testWidgets('the X closes the surface — the stack returns to base', (
+    tester,
+  ) async {
     await _pumpStacked(tester, screen: _surface());
 
     // Compose stage: the affordance is an X, honestly labelled.
@@ -195,12 +199,16 @@ void main() {
     await tester.tap(x, warnIfMissed: false);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('base-marker')), findsOneWidget,
-        reason: 'the surface popped; the base page is back');
+    expect(
+      find.byKey(const ValueKey('base-marker')),
+      findsOneWidget,
+      reason: 'the surface popped; the base page is back',
+    );
   });
 
-  testWidgets('a deliberate downward pull dismisses the surface',
-      (tester) async {
+  testWidgets('a deliberate downward pull dismisses the surface', (
+    tester,
+  ) async {
     await _pumpStacked(tester, screen: _surface());
 
     // From the header band (static area, no child owns the vertical
@@ -209,8 +217,11 @@ void main() {
     await tester.dragFrom(const Offset(400, 30), const Offset(0, 260));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('base-marker')), findsOneWidget,
-        reason: 'the committed pull dismissed the surface');
+    expect(
+      find.byKey(const ValueKey('base-marker')),
+      findsOneWidget,
+      reason: 'the committed pull dismissed the surface',
+    );
   });
 
   testWidgets('a small pull is rejected — the surface springs back, '
@@ -221,15 +232,20 @@ void main() {
     await tester.dragFrom(const Offset(400, 30), const Offset(0, 80));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('base-marker')), findsNothing,
-        reason: 'a hesitant pull never dismisses');
-    expect(find.byKey(const ValueKey('send-edit-back')), findsOneWidget,
-        reason: 'the composer is still mounted');
+    expect(
+      find.byKey(const ValueKey('base-marker')),
+      findsNothing,
+      reason: 'a hesitant pull never dismisses',
+    );
+    expect(
+      find.byKey(const ValueKey('send-edit-back')),
+      findsOneWidget,
+      reason: 'the composer is still mounted',
+    );
   });
 
   testWidgets('an UNKNOWN outcome is never silently dragged away — the '
-      'pull is rejected and the explicit dialog appears',
-      (tester) async {
+      'pull is rejected and the explicit dialog appears', (tester) async {
     await _pumpStacked(
       tester,
       screen: _surface(
@@ -246,21 +262,31 @@ void main() {
     await _slideToConfirm(tester);
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('send-unknown-banner')), findsOneWidget,
-        reason: 'a 5xx is an unknown outcome');
+    expect(
+      find.byKey(const ValueKey('send-unknown-banner')),
+      findsOneWidget,
+      reason: 'a 5xx is an unknown outcome',
+    );
 
     // A deliberate pull past the threshold must NOT dismiss.
     await tester.dragFrom(const Offset(400, 30), const Offset(0, 260));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('send-unknown-leave-dialog')),
-        findsOneWidget,
-        reason: 'the rejected pull shows the explicit pending decision');
-    expect(find.byKey(const ValueKey('base-marker')), findsNothing,
-        reason: 'the surface did not pop — the operation stays visible');
-    expect(find.byKey(const ValueKey('pull-down-dismiss-transform')),
-        findsOneWidget,
-        reason: 'the surface sprang back instead of dismissing');
+    expect(
+      find.byKey(const ValueKey('send-unknown-leave-dialog')),
+      findsOneWidget,
+      reason: 'the rejected pull shows the explicit pending decision',
+    );
+    expect(
+      find.byKey(const ValueKey('base-marker')),
+      findsNothing,
+      reason: 'the surface did not pop — the operation stays visible',
+    );
+    expect(
+      find.byKey(const ValueKey('pull-down-dismiss-transform')),
+      findsOneWidget,
+      reason: 'the surface sprang back instead of dismissing',
+    );
   });
 
   testWidgets('the header affordance is honest per stage — X at compose, '

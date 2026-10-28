@@ -61,7 +61,9 @@ final myPayrollProvider = FutureProvider<List<PayrollRecord>>((ref) async {
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final list = body['records'] as List<dynamic>? ?? [];
-    return list.map((r) => PayrollRecord.fromJson(r as Map<String, dynamic>)).toList();
+    return list
+        .map((r) => PayrollRecord.fromJson(r as Map<String, dynamic>))
+        .toList();
   } catch (_) {
     return [];
   }
@@ -92,7 +94,9 @@ final myFeedbackProvider = FutureProvider<List<EmployeeFeedback>>((ref) async {
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final list = body['feedback'] as List<dynamic>? ?? [];
-    return list.map((f) => EmployeeFeedback.fromJson(f as Map<String, dynamic>)).toList();
+    return list
+        .map((f) => EmployeeFeedback.fromJson(f as Map<String, dynamic>))
+        .toList();
   } catch (_) {
     return [];
   }
@@ -105,7 +109,9 @@ final myTimeOffProvider = FutureProvider<List<TimeOffRequest>>((ref) async {
     if (res.statusCode != 200) return [];
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final list = body['requests'] as List<dynamic>? ?? [];
-    return list.map((t) => TimeOffRequest.fromJson(t as Map<String, dynamic>)).toList();
+    return list
+        .map((t) => TimeOffRequest.fromJson(t as Map<String, dynamic>))
+        .toList();
   } catch (_) {
     return [];
   }

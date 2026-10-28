@@ -17,8 +17,7 @@ class RateAlertNotifier extends ChangeNotifier {
 
   // ── Public getters ──────────────────────────────────────────────────────
   List<RateAlert> get alerts => _alerts;
-  List<RateAlert> get activeAlerts =>
-      _alerts.where((a) => a.isActive).toList();
+  List<RateAlert> get activeAlerts => _alerts.where((a) => a.isActive).toList();
   List<RateAlert> get triggeredAlerts =>
       _alerts.where((a) => a.isTriggered).toList();
   double? get currentRate => _currentRate;
@@ -94,7 +93,6 @@ class RateAlertNotifier extends ChangeNotifier {
 }
 
 /// Riverpod provider
-final rateAlertProvider =
-    ChangeNotifierProvider<RateAlertNotifier>((ref) {
+final rateAlertProvider = ChangeNotifierProvider<RateAlertNotifier>((ref) {
   return RateAlertNotifier();
 });

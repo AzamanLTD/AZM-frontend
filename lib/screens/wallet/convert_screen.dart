@@ -103,9 +103,9 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
   bool get _hasMeaningfulDraftInput => _amountCtrl.text.trim().isNotEmpty;
 
   Map<String, dynamic> _captureDraft() => {
-        'amountRaw': _amountCtrl.text.trim(),
-        'reversed': _reversed,
-      };
+    'amountRaw': _amountCtrl.text.trim(),
+    'reversed': _reversed,
+  };
 
   /// §C.1 — the guarded close through the SHARED launcher prompt. The
   /// draft is an estimate-form draft: resuming re-observes the live
@@ -224,10 +224,7 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
               // cards' inner edges while its CENTRE (the tap point)
               // stays inside the slot, so the control is honestly
               // hit-testable — no phantom button painted out of reach.
-              _FromPanel(
-                controller: _amountCtrl,
-                reversed: _reversed,
-              ),
+              _FromPanel(controller: _amountCtrl, reversed: _reversed),
               SizedBox(
                 height: 16,
                 child: OverflowBox(
@@ -267,10 +264,7 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
 // fabricated figure) and ONLY on the USDC side — GHS has no balance
 // to disclose (it is a display/quote currency).
 class _FromPanel extends StatelessWidget {
-  const _FromPanel({
-    required this.controller,
-    required this.reversed,
-  });
+  const _FromPanel({required this.controller, required this.reversed});
 
   final TextEditingController controller;
   final bool reversed;
@@ -336,11 +330,7 @@ class _FromPanel extends StatelessWidget {
 /// currency and GHS the only quote currency; a caret here would imply
 /// a picker that does not exist.
 class _AssetPill extends StatelessWidget {
-  const _AssetPill({
-    required this.code,
-    this.textKey,
-    this.subLabel,
-  });
+  const _AssetPill({required this.code, this.textKey, this.subLabel});
 
   final String code;
   final Key? textKey;
@@ -389,10 +379,7 @@ class _AssetPill extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             subLabel!,
-            style: TextStyle(
-              fontSize: 11.5,
-              color: colors.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 11.5, color: colors.onSurfaceVariant),
           ),
         ],
       ],
@@ -439,11 +426,7 @@ class _DirectionSwitchButton extends StatelessWidget {
             child: AnimatedRotation(
               turns: reversed ? 0.5 : 0.0,
               duration: const Duration(milliseconds: 220),
-              child: Icon(
-                Icons.swap_vert,
-                color: colors.onSurface,
-                size: 24,
-              ),
+              child: Icon(Icons.swap_vert, color: colors.onSurface, size: 24),
             ),
           ),
         ),
@@ -819,7 +802,6 @@ class _ToPanel extends StatelessWidget {
   }
 }
 
-
 /// The estimated-receive figure rendered as the To card's BIG figure.
 /// Every honesty key is preserved verbatim:
 /// • convert_amount_estimate / _too_large / _pending — the figure or
@@ -844,9 +826,7 @@ class _ReceiveEstimate extends StatelessWidget {
   Widget build(BuildContext context) {
     final snap = snapshot;
     if (snap == null || !snap.isUsableAt(kConvertNow())) {
-      return const SizedBox.shrink(
-        key: Key('convert_estimate_figure_absent'),
-      );
+      return const SizedBox.shrink(key: Key('convert_estimate_figure_absent'));
     }
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
@@ -854,11 +834,7 @@ class _ReceiveEstimate extends StatelessWidget {
     );
   }
 
-  Widget _build(
-    BuildContext context,
-    FxRateSnapshot snap,
-    String raw,
-  ) {
+  Widget _build(BuildContext context, FxRateSnapshot snap, String raw) {
     final colors = Theme.of(context).colorScheme;
     final rate = snap.ghsPerUsdc;
     final amount = double.tryParse(raw.trim());
@@ -1000,9 +976,7 @@ class _Panel extends StatelessWidget {
           colors.surface,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: child,
     );

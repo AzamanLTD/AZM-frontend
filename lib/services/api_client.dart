@@ -38,15 +38,28 @@ class ApiClient {
     }
   }
 
-  Future<http.Response> get(String endpoint, {Map<String, String>? headers, bool requireAuth = true}) async {
-    if (AppConfig.demoMode) { final m = DemoInterceptor.tryGet(endpoint); if (m != null) return m; }
-    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
+    if (AppConfig.demoMode) {
+      final m = DemoInterceptor.tryGet(endpoint);
+      if (m != null) return m;
+    }
+    final requestHeaders = <String, String>{
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...?headers,
+    };
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client.get(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders)).timeout(AppConfig.requestTimeout);
+      final response = await _client
+          .get(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders))
+          .timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
@@ -60,13 +73,27 @@ class ApiClient {
   /// captured header. Financial callers should use [postFinancial], which
   /// draws the key from the durable operation registry and owns the
   /// instance lifecycle; raw keys are for pre-armed gateway paths only.
-  Future<http.Response> post(String endpoint, Map<String, dynamic> body,
-      {Map<String, String>? headers, bool requireAuth = true, String? idempotencyKey}) async {
-    if (AppConfig.demoMode) { final m = DemoInterceptor.tryPost(endpoint, body); if (m != null) return m; }
-    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
+  Future<http.Response> post(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+    String? idempotencyKey,
+  }) async {
+    if (AppConfig.demoMode) {
+      final m = DemoInterceptor.tryPost(endpoint, body);
+      if (m != null) return m;
+    }
+    final requestHeaders = <String, String>{
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...?headers,
+    };
     if (idempotencyKey != null) {
       if (idempotencyKey.trim().isEmpty) {
-        throw ArgumentError('idempotencyKey must be a non-empty string when provided');
+        throw ArgumentError(
+          'idempotencyKey must be a non-empty string when provided',
+        );
       }
       requestHeaders['Idempotency-Key'] = idempotencyKey.trim();
     }
@@ -75,7 +102,13 @@ class ApiClient {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client.post(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: jsonEncode(body)).timeout(AppConfig.requestTimeout);
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: Map.of(requestHeaders),
+            body: jsonEncode(body),
+          )
+          .timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
@@ -160,14 +193,19 @@ class ApiClient {
   /// Where the body carries a legacy in-body identity (clientRequestId),
   /// the helper OVERWRITES it with the instance key: one logical operation,
   /// one identity — in the durable record, in the header, and in the body.
-  Future<http.Response> postFinancial(String endpoint, Map<String, dynamic> body,
-      {required String operationType,
-      FinancialOperationRef? ref,
-      bool requireAuth = true,
-      Map<String, String>? headers,
-      bool failClosedOnPendingFingerprintChange = false}) async {
+  Future<http.Response> postFinancial(
+    String endpoint,
+    Map<String, dynamic> body, {
+    required String operationType,
+    FinancialOperationRef? ref,
+    bool requireAuth = true,
+    Map<String, String>? headers,
+    bool failClosedOnPendingFingerprintChange = false,
+  }) async {
     if (operationType.trim().isEmpty) {
-      throw ArgumentError('Financial mutations require a non-empty operationType');
+      throw ArgumentError(
+        'Financial mutations require a non-empty operationType',
+      );
     }
     // Demo mode short-circuits before economics: no durable entry needed.
     if (AppConfig.demoMode) {
@@ -186,16 +224,20 @@ class ApiClient {
     final retryId = ref?.operationId;
     if (retryId != null) {
       try {
-        op = await DurableOperationRegistry.retry(retryId,
-            account: account, request: body_);
+        op = await DurableOperationRegistry.retry(
+          retryId,
+          account: account,
+          request: body_,
+        );
       } on DurableOperationNotFoundException {
         // Already terminal (or never existed / another namespace): there
         // is no outstanding claim — this is a genuinely new action.
         op = await DurableOperationRegistry.begin(
-            account: account,
-            type: operationType,
-            endpoint: endpoint,
-            request: body_);
+          account: account,
+          type: operationType,
+          endpoint: endpoint,
+          request: body_,
+        );
       } on DurableOperationFingerprintMismatchException {
         // Materially different request while the flow's instance is still
         // PENDING. Default (legacy) semantics: a genuinely NEW instance;
@@ -209,17 +251,19 @@ class ApiClient {
           throw PendingFinancialOperationException(ref!.operationId!);
         }
         op = await DurableOperationRegistry.begin(
-            account: account,
-            type: operationType,
-            endpoint: endpoint,
-            request: body_);
-      }
-    } else {
-      op = await DurableOperationRegistry.begin(
           account: account,
           type: operationType,
           endpoint: endpoint,
-          request: body_);
+          request: body_,
+        );
+      }
+    } else {
+      op = await DurableOperationRegistry.begin(
+        account: account,
+        type: operationType,
+        endpoint: endpoint,
+        request: body_,
+      );
     }
 
     // The durable record exists now — arm the caller's handle BEFORE the
@@ -230,11 +274,14 @@ class ApiClient {
     // Shared transmit + disposition (identical contract to the exact-only
     // recovery path): one key on the wire, retire on 2xx / definitive
     // pre-economic 4xx, retain on 401/409/429, 5xx and network loss.
-    return _transmitResolved(op, account,
-        body: body_,
-        ref: ref,
-        requireAuth: requireAuth,
-        headers: headers);
+    return _transmitResolved(
+      op,
+      account,
+      body: body_,
+      ref: ref,
+      requireAuth: requireAuth,
+      headers: headers,
+    );
   }
 
   /// Retry ONE recovered instance by replaying its STORED request snapshot.
@@ -256,14 +303,18 @@ class ApiClient {
   /// operations whose secrets were scrubbed at persistence time
   /// (op.secretFields) — the durable record deliberately cannot replay
   /// them.
-  Future<http.Response> retryRecovered(DurableOperation op,
-      {Map<String, dynamic>? freshSecrets,
-      bool requireAuth = true,
-      Map<String, String>? headers}) {
-    return postFinancialRecovered(op,
-        freshSecrets: freshSecrets,
-        requireAuth: requireAuth,
-        headers: headers);
+  Future<http.Response> retryRecovered(
+    DurableOperation op, {
+    Map<String, dynamic>? freshSecrets,
+    bool requireAuth = true,
+    Map<String, String>? headers,
+  }) {
+    return postFinancialRecovered(
+      op,
+      freshSecrets: freshSecrets,
+      requireAuth: requireAuth,
+      headers: headers,
+    );
   }
 
   /// EXACT-ONLY recovery send (close-out review 2, finding 1).
@@ -280,10 +331,12 @@ class ApiClient {
   ///     replace the selected instance with a new operation.
   ///
   /// An explicit user request to resume A must never silently become B.
-  Future<http.Response> postFinancialRecovered(DurableOperation op,
-      {Map<String, dynamic>? freshSecrets,
-      bool requireAuth = true,
-      Map<String, String>? headers}) async {
+  Future<http.Response> postFinancialRecovered(
+    DurableOperation op, {
+    Map<String, dynamic>? freshSecrets,
+    bool requireAuth = true,
+    Map<String, String>? headers,
+  }) async {
     if (!op.replaySafe) {
       // Synthetic-fingerprint instance (e.g. a storefront cart
       // fingerprint): the snapshot is NOT the wire request. Generic replay
@@ -298,22 +351,25 @@ class ApiClient {
     if (op.secretFields.isNotEmpty) {
       if (freshSecrets == null) {
         throw ArgumentError(
-            'Operation "${op.type}" requires fresh step-up credentials '
-            '(${op.secretFields.join(', ')}) — the durable record never '
-            'persists them; gather them from the user and pass freshSecrets.');
+          'Operation "${op.type}" requires fresh step-up credentials '
+          '(${op.secretFields.join(', ')}) — the durable record never '
+          'persists them; gather them from the user and pass freshSecrets.',
+        );
       }
       for (final f in op.secretFields) {
         if (!freshSecrets.containsKey(f)) {
           throw ArgumentError(
-              'Fresh step-up credentials are missing "$f" for operation '
-              '"${op.type}".');
+            'Fresh step-up credentials are missing "$f" for operation '
+            '"${op.type}".',
+          );
         }
         replay[f] = freshSecrets[f];
       }
     } else if (freshSecrets != null && freshSecrets.isNotEmpty) {
       throw ArgumentError(
-          'Operation "${op.type}" carries no secret fields; freshSecrets '
-          'must be empty.');
+        'Operation "${op.type}" carries no secret fields; freshSecrets '
+        'must be empty.',
+      );
     }
     // Identity-carrying placeholders (clientRequestId / idempotencyKey) in
     // the stored snapshot are rewritten to the instance's OWN key — the
@@ -330,32 +386,46 @@ class ApiClient {
     // DurableOperationNotFoundException (stale/retired/other namespace) and
     // DurableOperationFingerprintMismatchException propagate — this path
     // NEVER catches them into a begin().
-    final resolved = await DurableOperationRegistry.retry(op.operationId,
-        account: account, request: replay);
+    final resolved = await DurableOperationRegistry.retry(
+      op.operationId,
+      account: account,
+      request: replay,
+    );
 
-    return _transmitResolved(resolved, account,
-        body: replay,
-        ref: null,
-        requireAuth: requireAuth,
-        headers: headers);
+    return _transmitResolved(
+      resolved,
+      account,
+      body: replay,
+      ref: null,
+      requireAuth: requireAuth,
+      headers: headers,
+    );
   }
 
   /// The shared wire transmit + durable disposition of one RESOLVED
   /// instance: send with the instance's key, then retire/retain per the
   /// disposition contract (2xx and definitive pre-economic 4xx retire;
   /// 401/409/429, 5xx and network loss retain).
-  Future<http.Response> _transmitResolved(DurableOperation op, String account,
-      {required Map<String, dynamic> body,
-      FinancialOperationRef? ref,
-      required bool requireAuth,
-      Map<String, String>? headers}) async {
+  Future<http.Response> _transmitResolved(
+    DurableOperation op,
+    String account, {
+    required Map<String, dynamic> body,
+    FinancialOperationRef? ref,
+    required bool requireAuth,
+    Map<String, String>? headers,
+  }) async {
     final key = op.key;
     if (body.containsKey('clientRequestId')) {
       body['clientRequestId'] = key; // one identity, everywhere
     }
     try {
-      final response = await post(op.endpoint, body,
-          headers: headers, requireAuth: requireAuth, idempotencyKey: key);
+      final response = await post(
+        op.endpoint,
+        body,
+        headers: headers,
+        requireAuth: requireAuth,
+        idempotencyKey: key,
+      );
       // 2xx: the authoritative outcome is in hand — terminal.
       await DurableOperationRegistry.retire(op.operationId, account: account);
       if (ref != null) ref.operationId = null;
@@ -363,7 +433,11 @@ class ApiClient {
     } on ApiException catch (e) {
       final code = e.statusCode;
       final definitivePreEconomic4xx =
-          code >= 400 && code < 500 && code != 401 && code != 409 && code != 429;
+          code >= 400 &&
+          code < 500 &&
+          code != 401 &&
+          code != 409 &&
+          code != 429;
       final unknownServerState = code >= 500;
       if (definitivePreEconomic4xx && !unknownServerState) {
         await DurableOperationRegistry.retire(op.operationId, account: account);
@@ -380,58 +454,121 @@ class ApiClient {
     }
   }
 
-  Future<http.Response> put(String endpoint, Map<String, dynamic> body, {Map<String, String>? headers, bool requireAuth = true}) async {
-    if (AppConfig.demoMode) { final m = DemoInterceptor.tryPut(endpoint, body); if (m != null) return m; }
-    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
+  Future<http.Response> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
+    if (AppConfig.demoMode) {
+      final m = DemoInterceptor.tryPut(endpoint, body);
+      if (m != null) return m;
+    }
+    final requestHeaders = <String, String>{
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...?headers,
+    };
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client.put(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: jsonEncode(body)).timeout(AppConfig.requestTimeout);
+      final response = await _client
+          .put(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: Map.of(requestHeaders),
+            body: jsonEncode(body),
+          )
+          .timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
 
-  Future<http.Response> patch(String endpoint, {Map<String, dynamic>? body, Map<String, String>? headers, bool requireAuth = true}) async {
-    if (AppConfig.demoMode) { final m = DemoInterceptor.tryPatch(endpoint); if (m != null) return m; }
-    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
+  Future<http.Response> patch(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
+    if (AppConfig.demoMode) {
+      final m = DemoInterceptor.tryPatch(endpoint);
+      if (m != null) return m;
+    }
+    final requestHeaders = <String, String>{
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...?headers,
+    };
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client.patch(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders), body: body != null ? jsonEncode(body) : null).timeout(AppConfig.requestTimeout);
+      final response = await _client
+          .patch(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: Map.of(requestHeaders),
+            body: body != null ? jsonEncode(body) : null,
+          )
+          .timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
 
-  Future<http.Response> delete(String endpoint, {Map<String, String>? headers, bool requireAuth = true}) async {
-    if (AppConfig.demoMode) { final m = DemoInterceptor.tryDelete(endpoint); if (m != null) return m; }
-    final requestHeaders = <String, String>{'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true', ...?headers};
+  Future<http.Response> delete(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
+    if (AppConfig.demoMode) {
+      final m = DemoInterceptor.tryDelete(endpoint);
+      if (m != null) return m;
+    }
+    final requestHeaders = <String, String>{
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      ...?headers,
+    };
     return _executeWithRefresh(() async {
       if (requireAuth) {
         final token = await _storage.read(key: 'auth_token');
         if (token != null) requestHeaders['Authorization'] = 'Bearer $token';
       }
-      final response = await _client.delete(Uri.parse('$baseUrl$endpoint'), headers: Map.of(requestHeaders)).timeout(AppConfig.requestTimeout);
+      final response = await _client
+          .delete(
+            Uri.parse('$baseUrl$endpoint'),
+            headers: Map.of(requestHeaders),
+          )
+          .timeout(AppConfig.requestTimeout);
       return _handleResponse(response);
     });
   }
 
-  Future<http.Response> multipart(String endpoint, http.MultipartRequest request) async {
+  Future<http.Response> multipart(
+    String endpoint,
+    http.MultipartRequest request,
+  ) async {
     return _executeWithRefresh(() async {
       final token = await _storage.read(key: 'auth_token');
       if (token != null) request.headers['Authorization'] = 'Bearer $token';
-      final streamedResponse = await request.send().timeout(const Duration(seconds: 60));
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 60),
+      );
       final responseData = await http.Response.fromStream(streamedResponse);
       return _handleResponse(responseData);
     });
   }
 
   http.Response _handleResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return response;
-    if (response.statusCode == 429) throw ApiException(message: 'Slow down! Too many requests. Please wait a moment and try again.', statusCode: 429);
+    if (response.statusCode >= 200 && response.statusCode < 300)
+      return response;
+    if (response.statusCode == 429)
+      throw ApiException(
+        message:
+            'Slow down! Too many requests. Please wait a moment and try again.',
+        statusCode: 429,
+      );
     var message = 'Request failed with status ${response.statusCode}';
     List<String>? errors;
     String? code;
@@ -440,16 +577,25 @@ class ApiClient {
       if (errorData is Map<String, dynamic>) {
         message = errorData['message']?.toString() ?? message;
         code = errorData['code']?.toString();
-        if (errorData['errors'] is List) errors = List<String>.from(errorData['errors']);
+        if (errorData['errors'] is List)
+          errors = List<String>.from(errorData['errors']);
       }
     } on FormatException {}
-    throw ApiException(message: message, statusCode: response.statusCode, errors: errors, code: code);
+    throw ApiException(
+      message: message,
+      statusCode: response.statusCode,
+      errors: errors,
+      code: code,
+    );
   }
 
   Future<bool> _tryRefreshToken() async {
     if (_isRefreshing && _refreshFuture != null) return _refreshFuture!;
     _isRefreshing = true;
-    _refreshFuture = _doRefresh().whenComplete(() { _isRefreshing = false; _refreshFuture = null; });
+    _refreshFuture = _doRefresh().whenComplete(() {
+      _isRefreshing = false;
+      _refreshFuture = null;
+    });
     return _refreshFuture!;
   }
 
@@ -457,20 +603,29 @@ class ApiClient {
     try {
       final refreshToken = await _storage.read(key: 'refresh_token');
       if (refreshToken == null || refreshToken.isEmpty) return false;
-      final response = await _client.post(Uri.parse('$baseUrl/auth/refresh'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'refreshToken': refreshToken})).timeout(const Duration(seconds: 15));
+      final response = await _client
+          .post(
+            Uri.parse('$baseUrl/auth/refresh'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': refreshToken}),
+          )
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         final newAccess = (body['accessToken'] ?? body['token'])?.toString();
         final newRefresh = body['refreshToken']?.toString();
         if (newAccess == null || newAccess.isEmpty) return false;
         await _storage.write(key: 'auth_token', value: newAccess);
-        if (newRefresh != null && newRefresh.isNotEmpty) await _storage.write(key: 'refresh_token', value: newRefresh);
+        if (newRefresh != null && newRefresh.isNotEmpty)
+          await _storage.write(key: 'refresh_token', value: newRefresh);
         try {
           await SocketService.instance.forceReconnect();
         } catch (e) {
           debugPrint('[ApiClient] Socket re-auth reconnect failed: $e');
         }
-        debugPrint('[ApiClient] Token silently refreshed and socket auth rotated.');
+        debugPrint(
+          '[ApiClient] Token silently refreshed and socket auth rotated.',
+        );
         return true;
       }
       await clearAuthData();
@@ -485,16 +640,30 @@ class ApiClient {
     final token = await _storage.read(key: 'auth_token');
     final userId = await _storage.read(key: 'user_id');
     if (token == null || userId == null) return false;
-    try { await get('/auth/me/$userId'); return true; } catch (e) { debugPrint('[ApiClient] isAuthenticated check failed: $e'); return false; }
+    try {
+      await get('/auth/me/$userId');
+      return true;
+    } catch (e) {
+      debugPrint('[ApiClient] isAuthenticated check failed: $e');
+      return false;
+    }
   }
 
   Future<void> logout() async {
     final refreshToken = await _storage.read(key: 'refresh_token');
     if (refreshToken != null && refreshToken.isNotEmpty) {
       try {
-        await _client.post(Uri.parse('$baseUrl/auth/logout'), headers: {'Content-Type': 'application/json'}, body: jsonEncode({'refreshToken': refreshToken}),).timeout(const Duration(seconds: 10));
+        await _client
+            .post(
+              Uri.parse('$baseUrl/auth/logout'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({'refreshToken': refreshToken}),
+            )
+            .timeout(const Duration(seconds: 10));
       } catch (e) {
-        debugPrint('[ApiClient] Server logout failed (local logout continues): $e');
+        debugPrint(
+          '[ApiClient] Server logout failed (local logout continues): $e',
+        );
       }
     }
     await clearAuthData();
@@ -558,9 +727,16 @@ class ApiException implements Exception {
   final int statusCode;
   final String? code;
   final List<String>? errors;
-  ApiException({required this.message, required this.statusCode, this.errors, this.code});
+  ApiException({
+    required this.message,
+    required this.statusCode,
+    this.errors,
+    this.code,
+  });
   @override
-  String toString() => errors != null && errors!.isNotEmpty ? '$message: ${errors!.join(', ')}' : message;
+  String toString() => errors != null && errors!.isNotEmpty
+      ? '$message: ${errors!.join(', ')}'
+      : message;
 }
 
 final ApiClient apiClient = ApiClient();

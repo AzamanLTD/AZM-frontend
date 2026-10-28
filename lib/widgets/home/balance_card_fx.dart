@@ -76,6 +76,15 @@ const double kUnitColumn = 46;
 /// footprint with the secondary line beneath.
 const double _kHeadlineSize = AzText.sizeHero;
 
+/// Fixed slots for the two scale-dependent text rows. With these reserved, the
+/// front face's rows sum to a constant that always fits the measured safe area
+/// (20 + 2 + 40 + 2 + 44 + 13 = 121 of the 124px available at a 180px card),
+/// so the money block cannot overflow at ANY width or text scale — the content
+/// that would grow scales DOWN inside its own slot instead of pushing the
+/// column past the card edge.
+const double _kLabelSlot = 20;
+const double _kRateSlot = 13;
+
 /// The redesigned Home balance card front face.
 class BalanceCardFx extends StatelessWidget {
   const BalanceCardFx({
@@ -257,7 +266,8 @@ class BalanceCardFx extends StatelessWidget {
         // headline is announced as the available balance in GHS —
         // the app's main currency, never as a USDC-derived estimate.
         // The estimate language lives ONLY on the USDC line.
-        semanticsLabel: 'Available balance '
+        semanticsLabel:
+            'Available balance '
             '${AzMoney.ghs(v.availableGhsValue!)} in GHS',
       );
     } else {
@@ -473,9 +483,7 @@ class BalanceCardFx extends StatelessWidget {
                         const SizedBox(width: AzSpace.xs),
                         Text(
                           'Updating…',
-                          key: const ValueKey(
-                            'balance-fx-rate-refresh-label',
-                          ),
+                          key: const ValueKey('balance-fx-rate-refresh-label'),
                           style: AzText.caption.copyWith(
                             color: colors.textSecondary,
                           ),
@@ -526,66 +534,88 @@ class BalanceCardFx extends StatelessWidget {
     // 44px equivalent row and the pinned rate row at the pair's 1.25x
     // text-scale clamp on every supported width (320dp included). The
     // denser inset buys that target without shrinking any glyph.
-    return Padding(
+    // NO PADDING OF ITS OWN: the painted card surface has already applied the
+    // measured safe area (below the brand block, left of the chip), so the
+    // money content can never cover the mark, the chip or the contour focal
+    // point. This face owns only the vertical rhythm inside that area.
+    return Column(
       key: const ValueKey('balance-fx-card'),
-      padding: const EdgeInsets.all(AzSpace.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'AVAILABLE BALANCE',
-            key: const ValueKey('balance-fx-label'),
-            style: AzText.eyebrow.copyWith(color: colors.textTertiary),
-          ),
-          const SizedBox(height: AzSpace.sm),
-          // The dominant GHS line, scaled down only as much as the card
-          // width demands (never pre-shrunk, never unreadable).
-          //
-          // PERMANENT SLOT: every headline state (value, loading dots,
-          // unavailable dash) occupies the SAME fixed-height region — the
-          // money style's own line height (_kHeadlineSize at height 1.0) —
-          // so the secondary line below can never shift vertically when a
-          // value is absent, loading or unavailable. The GHS headline is
-          // the card's dominant region; its geometry is data-independent.
-          SizedBox(
-            key: const ValueKey('balance-fx-headline-slot'),
-            height: _kHeadlineSize,
-            width: double.infinity,
-            child: FittedBox(
-              key: const ValueKey('balance-fx-headline-fitted'),
-              alignment: Alignment.centerLeft,
-              fit: BoxFit.scaleDown,
-              child: headline,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // THE LABEL SLOT IS FIXED, like the two money slots below it. The
+        // eyebrow's line box grows with the platform text scale, and at the
+        // pair's 1.25x clamp the four fixed rows summed to 125.7px inside a
+        // 124px safe area — a 1.7px bottom overflow at every width. Reserving
+        // a fixed 22px slot keeps the card's footprint data- and scale-stable:
+        // the all-caps label scales down inside its slot when the platform
+        // asks for more than it can give, and NOTHING below it moves.
+        SizedBox(
+          key: const ValueKey('balance-fx-label'),
+          height: _kLabelSlot,
+          width: double.infinity,
+          child: FittedBox(
+            alignment: Alignment.centerLeft,
+            fit: BoxFit.scaleDown,
+            child: Text(
+              'AVAILABLE BALANCE',
+              style: AzText.eyebrow.copyWith(color: colors.textTertiary),
             ),
           ),
-          const SizedBox(height: AzSpace.xxs),
-          // PERMANENT SLOT, same doctrine as the headline: the USDC line
-          // occupies ONE fixed-height region (the equivalent row's own
-          // 44dp accessibility-target height) in EVERY state — equivalent,
-          // held-without-rate, balance-loading, empty — so the section's
-          // geometry is data-independent and the rate row below never
-          // moves. Content is center-aligned inside the region.
-          SizedBox(
-            key: const ValueKey('balance-fx-secondary-slot'),
-            height: 44,
-            width: double.infinity,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: secondary,
-            ),
+        ),
+        const SizedBox(height: AzSpace.xxs),
+        // The dominant GHS line, scaled down only as much as the card
+        // width demands (never pre-shrunk, never unreadable).
+        //
+        // PERMANENT SLOT: every headline state (value, loading dots,
+        // unavailable dash) occupies the SAME fixed-height region — the
+        // money style's own line height (_kHeadlineSize at height 1.0) —
+        // so the secondary line below can never shift vertically when a
+        // value is absent, loading or unavailable. The GHS headline is
+        // the card's dominant region; its geometry is data-independent.
+        SizedBox(
+          key: const ValueKey('balance-fx-headline-slot'),
+          height: _kHeadlineSize,
+          width: double.infinity,
+          child: FittedBox(
+            key: const ValueKey('balance-fx-headline-fitted'),
+            alignment: Alignment.centerLeft,
+            fit: BoxFit.scaleDown,
+            child: headline,
           ),
-          // The middle block lives in the REMAINING space of the fixed
-          // footprint so the rate row always stays pinned flush bottom.
-          const Expanded(child: SizedBox.shrink()),
-          // ONE left-side status cluster: the animated dots and the
-          // 'Updating rate…' caption live adjacent to the idle rate text
-          // in this same slot. There is deliberately NO right-hand
-          // status: the rate refresh is a passive background fact, and
-          // the card never presents a second, competing status row —
-          // nor anything that reads as a refresh ACTION (the rate
-          // refreshes itself in the background; it is not user-armed).
-          Align(
-            key: const ValueKey('balance-fx-rate-row'),
+        ),
+        const SizedBox(height: AzSpace.xxs),
+        // PERMANENT SLOT, same doctrine as the headline: the USDC line
+        // occupies ONE fixed-height region (the equivalent row's own
+        // 44dp accessibility-target height) in EVERY state — equivalent,
+        // held-without-rate, balance-loading, empty — so the section's
+        // geometry is data-independent and the rate row below never
+        // moves. Content is center-aligned inside the region.
+        SizedBox(
+          key: const ValueKey('balance-fx-secondary-slot'),
+          height: 44,
+          width: double.infinity,
+          child: Align(alignment: Alignment.centerLeft, child: secondary),
+        ),
+        // The middle block lives in the REMAINING space of the fixed
+        // footprint so the rate row always stays pinned flush bottom.
+        const Expanded(child: SizedBox.shrink()),
+        // ONE left-side status cluster: the animated dots and the
+        // 'Updating rate…' caption live adjacent to the idle rate text
+        // in this same slot. There is deliberately NO right-hand
+        // status: the rate refresh is a passive background fact, and
+        // the card never presents a second, competing status row —
+        // nor anything that reads as a refresh ACTION (the rate
+        // refreshes itself in the background; it is not user-armed).
+        // THE RATE SLOT IS FIXED TOO. Its line box is the one remaining
+        // scale-dependent row: at 1.3x the caption grew the column to 3.4px
+        // past the safe area. Reserving a fixed slot means the four rows below
+        // the label sum to a CONSTANT, so the money block can never overflow
+        // its 180px card at any width or text scale.
+        SizedBox(
+          key: const ValueKey('balance-fx-rate-row'),
+          height: _kRateSlot,
+          width: double.infinity,
+          child: Align(
             alignment: Alignment.centerLeft,
             child: FittedBox(
               alignment: Alignment.centerLeft,
@@ -593,8 +623,8 @@ class BalanceCardFx extends StatelessWidget {
               child: rateStatus,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

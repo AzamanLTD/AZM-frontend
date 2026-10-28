@@ -152,7 +152,8 @@ ResolvedNativeAmount resolveNativeAmount({
 
   // ── Case 2/3: no recorded GHS amount. A live estimate, or nothing. ────────
   final at = now ?? DateTime.now().toUtc();
-  final hasUsableRate = snapshot != null && snapshot.isUsableAt(at) && snapshot.ghsPerUsdc > 0;
+  final hasUsableRate =
+      snapshot != null && snapshot.isUsableAt(at) && snapshot.ghsPerUsdc > 0;
 
   if (!hasUsableRate) {
     // Fail honest: the native amount stands, the equivalence is NAMED.
@@ -254,8 +255,7 @@ class NativeAmountText extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preference = ref.watch(currencyProvider);
     final colors = ref.watch(themeProvider).colors;
-    final snapshot =
-        snapshotOverride ?? ref.watch(fxRateProvider).valueOrNull;
+    final snapshot = snapshotOverride ?? ref.watch(fxRateProvider).valueOrNull;
 
     final resolved = resolveNativeAmount(
       amountUsdc: amountUsdc,
@@ -265,13 +265,14 @@ class NativeAmountText extends ConsumerWidget {
       forceNative: forceNative,
     );
 
-    final base = (style ??
-            TextStyle(
-              color: colors.textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ))
-        .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    final base =
+        (style ??
+                TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ))
+            .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
 
     final tail = resolved.inlineTail;
     final hasTail = showEquivalent && tail.isNotEmpty;
@@ -299,10 +300,12 @@ class NativeAmountText extends ConsumerWidget {
     // Nothing is dropped, shortened or hidden; both parts stay verbatim.
     Widget content() {
       if (!hasTail) {
-        return Text.rich(leadSpan,
-            maxLines: maxLines,
-            overflow: TextOverflow.ellipsis,
-            textAlign: textAlign);
+        return Text.rich(
+          leadSpan,
+          maxLines: maxLines,
+          overflow: TextOverflow.ellipsis,
+          textAlign: textAlign,
+        );
       }
       return LayoutBuilder(
         builder: (context, constraints) {
@@ -313,10 +316,12 @@ class NativeAmountText extends ConsumerWidget {
             maxLines: 1,
           )..layout(maxWidth: constraints.maxWidth);
           if (!oneLine.didExceedMaxLines) {
-            return Text.rich(fullSpan,
-                maxLines: maxLines,
-                overflow: TextOverflow.ellipsis,
-                textAlign: textAlign);
+            return Text.rich(
+              fullSpan,
+              maxLines: maxLines,
+              overflow: TextOverflow.ellipsis,
+              textAlign: textAlign,
+            );
           }
           return Wrap(
             spacing: 6,
@@ -365,8 +370,7 @@ class NativeAmountDisplay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final preference = ref.watch(currencyProvider);
     final colors = ref.watch(themeProvider).colors;
-    final snapshot =
-        snapshotOverride ?? ref.watch(fxRateProvider).valueOrNull;
+    final snapshot = snapshotOverride ?? ref.watch(fxRateProvider).valueOrNull;
 
     final resolved = resolveNativeAmount(
       amountUsdc: amountUsdc,
@@ -376,20 +380,22 @@ class NativeAmountDisplay extends ConsumerWidget {
       forceNative: forceNative,
     );
 
-    final primary = (primaryStyle ??
-            TextStyle(
-              color: colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ))
-        .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
-    final secondary = (secondaryStyle ??
-            TextStyle(
-              color: colors.textSecondary,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ))
-        .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    final primary =
+        (primaryStyle ??
+                TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ))
+            .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    final secondary =
+        (secondaryStyle ??
+                TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ))
+            .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
 
     return Semantics(
       label: resolved.semanticsLabel,
@@ -431,6 +437,7 @@ class AmountEntryEquivalent extends ConsumerWidget {
 
   final double amountUsdc;
   final FxRateSnapshot? snapshotOverride;
+
   /// Context note appended after the estimate. MUST be supplied by the
   /// caller for any context with settlement meaning (escrow panels,
   /// receipts) — settlement wording is only truthful with DTO evidence.
@@ -440,13 +447,11 @@ class AmountEntryEquivalent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final snapshot =
-        snapshotOverride ?? ref.watch(fxRateProvider).valueOrNull;
+    final snapshot = snapshotOverride ?? ref.watch(fxRateProvider).valueOrNull;
 
     final at = DateTime.now().toUtc();
-    final usable = snapshot != null &&
-        snapshot.isUsableAt(at) &&
-        snapshot.ghsPerUsdc > 0;
+    final usable =
+        snapshot != null && snapshot.isUsableAt(at) && snapshot.ghsPerUsdc > 0;
 
     final String estimate;
     if (!usable || amountUsdc <= 0) {
@@ -463,8 +468,7 @@ class AmountEntryEquivalent extends ConsumerWidget {
           : 'GHS equivalent unavailable';
     }
 
-    final visible =
-        railNote.isEmpty ? estimate : '$estimate · $railNote';
+    final visible = railNote.isEmpty ? estimate : '$estimate · $railNote';
 
     return Semantics(
       label: 'Amount is $railNote. $estimate.',

@@ -22,7 +22,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/server_bookmarks_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -67,7 +66,9 @@ class BusinessCard extends ConsumerWidget {
           border: Border.all(color: colors.divider, width: 1),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: colors.isDark ? 0.25 : 0.06),
+              color: Colors.black.withValues(
+                alpha: colors.isDark ? 0.25 : 0.06,
+              ),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -77,10 +78,7 @@ class BusinessCard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: [
-            _coverPhoto(colors),
-            _infoSection(ref, colors),
-          ],
+          children: [_coverPhoto(colors), _infoSection(ref, colors)],
         ),
       ),
     );
@@ -181,7 +179,11 @@ class BusinessCard extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Icon(Icons.shopping_bag_outlined, size: 12, color: colors.textTertiary),
+              Icon(
+                Icons.shopping_bag_outlined,
+                size: 12,
+                color: colors.textTertiary,
+              ),
               const SizedBox(width: 3),
               Text(
                 '${business.completedEscrows} orders',
@@ -192,35 +194,40 @@ class BusinessCard extends ConsumerWidget {
           if (fromPrice != null) ...[
             const SizedBox(height: 8),
             Text.rich(
-              TextSpan(children: [
-                if (_cheapestGhs() != null)
+              TextSpan(
+                children: [
+                  if (_cheapestGhs() != null)
+                    TextSpan(
+                      text: 'from ',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12,
+                      ),
+                    ),
                   TextSpan(
-                    text: 'from ',
-                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                    // GHS availability truth (final acceptance follow-up
+                    // 2026-10-19): the legacy priceUsdc figure is never a
+                    // substitute browse listing price — without a
+                    // server-confirmed GHS price the anchor says so,
+                    // single-line and muted, WITHOUT the 'from' prefix (an
+                    // unavailable state is not a price range).
+                    text: _cheapestGhs() != null
+                        ? 'GH₵${_cheapestGhs()}'
+                        : 'Price unavailable',
+                    style: _cheapestGhs() != null
+                        ? TextStyle(
+                            color: colors.accent,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          )
+                        : TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                   ),
-                TextSpan(
-                  // GHS availability truth (final acceptance follow-up
-                  // 2026-10-19): the legacy priceUsdc figure is never a
-                  // substitute browse listing price — without a
-                  // server-confirmed GHS price the anchor says so,
-                  // single-line and muted, WITHOUT the 'from' prefix (an
-                  // unavailable state is not a price range).
-                  text: _cheapestGhs() != null
-                      ? 'GH₵${_cheapestGhs()}'
-                      : 'Price unavailable',
-                  style: _cheapestGhs() != null
-                      ? TextStyle(
-                          color: colors.accent,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        )
-                      : TextStyle(
-                          color: colors.textTertiary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ],
           const SizedBox(height: 8),
@@ -236,13 +243,23 @@ class BusinessCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: colors.success.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: colors.success.withValues(alpha: 0.3))),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.shield_outlined, size: 10, color: colors.success),
-        const SizedBox(width: 3),
-        Text("Escrow Protected", style: TextStyle(
-          color: colors.success, fontSize: 9, fontWeight: FontWeight.w700)),
-      ]),
+        border: Border.all(color: colors.success.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.shield_outlined, size: 10, color: colors.success),
+          const SizedBox(width: 3),
+          Text(
+            "Escrow Protected",
+            style: TextStyle(
+              color: colors.success,
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -268,24 +285,30 @@ class BusinessCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(children: [
-                    Flexible(
-                      child: Text(
-                        business.businessName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          business.businessName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                    ),
-                    if (business.isVerified) ...[
-                      const SizedBox(width: 5),
-                      Icon(Icons.check_circle_outline, size: 13, color: colors.success),
+                      if (business.isVerified) ...[
+                        const SizedBox(width: 5),
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 13,
+                          color: colors.success,
+                        ),
+                      ],
                     ],
-                  ]),
+                  ),
                   const SizedBox(height: 3),
                   Text(
                     business.categoryLabel,
@@ -294,18 +317,20 @@ class BusinessCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 5),
-                  Row(children: [
-                    RatingStars(rating: business.averageRating, size: 12),
-                    const SizedBox(width: 6),
-                    Text(
-                      business.averageRating.toStringAsFixed(1),
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                  Row(
+                    children: [
+                      RatingStars(rating: business.averageRating, size: 12),
+                      const SizedBox(width: 6),
+                      Text(
+                        business.averageRating.toStringAsFixed(1),
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                  ]),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -388,15 +413,17 @@ class BusinessCard extends ConsumerWidget {
     // < '9.00' as text). The DISPLAYED value stays the server's exact 2dp
     // string; only the ordering parses it. A malformed value fails closed
     // to worst (never the cheapest slot).
-    priced.sort((a, b) => _ghsOrderKey(a.priceGhs)
-        .compareTo(_ghsOrderKey(b.priceGhs)));
+    priced.sort(
+      (a, b) => _ghsOrderKey(a.priceGhs).compareTo(_ghsOrderKey(b.priceGhs)),
+    );
     return priced.first.priceGhs;
   }
 
   /// Ordering key for a canonical GHS string: numeric value, with malformed
   /// input (never expected — the model strictly parses exact 2dp strings)
   /// demoted to the end of the ordering.
-  double _ghsOrderKey(String? ghs) => double.tryParse(ghs ?? '') ?? double.infinity;
+  double _ghsOrderKey(String? ghs) =>
+      double.tryParse(ghs ?? '') ?? double.infinity;
 
   /// Resolve the best cover image: first product imageUrl → logoUrl → null.
   String? _resolveCoverUrl() {
@@ -412,8 +439,7 @@ class BusinessCard extends ConsumerWidget {
   /// Returns true if the business has any location marked open at the current
   /// local time. Delegates to the shared [BusinessHours] parser so every
   /// surface agrees on "open now".
-  bool _isOpenNow() =>
-      business.openStateAt(DateTime.now()) == OpenState.open;
+  bool _isOpenNow() => business.openStateAt(DateTime.now()) == OpenState.open;
 }
 
 // ── Bookmark button (durable server bookmarks; demo keeps the local wishlist) ─
@@ -443,4 +469,3 @@ class _BookmarkButton extends ConsumerWidget {
     );
   }
 }
-

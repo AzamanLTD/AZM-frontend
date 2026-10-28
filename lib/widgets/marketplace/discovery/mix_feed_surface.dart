@@ -50,7 +50,10 @@ class _TileSkeleton extends StatelessWidget {
           AspectRatio(
             aspectRatio: 1,
             child: AzSkeleton(
-                width: double.infinity, height: 16, borderRadius: AzRadius.lg),
+              width: double.infinity,
+              height: 16,
+              borderRadius: AzRadius.lg,
+            ),
           ),
           SizedBox(height: AzSpace.xs),
           AzSkeleton(height: 36, borderRadius: AzRadius.md),
@@ -170,13 +173,8 @@ class MixFeedSurface extends ConsumerWidget {
         key: ValueKey('mix_stalled_tail_notice'),
       );
     }
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [notice, actions],
-    );
+    return Column(mainAxisSize: MainAxisSize.min, children: [notice, actions]);
   }
-
-
 
   Widget _failed(WidgetRef ref, MarketplaceMixState state) {
     return Center(

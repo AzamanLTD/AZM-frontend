@@ -68,9 +68,9 @@ Future<void> loadGoldenFonts() async {
   // file is loaded directly from the package root instead.
   final bytes = await File(kGoldenFontPath).readAsBytes();
   final loader = FontLoader(kGoldenFontFamily)
-    ..addFont(Future<ByteData>.value(
-      ByteData.view(Uint8List.fromList(bytes).buffer),
-    ));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
   _fontsLoaded = true;
 }
@@ -107,7 +107,8 @@ Future<void> pumpGoldenSurface(
         useMaterial3: true,
         fontFamily: kGoldenFontFamily,
       ),
-      home: home ??
+      home:
+          home ??
           Scaffold(
             body: Center(
               child: RepaintBoundary(child: child ?? const SizedBox.shrink()),

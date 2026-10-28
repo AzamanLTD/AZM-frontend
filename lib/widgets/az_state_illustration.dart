@@ -127,7 +127,9 @@ class _AzStatePainter extends CustomPainter {
     canvas.drawPath(_progressive(lid), _stroke(2.5, colors.accent));
     canvas.drawPath(_progressive(body), _stroke(2.5, colors.textTertiary));
     canvas.drawPath(
-        _progressive(spine), _stroke(1.5, colors.textTertiary, soft: true));
+      _progressive(spine),
+      _stroke(1.5, colors.textTertiary, soft: true),
+    );
   }
 
   void _drawOffline(Canvas canvas) {
@@ -192,13 +194,13 @@ class _AzStatePainter extends CustomPainter {
         ..moveTo(40, y)
         ..lineTo(i == 2 ? 54 : 60, y);
       canvas.drawPath(
-          _progressive(line), _stroke(1.5, colors.textTertiary, soft: true));
+        _progressive(line),
+        _stroke(1.5, colors.textTertiary, soft: true),
+      );
     }
   }
 
   @override
   bool shouldRepaint(covariant _AzStatePainter old) =>
-      old.scene != scene ||
-      old.progress != progress ||
-      old.colors != colors;
+      old.scene != scene || old.progress != progress || old.colors != colors;
 }

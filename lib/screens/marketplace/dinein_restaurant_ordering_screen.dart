@@ -15,10 +15,7 @@ import 'package:azaman/widgets/skeleton_loader.dart';
 class DineInRestaurantOrderingScreen extends ConsumerStatefulWidget {
   final DineInTab tab;
 
-  const DineInRestaurantOrderingScreen({
-    super.key,
-    required this.tab,
-  });
+  const DineInRestaurantOrderingScreen({super.key, required this.tab});
 
   @override
   ConsumerState<DineInRestaurantOrderingScreen> createState() =>
@@ -48,7 +45,8 @@ class _DineInRestaurantOrderingScreenState
     try {
       final business = await BusinessService().getBusinessByBizId(bizId);
       if (business == null) {
-        if (mounted) setState(() => _error = 'This restaurant is no longer available.');
+        if (mounted)
+          setState(() => _error = 'This restaurant is no longer available.');
         return;
       }
 
@@ -60,7 +58,9 @@ class _DineInRestaurantOrderingScreenState
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final rawSections = body['sections'] as List<dynamic>? ?? const [];
       final rawUncategorised =
-          (body['uncategorised'] ?? body['uncategorisedProducts']) as List<dynamic>? ?? const [];
+          (body['uncategorised'] ?? body['uncategorisedProducts'])
+              as List<dynamic>? ??
+          const [];
 
       if (!mounted) return;
       setState(() {
@@ -84,7 +84,9 @@ class _DineInRestaurantOrderingScreenState
     Map<String, String> selections,
     int quantity,
   ) async {
-    final item = await ref.read(dineInTabProvider(widget.tab.id).notifier).addItem(
+    final item = await ref
+        .read(dineInTabProvider(widget.tab.id).notifier)
+        .addItem(
           widget.tab.id,
           productId: product.id,
           selection: selections,
@@ -92,7 +94,9 @@ class _DineInRestaurantOrderingScreenState
         );
     if (!mounted) return;
     if (item == null) {
-      throw StateError('The restaurant could not add this dish to the open tab.');
+      throw StateError(
+        'The restaurant could not add this dish to the open tab.',
+      );
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -145,7 +149,8 @@ class _DineInRestaurantOrderingScreenState
       );
     }
 
-    final tableContext = widget.tab.tableLabel == null || widget.tab.tableLabel!.isEmpty
+    final tableContext =
+        widget.tab.tableLabel == null || widget.tab.tableLabel!.isEmpty
         ? 'Dine-in'
         : 'Dine-in · ${widget.tab.tableLabel}';
 
@@ -155,7 +160,10 @@ class _DineInRestaurantOrderingScreenState
         backgroundColor: colors.surface,
         title: Text(
           business.businessName,
-          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: colors.textSecondary),
@@ -170,7 +178,11 @@ class _DineInRestaurantOrderingScreenState
             color: colors.surface,
             child: Row(
               children: [
-                Icon(Icons.table_restaurant_outlined, size: 18, color: colors.accent),
+                Icon(
+                  Icons.table_restaurant_outlined,
+                  size: 18,
+                  color: colors.accent,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(

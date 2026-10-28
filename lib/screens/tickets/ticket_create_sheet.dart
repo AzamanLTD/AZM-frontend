@@ -78,9 +78,10 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
       vsync: this,
       duration: const Duration(milliseconds: 380),
     );
-    _shakeAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
-    );
+    _shakeAnim = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn));
   }
 
   @override
@@ -104,16 +105,17 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
       return;
     }
     if (widget.friendshipId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No chat context found.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No chat context found.')));
       return;
     }
 
     setState(() => _submitting = true);
     try {
-      final notifier =
-          ref.read(ticketDashboardProvider(widget.friendshipId!).notifier);
+      final notifier = ref.read(
+        ticketDashboardProvider(widget.friendshipId!).notifier,
+      );
       final ticket = await notifier.createTicket(
         name: _titleCtrl.text.trim(),
         type: _enableEscrow ? TicketType.escrow : TicketType.buy,
@@ -127,10 +129,12 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
     } catch (e) {
       if (!mounted) return;
       final colors = ref.read(themeProvider).colors;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Could not create ticket: $e'),
-        backgroundColor: colors.danger,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not create ticket: $e'),
+          backgroundColor: colors.danger,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -153,8 +157,9 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
     return Padding(
       // The panel detent must still clear the software keyboard, so the inset
       // is applied to the whole sheet rather than to the scroller.
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Form(
         key: _formKey,
         child: Column(
@@ -167,39 +172,46 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
                 shrinkWrap: true,
                 padding: const EdgeInsets.only(bottom: AzSpace.sm),
                 children: [
-            // ── Header ─────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: _Header(colors: colors, peerName: widget.peerName),
-            ),
-            const SizedBox(height: 24),
+                  // ── Header ─────────────────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                    child: _Header(colors: colors, peerName: widget.peerName),
+                  ),
+                  const SizedBox(height: 24),
 
-                // ── Deal title ─────────────────────────────────────────────
-                _FieldLabel(label: 'What is this deal about?', colors: colors),
-                const SizedBox(height: 6),
-                AnimatedBuilder(
-                  animation: _shakeAnim,
-                  builder: (ctx, child) => Transform.translate(
-                    offset: Offset(
-                        8 * _shakeAnim.value * (1 - _shakeAnim.value) * 4, 0),
-                    child: child,
+                  // ── Deal title ─────────────────────────────────────────────
+                  _FieldLabel(
+                    label: 'What is this deal about?',
+                    colors: colors,
                   ),
-                  child: TextFormField(
-                    controller: _titleCtrl,
-                    maxLength: 80,
-                    textCapitalization: TextCapitalization.sentences,
-                    style: TextStyle(color: colors.textPrimary),
-                    decoration: _inputDeco(colors,
-                        hint: 'e.g. "Payment for logo design"'),
-                    validator: (v) {
-                      final t = (v ?? '').trim();
-                      if (t.isEmpty) return 'Please describe the deal';
-                      if (t.length > 80) return 'Max 80 characters';
-                      return null;
-                    },
+                  const SizedBox(height: 6),
+                  AnimatedBuilder(
+                    animation: _shakeAnim,
+                    builder: (ctx, child) => Transform.translate(
+                      offset: Offset(
+                        8 * _shakeAnim.value * (1 - _shakeAnim.value) * 4,
+                        0,
+                      ),
+                      child: child,
+                    ),
+                    child: TextFormField(
+                      controller: _titleCtrl,
+                      maxLength: 80,
+                      textCapitalization: TextCapitalization.sentences,
+                      style: TextStyle(color: colors.textPrimary),
+                      decoration: _inputDeco(
+                        colors,
+                        hint: 'e.g. "Payment for logo design"',
+                      ),
+                      validator: (v) {
+                        final t = (v ?? '').trim();
+                        if (t.isEmpty) return 'Please describe the deal';
+                        if (t.length > 80) return 'Max 80 characters';
+                        return null;
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
                   // ── Amount ───────────────────────────────────────────────
                   _FieldLabel(label: 'Amount', colors: colors),
@@ -225,7 +237,9 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
 
                   // ── Memo ─────────────────────────────────────────────────
                   _FieldLabel(
-                      label: 'Terms / Notes  (optional)', colors: colors),
+                    label: 'Terms / Notes  (optional)',
+                    colors: colors,
+                  ),
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _memoCtrl,
@@ -234,8 +248,10 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
                     minLines: 2,
                     textCapitalization: TextCapitalization.sentences,
                     style: TextStyle(color: colors.textPrimary),
-                    decoration: _inputDeco(colors,
-                        hint: 'Delivery timeline, conditions, or anything else…'),
+                    decoration: _inputDeco(
+                      colors,
+                      hint: 'Delivery timeline, conditions, or anything else…',
+                    ),
                   ),
                 ],
               ),
@@ -266,7 +282,9 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white),
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -283,7 +301,9 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
                                       ? 'Create Escrow Deal'
                                       : 'Create Ticket',
                                   style: const TextStyle(
-                                      fontSize: 15, fontWeight: FontWeight.w800),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ],
                             ),
@@ -297,9 +317,10 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
                       child: Text(
                         '🔒 Funds are locked until both parties confirm.',
                         style: TextStyle(
-                            color: colors.textTertiary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500),
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -318,10 +339,11 @@ class _TicketCreateSheetState extends ConsumerState<TicketCreateSheet>
         hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
         filled: true,
         fillColor: colors.card,
-        counterStyle:
-            TextStyle(color: colors.textTertiary, fontSize: 10),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        counterStyle: TextStyle(color: colors.textTertiary, fontSize: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: colors.divider),
@@ -367,8 +389,11 @@ class _Header extends StatelessWidget {
               end: Alignment.bottomRight,
             ),
           ),
-          child: const Icon(Icons.lock_outline_rounded,
-              color: Colors.white, size: 20),
+          child: const Icon(
+            Icons.lock_outline_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -378,18 +403,20 @@ class _Header extends StatelessWidget {
               Text(
                 'New Deal',
                 style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1),
+                  color: colors.textPrimary,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
                 'With $peerName',
                 style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500),
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -406,13 +433,14 @@ class _FieldLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        label,
-        style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3),
-      );
+    label,
+    style: TextStyle(
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.3,
+    ),
+  );
 }
 
 class _AmountRow extends StatelessWidget {
@@ -436,25 +464,28 @@ class _AmountRow extends StatelessWidget {
           flex: 5,
           child: TextFormField(
             controller: amountCtrl,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,8}')),
             ],
             style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 22,
-                fontWeight: FontWeight.w800),
+              color: colors.textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
             decoration: InputDecoration(
               hintText: '0.00',
               hintStyle: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800),
+                color: colors.textTertiary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
               filled: true,
               fillColor: colors.card,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(color: colors.divider),
@@ -497,14 +528,19 @@ class _AmountRow extends StatelessWidget {
                 dropdownColor: colors.card,
                 isExpanded: true,
                 items: _kCurrencies
-                    .map((c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(c,
-                              style: TextStyle(
-                                  color: colors.textPrimary,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14)),
-                        ))
+                    .map(
+                      (c) => DropdownMenuItem(
+                        value: c,
+                        child: Text(
+                          c,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) {
                   if (v != null) onCurrencyChanged(v);
@@ -536,9 +572,7 @@ class _EscrowToggle extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: enabled
-              ? colors.accent.withValues(alpha: 0.10)
-              : colors.card,
+          color: enabled ? colors.accent.withValues(alpha: 0.10) : colors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: enabled
@@ -573,19 +607,17 @@ class _EscrowToggle extends StatelessWidget {
                   Text(
                     'Enable Escrow',
                     style: TextStyle(
-                        color: enabled
-                            ? colors.accent
-                            : colors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800),
+                      color: enabled ? colors.accent : colors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     enabled
                         ? 'Funds are held securely until you both confirm.'
                         : 'No fund lock — this is a tracked deal only.',
-                    style: TextStyle(
-                        color: colors.textSecondary, fontSize: 11),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 11),
                   ),
                 ],
               ),

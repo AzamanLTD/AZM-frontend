@@ -127,7 +127,10 @@ class PdfReceiptService {
             _infoCard([
               _row('Ticket ID', '#${ticket.id}'),
               _row('Type', '$typeLabel Deal'),
-              _row('Amount', '${ticket.targetAmount.toStringAsFixed(2)} ${ticket.targetCurrency}'),
+              _row(
+                'Amount',
+                '${ticket.targetAmount.toStringAsFixed(2)} ${ticket.targetCurrency}',
+              ),
               _row('Created', dateFmt.format(ticket.createdAt.toLocal())),
               if (ticket.closedAt != null)
                 _row('Closed', dateFmt.format(ticket.closedAt!.toLocal())),
@@ -154,14 +157,18 @@ class PdfReceiptService {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: messagesSummary
-                      .map((m) => pw.Padding(
-                            padding: const pw.EdgeInsets.symmetric(vertical: 3),
-                            child: pw.Text(m,
-                                style: const pw.TextStyle(
-                                  color: _white,
-                                  fontSize: 9,
-                                )),
-                          ))
+                      .map(
+                        (m) => pw.Padding(
+                          padding: const pw.EdgeInsets.symmetric(vertical: 3),
+                          child: pw.Text(
+                            m,
+                            style: const pw.TextStyle(
+                              color: _white,
+                              fontSize: 9,
+                            ),
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ),
@@ -195,7 +202,10 @@ class PdfReceiptService {
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            _header(completed ? _green : _red, completed ? 'COMPLETED' : 'FAILED'),
+            _header(
+              completed ? _green : _red,
+              completed ? 'COMPLETED' : 'FAILED',
+            ),
             pw.SizedBox(height: 24),
             _sectionTitle('TRANSFER DETAILS'),
             pw.SizedBox(height: 8),
@@ -244,7 +254,11 @@ class PdfReceiptService {
               pw.SizedBox(height: 4),
               pw.Text(
                 'OFFICIAL TRANSACTION RECEIPT',
-                style: const pw.TextStyle(color: _grey, fontSize: 9, letterSpacing: 1.5),
+                style: const pw.TextStyle(
+                  color: _grey,
+                  fontSize: 9,
+                  letterSpacing: 1.5,
+                ),
               ),
             ],
           ),
@@ -270,77 +284,77 @@ class PdfReceiptService {
   }
 
   pw.Widget _sectionTitle(String title) => pw.Text(
-        title,
-        style: pw.TextStyle(
-          color: _gold,
-          fontSize: 9,
-          fontWeight: pw.FontWeight.bold,
-          letterSpacing: 1.5,
-        ),
-      );
+    title,
+    style: pw.TextStyle(
+      color: _gold,
+      fontSize: 9,
+      fontWeight: pw.FontWeight.bold,
+      letterSpacing: 1.5,
+    ),
+  );
 
   pw.Widget _infoCard(List<pw.Widget> rows) => pw.Container(
-        padding: const pw.EdgeInsets.all(16),
-        decoration: pw.BoxDecoration(
-          color: _darkMid,
-          borderRadius: pw.BorderRadius.circular(10),
-        ),
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: rows,
-        ),
-      );
+    padding: const pw.EdgeInsets.all(16),
+    decoration: pw.BoxDecoration(
+      color: _darkMid,
+      borderRadius: pw.BorderRadius.circular(10),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: rows,
+    ),
+  );
 
   pw.Widget _row(String label, String value) => pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(vertical: 5),
-        child: pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.SizedBox(
-              width: 120,
-              child: pw.Text(
-                label,
-                style: const pw.TextStyle(color: _grey, fontSize: 9),
-              ),
-            ),
-            pw.Expanded(
-              child: pw.Text(
-                value,
-                style: pw.TextStyle(
-                  color: _white,
-                  fontSize: 9,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+    padding: const pw.EdgeInsets.symmetric(vertical: 5),
+    child: pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.SizedBox(
+          width: 120,
+          child: pw.Text(
+            label,
+            style: const pw.TextStyle(color: _grey, fontSize: 9),
+          ),
         ),
-      );
+        pw.Expanded(
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(
+              color: _white,
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 
   pw.Widget _footer() => pw.Column(
+    children: [
+      pw.Divider(color: _grey, thickness: 0.3),
+      pw.SizedBox(height: 8),
+      pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Divider(color: _grey, thickness: 0.3),
-          pw.SizedBox(height: 8),
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(
-                'Azaman Financial Services  ·  azaman.app',
-                style: const pw.TextStyle(color: _grey, fontSize: 8),
-              ),
-              pw.Text(
-                'Generated ${DateFormat('dd MMM yyyy').format(DateTime.now())}',
-                style: const pw.TextStyle(color: _grey, fontSize: 8),
-              ),
-            ],
+          pw.Text(
+            'Azaman Financial Services  ·  azaman.app',
+            style: const pw.TextStyle(color: _grey, fontSize: 8),
           ),
-          pw.SizedBox(height: 4),
-          pw.Center(
-            child: pw.Text(
-              'This is an auto-generated document. Do not alter.',
-              style: const pw.TextStyle(color: _grey, fontSize: 7),
-            ),
+          pw.Text(
+            'Generated ${DateFormat('dd MMM yyyy').format(DateTime.now())}',
+            style: const pw.TextStyle(color: _grey, fontSize: 8),
           ),
         ],
-      );
+      ),
+      pw.SizedBox(height: 4),
+      pw.Center(
+        child: pw.Text(
+          'This is an auto-generated document. Do not alter.',
+          style: const pw.TextStyle(color: _grey, fontSize: 7),
+        ),
+      ),
+    ],
+  );
 }

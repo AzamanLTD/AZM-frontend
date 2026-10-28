@@ -102,8 +102,11 @@ class ProductCard extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.access_time,
-                          size: 11, color: colors.textTertiary),
+                      Icon(
+                        Icons.access_time,
+                        size: 11,
+                        color: colors.textTertiary,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(

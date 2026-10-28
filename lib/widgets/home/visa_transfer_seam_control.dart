@@ -66,10 +66,7 @@ class VisaTransferSeamAnchor extends ConsumerWidget {
             right: 0,
             top: kPocketClaspCentreY - kSeamControlSize / 2,
             child: Center(
-              child: _SeamControlButton(
-                onTransfer: onTransfer,
-                colors: colors,
-              ),
+              child: _SeamControlButton(onTransfer: onTransfer, colors: colors),
             ),
           ),
       ],
@@ -112,11 +109,7 @@ class _SeamControlButton extends StatelessWidget {
             ],
           ),
           alignment: Alignment.center,
-          child: Icon(
-            Icons.swap_vert,
-            size: 22,
-            color: colors.accent,
-          ),
+          child: Icon(Icons.swap_vert, size: 22, color: colors.accent),
         ),
       ),
     );

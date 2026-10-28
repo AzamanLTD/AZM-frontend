@@ -4,18 +4,30 @@ import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/widgets/inbox/inbox_entry.dart';
 
 GroupSummary _group({String? susuStatus, String? description}) => GroupSummary(
-      id: 'g1',
-      name: 'Market Mamas',
-      description: description,
-      status: 'ACTIVE',
-      susuGroupId: susuStatus == null ? null : 's1',
-      susuStatus: susuStatus,
-      members: [
-        GroupMember(id: 'm1', userId: 1, username: 'ama', role: 'ADMIN', joinedAt: DateTime(2026)),
-        GroupMember(id: 'm2', userId: 2, username: 'kofi', role: 'MEMBER', joinedAt: DateTime(2026)),
-      ],
-      updatedAt: DateTime(2026, 10, 1),
-    );
+  id: 'g1',
+  name: 'Market Mamas',
+  description: description,
+  status: 'ACTIVE',
+  susuGroupId: susuStatus == null ? null : 's1',
+  susuStatus: susuStatus,
+  members: [
+    GroupMember(
+      id: 'm1',
+      userId: 1,
+      username: 'ama',
+      role: 'ADMIN',
+      joinedAt: DateTime(2026),
+    ),
+    GroupMember(
+      id: 'm2',
+      userId: 2,
+      username: 'kofi',
+      role: 'MEMBER',
+      joinedAt: DateTime(2026),
+    ),
+  ],
+  updatedAt: DateTime(2026, 10, 1),
+);
 
 void main() {
   group('fromFriend', () {
@@ -53,14 +65,25 @@ void main() {
 
     test('money sent by me is moneyOut; REQUEST maps to request', () {
       expect(
-        InboxEntry.fromFriend({'latestMessage': {'kind': 'TRANSFER', 'isMe': true}}).signal,
+        InboxEntry.fromFriend({
+          'latestMessage': {'kind': 'TRANSFER', 'isMe': true},
+        }).signal,
         InboxSignal.moneyOut,
       );
-      expect(InboxEntry.fromFriend({'latestMessage': {'kind': 'REQUEST'}}).signal, InboxSignal.request);
+      expect(
+        InboxEntry.fromFriend({
+          'latestMessage': {'kind': 'REQUEST'},
+        }).signal,
+        InboxSignal.request,
+      );
     });
 
     test('missing keys default — never invent', () {
-      final e = InboxEntry.fromFriend({'id': 'legacy', 'lastMessage': 'yo', 'lastMessageTime': 'not-a-date'});
+      final e = InboxEntry.fromFriend({
+        'id': 'legacy',
+        'lastMessage': 'yo',
+        'lastMessageTime': 'not-a-date',
+      });
       expect(e.id, 'legacy');
       expect(e.title, 'Unknown');
       expect(e.preview, 'yo');
@@ -75,23 +98,51 @@ void main() {
   });
 
   group('fromGroup', () {
-    test('Susu status drives the signal; preview falls back to member count', () {
-      expect(InboxEntry.fromGroup(_group(susuStatus: 'ACTIVE')).signal, InboxSignal.susuActive);
-      expect(InboxEntry.fromGroup(_group(susuStatus: 'CONFIGURING')).signal, InboxSignal.susuConfiguring);
-      final plain = InboxEntry.fromGroup(_group());
-      expect(plain.signal, InboxSignal.none);
-      expect(plain.preview, '2 members');
-      expect(InboxEntry.fromGroup(_group(description: 'Weekly savings')).preview, 'Weekly savings');
-      expect(plain.kind, InboxKind.group);
-      expect(plain.group, isNotNull);
-    });
+    test(
+      'Susu status drives the signal; preview falls back to member count',
+      () {
+        expect(
+          InboxEntry.fromGroup(_group(susuStatus: 'ACTIVE')).signal,
+          InboxSignal.susuActive,
+        );
+        expect(
+          InboxEntry.fromGroup(_group(susuStatus: 'CONFIGURING')).signal,
+          InboxSignal.susuConfiguring,
+        );
+        final plain = InboxEntry.fromGroup(_group());
+        expect(plain.signal, InboxSignal.none);
+        expect(plain.preview, '2 members');
+        expect(
+          InboxEntry.fromGroup(_group(description: 'Weekly savings')).preview,
+          'Weekly savings',
+        );
+        expect(plain.kind, InboxKind.group);
+        expect(plain.group, isNotNull);
+      },
+    );
   });
 
   test('compare: pinned first, then recency, undated last', () {
-    final a = InboxEntry(kind: InboxKind.friend, id: 'a', title: 'a', lastAt: DateTime(2026, 1, 1));
-    final b = InboxEntry(kind: InboxKind.friend, id: 'b', title: 'b', lastAt: DateTime(2026, 1, 5));
+    final a = InboxEntry(
+      kind: InboxKind.friend,
+      id: 'a',
+      title: 'a',
+      lastAt: DateTime(2026, 1, 1),
+    );
+    final b = InboxEntry(
+      kind: InboxKind.friend,
+      id: 'b',
+      title: 'b',
+      lastAt: DateTime(2026, 1, 5),
+    );
     const c = InboxEntry(kind: InboxKind.friend, id: 'c', title: 'c');
-    final d = InboxEntry(kind: InboxKind.group, id: 'd', title: 'd', lastAt: DateTime(2025), pinned: true);
+    final d = InboxEntry(
+      kind: InboxKind.group,
+      id: 'd',
+      title: 'd',
+      lastAt: DateTime(2025),
+      pinned: true,
+    );
     final sorted = [a, b, c, d]..sort(InboxEntry.compare);
     expect(sorted.map((e) => e.id), ['d', 'b', 'a', 'c']);
   });
@@ -99,10 +150,28 @@ void main() {
   test('relativeTime keeps the inbox format', () {
     final now = DateTime(2026, 10, 10, 12);
     expect(InboxEntry.relativeTime(null), '');
-    expect(InboxEntry.relativeTime(now.subtract(const Duration(seconds: 20)), now: now), 'now');
-    expect(InboxEntry.relativeTime(now.subtract(const Duration(minutes: 5)), now: now), '5m');
-    expect(InboxEntry.relativeTime(now.subtract(const Duration(hours: 3)), now: now), '3h');
-    expect(InboxEntry.relativeTime(now.subtract(const Duration(days: 2)), now: now), '2d');
+    expect(
+      InboxEntry.relativeTime(
+        now.subtract(const Duration(seconds: 20)),
+        now: now,
+      ),
+      'now',
+    );
+    expect(
+      InboxEntry.relativeTime(
+        now.subtract(const Duration(minutes: 5)),
+        now: now,
+      ),
+      '5m',
+    );
+    expect(
+      InboxEntry.relativeTime(now.subtract(const Duration(hours: 3)), now: now),
+      '3h',
+    );
+    expect(
+      InboxEntry.relativeTime(now.subtract(const Duration(days: 2)), now: now),
+      '2d',
+    );
     expect(InboxEntry.relativeTime(DateTime(2026, 9, 1), now: now), '1/9');
   });
 }

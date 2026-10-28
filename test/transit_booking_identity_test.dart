@@ -97,8 +97,11 @@ class _ScriptedClient {
   );
 
   static http.Response status(int code, {String message = 'boom'}) =>
-      http.Response(jsonEncode({'success': false, 'message': message}), code,
-          headers: {'content-type': 'application/json'});
+      http.Response(
+        jsonEncode({'success': false, 'message': message}),
+        code,
+        headers: {'content-type': 'application/json'},
+      );
 }
 
 const _type = 'transit.book_seats';
@@ -146,51 +149,72 @@ void main() {
     // Attempt 1: the response is LOST — the booking may have committed.
     rec.script.add(http.ClientException('response lost'));
     await expectLater(
-        _service(rec).bookSeats(
-            tripId: _trip,
-            seatIds: _seatsA,
-            passengerNames: _namesA,
-            operationType: _type,
-            ref: ref),
-        throwsA(isA<http.ClientException>()));
-    expect(rec.requests, hasLength(1));
-    final key1 = rec.requests[0].headers['idempotency-key'];
-    expect(key1, isNotNull,
-        reason: 'the durable path carries the instance key as the '
-            'Idempotency-Key HEADER (the transit route reads the header, '
-            'unlike the storefront body field)');
-    expect(rec.requests[0].url.path, endsWith('/marketplace/transit/trips/trip-001/book'));
-
-    // The journal holds exactly the one unfinished instance, still armed.
-    final pendingAfterLoss = await DurableOperationRegistry.pending(
-        account: 'acct-test', type: _type);
-    expect(pendingAfterLoss, hasLength(1));
-    expect(pendingAfterLoss.single.key, key1);
-    expect(ref.operationId, isNotNull,
-        reason: 'the ref retains the unfinished instance across the retry');
-
-    // Attempt 2: a NEW service instance (the app retried) — the identity
-    // comes from the ref-bound journal record, not the service.
-    final result = await _service(rec).bookSeats(
+      _service(rec).bookSeats(
         tripId: _trip,
         seatIds: _seatsA,
         passengerNames: _namesA,
         operationType: _type,
-        ref: ref);
+        ref: ref,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
+    expect(rec.requests, hasLength(1));
+    final key1 = rec.requests[0].headers['idempotency-key'];
+    expect(
+      key1,
+      isNotNull,
+      reason:
+          'the durable path carries the instance key as the '
+          'Idempotency-Key HEADER (the transit route reads the header, '
+          'unlike the storefront body field)',
+    );
+    expect(
+      rec.requests[0].url.path,
+      endsWith('/marketplace/transit/trips/trip-001/book'),
+    );
+
+    // The journal holds exactly the one unfinished instance, still armed.
+    final pendingAfterLoss = await DurableOperationRegistry.pending(
+      account: 'acct-test',
+      type: _type,
+    );
+    expect(pendingAfterLoss, hasLength(1));
+    expect(pendingAfterLoss.single.key, key1);
+    expect(
+      ref.operationId,
+      isNotNull,
+      reason: 'the ref retains the unfinished instance across the retry',
+    );
+
+    // Attempt 2: a NEW service instance (the app retried) — the identity
+    // comes from the ref-bound journal record, not the service.
+    final result = await _service(rec).bookSeats(
+      tripId: _trip,
+      seatIds: _seatsA,
+      passengerNames: _namesA,
+      operationType: _type,
+      ref: ref,
+    );
     expect(rec.requests, hasLength(2));
     final key2 = rec.requests[1].headers['idempotency-key'];
-    expect(key2, key1,
-        reason: 'a retry of the same logical booking MUST reuse the same '
-            'identity so the backend converges on the same booking '
-            '(exact replay of the committed response) instead of hitting '
-            'the indistinguishable 400 "Seats already booked"');
+    expect(
+      key2,
+      key1,
+      reason:
+          'a retry of the same logical booking MUST reuse the same '
+          'identity so the backend converges on the same booking '
+          '(exact replay of the committed response) instead of hitting '
+          'the indistinguishable 400 "Seats already booked"',
+    );
     expect(result.bookingId, 'booking-1');
 
     // Answered success disposes the instance: the ref is clear, the journal
     // is empty, and a NEXT booking would be a genuinely new action.
     expect(ref.operationId, isNull);
     final pendingAfterSuccess = await DurableOperationRegistry.pending(
-        account: 'acct-test', type: _type);
+      account: 'acct-test',
+      type: _type,
+    );
     expect(pendingAfterSuccess, isEmpty);
   });
 
@@ -202,43 +226,55 @@ void main() {
     // Attempt 1 with seats A: ambiguous loss — instance armed.
     rec.script.add(http.ClientException('response lost'));
     await expectLater(
-        _service(rec).bookSeats(
-            tripId: _trip,
-            seatIds: _seatsA,
-            passengerNames: _namesA,
-            operationType: _type,
-            ref: ref),
-        throwsA(isA<http.ClientException>()));
+      _service(rec).bookSeats(
+        tripId: _trip,
+        seatIds: _seatsA,
+        passengerNames: _namesA,
+        operationType: _type,
+        ref: ref,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final keyA = rec.requests[0].headers['idempotency-key'];
 
     // The user changes the seat selection and tries again — this is a
     // DIFFERENT economic intent and must never reuse seats A's key.
     final result = await _service(rec).bookSeats(
-        tripId: _trip,
-        seatIds: _seatsB,
-        passengerNames: _namesA,
-        operationType: _type,
-        ref: ref);
+      tripId: _trip,
+      seatIds: _seatsB,
+      passengerNames: _namesA,
+      operationType: _type,
+      ref: ref,
+    );
     final keyB = rec.requests[1].headers['idempotency-key'];
-    expect(keyB, isNot(keyA),
-        reason: 'a materially different seat selection is a new logical '
-            'booking — reusing A\'s key would trigger the backend\'s '
-            'same-key/different-intent 409');
+    expect(
+      keyB,
+      isNot(keyA),
+      reason:
+          'a materially different seat selection is a new logical '
+          'booking — reusing A\'s key would trigger the backend\'s '
+          'same-key/different-intent 409',
+    );
     expect(result.bookingId, 'booking-1');
 
     // The NEW instance completed; seats A's unfinished instance was NEVER
     // replaced or lost — it is still recoverable in the journal.
     final pending = await DurableOperationRegistry.pending(
-        account: 'acct-test', type: _type);
+      account: 'acct-test',
+      type: _type,
+    );
     expect(pending, hasLength(1));
-    expect(pending.single.key, keyA,
-        reason: 'the old record is retained for journal recovery, not '
-            'silently overwritten by the new intent');
+    expect(
+      pending.single.key,
+      keyA,
+      reason:
+          'the old record is retained for journal recovery, not '
+          'silently overwritten by the new intent',
+    );
   });
 
   test('the identity survives the claimed recovery boundary: process death '
-      'journal replay reproduces the exact wire with the SAME key',
-      () async {
+      'journal replay reproduces the exact wire with the SAME key', () async {
     final rec = _ScriptedClient();
     final ref = FinancialOperationRef();
 
@@ -246,13 +282,15 @@ void main() {
     // survive in the journal alone.
     rec.script.add(http.ClientException('response lost'));
     await expectLater(
-        _service(rec).bookSeats(
-            tripId: _trip,
-            seatIds: _seatsA,
-            passengerNames: _namesA,
-            operationType: _type,
-            ref: ref),
-        throwsA(isA<http.ClientException>()));
+      _service(rec).bookSeats(
+        tripId: _trip,
+        seatIds: _seatsA,
+        passengerNames: _namesA,
+        operationType: _type,
+        ref: ref,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final key1 = rec.requests[0].headers['idempotency-key'];
 
     // Process death: only the persisted journal carries over.
@@ -264,29 +302,45 @@ void main() {
     SharedPreferences.setMockInitialValues(carried);
 
     final ops = await DurableOperationRegistry.pending(
-        account: 'acct-test', type: _type);
-    expect(ops, hasLength(1),
-        reason: 'the booking instance outlives the process in the journal');
+      account: 'acct-test',
+      type: _type,
+    );
+    expect(
+      ops,
+      hasLength(1),
+      reason: 'the booking instance outlives the process in the journal',
+    );
     expect(ops.single.key, key1);
 
     // The recovered replay reproduces the ORIGINAL wire request exactly —
     // route (tripId), body, and key — on a fresh client.
     final replayRec = _ScriptedClient();
-    await ApiClient(client: replayRec.client)
-        .retryRecovered(ops.single, requireAuth: false);
+    await ApiClient(
+      client: replayRec.client,
+    ).retryRecovered(ops.single, requireAuth: false);
     expect(replayRec.requests, hasLength(1));
-    expect(replayRec.requests[0].url.path,
-        endsWith('/marketplace/transit/trips/trip-001/book'));
-    expect(replayRec.requests[0].headers['idempotency-key'], key1,
-        reason: 'the replay carries the SAME key so the backend replays '
-            'the committed booking instead of creating a second one');
+    expect(
+      replayRec.requests[0].url.path,
+      endsWith('/marketplace/transit/trips/trip-001/book'),
+    );
+    expect(
+      replayRec.requests[0].headers['idempotency-key'],
+      key1,
+      reason:
+          'the replay carries the SAME key so the backend replays '
+          'the committed booking instead of creating a second one',
+    );
     final replayBody =
         jsonDecode(replayRec.requests[0].body) as Map<String, dynamic>;
     final originalBody =
         jsonDecode(rec.requests[0].body) as Map<String, dynamic>;
-    expect(replayBody, originalBody,
-        reason: 'the replayed seat selection, passenger names and note are '
-            'byte-identical to the original intent');
+    expect(
+      replayBody,
+      originalBody,
+      reason:
+          'the replayed seat selection, passenger names and note are '
+          'byte-identical to the original intent',
+    );
   });
 
   test('a definitive pre-economic 400 disposes the instance; the next '
@@ -299,119 +353,167 @@ void main() {
     // taken by another customer). NOTE: with the durable identity armed,
     // the customer's OWN committed seats converge via replay — a 400 here
     // genuinely means another customer holds them.
-    rec.script.add(_ScriptedClient.status(400,
-        message: 'One or more seats were just booked by another customer. '
-            'Please try again.'));
+    rec.script.add(
+      _ScriptedClient.status(
+        400,
+        message:
+            'One or more seats were just booked by another customer. '
+            'Please try again.',
+      ),
+    );
     await expectLater(
-        _service(rec).bookSeats(
-            tripId: _trip,
-            seatIds: _seatsA,
-            passengerNames: _namesA,
-            operationType: _type,
-            ref: ref),
-        throwsA(isA<ApiException>()));
-    expect(ref.operationId, isNull,
-        reason: 'a definitive pre-economic 4xx releases the instance — the '
-            'backend released the claim (releaseOn4xx), so the client must '
-            'not keep a stale identity armed');
-    final pendingAfter400 = await DurableOperationRegistry.pending(
-        account: 'acct-test', type: _type);
-    expect(pendingAfter400, isEmpty);
-
-    // Next attempt: genuinely new action, NEW identity.
-    await _service(rec).bookSeats(
+      _service(rec).bookSeats(
         tripId: _trip,
         seatIds: _seatsA,
         passengerNames: _namesA,
         operationType: _type,
-        ref: ref);
-    expect(rec.requests[1].headers['idempotency-key'],
-        isNot(rec.requests[0].headers['idempotency-key']));
+        ref: ref,
+      ),
+      throwsA(isA<ApiException>()),
+    );
+    expect(
+      ref.operationId,
+      isNull,
+      reason:
+          'a definitive pre-economic 4xx releases the instance — the '
+          'backend released the claim (releaseOn4xx), so the client must '
+          'not keep a stale identity armed',
+    );
+    final pendingAfter400 = await DurableOperationRegistry.pending(
+      account: 'acct-test',
+      type: _type,
+    );
+    expect(pendingAfter400, isEmpty);
+
+    // Next attempt: genuinely new action, NEW identity.
+    await _service(rec).bookSeats(
+      tripId: _trip,
+      seatIds: _seatsA,
+      passengerNames: _namesA,
+      operationType: _type,
+      ref: ref,
+    );
+    expect(
+      rec.requests[1].headers['idempotency-key'],
+      isNot(rec.requests[0].headers['idempotency-key']),
+    );
 
     // Attempt 3 (fresh ref): 409 fingerprint conflict — AMBIGUOUS: the key
     // was already used with a different intent; never auto-mint a new key
     // here, keep the instance armed for reconciliation.
     final ref2 = FinancialOperationRef();
-    rec.script.add(_ScriptedClient.status(409,
-        message: 'This idempotency key was already used with a different '
-            'payload.'));
+    rec.script.add(
+      _ScriptedClient.status(
+        409,
+        message:
+            'This idempotency key was already used with a different '
+            'payload.',
+      ),
+    );
     await expectLater(
-        _service(rec).bookSeats(
-            tripId: _trip,
-            seatIds: _seatsA,
-            passengerNames: _namesA,
-            operationType: _type,
-            ref: ref2),
-        throwsA(isA<ApiException>()));
-    expect(ref2.operationId, isNotNull,
-        reason: 'a 409 keeps the identity armed — the UI must reconcile '
-            '(check bookings), and a same-key retry stays exact');
-  });
-
-  test('a malformed 2xx without an authoritative booking is an UNKNOWN '
-      'economic state: never surfaced as success, instance stays armed',
-      () async {
-    final rec = _ScriptedClient();
-    final ref = FinancialOperationRef();
-
-    // 200 with success:true but NO booking id/bookingRef — a server bug or
-    // a proxy answer. The booking MAY have committed.
-    rec.script.add(http.Response(
-        jsonEncode({'success': true, 'booking': {}, 'seatIds': _seatsA}),
-        200,
-        headers: {'content-type': 'application/json'}));
-    await expectLater(
-        _service(rec).bookSeats(
-            tripId: _trip,
-            seatIds: _seatsA,
-            passengerNames: _namesA,
-            operationType: _type,
-            ref: ref),
-        throwsA(isA<FormatException>()),
-        reason: 'never surface an unconfirmed booking as success — the '
-            'caller would show a boarding pass for a booking that was '
-            'never proven');
-    expect(ref.operationId, isNotNull,
-        reason: 'the FormatException stays outside every disposition '
-            'clause — the instance stays armed for a same-key retry');
-
-    // The classification maps it to ambiguousOrUnknown (unconfirmed).
-    expect(
-        MarketplaceBookingService.classifyTransitBookingFailure(
-            const FormatException('malformed')),
-        TransitBookingFailureClass.ambiguousOrUnknown);
-
-    // A same-selection retry reuses the SAME key and converges.
-    final result = await _service(rec).bookSeats(
+      _service(rec).bookSeats(
         tripId: _trip,
         seatIds: _seatsA,
         passengerNames: _namesA,
         operationType: _type,
-        ref: ref);
-    expect(rec.requests[1].headers['idempotency-key'],
-        rec.requests[0].headers['idempotency-key']);
-    expect(result.bookingId, 'booking-1');
-    expect(ref.operationId, isNull);
+        ref: ref2,
+      ),
+      throwsA(isA<ApiException>()),
+    );
+    expect(
+      ref2.operationId,
+      isNotNull,
+      reason:
+          'a 409 keeps the identity armed — the UI must reconcile '
+          '(check bookings), and a same-key retry stays exact',
+    );
   });
+
+  test(
+    'a malformed 2xx without an authoritative booking is an UNKNOWN '
+    'economic state: never surfaced as success, instance stays armed',
+    () async {
+      final rec = _ScriptedClient();
+      final ref = FinancialOperationRef();
+
+      // 200 with success:true but NO booking id/bookingRef — a server bug or
+      // a proxy answer. The booking MAY have committed.
+      rec.script.add(
+        http.Response(
+          jsonEncode({'success': true, 'booking': {}, 'seatIds': _seatsA}),
+          200,
+          headers: {'content-type': 'application/json'},
+        ),
+      );
+      await expectLater(
+        _service(rec).bookSeats(
+          tripId: _trip,
+          seatIds: _seatsA,
+          passengerNames: _namesA,
+          operationType: _type,
+          ref: ref,
+        ),
+        throwsA(isA<FormatException>()),
+        reason:
+            'never surface an unconfirmed booking as success — the '
+            'caller would show a boarding pass for a booking that was '
+            'never proven',
+      );
+      expect(
+        ref.operationId,
+        isNotNull,
+        reason:
+            'the FormatException stays outside every disposition '
+            'clause — the instance stays armed for a same-key retry',
+      );
+
+      // The classification maps it to ambiguousOrUnknown (unconfirmed).
+      expect(
+        MarketplaceBookingService.classifyTransitBookingFailure(
+          const FormatException('malformed'),
+        ),
+        TransitBookingFailureClass.ambiguousOrUnknown,
+      );
+
+      // A same-selection retry reuses the SAME key and converges.
+      final result = await _service(rec).bookSeats(
+        tripId: _trip,
+        seatIds: _seatsA,
+        passengerNames: _namesA,
+        operationType: _type,
+        ref: ref,
+      );
+      expect(
+        rec.requests[1].headers['idempotency-key'],
+        rec.requests[0].headers['idempotency-key'],
+      );
+      expect(result.bookingId, 'booking-1');
+      expect(ref.operationId, isNull);
+    },
+  );
 
   test('the SERVICE layer never mints identity itself: a caller that brings '
       'no operationType sends an unkeyed legacy request', () async {
     final rec = _ScriptedClient();
 
-    final result = await _service(rec).bookSeats(
-        tripId: _trip,
-        seatIds: _seatsA,
-        passengerNames: _namesA,
-    );
+    final result = await _service(
+      rec,
+    ).bookSeats(tripId: _trip, seatIds: _seatsA, passengerNames: _namesA);
     expect(result.bookingId, 'booking-1');
-    expect(rec.requests[0].headers.containsKey('idempotency-key'), isFalse,
-        reason: 'the legacy path keeps today\'s wire behavior — the DB-level '
-            'TransitBookingSeat @@unique([tripId, seatId]) still prevents '
-            'duplicate seat claims structurally');
+    expect(
+      rec.requests[0].headers.containsKey('idempotency-key'),
+      isFalse,
+      reason:
+          'the legacy path keeps today\'s wire behavior — the DB-level '
+          'TransitBookingSeat @@unique([tripId, seatId]) still prevents '
+          'duplicate seat claims structurally',
+    );
 
     // And the journal holds nothing for this flow.
     final pending = await DurableOperationRegistry.pending(
-        account: 'acct-test', type: _type);
+      account: 'acct-test',
+      type: _type,
+    );
     expect(pending, isEmpty);
   });
 
@@ -425,38 +527,56 @@ void main() {
 
     for (final code in released) {
       final cls = MarketplaceBookingService.classifyTransitBookingFailure(
-          ApiException(message: 'x', statusCode: code));
-      expect(cls, TransitBookingFailureClass.definitivePreEconomic,
-          reason: 'HTTP $code');
+        ApiException(message: 'x', statusCode: code),
+      );
+      expect(
+        cls,
+        TransitBookingFailureClass.definitivePreEconomic,
+        reason: 'HTTP $code',
+      );
     }
     for (final code in retained) {
       final cls = MarketplaceBookingService.classifyTransitBookingFailure(
-          ApiException(message: 'x', statusCode: code));
-      expect(cls, isNot(TransitBookingFailureClass.definitivePreEconomic),
-          reason: 'HTTP $code must never be claimed definitive');
+        ApiException(message: 'x', statusCode: code),
+      );
+      expect(
+        cls,
+        isNot(TransitBookingFailureClass.definitivePreEconomic),
+        reason: 'HTTP $code must never be claimed definitive',
+      );
     }
     // Named classes for the UI's retry guidance.
     expect(
-        MarketplaceBookingService.classifyTransitBookingFailure(
-            ApiException(message: 'x', statusCode: 401)),
-        TransitBookingFailureClass.authenticationRequired);
+      MarketplaceBookingService.classifyTransitBookingFailure(
+        ApiException(message: 'x', statusCode: 401),
+      ),
+      TransitBookingFailureClass.authenticationRequired,
+    );
     expect(
-        MarketplaceBookingService.classifyTransitBookingFailure(
-            ApiException(message: 'x', statusCode: 429)),
-        TransitBookingFailureClass.rateLimited);
+      MarketplaceBookingService.classifyTransitBookingFailure(
+        ApiException(message: 'x', statusCode: 429),
+      ),
+      TransitBookingFailureClass.rateLimited,
+    );
     expect(
-        MarketplaceBookingService.classifyTransitBookingFailure(
-            ApiException(message: 'x', statusCode: 409)),
-        TransitBookingFailureClass.domainConflict);
+      MarketplaceBookingService.classifyTransitBookingFailure(
+        ApiException(message: 'x', statusCode: 409),
+      ),
+      TransitBookingFailureClass.domainConflict,
+    );
     expect(
-        MarketplaceBookingService.classifyTransitBookingFailure(
-            ApiException(message: 'x', statusCode: 408)),
-        TransitBookingFailureClass.ambiguousOrUnknown);
+      MarketplaceBookingService.classifyTransitBookingFailure(
+        ApiException(message: 'x', statusCode: 408),
+      ),
+      TransitBookingFailureClass.ambiguousOrUnknown,
+    );
     // Unrecognized transport-level failures: fail safe as unknown.
     expect(
-        MarketplaceBookingService.classifyTransitBookingFailure(
-            http.ClientException('lost')),
-        TransitBookingFailureClass.ambiguousOrUnknown);
+      MarketplaceBookingService.classifyTransitBookingFailure(
+        http.ClientException('lost'),
+      ),
+      TransitBookingFailureClass.ambiguousOrUnknown,
+    );
   });
 
   test('the notifier surfaces the economic class for the UI: an ambiguous '
@@ -464,48 +584,62 @@ void main() {
       'definitive 400 sets definitivePreEconomic', () async {
     final rec = _ScriptedClient();
     final notifier = BookingActionNotifier(
-        MarketplaceBookingService(apiClient: ApiClient(client: rec.client)));
+      MarketplaceBookingService(apiClient: ApiClient(client: rec.client)),
+    );
     final ref = FinancialOperationRef();
 
     // Ambiguous loss: transport failure with the booking MAYBE committed.
     rec.script.add(http.ClientException('response lost'));
     await notifier.bookSeats(
-        tripId: _trip,
-        seatIds: _seatsA,
-        passengerNames: _namesA,
-        operationType: _type,
-        ref: ref);
+      tripId: _trip,
+      seatIds: _seatsA,
+      passengerNames: _namesA,
+      operationType: _type,
+      ref: ref,
+    );
     expect(notifier.state.error, isNotNull);
-    expect(notifier.state.failureClass,
-        TransitBookingFailureClass.ambiguousOrUnknown);
-    expect(notifier.state.failureClass!.isUnconfirmed, isTrue,
-        reason: 'the UI must warn (check your bookings) instead of asserting '
-            'the booking definitely failed');
+    expect(
+      notifier.state.failureClass,
+      TransitBookingFailureClass.ambiguousOrUnknown,
+    );
+    expect(
+      notifier.state.failureClass!.isUnconfirmed,
+      isTrue,
+      reason:
+          'the UI must warn (check your bookings) instead of asserting '
+          'the booking definitely failed',
+    );
 
     // Same-selection retry converges (script exhausted → 201).
     await notifier.bookSeats(
-        tripId: _trip,
-        seatIds: _seatsA,
-        passengerNames: _namesA,
-        operationType: _type,
-        ref: ref);
+      tripId: _trip,
+      seatIds: _seatsA,
+      passengerNames: _namesA,
+      operationType: _type,
+      ref: ref,
+    );
     expect(notifier.state.error, isNull);
     expect(notifier.state.result, isNotNull);
     expect(notifier.state.failureClass, isNull);
 
     // Definitive pre-economic failure: the backend's own validation.
     final notifier2 = BookingActionNotifier(
-        MarketplaceBookingService(apiClient: ApiClient(client: rec.client)));
+      MarketplaceBookingService(apiClient: ApiClient(client: rec.client)),
+    );
     rec.script.add(
-        _ScriptedClient.status(400, message: 'Seats already booked.'));
+      _ScriptedClient.status(400, message: 'Seats already booked.'),
+    );
     await notifier2.bookSeats(
-        tripId: _trip,
-        seatIds: _seatsA,
-        passengerNames: _namesA,
-        operationType: _type,
-        ref: FinancialOperationRef());
-    expect(notifier2.state.failureClass,
-        TransitBookingFailureClass.definitivePreEconomic);
+      tripId: _trip,
+      seatIds: _seatsA,
+      passengerNames: _namesA,
+      operationType: _type,
+      ref: FinancialOperationRef(),
+    );
+    expect(
+      notifier2.state.failureClass,
+      TransitBookingFailureClass.definitivePreEconomic,
+    );
     expect(notifier2.state.failureClass!.isUnconfirmed, isFalse);
   });
   test('demo mode short-circuits BEFORE economics: the demo book response '
@@ -527,24 +661,30 @@ void main() {
       operationType: _type,
       ref: FinancialOperationRef(),
     );
-    expect(durableResult.success, isTrue,
-        reason: 'the demo booking keeps today\'s success shape — never a '
-            'FormatException on the demo payload');
+    expect(
+      durableResult.success,
+      isTrue,
+      reason:
+          'the demo booking keeps today\'s success shape — never a '
+          'FormatException on the demo payload',
+    );
     // Byte-identical to the legacy parse: the demo payload\'s TOP-LEVEL
     // bookingRef is (pre-existing behavior, preserved verbatim) not read
     // by BookSeatResult.fromJson — the guard must not "fix" demo economics.
-    final legacyResult = await _service(_ScriptedClient()).bookSeats(
-      tripId: _trip,
-      seatIds: _seatsA,
-      passengerNames: _namesA,
-    );
+    final legacyResult = await _service(
+      _ScriptedClient(),
+    ).bookSeats(tripId: _trip, seatIds: _seatsA, passengerNames: _namesA);
     expect(durableResult.bookingRef, legacyResult.bookingRef);
     expect(durableResult.bookingId, legacyResult.bookingId);
     expect(durableResult.status, legacyResult.status);
     final pending = await DurableOperationRegistry.pending(
-        account: 'acct-test', type: _type);
-    expect(pending, isEmpty,
-        reason: 'demo mode never journals a durable instance');
+      account: 'acct-test',
+      type: _type,
+    );
+    expect(
+      pending,
+      isEmpty,
+      reason: 'demo mode never journals a durable instance',
+    );
   });
-
 }

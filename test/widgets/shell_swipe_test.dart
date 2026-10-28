@@ -83,7 +83,6 @@ void _select(WidgetTester tester, int index) {
 
 /// Seed a non-top scroll offset on home's outer list.
 
-
 /// Tap the real + trigger and pump through the logo-fill (the launcher
 /// opens only after the LAST fill segment completes — the open call is
 /// an awaited animation future, so it resolves BETWEEN frames, which a
@@ -115,11 +114,14 @@ Future<void> _scrollHomeTo(WidgetTester tester, double pixels) async {
   fail('home outer scrollable not found');
 }
 
-int _selectedIndex(WidgetTester tester) =>
-    tester.widget<PremiumBottomNav>(find.byType(PremiumBottomNav)).selectedIndex;
+int _selectedIndex(WidgetTester tester) => tester
+    .widget<PremiumBottomNav>(find.byType(PremiumBottomNav))
+    .selectedIndex;
 
-Future<void> _pumpShell(WidgetTester tester,
-    {Size size = const Size(400, 800)}) async {
+Future<void> _pumpShell(
+  WidgetTester tester, {
+  Size size = const Size(400, 800),
+}) async {
   SharedPreferences.setMockInitialValues({
     'has_seen_flippable_card_hint': true,
     // The drawer peek hint schedules a 900ms delay + a 2200ms show
@@ -171,9 +173,9 @@ Future<void> _swipe(
   await gesture.moveBy(Offset(dx * 0.4, 0));
   await gesture.moveBy(Offset(dx * 0.6, 0));
   await gesture.up();
-await tester.pump(const Duration(milliseconds: 40));
-    await tester.pump(const Duration(milliseconds: 600));
-    await tester.pump(const Duration(milliseconds: 100));
+  await tester.pump(const Duration(milliseconds: 40));
+  await tester.pump(const Duration(milliseconds: 600));
+  await tester.pump(const Duration(milliseconds: 100));
 }
 
 /// The home page's outermost scrollable offset (the retap registry's
@@ -214,8 +216,9 @@ void main() {
     expect(appShellBus.activeTab, 1);
   });
 
-  testWidgets('from Chat, a left swipe moves Chat → Marketplace',
-      (tester) async {
+  testWidgets('from Chat, a left swipe moves Chat → Marketplace', (
+    tester,
+  ) async {
     await _pumpShell(tester);
     _select(tester, 1);
     await tester.pump(const Duration(milliseconds: 40));
@@ -228,8 +231,9 @@ void main() {
     expect(appShellBus.activeTab, 2);
   });
 
-  testWidgets('from Marketplace, a right swipe moves Marketplace → Chat',
-      (tester) async {
+  testWidgets('from Marketplace, a right swipe moves Marketplace → Chat', (
+    tester,
+  ) async {
     await _pumpShell(tester);
     _select(tester, 2);
     await tester.pump(const Duration(milliseconds: 40));
@@ -253,16 +257,18 @@ void main() {
     expect(_selectedIndex(tester), 0, reason: 'Chat → Home');
   });
 
-  testWidgets('NO WRAP: a rightward swipe on Home does nothing',
-      (tester) async {
+  testWidgets('NO WRAP: a rightward swipe on Home does nothing', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     await _swipe(tester, 240);
     expect(_selectedIndex(tester), 0, reason: 'no wrap before Home');
   });
 
-  testWidgets('NO WRAP: a leftward swipe on Marketplace does nothing',
-      (tester) async {
+  testWidgets('NO WRAP: a leftward swipe on Marketplace does nothing', (
+    tester,
+  ) async {
     await _pumpShell(tester);
     _select(tester, 2);
     await tester.pump(const Duration(milliseconds: 40));
@@ -274,8 +280,9 @@ void main() {
     expect(_selectedIndex(tester), 2, reason: 'no wrap past Marketplace');
   });
 
-  testWidgets('a vertical drag scrolls the page and never commits a swipe',
-      (tester) async {
+  testWidgets('a vertical drag scrolls the page and never commits a swipe', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     final gesture = await tester.startGesture(const Offset(200, 400));
@@ -284,12 +291,16 @@ void main() {
     await gesture.up();
     await tester.pump(const Duration(milliseconds: 800));
 
-    expect(_selectedIndex(tester), 0,
-        reason: 'vertical scrolling must never switch tabs');
+    expect(
+      _selectedIndex(tester),
+      0,
+      reason: 'vertical scrolling must never switch tabs',
+    );
   });
 
-  testWidgets('an indeterminate drag below the threshold commits nothing',
-      (tester) async {
+  testWidgets('an indeterminate drag below the threshold commits nothing', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     final gesture = await tester.startGesture(const Offset(200, 400));
@@ -298,12 +309,16 @@ void main() {
     await gesture.up();
     await tester.pump(const Duration(milliseconds: 800));
 
-    expect(_selectedIndex(tester), 0,
-        reason: 'below-threshold horizontal wander is not a swipe');
+    expect(
+      _selectedIndex(tester),
+      0,
+      reason: 'below-threshold horizontal wander is not a swipe',
+    );
   });
 
-  testWidgets('a fling commits even under the travel threshold',
-      (tester) async {
+  testWidgets('a fling commits even under the travel threshold', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     // 45px of travel in ~40ms ≈ 1100 px/s — a real flick, under the
@@ -316,26 +331,31 @@ void main() {
     await tester.sendEventToBinding(pointer.down(const Offset(200, 400)));
     for (var i = 1; i <= 5; i++) {
       t += 8;
-      await tester.sendEventToBinding(pointer.move(
-        Offset(200 - 9.0 * i, 400),
-        timeStamp: Duration(milliseconds: t),
-      ));
+      await tester.sendEventToBinding(
+        pointer.move(
+          Offset(200 - 9.0 * i, 400),
+          timeStamp: Duration(milliseconds: t),
+        ),
+      );
     }
-    await tester.sendEventToBinding(pointer.up(
-      timeStamp: const Duration(milliseconds: 42),
-    ));
+    await tester.sendEventToBinding(
+      pointer.up(timeStamp: const Duration(milliseconds: 42)),
+    );
     await tester.pump(const Duration(milliseconds: 40));
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(_selectedIndex(tester), 1,
-        reason: 'a deliberate flick in the same direction commits');
+    expect(
+      _selectedIndex(tester),
+      1,
+      reason: 'a deliberate flick in the same direction commits',
+    );
   });
 
-  testWidgets(
-      'swipes preserve the page tree: a visited page keeps its scroll '
-      'position across a swipe away and back (a swipe is NOT a retap)',
-      (tester) async {
+  testWidgets('swipes preserve the page tree: a visited page keeps its scroll '
+      'position across a swipe away and back (a swipe is NOT a retap)', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     // Seed a non-top scroll offset on home's outer list. (Position-
@@ -351,15 +371,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.byType(AzamanHomePage), findsOneWidget,
-        reason: 'pages stay mounted across a swipe');
-    expect(_homeScrollOffset(tester), before,
-        reason: 'the mounted home page keeps its scroll offset while '
-            'another tab is active — untouched, not reset');
+    expect(
+      find.byType(AzamanHomePage),
+      findsOneWidget,
+      reason: 'pages stay mounted across a swipe',
+    );
+    expect(
+      _homeScrollOffset(tester),
+      before,
+      reason:
+          'the mounted home page keeps its scroll offset while '
+          'another tab is active — untouched, not reset',
+    );
   });
 
-  testWidgets('a swipe back to Home finds the list exactly where it was',
-      (tester) async {
+  testWidgets('a swipe back to Home finds the list exactly where it was', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     await _scrollHomeTo(tester, 40);
@@ -370,14 +398,18 @@ void main() {
     expect(find.byType(AzamanHomePage), findsOneWidget);
 
     await _swipe(tester, 240); // → Home
-    expect(_homeScrollOffset(tester), before,
-        reason: 'swipe away and back preserves scroll; the retap spring '
-            'never fired (that would have sprung the list to the top)');
+    expect(
+      _homeScrollOffset(tester),
+      before,
+      reason:
+          'swipe away and back preserves scroll; the retap spring '
+          'never fired (that would have sprung the list to the top)',
+    );
   });
 
-  testWidgets(
-      'while the + launcher is open the shell swipe is suspended',
-      (tester) async {
+  testWidgets('while the + launcher is open the shell swipe is suspended', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     // Open the real launcher through its real trigger.
@@ -385,7 +417,8 @@ void main() {
     expect(trigger, findsOneWidget);
     await _openLauncher(tester);
     expect(
-      tester.widget<PlusActionLauncher>(find.byType(PlusActionLauncher))
+      tester
+          .widget<PlusActionLauncher>(find.byType(PlusActionLauncher))
           .controller
           .isOpen,
       isTrue,
@@ -393,12 +426,16 @@ void main() {
     );
 
     await _swipe(tester, -240);
-    expect(_selectedIndex(tester), 0,
-        reason: 'the launcher owns the screen — no tab switch');
+    expect(
+      _selectedIndex(tester),
+      0,
+      reason: 'the launcher owns the screen — no tab switch',
+    );
   });
 
-  testWidgets('once the + launcher closes the swipe contract resumes',
-      (tester) async {
+  testWidgets('once the + launcher closes the swipe contract resumes', (
+    tester,
+  ) async {
     await _pumpShell(tester);
 
     await _openLauncher(tester); // open
@@ -406,7 +443,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 800));
     expect(
-      tester.widget<PlusActionLauncher>(find.byType(PlusActionLauncher))
+      tester
+          .widget<PlusActionLauncher>(find.byType(PlusActionLauncher))
           .controller
           .isOpen,
       isFalse,
@@ -414,36 +452,41 @@ void main() {
     );
 
     await _swipe(tester, -240);
-    expect(_selectedIndex(tester), 1,
-        reason: 'with the launcher closed the swipe contract resumes');
+    expect(
+      _selectedIndex(tester),
+      1,
+      reason: 'with the launcher closed the swipe contract resumes',
+    );
   });
 
   testWidgets(
-      'a cancelled in-flight swipe fires nothing (no commit, no unwind)',
-      (tester) async {
-    await _pumpShell(tester);
+    'a cancelled in-flight swipe fires nothing (no commit, no unwind)',
+    (tester) async {
+      await _pumpShell(tester);
 
-    final gesture = await tester.startGesture(const Offset(200, 400));
-    await gesture.moveBy(const Offset(-120, 0)); // deliberate-looking…
-    await gesture.cancel(); // …then the system takes it away
-    await tester.pump(const Duration(milliseconds: 800));
+      final gesture = await tester.startGesture(const Offset(200, 400));
+      await gesture.moveBy(const Offset(-120, 0)); // deliberate-looking…
+      await gesture.cancel(); // …then the system takes it away
+      await tester.pump(const Duration(milliseconds: 800));
 
-    expect(_selectedIndex(tester), 0,
-        reason: 'a cancelled swipe never commits');
-  });
+      expect(
+        _selectedIndex(tester),
+        0,
+        reason: 'a cancelled swipe never commits',
+      );
+    },
+  );
 
-  testWidgets('the shell body is the ShellSwipeDetector (exact wiring)',
-      (tester) async {
+  testWidgets('the shell body is the ShellSwipeDetector (exact wiring)', (
+    tester,
+  ) async {
     await _pumpShell(tester);
     // The detector is ANCESTOR of the page stack and descendant of the
     // Scaffold — the exact wiring PR-B ships.
     final detector = find.byType(ShellSwipeDetector);
     expect(detector, findsOneWidget);
     expect(
-      find.descendant(
-        of: detector,
-        matching: find.byType(AzamanHomePage),
-      ),
+      find.descendant(of: detector, matching: find.byType(AzamanHomePage)),
       findsOneWidget,
     );
     expect(
@@ -458,8 +501,7 @@ void main() {
   // hijacks a deeper horizontal control.
   // ─────────────────────────────────────────────────────────────────────
 
-  testWidgets(
-      'a nested horizontal control row keeps its drag: the strip '
+  testWidgets('a nested horizontal control row keeps its drag: the strip '
       'scrolls, the shell does NOT switch tabs', (tester) async {
     // At 360dp the marketplace control row genuinely overflows (16px,
     // documented in _controlRow) — so the inner horizontal scrollable
@@ -475,14 +517,18 @@ void main() {
     // (category dial + Mix + Near You).
     final horizontalScrolls = find
         .byWidgetPredicate(
-          (w) => w is SingleChildScrollView && w.scrollDirection == Axis.horizontal,
+          (w) =>
+              w is SingleChildScrollView &&
+              w.scrollDirection == Axis.horizontal,
         )
         .evaluate();
     StatefulElement? stripElement;
     for (final e in horizontalScrolls) {
       final scrollables = find
-          .descendant(of: find.byElementPredicate((el) => el == e),
-              matching: find.byType(Scrollable))
+          .descendant(
+            of: find.byElementPredicate((el) => el == e),
+            matching: find.byType(Scrollable),
+          )
           .evaluate();
       for (final se in scrollables) {
         final state = (se as StatefulElement).state as ScrollableState;
@@ -493,15 +539,19 @@ void main() {
       }
       if (stripElement != null) break;
     }
-    expect(stripElement, isNotNull,
-        reason: 'at 360dp the marketplace control row must have real '
-            'travel (its documented 16px overflow)');
-    final strip =
-        (stripElement!.state as ScrollableState).position;
+    expect(
+      stripElement,
+      isNotNull,
+      reason:
+          'at 360dp the marketplace control row must have real '
+          'travel (its documented 16px overflow)',
+    );
+    final strip = (stripElement!.state as ScrollableState).position;
     final before = strip.pixels;
     final stripCenter = tester.getCenter(
       find.byWidgetPredicate(
-        (w) => w is SingleChildScrollView && w.scrollDirection == Axis.horizontal,
+        (w) =>
+            w is SingleChildScrollView && w.scrollDirection == Axis.horizontal,
       ),
     );
 
@@ -515,15 +565,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(strip.pixels, greaterThan(before),
-        reason: 'the INNER horizontal strip consumed the drag');
-    expect(_selectedIndex(tester), 2,
-        reason: 'the shell swipe NEVER fires under a nested horizontal '
-            'control — the strip won its arena');
+    expect(
+      strip.pixels,
+      greaterThan(before),
+      reason: 'the INNER horizontal strip consumed the drag',
+    );
+    expect(
+      _selectedIndex(tester),
+      2,
+      reason:
+          'the shell swipe NEVER fires under a nested horizontal '
+          'control — the strip won its arena',
+    );
   });
 
-  testWidgets(
-      'the ProfileJoystick keeps its own drag: the shell detector '
+  testWidgets('the ProfileJoystick keeps its own drag: the shell detector '
       'never hijacks the dial', (tester) async {
     // The joystick wins its arena at pointer-down (PR #204's design).
     // Compose it DIRECTLY under a ShellSwipeDetector — a strictly
@@ -595,10 +651,17 @@ void main() {
     await gesture.up();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(bookmarks, 1,
-        reason: 'the JOYSTICK consumed the drag (its save action fired)');
-    expect(shellSwipes, 0,
-        reason: 'the shell swipe never fires on the ProfileJoystick — the '
-            'dial wins the arena at pointer-down');
+    expect(
+      bookmarks,
+      1,
+      reason: 'the JOYSTICK consumed the drag (its save action fired)',
+    );
+    expect(
+      shellSwipes,
+      0,
+      reason:
+          'the shell swipe never fires on the ProfileJoystick — the '
+          'dial wins the arena at pointer-down',
+    );
   });
 }

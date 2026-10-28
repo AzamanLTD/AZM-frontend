@@ -38,7 +38,12 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   final List<CatalogSection> menuSections;
   final List<BusinessProduct> uncategorisedProducts;
   final void Function(BusinessProduct product)? onOrderProduct;
-  final void Function(BusinessProduct product, Map<String, String> selections, int quantity)? onAddToTray;
+  final void Function(
+    BusinessProduct product,
+    Map<String, String> selections,
+    int quantity,
+  )?
+  onAddToTray;
   final Map<String, RestaurantDish> restaurantDishesById;
   final String? dineInContext;
   final RestaurantOrderMode orderMode;
@@ -75,16 +80,17 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   /// Clock for menu availability windows; defaults to `DateTime.now()`.
   final DateTime? now;
 
-  bool get _hasMenu => menuSections.isNotEmpty || uncategorisedProducts.isNotEmpty;
+  bool get _hasMenu =>
+      menuSections.isNotEmpty || uncategorisedProducts.isNotEmpty;
 
   /// Canonical menu (§3.1): one document feeds the flip-book and any list
   /// rendering; the store query filters it before it reaches either.
   MenuDocument menuDocumentAt(DateTime renderNow) => MenuDocument.build(
-        sections: menuSections,
-        uncategorised: uncategorisedProducts,
-        dishesById: restaurantDishesById,
-        now: renderNow,
-      ).filtered(storeQuery);
+    sections: menuSections,
+    uncategorised: uncategorisedProducts,
+    dishesById: restaurantDishesById,
+    now: renderNow,
+  ).filtered(storeQuery);
 
   /// Compatibility getter for existing callers/tests. The rendered stage
   /// samples the clock once per build and uses [menuDocumentAt] thereafter.
@@ -94,9 +100,17 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
   List<BusinessProduct> get visibleProducts => storeQuery.trim().isEmpty
       ? business.products
       : business.products
-          .where((p) => matchesStoreQuery(storeQuery, name: p.name, description: p.description, tags: p.tags))
-          .toList(growable: false);
-  MarketplaceExperienceBlueprint get _blueprint => MarketplaceExperienceBlueprint.fromJson(experience, business.category);
+            .where(
+              (p) => matchesStoreQuery(
+                storeQuery,
+                name: p.name,
+                description: p.description,
+                tags: p.tags,
+              ),
+            )
+            .toList(growable: false);
+  MarketplaceExperienceBlueprint get _blueprint =>
+      MarketplaceExperienceBlueprint.fromJson(experience, business.category);
 
   @override
   Widget build(BuildContext context) {
@@ -104,13 +118,23 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     // One clock sample for this render. Availability decisions must not move
     // between menu/header reads during the same build.
     final renderNow = now ?? DateTime.now();
-    final profile = MarketplaceExperienceCatalog.fromCategory(business.category);
+    final profile = MarketplaceExperienceCatalog.fromCategory(
+      business.category,
+    );
     late final Widget stage;
     switch (blueprint.preset) {
       case 'DINING_JOURNEY':
         stage = _hasMenu && (onAddToTray != null || onOrderProduct != null)
             ? _restaurantStage(blueprint, renderNow)
-            : _bookCtaCard(icon: Icons.table_restaurant_outlined, title: 'Reserve a Table', subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.', buttonLabel: 'Request Reservation', onTap: onOpenOrderSheet, blueprint: blueprint);
+            : _bookCtaCard(
+                icon: Icons.table_restaurant_outlined,
+                title: 'Reserve a Table',
+                subtitle:
+                    'Request a dine-in reservation — the business will confirm or counter-propose a time.',
+                buttonLabel: 'Request Reservation',
+                onTap: onOpenOrderSheet,
+                blueprint: blueprint,
+              );
         break;
       case 'SHOP_FLOOR':
         stage = _retailStage(context, blueprint);
@@ -159,11 +183,23 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
       if (_hasMenu && (onAddToTray != null || onOrderProduct != null)) {
         return _restaurantStage(_blueprint, renderNow);
       }
-      if (profile.supports(MarketplaceExperienceCapability.reservation)) return _bookCtaCard(icon: Icons.table_restaurant_outlined, title: 'Reserve a Table', subtitle: 'Request a dine-in reservation — the business will confirm or counter-propose a time.', buttonLabel: 'Request Reservation', onTap: onOpenOrderSheet, blueprint: _blueprint);
+      if (profile.supports(MarketplaceExperienceCapability.reservation))
+        return _bookCtaCard(
+          icon: Icons.table_restaurant_outlined,
+          title: 'Reserve a Table',
+          subtitle:
+              'Request a dine-in reservation — the business will confirm or counter-propose a time.',
+          buttonLabel: 'Request Reservation',
+          onTap: onOpenOrderSheet,
+          blueprint: _blueprint,
+        );
     }
-    if (profile.supports(MarketplaceExperienceCapability.retailCollection)) return _retailStage(context, _blueprint);
-    if (profile.supports(MarketplaceExperienceCapability.hotelFloorMap)) return _hotelStage(_blueprint);
-    if (profile.supports(MarketplaceExperienceCapability.transitSeatMap)) return _transitStage(_blueprint);
+    if (profile.supports(MarketplaceExperienceCapability.retailCollection))
+      return _retailStage(context, _blueprint);
+    if (profile.supports(MarketplaceExperienceCapability.hotelFloorMap))
+      return _hotelStage(_blueprint);
+    if (profile.supports(MarketplaceExperienceCapability.transitSeatMap))
+      return _transitStage(_blueprint);
     return ServiceExperienceStage(
       business: business,
       colors: colors,
@@ -174,7 +210,10 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     );
   }
 
-  Widget _stageHeader(MarketplaceExperienceBlueprint blueprint, {required String title}) {
+  Widget _stageHeader(
+    MarketplaceExperienceBlueprint blueprint, {
+    required String title,
+  }) {
     if (!blueprint.showNavigationContext) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
@@ -187,20 +226,33 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
               color: colors.accentSurface,
               borderRadius: BorderRadius.circular(AzRadius.md),
             ),
-            child: Icon(_navigationGlyph(blueprint.navigationMode), size: 18, color: colors.accent),
+            child: Icon(
+              _navigationGlyph(blueprint.navigationMode),
+              size: 18,
+              color: colors.accent,
+            ),
           ),
           const SizedBox(width: AzSpace.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AzText.titleL.copyWith(color: colors.textPrimary)),
+                Text(
+                  title,
+                  style: AzText.titleL.copyWith(color: colors.textPrimary),
+                ),
                 const SizedBox(height: AzSpace.xxs),
-                Text(blueprint.navigationLabel, style: AzText.caption.copyWith(color: colors.textTertiary)),
+                Text(
+                  blueprint.navigationLabel,
+                  style: AzText.caption.copyWith(color: colors.textTertiary),
+                ),
               ],
             ),
           ),
-          Text(blueprint.detailLabel, style: AzText.caption.copyWith(color: colors.textTertiary)),
+          Text(
+            blueprint.detailLabel,
+            style: AzText.caption.copyWith(color: colors.textTertiary),
+          ),
         ],
       ),
     );
@@ -244,23 +296,29 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
           // unavailable state, never a 0.00 substitute.
           final dish = restaurantDishesById[product.id];
           final effectiveUnit = dish == null
-              ? (product.priceUsdc.isFinite && product.priceUsdc > 0 ? product.priceUsdc : null)
+              ? (product.priceUsdc.isFinite && product.priceUsdc > 0
+                    ? product.priceUsdc
+                    : null)
               : restaurantEffectiveUnitPrice(
                   dish: dish,
                   fallbackPrice: product.priceUsdc,
                   selections: selections,
                 );
-          unawaited(onCommit(
-            () {
-              if (onAddToTray != null) {
-                onAddToTray!.call(product, selections, quantity);
-              } else {
-                onOrderProduct?.call(product);
-              }
-            },
-            label: product.name,
-            subtitle: effectiveUnit == null ? 'Price unavailable' : '$quantity × ${effectiveUnit.toStringAsFixed(2)} USDC',
-          ));
+          unawaited(
+            onCommit(
+              () {
+                if (onAddToTray != null) {
+                  onAddToTray!.call(product, selections, quantity);
+                } else {
+                  onOrderProduct?.call(product);
+                }
+              },
+              label: product.name,
+              subtitle: effectiveUnit == null
+                  ? 'Price unavailable'
+                  : '$quantity × ${effectiveUnit.toStringAsFixed(2)} USDC',
+            ),
+          );
         },
         showGallery: blueprint.showGallery,
         showSpecifications: blueprint.showSpecifications,
@@ -275,37 +333,86 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
     );
   }
 
-  Widget _retailStage(BuildContext context, MarketplaceExperienceBlueprint blueprint) {
-    if (business.products.isEmpty) return _bookCtaCard(icon: Icons.shopping_bag_outlined, title: 'Shop the Catalog', subtitle: 'Browse this business\'s full catalog and check out with escrow-backed payment protection.', buttonLabel: 'Shop Now', onTap: onOpenCatalogView, blueprint: blueprint);
-    final products = visibleProducts.take(6).map((product) {
-      // GHS availability truth (review 2026-10-18): the retail dossier
-      // carries ONLY the authoritative merchant GHS price — the legacy
-      // priceUsdc figure is never a fallback. Without a server-confirmed
-      // GHS price the dossier renders "Price unavailable".
-      final ghs = product.priceGhs;
-      final ghsValue = ghs != null ? double.tryParse(ghs) : null;
-      return RetailProduct(
-        id: product.id,
-        name: product.name,
-        description: product.description,
-        price: ghsValue,
-        currency: ghsValue != null ? 'GHS' : null,
-        imageUrls: product.imageUrls,
-        tags: product.tags,
-        available: product.isActive,
+  Widget _retailStage(
+    BuildContext context,
+    MarketplaceExperienceBlueprint blueprint,
+  ) {
+    if (business.products.isEmpty)
+      return _bookCtaCard(
+        icon: Icons.shopping_bag_outlined,
+        title: 'Shop the Catalog',
+        subtitle:
+            'Browse this business\'s full catalog and check out with escrow-backed payment protection.',
+        buttonLabel: 'Shop Now',
+        onTap: onOpenCatalogView,
+        blueprint: blueprint,
       );
-    }).toList(growable: false);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _stageHeader(blueprint, title: 'Shop this store'),
-      RetailCollectionBox(collection: RetailCollection(id: 'marketplace-${business.bizId}', title: 'Shop the shelf', subtitle: 'Items from this store', products: products), onProductTap: (product) => _openRetailDetail(context, blueprint, product)),
-      Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 0), child: SizedBox(width: double.infinity, child: OutlinedButton.icon(onPressed: onOpenCatalogView, icon: Icon(blueprint.commitStyle == MarketplaceCommitStyle.liftIntoTray ? Icons.shopping_bag_outlined : Icons.arrow_forward_outlined), label: Text(blueprint.persistentTray ? 'Open full catalog' : 'Continue to catalog')))),
-    ]);
+    final products = visibleProducts
+        .take(6)
+        .map((product) {
+          // GHS availability truth (review 2026-10-18): the retail dossier
+          // carries ONLY the authoritative merchant GHS price — the legacy
+          // priceUsdc figure is never a fallback. Without a server-confirmed
+          // GHS price the dossier renders "Price unavailable".
+          final ghs = product.priceGhs;
+          final ghsValue = ghs != null ? double.tryParse(ghs) : null;
+          return RetailProduct(
+            id: product.id,
+            name: product.name,
+            description: product.description,
+            price: ghsValue,
+            currency: ghsValue != null ? 'GHS' : null,
+            imageUrls: product.imageUrls,
+            tags: product.tags,
+            available: product.isActive,
+          );
+        })
+        .toList(growable: false);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _stageHeader(blueprint, title: 'Shop this store'),
+        RetailCollectionBox(
+          collection: RetailCollection(
+            id: 'marketplace-${business.bizId}',
+            title: 'Shop the shelf',
+            subtitle: 'Items from this store',
+            products: products,
+          ),
+          onProductTap: (product) =>
+              _openRetailDetail(context, blueprint, product),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          child: SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onOpenCatalogView,
+              icon: Icon(
+                blueprint.commitStyle == MarketplaceCommitStyle.liftIntoTray
+                    ? Icons.shopping_bag_outlined
+                    : Icons.arrow_forward_outlined,
+              ),
+              label: Text(
+                blueprint.persistentTray
+                    ? 'Open full catalog'
+                    : 'Continue to catalog',
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   /// `morph` keeps the shipped behaviour (tap -> full catalog). Every other
   /// presentation opens the shared dossier sheet, so a tap on a product now
   /// actually shows the product.
-  void _openRetailDetail(BuildContext context, MarketplaceExperienceBlueprint blueprint, RetailProduct product) {
+  void _openRetailDetail(
+    BuildContext context,
+    MarketplaceExperienceBlueprint blueprint,
+    RetailProduct product,
+  ) {
     AzamanHaptics.selection();
     if (blueprint.detailPresentation == MarketplaceDetailPresentation.morph) {
       onOpenCatalogView?.call();
@@ -348,7 +455,10 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
             borderRadius: BorderRadius.circular(AzRadius.lg),
             child: AspectRatio(
               aspectRatio: 16 / 9,
-              child: AzamanNetworkImage(imageUrl: product.imageUrls.first, fit: BoxFit.cover),
+              child: AzamanNetworkImage(
+                imageUrl: product.imageUrls.first,
+                fit: BoxFit.cover,
+              ),
             ),
           ),
           const SizedBox(height: AzSpace.lg),
@@ -367,7 +477,10 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
           const SizedBox(height: AzSpace.sm),
         ],
         if (product.description != null && product.description!.isNotEmpty)
-          Text(product.description!, style: AzText.body.copyWith(color: colors.textSecondary)),
+          Text(
+            product.description!,
+            style: AzText.body.copyWith(color: colors.textSecondary),
+          ),
         const SizedBox(height: AzSpace.md),
         Wrap(
           spacing: AzSpace.xs,
@@ -395,7 +508,9 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
       ),
       child: Text(
         available ? 'Available' : 'Unavailable',
-        style: AzText.label.copyWith(color: available ? colors.accent : colors.textTertiary),
+        style: AzText.label.copyWith(
+          color: available ? colors.accent : colors.textTertiary,
+        ),
       ),
     );
   }
@@ -407,31 +522,150 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
         color: colors.softSurface,
         borderRadius: AzRadius.brPill,
       ),
-      child: Text(tag, style: AzText.caption.copyWith(color: colors.textSecondary)),
+      child: Text(
+        tag,
+        style: AzText.caption.copyWith(color: colors.textSecondary),
+      ),
     );
   }
 
   Widget _hotelStage(MarketplaceExperienceBlueprint blueprint) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      if (blueprint.showNavigationContext) Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 10), child: Text(blueprint.navigationLabel, style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w600))),
-      HotelFloorPlanPreview(products: business.products, selectedRoomId: null, onRoomSelected: (_) => onNavigate?.call('/business-market/${business.bizId}/hotel-booking'), colors: colors),
-      Padding(padding: const EdgeInsets.fromLTRB(16, 10, 16, 0), child: SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: onNavigate == null ? null : () => onNavigate!.call('/business-market/${business.bizId}/hotel-booking'), icon: const Icon(Icons.hotel_outlined), label: const Text('Continue to rooms')))),
-    ]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (blueprint.showNavigationContext)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+            child: Text(
+              blueprint.navigationLabel,
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        HotelFloorPlanPreview(
+          products: business.products,
+          selectedRoomId: null,
+          onRoomSelected: (_) => onNavigate?.call(
+            '/business-market/${business.bizId}/hotel-booking',
+          ),
+          colors: colors,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onNavigate == null
+                  ? null
+                  : () => onNavigate!.call(
+                      '/business-market/${business.bizId}/hotel-booking',
+                    ),
+              icon: const Icon(Icons.hotel_outlined),
+              label: const Text('Continue to rooms'),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _transitStage(MarketplaceExperienceBlueprint blueprint) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_stageHeader(blueprint, title: 'Choose your ride'), JourneyThread(model: JourneyThreadModel.searching(operatorName: business.businessName)), TransitSeatPreview(businessProfileId: business.id, colors: colors, onOpenTrips: () => onNavigate?.call('/business-market/${business.bizId}/transit'))]);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _stageHeader(blueprint, title: 'Choose your ride'),
+        JourneyThread(
+          model: JourneyThreadModel.searching(
+            operatorName: business.businessName,
+          ),
+        ),
+        TransitSeatPreview(
+          businessProfileId: business.id,
+          colors: colors,
+          onOpenTrips: () =>
+              onNavigate?.call('/business-market/${business.bizId}/transit'),
+        ),
+      ],
+    );
   }
 
   IconData _commitIcon(MarketplaceExperienceBlueprint blueprint) {
     switch (blueprint.commitStyle) {
-      case MarketplaceCommitStyle.paperRip: return Icons.receipt_long_outlined;
-      case MarketplaceCommitStyle.liftIntoTray: return Icons.shopping_bag_outlined;
-      case MarketplaceCommitStyle.material: return Icons.arrow_forward_outlined;
+      case MarketplaceCommitStyle.paperRip:
+        return Icons.receipt_long_outlined;
+      case MarketplaceCommitStyle.liftIntoTray:
+        return Icons.shopping_bag_outlined;
+      case MarketplaceCommitStyle.material:
+        return Icons.arrow_forward_outlined;
     }
   }
 
-  Widget _bookCtaCard({required IconData icon, required String title, required String subtitle, required String buttonLabel, required VoidCallback? onTap, required MarketplaceExperienceBlueprint blueprint}) {
-    return Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: colors.accentSurface, shape: BoxShape.circle), child: Icon(icon, size: 40, color: colors.accent)), const SizedBox(height: 18), Text(title, style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)), const SizedBox(height: 8), Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: colors.textSecondary, fontSize: 13)), const SizedBox(height: 20), ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: colors.accent, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)), onPressed: onTap, icon: Icon(_commitIcon(blueprint)), label: Text(buttonLabel, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)))])));
+  Widget _bookCtaCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required String buttonLabel,
+    required VoidCallback? onTap,
+    required MarketplaceExperienceBlueprint blueprint,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: colors.accentSurface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 40, color: colors.accent),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              title,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+              ),
+              onPressed: onTap,
+              icon: Icon(_commitIcon(blueprint)),
+              label: Text(
+                buttonLabel,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -11,14 +11,14 @@ import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class VendorSettingsScreen extends ConsumerStatefulWidget {
   final int pendingTradeCount;
 
   const VendorSettingsScreen({super.key, this.pendingTradeCount = 0});
 
   @override
-  ConsumerState<VendorSettingsScreen> createState() => _VendorSettingsScreenState();
+  ConsumerState<VendorSettingsScreen> createState() =>
+      _VendorSettingsScreenState();
 }
 
 class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
@@ -62,19 +62,20 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
           return AlertDialog(
             backgroundColor: colors.card,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16)),
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: Row(
               children: [
-                Icon(Icons.error_outline,
-                    color: colors.warning, size: 24),
+                Icon(Icons.error_outline, color: colors.warning, size: 24),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     "Active Trades Detected",
                     style: TextStyle(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16),
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ],
@@ -82,14 +83,21 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
             content: Text(
               "You have ${widget.pendingTradeCount} active trade(s). Allow buyers to finish paying, or auto-cancel unpaid trades?",
               style: TextStyle(
-                  color: colors.textSecondary, fontSize: 13, height: 1.4),
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text("Keep Active",
-                    style:
-                        TextStyle(color: colors.textTertiary, fontWeight: FontWeight.bold)),
+                child: Text(
+                  "Keep Active",
+                  style: TextStyle(
+                    color: colors.textTertiary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -97,16 +105,21 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                   foregroundColor: Colors.black,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 onPressed: () {
                   Navigator.pop(ctx);
                   setState(() => _isActive = false);
                   tp.toggleMerchantStatus();
-                  SocketService.instance.emit('toggle_online', {'isOnline': false});
+                  SocketService.instance.emit('toggle_online', {
+                    'isOnline': false,
+                  });
                 },
-                child: const Text("Go Offline",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  "Go Offline",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           );
@@ -127,7 +140,12 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
         final all = List<Map<String, dynamic>>.from(data['wallets'] ?? []);
-        final cryptoNetworks = ['BINANCE_ID', 'TRC20', 'ERC20_BEP20', 'Crypto Wallet'];
+        final cryptoNetworks = [
+          'BINANCE_ID',
+          'TRC20',
+          'ERC20_BEP20',
+          'Crypto Wallet',
+        ];
         _tradeAccounts = all.where((w) {
           final prov = (w['provider'] ?? w['network'] ?? '').toString();
           return !cryptoNetworks.any((c) => prov.contains(c));
@@ -147,9 +165,15 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
       if (res.statusCode == 200 && mounted) {
         final data = jsonDecode(res.body);
         final all = List<Map<String, dynamic>>.from(data['wallets'] ?? []);
-        final cryptoNetworks = ['BINANCE_ID', 'TRC20', 'ERC20_BEP20', 'Crypto Wallet'];
+        final cryptoNetworks = [
+          'BINANCE_ID',
+          'TRC20',
+          'ERC20_BEP20',
+          'Crypto Wallet',
+        ];
         _payoutDestinations = all.where((w) {
-          final prov = (w['provider'] ?? w['network'] ?? w['type'] ?? '').toString();
+          final prov = (w['provider'] ?? w['network'] ?? w['type'] ?? '')
+              .toString();
           return cryptoNetworks.any((c) => prov.contains(c));
         }).toList();
       }
@@ -177,7 +201,8 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
       backgroundColor: colors.card,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
           final isBank = selectedMethod == 'Bank Transfer';
@@ -210,11 +235,14 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Text('Add Trade Account',
-                      style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    'Add Trade Account',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: selectedMethod,
@@ -230,11 +258,19 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                     ),
                     dropdownColor: colors.surface,
                     style: TextStyle(color: colors.textPrimary),
-                    items: ['CashApp', 'Zelle', 'Venmo', 'PayPal',
-                        'Apple Pay', 'Bank Transfer']
-                        .map((m) => DropdownMenuItem(
-                            value: m, child: Text(m)))
-                        .toList(),
+                    items:
+                        [
+                              'CashApp',
+                              'Zelle',
+                              'Venmo',
+                              'PayPal',
+                              'Apple Pay',
+                              'Bank Transfer',
+                            ]
+                            .map(
+                              (m) => DropdownMenuItem(value: m, child: Text(m)),
+                            )
+                            .toList(),
                     onChanged: (val) {
                       if (val != null) {
                         setSheet(() => selectedMethod = val);
@@ -243,108 +279,129 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                   ),
                   const SizedBox(height: 14),
                   _buildField(
-                      controller: methodCtrl,
-                      label: 'Account Nickname / Label',
-                      colors: colors),
+                    controller: methodCtrl,
+                    label: 'Account Nickname / Label',
+                    colors: colors,
+                  ),
                   const SizedBox(height: 10),
                   if (isCashApp) ...[
                     _buildField(
-                        controller: accountNameCtrl,
-                        label: 'CashApp Account Name',
-                        colors: colors),
+                      controller: accountNameCtrl,
+                      label: 'CashApp Account Name',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: detailCtrl,
-                        label: '\$Cashtag',
-                        colors: colors),
+                      controller: detailCtrl,
+                      label: '\$Cashtag',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: secondaryCtrl,
-                        label: 'Associated Email or Phone (Optional)',
-                        colors: colors,
-                        required: false),
+                      controller: secondaryCtrl,
+                      label: 'Associated Email or Phone (Optional)',
+                      colors: colors,
+                      required: false,
+                    ),
                   ] else if (isBank) ...[
                     _buildField(
-                        controller: accountNameCtrl,
-                        label: 'Bank Name (e.g. Chase, BOA)',
-                        colors: colors),
+                      controller: accountNameCtrl,
+                      label: 'Bank Name (e.g. Chase, BOA)',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: methodCtrl,
-                        label: 'Account Holder Full Name',
-                        colors: colors),
+                      controller: methodCtrl,
+                      label: 'Account Holder Full Name',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: detailCtrl,
-                        label: 'Account Number',
-                        colors: colors,
-                        keyboardType: TextInputType.number),
+                      controller: detailCtrl,
+                      label: 'Account Number',
+                      colors: colors,
+                      keyboardType: TextInputType.number,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: secondaryCtrl,
-                        label: 'Routing Number',
-                        colors: colors,
-                        keyboardType: TextInputType.number),
+                      controller: secondaryCtrl,
+                      label: 'Routing Number',
+                      colors: colors,
+                      keyboardType: TextInputType.number,
+                    ),
                   ] else if (isPayPal) ...[
                     _buildField(
-                        controller: accountNameCtrl,
-                        label: 'Registered Name',
-                        colors: colors),
+                      controller: accountNameCtrl,
+                      label: 'Registered Name',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: detailCtrl,
-                        label: 'PayPal Email Address',
-                        colors: colors),
+                      controller: detailCtrl,
+                      label: 'PayPal Email Address',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: secondaryCtrl,
-                        label: 'PayPal.me Link (Optional)',
-                        colors: colors,
-                        required: false),
+                      controller: secondaryCtrl,
+                      label: 'PayPal.me Link (Optional)',
+                      colors: colors,
+                      required: false,
+                    ),
                   ] else if (isVenmo) ...[
                     _buildField(
-                        controller: accountNameCtrl,
-                        label: 'Registered Full Name',
-                        colors: colors),
+                      controller: accountNameCtrl,
+                      label: 'Registered Full Name',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: detailCtrl,
-                        label: 'Venmo Username / Phone / Email',
-                        colors: colors),
+                      controller: detailCtrl,
+                      label: 'Venmo Username / Phone / Email',
+                      colors: colors,
+                    ),
                   ] else if (isZelle) ...[
                     _buildField(
-                        controller: accountNameCtrl,
-                        label: 'Registered Full Name',
-                        colors: colors),
+                      controller: accountNameCtrl,
+                      label: 'Registered Full Name',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: detailCtrl,
-                        label: 'Zelle Email or Phone Number',
-                        colors: colors),
+                      controller: detailCtrl,
+                      label: 'Zelle Email or Phone Number',
+                      colors: colors,
+                    ),
                   ] else ...[
                     _buildField(
-                        controller: accountNameCtrl,
-                        label: 'Registered Full Name',
-                        colors: colors),
+                      controller: accountNameCtrl,
+                      label: 'Registered Full Name',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     _buildField(
-                        controller: detailCtrl,
-                        label: 'Username, Email, or Phone',
-                        colors: colors),
+                      controller: detailCtrl,
+                      label: 'Username, Email, or Phone',
+                      colors: colors,
+                    ),
                   ],
                   const SizedBox(height: 16),
                   GestureDetector(
                     onTap: () async {
                       HapticFeedback.selectionClick();
                       final picked = await picker.pickImage(
-                          source: ImageSource.gallery, imageQuality: 70);
+                        source: ImageSource.gallery,
+                        imageQuality: 70,
+                      );
                       if (picked != null) {
                         setSheet(() => verificationScreenshot = picked);
                       }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          vertical: 14, horizontal: 16),
+                        vertical: 14,
+                        horizontal: 16,
+                      ),
                       decoration: BoxDecoration(
                         color: verificationScreenshot != null
                             ? colors.success.withValues(alpha: 0.1)
@@ -389,18 +446,21 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) return;
                       if (verificationScreenshot == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Verification screenshot required')),
+                            content: Text('Verification screenshot required'),
+                          ),
                         );
                         return;
                       }
@@ -414,8 +474,10 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                         screenshot: verificationScreenshot!,
                       );
                     },
-                    child: const Text('SAVE ACCOUNT',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'SAVE ACCOUNT',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
@@ -437,8 +499,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
     try {
       final uri = Uri.parse('${AppConfig.apiUrl}/wallet/saved');
       final req = http.MultipartRequest('POST', uri)
-        ..files.add(
-            await http.MultipartFile.fromPath('file', screenshot.path))
+        ..files.add(await http.MultipartFile.fromPath('file', screenshot.path))
         ..fields['type'] = method
         ..fields['label'] = label.isNotEmpty ? label : method
         ..fields['address'] = primaryDetail
@@ -446,17 +507,21 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         ..fields['secondaryDetail'] = secondaryDetail;
 
       final responseData = await apiClient.multipart('/wallet/saved', req);
-      final ok = responseData.statusCode == 200 || responseData.statusCode == 201;
+      final ok =
+          responseData.statusCode == 200 || responseData.statusCode == 201;
 
       if (mounted) {
         HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(ok
-                ? 'Trade account saved'
-                : 'Failed to save — ${responseData.body}'),
-            backgroundColor:
-                ok ? colorsSuccess(context) : colorsDanger(context),
+            content: Text(
+              ok
+                  ? 'Trade account saved'
+                  : 'Failed to save — ${responseData.body}',
+            ),
+            backgroundColor: ok
+                ? colorsSuccess(context)
+                : colorsDanger(context),
           ),
         );
         if (ok) _fetchTradeAccounts();
@@ -466,8 +531,9 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Network error: $e'),
-              backgroundColor: colorsDanger(context)),
+            content: Text('Network error: $e'),
+            backgroundColor: colorsDanger(context),
+          ),
         );
       }
     }
@@ -488,7 +554,8 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
       backgroundColor: colors.card,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
           return Padding(
@@ -515,16 +582,20 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Text('Add Payout Destination',
-                      style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold)),
+                  Text(
+                    'Add Payout Destination',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   _buildField(
-                      controller: nicknameCtrl,
-                      label: 'Nickname (e.g. "My Binance", "MTN Wallet")',
-                      colors: colors),
+                    controller: nicknameCtrl,
+                    label: 'Nickname (e.g. "My Binance", "MTN Wallet")',
+                    colors: colors,
+                  ),
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -539,28 +610,30 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                                   : colors.surface,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: !isWeb3
-                                    ? colors.accent
-                                    : colors.divider,
+                                color: !isWeb3 ? colors.accent : colors.divider,
                               ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.smartphone_outlined,
-                                    size: 16,
+                                Icon(
+                                  Icons.smartphone_outlined,
+                                  size: 16,
+                                  color: !isWeb3
+                                      ? colors.accent
+                                      : colors.textTertiary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Local Fiat/MoMo',
+                                  style: TextStyle(
                                     color: !isWeb3
                                         ? colors.accent
-                                        : colors.textTertiary),
-                                const SizedBox(width: 6),
-                                Text('Local Fiat/MoMo',
-                                    style: TextStyle(
-                                      color: !isWeb3
-                                          ? colors.accent
-                                          : colors.textTertiary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    )),
+                                        : colors.textTertiary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -578,28 +651,30 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                                   : colors.surface,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isWeb3
-                                    ? colors.accent
-                                    : colors.divider,
+                                color: isWeb3 ? colors.accent : colors.divider,
                               ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.language,
-                                    size: 16,
+                                Icon(
+                                  Icons.language,
+                                  size: 16,
+                                  color: isWeb3
+                                      ? colors.accent
+                                      : colors.textTertiary,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'External Web3 Wallet',
+                                  style: TextStyle(
                                     color: isWeb3
                                         ? colors.accent
-                                        : colors.textTertiary),
-                                const SizedBox(width: 6),
-                                Text('External Web3 Wallet',
-                                    style: TextStyle(
-                                      color: isWeb3
-                                          ? colors.accent
-                                          : colors.textTertiary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    )),
+                                        : colors.textTertiary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -610,9 +685,10 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                   const SizedBox(height: 14),
                   if (isWeb3) ...[
                     _buildField(
-                        controller: addressCtrl,
-                        label: 'Wallet Address (TRC20 / ERC20 / BEP20)',
-                        colors: colors),
+                      controller: addressCtrl,
+                      label: 'Wallet Address (TRC20 / ERC20 / BEP20)',
+                      colors: colors,
+                    ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: 'TRC20',
@@ -629,17 +705,19 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                       dropdownColor: colors.surface,
                       style: TextStyle(color: colors.textPrimary),
                       items: ['TRC20', 'ERC20', 'BEP20', 'BINANCE_ID']
-                          .map((n) =>
-                              DropdownMenuItem(value: n, child: Text(n)))
+                          .map(
+                            (n) => DropdownMenuItem(value: n, child: Text(n)),
+                          )
                           .toList(),
                       onChanged: (_) {},
                     ),
                   ] else ...[
                     _buildField(
-                        controller: phoneCtrl,
-                        label: 'Phone Number (e.g. 024XXXXXXX)',
-                        colors: colors,
-                        keyboardType: TextInputType.number),
+                      controller: phoneCtrl,
+                      label: 'Phone Number (e.g. 024XXXXXXX)',
+                      colors: colors,
+                      keyboardType: TextInputType.number,
+                    ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: selectedProvider,
@@ -655,11 +733,18 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                       ),
                       dropdownColor: colors.surface,
                       style: TextStyle(color: colors.textPrimary),
-                      items: ['MTN MoMo', 'Telecel Cash', 'AirtelTigo Money',
-                          'Bank Transfer']
-                          .map((p) =>
-                              DropdownMenuItem(value: p, child: Text(p)))
-                          .toList(),
+                      items:
+                          [
+                                'MTN MoMo',
+                                'Telecel Cash',
+                                'AirtelTigo Money',
+                                'Bank Transfer',
+                              ]
+                              .map(
+                                (p) =>
+                                    DropdownMenuItem(value: p, child: Text(p)),
+                              )
+                              .toList(),
                       onChanged: (val) {
                         if (val != null) {
                           setSheet(() => selectedProvider = val);
@@ -671,11 +756,13 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     onPressed: () async {
                       if (!formKey.currentState!.validate()) return;
@@ -688,8 +775,10 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                         provider: selectedProvider,
                       );
                     },
-                    child: const Text('SAVE DESTINATION',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'SAVE DESTINATION',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ],
               ),
@@ -718,7 +807,7 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
           'type': provider,
           'label': nickname.isNotEmpty ? nickname : provider,
           'address': phone,
-        }
+        },
       });
 
       final ok = res.statusCode == 200 || res.statusCode == 201;
@@ -726,10 +815,10 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text(ok ? 'Payout destination saved' : 'Failed to save'),
-            backgroundColor:
-                ok ? colorsSuccess(context) : colorsDanger(context),
+            content: Text(ok ? 'Payout destination saved' : 'Failed to save'),
+            backgroundColor: ok
+                ? colorsSuccess(context)
+                : colorsDanger(context),
           ),
         );
         if (ok) _fetchPayoutDestinations();
@@ -767,8 +856,9 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
       keyboardType: keyboardType,
       style: TextStyle(color: colors.textPrimary),
       validator: required
-          ? (v) =>
-              (v == null || v.trim().isEmpty) ? 'This field is required' : null
+          ? (v) => (v == null || v.trim().isEmpty)
+                ? 'This field is required'
+                : null
           : null,
       decoration: InputDecoration(
         labelText: label,
@@ -818,9 +908,10 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         title: Text(
           "Vendor Settings",
           style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.bold),
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: Column(
@@ -854,7 +945,9 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                           ? "You are visible to buyers."
                           : "New requests will not be routed.",
                       style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11),
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -877,7 +970,9 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
               decoration: BoxDecoration(
                 color: colors.warning.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: colors.warning.withValues(alpha: 0.2)),
+                border: Border.all(
+                  color: colors.warning.withValues(alpha: 0.2),
+                ),
               ),
               child: Row(
                 children: [
@@ -887,9 +982,10 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                     child: Text(
                       "${widget.pendingTradeCount} active trade(s) in progress",
                       style: TextStyle(
-                          color: colors.warning,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12),
+                        color: colors.warning,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -950,14 +1046,20 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_outlined,
-                size: 56, color: colors.textTertiary),
+            Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 56,
+              color: colors.textTertiary,
+            ),
             const SizedBox(height: 16),
-            Text('No trade accounts yet',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16)),
+            Text(
+              'No trade accounts yet',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 6),
             Text(
               'Tap + to add a Fiat Trade Account\nbuyers can pay into.',
@@ -975,7 +1077,8 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         padding: const EdgeInsets.all(16),
         itemCount: _tradeAccounts.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => _buildAccountTile(_tradeAccounts[i], colors, false),
+        itemBuilder: (_, i) =>
+            _buildAccountTile(_tradeAccounts[i], colors, false),
       ),
     );
   }
@@ -989,14 +1092,20 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.account_balance_wallet_outlined,
-                size: 56, color: colors.textTertiary),
+            Icon(
+              Icons.account_balance_wallet_outlined,
+              size: 56,
+              color: colors.textTertiary,
+            ),
             const SizedBox(height: 16),
-            Text('No payout destinations yet',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16)),
+            Text(
+              'No payout destinations yet',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 6),
             Text(
               'Tap + to add a Local Fiat/MoMo or\nExternal Web3 Wallet for payouts.',
@@ -1014,20 +1123,28 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
         padding: const EdgeInsets.all(16),
         itemCount: _payoutDestinations.length,
         separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) => _buildAccountTile(_payoutDestinations[i], colors, true),
+        itemBuilder: (_, i) =>
+            _buildAccountTile(_payoutDestinations[i], colors, true),
       ),
     );
   }
 
   Widget _buildAccountTile(
-      Map<String, dynamic> account, AzamanColors colors, bool isPayout) {
+    Map<String, dynamic> account,
+    AzamanColors colors,
+    bool isPayout,
+  ) {
     final String provider =
-        account['provider'] ?? account['network'] ?? account['type'] ?? 'UNKNOWN';
+        account['provider'] ??
+        account['network'] ??
+        account['type'] ??
+        'UNKNOWN';
     final String label = account['label'] ?? '';
     final String address = account['address'] ?? '';
     final int id = int.tryParse(account['id']?.toString() ?? '0') ?? 0;
 
-    final bool isCrypto = provider == 'BINANCE_ID' ||
+    final bool isCrypto =
+        provider == 'BINANCE_ID' ||
         provider == 'TRC20' ||
         provider == 'ERC20_BEP20' ||
         provider == 'Crypto Wallet';
@@ -1060,23 +1177,24 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen>
                 Text(
                   label.isNotEmpty ? label : provider,
                   style: TextStyle(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14),
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   address,
                   style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 12,
-                      fontFamily: isCrypto ? 'monospace' : null),
+                    color: colors.textSecondary,
+                    fontSize: 12,
+                    fontFamily: isCrypto ? 'monospace' : null,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   provider,
-                  style:
-                      TextStyle(color: colors.textTertiary, fontSize: 11),
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
                 ),
               ],
             ),

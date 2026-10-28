@@ -10,35 +10,33 @@ import 'package:azaman/widgets/marketplace/marketplace_vertical_experience_stage
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
 BusinessProduct _product(String name) => BusinessProduct(
-      id: name.toLowerCase().replaceAll(' ', '-'),
-      businessProfileId: 'internal-profile-1',
-      name: name,
-      slug: name.toLowerCase().replaceAll(' ', '-'),
-      priceUsdc: 80,
-      totalRevenue: 0,
-      imageUrls: const [],
-      isActive: true,
-      totalOrders: 0,
-    );
+  id: name.toLowerCase().replaceAll(' ', '-'),
+  businessProfileId: 'internal-profile-1',
+  name: name,
+  slug: name.toLowerCase().replaceAll(' ', '-'),
+  priceUsdc: 80,
+  totalRevenue: 0,
+  imageUrls: const [],
+  isActive: true,
+  totalOrders: 0,
+);
 
 BusinessProfile _business(String category) => BusinessProfile(
-      id: 'internal-profile-1',
-      bizId: 'public-biz-123',
-      businessName: 'Test Business',
-      category: category,
-      isVerified: true,
-      isSuspended: false,
-      kybStatus: 'VERIFIED',
-      totalEscrows: 0,
-      completedEscrows: 0,
-      userId: 1,
-      totalVolume: 0,
-      averageRating: 4.8,
-      username: 'test-business',
-      products: [
-        _product('Room 101'),
-      ],
-    );
+  id: 'internal-profile-1',
+  bizId: 'public-biz-123',
+  businessName: 'Test Business',
+  category: category,
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 0,
+  completedEscrows: 0,
+  userId: 1,
+  totalVolume: 0,
+  averageRating: 4.8,
+  username: 'test-business',
+  products: [_product('Room 101')],
+);
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -78,11 +76,7 @@ void main() {
   });
 
   testWidgets('transit preview keeps internal id for provider', (tester) async {
-    await _pump(
-      tester,
-      business: _business('LOGISTICS'),
-      onNavigate: (_) {},
-    );
+    await _pump(tester, business: _business('LOGISTICS'), onNavigate: (_) {});
 
     expect(find.text('No upcoming trips yet'), findsOneWidget);
     final widget = tester.widget<MarketplaceVerticalExperienceStage>(

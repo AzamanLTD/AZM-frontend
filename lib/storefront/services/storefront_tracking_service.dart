@@ -11,7 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/services/api_client.dart';
 
 class StorefrontTrackingService {
-  static final StorefrontTrackingService instance = StorefrontTrackingService._internal();
+  static final StorefrontTrackingService instance =
+      StorefrontTrackingService._internal();
 
   final ApiClient _apiClient = ApiClient();
   static const String _visitorIdKey = 'storefront_visitor_id';
@@ -26,9 +27,17 @@ class StorefrontTrackingService {
 
   StorefrontTrackingService._internal();
 
-  void trackEvent(String businessProfileId, String eventType, Map<String, dynamic> metadata) {
-    _trackEventAsync(businessProfileId, eventType, metadata).catchError((error) {
-      debugPrint('[StorefrontTrackingService] Error tracking event $eventType: $error');
+  void trackEvent(
+    String businessProfileId,
+    String eventType,
+    Map<String, dynamic> metadata,
+  ) {
+    _trackEventAsync(businessProfileId, eventType, metadata).catchError((
+      error,
+    ) {
+      debugPrint(
+        '[StorefrontTrackingService] Error tracking event $eventType: $error',
+      );
     });
   }
 
@@ -51,7 +60,9 @@ class StorefrontTrackingService {
     // Do not send events the backend contract does not recognize. A warning
     // alone is unsafe for analytics because it still produces an HTTP request.
     if (!allowedEventTypes.contains(eventType)) {
-      debugPrint('[StorefrontTrackingService] Ignoring unknown event type: $eventType');
+      debugPrint(
+        '[StorefrontTrackingService] Ignoring unknown event type: $eventType',
+      );
       return;
     }
 
@@ -107,7 +118,9 @@ class StorefrontTrackingService {
       _visitorId = cachedId;
       return _visitorId!;
     } catch (e) {
-      debugPrint('[StorefrontTrackingService] SharedPreferences read/write error: $e');
+      debugPrint(
+        '[StorefrontTrackingService] SharedPreferences read/write error: $e',
+      );
       _visitorId ??= _generateUniqueId();
       return _visitorId!;
     }

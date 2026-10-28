@@ -14,41 +14,53 @@ void main() {
     expect(MarketplaceExperienceScope.maybeOf(context), isNull);
   });
 
-  testWidgets('of() exposes the blueprint and colors to descendants',
-      (tester) async {
-    final blueprint =
-        MarketplaceExperienceBlueprint.fromJson(const <String, dynamic>{}, 'RETAIL');
-    await tester.pumpWidget(MarketplaceExperienceScope(
-      blueprint: blueprint,
-      colors: _testColors,
-      child: Builder(
-        builder: (context) {
-          final scope = MarketplaceExperienceScope.of(context);
-          expect(scope.blueprint.preset, 'SHOP_FLOOR');
-          expect(scope.blueprint.commitStyle, MarketplaceCommitStyle.liftIntoTray);
-          expect(scope.blueprint.navigationMode,
-              MarketplaceNavigationMode.aisleTraverse);
-          expect(identical(scope.colors, _testColors), isTrue);
-          return const SizedBox();
-        },
+  testWidgets('of() exposes the blueprint and colors to descendants', (
+    tester,
+  ) async {
+    final blueprint = MarketplaceExperienceBlueprint.fromJson(
+      const <String, dynamic>{},
+      'RETAIL',
+    );
+    await tester.pumpWidget(
+      MarketplaceExperienceScope(
+        blueprint: blueprint,
+        colors: _testColors,
+        child: Builder(
+          builder: (context) {
+            final scope = MarketplaceExperienceScope.of(context);
+            expect(scope.blueprint.preset, 'SHOP_FLOOR');
+            expect(
+              scope.blueprint.commitStyle,
+              MarketplaceCommitStyle.liftIntoTray,
+            );
+            expect(
+              scope.blueprint.navigationMode,
+              MarketplaceNavigationMode.aisleTraverse,
+            );
+            expect(identical(scope.colors, _testColors), isTrue);
+            return const SizedBox();
+          },
+        ),
       ),
-    ));
+    );
   });
 
   testWidgets('descendants rebuild when the blueprint changes', (tester) async {
     var builds = 0;
     Widget buildScope(String category) => MarketplaceExperienceScope(
-          blueprint: MarketplaceExperienceBlueprint.fromJson(
-              const <String, dynamic>{}, category),
-          colors: _testColors,
-          child: Builder(
-            builder: (context) {
-              MarketplaceExperienceScope.of(context);
-              builds++;
-              return const SizedBox();
-            },
-          ),
-        );
+      blueprint: MarketplaceExperienceBlueprint.fromJson(
+        const <String, dynamic>{},
+        category,
+      ),
+      colors: _testColors,
+      child: Builder(
+        builder: (context) {
+          MarketplaceExperienceScope.of(context);
+          builds++;
+          return const SizedBox();
+        },
+      ),
+    );
 
     await tester.pumpWidget(buildScope('RETAIL'));
     expect(builds, 1);

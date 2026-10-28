@@ -52,7 +52,8 @@ class StoryMediaController extends ChangeNotifier {
   /// is never trusted on its own.
   bool get isVideo {
     final sniffed = StoryMediaKindSniffer.sniff(item.mediaUrl);
-    if (item.mediaType == 'VIDEO' || sniffed == StoryMediaKind.video) return true;
+    if (item.mediaType == 'VIDEO' || sniffed == StoryMediaKind.video)
+      return true;
     return false;
   }
 
@@ -64,7 +65,9 @@ class StoryMediaController extends ChangeNotifier {
     if (ready || _error || _disposed) return;
     try {
       if (isVideo) {
-        final controller = VideoPlayerController.networkUrl(Uri.parse(item.mediaUrl));
+        final controller = VideoPlayerController.networkUrl(
+          Uri.parse(item.mediaUrl),
+        );
         video = controller;
         await controller.initialize();
         // The viewer can be dismissed while initialize() is in flight; the

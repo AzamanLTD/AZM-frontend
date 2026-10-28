@@ -49,8 +49,7 @@ final aiFilterProvider = StateProvider<bool>((ref) => false);
 // ─────────────────────────────────────────────────────────────────────────────
 enum UserSide { buy, sell }
 
-final userSideProvider =
-    StateProvider<UserSide>((ref) => UserSide.buy);
+final userSideProvider = StateProvider<UserSide>((ref) => UserSide.buy);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Ad Listing model
@@ -61,21 +60,22 @@ class AdListing {
   final String id;
   final String vendorUsername;
   final String vendorId;
-  final String adType;         // "SELL" | "BUY"
-  final double pricePerUSD;    // informational display rate (Phase F2: static, no oracle)
-  final double minLimit;       // minimum trade amount in USD
-  final double maxLimit;       // maximum trade amount in USD
-  final double availableUsdc;  // vendor's available USDC balance
-  final String paymentMethod;  // "ZELLE" | "CASHAPP" | "VENMO" | etc.
+  final String adType; // "SELL" | "BUY"
+  final double
+  pricePerUSD; // informational display rate (Phase F2: static, no oracle)
+  final double minLimit; // minimum trade amount in USD
+  final double maxLimit; // maximum trade amount in USD
+  final double availableUsdc; // vendor's available USDC balance
+  final String paymentMethod; // "ZELLE" | "CASHAPP" | "VENMO" | etc.
   final String? tradeAccountId; // FK to TradeAccount (Phase F2)
-  final bool queueFull;        // true → "Wait in Queue" CTA
-  final int queueDepth;        // number of pending orders ahead
+  final bool queueFull; // true → "Wait in Queue" CTA
+  final int queueDepth; // number of pending orders ahead
   final int completedTrades;
   final double completionRate; // 0.0 – 1.0
-  final double aiScore;        // 0.0 – 1.0, higher = AI prefers this vendor
+  final double aiScore; // 0.0 – 1.0, higher = AI prefers this vendor
   final bool isOnline;
   final DateTime? lastSeen;
-  final String? terms;         // vendor's trade terms
+  final String? terms; // vendor's trade terms
 
   const AdListing({
     required this.id,
@@ -112,12 +112,16 @@ class AdListing {
   RiskLevel get riskLevel {
     if (completionRate < 0.80) return RiskLevel.high;
     final method = paymentMethod.toUpperCase();
-    if (method.contains('ZELLE') || method.contains('WIRE') ||
-        method.contains('WISE') || method.contains('REVOLUT')) {
+    if (method.contains('ZELLE') ||
+        method.contains('WIRE') ||
+        method.contains('WISE') ||
+        method.contains('REVOLUT')) {
       return RiskLevel.low;
     }
-    if (method.contains('CASHAPP') || method.contains('VENMO') ||
-        method.contains('GOOGLE') || method.contains('APPLE')) {
+    if (method.contains('CASHAPP') ||
+        method.contains('VENMO') ||
+        method.contains('GOOGLE') ||
+        method.contains('APPLE')) {
       return RiskLevel.medium;
     }
     return RiskLevel.high;
@@ -127,25 +131,35 @@ class AdListing {
   factory AdListing.fromJson(Map<String, dynamic> j) {
     return AdListing(
       id: j['id']?.toString() ?? '',
-      vendorUsername: j['vendorUsername']?.toString() ??
-          j['vendor']?['username']?.toString() ?? 'Unknown',
-      vendorId: j['vendorId']?.toString() ??
-          j['vendor']?['id']?.toString() ?? '',
+      vendorUsername:
+          j['vendorUsername']?.toString() ??
+          j['vendor']?['username']?.toString() ??
+          'Unknown',
+      vendorId:
+          j['vendorId']?.toString() ?? j['vendor']?['id']?.toString() ?? '',
       adType: j['type']?.toString() ?? 'SELL',
-      pricePerUSD: (j['pricePerUSD'] as num?)?.toDouble() ??
-          (j['rate'] as num?)?.toDouble() ?? 1.0,
+      pricePerUSD:
+          (j['pricePerUSD'] as num?)?.toDouble() ??
+          (j['rate'] as num?)?.toDouble() ??
+          1.0,
       minLimit: (j['minLimit'] as num?)?.toDouble() ?? 0.0,
       maxLimit: (j['maxLimit'] as num?)?.toDouble() ?? 0.0,
-      availableUsdc: (j['availableUsdc'] as num?)?.toDouble() ??
-          (j['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      availableUsdc:
+          (j['availableUsdc'] as num?)?.toDouble() ??
+          (j['totalAmount'] as num?)?.toDouble() ??
+          0.0,
       paymentMethod: j['paymentMethod']?.toString() ?? 'ZELLE',
       tradeAccountId: j['tradeAccountId']?.toString(),
       queueFull: j['queueFull'] as bool? ?? false,
       queueDepth: (j['queueDepth'] as num?)?.toInt() ?? 0,
-      completedTrades: (j['completedTrades'] as num?)?.toInt() ??
-          (j['vendor']?['completedTrades'] as num?)?.toInt() ?? 0,
-      completionRate: (j['completionRate'] as num?)?.toDouble() ??
-          (j['vendor']?['completionRate'] as num?)?.toDouble() ?? 1.0,
+      completedTrades:
+          (j['completedTrades'] as num?)?.toInt() ??
+          (j['vendor']?['completedTrades'] as num?)?.toInt() ??
+          0,
+      completionRate:
+          (j['completionRate'] as num?)?.toDouble() ??
+          (j['vendor']?['completionRate'] as num?)?.toDouble() ??
+          1.0,
       aiScore: (j['aiScore'] as num?)?.toDouble() ?? 0.5,
       isOnline: j['isOnline'] as bool? ?? false,
       lastSeen: j['lastSeen'] != null
@@ -158,46 +172,106 @@ class AdListing {
   // ── Mock data factory (used when backend is unreachable in dev) ──────────
   static List<AdListing> mockList() => [
     const AdListing(
-      id: 'mock-1', vendorUsername: 'KwameGold', vendorId: 'v1',
-      adType: 'SELL', pricePerUSD: 1.0, minLimit: 50, maxLimit: 5000,
-      availableUsdc: 2340.00, paymentMethod: 'ZELLE',
-      queueFull: false, queueDepth: 0,
-      completedTrades: 312, completionRate: 0.98, aiScore: 0.94, isOnline: true,
+      id: 'mock-1',
+      vendorUsername: 'KwameGold',
+      vendorId: 'v1',
+      adType: 'SELL',
+      pricePerUSD: 1.0,
+      minLimit: 50,
+      maxLimit: 5000,
+      availableUsdc: 2340.00,
+      paymentMethod: 'ZELLE',
+      queueFull: false,
+      queueDepth: 0,
+      completedTrades: 312,
+      completionRate: 0.98,
+      aiScore: 0.94,
+      isOnline: true,
     ),
     const AdListing(
-      id: 'mock-2', vendorUsername: 'AkosuaSwap', vendorId: 'v2',
-      adType: 'SELL', pricePerUSD: 1.0, minLimit: 100, maxLimit: 10000,
-      availableUsdc: 800.00, paymentMethod: 'CASHAPP',
-      queueFull: false, queueDepth: 1,
-      completedTrades: 88, completionRate: 0.91, aiScore: 0.78, isOnline: true,
+      id: 'mock-2',
+      vendorUsername: 'AkosuaSwap',
+      vendorId: 'v2',
+      adType: 'SELL',
+      pricePerUSD: 1.0,
+      minLimit: 100,
+      maxLimit: 10000,
+      availableUsdc: 800.00,
+      paymentMethod: 'CASHAPP',
+      queueFull: false,
+      queueDepth: 1,
+      completedTrades: 88,
+      completionRate: 0.91,
+      aiScore: 0.78,
+      isOnline: true,
     ),
     const AdListing(
-      id: 'mock-3', vendorUsername: 'KofiBarter', vendorId: 'v3',
-      adType: 'BUY', pricePerUSD: 1.0, minLimit: 200, maxLimit: 20000,
-      availableUsdc: 5500.00, paymentMethod: 'VENMO',
-      queueFull: true, queueDepth: 3,
-      completedTrades: 45, completionRate: 0.82, aiScore: 0.61, isOnline: false,
+      id: 'mock-3',
+      vendorUsername: 'KofiBarter',
+      vendorId: 'v3',
+      adType: 'BUY',
+      pricePerUSD: 1.0,
+      minLimit: 200,
+      maxLimit: 20000,
+      availableUsdc: 5500.00,
+      paymentMethod: 'VENMO',
+      queueFull: true,
+      queueDepth: 3,
+      completedTrades: 45,
+      completionRate: 0.82,
+      aiScore: 0.61,
+      isOnline: false,
     ),
     const AdListing(
-      id: 'mock-4', vendorUsername: 'NanaDeFi', vendorId: 'v4',
-      adType: 'SELL', pricePerUSD: 1.0, minLimit: 50, maxLimit: 3000,
-      availableUsdc: 1200.00, paymentMethod: 'PAYPAL',
-      queueFull: false, queueDepth: 0,
-      completedTrades: 11, completionRate: 0.72, aiScore: 0.42, isOnline: true,
+      id: 'mock-4',
+      vendorUsername: 'NanaDeFi',
+      vendorId: 'v4',
+      adType: 'SELL',
+      pricePerUSD: 1.0,
+      minLimit: 50,
+      maxLimit: 3000,
+      availableUsdc: 1200.00,
+      paymentMethod: 'PAYPAL',
+      queueFull: false,
+      queueDepth: 0,
+      completedTrades: 11,
+      completionRate: 0.72,
+      aiScore: 0.42,
+      isOnline: true,
     ),
     const AdListing(
-      id: 'mock-5', vendorUsername: 'AbenaExchange', vendorId: 'v5',
-      adType: 'BUY', pricePerUSD: 1.0, minLimit: 100, maxLimit: 8000,
-      availableUsdc: 3100.00, paymentMethod: 'WIRE_TRANSFER',
-      queueFull: false, queueDepth: 0,
-      completedTrades: 210, completionRate: 0.97, aiScore: 0.88, isOnline: true,
+      id: 'mock-5',
+      vendorUsername: 'AbenaExchange',
+      vendorId: 'v5',
+      adType: 'BUY',
+      pricePerUSD: 1.0,
+      minLimit: 100,
+      maxLimit: 8000,
+      availableUsdc: 3100.00,
+      paymentMethod: 'WIRE_TRANSFER',
+      queueFull: false,
+      queueDepth: 0,
+      completedTrades: 210,
+      completionRate: 0.97,
+      aiScore: 0.88,
+      isOnline: true,
     ),
     const AdListing(
-      id: 'mock-6', vendorUsername: 'YaaFastPay', vendorId: 'v6',
-      adType: 'SELL', pricePerUSD: 1.0, minLimit: 50, maxLimit: 2000,
-      availableUsdc: 620.00, paymentMethod: 'WISE',
-      queueFull: false, queueDepth: 2,
-      completedTrades: 67, completionRate: 0.85, aiScore: 0.65, isOnline: false,
+      id: 'mock-6',
+      vendorUsername: 'YaaFastPay',
+      vendorId: 'v6',
+      adType: 'SELL',
+      pricePerUSD: 1.0,
+      minLimit: 50,
+      maxLimit: 2000,
+      availableUsdc: 620.00,
+      paymentMethod: 'WISE',
+      queueFull: false,
+      queueDepth: 2,
+      completedTrades: 67,
+      completionRate: 0.85,
+      aiScore: 0.65,
+      isOnline: false,
     ),
   ];
 }
@@ -206,7 +280,6 @@ class AdListing {
 // 3. Ads AsyncNotifier — fetches from /api/p2p/ads
 // ─────────────────────────────────────────────────────────────────────────────
 class AdsNotifier extends AsyncNotifier<List<AdListing>> {
-
   // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE
   // (a broad, repeated-operation class — exactly the case where type ≠
   // instance matters). Each genuinely new initiation gets a fresh durable
@@ -231,21 +304,26 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
-        final List<dynamic> raw =
-            body is List ? body : (body['ads'] ?? body['data'] ?? []);
+        final List<dynamic> raw = body is List
+            ? body
+            : (body['ads'] ?? body['data'] ?? []);
         final ads = raw
             .map((e) => AdListing.fromJson(e as Map<String, dynamic>))
             .toList();
         debugPrint(
-            '✅ [MarketplaceProvider] Fetched ${ads.length} ads (aiFilter=$aiFilter)');
+          '✅ [MarketplaceProvider] Fetched ${ads.length} ads (aiFilter=$aiFilter)',
+        );
         return ads;
       }
       // Non-200 → return empty list, show premium empty state
       debugPrint(
-          '⚠️  [MarketplaceProvider] HTTP ${response.statusCode} — returning empty list');
+        '⚠️  [MarketplaceProvider] HTTP ${response.statusCode} — returning empty list',
+      );
       return [];
     } catch (e) {
-      debugPrint('⚠️  [MarketplaceProvider] Fetch error: $e — returning empty list');
+      debugPrint(
+        '⚠️  [MarketplaceProvider] Fetch error: $e — returning empty list',
+      );
       // Network error → throw to show error UI, not empty state
       rethrow;
     }
@@ -273,7 +351,8 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
       'amountCrypto': amountCrypto,
       'amountFiat': amountFiat,
       'paymentMethod': paymentMethod,
-      if (buyerPaymentDetails != null) 'buyerPaymentDetails': buyerPaymentDetails,
+      if (buyerPaymentDetails != null)
+        'buyerPaymentDetails': buyerPaymentDetails,
     };
 
     // r42: the backend requires an HTTP Idempotency-Key before the trade
@@ -281,8 +360,12 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
     // across retries of this action (token refresh, lost response), so a
     // retry converges on the same server-side operation instead of
     // opening a second trade.
-    final response = await apiClient.postFinancial('/trades/initiate', body,
-        operationType: _initiateActionId, ref: _initiateRef);
+    final response = await apiClient.postFinancial(
+      '/trades/initiate',
+      body,
+      operationType: _initiateActionId,
+      ref: _initiateRef,
+    );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final respBody = jsonDecode(response.body);
@@ -300,7 +383,9 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
       final queueId = data['queueId']?.toString() ?? '';
       final queuePosition = (data['queuePosition'] as num?)?.toInt() ?? 1;
       final adIdReturned = data['adId']?.toString() ?? adId;
-      debugPrint('⏳ [MarketplaceProvider] Trade queued: position #$queuePosition, queueId=$queueId');
+      debugPrint(
+        '⏳ [MarketplaceProvider] Trade queued: position #$queuePosition, queueId=$queueId',
+      );
       return TradeInitiationResult(
         queued: true,
         queueId: queueId,
@@ -315,7 +400,9 @@ class AdsNotifier extends AsyncNotifier<List<AdListing>> {
     final respBody = jsonDecode(response.body);
     final errorMsg = respBody['message'] ?? 'Failed to initiate trade';
     final errorCode = respBody['code']?.toString();
-    debugPrint('❌ [MarketplaceProvider] Trade initiation failed: $errorMsg (code: $errorCode)');
+    debugPrint(
+      '❌ [MarketplaceProvider] Trade initiation failed: $errorMsg (code: $errorCode)',
+    );
     throw TradeInitiationException(message: errorMsg, code: errorCode);
   }
 
@@ -348,10 +435,10 @@ class TradeInitiationException implements Exception {
 /// Phase N: Result from initiateTrade — distinguishes immediate trade from queue.
 class TradeInitiationResult {
   final bool queued;
-  final String? tradeId;      // populated when queued == false
-  final String? queueId;      // populated when queued == true
-  final int? queuePosition;   // populated when queued == true
-  final String? adId;         // populated when queued == true
+  final String? tradeId; // populated when queued == false
+  final String? queueId; // populated when queued == true
+  final int? queuePosition; // populated when queued == true
+  final String? adId; // populated when queued == true
 
   const TradeInitiationResult({
     required this.queued,
@@ -362,8 +449,9 @@ class TradeInitiationResult {
   });
 }
 
-final adsProvider =
-    AsyncNotifierProvider<AdsNotifier, List<AdListing>>(AdsNotifier.new);
+final adsProvider = AsyncNotifierProvider<AdsNotifier, List<AdListing>>(
+  AdsNotifier.new,
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. Filtered / sorted view — derived, zero async cost
@@ -390,8 +478,10 @@ final filteredAdsProvider = Provider<AsyncValue<List<AdListing>>>((ref) {
     // Step 2: payment method filter
     if (filters.paymentMethods.isNotEmpty) {
       result = result
-          .where((a) =>
-              filters.paymentMethods.contains(a.paymentMethod.toUpperCase()))
+          .where(
+            (a) =>
+                filters.paymentMethods.contains(a.paymentMethod.toUpperCase()),
+          )
           .toList();
     }
 
@@ -489,4 +579,6 @@ class P2PFilters {
 
 const _sentinel = Object();
 
-final p2pFiltersProvider = StateProvider<P2PFilters>((ref) => const P2PFilters());
+final p2pFiltersProvider = StateProvider<P2PFilters>(
+  (ref) => const P2PFilters(),
+);

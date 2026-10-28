@@ -48,7 +48,6 @@ import 'package:azaman/screens/chat/media_viewer_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
-
 /// All metadata needed to render a media bubble. Wraps the wire format so
 /// callers don't have to remember which message field maps to which UI bit.
 class ChatMediaPayload {
@@ -80,8 +79,12 @@ class ChatMediaPayload {
       url: json['mediaUrl']?.toString(),
       mimeType: json['mediaMimeType']?.toString(),
       size: json['mediaSize'] is int ? json['mediaSize'] as int : null,
-      duration: json['mediaDuration'] is int ? json['mediaDuration'] as int : null,
-      waveformPeaks: waveform is List ? waveform.whereType<int>().toList() : null,
+      duration: json['mediaDuration'] is int
+          ? json['mediaDuration'] as int
+          : null,
+      waveformPeaks: waveform is List
+          ? waveform.whereType<int>().toList()
+          : null,
       linkPreview: preview is Map<String, dynamic>
           ? LinkPreview.fromJson(preview)
           : null,
@@ -89,24 +92,15 @@ class ChatMediaPayload {
     );
   }
 
-  bool get isMedia => const {
-        'IMAGE',
-        'VIDEO',
-        'AUDIO',
-        'DOCUMENT',
-        'LINK',
-      }.contains(type);
+  bool get isMedia =>
+      const {'IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT', 'LINK'}.contains(type);
 }
 
 class ChatMediaBubble extends ConsumerWidget {
   final ChatMediaPayload payload;
   final bool isMe;
 
-  const ChatMediaBubble({
-    super.key,
-    required this.payload,
-    required this.isMe,
-  });
+  const ChatMediaBubble({super.key, required this.payload, required this.isMe});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -169,13 +163,7 @@ Future<void> _openMediaViewer(BuildContext ctx, ChatMediaPayload p) async {
     MaterialPageRoute(
       builder: (_) => MediaViewerScreen(
         heroTag: 'media_${url.hashCode}',
-        items: [
-          MediaViewerItem(
-            url: url,
-            type: p.type,
-            caption: p.caption,
-          ),
-        ],
+        items: [MediaViewerItem(url: url, type: p.type, caption: p.caption)],
         initialIndex: 0,
       ),
     ),
@@ -191,7 +179,10 @@ Future<void> _openInSystemViewer(BuildContext ctx, ChatMediaPayload p) async {
     // images we keep it simple and just open the URL; iOS/Android's default
     // browser handles inline preview cleanly.
     if (p.type == 'IMAGE') {
-      await launchUrl(Uri.parse(resolved), mode: LaunchMode.externalApplication);
+      await launchUrl(
+        Uri.parse(resolved),
+        mode: LaunchMode.externalApplication,
+      );
       return;
     }
     final res = await http.get(Uri.parse(resolved));
@@ -205,9 +196,9 @@ Future<void> _openInSystemViewer(BuildContext ctx, ChatMediaPayload p) async {
     await OpenFilex.open(file.path);
   } catch (e) {
     if (ctx.mounted) {
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        SnackBar(content: Text('Could not open: $e')),
-      );
+      ScaffoldMessenger.of(
+        ctx,
+      ).showSnackBar(SnackBar(content: Text('Could not open: $e')));
     }
   }
 }
@@ -231,8 +222,8 @@ class _ImageBubble extends StatelessWidget {
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: AzamanNetworkImage(imageUrl: 
-          _resolveMediaUrl(payload.url!),
+        child: AzamanNetworkImage(
+          imageUrl: _resolveMediaUrl(payload.url!),
           fit: BoxFit.cover,
           width: 240,
           height: 240,
@@ -274,8 +265,11 @@ class _VideoBubble extends StatelessWidget {
               width: 260,
               height: 160,
               color: colors.card,
-              child: const Icon(Icons.movie_outlined,
-                  size: 40, color: Colors.white24),
+              child: const Icon(
+                Icons.movie_outlined,
+                size: 40,
+                color: Colors.white24,
+              ),
             ),
             Container(
               padding: const EdgeInsets.all(10),
@@ -283,8 +277,11 @@ class _VideoBubble extends StatelessWidget {
                 color: Colors.black.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.play_circle_outline,
-                  color: Colors.white, size: 28),
+              child: const Icon(
+                Icons.play_circle_outline,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
             if (payload.duration != null)
               Positioned(
@@ -292,7 +289,9 @@ class _VideoBubble extends StatelessWidget {
                 bottom: 6,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 2),
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(4),
@@ -335,7 +334,8 @@ class _AudioBubble extends StatefulWidget {
   State<_AudioBubble> createState() => _AudioBubbleState();
 }
 
-class _AudioBubbleState extends State<_AudioBubble> with WidgetsBindingObserver {
+class _AudioBubbleState extends State<_AudioBubble>
+    with WidgetsBindingObserver {
   AudioPlayer? _player;
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<PlayerState>? _stateSub;
@@ -447,8 +447,9 @@ class _AudioBubbleState extends State<_AudioBubble> with WidgetsBindingObserver 
   Future<void> _seek(double fraction) async {
     if (_duration == null || _duration == Duration.zero) return;
     HapticFeedback.selectionClick();
-    final target =
-        Duration(milliseconds: (_duration!.inMilliseconds * fraction).round());
+    final target = Duration(
+      milliseconds: (_duration!.inMilliseconds * fraction).round(),
+    );
     setState(() => _position = target);
     await _ensurePlayer();
     await _player!.seek(target);
@@ -474,8 +475,8 @@ class _AudioBubbleState extends State<_AudioBubble> with WidgetsBindingObserver 
     final label = _playing || _position > Duration.zero
         ? _formatDurationFromMs(_position.inSeconds)
         : (widget.payload.duration != null
-            ? _formatDurationFromMs(widget.payload.duration!)
-            : '0:00');
+              ? _formatDurationFromMs(widget.payload.duration!)
+              : '0:00');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -611,6 +612,7 @@ class _AudioBubblePlayerRegistry {
 class _Waveform extends StatelessWidget {
   final List<int>? peaks;
   final Color color;
+
   /// 0.0..1.0 fill progress used by inline playback to colour-fill the
   /// portion of bars the head has crossed. Default 0 = no fill (plain
   /// idle waveform).
@@ -624,28 +626,28 @@ class _Waveform extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final samples = peaks ?? List<int>.filled(40, 6);
-    return LayoutBuilder(builder: (_, c) {
-      final barWidth = (c.maxWidth / samples.length).clamp(1.0, 4.0);
-      final filledIndex = (samples.length * progress).floor();
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: List.generate(samples.length, (i) {
-          final v = samples[i];
-          final filled = i < filledIndex;
-          return Container(
-            width: barWidth,
-            height: (v.clamp(2, 100) / 100.0) * c.maxHeight,
-            decoration: BoxDecoration(
-              color: filled
-                  ? color
-                  : color.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(barWidth / 2),
-            ),
-          );
-        }),
-      );
-    });
+    return LayoutBuilder(
+      builder: (_, c) {
+        final barWidth = (c.maxWidth / samples.length).clamp(1.0, 4.0);
+        final filledIndex = (samples.length * progress).floor();
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: List.generate(samples.length, (i) {
+            final v = samples[i];
+            final filled = i < filledIndex;
+            return Container(
+              width: barWidth,
+              height: (v.clamp(2, 100) / 100.0) * c.maxHeight,
+              decoration: BoxDecoration(
+                color: filled ? color : color.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(barWidth / 2),
+              ),
+            );
+          }),
+        );
+      },
+    );
   }
 }
 
@@ -684,8 +686,11 @@ class _DocumentBubble extends StatelessWidget {
                 color: colors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(_iconForMime(payload.mimeType),
-                  color: colors.accent, size: 22),
+              child: Icon(
+                _iconForMime(payload.mimeType),
+                color: colors.accent,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -709,14 +714,15 @@ class _DocumentBubble extends StatelessWidget {
                       child: Text(
                         size,
                         style: TextStyle(
-                            color: colors.textTertiary, fontSize: 11),
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
-            Icon(Icons.download_outlined,
-                color: colors.textTertiary, size: 18),
+            Icon(Icons.download_outlined, color: colors.textTertiary, size: 18),
           ],
         ),
       ),
@@ -811,8 +817,8 @@ class _LinkBubble extends StatelessWidget {
             if (preview.image != null)
               AspectRatio(
                 aspectRatio: 16 / 9,
-                child: AzamanNetworkImage(imageUrl: 
-                  preview.image!,
+                child: AzamanNetworkImage(
+                  imageUrl: preview.image!,
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) => Container(color: colors.surface),
                 ),
@@ -888,10 +894,7 @@ class _LoadingTile extends StatelessWidget {
       child: SizedBox(
         width: 22,
         height: 22,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: colors.accent,
-        ),
+        child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent),
       ),
     );
   }
@@ -919,8 +922,10 @@ class _ErrorTile extends StatelessWidget {
         children: [
           Icon(icon, color: colors.textTertiary, size: 28),
           const SizedBox(height: 6),
-          Text(label,
-              style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+          Text(
+            label,
+            style: TextStyle(color: colors.textTertiary, fontSize: 11),
+          ),
         ],
       ),
     );

@@ -9,8 +9,12 @@ import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
 
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
-BusinessProduct _dish(String name, double price,
-    {List<String> tags = const [], String? priceGhs}) {
+BusinessProduct _dish(
+  String name,
+  double price, {
+  List<String> tags = const [],
+  String? priceGhs,
+}) {
   return BusinessProduct(
     id: name.toLowerCase(),
     businessProfileId: 'b1',
@@ -44,17 +48,19 @@ Future<void> _pumpMenu(
   List<BusinessProduct> uncategorised = const [],
   void Function(BusinessProduct)? onOrder,
 }) async {
-  await tester.pumpWidget(MaterialApp(
-    home: Scaffold(
-      body: RestaurantMenuFlipBook(
-        businessName: 'Auntie Muni Kitchen',
-        sections: sections,
-        uncategorisedProducts: uncategorised,
-        colors: _colors,
-        onOrder: onOrder ?? (_) {},
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: RestaurantMenuFlipBook(
+          businessName: 'Auntie Muni Kitchen',
+          sections: sections,
+          uncategorisedProducts: uncategorised,
+          colors: _colors,
+          onOrder: onOrder ?? (_) {},
+        ),
       ),
     ),
-  ));
+  );
   await tester.pump();
 }
 
@@ -74,9 +80,12 @@ Future<void> _openMenu(WidgetTester tester) async {
 
 void main() {
   testWidgets('opens on the cover with the business name', (tester) async {
-    await _pumpMenu(tester, sections: [
-      _section('Mains', [_dish('Jollof Rice', 12)]),
-    ]);
+    await _pumpMenu(
+      tester,
+      sections: [
+        _section('Mains', [_dish('Jollof Rice', 12)]),
+      ],
+    );
     expect(find.text('Auntie Muni Kitchen'), findsWidgets);
   });
 
@@ -89,13 +98,17 @@ void main() {
     expect(book.sections.single.products.length, 9);
   });
 
-  testWidgets('renders dish name, price and semantic spicy indicator',
-      (tester) async {
-    await _pumpMenu(tester, sections: [
-      _section('Mains', [
-        _dish('Waakye', 8.5, tags: ['spicy'], priceGhs: '8.50'),
-      ]),
-    ]);
+  testWidgets('renders dish name, price and semantic spicy indicator', (
+    tester,
+  ) async {
+    await _pumpMenu(
+      tester,
+      sections: [
+        _section('Mains', [
+          _dish('Waakye', 8.5, tags: ['spicy'], priceGhs: '8.50'),
+        ]),
+      ],
+    );
     await _openMenu(tester);
 
     expect(find.text('Waakye'), findsOneWidget);
@@ -104,27 +117,31 @@ void main() {
     expect(find.byIcon(Icons.local_fire_department_outlined), findsOneWidget);
   });
 
-  testWidgets('tapping a dish opens its card and "Add to order" fires onOrder',
-      (tester) async {
-    final ordered = <BusinessProduct>[];
-    await _pumpMenu(
-      tester,
-      sections: [_section('Mains', [_dish('Banku', 9)])],
-      onOrder: ordered.add,
-    );
+  testWidgets(
+    'tapping a dish opens its card and "Add to order" fires onOrder',
+    (tester) async {
+      final ordered = <BusinessProduct>[];
+      await _pumpMenu(
+        tester,
+        sections: [
+          _section('Mains', [_dish('Banku', 9)]),
+        ],
+        onOrder: ordered.add,
+      );
 
-    await _openMenu(tester);
+      await _openMenu(tester);
 
-    await tester.tap(find.text('Banku'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Banku'));
+      await tester.pumpAndSettle();
 
-    final addToOrder = find.text('Add to order');
-    expect(addToOrder, findsOneWidget);
-    await tester.tap(addToOrder);
-    await tester.pumpAndSettle();
+      final addToOrder = find.text('Add to order');
+      expect(addToOrder, findsOneWidget);
+      await tester.tap(addToOrder);
+      await tester.pumpAndSettle();
 
-    expect(ordered.map((p) => p.name), ['Banku']);
-  });
+      expect(ordered.map((p) => p.name), ['Banku']);
+    },
+  );
 
   testWidgets('uncategorised products still get a page', (tester) async {
     await _pumpMenu(

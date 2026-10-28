@@ -51,7 +51,8 @@ final marketplaceResumeProvider = Provider<ResumeIntent?>((ref) {
   for (final e in memories.entries) {
     final q = e.value.query;
     if (!e.value.isFresh(now) || q == null || q.isEmpty) continue;
-    if (best == null || e.value.touchedAt.isAfter(best.value.touchedAt)) best = e;
+    if (best == null || e.value.touchedAt.isAfter(best.value.touchedAt))
+      best = e;
   }
   if (best != null) {
     final label = BusinessCategories.labelFor(best.key);

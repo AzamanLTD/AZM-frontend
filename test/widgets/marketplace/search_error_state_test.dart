@@ -56,7 +56,10 @@ class _EmptySearchNotifier extends BusinessSearchNotifier {
   }
 }
 
-Future<void> _pumpHome(WidgetTester tester, BusinessSearchNotifier notifier) async {
+Future<void> _pumpHome(
+  WidgetTester tester,
+  BusinessSearchNotifier notifier,
+) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [businessSearchProvider.overrideWith((ref) => notifier)],
@@ -113,22 +116,30 @@ class _StalePaginationNotifier extends BusinessSearchNotifier {
   @override
   Future<void> loadMore() async {
     loadMoreCalls++;
-    state =
-        state.copyWith(isLoadingMore: false, loadMoreError: 'dead page');
+    state = state.copyWith(isLoadingMore: false, loadMoreError: 'dead page');
   }
 }
 
 void main() {
-  testWidgets('failure: dead search shows the failure state, never the empty lie', (tester) async {
-    final notifier = _FailingSearchNotifier();
-    await _pumpHome(tester, notifier);
+  testWidgets(
+    'failure: dead search shows the failure state, never the empty lie',
+    (tester) async {
+      final notifier = _FailingSearchNotifier();
+      await _pumpHome(tester, notifier);
 
-    expect(find.byKey(const Key('marketplace-search-failure')), findsOneWidget);
-    expect(find.text("Couldn't load businesses"), findsOneWidget);
-    expect(find.text('No businesses found'), findsNothing,
-        reason: 'a failed request must never read as a zero-result success');
-    expect(find.text('Be the first to register here'), findsNothing);
-  });
+      expect(
+        find.byKey(const Key('marketplace-search-failure')),
+        findsOneWidget,
+      );
+      expect(find.text("Couldn't load businesses"), findsOneWidget);
+      expect(
+        find.text('No businesses found'),
+        findsNothing,
+        reason: 'a failed request must never read as a zero-result success',
+      );
+      expect(find.text('Be the first to register here'), findsNothing);
+    },
+  );
 
   testWidgets('failure: Retry re-fires the real search', (tester) async {
     final notifier = _FailingSearchNotifier();
@@ -154,8 +165,11 @@ void main() {
     // empty state masquerades as the pagination outcome.
     expect(find.byKey(const Key('marketplace-search-failure')), findsNothing);
     expect(find.text('No businesses found'), findsNothing);
-    expect(find.text('Koko Corner'), findsOneWidget,
-        reason: 'already-loaded results stay visible after a page failure');
+    expect(
+      find.text('Koko Corner'),
+      findsOneWidget,
+      reason: 'already-loaded results stay visible after a page failure',
+    );
 
     // The inline tail retry is rendered with its accessibility semantics.
     final retry = find.byKey(const Key('marketplace-load-more-retry'));
@@ -163,26 +177,34 @@ void main() {
     // The Semantics live-region wrapper and its merged button text both
     // carry the label — at least one accessible match proves the affordance.
     expect(
-      find.bySemanticsLabel(RegExp("couldn.t load more.*retry", caseSensitive: false)),
+      find.bySemanticsLabel(
+        RegExp("couldn.t load more.*retry", caseSensitive: false),
+      ),
       findsWidgets,
       reason: 'the retry row exposes live-region button semantics',
     );
 
     await tester.tap(retry);
     await tester.pump();
-    expect(notifier.loadMoreCalls, 1,
-        reason: 'Retry re-fires the failed pagination itself');
+    expect(
+      notifier.loadMoreCalls,
+      1,
+      reason: 'Retry re-fires the failed pagination itself',
+    );
 
     // Flush any pending screen timers (debounce/animation) before disposal.
     await tester.pump(const Duration(milliseconds: 900));
   });
 
-  testWidgets('empty: successful zero-result search keeps the honest empty state', (tester) async {
-    await _pumpHome(tester, _EmptySearchNotifier());
+  testWidgets(
+    'empty: successful zero-result search keeps the honest empty state',
+    (tester) async {
+      await _pumpHome(tester, _EmptySearchNotifier());
 
-    expect(find.byKey(const Key('marketplace-search-failure')), findsNothing);
-    expect(find.text('No businesses found'), findsOneWidget);
-    expect(find.text("Couldn't load businesses"), findsNothing);
-    expect(find.text('Retry'), findsNothing);
-  });
+      expect(find.byKey(const Key('marketplace-search-failure')), findsNothing);
+      expect(find.text('No businesses found'), findsOneWidget);
+      expect(find.text("Couldn't load businesses"), findsNothing);
+      expect(find.text('Retry'), findsNothing);
+    },
+  );
 }

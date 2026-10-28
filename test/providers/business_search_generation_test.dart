@@ -22,20 +22,20 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/services/business_service.dart';
 
 BusinessProfile _biz(String id) => BusinessProfile(
-      id: id,
-      bizId: 'BIZ-$id',
-      businessName: 'Business $id',
-      category: 'RETAIL',
-      isVerified: true,
-      isSuspended: false,
-      kybStatus: 'VERIFIED',
-      totalEscrows: 0,
-      completedEscrows: 0,
-      userId: 1,
-      totalVolume: 0,
-      averageRating: 0,
-      username: 'owner_$id',
-    );
+  id: id,
+  bizId: 'BIZ-$id',
+  businessName: 'Business $id',
+  category: 'RETAIL',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 0,
+  completedEscrows: 0,
+  userId: 1,
+  totalVolume: 0,
+  averageRating: 0,
+  username: 'owner_$id',
+);
 
 typedef _Handler = Future<BusinessPage> Function(String? q, String? cursor);
 
@@ -74,34 +74,48 @@ void main() {
     await notifier.search('koko');
     await notifier.loadMore();
 
-    expect(notifier.state.results.map((b) => b.bizId), ['BIZ-a1'],
-        reason: 'loaded results are never dropped by a pagination failure');
-    expect(notifier.state.error, isNull,
-        reason: 'a later-page failure is not the initial-search failure');
-    expect(notifier.state.loadMoreError, isNotNull,
-        reason: 'the inline tail retry is driven by loadMoreError');
+    expect(notifier.state.results.map((b) => b.bizId), [
+      'BIZ-a1',
+    ], reason: 'loaded results are never dropped by a pagination failure');
+    expect(
+      notifier.state.error,
+      isNull,
+      reason: 'a later-page failure is not the initial-search failure',
+    );
+    expect(
+      notifier.state.loadMoreError,
+      isNotNull,
+      reason: 'the inline tail retry is driven by loadMoreError',
+    );
     expect(notifier.state.isLoadingMore, isFalse);
   });
 
-  test('retrying the failed pagination appends the same page exactly once',
-      () async {
-    final service = _ScriptedSearchService()
-      ..script.add((q, c) async => _page(['a1'], hasMore: true, cursor: 'c1'))
-      ..script.add((q, c) async => throw Exception('dead page'))
-      ..script.add((q, c) async => _page(['b1', 'b2'], hasMore: false));
-    final notifier = BusinessSearchNotifier(service);
+  test(
+    'retrying the failed pagination appends the same page exactly once',
+    () async {
+      final service = _ScriptedSearchService()
+        ..script.add((q, c) async => _page(['a1'], hasMore: true, cursor: 'c1'))
+        ..script.add((q, c) async => throw Exception('dead page'))
+        ..script.add((q, c) async => _page(['b1', 'b2'], hasMore: false));
+      final notifier = BusinessSearchNotifier(service);
 
-    await notifier.search('koko');
-    await notifier.loadMore(); // fails
-    await notifier.loadMore(); // retry succeeds
+      await notifier.search('koko');
+      await notifier.loadMore(); // fails
+      await notifier.loadMore(); // retry succeeds
 
-    expect(notifier.state.results.map((b) => b.bizId),
-        ['BIZ-a1', 'BIZ-b1', 'BIZ-b2'],
-        reason: 'retry appends after the kept results — no drop, no dupe');
-    expect(notifier.state.loadMoreError, isNull,
-        reason: 'a successful retry clears the inline failure');
-    expect(notifier.state.hasMore, isFalse);
-  });
+      expect(notifier.state.results.map((b) => b.bizId), [
+        'BIZ-a1',
+        'BIZ-b1',
+        'BIZ-b2',
+      ], reason: 'retry appends after the kept results — no drop, no dupe');
+      expect(
+        notifier.state.loadMoreError,
+        isNull,
+        reason: 'a successful retry clears the inline failure',
+      );
+      expect(notifier.state.hasMore, isFalse);
+    },
+  );
 
   test('out-of-order responses: a late response for query A never replaces '
       'newer results for query B', () async {
@@ -115,29 +129,33 @@ void main() {
     await Future<void>.delayed(Duration.zero); // A is now awaiting its page
 
     await notifier.search('B');
-    expect(notifier.state.results.map((b) => b.bizId), ['BIZ-b1'],
-        reason: 'query B results are live');
+    expect(notifier.state.results.map((b) => b.bizId), [
+      'BIZ-b1',
+    ], reason: 'query B results are live');
 
     // The STALE response for A finally resolves — it must be discarded.
     lateA.complete(_page(['a1', 'a2']));
     await searchA;
 
-    expect(notifier.state.results.map((b) => b.bizId), ['BIZ-b1'],
-        reason: 'a stale query-A page never overwrites query B');
+    expect(notifier.state.results.map((b) => b.bizId), [
+      'BIZ-b1',
+    ], reason: 'a stale query-A page never overwrites query B');
     expect(notifier.state.query, 'B');
   });
 
-  test('a successful zero-result search is a clean success, not a failure',
-      () async {
-    final service = _ScriptedSearchService()
-      ..script.add((q, c) async => _page([], hasMore: false));
-    final notifier = BusinessSearchNotifier(service);
+  test(
+    'a successful zero-result search is a clean success, not a failure',
+    () async {
+      final service = _ScriptedSearchService()
+        ..script.add((q, c) async => _page([], hasMore: false));
+      final notifier = BusinessSearchNotifier(service);
 
-    await notifier.search('nothing here');
+      await notifier.search('nothing here');
 
-    expect(notifier.state.results, isEmpty);
-    expect(notifier.state.error, isNull);
-    expect(notifier.state.loadMoreError, isNull);
-    expect(notifier.state.isLoading, isFalse);
-  });
+      expect(notifier.state.results, isEmpty);
+      expect(notifier.state.error, isNull);
+      expect(notifier.state.loadMoreError, isNull);
+      expect(notifier.state.isLoading, isFalse);
+    },
+  );
 }

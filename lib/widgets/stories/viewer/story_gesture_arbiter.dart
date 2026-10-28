@@ -86,8 +86,7 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
   }
 
   void _onHoldTick(Duration elapsed) {
-    if (_phase == StoryGesturePhase.deciding &&
-        elapsed >= widget.holdDelay) {
+    if (_phase == StoryGesturePhase.deciding && elapsed >= widget.holdDelay) {
       _holdTicker.stop();
       _phase = StoryGesturePhase.holding;
       widget.callbacks.onHoldStart();
@@ -108,8 +107,8 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
     if (_pointers.length == 1) {
       _origin = e.position;
       _downTime = e.timeStamp;
-      _velocity =
-          VelocityTracker.withKind(e.kind)..addPosition(e.timeStamp, e.position);
+      _velocity = VelocityTracker.withKind(e.kind)
+        ..addPosition(e.timeStamp, e.position);
       _phase = StoryGesturePhase.deciding;
       _holdTicker.start();
     } else if (_pointers.length == 2 &&
@@ -143,11 +142,13 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
         }
         _move(e); // apply this delta through the chosen phase
       case StoryGesturePhase.horizontal:
-        _pageDrag?.update(DragUpdateDetails(
-          globalPosition: e.position,
-          delta: Offset(e.delta.dx, 0),
-          primaryDelta: e.delta.dx,
-        ));
+        _pageDrag?.update(
+          DragUpdateDetails(
+            globalPosition: e.position,
+            delta: Offset(e.delta.dx, 0),
+            primaryDelta: e.delta.dx,
+          ),
+        );
       case StoryGesturePhase.vertical:
         widget.callbacks.onVerticalUpdate(e.delta.dy);
       case StoryGesturePhase.pinch:
@@ -170,8 +171,7 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
     if (e is PointerCancelEvent) return _cancel(e);
     if (!_pointers.containsKey(e.pointer)) return;
     _pointers.remove(e.pointer);
-    final velocity =
-        _velocity?.getVelocity().pixelsPerSecond ?? Offset.zero;
+    final velocity = _velocity?.getVelocity().pixelsPerSecond ?? Offset.zero;
     switch (_phase) {
       case StoryGesturePhase.deciding:
         _holdTicker.stop();
@@ -183,10 +183,12 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
       case StoryGesturePhase.holding:
         widget.callbacks.onHoldEnd();
       case StoryGesturePhase.horizontal:
-        _pageDrag?.end(DragEndDetails(
-          velocity: Velocity(pixelsPerSecond: Offset(velocity.dx, 0)),
-          primaryVelocity: velocity.dx,
-        ));
+        _pageDrag?.end(
+          DragEndDetails(
+            velocity: Velocity(pixelsPerSecond: Offset(velocity.dx, 0)),
+            primaryVelocity: velocity.dx,
+          ),
+        );
         _pageDrag = null;
       case StoryGesturePhase.vertical:
         widget.callbacks.onVerticalEnd(velocity.dy);
@@ -207,7 +209,6 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
     }
   }
 
-
   /// A cancelled touch (system gesture steal, notification shade, call) is
   /// NOT user intent: never a tap, never a fling. The page drag is CANCELLED
   /// (not ended with the stale finger velocity), a vertical drag releases
@@ -219,7 +220,7 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
     switch (_phase) {
       case StoryGesturePhase.deciding:
         _holdTicker.stop();
-        // Deliberately nothing: a cancelled touch taps nothing.
+      // Deliberately nothing: a cancelled touch taps nothing.
       case StoryGesturePhase.holding:
         widget.callbacks.onHoldEnd();
       case StoryGesturePhase.horizontal:
@@ -248,8 +249,7 @@ class _StoryGestureArbiterState extends State<StoryGestureArbiter>
     final result = BoxHitTestResult();
     final local = box.globalToLocal(global);
     if (!box.hitTest(result, position: local)) return false;
-    return result.path.any((entry) =>
-        entry.target is RenderStoryChromeRegion);
+    return result.path.any((entry) => entry.target is RenderStoryChromeRegion);
   }
 
   @override

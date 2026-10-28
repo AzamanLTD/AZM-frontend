@@ -21,18 +21,38 @@ class CardSkinDef {
   final String label;
   final List<Color> colors;
   final Color textColor;
-  const CardSkinDef(this.id, this.label, this.colors, {this.textColor = Colors.white});
+  const CardSkinDef(
+    this.id,
+    this.label,
+    this.colors, {
+    this.textColor = Colors.white,
+  });
 }
 
 /// Built-in skin catalog. Kept here (not fetched) so the card always renders
 /// instantly even offline — the Store just writes a skin `id` onto the
 /// user's profile / message metadata, this map resolves it to pixels.
 const Map<String, CardSkinDef> kCardSkins = {
-  'classic':  CardSkinDef('classic', 'Classic', [Color(0xFF4834DF), Color(0xFF6C5CE7)]),
-  'gold':     CardSkinDef('gold', 'Gold', [Color(0xFFD4AF37), Color(0xFFF0B90B)], textColor: Color(0xFF1A1400)),
-  'midnight': CardSkinDef('midnight', 'Midnight', [Color(0xFF0F0F1A), Color(0xFF23233B)]),
-  'emerald':  CardSkinDef('emerald', 'Emerald', [Color(0xFF00B894), Color(0xFF00CEC9)]),
-  'sunset':   CardSkinDef('sunset', 'Sunset', [Color(0xFFFF6B6B), Color(0xFFEE5A24)]),
+  'classic': CardSkinDef('classic', 'Classic', [
+    Color(0xFF4834DF),
+    Color(0xFF6C5CE7),
+  ]),
+  'gold': CardSkinDef('gold', 'Gold', [
+    Color(0xFFD4AF37),
+    Color(0xFFF0B90B),
+  ], textColor: Color(0xFF1A1400)),
+  'midnight': CardSkinDef('midnight', 'Midnight', [
+    Color(0xFF0F0F1A),
+    Color(0xFF23233B),
+  ]),
+  'emerald': CardSkinDef('emerald', 'Emerald', [
+    Color(0xFF00B894),
+    Color(0xFF00CEC9),
+  ]),
+  'sunset': CardSkinDef('sunset', 'Sunset', [
+    Color(0xFFFF6B6B),
+    Color(0xFFEE5A24),
+  ]),
 };
 
 CardSkinDef resolveSkin(String? id) => kCardSkins[id] ?? kCardSkins['classic']!;
@@ -60,107 +80,123 @@ class PeerTransferCard extends StatelessWidget {
     final isDeclined = status == 'DECLINED';
 
     final headline = isRequest
-        ? (isMe ? 'You requested' : '${message.senderUsername ?? 'They'} requested')
+        ? (isMe
+              ? 'You requested'
+              : '${message.senderUsername ?? 'They'} requested')
         : (isMe ? 'You sent' : '${message.senderUsername ?? 'They'} sent');
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 2),
-      width: 240,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: isRequest ? onTapRequest : null,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDeclined
-                    ? [Colors.grey.shade600, Colors.grey.shade800]
-                    : skin.colors,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: (isDeclined ? Colors.black : skin.colors.last).withValues(alpha: 0.35),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isDeclined
-                          ? Icons.close_rounded
-                          : (isRequest ? Icons.request_page_rounded : Icons.arrow_upward_rounded),
-                      color: skin.textColor.withValues(alpha: 0.85),
-                      size: 14,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      isDeclined ? 'Transfer declined' : headline,
-                      style: TextStyle(
-                        color: skin.textColor.withValues(alpha: 0.85),
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      amount.toStringAsFixed(2),
-                      style: TextStyle(
-                        color: skin.textColor,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      currency,
-                      style: TextStyle(
-                        color: skin.textColor.withValues(alpha: 0.75),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                if (isRequest && !isMe) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text('Tap to respond',
-                        style: TextStyle(color: skin.textColor, fontSize: 11.5, fontWeight: FontWeight.w700)),
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          width: 240,
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: isRequest ? onTapRequest : null,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDeclined
+                        ? [Colors.grey.shade600, Colors.grey.shade800]
+                        : skin.colors,
                   ),
-                ],
-              ],
+                  boxShadow: [
+                    BoxShadow(
+                      color: (isDeclined ? Colors.black : skin.colors.last)
+                          .withValues(alpha: 0.35),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          isDeclined
+                              ? Icons.close_rounded
+                              : (isRequest
+                                    ? Icons.request_page_rounded
+                                    : Icons.arrow_upward_rounded),
+                          color: skin.textColor.withValues(alpha: 0.85),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          isDeclined ? 'Transfer declined' : headline,
+                          style: TextStyle(
+                            color: skin.textColor.withValues(alpha: 0.85),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          amount.toStringAsFixed(2),
+                          style: TextStyle(
+                            color: skin.textColor,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          currency,
+                          style: TextStyle(
+                            color: skin.textColor.withValues(alpha: 0.75),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (isRequest && !isMe) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Tap to respond',
+                          style: TextStyle(
+                            color: skin.textColor,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
-    )
+        )
         // Entrance animation — subtle pop + fade, feels like a card being
         // dealt rather than a text bubble just appearing.
         .animate()
         .fadeIn(duration: 260.ms, curve: Curves.easeOut)
-        .scale(begin: const Offset(0.88, 0.88), end: const Offset(1, 1), duration: 320.ms, curve: Curves.easeOutBack);
+        .scale(
+          begin: const Offset(0.88, 0.88),
+          end: const Offset(1, 1),
+          duration: 320.ms,
+          curve: Curves.easeOutBack,
+        );
   }
 }

@@ -18,22 +18,22 @@ enum SeatTier {
   executive;
 
   String get label => switch (this) {
-        standard => 'Standard',
-        vip => 'VIP',
-        executive => 'Executive',
-      };
+    standard => 'Standard',
+    vip => 'VIP',
+    executive => 'Executive',
+  };
 
   static SeatTier fromJson(String? s) => switch (s?.toUpperCase()) {
-        'VIP' => vip,
-        'EXECUTIVE' => executive,
-        _ => standard,
-      };
+    'VIP' => vip,
+    'EXECUTIVE' => executive,
+    _ => standard,
+  };
 
   String toJson() => switch (this) {
-        standard => 'STANDARD',
-        vip => 'VIP',
-        executive => 'EXECUTIVE',
-      };
+    standard => 'STANDARD',
+    vip => 'VIP',
+    executive => 'EXECUTIVE',
+  };
 }
 
 /// Booking status of a seat — comes from the backend.
@@ -49,26 +49,26 @@ enum SeatBookStatus {
   bool get isTappable => this == available;
 
   String get label => switch (this) {
-        available => 'Available',
-        booked => 'Occupied',
-        blocked => 'Not for sale',
-        reserved => 'Held for another passenger',
-      };
+    available => 'Available',
+    booked => 'Occupied',
+    blocked => 'Not for sale',
+    reserved => 'Held for another passenger',
+  };
 
   static SeatBookStatus fromJson(String? s) => switch (s?.toUpperCase()) {
-        'BOOKED' => booked,
-        'OCCUPIED' => booked,
-        'BLOCKED' => blocked,
-        'RESERVED' => reserved,
-        _ => available,
-      };
+    'BOOKED' => booked,
+    'OCCUPIED' => booked,
+    'BLOCKED' => blocked,
+    'RESERVED' => reserved,
+    _ => available,
+  };
 
   String toJson() => switch (this) {
-        available => 'AVAILABLE',
-        booked => 'BOOKED',
-        blocked => 'BLOCKED',
-        reserved => 'RESERVED',
-      };
+    available => 'AVAILABLE',
+    booked => 'BOOKED',
+    blocked => 'BLOCKED',
+    reserved => 'RESERVED',
+  };
 }
 
 /// Type of a grid slot — most are seats, but layouts include aisles,
@@ -84,27 +84,27 @@ enum SlotType {
   empty;
 
   static SlotType fromJson(String? s) => switch (s?.toUpperCase()) {
-        'SEAT' => seat,
-        'AISLE' => aisle,
-        'DRIVER' => driver,
-        'DOOR' => door,
-        'RESTROOM' => restroom,
-        'STAIRS' => stairs,
-        'LUGGAGE_RACK' => luggageRack,
-        'LUGGAGE' => luggageRack,
-        _ => empty,
-      };
+    'SEAT' => seat,
+    'AISLE' => aisle,
+    'DRIVER' => driver,
+    'DOOR' => door,
+    'RESTROOM' => restroom,
+    'STAIRS' => stairs,
+    'LUGGAGE_RACK' => luggageRack,
+    'LUGGAGE' => luggageRack,
+    _ => empty,
+  };
 
   String toJson() => switch (this) {
-        seat => 'SEAT',
-        aisle => 'AISLE',
-        driver => 'DRIVER',
-        door => 'DOOR',
-        restroom => 'RESTROOM',
-        stairs => 'STAIRS',
-        luggageRack => 'LUGGAGE_RACK',
-        empty => 'EMPTY',
-      };
+    seat => 'SEAT',
+    aisle => 'AISLE',
+    driver => 'DRIVER',
+    door => 'DOOR',
+    restroom => 'RESTROOM',
+    stairs => 'STAIRS',
+    luggageRack => 'LUGGAGE_RACK',
+    empty => 'EMPTY',
+  };
 }
 
 /// A single cell in the deck grid. If [type] is [SlotType.seat], the seat-
@@ -155,15 +155,15 @@ class GridSlot {
   }
 
   Map<String, dynamic> toJson() => {
-        'type': type.toJson(),
-        'row': row,
-        'col': col,
-        if (seatId != null) 'seatId': seatId,
-        if (seatLabel != null) 'seatLabel': seatLabel,
-        'tier': tier.toJson(),
-        'status': status.toJson(),
-        'fare': fare,
-      };
+    'type': type.toJson(),
+    'row': row,
+    'col': col,
+    if (seatId != null) 'seatId': seatId,
+    if (seatLabel != null) 'seatLabel': seatLabel,
+    'tier': tier.toJson(),
+    'status': status.toJson(),
+    'fare': fare,
+  };
 
   GridSlot copyWith({
     SlotType? type,
@@ -174,17 +174,16 @@ class GridSlot {
     SeatTier? tier,
     SeatBookStatus? status,
     double? fare,
-  }) =>
-      GridSlot(
-        type: type ?? this.type,
-        row: row ?? this.row,
-        col: col ?? this.col,
-        seatId: seatId ?? this.seatId,
-        seatLabel: seatLabel ?? this.seatLabel,
-        tier: tier ?? this.tier,
-        status: status ?? this.status,
-        fare: fare ?? this.fare,
-      );
+  }) => GridSlot(
+    type: type ?? this.type,
+    row: row ?? this.row,
+    col: col ?? this.col,
+    seatId: seatId ?? this.seatId,
+    seatLabel: seatLabel ?? this.seatLabel,
+    tier: tier ?? this.tier,
+    status: status ?? this.status,
+    fare: fare ?? this.fare,
+  );
 
   @override
   String toString() =>
@@ -197,18 +196,15 @@ class Deck {
   final String? label;
   final List<List<GridSlot>> grid;
 
-  const Deck({
-    required this.deckIndex,
-    required this.grid,
-    this.label,
-  });
+  const Deck({required this.deckIndex, required this.grid, this.label});
 
   /// Number of rows in this deck's grid.
   int get rowCount => grid.length;
 
   /// Max columns across all rows (rows may have different lengths).
-  int get colCount =>
-      grid.isEmpty ? 0 : grid.map((r) => r.length).reduce((a, b) => a > b ? a : b);
+  int get colCount => grid.isEmpty
+      ? 0
+      : grid.map((r) => r.length).reduce((a, b) => a > b ? a : b);
 
   /// All seat slots in this deck, flattened.
   List<GridSlot> get seats =>
@@ -229,11 +225,12 @@ class Deck {
   }
 
   Map<String, dynamic> toJson() => {
-        'deckIndex': deckIndex,
-        if (label != null) 'label': label,
-        'grid':
-            grid.map((row) => row.map((slot) => slot.toJson()).toList()).toList(),
-      };
+    'deckIndex': deckIndex,
+    if (label != null) 'label': label,
+    'grid': grid
+        .map((row) => row.map((slot) => slot.toJson()).toList())
+        .toList(),
+  };
 
   @override
   String toString() =>
@@ -299,12 +296,12 @@ class VehicleLayout {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        if (vehicleType != null) 'vehicleType': vehicleType,
-        if (vehicleMake != null) 'vehicleMake': vehicleMake,
-        if (vehicleModel != null) 'vehicleModel': vehicleModel,
-        'decks': decks.map((d) => d.toJson()).toList(),
-      };
+    'id': id,
+    if (vehicleType != null) 'vehicleType': vehicleType,
+    if (vehicleMake != null) 'vehicleMake': vehicleMake,
+    if (vehicleModel != null) 'vehicleModel': vehicleModel,
+    'decks': decks.map((d) => d.toJson()).toList(),
+  };
 
   @override
   String toString() =>

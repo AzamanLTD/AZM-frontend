@@ -11,17 +11,33 @@ import 'package:azaman/services/api_client.dart';
 //  'internal' / 'transfer' → Transfer  (blue / swap icon)
 String _categorize(String rawType) {
   const deposits = <String>{
-    'DEPOSIT_FIAT', 'DEPOSIT_CRYPTO', 'SUSU_PAYOUT', 'VAULT_RELEASE',
-    'AZM_REWARD', 'SUSU_REFUND', 'SUSU_PROFIT', 'TICKET_ESCROW_RELEASE',
-    'TICKET_ESCROW_REFUND', 'BUSINESS_INVOICE_RECEIPT', 'PAYROLL_DISBURSEMENT',
+    'DEPOSIT_FIAT',
+    'DEPOSIT_CRYPTO',
+    'SUSU_PAYOUT',
+    'VAULT_RELEASE',
+    'AZM_REWARD',
+    'SUSU_REFUND',
+    'SUSU_PROFIT',
+    'TICKET_ESCROW_RELEASE',
+    'TICKET_ESCROW_REFUND',
+    'BUSINESS_INVOICE_RECEIPT',
+    'PAYROLL_DISBURSEMENT',
   };
   const withdrawals = <String>{
-    'WITHDRAWAL_FIAT', 'WITHDRAWAL_CRYPTO', 'SUSU_CONTRIBUTION', 'VAULT_DEPOSIT',
-    'SUSU_SEIZURE', 'TICKET_ESCROW_FUND', 'TICKET_ESCROW_FEE',
-    'BUSINESS_INVOICE_PAYMENT', 'EWA_WITHDRAWAL',
+    'WITHDRAWAL_FIAT',
+    'WITHDRAWAL_CRYPTO',
+    'SUSU_CONTRIBUTION',
+    'VAULT_DEPOSIT',
+    'SUSU_SEIZURE',
+    'TICKET_ESCROW_FUND',
+    'TICKET_ESCROW_FEE',
+    'BUSINESS_INVOICE_PAYMENT',
+    'EWA_WITHDRAWAL',
   };
   const transfers = <String>{
-    'INTERNAL_TRANSFER', 'SMART_ROUTE_RUN', 'P2P_TRADE',
+    'INTERNAL_TRANSFER',
+    'SMART_ROUTE_RUN',
+    'P2P_TRADE',
   };
 
   final upper = rawType.toUpperCase();
@@ -57,7 +73,8 @@ String _categorize(String rawType) {
 
 class TransactionRecord {
   final String id;
-  final String rawType; // Backend enum: DEPOSIT_FIAT, WITHDRAWAL_CRYPTO, INTERNAL_TRANSFER, etc.
+  final String
+  rawType; // Backend enum: DEPOSIT_FIAT, WITHDRAWAL_CRYPTO, INTERNAL_TRANSFER, etc.
   final double amountUsdc;
   final double feeUsdc;
   final String status;
@@ -113,8 +130,7 @@ class TransactionRecord {
       '';
 
   /// Human-readable description derived from metadata or type.
-  String get description =>
-      metadata?['description']?.toString() ?? '';
+  String get description => metadata?['description']?.toString() ?? '';
 
   factory TransactionRecord.fromJson(Map<String, dynamic> json) {
     return TransactionRecord(
@@ -129,8 +145,8 @@ class TransactionRecord {
       metadata: json['metadata'] is Map<String, dynamic>
           ? json['metadata']
           : (json['metadata'] is Map
-              ? Map<String, dynamic>.from(json['metadata'])
-              : null),
+                ? Map<String, dynamic>.from(json['metadata'])
+                : null),
       txHash: json['txHash']?.toString(),
       providerRef: json['providerRef']?.toString(),
     );
@@ -174,7 +190,8 @@ class TransactionHistoryState {
   }
 }
 
-class TransactionHistoryNotifier extends StateNotifier<TransactionHistoryState> {
+class TransactionHistoryNotifier
+    extends StateNotifier<TransactionHistoryState> {
   TransactionHistoryNotifier() : super(const TransactionHistoryState());
 
   /// Fetch the next page of transactions from the real backend API.
@@ -203,11 +220,13 @@ class TransactionHistoryNotifier extends StateNotifier<TransactionHistoryState> 
         final nextCursor = body['nextCursor']?.toString();
 
         final newItems = txnsJson
-            .map<TransactionRecord>((json) => TransactionRecord.fromJson(
-                  json is Map<String, dynamic>
-                      ? json
-                      : Map<String, dynamic>.from(json),
-                ))
+            .map<TransactionRecord>(
+              (json) => TransactionRecord.fromJson(
+                json is Map<String, dynamic>
+                    ? json
+                    : Map<String, dynamic>.from(json),
+              ),
+            )
             .toList();
 
         state = state.copyWith(
@@ -217,7 +236,8 @@ class TransactionHistoryNotifier extends StateNotifier<TransactionHistoryState> 
           nextCursor: nextCursor,
         );
         debugPrint(
-            '[TransactionHistory] Loaded ${newItems.length} txns, hasMore=$hasMore');
+          '[TransactionHistory] Loaded ${newItems.length} txns, hasMore=$hasMore',
+        );
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -248,5 +268,5 @@ class TransactionHistoryNotifier extends StateNotifier<TransactionHistoryState> 
 
 final transactionHistoryProvider =
     StateNotifierProvider<TransactionHistoryNotifier, TransactionHistoryState>(
-  (ref) => TransactionHistoryNotifier(),
-);
+      (ref) => TransactionHistoryNotifier(),
+    );

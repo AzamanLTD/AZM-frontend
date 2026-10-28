@@ -27,9 +27,11 @@ import 'package:azaman/screens/chat/forward_dialog.dart';
 import 'package:azaman/screens/notification_preferences_screen.dart';
 import 'package:azaman/services/api_client.dart';
 
-http.Response _json(int status, Map<String, dynamic> body) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
+http.Response _json(int status, Map<String, dynamic> body) => http.Response(
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
 
 class _RecordingClient extends ApiClient {
   final List<(String method, String path)> calls = [];
@@ -37,8 +39,11 @@ class _RecordingClient extends ApiClient {
   bool prefsFail = false;
 
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     calls.add(('GET', endpoint));
     switch (endpoint) {
       case '/users/me/notification-preferences':
@@ -51,14 +56,24 @@ class _RecordingClient extends ApiClient {
             'quietStart': '22:00',
             'quietEnd': '07:00',
             'categories': {
-              'money': true, 'social': false, 'chat': true,
-              'security': true, 'system': false, 'vendor': true, 'admin': true,
+              'money': true,
+              'social': false,
+              'chat': true,
+              'security': true,
+              'system': false,
+              'vendor': true,
+              'admin': true,
             },
             'bypassQuiet': {
-              'money': false, 'social': false, 'chat': false,
-              'security': true, 'system': false, 'vendor': false, 'admin': false,
+              'money': false,
+              'social': false,
+              'chat': false,
+              'security': true,
+              'system': false,
+              'vendor': false,
+              'admin': false,
             },
-          }
+          },
         });
       case '/calls?limit=50':
         return _json(200, {
@@ -72,7 +87,7 @@ class _RecordingClient extends ApiClient {
               'createdAt': '2026-10-19T10:00:00Z',
               'caller': {'id': 'u1', 'username': 'kofi'},
               'callee': {'id': 'u2', 'username': 'ama'},
-            }
+            },
           ],
           'pagination': {'total': 1, 'limit': 50, 'offset': 0},
         });
@@ -81,22 +96,26 @@ class _RecordingClient extends ApiClient {
           'success': true,
           'friends': [
             {'id': 'f1', 'username': 'ama'},
-          ]
+          ],
         });
       case '/group-chats':
         return _json(200, {
           'success': true,
           'groups': [
             {'id': 'g1', 'name': 'Market Team'},
-          ]
+          ],
         });
     }
     return _json(404, {'success': false});
   }
 
   @override
-  Future<http.Response> put(String endpoint, Map<String, dynamic> body,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> put(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     calls.add(('PUT', endpoint));
     putBodies.add(Map<String, dynamic>.from(body));
     if (prefsFail) return _json(500, {'success': false});
@@ -119,17 +138,22 @@ void _phone(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('notification prefs screen reads and saves the real rails',
-      (tester) async {
+  testWidgets('notification prefs screen reads and saves the real rails', (
+    tester,
+  ) async {
     final client = _RecordingClient();
     _phone(tester);
 
     await tester.pumpWidget(
-        _app(const NotificationPreferencesScreen(), client));
+      _app(const NotificationPreferencesScreen(), client),
+    );
     await tester.pumpAndSettle();
 
     // GET the real preferences rail — single-prefixed, response {data: prefs}.
-    expect(client.calls, contains(('GET', '/users/me/notification-preferences')));
+    expect(
+      client.calls,
+      contains(('GET', '/users/me/notification-preferences')),
+    );
     // The fetched prefs drove the UI: quiet hours came back ENABLED.
     expect(find.text('Enable Quiet Hours'), findsOneWidget);
 
@@ -138,7 +162,10 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    expect(client.calls, contains(('PUT', '/users/me/notification-preferences')));
+    expect(
+      client.calls,
+      contains(('PUT', '/users/me/notification-preferences')),
+    );
     expect(client.putBodies.single['quietStart'], isNotNull);
     expect(find.text('Notification preferences saved'), findsOneWidget);
 
@@ -148,8 +175,9 @@ void main() {
     }
   });
 
-  testWidgets('call history screen loads from the real /calls rail',
-      (tester) async {
+  testWidgets('call history screen loads from the real /calls rail', (
+    tester,
+  ) async {
     final client = _RecordingClient();
     _phone(tester);
 
@@ -163,43 +191,50 @@ void main() {
     expect(find.text('No call history'), findsNothing);
   });
 
-  testWidgets('forward dialog loads friends from /friends and groups from /group-chats',
-      (tester) async {
-    final client = _RecordingClient();
-    _phone(tester);
+  testWidgets(
+    'forward dialog loads friends from /friends and groups from /group-chats',
+    (tester) async {
+      final client = _RecordingClient();
+      _phone(tester);
 
-    await tester.pumpWidget(_app(
-      Builder(
-        builder: (context) => Scaffold(
-          body: ElevatedButton(
-            onPressed: () => ForwardDialog.show(
-              context: context,
-              messageId: 'm1',
-              fromContext: 'friend',
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => Scaffold(
+              body: ElevatedButton(
+                onPressed: () => ForwardDialog.show(
+                  context: context,
+                  messageId: 'm1',
+                  fromContext: 'friend',
+                ),
+                child: const Text('Open Forward'),
+              ),
             ),
-            child: const Text('Open Forward'),
           ),
+          client,
         ),
-      ),
-      client,
-    ));
+      );
 
-    await tester.tap(find.text('Open Forward'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Open Forward'));
+      await tester.pumpAndSettle();
 
-    // Both real rails, exactly once-prefixed. '/api/groups' does not exist
-    // on the backend — the rail is '/group-chats'.
-    expect(client.calls, containsAll([('GET', '/friends'), ('GET', '/group-chats')]));
-    for (final (_, path) in client.calls) {
-      expect(path.startsWith('/api/'), isFalse, reason: 'saw $path');
-    }
+      // Both real rails, exactly once-prefixed. '/api/groups' does not exist
+      // on the backend — the rail is '/group-chats'.
+      expect(
+        client.calls,
+        containsAll([('GET', '/friends'), ('GET', '/group-chats')]),
+      );
+      for (final (_, path) in client.calls) {
+        expect(path.startsWith('/api/'), isFalse, reason: 'saw $path');
+      }
 
-    // The {success, friends}/{success, groups} envelopes parsed and rendered.
-    expect(find.text('ama'), findsOneWidget);
-    expect(find.text('Market Team'), findsOneWidget);
+      // The {success, friends}/{success, groups} envelopes parsed and rendered.
+      expect(find.text('ama'), findsOneWidget);
+      expect(find.text('Market Team'), findsOneWidget);
 
-    // Dismiss the sheet by tapping the modal barrier above it.
-    await tester.tapAt(const Offset(210, 20));
-    await tester.pumpAndSettle();
-  });
+      // Dismiss the sheet by tapping the modal barrier above it.
+      await tester.tapAt(const Offset(210, 20));
+      await tester.pumpAndSettle();
+    },
+  );
 }

@@ -164,7 +164,8 @@ Future<void> _openAndAssertStays(
   expect(
     find.byType(SplashScreen),
     findsNothing,
-    reason: 'a splash was re-instantiated under the destination — the '
+    reason:
+        'a splash was re-instantiated under the destination — the '
         'bounce engine is back',
   );
   // Back through the router lands DIRECTLY on the canonical shell page:
@@ -177,8 +178,11 @@ Future<void> _openAndAssertStays(
     findsNothing,
     reason: 'back passed through the splash — the old broken exit',
   );
-  expect(find.byType(MainWrapper), findsOneWidget,
-      reason: 'back did not land on the shell');
+  expect(
+    find.byType(MainWrapper),
+    findsOneWidget,
+    reason: 'back did not land on the shell',
+  );
   expect(
     topMatch(router),
     '/home',
@@ -373,10 +377,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(find.byType(MainWrapper), findsOneWidget);
     expect(find.byType(SendMoneyScreen), findsNothing);
-    expect(
-      router.routerDelegate.currentConfiguration.uri.path,
-      '/home',
-    );
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
   });
 
   testWidgets('auth semantics stay distinct: a transient backend failure never '

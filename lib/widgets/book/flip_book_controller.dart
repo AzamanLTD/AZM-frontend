@@ -23,8 +23,8 @@ class FlipBookController extends ChangeNotifier {
     this.physics = const FlipPhysics(),
     this.hapticsEnabled = true,
     this.edgeAnchored = false,
-  })  : assert(initialPage >= 0),
-        _page = initialPage;
+  }) : assert(initialPage >= 0),
+       _page = initialPage;
 
   final FlipPhysics physics;
   final bool hapticsEnabled;
@@ -152,7 +152,8 @@ class FlipBookController extends ChangeNotifier {
     final outcome = physics.resolve(_progress, v);
     _anchorY = edgeAnchored
         ? _size.height * 0.5
-        : _touch.dy + FlipPath.anchorCompensation(progress: _progress, size: _size);
+        : _touch.dy +
+              FlipPath.anchorCompensation(progress: _progress, size: _size);
     _startSettle(outcome == FlipRelease.complete ? 1.0 : 0.0, v);
   }
 
@@ -161,14 +162,16 @@ class FlipBookController extends ChangeNotifier {
     _fingerDriven = false;
     _anchorY = edgeAnchored
         ? _size.height * 0.5
-        : _touch.dy + FlipPath.anchorCompensation(progress: _progress, size: _size);
+        : _touch.dy +
+              FlipPath.anchorCompensation(progress: _progress, size: _size);
     _startSettle(_progress >= 0.5 ? 1.0 : 0.0, 0);
   }
 
   // ── Programmatic turns ─────────────────────────────────────────────────────
 
   bool turnForward() {
-    if (_state == FlipState.dragging || !_canTurn(FlipDirection.forward)) return false;
+    if (_state == FlipState.dragging || !_canTurn(FlipDirection.forward))
+      return false;
     _anim?.stop();
     _direction = FlipDirection.forward;
     _anchor = edgeAnchored ? FlipAnchor.middleOuter : FlipAnchor.bottomOuter;
@@ -181,7 +184,8 @@ class FlipBookController extends ChangeNotifier {
   }
 
   bool turnBackward() {
-    if (_state == FlipState.dragging || !_canTurn(FlipDirection.backward)) return false;
+    if (_state == FlipState.dragging || !_canTurn(FlipDirection.backward))
+      return false;
     _anim?.stop();
     _direction = FlipDirection.backward;
     _anchor = edgeAnchored ? FlipAnchor.middleOuter : FlipAnchor.bottomOuter;
@@ -212,15 +216,18 @@ class FlipBookController extends ChangeNotifier {
       ).then((_) {
         if (_state != FlipState.hinting) return;
         anim
-            .animateTo(0.0,
-                duration: const Duration(milliseconds: 620), curve: Curves.easeInOutCubic)
+            .animateTo(
+              0.0,
+              duration: const Duration(milliseconds: 620),
+              curve: Curves.easeInOutCubic,
+            )
             .then((_) {
-          if (_state == FlipState.hinting) {
-            _state = FlipState.idle;
-            _progress = 0;
-            notifyListeners();
-          }
-        });
+              if (_state == FlipState.hinting) {
+                _state = FlipState.idle;
+                _progress = 0;
+                notifyListeners();
+              }
+            });
       });
   }
 
@@ -286,9 +293,7 @@ class FlipBookController extends ChangeNotifier {
         size: _size,
         anchorY: _anchorY,
       );
-      _touch = edgeAnchored
-          ? Offset(nextTouch.dx, _anchorY)
-          : nextTouch;
+      _touch = edgeAnchored ? Offset(nextTouch.dx, _anchorY) : nextTouch;
     }
     final crossed = p >= 0.5;
     if (crossed != _crossedThreshold && _state != FlipState.hinting) {

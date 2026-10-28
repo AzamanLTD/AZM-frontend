@@ -62,10 +62,10 @@ class FlipPhysicsSpec {
   );
 
   SpringDescription get spring => SpringDescription.withDampingRatio(
-        mass: mass,
-        stiffness: stiffness,
-        ratio: dampingRatio,
-      );
+    mass: mass,
+    stiffness: stiffness,
+    ratio: dampingRatio,
+  );
 }
 
 /// The outcome of a release gesture.
@@ -133,8 +133,13 @@ class FlipPhysics {
   /// dragged backwards / last page dragged forwards). Mirrors the iOS
   /// `UIScrollView` overscroll curve: resistance grows with distance so the
   /// edge feels elastic, never dead.
-  static double rubberBand(double overscroll, {double dimension = 1.0, double constant = 0.55}) {
+  static double rubberBand(
+    double overscroll, {
+    double dimension = 1.0,
+    double constant = 0.55,
+  }) {
     if (overscroll <= 0) return 0;
-    return (1.0 - (1.0 / (overscroll * constant / dimension + 1.0))) * dimension;
+    return (1.0 - (1.0 / (overscroll * constant / dimension + 1.0))) *
+        dimension;
   }
 }

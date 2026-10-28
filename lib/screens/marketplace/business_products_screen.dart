@@ -9,7 +9,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
@@ -88,8 +87,10 @@ class _BusinessProductsScreenState
     if (_loadingMore || !_hasMore || _cursor == null) return;
     setState(() => _loadingMore = true);
     try {
-      final page =
-          await _service.getBusinessProducts(widget.bizId, cursor: _cursor);
+      final page = await _service.getBusinessProducts(
+        widget.bizId,
+        cursor: _cursor,
+      );
       if (!mounted) return;
       setState(() {
         _products.addAll(page.products);
@@ -127,35 +128,33 @@ class _BusinessProductsScreenState
         title: Text(
           widget.businessName ?? 'Products',
           style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w800),
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
       body: _loading
           ? _shimmerGrid(colors)
           : _products.isEmpty
-              ? const AzamanEmptyState(
-                  icon: Icons.shopping_bag_outlined,
-                  title: 'No products yet',
-                  subtitle: 'This business hasn\'t listed any products.',
-                )
-              : GridView.builder(
-                  controller: _scrollCtrl,
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.62,
-                  ),
-                  itemCount: _products.length,
-                  itemBuilder: (_, i) => ProductCard(
-                    product: _products[i],
-                    onOrder: _order,
-                  ),
-                ),
+          ? const AzamanEmptyState(
+              icon: Icons.shopping_bag_outlined,
+              title: 'No products yet',
+              subtitle: 'This business hasn\'t listed any products.',
+            )
+          : GridView.builder(
+              controller: _scrollCtrl,
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.62,
+              ),
+              itemCount: _products.length,
+              itemBuilder: (_, i) =>
+                  ProductCard(product: _products[i], onOrder: _order),
+            ),
     );
   }
 

@@ -135,7 +135,10 @@ class ChatAvatar extends StatelessWidget {
   ) {
     final reduce = MediaQuery.disableAnimationsOf(flightContext);
     final t = Curves.easeOutCubic.transform(animation.value);
-    return Opacity(opacity: reduce ? 1.0 : t.clamp(0.0, 1.0), child: fromContext.widget);
+    return Opacity(
+      opacity: reduce ? 1.0 : t.clamp(0.0, 1.0),
+      child: fromContext.widget,
+    );
   }
 
   LinearGradient _nameGradient(String name) {
@@ -165,20 +168,30 @@ class _OnlineDot extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isOnline ? const Color(0xFF02C076) : Colors.grey;
     return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          width: 2,
-        ),
-      ),
-    )
-    .animate(onComplete: (c) => isOnline ? c.repeat() : c.stop())
-    .then()
-    .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.3, 1.3), duration: 1200.ms, curve: Curves.easeInOut)
-    .scale(begin: const Offset(1.3, 1.3), end: const Offset(1.0, 1.0), duration: 1200.ms, curve: Curves.easeInOut);
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              width: 2,
+            ),
+          ),
+        )
+        .animate(onComplete: (c) => isOnline ? c.repeat() : c.stop())
+        .then()
+        .scale(
+          begin: const Offset(1.0, 1.0),
+          end: const Offset(1.3, 1.3),
+          duration: 1200.ms,
+          curve: Curves.easeInOut,
+        )
+        .scale(
+          begin: const Offset(1.3, 1.3),
+          end: const Offset(1.0, 1.0),
+          duration: 1200.ms,
+          curve: Curves.easeInOut,
+        );
   }
 }

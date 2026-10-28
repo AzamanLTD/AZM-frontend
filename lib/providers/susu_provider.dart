@@ -47,19 +47,20 @@ class SusuMember {
   });
 
   factory SusuMember.fromJson(Map<String, dynamic> j) => SusuMember(
-        id: j['id'],
-        userId: (j['userId'] as num).toInt(),
-        username: j['user']?['username'] as String?,
-        cycleSlot: (j['cycleSlot'] as num).toInt(),
-        trustScore: _num(j['trustScore']),
-        status: j['status'],
-        contractAcceptedAt: j['contractAcceptedAt'] != null
-            ? DateTime.tryParse(j['contractAcceptedAt'])
-            : null,
-        defaultedAt:
-            j['defaultedAt'] != null ? DateTime.tryParse(j['defaultedAt']) : null,
-        totalSeizedUsdc: _num(j['totalSeizedUsdc']),
-      );
+    id: j['id'],
+    userId: (j['userId'] as num).toInt(),
+    username: j['user']?['username'] as String?,
+    cycleSlot: (j['cycleSlot'] as num).toInt(),
+    trustScore: _num(j['trustScore']),
+    status: j['status'],
+    contractAcceptedAt: j['contractAcceptedAt'] != null
+        ? DateTime.tryParse(j['contractAcceptedAt'])
+        : null,
+    defaultedAt: j['defaultedAt'] != null
+        ? DateTime.tryParse(j['defaultedAt'])
+        : null,
+    totalSeizedUsdc: _num(j['totalSeizedUsdc']),
+  );
 }
 
 class SusuCycle {
@@ -84,20 +85,23 @@ class SusuCycle {
   });
 
   factory SusuCycle.fromJson(Map<String, dynamic> j) => SusuCycle(
-        id: j['id'],
-        cycleNumber: (j['cycleNumber'] as num).toInt(),
-        collectionDate: DateTime.parse(j['collectionDate']),
-        payoutAmount: _num(j['payoutAmount']),
-        payoutUserId: (j['payoutUserId'] as num).toInt(),
-        status: j['status'],
-        paidOutAt: j['paidOutAt'] != null ? DateTime.tryParse(j['paidOutAt']) : null,
-        defaultsCount: (j['defaultsCount'] as num?)?.toInt() ?? 0,
-      );
+    id: j['id'],
+    cycleNumber: (j['cycleNumber'] as num).toInt(),
+    collectionDate: DateTime.parse(j['collectionDate']),
+    payoutAmount: _num(j['payoutAmount']),
+    payoutUserId: (j['payoutUserId'] as num).toInt(),
+    status: j['status'],
+    paidOutAt: j['paidOutAt'] != null
+        ? DateTime.tryParse(j['paidOutAt'])
+        : null,
+    defaultsCount: (j['defaultsCount'] as num?)?.toInt() ?? 0,
+  );
 }
 
 class SusuGroup {
   final String id;
-  final String status; // CONFIGURING | ACTIVE | COMPLETED | CANCELLED | FROZEN_DISPUTE
+  final String
+  status; // CONFIGURING | ACTIVE | COMPLETED | CANCELLED | FROZEN_DISPUTE
   final double contributionUsdc;
   final String frequency; // WEEKLY | BIWEEKLY | MONTHLY
   final int totalCycles;
@@ -125,25 +129,23 @@ class SusuGroup {
   });
 
   factory SusuGroup.fromJson(Map<String, dynamic> j) => SusuGroup(
-        id: j['id'],
-        status: j['status'],
-        contributionUsdc: _num(j['contributionUsdc']),
-        frequency: j['frequency'],
-        totalCycles: (j['totalCycles'] as num).toInt(),
-        startDate: DateTime.parse(j['startDate']),
-        contractAcceptedCount:
-            (j['contractAcceptedCount'] as num?)?.toInt() ?? 0,
-        contractRequiredCount:
-            (j['contractRequiredCount'] as num?)?.toInt() ?? 0,
-        members: (j['members'] as List<dynamic>? ?? const [])
-            .map((m) => SusuMember.fromJson(m))
-            .toList(),
-        cycles: (j['cycles'] as List<dynamic>? ?? const [])
-            .map((c) => SusuCycle.fromJson(c))
-            .toList(),
-        groupChatName: j['groupChat']?['name'],
-        groupChatId: j['groupChat']?['id'],
-      );
+    id: j['id'],
+    status: j['status'],
+    contributionUsdc: _num(j['contributionUsdc']),
+    frequency: j['frequency'],
+    totalCycles: (j['totalCycles'] as num).toInt(),
+    startDate: DateTime.parse(j['startDate']),
+    contractAcceptedCount: (j['contractAcceptedCount'] as num?)?.toInt() ?? 0,
+    contractRequiredCount: (j['contractRequiredCount'] as num?)?.toInt() ?? 0,
+    members: (j['members'] as List<dynamic>? ?? const [])
+        .map((m) => SusuMember.fromJson(m))
+        .toList(),
+    cycles: (j['cycles'] as List<dynamic>? ?? const [])
+        .map((c) => SusuCycle.fromJson(c))
+        .toList(),
+    groupChatName: j['groupChat']?['name'],
+    groupChatId: j['groupChat']?['id'],
+  );
 }
 
 class PendingVouch {
@@ -168,29 +170,30 @@ class PendingVouch {
   });
 
   factory PendingVouch.fromJson(Map<String, dynamic> j) => PendingVouch(
-        id: j['id'],
-        groupId: j['groupId'],
-        groupName: j['group']?['name'],
-        inviteeId: j['inviteeId'] != null ? (j['inviteeId'] as num).toInt() : null,
-        inviteeUsername: j['invitee']?['username'],
-        inviteePhone: j['inviteePhone'],
-        relationship: j['relationship'] ?? '',
-        reasonForTrust: j['reasonForTrust'] ?? '',
-      );
+    id: j['id'],
+    groupId: j['groupId'],
+    groupName: j['group']?['name'],
+    inviteeId: j['inviteeId'] != null ? (j['inviteeId'] as num).toInt() : null,
+    inviteeUsername: j['invitee']?['username'],
+    inviteePhone: j['inviteePhone'],
+    relationship: j['relationship'] ?? '',
+    reasonForTrust: j['reasonForTrust'] ?? '',
+  );
 }
 
 // ── Providers ──────────────────────────────────────────────────────────────
 
-final susuDetailProvider =
-    FutureProvider.family<SusuGroup?, String>((ref, susuId) async {
+final susuDetailProvider = FutureProvider.family<SusuGroup?, String>((
+  ref,
+  susuId,
+) async {
   final res = await apiClient.get('/susu/groups/$susuId');
   if (res.statusCode != 200) return null;
   final body = jsonDecode(res.body) as Map<String, dynamic>;
   return SusuGroup.fromJson(body['susu']);
 });
 
-final pendingVouchesProvider =
-    FutureProvider<List<PendingVouch>>((ref) async {
+final pendingVouchesProvider = FutureProvider<List<PendingVouch>>((ref) async {
   final res = await apiClient.get('/susu/vouches/pending');
   if (res.statusCode != 200) return const [];
   final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -230,12 +233,17 @@ class SusuActions {
   }) async {
     // r42: creating a susu group opens a recurring financial commitment —
     // one key per logical creation, reused across retries of that action.
-    final res = await apiClient.postFinancial('/susu/groups', {
-      'groupChatId': groupChatId,
-      'contributionUsdc': contributionUsdc,
-      'frequency': frequency,
-      'startDate': startDate.toIso8601String(),
-    }, operationType: _createActionId, ref: _createRef);
+    final res = await apiClient.postFinancial(
+      '/susu/groups',
+      {
+        'groupChatId': groupChatId,
+        'contributionUsdc': contributionUsdc,
+        'frequency': frequency,
+        'startDate': startDate.toIso8601String(),
+      },
+      operationType: _createActionId,
+      ref: _createRef,
+    );
     if (res.statusCode != 201) {
       throw Exception(_msg(res.body));
     }
@@ -250,24 +258,28 @@ class SusuActions {
   Future<void> acceptContract(String susuId) async {
     // r42: contract acceptance binds the member to the contribution
     // schedule — one key per logical acceptance, reused across retries.
-    final res = await apiClient.postFinancial('/susu/groups/$susuId/contract', {
-      'acceptedSeverityWarning': true,
-      'acceptedSeizureClause': true,
-    }, operationType: _contractAction(susuId),
-        ref: _contractRefs.putIfAbsent(susuId, () => FinancialOperationRef()));
+    final res = await apiClient.postFinancial(
+      '/susu/groups/$susuId/contract',
+      {'acceptedSeverityWarning': true, 'acceptedSeizureClause': true},
+      operationType: _contractAction(susuId),
+      ref: _contractRefs.putIfAbsent(susuId, () => FinancialOperationRef()),
+    );
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(susuDetailProvider(susuId));
   }
 
-  Future<void> submitVouch(String vouchRecordId, Map<String, dynamic> payload) async {
+  Future<void> submitVouch(
+    String vouchRecordId,
+    Map<String, dynamic> payload,
+  ) async {
     // r42: vouching commits the voucher's stake — one key per vouch,
     // reused across retries of the same vouch record.
-    final res = await apiClient.postFinancial('/susu/vouches', {
-      'vouchRecordId': vouchRecordId,
-      'payload': payload,
-    }, operationType: _vouchAction(vouchRecordId),
-        ref: _vouchRefs.putIfAbsent(
-            vouchRecordId, () => FinancialOperationRef()));
+    final res = await apiClient.postFinancial(
+      '/susu/vouches',
+      {'vouchRecordId': vouchRecordId, 'payload': payload},
+      operationType: _vouchAction(vouchRecordId),
+      ref: _vouchRefs.putIfAbsent(vouchRecordId, () => FinancialOperationRef()),
+    );
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     ref.invalidate(pendingVouchesProvider);
   }
@@ -283,7 +295,6 @@ class SusuActions {
 }
 
 final susuActionsProvider = Provider<SusuActions>((ref) => SusuActions(ref));
-
 
 // =============================================================================
 // PHASE 4 PROVIDERS — Master Sprint, 2026-05-31
@@ -330,8 +341,8 @@ class SusuListNotifier extends AutoDisposeAsyncNotifier<List<SusuSummary>> {
 
 final susuListProvider =
     AsyncNotifierProvider.autoDispose<SusuListNotifier, List<SusuSummary>>(
-  SusuListNotifier.new,
-);
+      SusuListNotifier.new,
+    );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 4 detail provider — full SusuDetail with members + cycles + status.
@@ -401,9 +412,7 @@ class SusuDetailV2Notifier
 }
 
 final susuDetailV2Provider = AsyncNotifierProvider.autoDispose
-    .family<SusuDetailV2Notifier, SusuDetail, String>(
-  SusuDetailV2Notifier.new,
-);
+    .family<SusuDetailV2Notifier, SusuDetail, String>(SusuDetailV2Notifier.new);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cycles provider — schedule strip on the dashboard.
@@ -419,8 +428,8 @@ class SusuCyclesNotifier
 
 final susuCyclesProvider = AsyncNotifierProvider.autoDispose
     .family<SusuCyclesNotifier, List<SusuCycleView>, String>(
-  SusuCyclesNotifier.new,
-);
+      SusuCyclesNotifier.new,
+    );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Members provider — privacy-projected roster.
@@ -436,8 +445,8 @@ class SusuMembersNotifier
 
 final susuMembersProvider = AsyncNotifierProvider.autoDispose
     .family<SusuMembersNotifier, List<SusuMemberView>, String>(
-  SusuMembersNotifier.new,
-);
+      SusuMembersNotifier.new,
+    );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Invite preview provider — public, no JWT.
@@ -453,8 +462,8 @@ class SusuInvitePreviewNotifier
 
 final susuInvitePreviewProvider = AsyncNotifierProvider.autoDispose
     .family<SusuInvitePreviewNotifier, SusuInvitePreview, String>(
-  SusuInvitePreviewNotifier.new,
-);
+      SusuInvitePreviewNotifier.new,
+    );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Proof of Residency provider — own status only (Req 3.12 — never URL).
@@ -481,10 +490,11 @@ class ProofOfResidencyNotifier
   }
 }
 
-final proofOfResidencyProvider = AsyncNotifierProvider.autoDispose<
-    ProofOfResidencyNotifier, ProofOfResidencyState>(
-  ProofOfResidencyNotifier.new,
-);
+final proofOfResidencyProvider =
+    AsyncNotifierProvider.autoDispose<
+      ProofOfResidencyNotifier,
+      ProofOfResidencyState
+    >(ProofOfResidencyNotifier.new);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Susu supplied-rate provider — the USDC→GHS rate Azaman supplies to users.
@@ -530,8 +540,9 @@ SusuSuppliedRate parseSusuSuppliedRate(Map<String, dynamic> data) {
   );
 }
 
-final susuSuppliedRateProvider =
-    FutureProvider.autoDispose<SusuSuppliedRate>((ref) async {
+final susuSuppliedRateProvider = FutureProvider.autoDispose<SusuSuppliedRate>((
+  ref,
+) async {
   try {
     // §9: shares the single-flight oracle request (see oracle_rates_client).
     final res = await getOracleRates();

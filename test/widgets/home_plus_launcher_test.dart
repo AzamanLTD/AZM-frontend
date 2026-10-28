@@ -45,18 +45,17 @@ Future<void> _pumpLauncher(
       child: MaterialApp(
         theme: ThemeProvider.getThemeData(AzamanTheme.light),
         home: MediaQuery(
-          data: const MediaQueryData(size: Size(400, 900))
-              .copyWith(disableAnimations: reducedMotion),
+          data: const MediaQueryData(
+            size: Size(400, 900),
+          ).copyWith(disableAnimations: reducedMotion),
           child: Scaffold(
-            body: PlusActionLauncher(
-                controller: controller, actions: actions),
+            body: PlusActionLauncher(controller: controller, actions: actions),
           ),
         ),
       ),
     ),
   );
 }
-
 
 /// CORRECTION G geometry tests mount the TRIGGER too — beside a bottom
 /// bar, exactly like the real shell (PremiumBottomNav.trailing) — so the
@@ -94,7 +93,9 @@ Future<void> _pumpShell(
               children: [
                 Positioned.fill(
                   child: PlusActionLauncher(
-                      controller: controller, actions: actions),
+                    controller: controller,
+                    actions: actions,
+                  ),
                 ),
               ],
             ),
@@ -106,10 +107,10 @@ Future<void> _pumpShell(
 }
 
 void main() {
-  testWidgets(
-      '§2A: the launcher mark is a STATIC 45° clockwise rotation — the '
-      'chat-send orientation, never animated, never the container',
-      (tester) async {
+  testWidgets('§2A: the launcher mark is a STATIC 45° clockwise rotation — the '
+      'chat-send orientation, never animated, never the container', (
+    tester,
+  ) async {
     // The trigger (with the mark) mounts beside a bottom bar, exactly
     // like the real shell — the §2A orientation lives in the trigger's
     // mark, not the overlay.
@@ -129,12 +130,17 @@ void main() {
         matching: find.byType(Transform),
       ),
     );
-    final quarterPiRotations =
-        transforms.where(_isClockwiseQuarterPiRotation).toList();
-    expect(quarterPiRotations, hasLength(1),
-        reason: 'exactly one rotation exists in the launcher: the mark — '
-            'the AZM mark reads as a send arrow, a fixed 45° clockwise '
-            'rotation identical to the chat send button treatment');
+    final quarterPiRotations = transforms
+        .where(_isClockwiseQuarterPiRotation)
+        .toList();
+    expect(
+      quarterPiRotations,
+      hasLength(1),
+      reason:
+          'exactly one rotation exists in the launcher: the mark — '
+          'the AZM mark reads as a send arrow, a fixed 45° clockwise '
+          'rotation identical to the chat send button treatment',
+    );
 
     // The trigger still opens and closes the launcher with the rotated
     // mark in place — the fixed orientation costs no functionality.
@@ -152,16 +158,28 @@ void main() {
       tester,
       actions: [
         PlusLauncherAction(
-            icon: Icons.send, label: 'Send', onTap: () => fail('must not '
-                'fire while closed')),
+          icon: Icons.send,
+          label: 'Send',
+          onTap: () => fail(
+            'must not '
+            'fire while closed',
+          ),
+        ),
       ],
     );
 
-    expect(find.text('Send'), findsNothing,
-        reason: 'no action rows mount while the launcher is closed');
-    expect(find.byIcon(Icons.add), findsNothing,
-        reason: 'the + trigger is PremiumBottomNav.trailing now — the '
-            'launcher owns only the overlay layer');
+    expect(
+      find.text('Send'),
+      findsNothing,
+      reason: 'no action rows mount while the launcher is closed',
+    );
+    expect(
+      find.byIcon(Icons.add),
+      findsNothing,
+      reason:
+          'the + trigger is PremiumBottomNav.trailing now — the '
+          'launcher owns only the overlay layer',
+    );
   });
 
   testWidgets('tapping + opens the actions directly on screen; picking '
@@ -171,19 +189,25 @@ void main() {
       tester,
       actions: [
         PlusLauncherAction(
-            icon: Icons.send, label: 'Send', onTap: () => picked.add('Send')),
+          icon: Icons.send,
+          label: 'Send',
+          onTap: () => picked.add('Send'),
+        ),
         PlusLauncherAction(
-            icon: Icons.qr_code,
-            label: 'Receive',
-            onTap: () => picked.add('Receive')),
+          icon: Icons.qr_code,
+          label: 'Receive',
+          onTap: () => picked.add('Receive'),
+        ),
         PlusLauncherAction(
-            icon: Icons.add_card,
-            label: 'Add Cash',
-            onTap: () => picked.add('Add Cash')),
+          icon: Icons.add_card,
+          label: 'Add Cash',
+          onTap: () => picked.add('Add Cash'),
+        ),
         PlusLauncherAction(
-            icon: Icons.money_off,
-            label: 'Withdraw',
-            onTap: () => picked.add('Withdraw')),
+          icon: Icons.money_off,
+          label: 'Withdraw',
+          onTap: () => picked.add('Withdraw'),
+        ),
       ],
     );
 
@@ -202,8 +226,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(picked, ['Send'], reason: 'exactly one pick, exactly once');
-    expect(find.text('Withdraw'), findsNothing,
-        reason: 'picking closes the launcher');
+    expect(
+      find.text('Withdraw'),
+      findsNothing,
+      reason: 'picking closes the launcher',
+    );
   });
 
   testWidgets('dismissal: tapping the de-emphasized background closes '
@@ -213,7 +240,10 @@ void main() {
       tester,
       actions: [
         PlusLauncherAction(
-            icon: Icons.send, label: 'Send', onTap: () => picked.add('Send')),
+          icon: Icons.send,
+          label: 'Send',
+          onTap: () => picked.add('Send'),
+        ),
       ],
     );
     _lastController!.open();
@@ -235,7 +265,10 @@ void main() {
       reducedMotion: true,
       actions: [
         PlusLauncherAction(
-            icon: Icons.send, label: 'Send', onTap: () => picked.add('Send')),
+          icon: Icons.send,
+          label: 'Send',
+          onTap: () => picked.add('Send'),
+        ),
       ],
     );
 
@@ -251,61 +284,84 @@ void main() {
   group('CORRECTION G — launcher geometry', () {
     testWidgets('the cluster sits on the plus/right side, not the '
         'opposite edge of the screen', (tester) async {
-      await _pumpShell(tester, actions: [
-        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
-        PlusLauncherAction(
-            icon: Icons.qr_code, label: 'Receive', onTap: () {}),
-      ]);
+      await _pumpShell(
+        tester,
+        actions: [
+          PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+          PlusLauncherAction(
+            icon: Icons.qr_code,
+            label: 'Receive',
+            onTap: () {},
+          ),
+        ],
+      );
       _lastController!.open();
       await tester.pumpAndSettle();
 
-      final screenWidth = tester.view.physicalSize.width /
-          tester.view.devicePixelRatio;
+      final screenWidth =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
       final sendRect = tester.getRect(find.text('Send'));
       // The row's own right edge, not merely its left — the whole block
       // must land in the right half of a 400-wide viewport, close to
       // where the physical + lives.
-      expect(sendRect.right, greaterThan(screenWidth / 2),
-          reason: 'action rows must render on the plus/right side, not '
-              'drift to the opposite side of the screen');
+      expect(
+        sendRect.right,
+        greaterThan(screenWidth / 2),
+        reason:
+            'action rows must render on the plus/right side, not '
+            'drift to the opposite side of the screen',
+      );
     });
 
-    testWidgets('the cluster right edge stays inside the viewport',
-        (tester) async {
-      await _pumpShell(tester, actions: [
-        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
-      ]);
+    testWidgets('the cluster right edge stays inside the viewport', (
+      tester,
+    ) async {
+      await _pumpShell(
+        tester,
+        actions: [
+          PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+        ],
+      );
       _lastController!.open();
       await tester.pumpAndSettle();
 
-      final screenWidth = tester.view.physicalSize.width /
-          tester.view.devicePixelRatio;
+      final screenWidth =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
       final sendRect = tester.getRect(find.text('Send'));
       expect(sendRect.right, lessThanOrEqualTo(screenWidth));
     });
 
     testWidgets('a short label and a long label share the same right '
         'edge — the cluster is not a full-width column', (tester) async {
-      await _pumpShell(tester, actions: [
-        PlusLauncherAction(icon: Icons.send, label: 'Go', onTap: () {}),
-        PlusLauncherAction(
+      await _pumpShell(
+        tester,
+        actions: [
+          PlusLauncherAction(icon: Icons.send, label: 'Go', onTap: () {}),
+          PlusLauncherAction(
             icon: Icons.qr_code,
             label: 'Add Cash',
-            onTap: () {}),
-      ]);
+            onTap: () {},
+          ),
+        ],
+      );
       _lastController!.open();
       await tester.pumpAndSettle();
 
-      final screenWidth = tester.view.physicalSize.width /
-          tester.view.devicePixelRatio;
-      final shortRowRight =
-          tester.getRect(find.ancestor(
-              of: find.text('Go'),
-              matching: find.byType(Row))).right;
-      final longRowRight =
-          tester.getRect(find.ancestor(
+      final screenWidth =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
+      final shortRowRight = tester
+          .getRect(
+            find.ancestor(of: find.text('Go'), matching: find.byType(Row)),
+          )
+          .right;
+      final longRowRight = tester
+          .getRect(
+            find.ancestor(
               of: find.text('Add Cash'),
-              matching: find.byType(Row))).right;
+              matching: find.byType(Row),
+            ),
+          )
+          .right;
 
       // Shared trailing edge — the defining proof the cluster is bounded
       // intrinsic-width, right-aligned, not a stretched full-width mass.
@@ -313,10 +369,11 @@ void main() {
       // And it does not become a full-width column: the short row's own
       // LEFT edge sits well inside the right half of the screen, not at
       // the viewport's left edge.
-      final shortRowLeft =
-          tester.getRect(find.ancestor(
-              of: find.text('Go'),
-              matching: find.byType(Row))).left;
+      final shortRowLeft = tester
+          .getRect(
+            find.ancestor(of: find.text('Go'), matching: find.byType(Row)),
+          )
+          .left;
       expect(shortRowLeft, greaterThan(screenWidth / 2));
     });
 
@@ -328,7 +385,10 @@ void main() {
         actions: [
           PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
           PlusLauncherAction(
-              icon: Icons.qr_code, label: 'Receive', onTap: () {}),
+            icon: Icons.qr_code,
+            label: 'Receive',
+            onTap: () {},
+          ),
         ],
       );
       _lastController!.open();
@@ -344,11 +404,17 @@ void main() {
 
     testWidgets('§5A — text LEFT, icon RIGHT: the icon closes each row on '
         'the shared trailing edge', (tester) async {
-      await _pumpShell(tester, actions: [
-        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
-        PlusLauncherAction(
-            icon: Icons.qr_code, label: 'Withdraw', onTap: () {}),
-      ]);
+      await _pumpShell(
+        tester,
+        actions: [
+          PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+          PlusLauncherAction(
+            icon: Icons.qr_code,
+            label: 'Withdraw',
+            onTap: () {},
+          ),
+        ],
+      );
       _lastController!.open();
       await tester.pumpAndSettle();
 
@@ -356,39 +422,57 @@ void main() {
       for (final label in ['Send', 'Withdraw']) {
         final textRect = tester.getRect(find.text(label));
         final row = find.ancestor(
-            of: find.text(label), matching: find.byType(Row));
+          of: find.text(label),
+          matching: find.byType(Row),
+        );
         final iconRect = tester.getRect(
-            find.descendant(of: row, matching: find.byIcon(rowIcons[label]!)).first);
+          find
+              .descendant(of: row, matching: find.byIcon(rowIcons[label]!))
+              .first,
+        );
         // The label ends BEFORE its icon begins — text left, icon right.
-        expect(textRect.right, lessThanOrEqualTo(iconRect.left),
-            reason: 'label "$label" must sit LEFT of its icon');
+        expect(
+          textRect.right,
+          lessThanOrEqualTo(iconRect.left),
+          reason: 'label "$label" must sit LEFT of its icon',
+        );
       }
     });
 
     testWidgets('§5B — the + keeps the explicit outer right inset, never '
         'flush against the screen edge', (tester) async {
-      await _pumpShell(tester, actions: [
-        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
-      ]);
+      await _pumpShell(
+        tester,
+        actions: [
+          PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+        ],
+      );
       _lastController!.open();
       await tester.pumpAndSettle();
 
-      final screenWidth = tester.view.physicalSize.width /
-          tester.view.devicePixelRatio;
+      final screenWidth =
+          tester.view.physicalSize.width / tester.view.devicePixelRatio;
       final plusRect = tester.getRect(find.byType(PlusLauncherTrigger));
       // The named geometry token — same value as the pill's rest lateral
       // inset, so the bottom control system is symmetric and stable.
-      expect(screenWidth - plusRect.right,
-          closeTo(NavScrollCompression.outerRightInset, 0.5),
-          reason: 'the + must sit one deliberate outer inset inside the '
-              'screen edge, not flush at the viewport');
+      expect(
+        screenWidth - plusRect.right,
+        closeTo(NavScrollCompression.outerRightInset, 0.5),
+        reason:
+            'the + must sit one deliberate outer inset inside the '
+            'screen edge, not flush at the viewport',
+      );
     });
 
-    testWidgets('opening and closing preserves the same anchor',
-        (tester) async {
-      await _pumpShell(tester, actions: [
-        PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
-      ]);
+    testWidgets('opening and closing preserves the same anchor', (
+      tester,
+    ) async {
+      await _pumpShell(
+        tester,
+        actions: [
+          PlusLauncherAction(icon: Icons.send, label: 'Send', onTap: () {}),
+        ],
+      );
 
       _lastController!.open();
       await tester.pumpAndSettle();

@@ -127,25 +127,24 @@ SusuSummary _activeSusu(
   DateTime runAt, {
   String id = 's1',
   String name = 'Circle Susu',
-}) =>
-    SusuSummary(
-      id: id,
-      name: name,
-      status: SusuStatus.active,
-      contributionUsdc: 10,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 10,
-      nextCycle: SusuCycleSummary(
-        id: 'c4',
-        cycleNumber: 4,
-        scheduledRunAt: runAt,
-        payoutUserId: 2,
-        isMe: false,
-      ),
-      myCycleSlot: 4,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+}) => SusuSummary(
+  id: id,
+  name: name,
+  status: SusuStatus.active,
+  contributionUsdc: 10,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 10,
+  nextCycle: SusuCycleSummary(
+    id: 'c4',
+    cycleNumber: 4,
+    scheduledRunAt: runAt,
+    payoutUserId: 2,
+    isMe: false,
+  ),
+  myCycleSlot: 4,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 const _cartIntent = ResumeIntent(
   kind: ResumeKind.cart,
@@ -157,7 +156,6 @@ const _cartIntent = ResumeIntent(
 /// Pumps the REAL Home page with the pilot's reminder seeds (one susu
 /// card + one resume card) inside a real GoRouter so pill taps actually
 /// navigate. Returns the container so tests can invalidate providers.
-
 
 /// Unmounts the page and drains riverpod's zero-duration auto-dispose
 /// timers so a multi-pump test tears down with a clean timer set.
@@ -177,7 +175,6 @@ Future<void> _swipeCommit(WidgetTester tester, Key cardKey) async {
   await tester.pump(const Duration(milliseconds: 500));
   await tester.pump();
 }
-
 
 /// Pumps the idle delay and the depth transition as SEPARATE frames:
 /// a single pump(d) runs only one frame at its END, so the fade's ticker
@@ -207,9 +204,7 @@ Future<ProviderContainer> _pumpHome(
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
-      transactionHistoryProvider.overrideWith(
-        (ref) => _NoopHistoryNotifier(),
-      ),
+      transactionHistoryProvider.overrideWith((ref) => _NoopHistoryNotifier()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
         (ref) => const BalanceData(availableBalance: 100),
@@ -229,13 +224,13 @@ Future<ProviderContainer> _pumpHome(
   addTearDown(container.dispose);
 
   Widget page({required Widget child}) => MediaQuery(
-        data: MediaQueryData(
-          size: surface,
-          disableAnimations: reduceMotion,
-          textScaler: TextScaler.linear(textScale),
-        ),
-        child: Scaffold(body: child),
-      );
+    data: MediaQueryData(
+      size: surface,
+      disableAnimations: reduceMotion,
+      textScaler: TextScaler.linear(textScale),
+    ),
+    child: Scaffold(body: child),
+  );
 
   final router = GoRouter(
     initialLocation: '/',
@@ -248,28 +243,26 @@ Future<ProviderContainer> _pumpHome(
       GoRoute(
         path: '/savings',
         builder: (_, __) => page(
-              child: const Scaffold(body: Center(child: Text('SAVINGS PAGE'))),
-            ),
+          child: const Scaffold(body: Center(child: Text('SAVINGS PAGE'))),
+        ),
       ),
       GoRoute(
         path: '/marketplace',
         builder: (_, __) => page(
-              child: const Scaffold(
-                body: Center(child: Text('MARKETPLACE PAGE')),
-              ),
-            ),
+          child: const Scaffold(body: Center(child: Text('MARKETPLACE PAGE'))),
+        ),
       ),
       GoRoute(
         path: '/susu/:id',
         builder: (_, __) => page(
-              child: const Scaffold(body: Center(child: Text('SUSU PAGE'))),
-            ),
+          child: const Scaffold(body: Center(child: Text('SUSU PAGE'))),
+        ),
       ),
       GoRoute(
         path: '/home/activity',
         builder: (_, __) => page(
-              child: const Scaffold(body: Center(child: Text('ACTIVITY PAGE'))),
-            ),
+          child: const Scaffold(body: Center(child: Text('ACTIVITY PAGE'))),
+        ),
       ),
     ],
   );
@@ -302,8 +295,9 @@ const _raisedKeys = ValueKey('quiet-depth-raised');
 const _recessedKeys = ValueKey('quiet-depth-recessed');
 
 void main() {
-  testWidgets('1 — the quick actions enter RAISED on Home entry',
-      (tester) async {
+  testWidgets('1 — the quick actions enter RAISED on Home entry', (
+    tester,
+  ) async {
     await _pumpHome(
       tester,
       susu: [_activeSusu(DateTime(2026, 10, 26))],
@@ -350,8 +344,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('4 — a wallet card brought OUT makes the quick actions recess',
-      (tester) async {
+  testWidgets('4 — a wallet card brought OUT makes the quick actions recess', (
+    tester,
+  ) async {
     await _pumpHome(
       tester,
       susu: [_activeSusu(DateTime(2026, 10, 26))],
@@ -401,8 +396,7 @@ void main() {
 
     // A committed swipe on the front card — the gesture itself must work
     // exactly as before while the depth state follows.
-    await _swipeCommit(
-        tester, const ValueKey('reminder-card-susu-s1'));
+    await _swipeCommit(tester, const ValueKey('reminder-card-susu-s1'));
 
     // The swipe still commits: the susu card is no longer the front.
     final order = tester.allWidgets
@@ -428,15 +422,15 @@ void main() {
     );
 
     // Two cards in the set. One swipe: only the susu card has departed.
-    await _swipeCommit(
-        tester, const ValueKey('reminder-card-susu-s1'));
-    expect(find.byKey(const ValueKey('reminder-card-reminders-terminal')),
-        findsNothing);
+    await _swipeCommit(tester, const ValueKey('reminder-card-susu-s1'));
+    expect(
+      find.byKey(const ValueKey('reminder-card-reminders-terminal')),
+      findsNothing,
+    );
 
     // Second swipe: the resume card departs too — the full set has been
     // viewed, so exactly one terminal card joins the rotation.
-    await _swipeCommit(
-        tester, const ValueKey('reminder-card-resume-biz-1'));
+    await _swipeCommit(tester, const ValueKey('reminder-card-resume-biz-1'));
 
     expect(
       find.byKey(const ValueKey('reminder-card-reminders-terminal')),
@@ -454,10 +448,8 @@ void main() {
       intent: _cartIntent,
     );
     // Cycle through the full set.
-    await _swipeCommit(
-        tester, const ValueKey('reminder-card-susu-s1'));
-    await _swipeCommit(
-        tester, const ValueKey('reminder-card-resume-biz-1'));
+    await _swipeCommit(tester, const ValueKey('reminder-card-susu-s1'));
+    await _swipeCommit(tester, const ValueKey('reminder-card-resume-biz-1'));
     final terminal = find.text("You've seen all your reminders");
     expect(terminal, findsOneWidget);
     // Still recessed while the deck is focal.
@@ -467,10 +459,7 @@ void main() {
     await tester.tap(terminal);
     await tester.pump();
     expect(find.byKey(_raisedKeys), findsWidgets);
-    expect(
-      find.byKey(const ValueKey('reminder-confetti')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('reminder-confetti')), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
     expect(find.byKey(const ValueKey('reminder-confetti')), findsNothing);
 
@@ -488,8 +477,7 @@ void main() {
       susu: [_activeSusu(DateTime(2026, 10, 26))],
       intent: _cartIntent,
     );
-    await _swipeCommit(
-        tester, const ValueKey('reminder-card-susu-s1'));
+    await _swipeCommit(tester, const ValueKey('reminder-card-susu-s1'));
     expect(find.byKey(_recessedKeys), findsWidgets);
 
     // A tap on the greeting area — well outside the reminder deck.
@@ -507,12 +495,12 @@ void main() {
       susu: groups,
       intent: _cartIntent,
     );
-    await _swipeCommit(
-        tester, const ValueKey('reminder-card-susu-s1'));
-    await _swipeCommit(
-        tester, const ValueKey('reminder-card-resume-biz-1'));
-    expect(find.byKey(const ValueKey('reminder-card-reminders-terminal')),
-        findsOneWidget);
+    await _swipeCommit(tester, const ValueKey('reminder-card-susu-s1'));
+    await _swipeCommit(tester, const ValueKey('reminder-card-resume-biz-1'));
+    expect(
+      find.byKey(const ValueKey('reminder-card-reminders-terminal')),
+      findsOneWidget,
+    );
 
     // The provider set CHANGES (a different susu id arrives): the viewed
     // set reconciles, so the stale terminal cannot survive.
@@ -523,12 +511,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump();
 
-    expect(find.byKey(const ValueKey('reminder-card-reminders-terminal')),
-        findsNothing);
     expect(
-      find.byKey(const ValueKey('reminder-card-susu-s2')),
-      findsOneWidget,
+      find.byKey(const ValueKey('reminder-card-reminders-terminal')),
+      findsNothing,
     );
+    expect(find.byKey(const ValueKey('reminder-card-susu-s2')), findsOneWidget);
   });
 
   testWidgets('11 — reduced motion: instant settle, no confetti, and '
@@ -548,8 +535,11 @@ void main() {
     // A tap re-raises instantly and still navigates.
     await tester.tap(find.byKey(const ValueKey('wallet-module-save')));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byKey(_raisedKeys), findsWidgets,
-        reason: 'the tap itself must wake the cycle instantly');
+    expect(
+      find.byKey(_raisedKeys),
+      findsWidgets,
+      reason: 'the tap itself must wake the cycle instantly',
+    );
     expect(tester.takeException(), isNull);
     await tester.pumpAndSettle();
     expect(find.text('SAVINGS PAGE'), findsOneWidget);
@@ -619,18 +609,17 @@ void main() {
     for (final s in sem) {
       actions.addAll(s.properties.customSemanticsActions ?? const {});
     }
-    expect(
-      actions.keys.map((a) => a.label),
-      contains('Next reminder'),
-    );
+    expect(actions.keys.map((a) => a.label), contains('Next reminder'));
     const nextReminder = CustomSemanticsAction(label: 'Next reminder');
     actions[nextReminder]!();
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pump();
     expect(tester.takeException(), isNull, reason: 'advance stays clean');
     // The deck rotated (the flight committed for a fresh deck state).
-    expect(find.byKey(const ValueKey('reminder-card-resume-biz-1')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reminder-card-resume-biz-1')),
+      findsOneWidget,
+    );
 
     // PIN gating: the visa card still opens the gate sheet first.
     await tester.tap(find.bySemanticsLabel('Open AZM Visa card').first);
@@ -641,8 +630,9 @@ void main() {
   });
 
   testWidgets('13 — width sweep: raised and recessed render without overflow '
-      'at 320/360/390dp and hit targets stay >= 44dp in BOTH states',
-      (tester) async {
+      'at 320/360/390dp and hit targets stay >= 44dp in BOTH states', (
+    tester,
+  ) async {
     for (final w in [320.0, 360.0, 390.0]) {
       await _pumpHome(
         tester,
@@ -659,8 +649,11 @@ void main() {
 
       // The recessed pill box keeps a >= 44dp tap area.
       for (final e in find.byKey(_recessedKeys).evaluate()) {
-        expect(e.size!.height, greaterThanOrEqualTo(44.0),
-            reason: 'hit target height at $w');
+        expect(
+          e.size!.height,
+          greaterThanOrEqualTo(44.0),
+          reason: 'hit target height at $w',
+        );
       }
 
       // A clean unmount between widths (a fresh container per case).
@@ -738,8 +731,9 @@ void main() {
   });
 
   testWidgets('17 — the depth fade animates ONLY the backdrop: content '
-      'mounts once and semantics never duplicate mid-transition',
-      (tester) async {
+      'mounts once and semantics never duplicate mid-transition', (
+    tester,
+  ) async {
     await _pumpHome(
       tester,
       susu: [_activeSusu(DateTime(2026, 10, 26))],
@@ -797,7 +791,10 @@ void main() {
     final scope = QuietDepthScope.of(
       tester.element(find.byKey(_recessedKeys).first),
     );
-    expect(scope.activeFocusIds, containsAll(<String>['wallet-deck', 'reminder-deck']));
+    expect(
+      scope.activeFocusIds,
+      containsAll(<String>['wallet-deck', 'reminder-deck']),
+    );
     expect(scope.activeFocusIds.length, 2);
     expect(find.byKey(_recessedKeys), findsWidgets);
     expect(find.byKey(_raisedKeys), findsNothing);
@@ -886,8 +883,9 @@ void main() {
   });
 
   testWidgets('21 — a swipe that STARTS on the reminder deck never '
-      'wake-flashes the secondary controls during drag recognition',
-      (tester) async {
+      'wake-flashes the secondary controls during drag recognition', (
+    tester,
+  ) async {
     await _pumpHome(
       tester,
       susu: [_activeSusu(DateTime(2026, 10, 26))],

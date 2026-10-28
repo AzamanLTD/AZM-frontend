@@ -75,7 +75,8 @@ abstract final class CurrencyMath {
 
     if (exponent > 0) {
       if (fracDigits.length <= exponent) {
-        intDigits = intDigits + fracDigits + '0' * (exponent - fracDigits.length);
+        intDigits =
+            intDigits + fracDigits + '0' * (exponent - fracDigits.length);
         fracDigits = '';
       } else {
         intDigits = intDigits + fracDigits.substring(0, exponent);
@@ -84,18 +85,17 @@ abstract final class CurrencyMath {
     } else if (exponent < 0) {
       final shift = -exponent;
       if (intDigits.length > shift) {
-        fracDigits =
-            intDigits.substring(intDigits.length - shift) + fracDigits;
+        fracDigits = intDigits.substring(intDigits.length - shift) + fracDigits;
         intDigits = intDigits.substring(0, intDigits.length - shift);
       } else {
-        fracDigits =
-            '0' * (shift - intDigits.length) + intDigits + fracDigits;
+        fracDigits = '0' * (shift - intDigits.length) + intDigits + fracDigits;
         intDigits = '0';
       }
     }
 
     // Exact half-up on the first dropped decimal digit.
-    final kept = intDigits +
+    final kept =
+        intDigits +
         (fracDigits.length > decimals
             ? fracDigits.substring(0, decimals)
             : fracDigits.padRight(decimals, '0'));

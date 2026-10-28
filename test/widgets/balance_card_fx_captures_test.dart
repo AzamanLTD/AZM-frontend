@@ -47,31 +47,34 @@ Future<void> _loadFonts() async {
   // Bold) and Inter for money figures, plus the HugeIcons glyph font the
   // breakdown rows render with. Anything else renders as bars.
   final inter = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
-  final comicRegular =
-      await File('assets/fonts/ComicNeue-Regular.ttf').readAsBytes();
+  final comicRegular = await File(
+    'assets/fonts/ComicNeue-Regular.ttf',
+  ).readAsBytes();
   final comicBold = await File('assets/fonts/ComicNeue-Bold.ttf').readAsBytes();
-  await (FontLoader('Inter')
-        ..addFont(Future<ByteData>.value(
-            ByteData.view(Uint8List.fromList(inter).buffer))))
+  await (FontLoader('Inter')..addFont(
+        Future<ByteData>.value(ByteData.view(Uint8List.fromList(inter).buffer)),
+      ))
       .load();
   await (FontLoader('ComicNeue')
-        ..addFont(Future<ByteData>.value(
-            ByteData.view(Uint8List.fromList(comicRegular).buffer)))
-        ..addFont(Future<ByteData>.value(
-            ByteData.view(Uint8List.fromList(comicBold).buffer))))
+        ..addFont(
+          Future<ByteData>.value(
+            ByteData.view(Uint8List.fromList(comicRegular).buffer),
+          ),
+        )
+        ..addFont(
+          Future<ByteData>.value(
+            ByteData.view(Uint8List.fromList(comicBold).buffer),
+          ),
+        ))
       .load();
-  await (FontLoader('HugeIconsSolid')
-        ..addFont(rootBundle.load(
-          'packages/hugeicons_pro/fonts/hugeicons-solid.ttf',
-        )))
+  await (FontLoader('HugeIconsSolid')..addFont(
+        rootBundle.load('packages/hugeicons_pro/fonts/hugeicons-solid.ttf'),
+      ))
       .load();
   _fontsLoaded = true;
 }
 
-BalanceCardValuation _saved({
-  bool vendor = false,
-  double? susu = 5,
-}) =>
+BalanceCardValuation _saved({bool vendor = false, double? susu = 5}) =>
     BalanceCardValuation(
       nativeGhsAvailable: 100,
       availableUsdc: 50,
@@ -93,11 +96,11 @@ BalanceCardValuation _saved({
     ).compute();
 
 BalanceCardValuation _unavailable() => const BalanceCardValuation(
-      nativeGhsAvailable: 100,
-      availableUsdc: 50,
-      balanceConfirmed: true,
-      rate: FxRateView(kind: FxRateKind.none),
-    ).compute();
+  nativeGhsAvailable: 100,
+  availableUsdc: 50,
+  balanceConfirmed: true,
+  rate: FxRateView(kind: FxRateKind.none),
+).compute();
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -159,49 +162,76 @@ Future<void> _flipToBack(WidgetTester tester) async {
 /// The frame contract, true in EVERY capture on BOTH faces: the pair is
 /// exactly the Home deck footprint and fits the harness viewport.
 void _assertFrame(WidgetTester tester, {required double width}) {
-  final frame = tester
-      .getRect(find.byKey(const ValueKey('balance-pair-frame')));
-  expect(frame.height, BalanceCardGeometry.height,
-      reason: 'the card keeps the live Home deck height');
-  expect(frame.right, lessThanOrEqualTo(width),
-      reason: 'the card fits the viewport width');
-  expect(frame.bottom, lessThan(844),
-      reason: 'the card fits the viewport height');
-  expect(tester.takeException(), isNull,
-      reason: 'no layout overflow anywhere in the card');
+  final frame = tester.getRect(
+    find.byKey(const ValueKey('balance-pair-frame')),
+  );
+  expect(
+    frame.height,
+    BalanceCardGeometry.height,
+    reason: 'the card keeps the live Home deck height',
+  );
+  expect(
+    frame.right,
+    lessThanOrEqualTo(width),
+    reason: 'the card fits the viewport width',
+  );
+  expect(
+    frame.bottom,
+    lessThan(844),
+    reason: 'the card fits the viewport height',
+  );
+  expect(
+    tester.takeException(),
+    isNull,
+    reason: 'no layout overflow anywhere in the card',
+  );
 }
 
 /// Structural position contract — true in EVERY front capture.
-Future<void> _assertFrontContract(WidgetTester tester,
-    {required double width}) async {
-  final label =
-      tester.getRect(find.byKey(const ValueKey('balance-fx-label')));
+Future<void> _assertFrontContract(
+  WidgetTester tester, {
+  required double width,
+}) async {
+  final label = tester.getRect(find.byKey(const ValueKey('balance-fx-label')));
   // The headline is a single Text when the combined value is computable,
   // or a block (native amount + note) when the rate is missing.
   final headlineFinder = find.byKey(const ValueKey('balance-fx-headline'));
   // No usable rate: the headline slot renders the honest dash line
   // ('balance-fx-headline-unavailable') — fall back to it.
-  final unavailableFinder =
-      find.byKey(const ValueKey('balance-fx-headline-unavailable'));
+  final unavailableFinder = find.byKey(
+    const ValueKey('balance-fx-headline-unavailable'),
+  );
   final effective = headlineFinder.evaluate().isNotEmpty
       ? headlineFinder
       : unavailableFinder;
   final headline = tester.getRect(effective);
-  final rateRow =
-      tester.getRect(find.byKey(const ValueKey('balance-fx-rate-row')));
-  expect(headline.top, greaterThan(label.bottom),
-      reason: 'the headline sits below the eyebrow');
-  expect(rateRow.top, greaterThan(headline.bottom),
-      reason: 'the rate row sits below the headline');
+  final rateRow = tester.getRect(
+    find.byKey(const ValueKey('balance-fx-rate-row')),
+  );
+  expect(
+    headline.top,
+    greaterThan(label.bottom),
+    reason: 'the headline sits below the eyebrow',
+  );
+  expect(
+    rateRow.top,
+    greaterThan(headline.bottom),
+    reason: 'the rate row sits below the headline',
+  );
   final infoIcon = find.byKey(const ValueKey('balance-fx-equivalent-info'));
   if (infoIcon.evaluate().isNotEmpty) {
-    final eq = tester
-        .getRect(find.byKey(const ValueKey('balance-fx-equivalent-row')));
+    final eq = tester.getRect(
+      find.byKey(const ValueKey('balance-fx-equivalent-row')),
+    );
     final info = tester.getRect(infoIcon);
     expect(info.top, greaterThanOrEqualTo(eq.top - 4));
-    expect(info.bottom, lessThanOrEqualTo(eq.bottom + 4),
-        reason: 'the info icon is beside the equivalent, on its own line '
-            'band, never at the right edge');
+    expect(
+      info.bottom,
+      lessThanOrEqualTo(eq.bottom + 4),
+      reason:
+          'the info icon is beside the equivalent, on its own line '
+          'band, never at the right edge',
+    );
   }
 }
 
@@ -210,18 +240,31 @@ Future<void> _assertFrontContract(WidgetTester tester,
 /// next section's header peeking at the bottom edge.
 void _assertBackContract(WidgetTester tester) {
   expect(
-      find.byKey(const ValueKey('balance-fx-breakdown-header')),
-      findsOneWidget,
-      reason: 'the compact breakdown header renders');
-  expect(find.byKey(const ValueKey('bc-section-pager')), findsOneWidget,
-      reason: 'the section pager renders');
-  expect(find.byKey(const ValueKey('bc-section-available')), findsOneWidget,
-      reason: 'the flip lands on the AVAILABLE section');
-  expect(find.byKey(const ValueKey('bc-row-ghs-wallet')), findsOneWidget,
-      reason: 'the first available row renders');
+    find.byKey(const ValueKey('balance-fx-breakdown-header')),
+    findsOneWidget,
+    reason: 'the compact breakdown header renders',
+  );
+  expect(
+    find.byKey(const ValueKey('bc-section-pager')),
+    findsOneWidget,
+    reason: 'the section pager renders',
+  );
+  expect(
+    find.byKey(const ValueKey('bc-section-available')),
+    findsOneWidget,
+    reason: 'the flip lands on the AVAILABLE section',
+  );
+  expect(
+    find.byKey(const ValueKey('bc-row-ghs-wallet')),
+    findsOneWidget,
+    reason: 'the first available row renders',
+  );
   expect(find.byKey(const ValueKey('bc-row-usdc-held')), findsOneWidget);
-  expect(find.byKey(const ValueKey('balance-fx-share-rail')), findsNothing,
-      reason: 'the old share rail is gone from the redesign');
+  expect(
+    find.byKey(const ValueKey('balance-fx-share-rail')),
+    findsNothing,
+    reason: 'the old share rail is gone from the redesign',
+  );
 }
 
 /// Pages the section pager down [steps] sections and settles.
@@ -242,7 +285,8 @@ Future<void> _capture(WidgetTester tester, String name) async {
   var ok = false;
   await tester.runAsync(() async {
     final boundary = tester.renderObject<RenderRepaintBoundary>(
-        find.byKey(const ValueKey('bcfx-capture-root')));
+      find.byKey(const ValueKey('bcfx-capture-root')),
+    );
     final image = await boundary.toImage(pixelRatio: 2.0);
     final data = (await image.toByteData(format: ImageByteFormat.png))!;
     final dir = Directory('.screenshots/balance_card_pair')
@@ -258,16 +302,24 @@ void main() {
   // ── FRONT: the FX-status face ──────────────────────────────────────
   testWidgets('front 390 dark: saved fallback — headline, equivalent + '
       'info icon, saved rate row, refresh flush right', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.dark, width: 390, valuation: _saved());
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 390,
+      valuation: _saved(),
+    );
     _assertFrame(tester, width: 390);
     await _assertFrontContract(tester, width: 390);
     await _capture(tester, 'front_saved_390_dark');
   });
 
   testWidgets('front 390 light: saved fallback', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.light, width: 390, valuation: _saved());
+    await _pump(
+      tester,
+      theme: AzamanTheme.light,
+      width: 390,
+      valuation: _saved(),
+    );
     _assertFrame(tester, width: 390);
     await _assertFrontContract(tester, width: 390);
     await _capture(tester, 'front_saved_390_light');
@@ -275,23 +327,27 @@ void main() {
 
   testWidgets('front 320 dark: saved fallback at the smallest width — '
       'the whole stack fits with the same order', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.dark, width: 320, valuation: _saved());
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 320,
+      valuation: _saved(),
+    );
     _assertFrame(tester, width: 320);
     await _assertFrontContract(tester, width: 320);
     await _capture(tester, 'front_saved_320_dark');
   });
 
-  testWidgets('front 360 light: fresh rate — no fallback chrome',
-      (tester) async {
+  testWidgets('front 360 light: fresh rate — no fallback chrome', (
+    tester,
+  ) async {
     final fresh = const BalanceCardValuation(
       nativeGhsAvailable: 100,
       availableUsdc: 50,
       balanceConfirmed: true,
       rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
     ).compute();
-    await _pump(tester,
-        theme: AzamanTheme.light, width: 360, valuation: fresh);
+    await _pump(tester, theme: AzamanTheme.light, width: 360, valuation: fresh);
     _assertFrame(tester, width: 360);
     await _assertFrontContract(tester, width: 360);
     // PR #206 review round: the info icon is visible BESIDE the USDC
@@ -307,32 +363,44 @@ void main() {
       findsOneWidget,
     );
     final body = tester
-        .widget<Text>(find
-            .byKey(const ValueKey('balance-fx-fallback-disclosure-body')))
+        .widget<Text>(
+          find.byKey(const ValueKey('balance-fx-fallback-disclosure-body')),
+        )
         .data!;
-    expect(body, contains('Azaman\u2019s main currency'),
-        reason: 'GHS is the main currency — the headline figure is '
-            'canonical, never USDC-derived');
-    expect(body, contains('USDC equivalent'),
-        reason: 'the disclosure explains the USDC line is the equivalent');
-    expect(body, isNot(contains('held in USDC')),
-        reason: 'the GHS balance is never described as USDC-derived');
-    await tester
-        .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+    expect(
+      body,
+      contains('Azaman\u2019s main currency'),
+      reason:
+          'GHS is the main currency — the headline figure is '
+          'canonical, never USDC-derived',
+    );
+    expect(
+      body,
+      contains('USDC equivalent'),
+      reason: 'the disclosure explains the USDC line is the equivalent',
+    );
+    expect(
+      body,
+      isNot(contains('held in USDC')),
+      reason: 'the GHS balance is never described as USDC-derived',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')),
+    );
     await tester.pumpAndSettle();
     await _capture(tester, 'front_fresh_360_light');
   });
 
-  testWidgets('front 360 dark: demo-seeded rate — the demo is identified',
-      (tester) async {
+  testWidgets('front 360 dark: demo-seeded rate — the demo is identified', (
+    tester,
+  ) async {
     final demo = const BalanceCardValuation(
       nativeGhsAvailable: 0,
       availableUsdc: 100,
       balanceConfirmed: true,
       rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.demo),
     ).compute();
-    await _pump(
-        tester, theme: AzamanTheme.dark, width: 360, valuation: demo);
+    await _pump(tester, theme: AzamanTheme.dark, width: 360, valuation: demo);
     _assertFrame(tester, width: 360);
     await _assertFrontContract(tester, width: 360);
     await _capture(tester, 'front_demo_360_dark');
@@ -346,19 +414,26 @@ void main() {
       balanceConfirmed: true,
       rate: FxRateView(kind: FxRateKind.none, loading: true),
     ).compute();
-    await _pump(tester,
-        theme: AzamanTheme.dark, width: 360, valuation: loading);
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 360,
+      valuation: loading,
+    );
     _assertFrame(tester, width: 360);
     expect(find.byKey(const ValueKey('balance-fx-rate-dots')), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('balance-fx-amount-dots')), findsNothing);
+    expect(find.byKey(const ValueKey('balance-fx-amount-dots')), findsNothing);
     await _capture(tester, 'front_loading_360_dark');
   });
 
   testWidgets('front 360 light: unavailable — the honest fallback '
       'identification survives', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.light, width: 360, valuation: _unavailable());
+    await _pump(
+      tester,
+      theme: AzamanTheme.light,
+      width: 360,
+      valuation: _unavailable(),
+    );
     _assertFrame(tester, width: 360);
     await _assertFrontContract(tester, width: 360);
     await _capture(tester, 'front_unavailable_360_light');
@@ -372,45 +447,69 @@ void main() {
       balanceConfirmed: false,
       rate: FxRateView(kind: FxRateKind.none, loading: true),
     ).compute();
-    await _pump(tester,
-        theme: AzamanTheme.light, width: 320, valuation: placeholder);
+    await _pump(
+      tester,
+      theme: AzamanTheme.light,
+      width: 320,
+      valuation: placeholder,
+    );
     _assertFrame(tester, width: 320);
     expect(
-        find.byKey(const ValueKey('balance-fx-amount-dots')), findsOneWidget);
+      find.byKey(const ValueKey('balance-fx-amount-dots')),
+      findsOneWidget,
+    );
     await _capture(tester, 'front_placeholder_320_light');
   });
 
   // ── BACK: the icon-led breakdown face (same instance, flipped) ─────
   testWidgets('back 390 dark: full breakdown — flip the card and capture '
       'the reverse of the same instance', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.dark, width: 390, valuation: _saved(vendor: true));
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 390,
+      valuation: _saved(vendor: true),
+    );
     await _assertFrontContract(tester, width: 390); // the front first
-    final frontRect = tester
-        .getRect(find.byKey(const ValueKey('balance-pair-frame')));
+    final frontRect = tester.getRect(
+      find.byKey(const ValueKey('balance-pair-frame')),
+    );
     await _flipToBack(tester);
     _assertFrame(tester, width: 390);
     _assertBackContract(tester);
-    final backRect = tester
-        .getRect(find.byKey(const ValueKey('balance-pair-frame')));
-    expect(backRect.top, closeTo(frontRect.top, 0.5),
-        reason: 'flipping in place must not move the frame');
+    final backRect = tester.getRect(
+      find.byKey(const ValueKey('balance-pair-frame')),
+    );
+    expect(
+      backRect.top,
+      closeTo(frontRect.top, 0.5),
+      reason: 'flipping in place must not move the frame',
+    );
     await _capture(tester, 'back_full_390_dark');
   });
 
   testWidgets('back 390 light: full breakdown', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.light, width: 390, valuation: _saved(vendor: true));
+    await _pump(
+      tester,
+      theme: AzamanTheme.light,
+      width: 390,
+      valuation: _saved(vendor: true),
+    );
     await _flipToBack(tester);
     _assertFrame(tester, width: 390);
     _assertBackContract(tester);
     await _capture(tester, 'back_full_390_light');
   });
 
-  testWidgets('back 320 dark: full breakdown at the smallest width',
-      (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.dark, width: 320, valuation: _saved(vendor: true));
+  testWidgets('back 320 dark: full breakdown at the smallest width', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 320,
+      valuation: _saved(vendor: true),
+    );
     await _flipToBack(tester);
     _assertFrame(tester, width: 320);
     _assertBackContract(tester);
@@ -418,8 +517,12 @@ void main() {
   });
 
   testWidgets('back 360 light: full breakdown', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.light, width: 360, valuation: _saved(vendor: true));
+    await _pump(
+      tester,
+      theme: AzamanTheme.light,
+      width: 360,
+      valuation: _saved(vendor: true),
+    );
     await _flipToBack(tester);
     _assertFrame(tester, width: 360);
     _assertBackContract(tester);
@@ -428,21 +531,32 @@ void main() {
 
   testWidgets('back 390 dark: scrolled — the inner region scrolls to the '
       'non-cash row WITHOUT flipping back', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.dark, width: 390, valuation: _saved(vendor: true));
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 390,
+      valuation: _saved(vendor: true),
+    );
     await _flipToBack(tester);
     // _saved(vendor: true) = 5 sections — page to the LAST one (the
     // non-cash section) one snap at a time.
     await _pageDown(tester, 4);
-    final pagerRect =
-        tester.getRect(find.byKey(const ValueKey('bc-section-pager')));
-    final pointsRect =
-        tester.getRect(find.byKey(const ValueKey('bc-row-azm-points')));
+    final pagerRect = tester.getRect(
+      find.byKey(const ValueKey('bc-section-pager')),
+    );
+    final pointsRect = tester.getRect(
+      find.byKey(const ValueKey('bc-row-azm-points')),
+    );
     expect(
-        pointsRect.top, greaterThanOrEqualTo(pagerRect.top),
-        reason: 'the non-cash row is on screen');
-    expect(find.byKey(const ValueKey('balance-fx-headline')), findsNothing,
-        reason: 'still on the back face — paging never flips');
+      pointsRect.top,
+      greaterThanOrEqualTo(pagerRect.top),
+      reason: 'the non-cash row is on screen',
+    );
+    expect(
+      find.byKey(const ValueKey('balance-fx-headline')),
+      findsNothing,
+      reason: 'still on the back face — paging never flips',
+    );
     _assertFrame(tester, width: 390);
     await _capture(tester, 'back_scrolled_390_dark');
   });
@@ -450,11 +564,13 @@ void main() {
   // ── REDUCED MOTION ─────────────────────────────────────────────────
   testWidgets('reduced motion 390 dark: the flip lands instantly — front '
       'and back with no travel animation', (tester) async {
-    await _pump(tester,
-        theme: AzamanTheme.dark,
-        width: 390,
-        valuation: _saved(),
-        reduceMotion: true);
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 390,
+      valuation: _saved(),
+      reduceMotion: true,
+    );
     _assertFrame(tester, width: 390);
     await _assertFrontContract(tester, width: 390);
     await _capture(tester, 'front_reduced_motion_390_dark');

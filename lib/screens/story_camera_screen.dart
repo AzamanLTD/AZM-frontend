@@ -24,28 +24,27 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 // ColorFilter presets — applied in real-time via ColorFiltered widget
-enum StoryFilter {
-  none,
-  vivid,
-  warm,
-  cool,
-  mono,
-  sepia,
-  vintage,
-  dramatic,
-}
+enum StoryFilter { none, vivid, warm, cool, mono, sepia, vintage, dramatic }
 
 extension StoryFilterX on StoryFilter {
   String get label {
     switch (this) {
-      case StoryFilter.none: return 'Original';
-      case StoryFilter.vivid: return 'Vivid';
-      case StoryFilter.warm: return 'Warm';
-      case StoryFilter.cool: return 'Cool';
-      case StoryFilter.mono: return 'B&W';
-      case StoryFilter.sepia: return 'Sepia';
-      case StoryFilter.vintage: return 'Vintage';
-      case StoryFilter.dramatic: return 'Dramatic';
+      case StoryFilter.none:
+        return 'Original';
+      case StoryFilter.vivid:
+        return 'Vivid';
+      case StoryFilter.warm:
+        return 'Warm';
+      case StoryFilter.cool:
+        return 'Cool';
+      case StoryFilter.mono:
+        return 'B&W';
+      case StoryFilter.sepia:
+        return 'Sepia';
+      case StoryFilter.vintage:
+        return 'Vintage';
+      case StoryFilter.dramatic:
+        return 'Dramatic';
     }
   }
 
@@ -55,52 +54,148 @@ extension StoryFilterX on StoryFilter {
         return const ColorFilter.mode(Color(0x00000000), BlendMode.dst);
       case StoryFilter.vivid:
         return const ColorFilter.matrix([
-          1.4, 0,   0,   0, 0,    // R
-          0,   1.4, 0,   0, 0,    // G
-          0,   0,   1.4, 0, 0,    // B
-          0,   0,   0,   1, 0,    // A
+          1.4, 0, 0, 0, 0, // R
+          0, 1.4, 0, 0, 0, // G
+          0, 0, 1.4, 0, 0, // B
+          0, 0, 0, 1, 0, // A
         ]);
       case StoryFilter.warm:
         return const ColorFilter.matrix([
-          1.2, 0.1, 0,   0, 15,
-          0,   1.1, 0,   0, 5,
-          0,   0,   0.9, 0, -10,
-          0,   0,   0,   1, 0,
+          1.2,
+          0.1,
+          0,
+          0,
+          15,
+          0,
+          1.1,
+          0,
+          0,
+          5,
+          0,
+          0,
+          0.9,
+          0,
+          -10,
+          0,
+          0,
+          0,
+          1,
+          0,
         ]);
       case StoryFilter.cool:
         return const ColorFilter.matrix([
-          0.9, 0,   0,   0, -5,
-          0,   1.0, 0.1, 0, 5,
-          0.1, 0,   1.2, 0, 15,
-          0,   0,   0,   1, 0,
+          0.9,
+          0,
+          0,
+          0,
+          -5,
+          0,
+          1.0,
+          0.1,
+          0,
+          5,
+          0.1,
+          0,
+          1.2,
+          0,
+          15,
+          0,
+          0,
+          0,
+          1,
+          0,
         ]);
       case StoryFilter.mono:
         return const ColorFilter.matrix([
-          0.299, 0.587, 0.114, 0, 0,
-          0.299, 0.587, 0.114, 0, 0,
-          0.299, 0.587, 0.114, 0, 0,
-          0,     0,     0,     1, 0,
+          0.299,
+          0.587,
+          0.114,
+          0,
+          0,
+          0.299,
+          0.587,
+          0.114,
+          0,
+          0,
+          0.299,
+          0.587,
+          0.114,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
         ]);
       case StoryFilter.sepia:
         return const ColorFilter.matrix([
-          0.393, 0.769, 0.189, 0, 0,
-          0.349, 0.686, 0.168, 0, 0,
-          0.272, 0.534, 0.131, 0, 0,
-          0,     0,     0,     1, 0,
+          0.393,
+          0.769,
+          0.189,
+          0,
+          0,
+          0.349,
+          0.686,
+          0.168,
+          0,
+          0,
+          0.272,
+          0.534,
+          0.131,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
         ]);
       case StoryFilter.vintage:
         return const ColorFilter.matrix([
-          1.0, 0.2, 0,   0, 10,
-          0.1, 0.9, 0.1, 0, 5,
-          0,   0.1, 0.8, 0, 10,
-          0,   0,   0,   1, 0,
+          1.0,
+          0.2,
+          0,
+          0,
+          10,
+          0.1,
+          0.9,
+          0.1,
+          0,
+          5,
+          0,
+          0.1,
+          0.8,
+          0,
+          10,
+          0,
+          0,
+          0,
+          1,
+          0,
         ]);
       case StoryFilter.dramatic:
         return const ColorFilter.matrix([
-          1.5,  0,    0,    0,   -30,
-          0,    1.5,  0,    0,   -30,
-          0,    0,    1.5,  0,   -30,
-          0,    0,    0,    1.5, 0,
+          1.5,
+          0,
+          0,
+          0,
+          -30,
+          0,
+          1.5,
+          0,
+          0,
+          -30,
+          0,
+          0,
+          1.5,
+          0,
+          -30,
+          0,
+          0,
+          0,
+          1.5,
+          0,
         ]);
     }
   }
@@ -108,14 +203,22 @@ extension StoryFilterX on StoryFilter {
   /// Preview thumbnail tint
   Color get thumbTint {
     switch (this) {
-      case StoryFilter.none: return const Color(0x00000000);
-      case StoryFilter.vivid: return const Color(0x22FF6B6B);
-      case StoryFilter.warm: return const Color(0x22FFA500);
-      case StoryFilter.cool: return const Color(0x2200B4D8);
-      case StoryFilter.mono: return const Color(0x44808080);
-      case StoryFilter.sepia: return const Color(0x228B4513);
-      case StoryFilter.vintage: return const Color(0x22D4A574);
-      case StoryFilter.dramatic: return const Color(0x33000000);
+      case StoryFilter.none:
+        return const Color(0x00000000);
+      case StoryFilter.vivid:
+        return const Color(0x22FF6B6B);
+      case StoryFilter.warm:
+        return const Color(0x22FFA500);
+      case StoryFilter.cool:
+        return const Color(0x2200B4D8);
+      case StoryFilter.mono:
+        return const Color(0x44808080);
+      case StoryFilter.sepia:
+        return const Color(0x228B4513);
+      case StoryFilter.vintage:
+        return const Color(0x22D4A574);
+      case StoryFilter.dramatic:
+        return const Color(0x33000000);
     }
   }
 }
@@ -175,9 +278,9 @@ class _StoryCameraScreenState extends ConsumerState<StoryCameraScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to pick media: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Unable to pick media: $e')));
       }
     }
   }
@@ -244,10 +347,7 @@ class _StoryCameraScreenState extends ConsumerState<StoryCameraScreen> {
 
                     // Grid overlay
                     if (_showGrid)
-                      CustomPaint(
-                        painter: _GridPainter(),
-                        size: Size.infinite,
-                      ),
+                      CustomPaint(painter: _GridPainter(), size: Size.infinite),
                   ],
                 ),
               ),
@@ -265,19 +365,25 @@ class _StoryCameraScreenState extends ConsumerState<StoryCameraScreen> {
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: Container(
-                        width: 40, height: 40,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Icon(Icons.close, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                     ),
                     const Spacer(),
                     GestureDetector(
                       onTap: () => setState(() => _flashOn = !_flashOn),
                       child: Container(
-                        width: 40, height: 40,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(20),
@@ -293,7 +399,8 @@ class _StoryCameraScreenState extends ConsumerState<StoryCameraScreen> {
                     GestureDetector(
                       onTap: () => setState(() => _showGrid = !_showGrid),
                       child: Container(
-                        width: 40, height: 40,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(20),
@@ -340,51 +447,61 @@ class _StoryCameraScreenState extends ConsumerState<StoryCameraScreen> {
                               child: Column(
                                 children: [
                                   Container(
-                                    width: 56, height: 56,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: isSelected ? colors.accent : Colors.transparent,
-                                        width: 2,
-                                      ),
-                                      gradient: LinearGradient(
-                                        colors: [
-                                          colors.surface,
-                                          colors.softSurface,
-                                        ],
-                                      ),
-                                    ),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(14),
-                                          child: Container(
-                                            color: filter.thumbTint,
+                                        width: 56,
+                                        height: 56,
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
+                                          border: Border.all(
+                                            color: isSelected
+                                                ? colors.accent
+                                                : Colors.transparent,
+                                            width: 2,
+                                          ),
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              colors.surface,
+                                              colors.softSurface,
+                                            ],
                                           ),
                                         ),
-                                        Center(
-                                          child: Icon(
-                                            HugeIconsSolid.camera01,
-                                            size: 20,
-                                            color: colors.textSecondary,
-                                          ),
+                                        child: Stack(
+                                          fit: StackFit.expand,
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              child: Container(
+                                                color: filter.thumbTint,
+                                              ),
+                                            ),
+                                            Center(
+                                              child: Icon(
+                                                HugeIconsSolid.camera01,
+                                                size: 20,
+                                                color: colors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                  ).animate(
-                                    target: isSelected ? 1 : 0,
-                                  ).scale(
-                                    begin: const Offset(1.0, 1.0),
-                                    end: const Offset(1.1, 1.1),
-                                  ),
+                                      )
+                                      .animate(target: isSelected ? 1 : 0)
+                                      .scale(
+                                        begin: const Offset(1.0, 1.0),
+                                        end: const Offset(1.1, 1.1),
+                                      ),
                                   const SizedBox(height: 4),
                                   Text(
                                     filter.label,
                                     style: TextStyle(
-                                      color: isSelected ? colors.accent : colors.textTertiary,
+                                      color: isSelected
+                                          ? colors.accent
+                                          : colors.textTertiary,
                                       fontSize: 10,
-                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -405,7 +522,8 @@ class _StoryCameraScreenState extends ConsumerState<StoryCameraScreen> {
                         GestureDetector(
                           onTap: _pickFromGallery,
                           child: Container(
-                            width: 48, height: 48,
+                            width: 48,
+                            height: 48,
                             decoration: BoxDecoration(
                               color: Colors.black.withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(12),
@@ -429,16 +547,15 @@ class _StoryCameraScreenState extends ConsumerState<StoryCameraScreen> {
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.transparent,
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 4,
-                              ),
+                              border: Border.all(color: Colors.white, width: 4),
                             ),
                             child: Container(
                               margin: const EdgeInsets.all(4),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: _isCapturing ? colors.accent.withValues(alpha: 0.5) : colors.accent,
+                                color: _isCapturing
+                                    ? colors.accent.withValues(alpha: 0.5)
+                                    : colors.accent,
                               ),
                             ),
                           ),
@@ -446,7 +563,8 @@ class _StoryCameraScreenState extends ConsumerState<StoryCameraScreen> {
 
                         // Flip camera (placeholder)
                         Container(
-                          width: 48, height: 48,
+                          width: 48,
+                          height: 48,
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.5),
                             borderRadius: BorderRadius.circular(12),

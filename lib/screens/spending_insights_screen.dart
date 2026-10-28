@@ -43,16 +43,66 @@ class SpendingCategory {
 
 // Map backend transaction types to spending categories
 const spendingCategoryMap = <String, SpendingCategory>{
-  'WITHDRAWAL_FIAT': SpendingCategory(key: 'cash', label: 'Cash Withdrawals', icon: HugeIconsSolid.moneySend01, colorValue: 0xFFEF4444),
-  'WITHDRAWAL_CRYPTO': SpendingCategory(key: 'crypto', label: 'Crypto Withdrawals', icon: HugeIconsSolid.bitcoinSend, colorValue: 0xFFF59E0B),
-  'SUSU_CONTRIBUTION': SpendingCategory(key: 'susu', label: 'Susu Contributions', icon: HugeIconsSolid.group01, colorValue: 0xFF8B5CF6),
-  'VAULT_DEPOSIT': SpendingCategory(key: 'vault', label: 'Vault Savings', icon: HugeIconsSolid.safeBox, colorValue: 0xFF3B82F6),
-  'INTERNAL_TRANSFER': SpendingCategory(key: 'transfer', label: 'Transfers', icon: HugeIconsSolid.exchange01, colorValue: 0xFF06B6D4),
-  'P2P_TRADE': SpendingCategory(key: 'trade', label: 'P2P Trades', icon: HugeIconsSolid.moneyReceiveFlow01, colorValue: 0xFF10B981),
-  'TICKET_ESCROW_FUND': SpendingCategory(key: 'escrow', label: 'Escrow Funding', icon: HugeIconsSolid.lockKey, colorValue: 0xFF6366F1),
-  'TICKET_ESCROW_FEE': SpendingCategory(key: 'fees', label: 'Fees', icon: HugeIconsSolid.flash, colorValue: 0xFFEC4899),
-  'BUSINESS_INVOICE_PAYMENT': SpendingCategory(key: 'business', label: 'Business Payments', icon: HugeIconsSolid.store01, colorValue: 0xFF14B8A6),
-  'EWA_WITHDRAWAL': SpendingCategory(key: 'ewa', label: 'Earned Wage Access', icon: HugeIconsSolid.wallet01, colorValue: 0xFFA855F7),
+  'WITHDRAWAL_FIAT': SpendingCategory(
+    key: 'cash',
+    label: 'Cash Withdrawals',
+    icon: HugeIconsSolid.moneySend01,
+    colorValue: 0xFFEF4444,
+  ),
+  'WITHDRAWAL_CRYPTO': SpendingCategory(
+    key: 'crypto',
+    label: 'Crypto Withdrawals',
+    icon: HugeIconsSolid.bitcoinSend,
+    colorValue: 0xFFF59E0B,
+  ),
+  'SUSU_CONTRIBUTION': SpendingCategory(
+    key: 'susu',
+    label: 'Susu Contributions',
+    icon: HugeIconsSolid.group01,
+    colorValue: 0xFF8B5CF6,
+  ),
+  'VAULT_DEPOSIT': SpendingCategory(
+    key: 'vault',
+    label: 'Vault Savings',
+    icon: HugeIconsSolid.safeBox,
+    colorValue: 0xFF3B82F6,
+  ),
+  'INTERNAL_TRANSFER': SpendingCategory(
+    key: 'transfer',
+    label: 'Transfers',
+    icon: HugeIconsSolid.exchange01,
+    colorValue: 0xFF06B6D4,
+  ),
+  'P2P_TRADE': SpendingCategory(
+    key: 'trade',
+    label: 'P2P Trades',
+    icon: HugeIconsSolid.moneyReceiveFlow01,
+    colorValue: 0xFF10B981,
+  ),
+  'TICKET_ESCROW_FUND': SpendingCategory(
+    key: 'escrow',
+    label: 'Escrow Funding',
+    icon: HugeIconsSolid.lockKey,
+    colorValue: 0xFF6366F1,
+  ),
+  'TICKET_ESCROW_FEE': SpendingCategory(
+    key: 'fees',
+    label: 'Fees',
+    icon: HugeIconsSolid.flash,
+    colorValue: 0xFFEC4899,
+  ),
+  'BUSINESS_INVOICE_PAYMENT': SpendingCategory(
+    key: 'business',
+    label: 'Business Payments',
+    icon: HugeIconsSolid.store01,
+    colorValue: 0xFF14B8A6,
+  ),
+  'EWA_WITHDRAWAL': SpendingCategory(
+    key: 'ewa',
+    label: 'Earned Wage Access',
+    icon: HugeIconsSolid.wallet01,
+    colorValue: 0xFFA855F7,
+  ),
 };
 
 const uncategorizedSpendingCategory = SpendingCategory(
@@ -77,10 +127,12 @@ class SpendingInsightsScreen extends ConsumerStatefulWidget {
   const SpendingInsightsScreen({super.key});
 
   @override
-  ConsumerState<SpendingInsightsScreen> createState() => _SpendingInsightsScreenState();
+  ConsumerState<SpendingInsightsScreen> createState() =>
+      _SpendingInsightsScreenState();
 }
 
-class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen> {
+class _SpendingInsightsScreenState
+    extends ConsumerState<SpendingInsightsScreen> {
   bool _isLoading = true;
   List<TransactionRecord> _allTxns = [];
   Map<String, double> _categorySpending = {};
@@ -155,13 +207,18 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
 
         // Category breakdown
         if (isDebit) {
-          final cat = spendingCategoryMap[txn.rawType.toUpperCase()] ?? uncategorizedSpendingCategory;
-          _categorySpending[cat.key] = (_categorySpending[cat.key] ?? 0) + amount;
+          final cat =
+              spendingCategoryMap[txn.rawType.toUpperCase()] ??
+              uncategorizedSpendingCategory;
+          _categorySpending[cat.key] =
+              (_categorySpending[cat.key] ?? 0) + amount;
         }
       }
 
       // Last month's spending for comparison
-      if (txn.createdAt.month == lastMonth && txn.createdAt.year == lastMonthYear && isDebit) {
+      if (txn.createdAt.month == lastMonth &&
+          txn.createdAt.year == lastMonthYear &&
+          isDebit) {
         _totalSpentLastMonth += amount;
       }
 
@@ -170,7 +227,8 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
         for (int i = 0; i < weekStarts.length; i++) {
           final weekStart = weekStarts[i];
           final weekEnd = weekStart.add(const Duration(days: 7));
-          if (txn.createdAt.isAfter(weekStart) && txn.createdAt.isBefore(weekEnd)) {
+          if (txn.createdAt.isAfter(weekStart) &&
+              txn.createdAt.isBefore(weekEnd)) {
             final label = _weekLabels[i];
             _weeklySpending[label] = (_weeklySpending[label] ?? 0) + amount;
           }
@@ -196,12 +254,20 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
               backgroundColor: colors.surface,
               expandedHeight: 56,
               leading: IconButton(
-                icon: Icon(HugeIconsSolid.arrowLeft01, size: 20, color: colors.textPrimary),
+                icon: Icon(
+                  HugeIconsSolid.arrowLeft01,
+                  size: 20,
+                  color: colors.textPrimary,
+                ),
                 onPressed: () => Navigator.of(context).pop(),
               ),
               title: Text(
                 'Spending Insights',
-                style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
 
@@ -237,7 +303,9 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
 
   Widget _buildSummaryCards(AzamanColors colors) {
     final delta = _totalSpentLastMonth > 0
-        ? ((_totalSpentThisMonth - _totalSpentLastMonth) / _totalSpentLastMonth * 100)
+        ? ((_totalSpentThisMonth - _totalSpentLastMonth) /
+              _totalSpentLastMonth *
+              100)
         : 0.0;
     final isIncrease = delta > 0;
 
@@ -250,7 +318,9 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
               colors: colors,
               label: 'Spent This Month',
               amount: '\$${_totalSpentThisMonth.toStringAsFixed(2)}',
-              delta: isIncrease ? '+${delta.toStringAsFixed(1)}%' : '${delta.toStringAsFixed(1)}%',
+              delta: isIncrease
+                  ? '+${delta.toStringAsFixed(1)}%'
+                  : '${delta.toStringAsFixed(1)}%',
               isPositive: !isIncrease,
               icon: HugeIconsSolid.moneySendSquare,
             ),
@@ -281,7 +351,10 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
           children: [
             Icon(HugeIconsSolid.note01, size: 48, color: colors.textTertiary),
             const SizedBox(height: 12),
-            Text('No spending data yet', style: TextStyle(color: colors.textTertiary, fontSize: 15)),
+            Text(
+              'No spending data yet',
+              style: TextStyle(color: colors.textTertiary, fontSize: 15),
+            ),
           ],
         ),
       );
@@ -304,7 +377,11 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
         children: [
           Text(
             'Spending Breakdown',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -327,11 +404,15 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
                           (c) => c.key == entry.key,
                           orElse: () => uncategorizedSpendingCategory,
                         );
-                        final percentage = total > 0 ? (entry.value / total * 100) : 0;
+                        final percentage = total > 0
+                            ? (entry.value / total * 100)
+                            : 0;
                         return PieChartSectionData(
                           color: cat.color,
                           value: entry.value,
-                          title: percentage > 8 ? '${percentage.toStringAsFixed(0)}%' : '',
+                          title: percentage > 8
+                              ? '${percentage.toStringAsFixed(0)}%'
+                              : '',
                           titleStyle: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -358,21 +439,32 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
                         child: Row(
                           children: [
                             Container(
-                              width: 10, height: 10,
-                              decoration: BoxDecoration(color: cat.color, shape: BoxShape.circle),
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: cat.color,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 cat.label,
-                                style: TextStyle(color: colors.textSecondary, fontSize: 11),
+                                style: TextStyle(
+                                  color: colors.textSecondary,
+                                  fontSize: 11,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             Text(
                               '\$${entry.value.toStringAsFixed(0)}',
-                              style: TextStyle(color: colors.textPrimary, fontSize: 11, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
@@ -394,75 +486,94 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
     final maxY = _weeklySpending.values.fold(0.0, (a, b) => math.max(a, b));
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Weekly Spending',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colors.border, width: 0.5),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Last 8 weeks',
-            style: TextStyle(color: colors.textTertiary, fontSize: 13),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 160,
-            child: BarChart(
-              BarChartData(
-                maxY: maxY * 1.2,
-                barGroups: _weekLabels.asMap().entries.map((e) {
-                  final spent = _weeklySpending[e.value] ?? 0;
-                  return BarChartGroupData(
-                    x: e.key,
-                    barRods: [
-                      BarChartRodData(
-                        toY: spent,
-                        color: colors.accent,
-                        width: 18,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                        backDrawRodData: BackgroundBarChartRodData(
-                          toY: maxY * 1.2,
-                          color: colors.softSurface,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Weekly Spending',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Last 8 weeks',
+                style: TextStyle(color: colors.textTertiary, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                height: 160,
+                child: BarChart(
+                  BarChartData(
+                    maxY: maxY * 1.2,
+                    barGroups: _weekLabels.asMap().entries.map((e) {
+                      final spent = _weeklySpending[e.value] ?? 0;
+                      return BarChartGroupData(
+                        x: e.key,
+                        barRods: [
+                          BarChartRodData(
+                            toY: spent,
+                            color: colors.accent,
+                            width: 18,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(6),
+                            ),
+                            backDrawRodData: BackgroundBarChartRodData(
+                              toY: maxY * 1.2,
+                              color: colors.softSurface,
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                    titlesData: FlTitlesData(
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      leftTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            final idx = value.toInt();
+                            if (idx < 0 || idx >= _weekLabels.length)
+                              return const SizedBox();
+                            return Text(
+                              _weekLabels[idx],
+                              style: TextStyle(
+                                color: colors.textTertiary,
+                                fontSize: 9,
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    ],
-                  );
-                }).toList(),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final idx = value.toInt();
-                        if (idx < 0 || idx >= _weekLabels.length) return const SizedBox();
-                        return Text(
-                          _weekLabels[idx],
-                          style: TextStyle(color: colors.textTertiary, fontSize: 9),
-                        );
-                      },
                     ),
+                    gridData: const FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
                   ),
                 ),
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 100.ms, duration: 300.ms).slideY(begin: 0.05, end: 0);
+        )
+        .animate()
+        .fadeIn(delay: 100.ms, duration: 300.ms)
+        .slideY(begin: 0.05, end: 0);
   }
 
   // ── Category list ──────────────────────────────────────────────────────────
@@ -475,83 +586,104 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
     final total = sortedEntries.fold(0.0, (sum, e) => sum + e.value);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Category Details',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: colors.card,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colors.border, width: 0.5),
           ),
-          const SizedBox(height: 16),
-          ...sortedEntries.map((entry) {
-            final cat = spendingCategoryMap.values.firstWhere(
-              (c) => c.key == entry.key,
-              orElse: () => uncategorizedSpendingCategory,
-            );
-            final percentage = total > 0 ? (entry.value / total * 100) : 0.0;
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Category Details',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...sortedEntries.map((entry) {
+                final cat = spendingCategoryMap.values.firstWhere(
+                  (c) => c.key == entry.key,
+                  orElse: () => uncategorizedSpendingCategory,
+                );
+                final percentage = total > 0
+                    ? (entry.value / total * 100)
+                    : 0.0;
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(
-                      color: cat.color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(cat.icon, size: 18, color: cat.color),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          cat.label,
-                          style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                        ),
-                        const SizedBox(height: 4),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: percentage / 100,
-                            backgroundColor: colors.softSurface,
-                            valueColor: AlwaysStoppedAnimation(cat.color),
-                            minHeight: 4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
                     children: [
-                      Text(
-                        '\$${entry.value.toStringAsFixed(2)}',
-                        style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: cat.color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(cat.icon, size: 18, color: cat.color),
                       ),
-                      Text(
-                        '${percentage.toStringAsFixed(0)}%',
-                        style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              cat.label,
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: percentage / 100,
+                                backgroundColor: colors.softSurface,
+                                valueColor: AlwaysStoppedAnimation(cat.color),
+                                minHeight: 4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '\$${entry.value.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            '${percentage.toStringAsFixed(0)}%',
+                            style: TextStyle(
+                              color: colors.textTertiary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    ).animate().fadeIn(delay: 200.ms, duration: 300.ms).slideY(begin: 0.05, end: 0);
+                );
+              }),
+            ],
+          ),
+        )
+        .animate()
+        .fadeIn(delay: 200.ms, duration: 300.ms)
+        .slideY(begin: 0.05, end: 0);
   }
 
   // ── Budget goals (coming soon) ──────────────────────────────────────────────
@@ -562,20 +694,34 @@ class _SpendingInsightsScreenState extends ConsumerState<SpendingInsightsScreen>
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [colors.accent.withValues(alpha: 0.08), colors.accentSecondary.withValues(alpha: 0.04)],
+          colors: [
+            colors.accent.withValues(alpha: 0.08),
+            colors.accentSecondary.withValues(alpha: 0.04),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.accent.withValues(alpha: 0.2), width: 0.5),
+        border: Border.all(
+          color: colors.accent.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
       ),
       child: Column(
         children: [
-          Icon(HugeIconsSolid.dashboardSquare01, size: 32, color: colors.accent),
+          Icon(
+            HugeIconsSolid.dashboardSquare01,
+            size: 32,
+            color: colors.accent,
+          ),
           const SizedBox(height: 12),
           Text(
             'Budget Goals — Coming Soon',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -627,7 +773,11 @@ class _SummaryCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -637,7 +787,11 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             amount,
-            style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           if (delta.isNotEmpty) ...[
             const SizedBox(height: 4),

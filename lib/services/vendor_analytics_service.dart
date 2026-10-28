@@ -36,7 +36,8 @@ class VendorAnalyticsSummary {
       totalTrades: (json['totalTrades'] as num?)?.toInt() ?? 0,
       totalVolume: (json['totalVolume'] as num?)?.toDouble() ?? 0.0,
       totalRevenue: (json['totalRevenue'] as num?)?.toDouble() ?? 0.0,
-      avgCompletionMinutes: (json['avgCompletionMinutes'] as num?)?.toDouble() ?? 0.0,
+      avgCompletionMinutes:
+          (json['avgCompletionMinutes'] as num?)?.toDouble() ?? 0.0,
       disputeRate: (json['disputeRate'] as num?)?.toDouble() ?? 0.0,
       disputesInPeriod: (json['disputesInPeriod'] as num?)?.toInt() ?? 0,
       allTimeTrades: (json['allTimeTrades'] as num?)?.toInt() ?? 0,
@@ -112,12 +113,16 @@ class VendorAnalyticsData {
       summary: VendorAnalyticsSummary.fromJson(
         json['summary'] as Map<String, dynamic>? ?? {},
       ),
-      volumeTimeline: (json['volumeTimeline'] as List<dynamic>?)
+      volumeTimeline:
+          (json['volumeTimeline'] as List<dynamic>?)
               ?.map((e) => VolumeDataPoint.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      methodBreakdown: (json['methodBreakdown'] as List<dynamic>?)
-              ?.map((e) => MethodBreakdownEntry.fromJson(e as Map<String, dynamic>))
+      methodBreakdown:
+          (json['methodBreakdown'] as List<dynamic>?)
+              ?.map(
+                (e) => MethodBreakdownEntry.fromJson(e as Map<String, dynamic>),
+              )
               .toList() ??
           [],
     );
@@ -139,7 +144,9 @@ class VendorAnalyticsService {
       final body = jsonDecode(response.body);
 
       if (body['success'] == true && body['data'] != null) {
-        return VendorAnalyticsData.fromJson(body['data'] as Map<String, dynamic>);
+        return VendorAnalyticsData.fromJson(
+          body['data'] as Map<String, dynamic>,
+        );
       }
 
       throw Exception(body['message'] ?? 'Failed to fetch analytics');

@@ -42,6 +42,7 @@ enum FlipAnchor { topOuter, middleOuter, bottomOuter }
 enum FlipDirection {
   /// Outer edge on the right; page turns right → left (next page).
   forward,
+
   /// Outer edge on the left; page turns left → right (previous page).
   backward,
 }
@@ -118,7 +119,9 @@ class PageCurlSolver {
     final my = (anchorCorner.dy + touch.dy) * 0.5;
 
     final maxR = w * 0.17;
-    final r = radiusOverride ?? (dist * 0.5 / math.pi).clamp(w * 0.012, maxR).toDouble();
+    final r =
+        radiusOverride ??
+        (dist * 0.5 / math.pi).clamp(w * 0.012, maxR).toDouble();
 
     final corners = <Offset>[
       pageRect.topLeft,
@@ -215,7 +218,11 @@ class PageCurlSolver {
       final nz = math.cos(theta);
       final lambert = (nx * _lightX + ny * _lightY + nz * _lightZ).abs();
       final shade = (ambient + (1 - ambient) * lambert).clamp(0.0, 1.0);
-      final colour = (0xFF000000 | (shade * 255).round() << 16 | (shade * 255).round() << 8 | (shade * 255).round());
+      final colour =
+          (0xFF000000 |
+          (shade * 255).round() << 16 |
+          (shade * 255).round() << 8 |
+          (shade * 255).round());
 
       for (var e = 0; e <= 1; e++) {
         final t = e == 0 ? range.$1 : range.$2;
@@ -375,10 +382,14 @@ class PageCurlSolver {
   }
 
   static Float32List _grow32(Float32List? buf, int need) =>
-      (buf != null && buf.length >= need) ? buf : Float32List(math.max(need, 256));
+      (buf != null && buf.length >= need)
+      ? buf
+      : Float32List(math.max(need, 256));
 
   static Int32List _growI32(Int32List? buf, int need) =>
-      (buf != null && buf.length >= need) ? buf : Int32List(math.max(need, 128));
+      (buf != null && buf.length >= need)
+      ? buf
+      : Int32List(math.max(need, 128));
 }
 
 /// Maps normalised progress → the canonical touch point used when the finger
@@ -397,10 +408,7 @@ class FlipPath {
     return Offset(x, anchorY - lift);
   }
 
-  static double progressFor({
-    required Offset touch,
-    required Size size,
-  }) {
+  static double progressFor({required Offset touch, required Size size}) {
     final w = size.width;
     return ((w - touch.dx) / (2 * w)).clamp(0.0, 1.0);
   }
@@ -408,8 +416,7 @@ class FlipPath {
   static double anchorCompensation({
     required double progress,
     required Size size,
-  }) =>
-      math.sin(progress * math.pi) * size.height * 0.055;
+  }) => math.sin(progress * math.pi) * size.height * 0.055;
 
   static FlipAnchor anchorForGrab(Offset local, Size size) {
     final ry = local.dy / size.height;

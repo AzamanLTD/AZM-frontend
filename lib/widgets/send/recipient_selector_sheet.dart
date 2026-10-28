@@ -55,7 +55,9 @@ Future<SendRecipient?> showRecipientSelectorSheet(
     isDismissible: true,
     enableDrag: true,
     builder: (_) => _RecipientSelectorSheet(
-        currentRecipient: currentRecipient, discovery: discovery),
+      currentRecipient: currentRecipient,
+      discovery: discovery,
+    ),
   );
 }
 
@@ -144,8 +146,10 @@ class _RecipientSelectorSheetState
     });
 
     if (_isAzmIdPattern(q)) {
-      final outcome =
-          await _discovery.lookupByAzamanId(q, myAzamanId: myAzamanId);
+      final outcome = await _discovery.lookupByAzamanId(
+        q,
+        myAzamanId: myAzamanId,
+      );
       if (gen != _generation) return; // stale response — never render it
       if (!mounted) return;
       setState(() {
@@ -211,15 +215,17 @@ class _RecipientSelectorSheetState
     final friends = query.isEmpty || _isAzmIdPattern(query)
         ? _friends
         : _friends
-            .where((f) =>
-                (f.username ?? '')
-                    .toLowerCase()
-                    .contains(query.toLowerCase()) ||
-                (f.displayName
-                        ?.toLowerCase()
-                        .contains(query.toLowerCase()) ??
-                    false))
-            .toList();
+              .where(
+                (f) =>
+                    (f.username ?? '').toLowerCase().contains(
+                      query.toLowerCase(),
+                    ) ||
+                    (f.displayName?.toLowerCase().contains(
+                          query.toLowerCase(),
+                        ) ??
+                        false),
+              )
+              .toList();
 
     return DraggableScrollableSheet(
       initialChildSize: 0.82,
@@ -230,8 +236,7 @@ class _RecipientSelectorSheetState
         return Container(
           decoration: BoxDecoration(
             color: colors.surface,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
@@ -251,12 +256,15 @@ class _RecipientSelectorSheetState
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text('Choose recipient',
-                          key: const ValueKey('send-selector-title'),
-                          style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800)),
+                      child: Text(
+                        'Choose recipient',
+                        key: const ValueKey('send-selector-title'),
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                     ScaleTap(
                       key: const ValueKey('send-selector-qr'),
@@ -270,8 +278,11 @@ class _RecipientSelectorSheetState
                             color: colors.card,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Icon(Icons.qr_code_scanner,
-                              size: 20, color: colors.accent),
+                          child: Icon(
+                            Icons.qr_code_scanner,
+                            size: 20,
+                            color: colors.accent,
+                          ),
                         ),
                       ),
                     ),
@@ -288,13 +299,17 @@ class _RecipientSelectorSheetState
                   decoration: InputDecoration(
                     hintText: 'Name, username or AZM ID',
                     hintStyle: TextStyle(color: colors.textTertiary),
-                    prefixIcon: Icon(Icons.search,
-                        color: colors.textTertiary, size: 20),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: colors.textTertiary,
+                      size: 20,
+                    ),
                     filled: true,
                     fillColor: colors.card,
                     border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none),
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
                 ),
               ),
@@ -322,9 +337,10 @@ class _RecipientSelectorSheetState
                     ],
                     if (_directory.isNotEmpty) ...[
                       _SectionHeader(
-                          colors: colors,
-                          label:
-                              'Directory${_directory.length > 1 ? ' (${_directory.length})' : ''}'),
+                        colors: colors,
+                        label:
+                            'Directory${_directory.length > 1 ? ' (${_directory.length})' : ''}',
+                      ),
                       for (final d in _directory)
                         _RecipientRow(
                           colors: colors,
@@ -336,35 +352,41 @@ class _RecipientSelectorSheetState
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 24),
                         child: Center(
-                            child: SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2))),
-                      ),
-                    if (_lookupError != null && !_searching)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: Center(
-                            child: Text(_lookupError!,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    color: colors.textSecondary,
-                                    fontSize: 13)),
+                          child: SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         ),
-                    if (_networkFailed && !_searching)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: Center(
-                            child: Text(
-                              'Could not reach the directory. Check your connection and try again.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  color: colors.textSecondary, fontSize: 13),
+                      ),
+                    if (_lookupError != null && !_searching)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: Text(
+                            _lookupError!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 13,
                             ),
                           ),
                         ),
+                      ),
+                    if (_networkFailed && !_searching)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: Text(
+                            'Could not reach the directory. Check your connection and try again.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ),
                     if (!_searching &&
                         _lookupError == null &&
                         !_networkFailed &&
@@ -372,17 +394,19 @@ class _RecipientSelectorSheetState
                         _directory.isEmpty &&
                         _azmHit == null &&
                         query.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 20),
-                          child: Center(
-                            child: Text(
-                              'No matches. You can send to accepted friends.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  color: colors.textSecondary, fontSize: 13),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: Text(
+                            'No matches. You can send to accepted friends.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 13,
                             ),
                           ),
                         ),
+                      ),
                     if (friends.isEmpty && query.isEmpty)
                       Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20),
@@ -391,7 +415,9 @@ class _RecipientSelectorSheetState
                             'No friends yet. Search a username or AZM ID — you can send once you are connected.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                                color: colors.textSecondary, fontSize: 13),
+                              color: colors.textSecondary,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                       ),
@@ -415,12 +441,15 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 6),
-      child: Text(label.toUpperCase(),
-          style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6)),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: colors.textTertiary,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+        ),
+      ),
     );
   }
 }
@@ -453,7 +482,8 @@ class _RecipientRow extends StatelessWidget {
             color: colors.card,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color: r.canReceive ? colors.divider : colors.danger),
+              color: r.canReceive ? colors.divider : colors.danger,
+            ),
           ),
           child: Row(
             children: [
@@ -467,9 +497,10 @@ class _RecipientRow extends StatelessWidget {
                           child: Text(
                             r.name.isNotEmpty ? r.name[0].toUpperCase() : '?',
                             style: TextStyle(
-                                color: colors.accent,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700),
+                              color: colors.accent,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                 ),
@@ -479,13 +510,16 @@ class _RecipientRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(r.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700)),
+                    Text(
+                      r.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       // Honest identity: AZM ID alone when the
@@ -495,15 +529,19 @@ class _RecipientRow extends StatelessWidget {
                       r.identityLine,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(color: colors.textSecondary, fontSize: 12),
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: r.canReceive
                       ? colors.accentSurface
@@ -513,9 +551,10 @@ class _RecipientRow extends StatelessWidget {
                 child: Text(
                   r.canReceive ? 'Friend' : 'Not connected',
                   style: TextStyle(
-                      color: r.canReceive ? colors.accent : colors.danger,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700),
+                    color: r.canReceive ? colors.accent : colors.danger,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],

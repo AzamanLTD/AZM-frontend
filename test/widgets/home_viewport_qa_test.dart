@@ -57,8 +57,9 @@ Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
   final bytes = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
   final loader = FontLoader('Inter')
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(bytes).buffer)));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
   _fontsLoaded = true;
 }
@@ -101,7 +102,7 @@ class _RecordingHistoryNotifier extends TransactionHistoryNotifier {
 
 class _RecordingHomeSummaryNotifier extends HomeSummaryNotifier {
   _RecordingHomeSummaryNotifier(Ref ref, HomeSummaryService service)
-      : super(ref, service);
+    : super(ref, service);
   @override
   Future<void> refresh() async {
     state = state.copyWith(loading: false);
@@ -120,23 +121,23 @@ TransactionRecord _record(String rawType, {double amountUsdc = -1}) =>
     );
 
 SusuSummary _activeSusu(DateTime runAt) => SusuSummary(
-      id: 's1',
-      name: 'Circle Susu',
-      status: SusuStatus.active,
-      contributionUsdc: 10,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 10,
-      nextCycle: SusuCycleSummary(
-        id: 'c4',
-        cycleNumber: 4,
-        scheduledRunAt: runAt,
-        payoutUserId: 2,
-        isMe: false,
-      ),
-      myCycleSlot: 4,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+  id: 's1',
+  name: 'Circle Susu',
+  status: SusuStatus.active,
+  contributionUsdc: 10,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 10,
+  nextCycle: SusuCycleSummary(
+    id: 'c4',
+    cycleNumber: 4,
+    scheduledRunAt: runAt,
+    payoutUserId: 2,
+    isMe: false,
+  ),
+  myCycleSlot: 4,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 Future<void> _pumpHome(
   WidgetTester tester, {
@@ -147,17 +148,19 @@ Future<void> _pumpHome(
   // false, which pins the explicit light identity instead. The flip-hint
   // flag is always set so the one-shot hint overlay (which arms a
   // dismissal timer) never mounts in this gate.
-  SharedPreferences.setMockInitialValues(dark
-      ? {'has_seen_flippable_card_hint': true}
-      : {'azaman_theme': 0, 'has_seen_flippable_card_hint': true});
+  SharedPreferences.setMockInitialValues(
+    dark
+        ? {'has_seen_flippable_card_hint': true}
+        : {'azaman_theme': 0, 'has_seen_flippable_card_hint': true},
+  );
   await tester.runAsync(_loadFonts);
   await tester.binding.setSurfaceSize(viewport);
 
   final history = _RecordingHistoryNotifier([
     List.generate(
-        6,
-        (i) =>
-            _record('DEPOSIT_FIAT', amountUsdc: (5 + i).toDouble())),
+      6,
+      (i) => _record('DEPOSIT_FIAT', amountUsdc: (5 + i).toDouble()),
+    ),
   ]);
 
   final container = ProviderContainer(
@@ -166,12 +169,15 @@ Future<void> _pumpHome(
       transactionHistoryProvider.overrideWith((ref) => history),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-          (ref) => const BalanceData(availableBalance: 100)),
+        (ref) => const BalanceData(availableBalance: 100),
+      ),
       oracleRateProvider.overrideWith((ref) => 1.0),
       homeSummaryProvider.overrideWith(
-          (ref) => _RecordingHomeSummaryNotifier(ref, HomeSummaryService())),
-      susuListProvider.overrideWith(() => _FakeSusuListNotifier(
-          [_activeSusu(DateTime(2026, 10, 12))])),
+        (ref) => _RecordingHomeSummaryNotifier(ref, HomeSummaryService()),
+      ),
+      susuListProvider.overrideWith(
+        () => _FakeSusuListNotifier([_activeSusu(DateTime(2026, 10, 12))]),
+      ),
       marketplaceResumeProvider.overrideWithValue(null),
     ],
   );
@@ -181,7 +187,8 @@ Future<void> _pumpHome(
       container: container,
       child: MaterialApp(
         theme: ThemeProvider.getThemeData(
-            dark ? AzamanTheme.dark : AzamanTheme.light),
+          dark ? AzamanTheme.dark : AzamanTheme.light,
+        ),
         home: MediaQuery(
           data: MediaQueryData(size: viewport),
           child: const Scaffold(body: AzamanHomePage()),
@@ -213,28 +220,34 @@ void main() {
       expect(find.byType(HomeReminderDeck), findsOneWidget);
 
       // Balance card fits the viewport width with page padding to spare.
-      final cardRect =
-          tester.getRect(find.byType(HomeBalanceCard).first);
-      expect(cardRect.left >= 0, isTrue,
-          reason: 'balance card never bleeds off the left edge');
-      expect(cardRect.right <= viewport.width, isTrue,
-          reason: 'balance card never bleeds off the right edge');
+      final cardRect = tester.getRect(find.byType(HomeBalanceCard).first);
+      expect(
+        cardRect.left >= 0,
+        isTrue,
+        reason: 'balance card never bleeds off the left edge',
+      );
+      expect(
+        cardRect.right <= viewport.width,
+        isTrue,
+        reason: 'balance card never bleeds off the right edge',
+      );
 
       // The deck sits within the viewport too.
-      final deckRect =
-          tester.getRect(find.byType(HomeReminderDeck).first);
+      final deckRect = tester.getRect(find.byType(HomeReminderDeck).first);
       expect(deckRect.width <= viewport.width, isTrue);
     });
 
-    testWidgets('LIGHT — Home renders without overflow at $label',
-        (tester) async {
+    testWidgets('LIGHT — Home renders without overflow at $label', (
+      tester,
+    ) async {
       await _pumpHome(tester, viewport: viewport, dark: false);
       expect(find.byType(HomeBalanceCard), findsOneWidget);
       expect(find.byType(HomeReminderDeck), findsOneWidget);
     });
 
-    testWidgets('REDUCED MOTION — Home settles immediately at $label',
-        (tester) async {
+    testWidgets('REDUCED MOTION — Home settles immediately at $label', (
+      tester,
+    ) async {
       AzSensory.reduceMotionOverrideIsSet = true;
       AzSensory.reduceMotionOverride = true;
       addTearDown(() {

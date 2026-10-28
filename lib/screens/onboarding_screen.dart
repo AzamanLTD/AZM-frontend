@@ -45,26 +45,41 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       icon: Icons.bolt_outlined,
       imagePath: "assets/images/1.webp",
       title: "Ghana's Fastest P2P Platform",
-      subtitle: "Buy and sell USDC instantly via MTN MoMo, Telecel or AirtelTigo. "
-        "No bank account needed — just your phone number.",
-      features: ['Instant MoMo settlement', 'Zero gas fees', '24/7 marketplace'],
+      subtitle:
+          "Buy and sell USDC instantly via MTN MoMo, Telecel or AirtelTigo. "
+          "No bank account needed — just your phone number.",
+      features: [
+        'Instant MoMo settlement',
+        'Zero gas fees',
+        '24/7 marketplace',
+      ],
     ),
     _OnboardingPageData(
       icon: Icons.shield_outlined,
       imagePath: "assets/images/2.webp",
       title: "Every Trade is Escrow-Protected",
-      subtitle: "Funds are locked in smart escrow until both parties confirm. "
-        "No fraud, no chargebacks — just safe, instant settlement.",
-      features: ['Smart escrow locking', 'Dispute resolution', 'Anti-fraud protection'],
+      subtitle:
+          "Funds are locked in smart escrow until both parties confirm. "
+          "No fraud, no chargebacks — just safe, instant settlement.",
+      features: [
+        'Smart escrow locking',
+        'Dispute resolution',
+        'Anti-fraud protection',
+      ],
     ),
     _OnboardingPageData(
       icon: Icons.group_outlined,
       imagePath: "assets/images/3.webp",
       title: "Grow With Your Community",
-      subtitle: "Join a Susu circle with friends and family. "
-        "Contribute together, collect in turns — the traditional way, "
-        "powered by modern fintech.",
-      features: ['Susu savings circles', 'Community trust scores', 'Shared vaults'],
+      subtitle:
+          "Join a Susu circle with friends and family. "
+          "Contribute together, collect in turns — the traditional way, "
+          "powered by modern fintech.",
+      features: [
+        'Susu savings circles',
+        'Community trust scores',
+        'Shared vaults',
+      ],
     ),
   ];
 
@@ -96,7 +111,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     context.go(AzRoutes.shell);
     Future.delayed(const Duration(milliseconds: 700), () {
       if (context.mounted) {
-        pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat));
+        pushWithVerticalTransition(
+          context,
+          const DepositScreen(initialTab: DepositTab.fiat),
+        );
       }
     });
   }
@@ -206,13 +224,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _isCompleting || (_currentPage == _kTotalPages - 1 && _selectedUseCase == null)
+                  onPressed:
+                      _isCompleting ||
+                          (_currentPage == _kTotalPages - 1 &&
+                              _selectedUseCase == null)
                       ? null
                       : _nextPage,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
-                    foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                    disabledBackgroundColor: colors.accent.withValues(alpha: 0.3),
+                    foregroundColor: colors.isDark
+                        ? Colors.black
+                        : Colors.white,
+                    disabledBackgroundColor: colors.accent.withValues(
+                      alpha: 0.3,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -292,36 +317,37 @@ class _OnboardingPage extends StatelessWidget {
           // ── Hero image or icon with glow ──
           Expanded(
             child: data.imagePath != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Image.asset(
-                    data.imagePath!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                  ),
-                )
-              : Center(
-                  child: Container(
-                    width: 120, height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.accent.withValues(alpha: 0.08),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.glow.withValues(alpha: 0.2),
-                          blurRadius: 40,
-                          spreadRadius: 4,
-                        ),
-                        BoxShadow(
-                          color: colors.glow.withValues(alpha: 0.1),
-                          blurRadius: 80,
-                          spreadRadius: 8,
-                        ),
-                      ],
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      data.imagePath!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
                     ),
-                    child: Icon(data.icon, size: 52, color: colors.accent),
+                  )
+                : Center(
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colors.accent.withValues(alpha: 0.08),
+                        boxShadow: [
+                          BoxShadow(
+                            color: colors.glow.withValues(alpha: 0.2),
+                            blurRadius: 40,
+                            spreadRadius: 4,
+                          ),
+                          BoxShadow(
+                            color: colors.glow.withValues(alpha: 0.1),
+                            blurRadius: 80,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Icon(data.icon, size: 52, color: colors.accent),
+                    ),
                   ),
-                ),
           ),
           const SizedBox(height: 36),
 
@@ -372,29 +398,42 @@ class _OnboardingPage extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.center,
-              children: data.features.map((f) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colors.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: colors.accent.withValues(alpha: 0.15)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle, size: 14, color: colors.accent),
-                    const SizedBox(width: 5),
-                    Text(
-                      f,
-                      style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+              children: data.features
+                  .map(
+                    (f) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.accent.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: colors.accent.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 14,
+                            color: colors.accent,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            f,
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              )).toList(),
+                  )
+                  .toList(),
             ),
         ],
       ),
@@ -417,10 +456,22 @@ class _SetupPage extends StatelessWidget {
   });
 
   static const _useCases = [
-    _UseCase(icon: Icons.swap_horiz, label: 'P2P Trading', desc: 'Buy & sell USDC'),
-    _UseCase(icon: Icons.savings, label: 'Susu Savings', desc: 'Join savings circles'),
+    _UseCase(
+      icon: Icons.swap_horiz,
+      label: 'P2P Trading',
+      desc: 'Buy & sell USDC',
+    ),
+    _UseCase(
+      icon: Icons.savings,
+      label: 'Susu Savings',
+      desc: 'Join savings circles',
+    ),
     _UseCase(icon: Icons.send, label: 'Remittances', desc: 'Send money home'),
-    _UseCase(icon: Icons.storefront, label: 'Business', desc: 'Accept payments'),
+    _UseCase(
+      icon: Icons.storefront,
+      label: 'Business',
+      desc: 'Accept payments',
+    ),
   ];
 
   @override
@@ -430,8 +481,11 @@ class _SetupPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.waving_hand, size: 48, color: colors.accent)
-              .animate().fadeIn(duration: 400.ms),
+          Icon(
+            Icons.waving_hand,
+            size: 48,
+            color: colors.accent,
+          ).animate().fadeIn(duration: 400.ms),
           const SizedBox(height: 16),
           Text(
             'What brings you here?',
@@ -447,10 +501,7 @@ class _SetupPage extends StatelessWidget {
           Text(
             'We\'ll personalize your experience',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: colors.textSecondary, fontSize: 14),
           ).animate().fadeIn(delay: 200.ms),
           const SizedBox(height: 36),
           ..._useCases.map((uc) {
@@ -480,7 +531,8 @@ class _SetupPage extends StatelessWidget {
                   child: Row(
                     children: [
                       Container(
-                        width: 44, height: 44,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
                           color: isSelected
                               ? colors.accent.withValues(alpha: 0.15)
@@ -489,7 +541,9 @@ class _SetupPage extends StatelessWidget {
                         ),
                         child: Icon(
                           uc.icon,
-                          color: isSelected ? colors.accent : colors.textSecondary,
+                          color: isSelected
+                              ? colors.accent
+                              : colors.textSecondary,
                           size: 22,
                         ),
                       ),
@@ -519,14 +573,26 @@ class _SetupPage extends StatelessWidget {
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
                         child: isSelected
-                            ? Icon(Icons.check_circle, key: const ValueKey('check'), color: colors.accent, size: 24)
-                            : Icon(Icons.circle_outlined, key: const ValueKey('empty'), color: colors.divider, size: 24),
+                            ? Icon(
+                                Icons.check_circle,
+                                key: const ValueKey('check'),
+                                color: colors.accent,
+                                size: 24,
+                              )
+                            : Icon(
+                                Icons.circle_outlined,
+                                key: const ValueKey('empty'),
+                                color: colors.divider,
+                                size: 24,
+                              ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ).animate().fadeIn(delay: Duration(milliseconds: 300 + _useCases.indexOf(uc) * 80));
+            ).animate().fadeIn(
+              delay: Duration(milliseconds: 300 + _useCases.indexOf(uc) * 80),
+            );
           }),
         ],
       ),
@@ -561,7 +627,9 @@ class _DotIndicator extends StatelessWidget {
       height: 8,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4),
-        color: isActive ? colors.accent : colors.textTertiary.withValues(alpha: 0.3),
+        color: isActive
+            ? colors.accent
+            : colors.textTertiary.withValues(alpha: 0.3),
         boxShadow: isActive
             ? [
                 BoxShadow(

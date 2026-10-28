@@ -52,19 +52,19 @@ List<SusuCycleView> _cycles() =>
     DemoSeedData.susuCycles().map(SusuCycleView.fromJson).toList();
 
 GroupSummary _grp2() => GroupSummary.fromJson(
-      DemoSeedData.groupChats().singleWhere((g) => g['id'] == 'grp-2'),
-    );
+  DemoSeedData.groupChats().singleWhere((g) => g['id'] == 'grp-2'),
+);
 
 SusuInitiationStatus _status() =>
     SusuInitiationStatus.fromJson(DemoSeedData.susuGroupStatus());
 
 User _me() => User(
-      id: '1',
-      username: 'me',
-      email: 'me@example.com',
-      token: 'demo',
-      role: 'USER',
-    );
+  id: '1',
+  username: 'me',
+  email: 'me@example.com',
+  token: 'demo',
+  role: 'USER',
+);
 
 // ── Fake notifiers (the pattern native_amount_captures_test uses) ───────────
 
@@ -106,10 +106,10 @@ Future<void> _pump(
       overrides: [
         themeProvider.overrideWith((ref) => tp),
         currentUserProvider.overrideWith((ref) => Stream.value(_me())),
-        groupDetailProvider.overrideWith(
-            (ref, groupId) async => group),
+        groupDetailProvider.overrideWith((ref, groupId) async => group),
         susuInitiationStatusProvider.overrideWith(
-            (ref, groupId) async => status),
+          (ref, groupId) async => status,
+        ),
         ...extra,
       ],
       child: const MaterialApp(home: GroupProfileScreen(groupId: 'grp-2')),
@@ -153,8 +153,9 @@ void main() {
     );
   });
 
-  testWidgets('deep-links the Susu dashboard for this susu on tap',
-      (tester) async {
+  testWidgets('deep-links the Susu dashboard for this susu on tap', (
+    tester,
+  ) async {
     await _pump(
       tester,
       group: _grp2(),
@@ -173,15 +174,14 @@ void main() {
     expect(find.byType(SusuDashboardScreen), findsOneWidget);
   });
 
-  testWidgets('fails honest: a dead detail falls back to the text badge',
-      (tester) async {
+  testWidgets('fails honest: a dead detail falls back to the text badge', (
+    tester,
+  ) async {
     await _pump(
       tester,
       group: _grp2(),
       status: _status(),
-      extra: [
-        susuDetailV2Provider.overrideWith(() => _BoomDetailNotifier()),
-      ],
+      extra: [susuDetailV2Provider.overrideWith(() => _BoomDetailNotifier())],
     );
 
     // No wheel, no invented numbers — the plain-text badge remains.
@@ -192,8 +192,9 @@ void main() {
     );
   });
 
-  testWidgets('an active susu with no reachable id never invents one',
-      (tester) async {
+  testWidgets('an active susu with no reachable id never invents one', (
+    tester,
+  ) async {
     final group = _grp2();
     final orphan = GroupSummary.fromJson({
       ...DemoSeedData.groupChats().singleWhere((g) => g['id'] == 'grp-2'),
@@ -201,8 +202,10 @@ void main() {
       'susuGroup': null,
     });
     expect(orphan.susuGroupId, isNull); // the fixture built what we asked
-    final orphanStatus = SusuInitiationStatus.fromJson(
-        {...DemoSeedData.susuGroupStatus(), 'susuGroupId': null});
+    final orphanStatus = SusuInitiationStatus.fromJson({
+      ...DemoSeedData.susuGroupStatus(),
+      'susuGroupId': null,
+    });
     expect(orphanStatus.isActive, isTrue);
     expect(orphanStatus.susuGroupId, isNull);
     expect(group.susuGroupId, 'susu-1'); // sanity: grp-2 normally has one

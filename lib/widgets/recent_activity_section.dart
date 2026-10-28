@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 
-
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
@@ -14,7 +13,8 @@ import 'package:go_router/go_router.dart';
 
 String _recentLabel(String title) {
   final t = title.toUpperCase();
-  if (t.contains("DEPOSIT") || t.contains("MOMO") || t.contains("FIAT")) return "MoMo Deposit";
+  if (t.contains("DEPOSIT") || t.contains("MOMO") || t.contains("FIAT"))
+    return "MoMo Deposit";
   if (t.contains("WITHDRAWAL")) return "MoMo Withdrawal";
   if (t.contains("P2P") || t.contains("TRADE")) return "P2P Trade Payout";
   if (t.contains("SUSU") && t.contains("PAYOUT")) return "Susu Payout";
@@ -37,9 +37,8 @@ class RecentActivitySection extends ConsumerWidget {
     final summary = ref.watch(homeSummaryProvider);
     final txns = summary.recentTransactions;
 
-    final isColdLoad = summary.loading &&
-        txns.isEmpty &&
-        summary.transactionsError == null;
+    final isColdLoad =
+        summary.loading && txns.isEmpty && summary.transactionsError == null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -49,7 +48,8 @@ class RecentActivitySection extends ConsumerWidget {
           Row(
             children: [
               Container(
-                width: 4, height: 20,
+                width: 4,
+                height: 20,
                 decoration: BoxDecoration(
                   color: colors.accent,
                   borderRadius: BorderRadius.circular(2),
@@ -59,7 +59,8 @@ class RecentActivitySection extends ConsumerWidget {
               // Flexible: at accessibility text scales (or wide test-harness
               // font metrics) the title would otherwise overflow the row.
               Flexible(
-                child: Text('Recent Activity',
+                child: Text(
+                  'Recent Activity',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
@@ -67,18 +68,21 @@ class RecentActivitySection extends ConsumerWidget {
                     letterSpacing: -0.3,
                   ),
                   overflow: TextOverflow.ellipsis,
-                  maxLines: 1),
+                  maxLines: 1,
+                ),
               ),
               const SizedBox(width: 12),
               ScaleTap(
                 // NEW-A: canonical account activity route.
                 onTap: () => context.push(AzRoutes.accountActivity),
-                child: Text('See All',
+                child: Text(
+                  'See All',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: colors.accent,
-                  )),
+                  ),
+                ),
               ),
             ],
           ).animate().fadeIn(delay: 100.ms, duration: 300.ms),
@@ -92,9 +96,14 @@ class RecentActivitySection extends ConsumerWidget {
               children: [
                 for (int i = 0; i < txns.length; i++)
                   _ActivityRow(colors: colors, txn: txns[i])
-                    .animate()
-                    .fadeIn(delay: (80 * i).ms, duration: 280.ms)
-                    .slideY(begin: 0.08, end: 0, delay: (80 * i).ms, duration: 280.ms),
+                      .animate()
+                      .fadeIn(delay: (80 * i).ms, duration: 280.ms)
+                      .slideY(
+                        begin: 0.08,
+                        end: 0,
+                        delay: (80 * i).ms,
+                        duration: 280.ms,
+                      ),
               ],
             ),
         ],
@@ -112,13 +121,12 @@ class _ActivityRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPending = txn.status == 'PENDING';
-    final isFailed =
-        txn.status == 'FAILED' || txn.status == 'CANCELLED';
+    final isFailed = txn.status == 'FAILED' || txn.status == 'CANCELLED';
     final amountColor = isFailed
         ? colors.textTertiary
         : txn.isCredit
-            ? colors.success
-            : colors.textPrimary;
+        ? colors.success
+        : colors.textPrimary;
     final sign = txn.isCredit ? '+' : '-';
 
     return Padding(
@@ -134,9 +142,7 @@ class _ActivityRow extends StatelessWidget {
               color: colors.softSurface,
             ),
             child: Icon(
-              txn.isCredit
-                  ? Icons.south_west
-                  : Icons.north_east,
+              txn.isCredit ? Icons.south_west : Icons.north_east,
               size: 18,
               color: txn.isCredit ? colors.success : colors.textSecondary,
             ),
@@ -163,8 +169,7 @@ class _ActivityRow extends StatelessWidget {
                   style: TextStyle(
                     color: isPending ? colors.warning : colors.textTertiary,
                     fontSize: 12.5,
-                    fontWeight:
-                        isPending ? FontWeight.w700 : FontWeight.w400,
+                    fontWeight: isPending ? FontWeight.w700 : FontWeight.w400,
                   ),
                 ),
               ],
@@ -178,8 +183,9 @@ class _ActivityRow extends StatelessWidget {
               fontSize: 15,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.3,
-              decoration:
-                  isFailed ? TextDecoration.lineThrough : TextDecoration.none,
+              decoration: isFailed
+                  ? TextDecoration.lineThrough
+                  : TextDecoration.none,
             ),
           ),
         ],
@@ -214,8 +220,18 @@ class _ActivityRow extends StatelessWidget {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}';
   }
@@ -237,11 +253,7 @@ class _EmptyActivity extends StatelessWidget {
             shape: BoxShape.circle,
             color: colors.softSurface,
           ),
-          child: Icon(
-            Icons.history,
-            size: 19,
-            color: colors.textTertiary,
-          ),
+          child: Icon(Icons.history, size: 19, color: colors.textTertiary),
         ),
         const SizedBox(width: 14),
         Expanded(

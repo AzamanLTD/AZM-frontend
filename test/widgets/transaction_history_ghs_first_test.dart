@@ -24,19 +24,19 @@ import 'package:azaman/screens/transaction_history_screen.dart';
 /// One recorded fiat deposit: GH₵ 150.00 in / 10.00 USDC out, at a recorded
 /// rate of 15.0 — the amounts are historical fact, not live conversions.
 TransactionRecord _recordedDeposit() => TransactionRecord(
-      id: 'txn_recorded_deposit',
-      rawType: 'DEPOSIT_FIAT',
-      amountUsdc: 10.0,
-      feeUsdc: 0,
-      status: 'COMPLETED',
-      createdAt: DateTime(2026, 10, 1),
-      metadata: {
-        'provider': 'MTN',
-        'amountGhs': 150.0,
-        'rateAtInitiation': 15.0,
-        'counterparty': 'Ama',
-      },
-    );
+  id: 'txn_recorded_deposit',
+  rawType: 'DEPOSIT_FIAT',
+  amountUsdc: 10.0,
+  feeUsdc: 0,
+  status: 'COMPLETED',
+  createdAt: DateTime(2026, 10, 1),
+  metadata: {
+    'provider': 'MTN',
+    'amountGhs': 150.0,
+    'rateAtInitiation': 15.0,
+    'counterparty': 'Ama',
+  },
+);
 
 class _PinnedHistory extends TransactionHistoryNotifier {
   _PinnedHistory() : super() {
@@ -73,10 +73,12 @@ void main() {
     });
     expect(theme!.isLoaded, isTrue);
 
-    final container = ProviderContainer(overrides: [
-      themeProvider.overrideWith((ref) => theme),
-      transactionHistoryProvider.overrideWith((ref) => _PinnedHistory()),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        themeProvider.overrideWith((ref) => theme),
+        transactionHistoryProvider.overrideWith((ref) => _PinnedHistory()),
+      ],
+    );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(
@@ -95,27 +97,44 @@ void main() {
   }
 
   testWidgets('GHS preference (default): the recorded GH₵ amount is the '
-      'primary row figure, the recorded USDC rides the secondary line',
-      (tester) async {
+      'primary row figure, the recorded USDC rides the secondary line', (
+    tester,
+  ) async {
     await pumpHistory(tester);
 
-    expect(find.text('+ GH₵150.00'), findsOneWidget,
-        reason: 'Ghana-first: the primary figure is the recorded cedi '
-            'amount when GHS is the preferred display currency');
-    expect(find.textContaining('10.00 USDC'), findsOneWidget,
-        reason: 'the recorded USDC value stays visible as the secondary '
-            'line — both recorded truths remain on the row');
+    expect(
+      find.text('+ GH₵150.00'),
+      findsOneWidget,
+      reason:
+          'Ghana-first: the primary figure is the recorded cedi '
+          'amount when GHS is the preferred display currency',
+    );
+    expect(
+      find.textContaining('10.00 USDC'),
+      findsOneWidget,
+      reason:
+          'the recorded USDC value stays visible as the secondary '
+          'line — both recorded truths remain on the row',
+    );
   });
 
-  testWidgets('USDC preference (deliberate): the hierarchy flips honestly',
-      (tester) async {
+  testWidgets('USDC preference (deliberate): the hierarchy flips honestly', (
+    tester,
+  ) async {
     await pumpHistory(tester, preference: DisplayCurrency.usdc);
 
-    expect(find.text('+10.00 USDC'), findsOneWidget,
-        reason: 'a deliberate USDC preference makes the recorded USDC '
-            'amount primary');
-    expect(find.textContaining('GH₵ 150.00'), findsOneWidget,
-        reason: 'the recorded GHS value rides the secondary line');
+    expect(
+      find.text('+10.00 USDC'),
+      findsOneWidget,
+      reason:
+          'a deliberate USDC preference makes the recorded USDC '
+          'amount primary',
+    );
+    expect(
+      find.textContaining('GH₵ 150.00'),
+      findsOneWidget,
+      reason: 'the recorded GHS value rides the secondary line',
+    );
   });
 
   testWidgets('no live conversion: the row shows the RECORDED values, '

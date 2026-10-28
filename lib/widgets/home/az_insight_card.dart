@@ -60,15 +60,15 @@ class AzInsightCard extends ConsumerWidget {
   /// Keeps at most [maxBars] values, taking the MOST RECENT — a series is
   /// oldest-first, so the tail is what "this week" means.
   static List<double> normalizeSparkline(List<double> values) =>
-      values.length <= maxBars ? values : values.sublist(values.length - maxBars);
+      values.length <= maxBars
+      ? values
+      : values.sublist(values.length - maxBars);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // The honesty gate: without an amount and a category there is no insight.
     final data = insight;
-    if (data == null ||
-        data.amountText.isEmpty ||
-        data.category.isEmpty) {
+    if (data == null || data.amountText.isEmpty || data.category.isEmpty) {
       return const SizedBox.shrink();
     }
 

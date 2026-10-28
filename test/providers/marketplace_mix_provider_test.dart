@@ -524,21 +524,18 @@ void main() {
     },
   );
 
-  test(
-    'first page: an empty page with a NULL cursor is true exhaustion — NO '
-    'continuation request is made',
-    () async {
-      final g = _FakeGateway()..behavior = (req) async => _page([], null);
-      final c = _container(g);
-      await _notifier(c).load();
+  test('first page: an empty page with a NULL cursor is true exhaustion — NO '
+      'continuation request is made', () async {
+    final g = _FakeGateway()..behavior = (req) async => _page([], null);
+    final c = _container(g);
+    await _notifier(c).load();
 
-      expect(g.requests, hasLength(1));
-      final state = c.read(marketplaceMixProvider);
-      expect(state.phase, MixPhase.ready);
-      expect(state.offers, isEmpty);
-      expect(state.nextCursor, isNull);
-    },
-  );
+    expect(g.requests, hasLength(1));
+    final state = c.read(marketplaceMixProvider);
+    expect(state.phase, MixPhase.ready);
+    expect(state.offers, isEmpty);
+    expect(state.nextCursor, isNull);
+  });
 
   test(
     'first page: the continuation budget is a HARD limit — at most '
@@ -591,10 +588,9 @@ void main() {
 
       // The user switches category while the continuation is in flight.
       await n.selectCategory('FOOD_BEVERAGE');
-      expect(
-        c.read(marketplaceMixProvider).offers.map((o) => o.productId),
-        ['fresh'],
-      );
+      expect(c.read(marketplaceMixProvider).offers.map((o) => o.productId), [
+        'fresh',
+      ]);
 
       // The superseded continuation page finally arrives — discarded.
       stalePage.complete(_page(['late'], 'CUR-2'));
@@ -645,8 +641,11 @@ void main() {
       await n.refreshFeed();
       expect(g.requests, hasLength(5), reason: 'fresh walk restarts at page 1');
       state = c.read(marketplaceMixProvider);
-      expect(state.continuationStalled, isTrue,
-          reason: 'the gateway still repeats the cursor — honestly stalled');
+      expect(
+        state.continuationStalled,
+        isTrue,
+        reason: 'the gateway still repeats the cursor — honestly stalled',
+      );
     },
   );
 
@@ -703,7 +702,11 @@ void main() {
       final state = c.read(marketplaceMixProvider);
       expect(state.phase, MixPhase.ready);
       expect(state.offers, isEmpty);
-      expect(state.nextCursor, isNull, reason: 'exhausted source has no cursor');
+      expect(
+        state.nextCursor,
+        isNull,
+        reason: 'exhausted source has no cursor',
+      );
       expect(state.hasMore, isFalse);
 
       // With no cursor, loadMore is a no-op — the surface renders the

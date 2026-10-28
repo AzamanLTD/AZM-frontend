@@ -34,17 +34,12 @@ import 'package:azaman/widgets/holographic_surface.dart';
 
 const _base = Color(0xFF1E242B);
 
-Widget _wrap(
-  Widget child, {
-  bool reduceMotion = false,
-}) {
+Widget _wrap(Widget child, {bool reduceMotion = false}) {
   return ProviderScope(
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, navigatorChild) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          disableAnimations: reduceMotion,
-        ),
+        data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
         child: navigatorChild ?? const SizedBox.shrink(),
       ),
       theme: ThemeProvider.getThemeData(AzamanTheme.dark),
@@ -80,10 +75,12 @@ Future<void> _pumpSurface(
 
 ReactiveParticlePainter? _painter(WidgetTester tester) {
   final painters = tester
-      .widgetList<CustomPaint>(find.descendant(
-        of: find.byType(HolographicSurface),
-        matching: find.byType(CustomPaint),
-      ))
+      .widgetList<CustomPaint>(
+        find.descendant(
+          of: find.byType(HolographicSurface),
+          matching: find.byType(CustomPaint),
+        ),
+      )
       .map((c) => c.painter)
       .whereType<ReactiveParticlePainter>()
       .toList();
@@ -91,18 +88,21 @@ ReactiveParticlePainter? _painter(WidgetTester tester) {
 }
 
 List<BoxDecoration> _boxes(WidgetTester tester) => tester
-    .widgetList<DecoratedBox>(find.descendant(
-        of: find.byType(HolographicSurface), matching: find.byType(DecoratedBox)))
+    .widgetList<DecoratedBox>(
+      find.descendant(
+        of: find.byType(HolographicSurface),
+        matching: find.byType(DecoratedBox),
+      ),
+    )
     .map((d) => d.decoration)
     .whereType<BoxDecoration>()
     .toList();
 
 /// The specular band — the LinearGradient with the 0.34/0.50/0.66 stops.
 LinearGradient? _sheen(WidgetTester tester) {
-  final gradients = _boxes(tester)
-      .map((d) => d.gradient)
-      .whereType<LinearGradient>()
-      .toList();
+  final gradients = _boxes(
+    tester,
+  ).map((d) => d.gradient).whereType<LinearGradient>().toList();
   for (final g in gradients) {
     if (g.stops?.first == 0.34) return g;
   }
@@ -110,28 +110,32 @@ LinearGradient? _sheen(WidgetTester tester) {
 }
 
 void main() {
-  testWidgets('default surface: no particle painter, sheen remains',
-      (tester) async {
+  testWidgets('default surface: no particle painter, sheen remains', (
+    tester,
+  ) async {
     await _pumpSurface(tester);
     expect(_painter(tester), isNull);
-    expect(_sheen(tester), isNotNull,
-        reason: 'every other consumer must keep its existing appearance');
+    expect(
+      _sheen(tester),
+      isNotNull,
+      reason: 'every other consumer must keep its existing appearance',
+    );
   });
 
   testWidgets('balance card profile: showSheen:false removes the moving band, '
       'particles are the sole touch response', (tester) async {
-    await _pumpSurface(
-      tester,
-      showSheen: false,
-      showReactiveParticles: true,
+    await _pumpSurface(tester, showSheen: false, showReactiveParticles: true);
+    expect(
+      _sheen(tester),
+      isNull,
+      reason: 'no moving white specular band on the balance card',
     );
-    expect(_sheen(tester), isNull,
-        reason: 'no moving white specular band on the balance card');
     expect(_painter(tester), isNotNull);
   });
 
-  testWidgets('the particle canvas is isolated in a RepaintBoundary',
-      (tester) async {
+  testWidgets('the particle canvas is isolated in a RepaintBoundary', (
+    tester,
+  ) async {
     await _pumpSurface(tester, showReactiveParticles: true);
     final boundary = find.descendant(
       of: find.byType(HolographicSurface),
@@ -151,13 +155,18 @@ void main() {
     // AlwaysStoppedAnimation reports status `forward` by design, so
     // isAnimating is NOT a reliable stillness probe here.)
     await tester.pump(const Duration(seconds: 12));
-    expect(_painter(tester)!.phase.value, 0.0,
-        reason: 'no ambient clock may exist — the §10.E contract is a '
-            'restrained interaction response, not perpetual idle motion');
+    expect(
+      _painter(tester)!.phase.value,
+      0.0,
+      reason:
+          'no ambient clock may exist — the §10.E contract is a '
+          'restrained interaction response, not perpetual idle motion',
+    );
   });
 
-  testWidgets('pointer move deforms the field through the existing Listener',
-      (tester) async {
+  testWidgets('pointer move deforms the field through the existing Listener', (
+    tester,
+  ) async {
     await _pumpSurface(tester, showReactiveParticles: true);
     expect(_painter(tester)!.dx, 0.0);
 
@@ -180,8 +189,9 @@ void main() {
     await gesture.up();
   });
 
-  testWidgets('release settles through the EXISTING rest spring',
-      (tester) async {
+  testWidgets('release settles through the EXISTING rest spring', (
+    tester,
+  ) async {
     await _pumpSurface(tester, showReactiveParticles: true);
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(HolographicSurface)),
@@ -205,17 +215,18 @@ void main() {
     expect(settledDx.abs(), lessThan(0.02));
   });
 
-  testWidgets('reduced motion: fully static — no ambient clock, no response',
-      (tester) async {
-    await _pumpSurface(
-      tester,
-      showReactiveParticles: true,
-      reduceMotion: true,
-    );
+  testWidgets('reduced motion: fully static — no ambient clock, no response', (
+    tester,
+  ) async {
+    await _pumpSurface(tester, showReactiveParticles: true, reduceMotion: true);
     await tester.pump(const Duration(seconds: 2));
-    expect(_painter(tester)!.phase.value, 0.0,
-        reason: 'the field is static at rest under every motion setting '
-            '(no ambient controller exists at all since the §10.E audit)');
+    expect(
+      _painter(tester)!.phase.value,
+      0.0,
+      reason:
+          'the field is static at rest under every motion setting '
+          '(no ambient controller exists at all since the §10.E audit)',
+    );
 
     // The Listener (and therefore any particle response) is also gone.
     expect(
@@ -228,8 +239,9 @@ void main() {
     expect(_painter(tester)!.dx, 0.0);
   });
 
-  testWidgets('the field remains deterministic — fixed spec table',
-      (tester) async {
+  testWidgets('the field remains deterministic — fixed spec table', (
+    tester,
+  ) async {
     const specs = ReactiveParticlePainter.particleSpecs;
     expect(specs.length, inInclusiveRange(18, 28));
     final seen = <String>{};
@@ -243,9 +255,11 @@ void main() {
       expect(s.fx, anyOf(equals(1), equals(2), equals(3), equals(5)));
       expect(s.fy, anyOf(equals(1), equals(2), equals(3), equals(5)));
       expect(s.colorIndex, inInclusiveRange(0, 2));
-      expect(seen.add('${s.x.toStringAsFixed(3)}:${s.y.toStringAsFixed(3)}'),
-          isTrue,
-          reason: 'no duplicate positions');
+      expect(
+        seen.add('${s.x.toStringAsFixed(3)}:${s.y.toStringAsFixed(3)}'),
+        isTrue,
+        reason: 'no duplicate positions',
+      );
     }
   });
 
@@ -269,10 +283,9 @@ void main() {
       // Velocity continuity: the motion entering the wrap equals the motion
       // leaving it (a snap in VELOCITY would still be visible as a hitch
       // even if position matched).
-      final vBefore = ReactiveParticlePainter.ambientRest(spec, 1 - eps, size) -
-          p1;
-      final vAfter =
-          p0 - ReactiveParticlePainter.ambientRest(spec, eps, size);
+      final vBefore =
+          ReactiveParticlePainter.ambientRest(spec, 1 - eps, size) - p1;
+      final vAfter = p0 - ReactiveParticlePainter.ambientRest(spec, eps, size);
       expect(
         (vBefore - vAfter).distance,
         lessThan(1e-6),
@@ -294,8 +307,11 @@ void main() {
       expect(f.x, inInclusiveRange(0.0, 1.0));
       expect(f.y, inInclusiveRange(0.0, 1.0));
       expect(f.radius, inInclusiveRange(0.3, 0.8));
-      expect(f.fx, anyOf(equals(1), equals(2), equals(3), equals(5)),
-          reason: 'atmosphere drift must also be loop-seamless');
+      expect(
+        f.fx,
+        anyOf(equals(1), equals(2), equals(3), equals(5)),
+        reason: 'atmosphere drift must also be loop-seamless',
+      );
       expect(f.fy, anyOf(equals(1), equals(2), equals(3), equals(5)));
     }
   });
@@ -348,23 +364,26 @@ void main() {
     );
 
     // Distance-based falloff: far particles barely move.
-    expect(
-      (far - const Offset(300, 150)).distance,
-      lessThan(0.5),
-    );
+    expect((far - const Offset(300, 150)).distance, lessThan(0.5));
 
     // The nearest points lean AWAY from the finger (material displaced
     // around the touch), the mid-band leans TOWARD it (attraction) — a
     // deformation, not a uniform translation.
     final nearVec = near - const Offset(175, 100);
     final toPointer = (pointer - const Offset(175, 100)).normalized;
-    expect(nearVec.dot(toPointer), lessThan(0.0),
-        reason: 'nearest particles lean away from the finger');
+    expect(
+      nearVec.dot(toPointer),
+      lessThan(0.0),
+      reason: 'nearest particles lean away from the finger',
+    );
 
     final midVec = mid - const Offset(220, 90);
     final midToPointer = (pointer - const Offset(220, 90)).normalized;
-    expect(midVec.dot(midToPointer), greaterThan(0.0),
-        reason: 'mid-band particles lean toward the finger');
+    expect(
+      midVec.dot(midToPointer),
+      greaterThan(0.0),
+      reason: 'mid-band particles lean toward the finger',
+    );
 
     // Spatial, not uniform: two particles get different offsets.
     expect(

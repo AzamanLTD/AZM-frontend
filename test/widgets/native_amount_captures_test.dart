@@ -667,7 +667,7 @@ void main() {
           tester,
           name: 'vault_create_${e.key}_$mode',
           // Fixed clock: _maturity defaults to now+30d.
-        child: VaultCreateScreen(now: () => DateTime(2026, 10, 22)),
+          child: VaultCreateScreen(now: () => DateTime(2026, 10, 22)),
           size: e.value,
           dark: dark,
           afterPump: (t) async {

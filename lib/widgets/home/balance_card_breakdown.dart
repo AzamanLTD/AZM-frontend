@@ -140,9 +140,7 @@ class _BreakdownRow extends StatelessWidget {
                 child: Text.rich(
                   TextSpan(
                     text: label,
-                    style: AzText.bodyS.copyWith(
-                      color: colors.textPrimary,
-                    ),
+                    style: AzText.bodyS.copyWith(color: colors.textPrimary),
                     children: [
                       if (detail != null)
                         TextSpan(
@@ -162,8 +160,7 @@ class _BreakdownRow extends StatelessWidget {
                   // semantics label.
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  semanticsLabel:
-                      detail == null ? null : '$label · $detail',
+                  semanticsLabel: detail == null ? null : '$label · $detail',
                 ),
               ),
               const SizedBox(width: AzSpace.xs),
@@ -313,9 +310,7 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               label: 'USDC held',
               icon: HugeIconsSolid.coins01,
               iconSemantic: 'USDC wallet icon',
-              amount: confirmed
-                  ? AzMoney.amount(v.availableUsdc)
-                  : '—',
+              amount: confirmed ? AzMoney.amount(v.availableUsdc) : '—',
               unit: confirmed ? 'USDC' : '',
               colors: colors,
               detail: confirmed ? null : 'not confirmed yet',
@@ -356,16 +351,16 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               // see kCardDisplaysSavingsAggregate above. Unknown is a
               // dash, never zero, and the detail points at the one
               // surface that does show the factual figure.
-              amount: kCardDisplaysSavingsAggregate &&
-                      v.savingsLockedGhs != null
+              amount:
+                  kCardDisplaysSavingsAggregate && v.savingsLockedGhs != null
                   ? AzMoney.amount(v.savingsLockedGhs!)
                   : '—',
-              unit: kCardDisplaysSavingsAggregate &&
-                      v.savingsLockedGhs != null
+              unit: kCardDisplaysSavingsAggregate && v.savingsLockedGhs != null
                   ? 'GHS'
                   : '',
               colors: colors,
-              detail: !kCardDisplaysSavingsAggregate || v.savingsLockedGhs == null
+              detail:
+                  !kCardDisplaysSavingsAggregate || v.savingsLockedGhs == null
                   ? 'on the Savings screen'
                   : null,
             ),

@@ -118,8 +118,7 @@ class _HomePersistentHeaderState extends ConsumerState<HomePersistentHeader> {
   }
 
   double get _openDistance =>
-      MediaQuery.sizeOf(context).height *
-      HomePersistentHeader._openFraction;
+      MediaQuery.sizeOf(context).height * HomePersistentHeader._openFraction;
 
   void _onDragStart(DragStartDetails _) {
     if (_reveal != null) return;
@@ -161,7 +160,8 @@ class _HomePersistentHeaderState extends ConsumerState<HomePersistentHeader> {
     _sessionPointer = null;
     final v = d.primaryVelocity ?? 0;
     final r = (_dragDy / _openDistance).clamp(0.0, 1.0);
-    if (_commitArmed || r >= HomePersistentHeader._commitReveal ||
+    if (_commitArmed ||
+        r >= HomePersistentHeader._commitReveal ||
         v > HomePersistentHeader._commitVelocity) {
       s.commit();
     } else {
@@ -234,11 +234,7 @@ class _HomePersistentHeaderState extends ConsumerState<HomePersistentHeader> {
         children: [
           const NotificationBell(),
           const Spacer(),
-          Semantics(
-            button: true,
-            label: 'Profile and settings',
-            child: avatar,
-          ),
+          Semantics(button: true, label: 'Profile and settings', child: avatar),
         ],
       ),
     );
@@ -259,13 +255,14 @@ class _HomePersistentHeaderState extends ConsumerState<HomePersistentHeader> {
                   if (tint <= 0.01) return const SizedBox.shrink();
                   return ClipRect(
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 18 * tint, sigmaY: 18 * tint),
+                      filter: ImageFilter.blur(
+                        sigmaX: 18 * tint,
+                        sigmaY: 18 * tint,
+                      ),
                       child: DecoratedBox(
                         key: const ValueKey('home-header-surface'),
                         decoration: BoxDecoration(
-                          color: colors.surface.withValues(
-                            alpha: 0.78 * tint,
-                          ),
+                          color: colors.surface.withValues(alpha: 0.78 * tint),
                           border: Border(
                             bottom: BorderSide(
                               color: colors.border.withValues(
@@ -292,10 +289,7 @@ class _HomePersistentHeaderState extends ConsumerState<HomePersistentHeader> {
     if (!reduceMotion) {
       band = band
           .animate()
-          .fadeIn(
-            duration: MotionTokens.control,
-            curve: MotionTokens.enter,
-          )
+          .fadeIn(duration: MotionTokens.control, curve: MotionTokens.enter)
           .slideX(
             begin: -0.04,
             end: 0,
@@ -333,10 +327,7 @@ class _HomePersistentHeaderState extends ConsumerState<HomePersistentHeader> {
           child: Opacity(
             opacity: 1 - t,
             child: Transform.translate(
-              offset: Offset(
-                0,
-                -(HomePersistentHeader.bandHeight + 12) * t,
-              ),
+              offset: Offset(0, -(HomePersistentHeader.bandHeight + 12) * t),
               child: draggable,
             ),
           ),

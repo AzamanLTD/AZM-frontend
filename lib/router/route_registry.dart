@@ -193,7 +193,8 @@ abstract final class AzRoutes {
   static const savings = '/savings';
   static const receive = '/receive';
   static const paymentRequests = '/payment-requests';
-  static String paymentRequestLink(String token) => '/request/${Uri.encodeComponent(token)}';
+  static String paymentRequestLink(String token) =>
+      '/request/${Uri.encodeComponent(token)}';
 
   /// `/deposit?amount=&memo=` — Susu T-24h shortfall reminders pre-fill the
   /// Mobile Money tab with these two query parameters (Req 12.4).
@@ -221,6 +222,7 @@ abstract final class AzRoutes {
     ];
     return params.isEmpty ? '/send' : '/send?${params.join('&')}';
   }
+
   /// `/withdraw` — the Withdraw surface (Workstream C). Canonical rise
   /// route: every entry point (launcher, activity, P2P payouts) pushes
   /// through the router so the surface rises from a lower layer alike.
@@ -261,8 +263,9 @@ abstract final class AzRoutes {
   static const cart = '/biz/cart';
   static const businessRegister = '/business/register';
   static const businessNotifications = '/business/notifications';
-  static String businessProducts(String bizId, {String? name}) =>
-      name == null ? '/business/$bizId/products' : '/business/$bizId/products?name=${_encode(name)}';
+  static String businessProducts(String bizId, {String? name}) => name == null
+      ? '/business/$bizId/products'
+      : '/business/$bizId/products?name=${_encode(name)}';
   static String businessProfile(String bizId) => '/business/$bizId';
 
   // ── Worker portal ───────────────────────────────────────────────────────
@@ -277,8 +280,8 @@ abstract final class AzRoutes {
 
   // ── Storefront & discovery ──────────────────────────────────────────────
   static const storefrontStaking = '/storefront/staking';
-  static String storefront(String businessProfileId, {String? name}) => name ==
-          null
+  static String storefront(String businessProfileId, {String? name}) =>
+      name == null
       ? '/storefront/$businessProfileId'
       : '/storefront/$businessProfileId?name=${_encode(name)}';
   static const storefrontDiscovery = '/discover/storefronts';
@@ -293,8 +296,8 @@ abstract final class AzRoutes {
   static const storyCamera = '/story-camera';
   static const storyEditor = '/story-editor';
   static const storyCreation = '/story-create';
-  static String storyAnalytics(String businessId, {String? name}) => name ==
-          null
+  static String storyAnalytics(String businessId, {String? name}) =>
+      name == null
       ? '/story-analytics/$businessId'
       : '/story-analytics/$businessId?name=${_encode(name)}';
 
@@ -305,11 +308,14 @@ abstract final class AzRoutes {
   // ── Chat / wallet / orders / vault ───────────────────────────────────────
   static String messageSearch(String conversationId) =>
       '/chat/$conversationId/search';
-  static String walletPass(String passType, String itemId,
-          {String? title, String? subtitle}) =>
-      '/wallet-pass/$passType/$itemId';
-  static String orderTracking(String orderId, {String? orderRef}) => orderRef ==
-          null
+  static String walletPass(
+    String passType,
+    String itemId, {
+    String? title,
+    String? subtitle,
+  }) => '/wallet-pass/$passType/$itemId';
+  static String orderTracking(String orderId, {String? orderRef}) =>
+      orderRef == null
       ? '/orders/$orderId/tracking'
       : '/orders/$orderId/tracking?orderRef=${_encode(orderRef)}';
   static String vaultYield(String vaultId) => '/vault/$vaultId/yield';

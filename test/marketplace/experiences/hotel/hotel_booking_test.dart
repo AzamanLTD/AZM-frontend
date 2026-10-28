@@ -22,24 +22,28 @@ void main() {
 
   test('rejects invalid date range', () async {
     final gateway = _Gateway();
-    final result = await HotelBookingController(gateway).submit(HotelStay(
-      checkIn: DateTime(2026, 9, 10),
-      checkOut: DateTime(2026, 9, 10),
-      guests: 1,
-      room: room,
-    ));
+    final result = await HotelBookingController(gateway).submit(
+      HotelStay(
+        checkIn: DateTime(2026, 9, 10),
+        checkOut: DateTime(2026, 9, 10),
+        guests: 1,
+        room: room,
+      ),
+    );
     expect(result, isA<HotelBookingFailure>());
     expect(gateway.received, isNull);
   });
 
   test('rejects capacity overflow', () async {
     final gateway = _Gateway();
-    final result = await HotelBookingController(gateway).submit(HotelStay(
-      checkIn: DateTime(2026, 9, 10),
-      checkOut: DateTime(2026, 9, 12),
-      guests: 3,
-      room: room,
-    ));
+    final result = await HotelBookingController(gateway).submit(
+      HotelStay(
+        checkIn: DateTime(2026, 9, 10),
+        checkOut: DateTime(2026, 9, 12),
+        guests: 3,
+        room: room,
+      ),
+    );
     expect(result, isA<HotelBookingFailure>());
     expect(gateway.received, isNull);
   });

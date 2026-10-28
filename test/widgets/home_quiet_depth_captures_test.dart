@@ -33,6 +33,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:azaman/models/susu_model.dart';
+import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
@@ -56,7 +57,6 @@ import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 
 /// Fixed pumping to settle entrance + doorway measurement windows (the
 /// canonical Home settle pattern — the real page never quiesces).
@@ -99,15 +99,21 @@ Future<void> _loadFonts() async {
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
   await _loadFace(
-      'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+    'MaterialIcons',
+    'test/goldens/fonts/MaterialIcons-Regular.otf',
+  );
   // Package icons (IconData(fontFamily: 'HugeIconsSolid',
   // fontPackage: 'hugeicons_pro')) resolve through the engine under the
   // PACKAGE-QUALIFIED family key. Registering the bare name left every
   // HugeIcons glyph unresolved → tofu squares in the captures.
-  await _loadFace('packages/hugeicons_pro/HugeIconsSolid',
-      'test/goldens/fonts/hugeicons-solid.ttf');
-  await _loadFace('packages/hugeicons_pro/HugeIconsStroke',
-      'test/goldens/fonts/hugeicons-stroke.ttf');
+  await _loadFace(
+    'packages/hugeicons_pro/HugeIconsSolid',
+    'test/goldens/fonts/hugeicons-solid.ttf',
+  );
+  await _loadFace(
+    'packages/hugeicons_pro/HugeIconsStroke',
+    'test/goldens/fonts/hugeicons-stroke.ttf',
+  );
   await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
   _fontsLoaded = true;
 }
@@ -149,7 +155,8 @@ void _expectConfirmedBalance() {
       matching: find.text('100.00'),
     ),
     findsOneWidget,
-    reason: 'the seeded available balance (100 USDC at rate 1.0) '
+    reason:
+        'the seeded available balance (100 USDC at rate 1.0) '
         'must be present as the rendered primary figure',
   );
 }
@@ -197,25 +204,24 @@ SusuSummary _activeSusu(
   DateTime runAt, {
   String id = 's1',
   String name = 'Circle Susu',
-}) =>
-    SusuSummary(
-      id: id,
-      name: name,
-      status: SusuStatus.active,
-      contributionUsdc: 10,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 10,
-      nextCycle: SusuCycleSummary(
-        id: 'c4',
-        cycleNumber: 4,
-        scheduledRunAt: runAt,
-        payoutUserId: 2,
-        isMe: false,
-      ),
-      myCycleSlot: 4,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+}) => SusuSummary(
+  id: id,
+  name: name,
+  status: SusuStatus.active,
+  contributionUsdc: 10,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 10,
+  nextCycle: SusuCycleSummary(
+    id: 'c4',
+    cycleNumber: 4,
+    scheduledRunAt: runAt,
+    payoutUserId: 2,
+    isMe: false,
+  ),
+  myCycleSlot: 4,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 const _cartIntent = ResumeIntent(
   kind: ResumeKind.cart,
@@ -227,7 +233,6 @@ const _cartIntent = ResumeIntent(
 /// Pumps the REAL Home page with the pilot's reminder seeds (one susu
 /// card + one resume card) inside a real GoRouter so pill taps actually
 /// navigate. Returns the container so tests can invalidate providers.
-
 
 /// Unmounts the page and drains riverpod's zero-duration auto-dispose
 /// timers so a multi-pump test tears down with a clean timer set.
@@ -259,50 +264,41 @@ Future<void> _swipeCommit(WidgetTester tester, Key cardKey) async {
 /// pinned [_pinnedFx] snapshot (1.0, source KOTANI) so the visible
 /// rate row is identical to the historical golden baseline.
 Map<String, dynamic> _nativeGhsValuation(double ghs) => {
-      'pair': 'USDC/GHS',
-      'nativeGhsAvailable': {
-        'exact': ghs.toStringAsFixed(8),
-        'value': ghs,
-      },
-      'availableUsdc': {
-        'exact': '100.00000000',
-        'value': 100,
-      },
-      'usdcEquivalent': {
-        'exact': (ghs / 1.0).toStringAsFixed(8),
-        'value': ghs / 1.0,
-      },
-      'availableGhsValue': {
-        'exact': ghs.toStringAsFixed(8),
-        'value': ghs,
-      },
-      'rateStatus': 'CURRENT',
-      'valuationStatus': 'CURRENT',
-      'currentRate': {
-        'rate': 1.0,
-        'rateExact': '1.00000000',
-        'isFresh': true,
-        'pair': 'USDC/GHS',
-        'source': 'KOTANI',
-        'observedAt': '2026-10-26T10:00:00Z',
-      },
-      'savedRate': null,
-      'displayRate': {'basis': 'CURRENT', 'rate': 1.0},
-      'usdcTransactionGateOpen': false,
-      'usdcTransactionGateReason': 'FRESH_CANONICAL_RATE',
-      'locked': {
-        'escrowUsdc': {'exact': '0E-8', 'value': 0},
-        'disputesUsdc': {'exact': '0E-8', 'value': 0},
-        'vaultsUsdc': {'exact': '0E-8', 'value': 0},
-        'savingsGhs': {'exact': '0E-8', 'value': 0},
-        'committedSusuUsdc': {'exact': '0E-8', 'value': 0},
-        'vendorUnallocatedUsdc': {'exact': '0E-8', 'value': 0},
-      },
-      'nonCash': {
-        'azmPoints': {'exact': '0E-8', 'value': 0},
-      },
-      'evaluatedAt': '2026-10-26T10:00:05Z',
-    };
+  'pair': 'USDC/GHS',
+  'nativeGhsAvailable': {'exact': ghs.toStringAsFixed(8), 'value': ghs},
+  'availableUsdc': {'exact': '100.00000000', 'value': 100},
+  'usdcEquivalent': {
+    'exact': (ghs / 1.0).toStringAsFixed(8),
+    'value': ghs / 1.0,
+  },
+  'availableGhsValue': {'exact': ghs.toStringAsFixed(8), 'value': ghs},
+  'rateStatus': 'CURRENT',
+  'valuationStatus': 'CURRENT',
+  'currentRate': {
+    'rate': 1.0,
+    'rateExact': '1.00000000',
+    'isFresh': true,
+    'pair': 'USDC/GHS',
+    'source': 'KOTANI',
+    'observedAt': '2026-10-26T10:00:00Z',
+  },
+  'savedRate': null,
+  'displayRate': {'basis': 'CURRENT', 'rate': 1.0},
+  'usdcTransactionGateOpen': false,
+  'usdcTransactionGateReason': 'FRESH_CANONICAL_RATE',
+  'locked': {
+    'escrowUsdc': {'exact': '0E-8', 'value': 0},
+    'disputesUsdc': {'exact': '0E-8', 'value': 0},
+    'vaultsUsdc': {'exact': '0E-8', 'value': 0},
+    'savingsGhs': {'exact': '0E-8', 'value': 0},
+    'committedSusuUsdc': {'exact': '0E-8', 'value': 0},
+    'vendorUnallocatedUsdc': {'exact': '0E-8', 'value': 0},
+  },
+  'nonCash': {
+    'azmPoints': {'exact': '0E-8', 'value': 0},
+  },
+  'evaluatedAt': '2026-10-26T10:00:05Z',
+};
 
 FxRateSnapshot? _pinnedFx(double rate) {
   if (rate <= 0 || !rate.isFinite) return null;
@@ -338,9 +334,7 @@ Future<ProviderContainer> _pumpHome(
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
-      transactionHistoryProvider.overrideWith(
-        (ref) => _NoopHistoryNotifier(),
-      ),
+      transactionHistoryProvider.overrideWith((ref) => _NoopHistoryNotifier()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
         (ref) => BalanceData(
@@ -358,15 +352,11 @@ Future<ProviderContainer> _pumpHome(
       // The seeded amount is a CONFIRMED balance, not a placeholder: the
       // readiness state must be loaded or the amount slot captures the
       // waiting dots instead of the figure (review finding on #184).
-      balanceReadinessProvider.overrideWith(
-        (ref) => BalanceReadiness.loaded,
-      ),
+      balanceReadinessProvider.overrideWith((ref) => BalanceReadiness.loaded),
       oracleRateProvider.overrideWith((ref) => 1.0),
       // The new balance-card seam: the valuation adapter reads the
       // pinned [fxRateProvider] snapshot, not the legacy oracle double.
-      fxRateProvider.overrideWith(
-        (ref) async => _pinnedFx(1.0),
-      ),
+      fxRateProvider.overrideWith((ref) async => _pinnedFx(1.0)),
       azmCardProgrammeProvider.overrideWith(
         (ref) => _PinnedProgramme().._pin = '1234',
       ),
@@ -403,8 +393,9 @@ Future<ProviderContainer> _pumpHome(
           // same opaque surface production paints.
           child: Consumer(
             builder: (context, ref, _) {
-              final surface =
-                  ref.watch(themeProvider.select((t) => t.colors.surface));
+              final surface = ref.watch(
+                themeProvider.select((t) => t.colors.surface),
+              );
               return Scaffold(
                 backgroundColor: surface,
                 body: RepaintBoundary(
@@ -450,24 +441,51 @@ const _rootKey = ValueKey('qd-capture-root');
 //      rasterised pixels. Every pixel of every capture must be opaque
 //      (alpha == 255). The original defect composited 5% glass over a
 //      clear buffer → white pills on a white viewer.
-//   2. TOFU / BLANK CONTENT: a real filled glyph has gold pixels INSIDE
+//   2. TOFU / BLANK CONTENT: a real filled glyph has accent pixels INSIDE
 //      its bounding box; a missing-font tofu square is a hollow outline
-//      (inner gold == 0). Real labels produce multiple text-coloured
+//      (inner accent == 0). Real labels produce multiple text-coloured
 //      runs along their row; a blank or bar-shaped placeholder does not.
+//
+// THE INK IS THE BRAND ACCENT, NOT GOLD (P2 of the card identity program).
+// The pill glyphs paint in the applied card identity's accent, so "accent
+// pixel" means "within tolerance of the accent this capture was taken with".
+// The default identity is the Blue card, whose accents are 0xFF0B4A9E (light)
+// and 0xFF4F9BF0 (dark) — see brandAccentFor().
 // ─────────────────────────────────────────────────────────────────────────
 
-const _goldR = 140, _goldG = 90, _goldB = 110;
+/// An ink pixel is the accent at >= 45% coverage over that theme's surface,
+/// allowing for the anti-aliasing fringe (a 1px glyph edge blends toward the
+/// page). Below 45% coverage a pixel is fringe, not ink, and does not count —
+/// so text and hairlines can never inflate the glyph count.
+const double _inkMinCoverage = 0.45;
+const double _inkTolerance = 40;
 
-bool _isGold(int r, int g, int b) => r > _goldR && g > _goldG && b < _goldB;
+bool _isAccent(int r, int g, int b, Color accent, Color surface) {
+  final ar = (accent.r * 255), ag = (accent.g * 255), ab = (accent.b * 255);
+  final sr = (surface.r * 255), sg = (surface.g * 255), sb = (surface.b * 255);
+  final dr = ar - sr, dg = ag - sg, db = ab - sb;
+  final denom = dr * dr + dg * dg + db * db;
+  if (denom == 0) return false;
+  // Project the pixel onto the accent→surface blend line.
+  var t = ((r - sr) * dr + (g - sg) * dg + (b - sb) * db) / denom;
+  if (t < _inkMinCoverage) return false;
+  if (t > 1) t = 1;
+  final er = sr + dr * t, eg = sg + dg * t, eb = sb + db * t;
+  final dist = ((r - er) * (r - er) + (g - eg) * (g - eg) + (b - eb) * (b - eb))
+      .abs();
+  return dist <= _inkTolerance * _inkTolerance;
+}
 
 /// Asserts every pixel of the capture is fully opaque.
 void _expectOpaque(String name, Uint8List rgba, int width, int height) {
   for (var i = 3; i < rgba.length; i += 4) {
     if (rgba[i] != 0xFF) {
-      fail('$name: capture has non-opaque pixels (alpha=${rgba[i]} at '
-          'offset $i). The themed surface must be composited INSIDE the '
-          'captured boundary — a transparent capture reads as white pills '
-          'on a white viewer (the original #184 evidence defect).');
+      fail(
+        '$name: capture has non-opaque pixels (alpha=${rgba[i]} at '
+        'offset $i). The themed surface must be composited INSIDE the '
+        'captured boundary — a transparent capture reads as white pills '
+        'on a white viewer (the original #184 evidence defect).',
+      );
     }
   }
 }
@@ -482,22 +500,24 @@ List<Rect> _pillRects(WidgetTester tester) {
     f = find.byKey(const ValueKey('quiet-depth-recessed'));
   }
   expect(f, findsExactly(3), reason: 'the three quick-action pills');
-  final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
+  final boundary = tester.renderObject<RenderRepaintBoundary>(
+    find.byKey(_rootKey),
+  );
   final origin = boundary.localToGlobal(Offset.zero);
   // logical → image pixels: translate to the boundary's frame, then
   // scale by the raster pixelRatio (2.0).
   Rect toImagePx(Rect r) => Rect.fromLTWH(
-        (r.left - origin.dx) * 2.0,
-        (r.top - origin.dy) * 2.0,
-        r.width * 2.0,
-        r.height * 2.0,
-      );
+    (r.left - origin.dx) * 2.0,
+    (r.top - origin.dy) * 2.0,
+    r.width * 2.0,
+    r.height * 2.0,
+  );
   return [for (var i = 0; i < 3; i++) toImagePx(tester.getRect(f.at(i)))];
 }
 
 /// Asserts each pill renders a real icon glyph and a real label:
-/// per pill — filled-gold interior (tofu is hollow: 0 inner pixels),
-/// a minimum gold body, and text-coloured pixels forming >= 2 runs.
+/// per pill — filled brand-accent interior (tofu is hollow: 0 inner pixels),
+/// a minimum accent body, and text-coloured pixels forming >= 2 runs.
 void _expectRealGlyphsAndLabels(
   String name,
   Uint8List rgba,
@@ -512,15 +532,23 @@ void _expectRealGlyphsAndLabels(
       ? (r < 80 && g < 80 && b < 80) // dark text on the light surface
       : (r > 190 && g > 190 && b > 190); // white text on the dark glass
 
-  var gold = 0, labelPx = 0;
+  // The identity the capture was taken with: the default Blue card, whose
+  // accent flips with the theme exactly as the live app does.
+  final accent = brandAccentFor(BalanceCardVariant.blue, !lightLabels).accent;
+  // The surface the ink is composited over, per theme.
+  final surface = lightLabels
+      ? const Color(0xFFFFFFFF)
+      : const Color(0xFF0A0F16);
+
+  var accentPx = 0, labelPx = 0;
   var gx0 = -1, gy0 = -1, gx1 = -1, gy1 = -1;
   final labelRows = <int, int>{}; // row → label pixel count
   for (var y = py0; y < py1 && y >= 0 && y * width < rgba.length; y++) {
     for (var x = px0; x < px1; x++) {
       final i = (y * width + x) * 4;
       final r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
-      if (_isGold(r, g, b)) {
-        gold++;
+      if (_isAccent(r, g, b, accent, surface)) {
+        accentPx++;
         if (gx0 < 0 || x < gx0) gx0 = x;
         if (gy0 < 0 || y < gy0) gy0 = y;
         if (x > gx1) gx1 = x;
@@ -532,30 +560,43 @@ void _expectRealGlyphsAndLabels(
     }
   }
   final which = '$name pill [${pillRect.left.round()}]';
-  expect(gold, greaterThan(200),
-      reason: '$which: no real icon glyph rendered (gold pixels: $gold). '
-          'A missing icon font falls back to tofu.');
-  expect(gx0, greaterThanOrEqualTo(0), reason: '$which: no gold pixels');
+  expect(
+    accentPx,
+    greaterThan(200),
+    reason:
+        '$which: no real icon glyph rendered (accent pixels: '
+        '$accentPx). A missing icon font falls back to tofu.',
+  );
+  expect(gx0, greaterThanOrEqualTo(0), reason: '$which: no accent pixels');
 
-  // Hollow-tofu discriminator: gold inside the shrunken glyph bbox.
+  // Hollow-tofu discriminator: accent ink inside the shrunken glyph bbox.
   var inner = 0;
   final ix0 = gx0 + (gx1 - gx0) ~/ 4, ix1 = gx1 - (gx1 - gx0) ~/ 4;
   final iy0 = gy0 + (gy1 - gy0) ~/ 4, iy1 = gy1 - (gy1 - gy0) ~/ 4;
   for (var y = iy0; y <= iy1; y++) {
     for (var x = ix0; x <= ix1; x++) {
       final i = (y * width + x) * 4;
-      if (_isGold(rgba[i], rgba[i + 1], rgba[i + 2])) inner++;
+      if (_isAccent(rgba[i], rgba[i + 1], rgba[i + 2], accent, surface)) {
+        inner++;
+      }
     }
   }
-  expect(inner, greaterThan(60),
-      reason: '$which: icon glyph is HOLLOW (inner gold: $inner) — this is '
-          'the tofu-square signature (hollow outline, 0 inner pixels). The '
-          'package-qualified HugeIcons families must be registered.');
+  expect(
+    inner,
+    greaterThan(60),
+    reason:
+        '$which: icon glyph is HOLLOW (inner accent: $inner) — this is '
+        'the tofu-square signature (hollow outline, 0 inner pixels). The '
+        'package-qualified HugeIcons families must be registered.',
+  );
 
   // Label truth: enough text pixels AND separated runs (a bar is 1 run,
   // a blank label is 0 pixels).
-  expect(labelPx, greaterThan(120),
-      reason: '$which: label is blank (text pixels: $labelPx)');
+  expect(
+    labelPx,
+    greaterThan(120),
+    reason: '$which: label is blank (text pixels: $labelPx)',
+  );
   var bestRow = labelRows.entries.reduce((a, b) => a.value >= b.value ? a : b);
   var runs = 0;
   var prevIn = false;
@@ -565,10 +606,14 @@ void _expectRealGlyphsAndLabels(
     if (inRun && !prevIn) runs++;
     prevIn = inRun;
   }
-  expect(runs, greaterThan(1),
-      reason: '$which: label row has $runs text run(s) — real type has '
-          'letter gaps; a single contiguous bar is the missing-font '
-          'placeholder signature.');
+  expect(
+    runs,
+    greaterThan(1),
+    reason:
+        '$which: label row has $runs text run(s) — real type has '
+        'letter gaps; a single contiguous bar is the missing-font '
+        'placeholder signature.',
+  );
 }
 
 /// FLAT-CONTRACT PIXEL TRUTH (design review 2026-10-23): the settled
@@ -596,8 +641,10 @@ void _expectFlatInterior(
   final radius = (pillRect.height / 2).round();
   final refX0 = left + radius + 8, refX1 = right - radius - 8;
   if (refX1 - refX0 < 12) {
-    fail('$name pill [${pillRect.left.round()}]: too narrow to sample a '
-        'flat interior strip');
+    fail(
+      '$name pill [${pillRect.left.round()}]: too narrow to sample a '
+      'flat interior strip',
+    );
   }
   // Reference strip: 8-12 image px above the rim — same page plane.
   final refYs = [top - 11, top - 10, top - 9];
@@ -624,11 +671,13 @@ void _expectFlatInterior(
           (r & 0xFF) - (c & 0xFF) >= -2;
       final near = ref.any(nearRef);
       if (!near) {
-        fail('$which: interior pixel '
-            '(${(c >> 16) & 0xFF},${(c >> 8) & 0xFF},${c & 0xFF}) at '
-            '($x,$y) differs from the page plane — the settled body '
-            'must visually disappear into the page (no fill, tint, '
-            'glass, shadow or glow).');
+        fail(
+          '$which: interior pixel '
+          '(${(c >> 16) & 0xFF},${(c >> 8) & 0xFF},${c & 0xFF}) at '
+          '($x,$y) differs from the page plane — the settled body '
+          'must visually disappear into the page (no fill, tint, '
+          'glass, shadow or glow).',
+        );
       }
     }
   }
@@ -647,7 +696,9 @@ Future<void> _capture(
 }) async {
   var ok = false;
   await tester.runAsync(() async {
-    final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(_rootKey),
+    );
     // Rects are read BEFORE the rasterisation awaits: the tree stays
     // settled here, but reads are cheap to hoist.
     final rects = verifyPills ? _pillRects(tester) : const <Rect>[];
@@ -659,20 +710,24 @@ Future<void> _capture(
     await file.writeAsBytes(data.buffer.asUint8List());
     ok = file.lengthSync() > 1000;
     if (verifyPills) {
-      final rgba = (await image.toByteData(format: ImageByteFormat.rawRgba))!
-          .buffer
-          .asUint8List();
+      final rgba = (await image.toByteData(
+        format: ImageByteFormat.rawRgba,
+      ))!.buffer.asUint8List();
       _expectOpaque(name, rgba, image.width, image.height);
       for (final r in rects) {
-        _expectRealGlyphsAndLabels(name, rgba, image.width, r,
-            lightLabels: lightLabels);
+        _expectRealGlyphsAndLabels(
+          name,
+          rgba,
+          image.width,
+          r,
+          lightLabels: lightLabels,
+        );
         _expectFlatInterior(name, rgba, image.width, r);
       }
     }
   });
   expect(ok, isTrue, reason: '$name.png must contain real image bytes');
 }
-
 
 class _NoopHomeSummaryNotifier extends HomeSummaryNotifier {
   _NoopHomeSummaryNotifier(super.ref, super.service);
@@ -697,8 +752,7 @@ void main() {
   //     face steady at 1.25x beyond it.
   for (final scale in [1.3, 1.4, 1.6, 2.0]) {
     for (final theme in AzamanTheme.values) {
-      testWidgets(
-          'deck card never overflows its 165px slot at ${scale}x text '
+      testWidgets('deck card never overflows its 165px slot at ${scale}x text '
           '(${theme.name}, 320dp)', (tester) async {
         await _pumpHome(
           tester,
@@ -717,11 +771,7 @@ void main() {
   final headerHeightByScale = <double, double>{};
 
   Future<void> measureHeader(WidgetTester tester, double scale) async {
-    await _pumpHome(
-      tester,
-      surface: const Size(320, 540),
-      textScale: scale,
-    );
+    await _pumpHome(tester, surface: const Size(320, 540), textScale: scale);
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
     headerHeightByScale[scale] = tester
@@ -738,13 +788,15 @@ void main() {
     await measureHeader(tester, 1.2);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
-  testWidgets('deck card header measured at 1.25x (the clamp level)',
-      (tester) async {
+  testWidgets('deck card header measured at 1.25x (the clamp level)', (
+    tester,
+  ) async {
     await measureHeader(tester, 1.25);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
-  testWidgets('deck card header measured at 1.4x (beyond the clamp)',
-      (tester) async {
+  testWidgets('deck card header measured at 1.4x (beyond the clamp)', (
+    tester,
+  ) async {
     await measureHeader(tester, 1.4);
   }, timeout: const Timeout(Duration(minutes: 2)));
 
@@ -772,10 +824,8 @@ void main() {
   // announces its full title and subtitle. The visible faces hold at
   // their measured maxima (front 1.25x, ticket 1.8x), so nothing
   // overflows, but nothing is lost to assistive tech either.
-  testWidgets(
-      'SEMANTICS READ AT 2.0x — the clamp bounds visual scale only; '
-      'screen readers get full, unscaled money content',
-      (tester) async {
+  testWidgets('SEMANTICS READ AT 2.0x — the clamp bounds visual scale only; '
+      'screen readers get full, unscaled money content', (tester) async {
     await _pumpHome(
       tester,
       // 390x844 keeps the reminder deck on-screen so the swipe below
@@ -789,8 +839,6 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
 
-
-
     // (a) The reminder ticket face: the susu card is first in the deck;
     // commit it so the resume card face is showing, then read the
     // FULL title and subtitle through semantics.
@@ -798,7 +846,8 @@ void main() {
     expect(
       find.bySemanticsLabel(RegExp("Finish your order at Maame's Kitchen")),
       findsOneWidget,
-      reason: 'the ticket title must be readable in full at 2.0x — '
+      reason:
+          'the ticket title must be readable in full at 2.0x — '
           'the 1.8x visual clamp may compress the paint, never the '
           'semantic content',
     );
@@ -832,7 +881,8 @@ void main() {
         RegExp(r'Available balance GH₵.100\.00 in GHS'),
       ),
       findsOneWidget,
-      reason: 'the balance semantics must carry the complete figure at '
+      reason:
+          'the balance semantics must carry the complete figure at '
           'the OS\'s largest text setting, in the exact '
           'main-currency wording — GHS is canonical, never a '
           'USDC-derived estimate',
@@ -842,20 +892,22 @@ void main() {
         RegExp(r'Approximately GH₵.{0,40}display valuation'),
       ),
       findsNothing,
-      reason: 'the GHS figure is never announced as an approximate '
+      reason:
+          'the GHS figure is never announced as an approximate '
           'converted display valuation — that framing was the wrong '
           'conversion direction',
     );
     expect(
       find.bySemanticsLabel(RegExp(r'not a native GHS wallet holding')),
       findsNothing,
-      reason: 'the corrected contract never announces the GHS balance '
+      reason:
+          'the corrected contract never announces the GHS balance '
           'as anything other than the main-currency figure',
     );
-
   }, timeout: const Timeout(Duration(minutes: 2)));
-  testWidgets('dark 390: resting → recessed → focal wallet captures',
-      (tester) async {
+  testWidgets('dark 390: resting → recessed → focal wallet captures', (
+    tester,
+  ) async {
     await _pumpHome(
       tester,
       susu: [_activeSusu(DateTime(2026, 10, 26))],
@@ -879,8 +931,9 @@ void main() {
     await _capture(tester, 'qd_dark_focal_wallet_390', verifyPills: true);
   });
 
-  testWidgets('dark 390: reminder focal + terminal celebration captures',
-      (tester) async {
+  testWidgets('dark 390: reminder focal + terminal celebration captures', (
+    tester,
+  ) async {
     await _pumpHome(
       tester,
       susu: [_activeSusu(DateTime(2026, 10, 26))],
@@ -916,12 +969,16 @@ void main() {
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
-    expect(find.byKey(const ValueKey('reminder-confetti')), findsNothing,
-        reason: 'the celebration is one-shot, never looping');
+    expect(
+      find.byKey(const ValueKey('reminder-confetti')),
+      findsNothing,
+      reason: 'the celebration is one-shot, never looping',
+    );
   });
 
-  testWidgets('light 390: resting → recessed → focal wallet captures',
-      (tester) async {
+  testWidgets('light 390: resting → recessed → focal wallet captures', (
+    tester,
+  ) async {
     await _pumpHome(
       tester,
       theme: AzamanTheme.light,
@@ -930,7 +987,12 @@ void main() {
     );
     _expectConfirmedBalance();
     expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
-    await _capture(tester, 'qd_light_resting_raised_390', verifyPills: true, lightLabels: true);
+    await _capture(
+      tester,
+      'qd_light_resting_raised_390',
+      verifyPills: true,
+      lightLabels: true,
+    );
 
     // Sequential pumps (a single pump(d) runs ONE frame at its end, which
     // would freeze the depth fade at its first tick).
@@ -938,12 +1000,22 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 80));
     expect(find.byKey(const ValueKey('quiet-depth-recessed')), findsWidgets);
-    await _capture(tester, 'qd_light_recessed_390', verifyPills: true, lightLabels: true);
+    await _capture(
+      tester,
+      'qd_light_recessed_390',
+      verifyPills: true,
+      lightLabels: true,
+    );
 
     await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
     await _advance(tester);
     expect(_deckState(tester), WalletDeckState.balanceOut);
-    await _capture(tester, 'qd_light_focal_wallet_390', verifyPills: true, lightLabels: true);
+    await _capture(
+      tester,
+      'qd_light_focal_wallet_390',
+      verifyPills: true,
+      lightLabels: true,
+    );
   });
 
   // ── FLAT-CONTRACT LAYOUT TRUTH (design review 2026-10-23) ────────────
@@ -954,116 +1026,149 @@ void main() {
   // ellipses, no clipped letters: the pill scales its content row
   // down proportionally (never below a readable floor) instead of
   // clipping.
-  testWidgets('label truth — full labels at 320/390dp, both themes, both depth states',
-      (tester) async {
-    Future<void> pumpAt(
-      AzamanTheme theme,
-      Size surface, {
-      bool settle = true,
-      double textScale = 1.0,
-    }) async {
-      await _pumpHome(
-        tester,
-        surface: surface,
-        theme: theme,
-        textScale: textScale,
-        susu: [_activeSusu(DateTime(2026, 10, 26))],
-        intent: _cartIntent,
-      );
-      if (settle) {
-        // Settle to the recessed state (the settled appearance).
-        await tester.pump(const Duration(seconds: 3));
-        await tester.pump(const Duration(milliseconds: 300));
-        expect(find.byKey(const ValueKey('quiet-depth-recessed')),
+  testWidgets(
+    'label truth — full labels at 320/390dp, both themes, both depth states',
+    (tester) async {
+      Future<void> pumpAt(
+        AzamanTheme theme,
+        Size surface, {
+        bool settle = true,
+        double textScale = 1.0,
+      }) async {
+        await _pumpHome(
+          tester,
+          surface: surface,
+          theme: theme,
+          textScale: textScale,
+          susu: [_activeSusu(DateTime(2026, 10, 26))],
+          intent: _cartIntent,
+        );
+        if (settle) {
+          // Settle to the recessed state (the settled appearance).
+          await tester.pump(const Duration(seconds: 3));
+          await tester.pump(const Duration(milliseconds: 300));
+          expect(
+            find.byKey(const ValueKey('quiet-depth-recessed')),
             findsWidgets,
-            reason: 'precondition: the pills must be settled');
-      } else {
-        expect(find.byKey(const ValueKey('quiet-depth-raised')),
+            reason: 'precondition: the pills must be settled',
+          );
+        } else {
+          expect(
+            find.byKey(const ValueKey('quiet-depth-raised')),
             findsWidgets,
-            reason: 'precondition: the pills must be woken');
+            reason: 'precondition: the pills must be woken',
+          );
+        }
       }
-    }
 
-    const labels = ['Save', 'P2P', 'Susu'];
-    const pillKeys = [
-      'wallet-module-save',
-      'wallet-module-p2p',
-      'wallet-module-susu',
-    ];
+      const labels = ['Save', 'P2P', 'Susu'];
+      const pillKeys = [
+        'wallet-module-save',
+        'wallet-module-p2p',
+        'wallet-module-susu',
+      ];
 
-    void expectFullLabels(double w, AzamanTheme theme, String state,
-        {double scaleFloor = 0.9}) {
-      for (var i = 0; i < labels.length; i++) {
-        final t = find.text(labels[i]);
-        expect(t, findsOneWidget,
-            reason: 'the FULL label "${labels[i]}" must exist at '
-                '${w.toInt()}dp (${theme.name} / $state)');
-        final text = tester.widget<Text>(t);
-        expect(text.overflow, TextOverflow.visible,
-            reason: 'labels never ellipsize — the pill adapts instead '
-                '(${theme.name} / $state)');
-        expect(text.maxLines, 1);
+      void expectFullLabels(
+        double w,
+        AzamanTheme theme,
+        String state, {
+        double scaleFloor = 0.9,
+      }) {
+        for (var i = 0; i < labels.length; i++) {
+          final t = find.text(labels[i]);
+          expect(
+            t,
+            findsOneWidget,
+            reason:
+                'the FULL label "${labels[i]}" must exist at '
+                '${w.toInt()}dp (${theme.name} / $state)',
+          );
+          final text = tester.widget<Text>(t);
+          expect(
+            text.overflow,
+            TextOverflow.visible,
+            reason:
+                'labels never ellipsize — the pill adapts instead '
+                '(${theme.name} / $state)',
+          );
+          expect(text.maxLines, 1);
 
-        // The laid-out text fits the pill box — no clipped letters.
-        final pillRect = tester.getRect(find.byKey(ValueKey(pillKeys[i])));
-        final textRect = tester.getRect(t);
-        expect(
-          pillRect.contains(textRect.topLeft) &&
-              pillRect.contains(textRect.bottomRight),
-          isTrue,
-          reason: 'the "${labels[i]}" text must paint fully inside its '
-              'pill at ${w.toInt()}dp (${theme.name} / $state)',
-        );
+          // The laid-out text fits the pill box — no clipped letters.
+          final pillRect = tester.getRect(find.byKey(ValueKey(pillKeys[i])));
+          final textRect = tester.getRect(t);
+          expect(
+            pillRect.contains(textRect.topLeft) &&
+                pillRect.contains(textRect.bottomRight),
+            isTrue,
+            reason:
+                'the "${labels[i]}" text must paint fully inside its '
+                'pill at ${w.toInt()}dp (${theme.name} / $state)',
+          );
 
-        // Content row scales down, not below a readable floor: at the
-        // default scale the labels stay essentially full size.
-        final fbox = tester.renderObject<RenderFittedBox>(
-          find.ancestor(of: t, matching: find.byType(FittedBox)),
-        );
-        final child = fbox.child!;
-        final scale = fbox.size.width / child.size.width;
-        expect(scale, greaterThan(scaleFloor),
-            reason: '"${labels[i]}" shrank to ${(scale * 100).round()}% at '
+          // Content row scales down, not below a readable floor: at the
+          // default scale the labels stay essentially full size.
+          final fbox = tester.renderObject<RenderFittedBox>(
+            find.ancestor(of: t, matching: find.byType(FittedBox)),
+          );
+          final child = fbox.child!;
+          final scale = fbox.size.width / child.size.width;
+          expect(
+            scale,
+            greaterThan(scaleFloor),
+            reason:
+                '"${labels[i]}" shrank to ${(scale * 100).round()}% at '
                 '${w.toInt()}dp (${theme.name} / $state) — the '
-                'default-scale label budget is broken');
+                'default-scale label budget is broken',
+          );
+        }
+        // Touch targets survive the layout adaptation: every pill is at
+        // least 44x44dp in every combination.
+        for (final k in pillKeys) {
+          final s = tester.getSize(find.byKey(ValueKey(k)));
+          expect(
+            s.width,
+            greaterThanOrEqualTo(44),
+            reason: 'minimum 44dp hit-target width (${theme.name} / $state)',
+          );
+          expect(
+            s.height,
+            greaterThanOrEqualTo(44),
+            reason: 'minimum 44dp hit-target height (${theme.name} / $state)',
+          );
+        }
       }
-      // Touch targets survive the layout adaptation: every pill is at
-      // least 44x44dp in every combination.
-      for (final k in pillKeys) {
-        final s = tester.getSize(find.byKey(ValueKey(k)));
-        expect(s.width, greaterThanOrEqualTo(44),
-            reason: 'minimum 44dp hit-target width (${theme.name} / $state)');
-        expect(s.height, greaterThanOrEqualTo(44),
-            reason: 'minimum 44dp hit-target height (${theme.name} / $state)');
+
+      // The review matrix: both themes × both depth states, at 320dp AND
+      // 390dp.
+      for (final theme in AzamanTheme.values) {
+        for (final settle in [false, true]) {
+          final state = settle ? 'settled' : 'woken';
+          await pumpAt(theme, const Size(320, 844), settle: settle);
+          expectFullLabels(320, theme, state);
+          await _flush(tester);
+
+          await pumpAt(theme, const Size(390, 844), settle: settle);
+          expectFullLabels(390, theme, state);
+          await _flush(tester);
+        }
       }
-    }
 
-    // The review matrix: both themes × both depth states, at 320dp AND
-    // 390dp.
-    for (final theme in AzamanTheme.values) {
-      for (final settle in [false, true]) {
-        final state = settle ? 'settled' : 'woken';
-        await pumpAt(theme, const Size(320, 844), settle: settle);
-        expectFullLabels(320, theme, state);
-        await _flush(tester);
-
-        await pumpAt(theme, const Size(390, 844), settle: settle);
-        expectFullLabels(390, theme, state);
-        await _flush(tester);
-      }
-    }
-
-    // Larger text scale: labels still complete — degraded by
-    // proportional scaling, never by clipping or ellipsis.
-    // (1.3x is NOT probed: an UNRELATED pre-existing 2px vertical
-    // overflow inside a deck card fails layout at 1.3x at de9521b
-    // already, at every width — outside this PR's scope. 1.15x still
-    // exercises the scale-down path without tripping that defect.)
-    await pumpAt(AzamanTheme.dark, const Size(390, 844), textScale: 1.15);
-    expectFullLabels(390, AzamanTheme.dark, 'settled, 1.15x text scale',
-        scaleFloor: 0.7);
-    await _flush(tester);
-  });
+      // Larger text scale: labels still complete — degraded by
+      // proportional scaling, never by clipping or ellipsis.
+      // (1.3x is NOT probed: an UNRELATED pre-existing 2px vertical
+      // overflow inside a deck card fails layout at 1.3x at de9521b
+      // already, at every width — outside this PR's scope. 1.15x still
+      // exercises the scale-down path without tripping that defect.)
+      await pumpAt(AzamanTheme.dark, const Size(390, 844), textScale: 1.15);
+      expectFullLabels(
+        390,
+        AzamanTheme.dark,
+        'settled, 1.15x text scale',
+        scaleFloor: 0.7,
+      );
+      await _flush(tester);
+    },
+  );
 
   // ── DEPTH SEPARATION TRUTH (review blocker 1) ──────────────────────
   //
@@ -1073,13 +1178,12 @@ void main() {
   // measurably stronger than the settled rim (and than the
   // wallet-focus rim, which is settled-family), in BOTH themes.
   Future<double> rimContrast(String name, Rect pillRect) async {
-    final data =
-        await File('.screenshots/quiet_depth/$name.png').readAsBytes();
+    final data = await File('.screenshots/quiet_depth/$name.png').readAsBytes();
     final codec = await ui.instantiateImageCodec(data);
     final frame = await codec.getNextFrame();
-    final bytes = (await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba))!
-        .buffer
-        .asUint8List();
+    final bytes = (await frame.image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    ))!.buffer.asUint8List();
     final w = frame.image.width;
     int px(int x, int y) {
       final i = (y * w + x) * 4;
@@ -1093,59 +1197,73 @@ void main() {
     return (rim - page).abs().toDouble();
   }
 
-  testWidgets('depth separation — woken vs settled vs wallet-focus rims differ measurably',
-      (tester) async {
-    const themes = [
-      (AzamanTheme.dark, 'dark'),
-      (AzamanTheme.light, 'light'),
-    ];
-    for (final (theme, prefix) in themes) {
-      await _pumpHome(
-        tester,
-        theme: theme,
-        susu: [_activeSusu(DateTime(2026, 10, 26))],
-        intent: _cartIntent,
-      );
-      expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
-      final rects = _pillRects(tester);
-      final p0 = rects.first;
-      await _capture(tester, '${prefix}_sep_raised');
+  testWidgets(
+    'depth separation — woken vs settled vs wallet-focus rims differ measurably',
+    (tester) async {
+      const themes = [(AzamanTheme.dark, 'dark'), (AzamanTheme.light, 'light')];
+      for (final (theme, prefix) in themes) {
+        await _pumpHome(
+          tester,
+          theme: theme,
+          susu: [_activeSusu(DateTime(2026, 10, 26))],
+          intent: _cartIntent,
+        );
+        expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
+        final rects = _pillRects(tester);
+        final p0 = rects.first;
+        await _capture(tester, '${prefix}_sep_raised');
 
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pump(const Duration(milliseconds: 200));
-      await tester.pump(const Duration(milliseconds: 80));
-      expect(find.byKey(const ValueKey('quiet-depth-recessed')), findsWidgets);
-      await _capture(tester, '${prefix}_sep_recessed');
+        await tester.pump(const Duration(seconds: 3));
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.pump(const Duration(milliseconds: 80));
+        expect(
+          find.byKey(const ValueKey('quiet-depth-recessed')),
+          findsWidgets,
+        );
+        await _capture(tester, '${prefix}_sep_recessed');
 
-      await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
-      await _advance(tester);
-      expect(_deckState(tester), WalletDeckState.balanceOut);
-      await _capture(tester, '${prefix}_sep_focal');
+        await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
+        await _advance(tester);
+        expect(_deckState(tester), WalletDeckState.balanceOut);
+        await _capture(tester, '${prefix}_sep_focal');
 
-      var ratios = <double>[];
-      await tester.runAsync(() async {
-        final woken = await rimContrast('${prefix}_sep_raised', p0);
-        final settled = await rimContrast('${prefix}_sep_recessed', p0);
-        final focus = await rimContrast('${prefix}_sep_focal', p0);
-        // The woken rim is the STRONGER edge in both themes (in light
-        // the softened rim blends TOWARD the near-white page, so its
-        // contrast drops there too — same direction, different luma).
-        ratios = [woken / settled, woken / focus];
-        expect(settled, greaterThan(3),
-            reason: '$prefix: the settled rim must still be VISIBLE '
-                '(contrast $settled luma-steps), not fully erased');
-        expect(ratios[0], greaterThan(1.25),
-            reason: '$prefix: woken-vs-settled rim separation is too '
+        var ratios = <double>[];
+        await tester.runAsync(() async {
+          final woken = await rimContrast('${prefix}_sep_raised', p0);
+          final settled = await rimContrast('${prefix}_sep_recessed', p0);
+          final focus = await rimContrast('${prefix}_sep_focal', p0);
+          // The woken rim is the STRONGER edge in both themes (in light
+          // the softened rim blends TOWARD the near-white page, so its
+          // contrast drops there too — same direction, different luma).
+          ratios = [woken / settled, woken / focus];
+          expect(
+            settled,
+            greaterThan(3),
+            reason:
+                '$prefix: the settled rim must still be VISIBLE '
+                '(contrast $settled luma-steps), not fully erased',
+          );
+          expect(
+            ratios[0],
+            greaterThan(1.25),
+            reason:
+                '$prefix: woken-vs-settled rim separation is too '
                 'subtle (${(ratios[0] * 100).round()}%) — the depth story '
-                'must be readable, not just measurable');
-        expect(ratios[1], greaterThan(1.25),
-            reason: '$prefix: the wallet-focus pills must read as '
+                'must be readable, not just measurable',
+          );
+          expect(
+            ratios[1],
+            greaterThan(1.25),
+            reason:
+                '$prefix: the wallet-focus pills must read as '
                 'settled-quiet (woken/focus = '
-                '${(ratios[1] * 100).round()}%)');
-      });
-      await _flush(tester);
-    }
-  });
+                '${(ratios[1] * 100).round()}%)',
+          );
+        });
+        await _flush(tester);
+      }
+    },
+  );
 
   testWidgets('dark width sweep 320/360: recessed captures', (tester) async {
     for (final w in [320.0, 360.0]) {
@@ -1157,13 +1275,17 @@ void main() {
       );
       expect(find.byKey(const ValueKey('quiet-depth-raised')), findsWidgets);
       // Sequential pumps (a single pump(d) runs ONE frame at its end, which
-    // would freeze the depth fade at its first tick).
-    await tester.pump(const Duration(seconds: 3));
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.pump(const Duration(milliseconds: 80));
+      // would freeze the depth fade at its first tick).
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 80));
       _expectConfirmedBalance();
       expect(find.byKey(const ValueKey('quiet-depth-recessed')), findsWidgets);
-      await _capture(tester, 'qd_dark_recessed_${w.toInt()}', verifyPills: true);
+      await _capture(
+        tester,
+        'qd_dark_recessed_${w.toInt()}',
+        verifyPills: true,
+      );
       await _flush(tester);
     }
   });

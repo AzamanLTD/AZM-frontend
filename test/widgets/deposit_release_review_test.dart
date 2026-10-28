@@ -119,8 +119,11 @@ class _FakeHttpClientRequest implements HttpClientRequest {
 
 class _FakeHttpClientResponse extends Stream<List<int>>
     implements HttpClientResponse {
-  _FakeHttpClientResponse(this.statusCode, this.body,
-      {required this.reasonPhrase});
+  _FakeHttpClientResponse(
+    this.statusCode,
+    this.body, {
+    required this.reasonPhrase,
+  });
 
   @override
   final int statusCode;
@@ -135,8 +138,12 @@ class _FakeHttpClientResponse extends Stream<List<int>>
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return _singleShot().listen(onData,
-        onError: onError, onDone: onDone, cancelOnError: cancelOnError);
+    return _singleShot().listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
   }
 
   Stream<Uint8List> _singleShot() async* {
@@ -196,17 +203,16 @@ SavedMomoAccount _acct(
   String provider,
   String phone, {
   bool isPrimary = false,
-}) =>
-    SavedMomoAccount(
-      id: id,
-      nickname: label,
-      provider: provider,
-      phoneNumber: phone,
-      accountName: label,
-      isVerified: true,
-      isPrimary: isPrimary,
-      createdAt: DateTime.utc(2026, 9, 1),
-    );
+}) => SavedMomoAccount(
+  id: id,
+  nickname: label,
+  provider: provider,
+  phoneNumber: phone,
+  accountName: label,
+  isVerified: true,
+  isPrimary: isPrimary,
+  createdAt: DateTime.utc(2026, 9, 1),
+);
 
 // Kwame (MTN, primary) and Ama (Telecel) — the two-account race scenario.
 final List<SavedMomoAccount> _accounts = [
@@ -310,8 +316,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = _TestHttpOverrides();
 
-  const secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
 
   setUp(() {
     _wire.clear();
@@ -400,10 +407,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       final duringSecondDrag = _sheetTranslateY(tester);
-      expect(duringSecondDrag,
-          allOf(greaterThan(visualAtInterrupt - 1), lessThan(55)),
-          reason: 'must continue from the interrupted position (~$visualAtInterrupt + 11), '
-              'not snap to the stale pre-spring offset (55)');
+      expect(
+        duringSecondDrag,
+        allOf(greaterThan(visualAtInterrupt - 1), lessThan(55)),
+        reason:
+            'must continue from the interrupted position (~$visualAtInterrupt + 11), '
+            'not snap to the stale pre-spring offset (55)',
+      );
 
       await second.up();
       await tester.pump();
@@ -419,8 +429,9 @@ void main() {
 
   group('3 — validate-name / account-selection race', () {
     testWidgets('(a) the payment-method row is inert while validation is in '
-        'flight, and the confirmed name belongs to the validated account',
-        (tester) async {
+        'flight, and the confirmed name belongs to the validated account', (
+      tester,
+    ) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openDeposit(tester);
@@ -428,7 +439,9 @@ void main() {
 
       // Hold validation open so the "in flight" window is observable.
       final gate = Completer<void>();
-      _wire['POST /deposit/validate-name'] = _Route(200, {'data': 'Kwame Mensah'}, gate);
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      }, gate);
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'data': {'reference': 'DEP-REG-1', 'status': 'PENDING'},
       });
@@ -444,10 +457,16 @@ void main() {
       // switching mid-flight is the race this guard closes.
       await tester.tap(find.text('Kwame Mensah'));
       await tester.pump(const Duration(milliseconds: 300));
-      expect(find.text('Payment method'), findsNothing,
-          reason: 'the selector must stay closed while validation runs');
-      expect(find.text('Ama Boateng'), findsNothing,
-          reason: 'no account switch happened');
+      expect(
+        find.text('Payment method'),
+        findsNothing,
+        reason: 'the selector must stay closed while validation runs',
+      );
+      expect(
+        find.text('Ama Boateng'),
+        findsNothing,
+        reason: 'no account switch happened',
+      );
 
       // Validation resolves → the dialog shows the VALIDATED account's
       // name → confirming initiates against THAT account.
@@ -460,8 +479,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
-      final initiate =
-          _requests.where((b) => b.containsKey('amountGhs')).single;
+      final initiate = _requests
+          .where((b) => b.containsKey('amountGhs'))
+          .single;
       expect(initiate['phoneNumber'], '+233244111222');
       expect(initiate['provider'], 'MTN_MOMO');
       expect(initiate['amountGhs'], 50);
@@ -478,7 +498,9 @@ void main() {
       await _enterAmount(tester);
 
       // 1. Validate the primary (Kwame) successfully, then CANCEL.
-      _wire['POST /deposit/validate-name'] = _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       await tester.tap(find.text('Add Cash').last);
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 100));
@@ -496,8 +518,9 @@ void main() {
 
       // 3. Ama's validation FAILS — the stale-name bug would confirm
       //    Kwame's name while charging Ama.
-      _wire['POST /deposit/validate-name'] =
-          _Route(500, {'message': 'validation down'});
+      _wire['POST /deposit/validate-name'] = _Route(500, {
+        'message': 'validation down',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'data': {'reference': 'DEP-REG-2', 'status': 'PENDING'},
       });
@@ -507,14 +530,19 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // No confirmation dialog AT ALL — certainly not Kwame's name.
-      expect(find.textContaining('Paying to:'), findsNothing,
-          reason: 'a failed validation for the newly selected account must '
-              'not reuse the first account’s resolved name');
+      expect(
+        find.textContaining('Paying to:'),
+        findsNothing,
+        reason:
+            'a failed validation for the newly selected account must '
+            'not reuse the first account’s resolved name',
+      );
 
       // The deposit proceeds best-effort against AMA, exactly as designed
       // (validation is optional), with her number on the wire.
-      final initiate =
-          _requests.where((b) => b.containsKey('amountGhs')).single;
+      final initiate = _requests
+          .where((b) => b.containsKey('amountGhs'))
+          .single;
       expect(initiate['phoneNumber'], '+233500111222');
       expect(initiate['provider'], 'TELECEL_CASH');
       await tester.pump(const Duration(milliseconds: 600));
@@ -536,7 +564,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       final gate = Completer<void>();
-      _wire['POST /deposit/validate-name'] = _Route(200, {'data': 'Ama Boateng'}, gate);
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Ama Boateng',
+      }, gate);
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'data': {'reference': 'DEP-REG-3', 'status': 'PENDING'},
       });
@@ -545,8 +575,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // The validate-name call must carry AMA's number — not the primary's.
-      final validate =
-          _requests.where((b) => b.containsKey('phoneNumber')).single;
+      final validate = _requests
+          .where((b) => b.containsKey('phoneNumber'))
+          .single;
       expect(validate['phoneNumber'], '+233500111222');
 
       gate.complete();
@@ -558,8 +589,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 200));
 
-      final initiate =
-          _requests.where((b) => b.containsKey('amountGhs')).single;
+      final initiate = _requests
+          .where((b) => b.containsKey('amountGhs'))
+          .single;
       expect(initiate['phoneNumber'], '+233500111222');
       await tester.pump(const Duration(milliseconds: 600));
       await tester.pump(const Duration(milliseconds: 100));
@@ -580,14 +612,16 @@ void main() {
         overrides: [
           savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
           authProvider.overrideWith(
-            (ref) => _FixedAuth(User(
-              id: 'user-7',
-              username: 'me',
-              email: 'me@example.com',
-              token: 'tok',
-              role: 'USER',
-              azamanId: 'AZM-999999999',
-            )),
+            (ref) => _FixedAuth(
+              User(
+                id: 'user-7',
+                username: 'me',
+                email: 'me@example.com',
+                token: 'tok',
+                role: 'USER',
+                azamanId: 'AZM-999999999',
+              ),
+            ),
           ),
           depositContinuationsProvider.overrideWith(
             (ref) => DepositContinuationsController(contSvc),
@@ -605,8 +639,9 @@ void main() {
       await _enterAmount(tester);
 
       final gate = Completer<void>();
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'data': {'reference': 'DEP-RACE-1', 'status': 'PENDING'},
       }, gate);
@@ -624,9 +659,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Keep for 5 minutes'), findsNothing,
-          reason: 'the exit prompt must not appear while the initiation '
-              'is in flight');
+      expect(
+        find.text('Keep for 5 minutes'),
+        findsNothing,
+        reason:
+            'the exit prompt must not appear while the initiation '
+            'is in flight',
+      );
       expect(find.textContaining('Setting up your deposit'), findsOneWidget);
       // Still on the surface — the operation owns the window.
       expect(find.bySemanticsLabel('Close Add Cash'), findsOneWidget);
@@ -643,16 +682,24 @@ void main() {
 
       final stored = await contSvc.loadForUser('user-7');
       expect(stored, hasLength(1));
-      expect(stored.single.reference, 'DEP-RACE-1',
-          reason: 'the submitted operation enters the continuation '
-              'lifecycle the moment its reference is durable');
+      expect(
+        stored.single.reference,
+        'DEP-RACE-1',
+        reason:
+            'the submitted operation enters the continuation '
+            'lifecycle the moment its reference is durable',
+      );
 
       await tester.tap(find.bySemanticsLabel('Close Add Cash'));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Keep for 5 minutes'), findsOneWidget,
-          reason: 'once the outcome is representable the close prompt '
-              'returns');
+      expect(
+        find.text('Keep for 5 minutes'),
+        findsOneWidget,
+        reason:
+            'once the outcome is representable the close prompt '
+            'returns',
+      );
     });
   });
 
@@ -671,14 +718,16 @@ void main() {
         overrides: [
           savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
           authProvider.overrideWith(
-            (ref) => _FixedAuth(User(
-              id: 'user-7',
-              username: 'me',
-              email: 'me@example.com',
-              token: 'tok',
-              role: 'USER',
-              azamanId: 'AZM-999999999',
-            )),
+            (ref) => _FixedAuth(
+              User(
+                id: 'user-7',
+                username: 'me',
+                email: 'me@example.com',
+                token: 'tok',
+                role: 'USER',
+                azamanId: 'AZM-999999999',
+              ),
+            ),
           ),
           depositContinuationsProvider.overrideWith(
             (ref) => DepositContinuationsController(contSvc),
@@ -693,8 +742,9 @@ void main() {
       await tester.pumpWidget(appWithAuth());
       await _openDeposit(tester);
       await _enterAmount(tester);
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'data': {'reference': reference, 'status': 'PENDING'},
       });
@@ -708,21 +758,33 @@ void main() {
     }
 
     testWidgets('(a) a HELD secure-storage write keeps every close '
-        'gesture blocked until the continuation is durably saved',
-        (tester) async {
+        'gesture blocked until the continuation is durably saved', (
+      tester,
+    ) async {
       final heldWrite = Completer<void>();
       contStorage.writeGate = heldWrite;
       await submitDeposit(tester, 'DEP-PERSIST-1');
 
       expect(find.text('Prompt sent'), findsOneWidget);
-      expect(find.text('Keep for 5 minutes'), findsNothing,
-          reason: 'the exit prompt must not bypass the durability '
-              'barrier while the continuation write is in flight');
-      expect(find.bySemanticsLabel('Close Add Cash'), findsOneWidget,
-          reason: 'the surface stays open — closing now could lose the '
-              'only local pointer to the submitted operation');
-      expect(contStorage.store.isEmpty, isTrue,
-          reason: 'the record is not durable yet');
+      expect(
+        find.text('Keep for 5 minutes'),
+        findsNothing,
+        reason:
+            'the exit prompt must not bypass the durability '
+            'barrier while the continuation write is in flight',
+      );
+      expect(
+        find.bySemanticsLabel('Close Add Cash'),
+        findsOneWidget,
+        reason:
+            'the surface stays open — closing now could lose the '
+            'only local pointer to the submitted operation',
+      );
+      expect(
+        contStorage.store.isEmpty,
+        isTrue,
+        reason: 'the record is not durable yet',
+      );
 
       heldWrite.complete();
       await tester.pump(const Duration(milliseconds: 200));
@@ -735,25 +797,36 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Close Add Cash'));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Keep for 5 minutes'), findsOneWidget,
-          reason: 'once the local way-back is durable, closing is safely '
-              'representable again');
+      expect(
+        find.text('Keep for 5 minutes'),
+        findsOneWidget,
+        reason:
+            'once the local way-back is durable, closing is safely '
+            'representable again',
+      );
     });
 
     testWidgets('(b) a FAILED local write keeps the surface fail-closed '
-        'with the exact reference and an explicit retry',
-        (tester) async {
+        'with the exact reference and an explicit retry', (tester) async {
       contStorage.writeError = StateError('disk full');
       await submitDeposit(tester, 'DEP-PERSIST-2');
 
-      expect(find.text('Keep for 5 minutes'), findsNothing,
-          reason: 'a failed persistence write keeps the close guard '
-              'active — the reference must not be closed away unsaved');
+      expect(
+        find.text('Keep for 5 minutes'),
+        findsNothing,
+        reason:
+            'a failed persistence write keeps the close guard '
+            'active — the reference must not be closed away unsaved',
+      );
       // Two retry affordances: the failure snackbar's action and the
       // result view's primary button.
-      expect(find.text('Save receipt'), findsNWidgets(2),
-          reason: 'the retry affordance for the SAME operation replaces '
-              'the normal result actions');
+      expect(
+        find.text('Save receipt'),
+        findsNWidgets(2),
+        reason:
+            'the retry affordance for the SAME operation replaces '
+            'the normal result actions',
+      );
       expect(contStorage.store.isEmpty, isTrue);
 
       contStorage.writeError = null;
@@ -764,9 +837,13 @@ void main() {
 
       final stored = await contSvc.loadForUser('user-7');
       expect(stored, hasLength(1));
-      expect(stored.single.reference, 'DEP-PERSIST-2',
-          reason: 'the retry persists the EXACT reference the backend '
-              'returned — nothing is re-initiated or invented');
+      expect(
+        stored.single.reference,
+        'DEP-PERSIST-2',
+        reason:
+            'the retry persists the EXACT reference the backend '
+            'returned — nothing is re-initiated or invented',
+      );
 
       await tester.tap(find.bySemanticsLabel('Close Add Cash'));
       await tester.pump(const Duration(milliseconds: 100));
@@ -782,13 +859,13 @@ void main() {
     _MutableAuth? currentAuth;
 
     User makeUser(String id) => User(
-          id: id,
-          username: 'me',
-          email: 'me@example.com',
-          token: 'tok',
-          role: 'USER',
-          azamanId: 'AZM-999999999',
-        );
+      id: id,
+      username: 'me',
+      email: 'me@example.com',
+      token: 'tok',
+      role: 'USER',
+      azamanId: 'AZM-999999999',
+    );
 
     Widget appWithAuth() {
       contStorage.store.clear();
@@ -817,8 +894,9 @@ void main() {
       currentAuth = _MutableAuth(makeUser('user-a'));
       contStorage.writeError = StateError('disk full');
       await openAndEnterAmount(tester);
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'requiresOtp': true,
         'data': {'reference': 'DEP-OTP-1', 'status': 'PENDING'},
@@ -833,9 +911,13 @@ void main() {
       // OTP view is up, the local write FAILED: there is no Cancel —
       // cancelling would discard the only in-memory reference.
       expect(find.text('Enter OTP'), findsOneWidget);
-      expect(find.text('Cancel'), findsNothing,
-          reason: 'a failed persistence write must not expose a Cancel '
-              'that destroys the unpersisted reference');
+      expect(
+        find.text('Cancel'),
+        findsNothing,
+        reason:
+            'a failed persistence write must not expose a Cancel '
+            'that destroys the unpersisted reference',
+      );
       expect(find.text('Save receipt'), findsWidgets);
       expect(contStorage.store.isEmpty, isTrue);
 
@@ -852,8 +934,10 @@ void main() {
       // dismiss; the retry button is then scoped to the OTP view
       // itself so no snackbar action can shadow it.
       await tester.pump(const Duration(seconds: 10));
-      final otpRetry =
-          find.descendant(of: find.byType(SingleChildScrollView), matching: find.text('Save receipt'));
+      final otpRetry = find.descendant(
+        of: find.byType(SingleChildScrollView),
+        matching: find.text('Save receipt'),
+      );
       expect(otpRetry, findsOneWidget);
       await tester.tap(otpRetry);
       await tester.pump(const Duration(milliseconds: 200));
@@ -875,12 +959,14 @@ void main() {
     });
 
     testWidgets('(d) an account switch mid-initiation never rebinds the '
-        "continuation owner — A's reference is saved under A only",
-        (tester) async {
+        "continuation owner — A's reference is saved under A only", (
+      tester,
+    ) async {
       currentAuth = _MutableAuth(makeUser('user-a'));
       await openAndEnterAmount(tester);
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       final gate = Completer<void>();
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'data': {'reference': 'DEP-RACE-A', 'status': 'PENDING'},
@@ -903,9 +989,13 @@ void main() {
       final aList = await contSvc.loadForUser('user-a');
       expect(aList, hasLength(1));
       expect(aList.single.reference, 'DEP-RACE-A');
-      expect(await contSvc.loadForUser('user-b'), isEmpty,
-          reason: 'a response arriving after a switch must never store '
-              "A's reference under B's key");
+      expect(
+        await contSvc.loadForUser('user-b'),
+        isEmpty,
+        reason:
+            'a response arriving after a switch must never store '
+            "A's reference under B's key",
+      );
       // Flush short-lived timers (pulsing-dots stagger etc.).
       await tester.pump(const Duration(seconds: 2));
     });
@@ -914,8 +1004,9 @@ void main() {
         'continuation persistence', (tester) async {
       currentAuth = _MutableAuth(makeUser('user-a'));
       await openAndEnterAmount(tester);
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'requiresOtp': true,
         'data': {'reference': 'DEP-RACE-A', 'status': 'PENDING'},
@@ -962,8 +1053,9 @@ void main() {
         'any key', (tester) async {
       currentAuth = _MutableAuth(null);
       await openAndEnterAmount(tester);
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       // The initiate route is deliberately NOT wired: if the blocked
       // path ever regresses and sends the request, the harness records
       // an unexpected HTTP call and this test fails loudly.
@@ -975,17 +1067,30 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       // BLOCKED BEFORE THE WIRE: no financial mutation was requested.
-      expect(_unexpectedCalls, isEmpty,
-          reason: 'an initiation without a capturable owner must never '
-              'reach the backend');
-      expect(find.text('Your session ended. Sign in again to start a '
-          'deposit.'), findsOneWidget);
+      expect(
+        _unexpectedCalls,
+        isEmpty,
+        reason:
+            'an initiation without a capturable owner must never '
+            'reach the backend',
+      );
+      expect(
+        find.text(
+          'Your session ended. Sign in again to start a '
+          'deposit.',
+        ),
+        findsOneWidget,
+      );
 
       // No accepted operation exists: no reference was minted, no
       // fail-closed persistence state was armed, storage stays empty.
-      expect(find.text('Save receipt'), findsNothing,
-          reason: 'a blocked initiation mints no reference and arms no '
-              'persistence-retry state');
+      expect(
+        find.text('Save receipt'),
+        findsNothing,
+        reason:
+            'a blocked initiation mints no reference and arms no '
+            'persistence-retry state',
+      );
       expect(contStorage.store.isEmpty, isTrue);
 
       // User B signs in and the surface is reused: NOTHING belonging
@@ -1001,13 +1106,13 @@ void main() {
 
     testWidgets('(g) FINAL REVIEW — a retry after an account switch '
         "persists under the CAPTURED owner only: B is active when the "
-        'failed write is retried and B\'s key stays empty',
-        (tester) async {
+        'failed write is retried and B\'s key stays empty', (tester) async {
       currentAuth = _MutableAuth(makeUser('user-a'));
       contStorage.writeError = StateError('disk full');
       await openAndEnterAmount(tester);
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'requiresOtp': true,
         'data': {'reference': 'DEP-RETRY-B', 'status': 'PENDING'},
@@ -1028,8 +1133,9 @@ void main() {
       // dismiss; the retry button is then scoped to the OTP view.
       await tester.pump(const Duration(seconds: 10));
       final otpRetry = find.descendant(
-          of: find.byType(SingleChildScrollView),
-          matching: find.text('Save receipt'));
+        of: find.byType(SingleChildScrollView),
+        matching: find.text('Save receipt'),
+      );
       expect(otpRetry, findsOneWidget);
       await tester.tap(otpRetry);
       await tester.pump(const Duration(milliseconds: 200));
@@ -1039,9 +1145,13 @@ void main() {
       final aList = await contSvc.loadForUser('user-a');
       expect(aList, hasLength(1));
       expect(aList.single.reference, 'DEP-RETRY-B');
-      expect(await contSvc.loadForUser('user-b'), isEmpty,
-          reason: 'a retry under a switched session must never store '
-              "A's operation under B's key");
+      expect(
+        await contSvc.loadForUser('user-b'),
+        isEmpty,
+        reason:
+            'a retry under a switched session must never store '
+            "A's operation under B's key",
+      );
       // Flush short-lived timers (pulsing-dots stagger etc.).
       await tester.pump(const Duration(seconds: 2));
     });
@@ -1050,8 +1160,9 @@ void main() {
         'instructions exactly ONCE', (tester) async {
       currentAuth = _MutableAuth(makeUser('user-a'));
       await openAndEnterAmount(tester);
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       const wireInstructions =
           'Dial *170# and approve the prompt to complete this deposit.';
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
@@ -1071,9 +1182,13 @@ void main() {
       // The result view is up with the durable reference.
       expect(find.text('DEP-RESULT-1'), findsOneWidget);
       // A single instructions block — the duplicated render is gone.
-      expect(find.text(wireInstructions), findsOneWidget,
-          reason: 'the result view must render the instructions block '
-              'exactly once');
+      expect(
+        find.text(wireInstructions),
+        findsOneWidget,
+        reason:
+            'the result view must render the instructions block '
+            'exactly once',
+      );
       // Flush short-lived timers (demo auto-confirm, stagger etc.).
       await tester.pump(const Duration(seconds: 4));
     });
@@ -1088,13 +1203,13 @@ void main() {
     _MutableAuth? currentAuth;
 
     User makeUser(String id) => User(
-          id: id,
-          username: 'me',
-          email: 'me@example.com',
-          token: 'tok',
-          role: 'USER',
-          azamanId: 'AZM-999999999',
-        );
+      id: id,
+      username: 'me',
+      email: 'me@example.com',
+      token: 'tok',
+      role: 'USER',
+      azamanId: 'AZM-999999999',
+    );
 
     Widget appWithAuth() {
       contStorage.store.clear();
@@ -1120,8 +1235,9 @@ void main() {
 
     /// Submit one no-OTP deposit and wait for its pending result view.
     Future<void> submitDeposit(WidgetTester tester, String reference) async {
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'data': {'reference': reference, 'status': 'PENDING'},
       });
@@ -1132,8 +1248,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text(reference), findsOneWidget,
-          reason: 'the pending result view must be showing $reference');
+      expect(
+        find.text(reference),
+        findsOneWidget,
+        reason: 'the pending result view must be showing $reference',
+      );
     }
 
     /// The honest local return from a pending result view.
@@ -1146,8 +1265,12 @@ void main() {
     /// Deliver a settlement through the REAL socket listener fan-out
     /// and let the async resolution chain flush.
     Future<void> settle(WidgetTester tester, String reference) async {
-      SocketService.instance
-          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', reference);
+      SocketService.instance.emitDepositSuccessForTesting(
+        50,
+        3.1,
+        'MTN_MOMO',
+        reference,
+      );
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 50));
@@ -1164,21 +1287,31 @@ void main() {
       // Back on the resting instrument — the operation is NOT on screen.
       expect(find.text('DEP-LEAVE-1'), findsNothing);
       final pending = await contSvc.loadForUser('user-a');
-      expect(pending, hasLength(1),
-          reason: 'the submitted operation stays durably tracked after the '
-              'honest local return');
+      expect(
+        pending,
+        hasLength(1),
+        reason:
+            'the submitted operation stays durably tracked after the '
+            'honest local return',
+      );
       expect(pending.single.reference, 'DEP-LEAVE-1');
 
       // The settlement arrives for the EXACT original reference.
       await settle(tester, 'DEP-LEAVE-1');
 
       // Resolved — without ever reopening the deposit status screen.
-      expect(await contSvc.loadForUser('user-a'), isEmpty,
-          reason: 'the continuation is authoritatively resolved by the '
-              'settlement alone; no status screen was reopened');
+      expect(
+        await contSvc.loadForUser('user-a'),
+        isEmpty,
+        reason:
+            'the continuation is authoritatively resolved by the '
+            'settlement alone; no status screen was reopened',
+      );
       // And the surface says so — honest user-facing status.
-      expect(find.textContaining('earlier deposit DEP-LEAVE-1 completed'),
-          findsOneWidget);
+      expect(
+        find.textContaining('earlier deposit DEP-LEAVE-1 completed'),
+        findsOneWidget,
+      );
       // Flush short-lived timers (pulsing-dots stagger etc.).
       await tester.pump(const Duration(seconds: 2));
     });
@@ -1192,19 +1325,27 @@ void main() {
       //    caption says the instruction is still in progress.
       await submitDeposit(tester, 'DEP-HONEST-1');
       expect(find.text('Back to Add Cash'), findsOneWidget);
-      expect(find.text('Cancel'), findsNothing,
-          reason: 'no cancellation contract exists with the provider — '
-              'the label must never present a local reset as one');
-      expect(find.textContaining('Leaving will not cancel it'),
-          findsOneWidget,
-          reason: 'the pending action must state that the submitted '
-              'instruction may still complete');
+      expect(
+        find.text('Cancel'),
+        findsNothing,
+        reason:
+            'no cancellation contract exists with the provider — '
+            'the label must never present a local reset as one',
+      );
+      expect(
+        find.textContaining('Leaving will not cancel it'),
+        findsOneWidget,
+        reason:
+            'the pending action must state that the submitted '
+            'instruction may still complete',
+      );
       await backToAddCash(tester);
 
       // 2. The OTP entry path: same honest semantics for its back action.
       await _enterAmount(tester);
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'requiresOtp': true,
         'data': {'reference': 'DEP-HONEST-2', 'status': 'PENDING'},
@@ -1218,16 +1359,19 @@ void main() {
       expect(find.text('Enter OTP'), findsOneWidget);
       expect(find.text('Back to Add Cash'), findsOneWidget);
       expect(find.text('Cancel'), findsNothing);
-      expect(find.textContaining('going back does not cancel it'),
-          findsOneWidget);
+      expect(
+        find.textContaining('going back does not cancel it'),
+        findsOneWidget,
+      );
       // Flush short-lived timers (pulsing-dots stagger etc.).
       await tester.pump(const Duration(seconds: 2));
     });
 
     testWidgets('(c) PRODUCT POLICY — a second initiation while the '
         'first deposit is still pending is EXPLICITLY SUPPORTED: both '
-        'operations tracked independently, nothing silently ended',
-        (tester) async {
+        'operations tracked independently, nothing silently ended', (
+      tester,
+    ) async {
       currentAuth = _MutableAuth(makeUser('user-a'));
       await openAndEnterAmount(tester);
 
@@ -1240,17 +1384,24 @@ void main() {
 
       // Both initiations reached the wire: neither was silently
       // suppressed, and neither implied the first one had ended.
-      final initiates =
-          _requests.where((b) => b.containsKey('amountGhs')).toList();
-      expect(initiates, hasLength(2),
-          reason: 'the concurrent-pending policy must send BOTH '
-              'instructions to the provider');
+      final initiates = _requests
+          .where((b) => b.containsKey('amountGhs'))
+          .toList();
+      expect(
+        initiates,
+        hasLength(2),
+        reason:
+            'the concurrent-pending policy must send BOTH '
+            'instructions to the provider',
+      );
 
       // Both operations live in the continuation lifecycle, tracked
       // independently by their exact references.
       final pending = await contSvc.loadForUser('user-a');
-      expect(pending.map((c) => c.reference),
-          containsAll(['DEP-CON-1', 'DEP-CON-2']));
+      expect(
+        pending.map((c) => c.reference),
+        containsAll(['DEP-CON-1', 'DEP-CON-2']),
+      );
       // Flush short-lived timers (pulsing-dots stagger etc.).
       await tester.pump(const Duration(seconds: 2));
     });
@@ -1274,9 +1425,13 @@ void main() {
       await settle(tester, 'DEP-ORDER-2');
       var pending = await contSvc.loadForUser('user-a');
       expect(pending, hasLength(1));
-      expect(pending.single.reference, 'DEP-ORDER-1',
-          reason: 'deposit B\'s settlement must never resolve, clear or '
-              'confirm deposit A');
+      expect(
+        pending.single.reference,
+        'DEP-ORDER-1',
+        reason:
+            'deposit B\'s settlement must never resolve, clear or '
+            'confirm deposit A',
+      );
 
       // An unknown reference resolves nothing.
       await settle(tester, 'DEP-UNKNOWN-9');
@@ -1287,9 +1442,13 @@ void main() {
       // user's reference resolves, ever.
       await contSvc.save('user-b', 'DEP-B-1');
       await settle(tester, 'DEP-B-1');
-      expect((await contSvc.loadForUser('user-b')), hasLength(1),
-          reason: 'a settlement event carries no identity — it can never '
-              'resolve another user\'s stored continuation');
+      expect(
+        (await contSvc.loadForUser('user-b')),
+        hasLength(1),
+        reason:
+            'a settlement event carries no identity — it can never '
+            'resolve another user\'s stored continuation',
+      );
       expect(await contSvc.loadForUser('user-a'), hasLength(1));
 
       // The first deposit settles last — now everything for user A is
@@ -1310,25 +1469,35 @@ void main() {
       await submitDeposit(tester, 'DEP-RES-1');
       await backToAddCash(tester);
       await settle(tester, 'DEP-RES-1');
-      expect(await contSvc.loadForUser('user-a'), isEmpty,
-          reason: 'the operation must be resolved before the resurrection '
-              'assertions run');
+      expect(
+        await contSvc.loadForUser('user-a'),
+        isEmpty,
+        reason:
+            'the operation must be resolved before the resurrection '
+            'assertions run',
+      );
 
       // A DELAYED storage mutation (a late retry of the original save)
       // for the resolved reference is a NO-OP — terminal resolution.
       await contSvc.save('user-a', 'DEP-RES-1');
       await tester.pump(const Duration(milliseconds: 100));
-      expect(await contSvc.loadForUser('user-a'), isEmpty,
-          reason: 'resolution is terminal: a retry or delayed save can '
-              'never resurrect the resolved reference');
+      expect(
+        await contSvc.loadForUser('user-a'),
+        isEmpty,
+        reason:
+            'resolution is terminal: a retry or delayed save can '
+            'never resurrect the resolved reference',
+      );
 
       // A DUPLICATE settlement event changes nothing — idempotent.
       await settle(tester, 'DEP-RES-1');
       expect(await contSvc.loadForUser('user-a'), isEmpty);
       // And the surface does not double-notify: the completion snackbar
       // from the FIRST settlement is still the only one.
-      expect(find.textContaining('earlier deposit DEP-RES-1 completed'),
-          findsOneWidget);
+      expect(
+        find.textContaining('earlier deposit DEP-RES-1 completed'),
+        findsOneWidget,
+      );
       // Flush short-lived timers (pulsing-dots stagger etc.).
       await tester.pump(const Duration(seconds: 2));
     });
@@ -1342,13 +1511,13 @@ void main() {
     _MutableAuth? currentAuth;
 
     User makeUser(String id) => User(
-          id: id,
-          username: 'me',
-          email: 'me@example.com',
-          token: 'tok',
-          role: 'USER',
-          azamanId: 'AZM-999999999',
-        );
+      id: id,
+      username: 'me',
+      email: 'me@example.com',
+      token: 'tok',
+      role: 'USER',
+      azamanId: 'AZM-999999999',
+    );
 
     /// Shell + router with an OPTIONAL explicit controller instance, so
     /// tests can drive the REAL controller the monitor talks to.
@@ -1382,8 +1551,9 @@ void main() {
     }
 
     Future<void> submitDeposit(WidgetTester tester, String reference) async {
-      _wire['POST /deposit/validate-name'] =
-          _Route(200, {'data': 'Kwame Mensah'});
+      _wire['POST /deposit/validate-name'] = _Route(200, {
+        'data': 'Kwame Mensah',
+      });
       _wire['POST /deposit/fiat/initiate/moolre'] = _Route(201, {
         'data': {'reference': reference, 'status': 'PENDING'},
       });
@@ -1394,14 +1564,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text(reference), findsOneWidget,
-          reason: 'the pending result view must be showing $reference');
+      expect(
+        find.text(reference),
+        findsOneWidget,
+        reason: 'the pending result view must be showing $reference',
+      );
     }
 
     /// Deliver a settlement through the REAL socket fan-out.
     Future<void> settle(WidgetTester tester, String reference) async {
-      SocketService.instance
-          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', reference);
+      SocketService.instance.emitDepositSuccessForTesting(
+        50,
+        3.1,
+        'MTN_MOMO',
+        reference,
+      );
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 50));
@@ -1411,8 +1588,9 @@ void main() {
         'account and the screen lifecycle: A submits, the surface is '
         'disposed, the session switches to B, and A\'s settlement still '
         'resolves A\'s continuation — while B\'s records stay untouched '
-        'and the monitor\'s listener survives the screen\'s dispose',
-        (tester) async {
+        'and the monitor\'s listener survives the screen\'s dispose', (
+      tester,
+    ) async {
       currentAuth = _MutableAuth(makeUser('user-a'));
       await openAndEnterAmount(tester);
       await submitDeposit(tester, 'DEP-OWN-1');
@@ -1424,8 +1602,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       final listenersWhileOpen =
           SocketService.instance.depositSuccessListenerCountForTesting;
-      expect(listenersWhileOpen, greaterThanOrEqualTo(2),
-          reason: 'the surface and the monitor are independent listeners');
+      expect(
+        listenersWhileOpen,
+        greaterThanOrEqualTo(2),
+        reason: 'the surface and the monitor are independent listeners',
+      );
       await tester.tap(find.bySemanticsLabel('Close Add Cash'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
@@ -1434,17 +1615,27 @@ void main() {
       // The surface is GONE (route popped, exit animation done) and its
       // listener with it — the session-wide monitor's listener is
       // exactly what remains.
-      expect(find.text('Add Cash'), findsNothing,
-          reason: 'the deposit surface must be fully unmounted');
+      expect(
+        find.text('Add Cash'),
+        findsNothing,
+        reason: 'the deposit surface must be fully unmounted',
+      );
       expect(find.text('DEP-OWN-1'), findsNothing);
       final listenersAfterDispose =
           SocketService.instance.depositSuccessListenerCountForTesting;
-      expect(listenersAfterDispose, listenersWhileOpen - 1,
-          reason: 'disposing the surface must remove ONLY its own '
-              'listener; the monitor must survive');
+      expect(
+        listenersAfterDispose,
+        listenersWhileOpen - 1,
+        reason:
+            'disposing the surface must remove ONLY its own '
+            'listener; the monitor must survive',
+      );
       final pendingA = await contSvc.loadForUser('user-a');
-      expect(pendingA, hasLength(1),
-          reason: 'the submitted operation is durably stored under A');
+      expect(
+        pendingA,
+        hasLength(1),
+        reason: 'the submitted operation is durably stored under A',
+      );
       expect(pendingA.single.reference, 'DEP-OWN-1');
 
       // B holds a stored continuation that must never be touched.
@@ -1457,14 +1648,19 @@ void main() {
 
       // A's exact continuation resolved — WITHOUT A holding the
       // session and WITHOUT the deposit surface existing.
-      expect(await contSvc.loadForUser('user-a'), isEmpty,
-          reason: 'the reference->owner binding recorded at the save '
-              'must carry the settlement to the INITIATING user');
-      final bRefs = (await contSvc.loadForUser('user-b'))
-          .map((c) => c.reference)
-          .toList();
-      expect(bRefs, ['DEP-B-KEEP'],
-          reason: 'B\'s records must be untouched by A\'s settlement');
+      expect(
+        await contSvc.loadForUser('user-a'),
+        isEmpty,
+        reason:
+            'the reference->owner binding recorded at the save '
+            'must carry the settlement to the INITIATING user',
+      );
+      final bRefs = (await contSvc.loadForUser(
+        'user-b',
+      )).map((c) => c.reference).toList();
+      expect(bRefs, [
+        'DEP-B-KEEP',
+      ], reason: 'B\'s records must be untouched by A\'s settlement');
       // Flush short-lived timers (pulsing-dots stagger etc.).
       await tester.pump(const Duration(seconds: 2));
     });
@@ -1476,7 +1672,8 @@ void main() {
         'cross-user records untouched', (tester) async {
       currentAuth = _MutableAuth(makeUser('user-a'));
       final ctrl = DepositContinuationsController(
-          DepositContinuationsService(storage: contStorage));
+        DepositContinuationsService(storage: contStorage),
+      );
       await tester.pumpWidget(appWithHost(controller: ctrl));
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -1492,17 +1689,22 @@ void main() {
       unawaited(ctrl.save('user-a', 'DEP-RACE-2'));
       await tester.pump(const Duration(milliseconds: 100));
       expect(
-          (await contSvc.loadForUser('user-a'))
-              .map((c) => c.reference)
-              .contains('DEP-RACE-2'),
-          isFalse,
-          reason: 'the record must still be in flight');
+        (await contSvc.loadForUser(
+          'user-a',
+        )).map((c) => c.reference).contains('DEP-RACE-2'),
+        isFalse,
+        reason: 'the record must still be in flight',
+      );
 
       // The settlement for the EXACT in-flight reference arrives NOW —
       // through the real socket fan-out (the monitor is the only
       // listener: no deposit surface exists in this test).
-      SocketService.instance
-          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-RACE-2');
+      SocketService.instance.emitDepositSuccessForTesting(
+        50,
+        3.1,
+        'MTN_MOMO',
+        'DEP-RACE-2',
+      );
       await tester.pump(const Duration(milliseconds: 100));
 
       // Release the write. The owner's serialized chain: the record
@@ -1512,18 +1714,26 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
-      final aRefs = (await contSvc.loadForUser('user-a'))
-          .map((c) => c.reference)
-          .toList();
-      expect(aRefs, ['DEP-SIB-1'],
-          reason: 'the racing settlement resolved the EXACT reference '
-              'after the save landed, and the sibling survived');
-      final bRefs = (await contSvc.loadForUser('user-b'))
-          .map((c) => c.reference)
-          .toList();
-      expect(bRefs, ['DEP-B-KEEP'],
-          reason: 'the save race must never touch another user\'s '
-              'records');
+      final aRefs = (await contSvc.loadForUser(
+        'user-a',
+      )).map((c) => c.reference).toList();
+      expect(
+        aRefs,
+        ['DEP-SIB-1'],
+        reason:
+            'the racing settlement resolved the EXACT reference '
+            'after the save landed, and the sibling survived',
+      );
+      final bRefs = (await contSvc.loadForUser(
+        'user-b',
+      )).map((c) => c.reference).toList();
+      expect(
+        bRefs,
+        ['DEP-B-KEEP'],
+        reason:
+            'the save race must never touch another user\'s '
+            'records',
+      );
     });
 
     testWidgets('(c) unknown and foreign references clear NOTHING: '
@@ -1533,7 +1743,8 @@ void main() {
         'only', (tester) async {
       currentAuth = _MutableAuth(makeUser('user-a'));
       final ctrl = DepositContinuationsController(
-          DepositContinuationsService(storage: contStorage));
+        DepositContinuationsService(storage: contStorage),
+      );
       await tester.pumpWidget(appWithHost(controller: ctrl));
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -1545,28 +1756,39 @@ void main() {
 
       // A FOREIGN reference (another user's record) with A active.
       await settle(tester, 'DEP-B1');
-      expect((await contSvc.loadForUser('user-a')).map((c) => c.reference),
-          ['DEP-A1'],
-          reason: 'a foreign reference must never resolve under the '
-              'active session');
-      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
-          unorderedEquals(['DEP-B1', 'DEP-B2']),
-          reason: 'another user\'s continuation must never be cleared '
-              'by a settlement observed in this session');
+      expect(
+        (await contSvc.loadForUser('user-a')).map((c) => c.reference),
+        ['DEP-A1'],
+        reason:
+            'a foreign reference must never resolve under the '
+            'active session',
+      );
+      expect(
+        (await contSvc.loadForUser('user-b')).map((c) => c.reference),
+        unorderedEquals(['DEP-B1', 'DEP-B2']),
+        reason:
+            'another user\'s continuation must never be cleared '
+            'by a settlement observed in this session',
+      );
 
       // An UNKNOWN reference.
       await settle(tester, 'DEP-NOPE-9');
-      expect((await contSvc.loadForUser('user-a')).map((c) => c.reference),
-          ['DEP-A1']);
-      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
-          unorderedEquals(['DEP-B1', 'DEP-B2']));
+      expect((await contSvc.loadForUser('user-a')).map((c) => c.reference), [
+        'DEP-A1',
+      ]);
+      expect(
+        (await contSvc.loadForUser('user-b')).map((c) => c.reference),
+        unorderedEquals(['DEP-B1', 'DEP-B2']),
+      );
 
       // The bound reference resolves its OWN owner — and only that.
       await settle(tester, 'DEP-A1');
       expect(await contSvc.loadForUser('user-a'), isEmpty);
-      expect((await contSvc.loadForUser('user-b')).map((c) => c.reference),
-          unorderedEquals(['DEP-B1', 'DEP-B2']),
-          reason: 'A\'s settlement must never leak into B\'s records');
+      expect(
+        (await contSvc.loadForUser('user-b')).map((c) => c.reference),
+        unorderedEquals(['DEP-B1', 'DEP-B2']),
+        reason: 'A\'s settlement must never leak into B\'s records',
+      );
     });
   });
 
@@ -1577,29 +1799,27 @@ void main() {
     _MutableAuth? currentAuth;
 
     User makeUser(String id) => User(
-          id: id,
-          username: 'me',
-          email: 'me@example.com',
-          token: 'tok',
-          role: 'USER',
-          azamanId: 'AZM-999999999',
-        );
+      id: id,
+      username: 'me',
+      email: 'me@example.com',
+      token: 'tok',
+      role: 'USER',
+      azamanId: 'AZM-999999999',
+    );
 
-    Widget hostFor(DepositContinuationsController controller) =>
-        ProviderScope(
-          overrides: [
-            savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
-            authProvider.overrideWith((ref) => currentAuth!),
-            depositContinuationsProvider.overrideWith((ref) => controller),
-          ],
-          child: Column(
-            children: [
-              const _MonitorHost(),
-              Expanded(
-                  child: MaterialApp.router(routerConfig: _router())),
-            ],
-          ),
-        );
+    Widget hostFor(DepositContinuationsController controller) => ProviderScope(
+      overrides: [
+        savedMomoProvider.overrideWith(() => _FakeSavedMomo(_accounts)),
+        authProvider.overrideWith((ref) => currentAuth!),
+        depositContinuationsProvider.overrideWith((ref) => controller),
+      ],
+      child: Column(
+        children: [
+          const _MonitorHost(),
+          Expanded(child: MaterialApp.router(routerConfig: _router())),
+        ],
+      ),
+    );
 
     testWidgets('(a) settlements for references owned by DIFFERENT users, '
         'whose bindings live ONLY in the persisted index, both wait for '
@@ -1611,12 +1831,13 @@ void main() {
       // The PREVIOUS session's durable state: continuation records under
       // each user, and the owner index in storage. This fresh session's
       // in-memory map is EMPTY — attribution must come from the index.
-      final contSvc =
-          DepositContinuationsService(storage: contStorage);
+      final contSvc = DepositContinuationsService(storage: contStorage);
       await contSvc.save('user-a', 'DEP-A9'); // raw save: no binding
       await contSvc.save('user-b', 'DEP-B9');
-      contStorage.store['azm.deposit.continuations.ownerIndex'] =
-          jsonEncode({'DEP-A9': 'user-a', 'DEP-B9': 'user-b'});
+      contStorage.store['azm.deposit.continuations.ownerIndex'] = jsonEncode({
+        'DEP-A9': 'user-a',
+        'DEP-B9': 'user-b',
+      });
 
       // HOLD the initial index read open.
       final gate = Completer<void>();
@@ -1625,28 +1846,35 @@ void main() {
       // Fresh controller + session-wide monitor; the ACTIVE account is
       // a THIRD user with no records of their own.
       currentAuth = _MutableAuth(makeUser('user-c'));
-      await tester.pumpWidget(
-          hostFor(DepositContinuationsController(contSvc)));
+      await tester.pumpWidget(hostFor(DepositContinuationsController(contSvc)));
       await tester.pump(const Duration(milliseconds: 100));
 
       // Both settlements arrive WHILE the initial index read is in
       // flight — through the REAL socket fan-out.
-      SocketService.instance
-          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-A9');
-      SocketService.instance
-          .emitDepositSuccessForTesting(50, 3.1, 'MTN_MOMO', 'DEP-B9');
+      SocketService.instance.emitDepositSuccessForTesting(
+        50,
+        3.1,
+        'MTN_MOMO',
+        'DEP-A9',
+      );
+      SocketService.instance.emitDepositSuccessForTesting(
+        50,
+        3.1,
+        'MTN_MOMO',
+        'DEP-B9',
+      );
       await tester.pump(const Duration(milliseconds: 100));
 
       // Neither can have resolved yet: both owner lookups are waiting
       // on the SAME held initialization.
-      expect((await contSvc.loadForUser('user-a'))
-              .map((c) => c.reference)
-              .toList(),
-          ['DEP-A9']);
-      expect((await contSvc.loadForUser('user-b'))
-              .map((c) => c.reference)
-              .toList(),
-          ['DEP-B9']);
+      expect(
+        (await contSvc.loadForUser('user-a')).map((c) => c.reference).toList(),
+        ['DEP-A9'],
+      );
+      expect(
+        (await contSvc.loadForUser('user-b')).map((c) => c.reference).toList(),
+        ['DEP-B9'],
+      );
 
       // Release the read: both settlements attribute to their BOUND
       // owners — the second event must NOT have raced past the load
@@ -1656,14 +1884,25 @@ void main() {
         await tester.pump(const Duration(milliseconds: 100));
       }
 
-      expect(await contSvc.loadForUser('user-a'), isEmpty,
-          reason: 'the settlement for the first-delivered reference '
-              'resolves after initialization');
-      expect(await contSvc.loadForUser('user-b'), isEmpty,
-          reason: 'the settlement for the second-delivered reference '
-              'MUST NOT be lost to a raced-past initialization');
-      expect(await contSvc.loadForUser('user-c'), isEmpty,
-          reason: 'the fallback can never touch an unrelated account');
+      expect(
+        await contSvc.loadForUser('user-a'),
+        isEmpty,
+        reason:
+            'the settlement for the first-delivered reference '
+            'resolves after initialization',
+      );
+      expect(
+        await contSvc.loadForUser('user-b'),
+        isEmpty,
+        reason:
+            'the settlement for the second-delivered reference '
+            'MUST NOT be lost to a raced-past initialization',
+      );
+      expect(
+        await contSvc.loadForUser('user-c'),
+        isEmpty,
+        reason: 'the fallback can never touch an unrelated account',
+      );
     });
 
     testWidgets('(b) a save racing initialization persists the COMPLETE '
@@ -1673,11 +1912,11 @@ void main() {
       contStorage.store.clear();
       contStorage.indexReadGate = null;
       // Previous session: a persisted binding for user-a.
-      contStorage.store['azm.deposit.continuations.ownerIndex'] =
-          jsonEncode({'DEP-OLD9': 'user-a'});
+      contStorage.store['azm.deposit.continuations.ownerIndex'] = jsonEncode({
+        'DEP-OLD9': 'user-a',
+      });
 
-      final contSvc =
-          DepositContinuationsService(storage: contStorage);
+      final contSvc = DepositContinuationsService(storage: contStorage);
       final ctrl = DepositContinuationsController(contSvc);
       currentAuth = _MutableAuth(makeUser('user-a'));
       await tester.pumpWidget(hostFor(ctrl));
@@ -1694,14 +1933,18 @@ void main() {
 
       // The records themselves are durable while the index read is
       // still held (the list writes are independent of the index).
-      expect((await contSvc.loadForUser('user-a'))
-              .map((c) => c.reference)
-              .contains('DEP-NEW9'),
-          isTrue);
-      expect((await contSvc.loadForUser('user-b'))
-              .map((c) => c.reference)
-              .contains('DEP-NEWB9'),
-          isTrue);
+      expect(
+        (await contSvc.loadForUser(
+          'user-a',
+        )).map((c) => c.reference).contains('DEP-NEW9'),
+        isTrue,
+      );
+      expect(
+        (await contSvc.loadForUser(
+          'user-b',
+        )).map((c) => c.reference).contains('DEP-NEWB9'),
+        isTrue,
+      );
 
       gate.complete();
       await saveA;
@@ -1710,12 +1953,16 @@ void main() {
 
       // The persisted index is COMPLETE: the previous session's binding
       // plus both new ones.
-      final persisted = jsonDecode(contStorage
-          .store['azm.deposit.continuations.ownerIndex']!)
-          as Map<String, dynamic>;
-      expect(persisted['DEP-OLD9'], 'user-a',
-          reason: 'a racing persist must never overwrite the persisted '
-              'index with an uninitialized map');
+      final persisted =
+          jsonDecode(contStorage.store['azm.deposit.continuations.ownerIndex']!)
+              as Map<String, dynamic>;
+      expect(
+        persisted['DEP-OLD9'],
+        'user-a',
+        reason:
+            'a racing persist must never overwrite the persisted '
+            'index with an uninitialized map',
+      );
       expect(persisted['DEP-NEW9'], 'user-a');
       expect(persisted['DEP-NEWB9'], 'user-b');
 
@@ -1728,15 +1975,16 @@ void main() {
 
     testWidgets('(c) a binding made in MEMORY during the held '
         'initialization is NEWER than the persisted copy and WINS the '
-        'merge — initialization can never overwrite fresh session state',
-        (tester) async {
+        'merge — initialization can never overwrite fresh session state', (
+      tester,
+    ) async {
       contStorage.store.clear();
       contStorage.indexReadGate = null;
       // A stale persisted binding from a previous session.
-      contStorage.store['azm.deposit.continuations.ownerIndex'] =
-          jsonEncode({'DEP-X9': 'user-wrong'});
-      final contSvc =
-          DepositContinuationsService(storage: contStorage);
+      contStorage.store['azm.deposit.continuations.ownerIndex'] = jsonEncode({
+        'DEP-X9': 'user-wrong',
+      });
+      final contSvc = DepositContinuationsService(storage: contStorage);
 
       final gate = Completer<void>();
       contStorage.indexReadGate = gate;
@@ -1750,13 +1998,16 @@ void main() {
 
       gate.complete();
       expect(await lookup, 'user-right');
-      expect(await contSvc.lookupReferenceOwner('DEP-X9'), 'user-right',
-          reason: 'the initialization merge must never overwrite a '
-              'newer in-memory binding');
+      expect(
+        await contSvc.lookupReferenceOwner('DEP-X9'),
+        'user-right',
+        reason:
+            'the initialization merge must never overwrite a '
+            'newer in-memory binding',
+      );
     });
   });
 }
-
 
 /// In-memory FlutterSecureStorage for the continuation service — same
 /// async API surface the production service calls.
@@ -1809,8 +2060,9 @@ class _GatedIndexReadStorage extends _MemSecureStorage {
         // runtime — a bare then() future is Future<dynamic> and would
         // fail the implicit cast (and be swallowed by the service's
         // corrupt-index catch).
-        return gate.future.then((_) async =>
-            (await super.noSuchMethod(invocation)) as String?);
+        return gate.future.then(
+          (_) async => (await super.noSuchMethod(invocation)) as String?,
+        );
       }
     }
     return super.noSuchMethod(invocation);

@@ -190,7 +190,9 @@ void main() {
   }
 
   for (final forced in [true, false]) {
-    testWidgets('resolve override=$forced wins over opposite OS flag', (tester) async {
+    testWidgets('resolve override=$forced wins over opposite OS flag', (
+      tester,
+    ) async {
       AzSensory.apply(SensoryPreferences(forceReduceMotion: forced));
       await tester.pumpWidget(wrap(reduced: !forced, announce: true));
       expect(within(Transform), forced ? findsNothing : findsOneWidget);

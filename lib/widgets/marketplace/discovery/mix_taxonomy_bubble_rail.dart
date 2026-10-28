@@ -52,9 +52,7 @@ class MixTaxonomyBubbleRail extends ConsumerWidget {
             behavior: HitTestBehavior.opaque,
             onTap: () {
               AzamanHaptics.selection();
-              ref
-                  .read(marketplaceMixProvider.notifier)
-                  .toggleTaxonomy(chip.id);
+              ref.read(marketplaceMixProvider.notifier).toggleTaxonomy(chip.id);
             },
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -69,9 +67,7 @@ class MixTaxonomyBubbleRail extends ConsumerWidget {
                         ? colors.accent.withValues(alpha: 0.16)
                         : colors.card,
                     border: Border.all(
-                      color: selected
-                          ? colors.accent
-                          : colors.divider,
+                      color: selected ? colors.accent : colors.divider,
                       width: selected ? 1.6 : 0.5,
                     ),
                   ),
@@ -87,8 +83,7 @@ class MixTaxonomyBubbleRail extends ConsumerWidget {
                   chip.label,
                   style: AzText.caption.copyWith(
                     color: selected ? colors.accent : colors.textSecondary,
-                    fontWeight:
-                        selected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
               ],

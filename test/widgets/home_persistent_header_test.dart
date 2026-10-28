@@ -115,13 +115,12 @@ Future<ProviderContainer> _pumpHome(
         // too so the panel and the header agree on it, exactly as they
         // do in production (one real window).
         builder: (context, child) => MediaQuery(
-          data: const MediaQueryData(size: _surfaceSize)
-              .copyWith(disableAnimations: reduceMotion),
+          data: const MediaQueryData(
+            size: _surfaceSize,
+          ).copyWith(disableAnimations: reduceMotion),
           child: child!,
         ),
-        home: Scaffold(
-          body: AzamanHomePage(onOpenSettings: onOpenSettings),
-        ),
+        home: Scaffold(body: AzamanHomePage(onOpenSettings: onOpenSettings)),
       ),
     ),
   );
@@ -138,15 +137,16 @@ double _panelTop(WidgetTester tester) {
   // marker of the panel's on-screen position (the panel box itself is
   // translated via Transform; the title's render box reports the
   // translated, painted position).
-  final box = tester.renderObject<RenderBox>(
-    find.text('Notifications').first,
-  );
+  final box = tester.renderObject<RenderBox>(find.text('Notifications').first);
   return box.localToGlobal(Offset.zero).dy;
 }
 
 /// A bounded settle: the open panel's bottom handle bobs on a repeating
 /// controller, so pumpAndSettle never terminates. Bounded drains only.
-Future<void> _drain(WidgetTester tester, [Duration total = const Duration(seconds: 2)]) async {
+Future<void> _drain(
+  WidgetTester tester, [
+  Duration total = const Duration(seconds: 2),
+]) async {
   var left = total;
   const step = Duration(milliseconds: 50);
   while (left > Duration.zero) {
@@ -162,8 +162,9 @@ Offset get _bandCenter => const Offset(200, 30);
 void main() {
   // ── 1. PINNED + TRANSLUCENCY ────────────────────────────────────────────
 
-  testWidgets('band is pinned at the top and transparent at rest',
-      (tester) async {
+  testWidgets('band is pinned at the top and transparent at rest', (
+    tester,
+  ) async {
     await _pumpHome(tester);
     expect(_band, findsOneWidget);
     expect(
@@ -190,14 +191,19 @@ void main() {
     await _drain(tester);
 
     // Pinned: the bell has not moved a single pixel.
-    expect(tester.getTopLeft(find.byType(NotificationBell)).dy,
-        bellTopBefore,
-        reason: 'the header must stay pinned while content scrolls');
+    expect(
+      tester.getTopLeft(find.byType(NotificationBell)).dy,
+      bellTopBefore,
+      reason: 'the header must stay pinned while content scrolls',
+    );
 
     // Frosted: the translucent surface exists and is legible (non-zero
     // alpha tint over content).
-    expect(_surface, findsOneWidget,
-        reason: 'scrolled content must frost the pinned band');
+    expect(
+      _surface,
+      findsOneWidget,
+      reason: 'scrolled content must frost the pinned band',
+    );
 
     // Reverse the scroll to the top: the frost disappears (driven by the
     // real scroll state, not a timer). The return drag is deliberately
@@ -210,20 +216,29 @@ void main() {
     // the refresh threshold and let it verify what it actually claims.
     await tester.drag(scrollable, const Offset(0, 40));
     await _drain(tester);
-    expect(_surface, findsNothing,
-        reason: 'the frost must clear when the scroll returns to the top');
+    expect(
+      _surface,
+      findsNothing,
+      reason: 'the frost must clear when the scroll returns to the top',
+    );
   });
 
-  testWidgets('profile control still opens the settings drawer',
-      (tester) async {
+  testWidgets('profile control still opens the settings drawer', (
+    tester,
+  ) async {
     var opened = 0;
     await _pumpHome(tester, onOpenSettings: () => opened++);
     // The avatar is Home's only Hero (tag 'profile-avatar'); ScaleTap
     // inside carries the tap → settings contract.
     await tester.tap(find.byType(Hero));
     await tester.pump(const Duration(milliseconds: 350));
-    expect(opened, 1, reason: 'the pinned profile control must remain '
-        'wired to the shell settings callback');
+    expect(
+      opened,
+      1,
+      reason:
+          'the pinned profile control must remain '
+          'wired to the shell settings callback',
+    );
   });
 
   // ── 2. THE PULL-DOWN REVEAL ─────────────────────────────────────────────
@@ -240,22 +255,32 @@ void main() {
     // translated by the finger (600/900*0.92... expected dy = -(1-0.606)
     // *0.92*900 ≈ -327, title ≈ -327 + 14).
     final top = _panelTop(tester);
-    expect(top, inExclusiveRange(-420, -240),
-        reason: 'the panel must follow the finger (reveal ≈ 0.61), not '
-            'jump fully open');
+    expect(
+      top,
+      inExclusiveRange(-420, -240),
+      reason:
+          'the panel must follow the finger (reveal ≈ 0.61), not '
+          'jump fully open',
+    );
 
     // Reversal: the finger travels back up and the panel follows upward.
     await gesture.moveBy(const Offset(0, -180)); // reveal ≈ 0.24
     await tester.pump();
     final topReversed = _panelTop(tester);
-    expect(topReversed, lessThan(top),
-        reason: 'a reversed pull must move the panel back toward closed');
+    expect(
+      topReversed,
+      lessThan(top),
+      reason: 'a reversed pull must move the panel back toward closed',
+    );
 
     // Release below the threshold at low velocity: returns to closed.
     await gesture.up();
     await _drain(tester);
-    expect(find.text('Notifications'), findsNothing,
-        reason: 'a sub-threshold release must remove the panel entirely');
+    expect(
+      find.text('Notifications'),
+      findsNothing,
+      reason: 'a sub-threshold release must remove the panel entirely',
+    );
   });
 
   testWidgets('release past the threshold commits open (no velocity '
@@ -274,24 +299,30 @@ void main() {
     await gesture.up();
     await _drain(tester);
 
-    expect(find.text('Notifications'), findsOneWidget,
-        reason: 'a deliberate past-threshold pull must commit open');
-    expect(_panelTop(tester), inExclusiveRange(-1, 40),
-        reason: 'the committed panel must sit fully on-screen at the top');
+    expect(
+      find.text('Notifications'),
+      findsOneWidget,
+      reason: 'a deliberate past-threshold pull must commit open',
+    );
+    expect(
+      _panelTop(tester),
+      inExclusiveRange(-1, 40),
+      reason: 'the committed panel must sit fully on-screen at the top',
+    );
   });
 
   testWidgets('a deliberate fast pull commits early', (tester) async {
     await _pumpHome(tester, seedNotifications: true);
     // A fling on the band: high velocity, short distance.
-    await tester.fling(
-      _band.first,
-      const Offset(0, 140),
-      1500,
-    );
+    await tester.fling(_band.first, const Offset(0, 140), 1500);
     await _drain(tester);
-    expect(find.text('Notifications'), findsOneWidget,
-        reason: 'a high-velocity pull must commit below the distance '
-            'threshold');
+    expect(
+      find.text('Notifications'),
+      findsOneWidget,
+      reason:
+          'a high-velocity pull must commit below the distance '
+          'threshold',
+    );
   });
 
   testWidgets('a band pull never triggers Home refresh or scrolls the '
@@ -323,7 +354,8 @@ void main() {
     expect(
       tester.state<ScrollableState>(scrollableFinder).position.pixels,
       before,
-      reason: 'a cancelled band pull must leave the Home scroll untouched '
+      reason:
+          'a cancelled band pull must leave the Home scroll untouched '
           '(and never fire a refresh)',
     );
   });
@@ -338,9 +370,13 @@ void main() {
 
     await gesture.cancel();
     await _drain(tester);
-    expect(find.text('Notifications'), findsNothing,
-        reason: 'a cancelled pointer must settle the panel closed and '
-            'remove the entry');
+    expect(
+      find.text('Notifications'),
+      findsNothing,
+      reason:
+          'a cancelled pointer must settle the panel closed and '
+          'remove the entry',
+    );
   });
 
   // ── 3. THE OPEN PANEL ────────────────────────────────────────────────────
@@ -365,8 +401,11 @@ void main() {
     await tester.drag(row, const Offset(0, -180));
     await _drain(tester);
 
-    expect(find.text('Notifications'), findsOneWidget,
-        reason: 'scrolling the list must never dismiss the panel');
+    expect(
+      find.text('Notifications'),
+      findsOneWidget,
+      reason: 'scrolling the list must never dismiss the panel',
+    );
     // The list really scrolled: an earlier row surfaced.
     expect(find.text('Notification 2'), findsOneWidget);
   });
@@ -391,13 +430,19 @@ void main() {
     await tester.pump();
     await gesture.moveBy(const Offset(0, 120)); // finger-following
     await tester.pump();
-    expect(_panelTop(tester), greaterThan(openTop + 100),
-        reason: 'the open panel must follow a downward chrome drag');
+    expect(
+      _panelTop(tester),
+      greaterThan(openTop + 100),
+      reason: 'the open panel must follow a downward chrome drag',
+    );
 
     await gesture.up();
     await _drain(tester);
-    expect(find.text('Notifications'), findsNothing,
-        reason: 'a past-threshold downward release must dismiss the panel');
+    expect(
+      find.text('Notifications'),
+      findsNothing,
+      reason: 'a past-threshold downward release must dismiss the panel',
+    );
   });
 
   testWidgets('the legacy upward dismissal still works', (tester) async {
@@ -436,8 +481,10 @@ void main() {
     // Header is gone with the wallet composition: the band neither paints
     // nor hit-tests.
     final header = _band;
-    expect(tester.widgetList<IgnorePointer>(find.byType(IgnorePointer)),
-        isNotEmpty); // the tree still has its ignore wrappers
+    expect(
+      tester.widgetList<IgnorePointer>(find.byType(IgnorePointer)),
+      isNotEmpty,
+    ); // the tree still has its ignore wrappers
     // RenderBox check: the band's painted opacity ancestor is zero.
     // (Departure = opacity 1 - t; committed t = 1.)
     final opacity = find
@@ -448,7 +495,8 @@ void main() {
     expect(
       opacity.any((o) => o.opacity < 0.05),
       isTrue,
-      reason: 'the committed handoff must have faded the pinned header '
+      reason:
+          'the committed handoff must have faded the pinned header '
           'out with the wallet composition',
     );
   });
@@ -466,9 +514,13 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Notifications'), findsOneWidget,
-        reason: 'under reduced motion the centre must be open within two '
-            'frames of the tap — a direct state transition');
+    expect(
+      find.text('Notifications'),
+      findsOneWidget,
+      reason:
+          'under reduced motion the centre must be open within two '
+          'frames of the tap — a direct state transition',
+    );
     expect(_panelTop(tester), inExclusiveRange(-1, 40));
   });
 }

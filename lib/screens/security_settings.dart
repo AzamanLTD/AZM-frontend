@@ -11,15 +11,16 @@ import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
-
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
   const SecuritySettingsScreen({super.key});
 
   @override
-  ConsumerState<SecuritySettingsScreen> createState() => _SecuritySettingsScreenState();
+  ConsumerState<SecuritySettingsScreen> createState() =>
+      _SecuritySettingsScreenState();
 }
 
-class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen> {
+class _SecuritySettingsScreenState
+    extends ConsumerState<SecuritySettingsScreen> {
   bool _twoFactorEnabled = false;
   bool _showQrSetup = false;
   final _verificationCodeController = TextEditingController();
@@ -97,7 +98,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
             AzamanHaptics.warn();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Authentication failed. Biometric lock not enabled.'),
+                content: Text(
+                  'Authentication failed. Biometric lock not enabled.',
+                ),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -121,7 +124,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
             AzamanHaptics.warn();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Authentication failed. Biometric lock remains on.'),
+                content: Text(
+                  'Authentication failed. Biometric lock remains on.',
+                ),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -150,7 +155,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   void _onToggle2fa(bool value) async {
     if (value) {
       // Enable: call setup endpoint to get QR code
-      setState(() { _loading2fa = true; });
+      setState(() {
+        _loading2fa = true;
+      });
       final token = ref.read(authProvider).user?.token;
       try {
         final apiClient = ApiClient();
@@ -205,7 +212,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     final token = ref.read(authProvider).user?.token;
     try {
       final apiClient = ApiClient();
-      final res = await apiClient.post('/security/2fa/disable', {'token': code});
+      final res = await apiClient.post('/security/2fa/disable', {
+        'token': code,
+      });
       if (res.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -232,14 +241,14 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       );
       return;
     }
-    
+
     setState(() => _loading2fa = true);
     final token = ref.read(authProvider).user?.token;
-    
+
     try {
       final apiClient = ApiClient();
       final res = await apiClient.post('/security/2fa/verify', {'token': code});
-      
+
       if (res.statusCode == 200) {
         HapticFeedback.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -355,14 +364,16 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   }
 
   @override
-
   // ── SESSION MANAGEMENT ──────────────────────────────────────────────────────
   Future<void> _loadSessions() async {
     setState(() => _loadingSessions = true);
     try {
       final res = await apiClient.get('/security/sessions');
       final data = jsonDecode(res.body);
-      setState(() => _sessions = List<Map<String, dynamic>>.from(data['sessions'] ?? []));
+      setState(
+        () =>
+            _sessions = List<Map<String, dynamic>>.from(data['sessions'] ?? []),
+      );
     } catch (e) {
       debugPrint('[Security] session load error: $e');
     } finally {
@@ -375,14 +386,27 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: ref.watch(themeProvider).colors.card,
-        title: Text('Revoke Session?', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
-        content: Text('This will sign out that device immediately.',
-            style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
+        title: Text(
+          'Revoke Session?',
+          style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary),
+        ),
+        content: Text(
+          'This will sign out that device immediately.',
+          style: TextStyle(
+            color: ref.watch(themeProvider).colors.textSecondary,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Revoke', style: TextStyle(color: ref.watch(themeProvider).colors.danger)),
+            child: Text(
+              'Revoke',
+              style: TextStyle(color: ref.watch(themeProvider).colors.danger),
+            ),
           ),
         ],
       ),
@@ -403,14 +427,27 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: ref.watch(themeProvider).colors.card,
-        title: Text('Sign Out Everywhere?', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
-        content: Text('This will sign out ALL devices including this one. You\'ll need to log in again.',
-            style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
+        title: Text(
+          'Sign Out Everywhere?',
+          style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary),
+        ),
+        content: Text(
+          'This will sign out ALL devices including this one. You\'ll need to log in again.',
+          style: TextStyle(
+            color: ref.watch(themeProvider).colors.textSecondary,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Sign Out All', style: TextStyle(color: ref.watch(themeProvider).colors.danger)),
+            child: Text(
+              'Sign Out All',
+              style: TextStyle(color: ref.watch(themeProvider).colors.danger),
+            ),
           ),
         ],
       ),
@@ -439,24 +476,56 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: ref.watch(themeProvider).colors.card,
-            title: Text('Your Data Export', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
+            title: Text(
+              'Your Data Export',
+              style: TextStyle(
+                color: ref.watch(themeProvider).colors.textPrimary,
+              ),
+            ),
             content: SizedBox(
               width: double.maxFinite,
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  Text('Here\'s a summary of your data:', style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
-                  const SizedBox(height: 12),
-                  ...(data['summary'] as List<dynamic>?)?.map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(item['table'] ?? '', style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary, fontSize: 13)),
-                        Text('${item['count']} records', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                      ],
+                  Text(
+                    'Here\'s a summary of your data:',
+                    style: TextStyle(
+                      color: ref.watch(themeProvider).colors.textSecondary,
                     ),
-                  )) ?? [],
+                  ),
+                  const SizedBox(height: 12),
+                  ...(data['summary'] as List<dynamic>?)?.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                item['table'] ?? '',
+                                style: TextStyle(
+                                  color: ref
+                                      .watch(themeProvider)
+                                      .colors
+                                      .textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                '${item['count']} records',
+                                style: TextStyle(
+                                  color: ref
+                                      .watch(themeProvider)
+                                      .colors
+                                      .textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ) ??
+                      [],
                 ],
               ),
             ),
@@ -468,14 +537,30 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
               TextButton(
                 onPressed: () {
                   // Copy full JSON to clipboard
-                  Clipboard.setData(ClipboardData(text: const JsonEncoder.withIndent('  ').convert(data)));
+                  Clipboard.setData(
+                    ClipboardData(
+                      text: const JsonEncoder.withIndent('  ').convert(data),
+                    ),
+                  );
                   AzamanHaptics.confirm();
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Data copied to clipboard', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary))),
+                    SnackBar(
+                      content: Text(
+                        'Data copied to clipboard',
+                        style: TextStyle(
+                          color: ref.watch(themeProvider).colors.textPrimary,
+                        ),
+                      ),
+                    ),
                   );
                 },
-                child: Text('Copy Full JSON', style: TextStyle(color: ref.watch(themeProvider).colors.accent)),
+                child: Text(
+                  'Copy Full JSON',
+                  style: TextStyle(
+                    color: ref.watch(themeProvider).colors.accent,
+                  ),
+                ),
               ),
             ],
           ),
@@ -485,7 +570,14 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       debugPrint('[Security] data export error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary))),
+          SnackBar(
+            content: Text(
+              'Export failed: $e',
+              style: TextStyle(
+                color: ref.watch(themeProvider).colors.textPrimary,
+              ),
+            ),
+          ),
         );
       }
     } finally {
@@ -507,10 +599,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
           icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Security',
-          style: TextStyle(color: colors.textPrimary),
-        ),
+        title: Text('Security', style: TextStyle(color: colors.textPrimary)),
       ),
       body: ListView(
         physics: const BouncingScrollPhysics(),
@@ -540,7 +629,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: AnimatedQrDust(
-                      data: _qrData.isNotEmpty ? _qrData : 'otpauth://totp/Azaman?secret=$_secret&issuer=Azaman',
+                      data: _qrData.isNotEmpty
+                          ? _qrData
+                          : 'otpauth://totp/Azaman?secret=$_secret&issuer=Azaman',
                       size: 180,
                       inkColor: Colors.black,
                       backgroundColor: Colors.white,
@@ -552,10 +643,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                 Text(
                   'Scan this QR code in Google Authenticator',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colors.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: colors.textTertiary),
                 ),
                 const SizedBox(height: 20),
                 TextField(
@@ -600,8 +688,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                     onPressed: _verifyCode,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -664,8 +753,8 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                   label: 'Confirm PIN',
                   controller: _pinConfirmController,
                   obscure: _obscurePinConfirm,
-                  onToggleObscure: () => setState(
-                      () => _obscurePinConfirm = !_obscurePinConfirm),
+                  onToggleObscure: () =>
+                      setState(() => _obscurePinConfirm = !_obscurePinConfirm),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -675,8 +764,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                     onPressed: _savePin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -761,11 +851,18 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (_sessions.isEmpty) ...[
-                _infoRow(colors, icon: Icons.devices, text: 'No active sessions found. Pull to refresh.'),
+                _infoRow(
+                  colors,
+                  icon: Icons.devices,
+                  text: 'No active sessions found. Pull to refresh.',
+                ),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: _loadSessions,
-                  child: Text('Refresh', style: TextStyle(color: colors.accent)),
+                  child: Text(
+                    'Refresh',
+                    style: TextStyle(color: colors.accent),
+                  ),
                 ),
               ] else ...[
                 ..._sessions.map((s) => _sessionTile(colors, s)),
@@ -775,10 +872,17 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                   child: OutlinedButton.icon(
                     onPressed: _revokeAllSessions,
                     icon: Icon(Icons.logout, color: colors.danger, size: 18),
-                    label: Text('Sign Out All Devices', style: TextStyle(color: colors.danger)),
+                    label: Text(
+                      'Sign Out All Devices',
+                      style: TextStyle(color: colors.danger),
+                    ),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: colors.danger.withValues(alpha: 0.3)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(
+                        color: colors.danger.withValues(alpha: 0.3),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -795,7 +899,8 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
               _infoRow(
                 colors,
                 icon: Icons.sync_outlined,
-                text: 'Operations that were interrupted before confirming '
+                text:
+                    'Operations that were interrupted before confirming '
                     '(app closed, connection lost). Resuming reuses the '
                     'original safety key and can never double-send. '
                     'Nothing here is ever deleted while unresolved.',
@@ -809,7 +914,8 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                 _infoRow(
                   colors,
                   icon: Icons.lock_outline,
-                  text: 'Account could not be verified right now. For your '
+                  text:
+                      'Account could not be verified right now. For your '
                       'safety the resumable-operation list is hidden until '
                       'sign-in is restored.',
                 )
@@ -820,7 +926,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                   text: 'No unfinished financial operations.',
                 )
               else
-                ..._pendingOps.map((op) => Column(children: [
+                ..._pendingOps.map(
+                  (op) => Column(
+                    children: [
                       Divider(color: colors.divider, height: 1),
                       _actionRow(
                         colors,
@@ -830,10 +938,14 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                         subtitle:
                             '${op.safeSummary()} · key …${op.key.substring(op.key.length - 6)}'
                             '${op.secretFields.isEmpty ? '' : ' · needs fresh confirmation'}',
-                        onTap: _pendingOpsRetrying ? null : () => _retryPendingOp(op),
+                        onTap: _pendingOpsRetrying
+                            ? null
+                            : () => _retryPendingOp(op),
                         isLoading: _pendingOpsRetrying,
                       ),
-                    ])),
+                    ],
+                  ),
+                ),
             ],
           ),
           _sectionHeader('Privacy & Data', colors),
@@ -852,7 +964,8 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
               _infoRow(
                 colors,
                 icon: Icons.shield_outlined,
-                text: 'Your data is portable. Export includes your profile, transactions, trades, messages, and more.',
+                text:
+                    'Your data is portable. Export includes your profile, transactions, trades, messages, and more.',
               ),
             ],
           ),
@@ -871,9 +984,12 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       child: Row(
         children: [
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: isCurrent ? colors.success.withValues(alpha: 0.1) : colors.accentSurface,
+              color: isCurrent
+                  ? colors.success.withValues(alpha: 0.1)
+                  : colors.accentSurface,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -890,26 +1006,48 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                 Row(
                   children: [
                     Text(
-                      device.length > 30 ? '${device.substring(0, 30)}...' : device,
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                      device.length > 30
+                          ? '${device.substring(0, 30)}...'
+                          : device,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
                     ),
                     if (isCurrent) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: colors.success.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text('This device', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.success)),
+                        child: Text(
+                          'This device',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: colors.success,
+                          ),
+                        ),
                       ),
                     ],
                   ],
                 ),
                 if (ip.isNotEmpty)
-                  Text(ip, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                  Text(
+                    ip,
+                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                  ),
                 if (created.isNotEmpty)
-                  Text(created, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                  Text(
+                    created,
+                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                  ),
               ],
             ),
           ),
@@ -939,23 +1077,41 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         child: Row(
           children: [
             Container(
-              width: 44, height: 44,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: colors.accentSurface,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: isLoading
-                ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent))
-                : Icon(icon, color: colors.accent, size: 22),
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.accent,
+                      ),
+                    )
+                  : Icon(icon, color: colors.accent, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: colors.textTertiary)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: colors.textTertiary),
+                  ),
                 ],
               ),
             ),
@@ -965,7 +1121,11 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     );
   }
 
-  Widget _infoRow(AzamanColors colors, {required IconData icon, required String text}) {
+  Widget _infoRow(
+    AzamanColors colors, {
+    required IconData icon,
+    required String text,
+  }) {
     return Row(
       children: [
         Icon(icon, color: colors.textTertiary, size: 20),
@@ -1031,31 +1191,34 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         // away the user's ability to resume it. Nothing is sent instead.
         if (gathered.values.any((v) => v.toString().trim().isEmpty)) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Enter your credentials to resume ${op.type}.'),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Enter your credentials to resume ${op.type}.'),
+            ),
+          );
           return;
         }
         freshSecrets.addAll(gathered);
       }
       await apiClient.retryRecovered(op, freshSecrets: freshSecrets);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${op.type}: resumed and finished.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${op.type}: resumed and finished.')),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       // Retained statuses (401/409/429/5xx) keep the instance armed — it
       // stays listed here until it reaches a terminal outcome.
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${op.type}: ${e.message}'),
-      ));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${op.type}: ${e.message}')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Network unavailable — operation stays resumable.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Network unavailable — operation stays resumable.'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _pendingOpsRetrying = false);
       await _loadPendingOperations();
@@ -1073,31 +1236,43 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm to resume'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Resuming "${op.type}" requires fresh confirmation. '
-              'Your credentials are never stored and go only to this retry.'),
-          ...op.secretFields.map((f) => Padding(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Resuming "${op.type}" requires fresh confirmation. '
+              'Your credentials are never stored and go only to this retry.',
+            ),
+            ...op.secretFields.map(
+              (f) => Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: TextField(
                   controller: controllers[f],
                   obscureText: true,
                   autofocus: f == op.secretFields.first,
                   decoration: InputDecoration(
-                    labelText: f.toLowerCase().contains('totp') ||
+                    labelText:
+                        f.toLowerCase().contains('totp') ||
                             f.toLowerCase().contains('otp')
                         ? 'Authenticator code'
-                        : (f.toLowerCase().contains('pin') ? 'PIN' : 'Password'),
+                        : (f.toLowerCase().contains('pin')
+                              ? 'PIN'
+                              : 'Password'),
                   ),
                 ),
-              )),
-        ]),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Resume')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Resume'),
+          ),
         ],
       ),
     );
@@ -1107,10 +1282,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       }
       return null;
     }
-    final gathered = {
-      for (final e in controllers.entries)
-        e.key: e.value.text,
-    };
+    final gathered = {for (final e in controllers.entries) e.key: e.value.text};
     for (final c in controllers.values) {
       c.dispose();
     }

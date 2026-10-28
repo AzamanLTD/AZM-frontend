@@ -66,9 +66,10 @@ class ReviewCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 RatingStars(
-                    rating: review.rating.toDouble(),
-                    size: 13,
-                    showNumber: false),
+                  rating: review.rating.toDouble(),
+                  size: 13,
+                  showNumber: false,
+                ),
                 if (review.comment != null &&
                     review.comment!.trim().isNotEmpty) ...[
                   const SizedBox(height: 6),
@@ -87,8 +88,10 @@ class ReviewCard extends ConsumerWidget {
                     review.locationLabel!.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.softSurface,
                       borderRadius: BorderRadius.circular(6),

@@ -175,6 +175,9 @@ dependencies:
   uuid: any
   http_parser: any
   path_drawing: ^1.0.1
+  firebase_auth: ^5.7.0
+  google_sign_in: ^7.2.0
+  sign_in_with_apple: ^8.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -199,6 +202,7 @@ flutter:
 
   # Binance-style assets
   assets:
+    - assets/brand/
     - assets/images/
     - assets/audio/
     - assets/images/food/

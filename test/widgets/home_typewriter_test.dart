@@ -22,8 +22,7 @@ void main() {
   group('TypewriterMachine — type / pause / erase / type', () {
     test('types forward character by character', () {
       fakeAsync((async) {
-        final m = TypewriterMachine()
-          ..showMessage('Hey');
+        final m = TypewriterMachine()..showMessage('Hey');
         expect(m.phase, TypewriterPhase.typing);
         expect(m.shownText, '');
 
@@ -32,9 +31,13 @@ void main() {
 
         async.elapse(const Duration(milliseconds: 44));
         expect(m.shownText, 'Hey');
-        expect(m.phase, TypewriterPhase.holding,
-            reason: 'typing completes and the message HOLDS — the hold is '
-                'a real phase that owns the rotation timer');
+        expect(
+          m.phase,
+          TypewriterPhase.holding,
+          reason:
+              'typing completes and the message HOLDS — the hold is '
+              'a real phase that owns the rotation timer',
+        );
         m.dispose();
       });
     });
@@ -46,8 +49,11 @@ void main() {
         expect(m.shownText, 'Hello');
 
         m.showMessage('World');
-        expect(m.phase, TypewriterPhase.erasing,
-            reason: 'the old message must erase before the new one types');
+        expect(
+          m.phase,
+          TypewriterPhase.erasing,
+          reason: 'the old message must erase before the new one types',
+        );
         async.elapse(const Duration(milliseconds: 13));
         expect(m.shownText, 'Hell');
         // Finish erasing + typing.
@@ -64,9 +70,13 @@ void main() {
         expect(m.shownText, 'Same');
 
         m.showMessage('Same');
-        expect(m.phase, TypewriterPhase.holding,
-            reason: 'identical text must not restart the grammar — the '
-                'current hold carries on undisturbed');
+        expect(
+          m.phase,
+          TypewriterPhase.holding,
+          reason:
+              'identical text must not restart the grammar — the '
+              'current hold carries on undisturbed',
+        );
         expect(m.shownText, 'Same');
         async.elapse(const Duration(seconds: 1));
         expect(m.shownText, 'Same');
@@ -74,8 +84,7 @@ void main() {
       });
     });
 
-    test('interrupting mid-type erases the partial and types the new one',
-        () {
+    test('interrupting mid-type erases the partial and types the new one', () {
       fakeAsync((async) {
         final m = TypewriterMachine()..showMessage('Hello');
         async.elapse(const Duration(milliseconds: 44));
@@ -93,25 +102,31 @@ void main() {
       fakeAsync((async) {
         final m = TypewriterMachine()..showImmediately('Instant');
         expect(m.shownText, 'Instant');
-        expect(m.phase, TypewriterPhase.holding,
-            reason: 'reduced motion skips the traversal, not the hold '
-                'cycle');
+        expect(
+          m.phase,
+          TypewriterPhase.holding,
+          reason:
+              'reduced motion skips the traversal, not the hold '
+              'cycle',
+        );
         async.elapse(const Duration(seconds: 1));
         expect(m.shownText, 'Instant');
         m.dispose();
       });
     });
 
-    test('cancellation: dispose stops every pending timer without throwing',
-        () {
-      fakeAsync((async) {
-        final m = TypewriterMachine()..showMessage('Pending');
-        m.dispose();
-        async.elapse(const Duration(seconds: 10));
-        // Reaching here without a timer callback on a disposed machine is
-        // the pass condition.
-      });
-    });
+    test(
+      'cancellation: dispose stops every pending timer without throwing',
+      () {
+        fakeAsync((async) {
+          final m = TypewriterMachine()..showMessage('Pending');
+          m.dispose();
+          async.elapse(const Duration(seconds: 10));
+          // Reaching here without a timer callback on a disposed machine is
+          // the pass condition.
+        });
+      },
+    );
   });
 
   group('HeadingMessageSelector — priority order', () {
@@ -134,11 +149,12 @@ void main() {
       expect(top!.priority, HomeHeadingPriority.event);
     });
 
-    test('nothing contextual → null (the greeting/feature ladder remains)',
-        () {
+    test('nothing contextual → null (the greeting/feature ladder remains)', () {
       expect(
         HeadingMessageSelector.topContextual(
-            susuDueTomorrow: false, moneyArrivedToday: null),
+          susuDueTomorrow: false,
+          moneyArrivedToday: null,
+        ),
         isNull,
       );
     });
@@ -148,8 +164,11 @@ void main() {
       for (final m in kHeadingFeatureMessages) {
         expect(m.priority, HomeHeadingPriority.feature);
         // No numbers, balances, rates, offers or urgency in fallback copy.
-        expect(RegExp(r'\d').hasMatch(m.text), isFalse,
-            reason: '${m.text} must not carry fabricated figures');
+        expect(
+          RegExp(r'\d').hasMatch(m.text),
+          isFalse,
+          reason: '${m.text} must not carry fabricated figures',
+        );
         expect(m.text.toLowerCase(), isNot(contains('urgent')));
         expect(m.text.toLowerCase(), isNot(contains('now!')));
       }
@@ -172,7 +191,10 @@ void main() {
           child: MaterialApp(
             theme: ThemeProvider.getThemeData(AzamanTheme.light),
             home: const MediaQuery(
-              data: MediaQueryData(size: Size(400, 900), disableAnimations: true),
+              data: MediaQueryData(
+                size: Size(400, 900),
+                disableAnimations: true,
+              ),
               child: Scaffold(body: AzTypewriterHeading()),
             ),
           ),
@@ -191,8 +213,7 @@ void main() {
     });
   });
 
-  group('AzTypewriterHeading — shell inactive/resume lifecycle (audit §7)',
-      () {
+  group('AzTypewriterHeading — shell inactive/resume lifecycle (audit §7)', () {
     String headingText(WidgetTester tester) {
       final t = find.descendant(
         of: find.byType(AzTypewriterHeading),
@@ -202,7 +223,9 @@ void main() {
     }
 
     Future<void> pumpHeading(
-        WidgetTester tester, ProviderContainer container) async {
+      WidgetTester tester,
+      ProviderContainer container,
+    ) async {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -236,8 +259,11 @@ void main() {
       final active1 = headingText(tester);
       await tester.pump(const Duration(milliseconds: 400));
       final active2 = headingText(tester);
-      expect(active2 != active1, isTrue,
-          reason: 'while the Home tab is active, the machine types');
+      expect(
+        active2 != active1,
+        isTrue,
+        reason: 'while the Home tab is active, the machine types',
+      );
       expect(active2.length >= active1.length, isTrue);
 
       // INACTIVE (the shell writes false on tab switch): every timer is
@@ -248,26 +274,37 @@ void main() {
       final paused = headingText(tester);
       expect(paused, isNotEmpty, reason: 'the paused text is kept');
       await tester.pump(const Duration(seconds: 30));
-      expect(headingText(tester), paused,
-          reason: 'inactive → no typing, no hold expiry, no rotation — '
-              '30s is 3× the hold duration and nothing fired');
+      expect(
+        headingText(tester),
+        paused,
+        reason:
+            'inactive → no typing, no hold expiry, no rotation — '
+            '30s is 3× the hold duration and nothing fired',
+      );
 
       // RESUME (the shell writes true on re-entry): a held message
       // re-arms its hold from zero; when it elapses the ladder rotates —
       // a paused machine would never have fired.
       container.read(homeShellActiveProvider.notifier).state = true;
       await tester.pump(const Duration(seconds: 2));
-      expect(headingText(tester), paused,
-          reason: 'resume re-arms the hold — the text is kept');
+      expect(
+        headingText(tester),
+        paused,
+        reason: 'resume re-arms the hold — the text is kept',
+      );
       await tester.pump(const Duration(seconds: 10));
       final rotated = headingText(tester);
-      expect(rotated != paused, isTrue,
-          reason: 'hold elapsed after resume → the ladder rotates again');
+      expect(
+        rotated != paused,
+        isTrue,
+        reason: 'hold elapsed after resume → the ladder rotates again',
+      );
     });
 
     testWidgets('a message armed while the shell is ALREADY inactive '
-        'pauses before typing a single character, then types on resume',
-        (tester) async {
+        'pauses before typing a single character, then types on resume', (
+      tester,
+    ) async {
       final container = ProviderContainer(
         overrides: [
           authProvider.overrideWith((ref) => AuthProvider()),
@@ -278,8 +315,11 @@ void main() {
       addTearDown(container.dispose);
 
       await pumpHeading(tester, container);
-      expect(headingText(tester), isEmpty,
-          reason: 'armed while inactive → nothing types, no timer runs');
+      expect(
+        headingText(tester),
+        isEmpty,
+        reason: 'armed while inactive → nothing types, no timer runs',
+      );
 
       // The shell reports Home active again: the armed message types now.
       // (The zero-duration pump builds the resume frame — a pump advances
@@ -288,8 +328,11 @@ void main() {
       container.read(homeShellActiveProvider.notifier).state = true;
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
-      expect(headingText(tester), isNotEmpty,
-          reason: 'resume types the armed message');
+      expect(
+        headingText(tester),
+        isNotEmpty,
+        reason: 'resume types the armed message',
+      );
     });
   });
 }

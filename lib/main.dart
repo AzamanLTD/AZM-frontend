@@ -237,9 +237,7 @@ Future<void> _bootstrap() async {
       // This inner zone guard would otherwise swallow errors from the
       // zone Sentry installed around the app runner — forward them.
       if (AppConfig.sentryEnabled) {
-        unawaited(
-          Sentry.captureException(error, stackTrace: stack),
-        );
+        unawaited(Sentry.captureException(error, stackTrace: stack));
       }
     },
   );
@@ -263,7 +261,10 @@ class AzamanApp extends ConsumerWidget {
       theme_pkg.themeProvider.select(
         (t) => theme_pkg.ThemeProvider.getThemeData(
           t.currentTheme,
-          accent: vertical ?? t.accent,
+          // The applied balance card IS the brand identity; a Marketplace
+          // vertical may borrow the accent for its session only.
+          variant: t.cardVariant,
+          accentOverride: vertical,
         ),
       ),
     );
@@ -534,7 +535,6 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   /// GlobalKeys for the shell pages (see _pageFor). Kept alive for the
   /// State's lifetime so element reparenting preserves page state.
   final _pageKeys = <int, GlobalKey>{};
-
 
   /// The + launcher open/close state, shared between the trigger (in the
   /// nav band) and the overlay (in the body stack).
@@ -949,64 +949,65 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
         // tab switches there.
         enabled: !_plus.isOpen,
         child: NotificationListener<ScrollNotification>(
-        // TASK-010 compression + NEW-C per-tab scroll recording share this
-        // one listener above every page. The registry keeps each tab's
-        // OUTERMOST vertical scrollable so the retap contract can spring
-        // the page to the top without any page owning a controller seam.
-        onNotification: (n) {
-          NavScrollCompression.applyTo(n);
-          TabScrollRegistry.instance.record(_selectedIndex, n);
-          return false;
-        },
-        child: ScaleTransition(
-          // NEW-C: the already-here lift — a subtle 1.0 → 0.985 → 1.0
-          // scale of the whole content, driven by the retap controller.
-          // Rests at 1.0 and never plays under reduced motion.
-          scale: _retap.lift,
-          child: Stack(
-            children: [
-              AnimatedBuilder(
-                animation: _transitionCtrl,
-                builder: (context, child) => Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    for (var index = 0; index < _pages.length; index++)
-                      if (_pages[index] != null && index != _selectedIndex)
-                        _withPageTickerBudget(index, _buildOutgoing(index)),
-                    if (_pages[_selectedIndex] != null)
-                      _withPageTickerBudget(
-                        _selectedIndex,
-                        _buildIncoming(_selectedIndex),
-                      ),
-                  ],
+          // TASK-010 compression + NEW-C per-tab scroll recording share this
+          // one listener above every page. The registry keeps each tab's
+          // OUTERMOST vertical scrollable so the retap contract can spring
+          // the page to the top without any page owning a controller seam.
+          onNotification: (n) {
+            NavScrollCompression.applyTo(n);
+            TabScrollRegistry.instance.record(_selectedIndex, n);
+            return false;
+          },
+          child: ScaleTransition(
+            // NEW-C: the already-here lift — a subtle 1.0 → 0.985 → 1.0
+            // scale of the whole content, driven by the retap controller.
+            // Rests at 1.0 and never plays under reduced motion.
+            scale: _retap.lift,
+            child: Stack(
+              children: [
+                AnimatedBuilder(
+                  animation: _transitionCtrl,
+                  builder: (context, child) => Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      for (var index = 0; index < _pages.length; index++)
+                        if (_pages[index] != null && index != _selectedIndex)
+                          _withPageTickerBudget(index, _buildOutgoing(index)),
+                      if (_pages[_selectedIndex] != null)
+                        _withPageTickerBudget(
+                          _selectedIndex,
+                          _buildIncoming(_selectedIndex),
+                        ),
+                    ],
+                  ),
+                  child: const SizedBox.expand(),
                 ),
-                child: const SizedBox.expand(),
-              ),
-              // AUDIT §9 — the vendor-portal entry point is NOT deleted: the
-              // pull tag (vendor → dashboard, non-vendor → 3-pull apply
-              // flow) keeps its configured home on the HOME tab, the shell's
-              // primary surface in the 3-tab layout. The settings toggle
-              // (`vendorTagEnabled`) still decides whether it appears.
-              if (_displayedIndex == 0 &&
-                  ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
-                const VendorPullTab(),
-              DrawerPeekHint(
-                onOpenDrawer: () => _scaffoldKey.currentState?.openEndDrawer(),
-              ),
-              // NEW-HOME §8: the floating + action launcher, topmost in the
-              // shell stack. It means "things I can DO" (Recent Activity is
-              // "things that HAPPENED"). The + sits beside the bottom nav;
-              // opening de-emphasizes the content and the actions appear
-              // directly on screen — never inside a boxed modal.
-              Positioned.fill(
-                child: PlusActionLauncher(
-                  controller: _plus,
-                  actions: buildHomePlusActions(context),
+                // AUDIT §9 — the vendor-portal entry point is NOT deleted: the
+                // pull tag (vendor → dashboard, non-vendor → 3-pull apply
+                // flow) keeps its configured home on the HOME tab, the shell's
+                // primary surface in the 3-tab layout. The settings toggle
+                // (`vendorTagEnabled`) still decides whether it appears.
+                if (_displayedIndex == 0 &&
+                    ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
+                  const VendorPullTab(),
+                DrawerPeekHint(
+                  onOpenDrawer: () =>
+                      _scaffoldKey.currentState?.openEndDrawer(),
                 ),
-              ),
-            ],
+                // NEW-HOME §8: the floating + action launcher, topmost in the
+                // shell stack. It means "things I can DO" (Recent Activity is
+                // "things that HAPPENED"). The + sits beside the bottom nav;
+                // opening de-emphasizes the content and the actions appear
+                // directly on screen — never inside a boxed modal.
+                Positioned.fill(
+                  child: PlusActionLauncher(
+                    controller: _plus,
+                    actions: buildHomePlusActions(context),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         ),
       ),
     );

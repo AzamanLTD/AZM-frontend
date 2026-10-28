@@ -26,8 +26,9 @@ import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/screens/friends/friend_chat_screen.dart';
 import 'package:azaman/services/socket_service.dart';
 
-const _storageChannel =
-    MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+const _storageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
 
 class _FixedAuth extends AuthProvider {
   _FixedAuth(this.sessionUser);
@@ -48,32 +49,36 @@ class _FakeFriends extends FriendProvider {
 }
 
 User _user() => User(
-      id: '7',
-      username: 'me',
-      email: 'me@example.com',
-      token: 'tok',
-      role: 'USER',
-      azamanId: 'AZM-999999999',
-      availableBalance: 50.0,
-    );
+  id: '7',
+  username: 'me',
+  email: 'me@example.com',
+  token: 'tok',
+  role: 'USER',
+  azamanId: 'AZM-999999999',
+  availableBalance: 50.0,
+);
 
 io.Socket _offlineSocket() {
   // autoConnect:false — the manager never opens an engine, no network.
-  return io.io('http://127.0.0.1:9',
-      io.OptionBuilder().build()..['autoConnect'] = false);
+  return io.io(
+    'http://127.0.0.1:9',
+    io.OptionBuilder().build()..['autoConnect'] = false,
+  );
 }
 
 Widget _app() => ProviderScope(
-      overrides: [
-        authProvider.overrideWith((ref) => _FixedAuth(_user())),
-        friendProvider.overrideWith((ref) => _FakeFriends(ref)),
-      ],
-      child: const MaterialApp(home: FriendChatScreen(
-        friendshipId: 'fs-77',
-        friendUsername: 'ama',
-        friendId: 101,
-      )),
-    );
+  overrides: [
+    authProvider.overrideWith((ref) => _FixedAuth(_user())),
+    friendProvider.overrideWith((ref) => _FakeFriends(ref)),
+  ],
+  child: const MaterialApp(
+    home: FriendChatScreen(
+      friendshipId: 'fs-77',
+      friendUsername: 'ama',
+      friendId: 101,
+    ),
+  ),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -83,15 +88,13 @@ void main() {
     SocketService.instance.rawSocketForTesting = null;
   });
 
-  testWidgets(
-      'dispose removes ONLY the chat screen\'s own listeners — another '
-      'component\'s listener on the SAME event survives',
-      (tester) async {
+  testWidgets('dispose removes ONLY the chat screen\'s own listeners — another '
+      'component\'s listener on the SAME event survives', (tester) async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_storageChannel, (call) async {
-      if (call.method == 'read') return 'mock-token';
-      return null;
-    });
+          if (call.method == 'read') return 'mock-token';
+          return null;
+        });
     SharedPreferences.setMockInitialValues({'azaman_theme': 1});
 
     final socket = _offlineSocket();
@@ -116,10 +119,16 @@ void main() {
 
     // The external listeners SURVIVE the chat screen's dispose — a bare
     // socket.off(event) would have stripped them too.
-    expect(socket.hasListeners('friend_message'), isTrue,
-        reason: 'FriendProvider\'s message listener must survive');
-    expect(socket.hasListeners('friend_typing'), isTrue,
-        reason: 'an unrelated component\'s typing listener must survive');
+    expect(
+      socket.hasListeners('friend_message'),
+      isTrue,
+      reason: 'FriendProvider\'s message listener must survive',
+    );
+    expect(
+      socket.hasListeners('friend_typing'),
+      isTrue,
+      reason: 'an unrelated component\'s typing listener must survive',
+    );
     expect(externalMessages, 0, reason: 'never fired in this test');
     expect(externalTyping, 0);
 
@@ -129,14 +138,13 @@ void main() {
     socket.dispose();
   });
 
-  testWidgets(
-      'dispose leaves NO screen-owned handlers behind — every listener '
+  testWidgets('dispose leaves NO screen-owned handlers behind — every listener '
       'that remains belongs to the app, not the dead screen', (tester) async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_storageChannel, (call) async {
-      if (call.method == 'read') return 'mock-token';
-      return null;
-    });
+          if (call.method == 'read') return 'mock-token';
+          return null;
+        });
     SharedPreferences.setMockInitialValues({'azaman_theme': 1});
 
     final socket = _offlineSocket();
@@ -144,10 +152,16 @@ void main() {
 
     await tester.pumpWidget(_app());
     await tester.pump(const Duration(milliseconds: 50));
-    expect(socket.hasListeners('friend_typing'), isTrue,
-        reason: 'the screen (and the premium chat notifier) subscribed');
-    expect(socket.hasListeners('message_ack'), isTrue,
-        reason: 'the premium chat notifier subscribed');
+    expect(
+      socket.hasListeners('friend_typing'),
+      isTrue,
+      reason: 'the screen (and the premium chat notifier) subscribed',
+    );
+    expect(
+      socket.hasListeners('message_ack'),
+      isTrue,
+      reason: 'the premium chat notifier subscribed',
+    );
     expect(socket.hasListeners('ticket_presence_update'), isTrue);
     expect(socket.hasListeners('ticket_status_changed'), isTrue);
 
@@ -157,15 +171,25 @@ void main() {
     // The chat screen's OWN handlers and the auto-disposed premium chat
     // notifier's handlers are ALL gone — no other subscriber exists in
     // this test, so every one of these events must be listener-free.
-    expect(socket.hasListeners('friend_typing'), isFalse,
-        reason: 'the dead screen\'s typing handler came off');
-    expect(socket.hasListeners('message_ack'), isFalse,
-        reason: 'the disposed notifier\'s handler came off');
+    expect(
+      socket.hasListeners('friend_typing'),
+      isFalse,
+      reason: 'the dead screen\'s typing handler came off',
+    );
+    expect(
+      socket.hasListeners('message_ack'),
+      isFalse,
+      reason: 'the disposed notifier\'s handler came off',
+    );
     expect(socket.hasListeners('ticket_presence_update'), isFalse);
     expect(socket.hasListeners('ticket_status_changed'), isFalse);
-    expect(socket.hasListeners('friend_message'), isFalse,
-        reason: 'no app-global listener was registered in this test — '
-            'EVERY friend_message handler belonged to the dead screen or '
-            'its disposed notifier');
+    expect(
+      socket.hasListeners('friend_message'),
+      isFalse,
+      reason:
+          'no app-global listener was registered in this test — '
+          'EVERY friend_message handler belonged to the dead screen or '
+          'its disposed notifier',
+    );
   });
 }

@@ -101,7 +101,10 @@ class _TransitSeatSelectionScreenState
         // and 401/429 get their own retry guidance; a definitive
         // pre-economic 4xx surfaces the backend's own message verbatim.
         final cls = state.failureClass;
-        String message = error.replaceFirst('MarketplaceBookingException: ', '');
+        String message = error.replaceFirst(
+          'MarketplaceBookingException: ',
+          '',
+        );
         if (cls == TransitBookingFailureClass.ambiguousOrUnknown) {
           message =
               'We couldn\'t confirm your booking. Check your bookings first — '
@@ -121,10 +124,7 @@ class _TransitSeatSelectionScreenState
               'your request will be safely reused.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: colors.danger,
-          ),
+          SnackBar(content: Text(message), backgroundColor: colors.danger),
         );
         return;
       }
@@ -429,7 +429,9 @@ class _TransitSeatSelectionScreenState
                 JourneyThread(
                   model: JourneyThreadModel.fromTrip(
                     trip,
-                    stage: selected.isEmpty ? JourneyStage.seat : JourneyStage.booking,
+                    stage: selected.isEmpty
+                        ? JourneyStage.seat
+                        : JourneyStage.booking,
                     seatLabel: journeySeatLabel(selected),
                   ),
                 ),

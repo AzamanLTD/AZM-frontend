@@ -33,7 +33,8 @@ void main() {
         expect(
           steps[i],
           greaterThan(steps[i - 1]),
-          reason: 'step $i (${steps[i]}) must exceed step ${i - 1} (${steps[i - 1]})',
+          reason:
+              'step $i (${steps[i]}) must exceed step ${i - 1} (${steps[i - 1]})',
         );
       }
     });
@@ -74,8 +75,11 @@ void main() {
         AzSpace.giant,
       ];
       for (var i = 1; i < steps.length; i++) {
-        expect(steps[i], greaterThan(steps[i - 1]),
-            reason: 'gap ${steps[i]} must exceed ${steps[i - 1]}');
+        expect(
+          steps[i],
+          greaterThan(steps[i - 1]),
+          reason: 'gap ${steps[i]} must exceed ${steps[i - 1]}',
+        );
       }
     });
 
@@ -85,8 +89,15 @@ void main() {
       // a correction, not a layout gap — so it is excluded here by design,
       // and the ladder's first real step is 4.
       for (final v in <double>[
-        AzSpace.xs, AzSpace.sm, AzSpace.md, AzSpace.lg,
-        AzSpace.xl, AzSpace.xxl, AzSpace.xxxl, AzSpace.huge, AzSpace.giant,
+        AzSpace.xs,
+        AzSpace.sm,
+        AzSpace.md,
+        AzSpace.lg,
+        AzSpace.xl,
+        AzSpace.xxl,
+        AzSpace.xxxl,
+        AzSpace.huge,
+        AzSpace.giant,
       ]) {
         expect(v % 4, 0, reason: '$v is not a multiple of 4');
       }
@@ -112,8 +123,7 @@ void main() {
     /// Mean alpha across a recipe's shadows — the recipe's overall weight.
     double weight(List<BoxShadow> shadows) {
       if (shadows.isEmpty) return 0;
-      final total = shadows.fold<double>(
-          0, (sum, s) => sum + s.color.a);
+      final total = shadows.fold<double>(0, (sum, s) => sum + s.color.a);
       return total / shadows.length;
     }
 
@@ -126,15 +136,26 @@ void main() {
         for (var lvl = 1; lvl <= 4; lvl++) {
           List<BoxShadow> recipe;
           switch (lvl) {
-            case 1: recipe = AzElevation.level1(dark); break;
-            case 2: recipe = AzElevation.level2(dark); break;
-            case 3: recipe = AzElevation.level3(dark); break;
-            default: recipe = AzElevation.level4(dark); break;
+            case 1:
+              recipe = AzElevation.level1(dark);
+              break;
+            case 2:
+              recipe = AzElevation.level2(dark);
+              break;
+            case 3:
+              recipe = AzElevation.level3(dark);
+              break;
+            default:
+              recipe = AzElevation.level4(dark);
+              break;
           }
           expect(recipe, isNotEmpty, reason: 'level$lvl dark=$dark is empty');
           for (final s in recipe) {
-            expect(s.color.a, greaterThan(0),
-                reason: 'level$lvl dark=$dark has a fully transparent shadow');
+            expect(
+              s.color.a,
+              greaterThan(0),
+              reason: 'level$lvl dark=$dark has a fully transparent shadow',
+            );
             expect(s.blurRadius, greaterThan(0));
           }
         }
@@ -146,27 +167,33 @@ void main() {
       // invisible, so dark mode must lean harder on shadow to read as lifted.
       for (var lvl = 1; lvl <= 4; lvl++) {
         List<BoxShadow> fn(bool dark) => switch (lvl) {
-              1 => AzElevation.level1(dark),
-              2 => AzElevation.level2(dark),
-              3 => AzElevation.level3(dark),
-              _ => AzElevation.level4(dark),
-            };
-        expect(weight(fn(true)), greaterThan(weight(fn(false))),
-            reason: 'level$lvl is weaker in dark mode than light');
+          1 => AzElevation.level1(dark),
+          2 => AzElevation.level2(dark),
+          3 => AzElevation.level3(dark),
+          _ => AzElevation.level4(dark),
+        };
+        expect(
+          weight(fn(true)),
+          greaterThan(weight(fn(false))),
+          reason: 'level$lvl is weaker in dark mode than light',
+        );
       }
     });
 
     test('a higher level is never visually weaker than the one below', () {
       for (final dark in <bool>[false, true]) {
         List<BoxShadow> fn(int lvl) => switch (lvl) {
-              1 => AzElevation.level1(dark),
-              2 => AzElevation.level2(dark),
-              3 => AzElevation.level3(dark),
-              _ => AzElevation.level4(dark),
-            };
+          1 => AzElevation.level1(dark),
+          2 => AzElevation.level2(dark),
+          3 => AzElevation.level3(dark),
+          _ => AzElevation.level4(dark),
+        };
         for (var lvl = 2; lvl <= 4; lvl++) {
-          expect(weight(fn(lvl)), greaterThanOrEqualTo(weight(fn(lvl - 1))),
-              reason: 'level$lvl is not >= level${lvl - 1} (dark=$dark)');
+          expect(
+            weight(fn(lvl)),
+            greaterThanOrEqualTo(weight(fn(lvl - 1))),
+            reason: 'level$lvl is not >= level${lvl - 1} (dark=$dark)',
+          );
         }
       }
     });

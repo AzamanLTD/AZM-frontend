@@ -154,153 +154,153 @@ class AzmVisaCard extends ConsumerWidget {
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.3,
       child: PremiumCardFrame(
-      radius: 22,
-      child: Stack(
-        children: [
-          // 2026-10-12 footprint pass: 16 (was 18) — the deck's 165px card
-          // slot needs the interior to fit without overflow at all widths.
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'AZM',
-                      style: AzText.titleL.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const Spacer(),
-                    // 2026-10-16 pouch-deck fix: the SAMPLE disclosure chip
-                    // previously floated at Positioned(top:12,right:12) —
-                    // directly ON TOP of this VISA pill (both upper-right,
-                    // the tag collided with the network mark). It now lives
-                    // INSIDE the header row, left of the pill, so the
-                    // tucked deck's exposed 44px Visa strip reads cleanly:
-                    // AZM ······ [SAMPLE] [VISA]. Demo disclosure preserved.
-                    Container(
-                      margin: const EdgeInsets.only(right: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        'SAMPLE',
-                        style: TextStyle(
+        radius: 22,
+        child: Stack(
+          children: [
+            // 2026-10-12 footprint pass: 16 (was 18) — the deck's 165px card
+            // slot needs the interior to fit without overflow at all widths.
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'AZM',
+                        style: AzText.titleL.copyWith(
                           color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-                    // SAMPLE network mark — Visa-concept visual only. The
-                    // production network claim lives with the real card
-                    // programme, not this placeholder surface.
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'VISA',
-                        style: AzText.title.copyWith(
-                          color: const Color(0xFF1A1F71),
                           fontWeight: FontWeight.w900,
-                          fontStyle: FontStyle.italic,
-                          fontSize: 14,
-                          letterSpacing: 1,
+                          letterSpacing: 1.2,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  ref.watch(azmCardProgrammeProvider).maskedNumber,
-                  style: AzText.titleXl.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 2.5,
+                      const Spacer(),
+                      // 2026-10-16 pouch-deck fix: the SAMPLE disclosure chip
+                      // previously floated at Positioned(top:12,right:12) —
+                      // directly ON TOP of this VISA pill (both upper-right,
+                      // the tag collided with the network mark). It now lives
+                      // INSIDE the header row, left of the pill, so the
+                      // tucked deck's exposed 44px Visa strip reads cleanly:
+                      // AZM ······ [SAMPLE] [VISA]. Demo disclosure preserved.
+                      Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'SAMPLE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                      // SAMPLE network mark — Visa-concept visual only. The
+                      // production network claim lives with the real card
+                      // programme, not this placeholder surface.
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'VISA',
+                          style: AzText.title.copyWith(
+                            color: const Color(0xFF1A1F71),
+                            fontWeight: FontWeight.w900,
+                            fontStyle: FontStyle.italic,
+                            fontSize: 14,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: AzSpace.md),
-                Row(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'VALID THRU',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          ref.watch(azmCardProgrammeProvider).expiryLabel,
-                          style: AzText.bodyL.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
+                  const Spacer(),
+                  Text(
+                    ref.watch(azmCardProgrammeProvider).maskedNumber,
+                    style: AzText.titleXl.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.5,
                     ),
-                    const SizedBox(width: AzSpace.xl),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          ref.watch(azmCardProgrammeProvider).cardholderLabel,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
+                  ),
+                  const SizedBox(height: AzSpace.md),
+                  Row(
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'VALID THRU',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        Text(
-                          name,
-                          style: AzText.bodyL.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                          Text(
+                            ref.watch(azmCardProgrammeProvider).expiryLabel,
+                            style: AzText.bodyL.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Unmistakably-safe demo tag: this card has NOT been issued.
-          // "powered by Flutterwave" mark for the sample surface.
-          Positioned(
-            bottom: AzSpace.md,
-            right: AzSpace.md,
-            child: Text(
-              'powered by Flutterwave',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.65),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
+                        ],
+                      ),
+                      const SizedBox(width: AzSpace.xl),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            ref.watch(azmCardProgrammeProvider).cardholderLabel,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            name,
+                            style: AzText.bodyL.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-      ),
+            // Unmistakably-safe demo tag: this card has NOT been issued.
+            // "powered by Flutterwave" mark for the sample surface.
+            Positioned(
+              bottom: AzSpace.md,
+              right: AzSpace.md,
+              child: Text(
+                'powered by Flutterwave',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.65),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

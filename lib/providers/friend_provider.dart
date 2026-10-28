@@ -69,22 +69,28 @@ class FriendProvider with ChangeNotifier {
     // Listen for real-time friend events (each registration's own
     // unsubscribe closure is kept for scoped removal on disconnect).
     _socketUnsubscribers.add(
-        _socket!.on('friend_request_received', (data) {
-      _handleFriendRequestReceived(data);
-    }));
+      _socket!.on('friend_request_received', (data) {
+        _handleFriendRequestReceived(data);
+      }),
+    );
 
     _socketUnsubscribers.add(
-        _socket!.on('friend_request_accepted', (data) {
-      _handleFriendRequestAccepted(data);
-    }));
+      _socket!.on('friend_request_accepted', (data) {
+        _handleFriendRequestAccepted(data);
+      }),
+    );
 
-    _socketUnsubscribers.add(_socket!.on('friend_message', (data) {
-      _handleFriendMessage(data);
-    }));
+    _socketUnsubscribers.add(
+      _socket!.on('friend_message', (data) {
+        _handleFriendMessage(data);
+      }),
+    );
 
-    _socketUnsubscribers.add(_socket!.on('friend_transfer_received', (data) {
-      _handleTransferReceived(data);
-    }));
+    _socketUnsubscribers.add(
+      _socket!.on('friend_transfer_received', (data) {
+        _handleTransferReceived(data);
+      }),
+    );
   }
 
   void _handleFriendRequestReceived(dynamic data) {
@@ -98,7 +104,8 @@ class FriendProvider with ChangeNotifier {
     if (data is Map<String, dynamic>) {
       // Remove from pending, add to friends
       pendingRequests.removeWhere(
-          (r) => r['id'].toString() == data['friendshipId'].toString());
+        (r) => r['id'].toString() == data['friendshipId'].toString(),
+      );
       fetchFriends();
       notifyListeners();
     }
@@ -113,7 +120,8 @@ class FriendProvider with ChangeNotifier {
       final friendshipId = data['friendshipId']?.toString();
       if (friendshipId != null) {
         final idx = friends.indexWhere(
-            (f) => f['friendshipId']?.toString() == friendshipId);
+          (f) => f['friendshipId']?.toString() == friendshipId,
+        );
         if (idx != -1) {
           // Phase UI-7 (2026-05-27): write the new message into the
           // nested `latestMessage` shape that matches the BE response,
@@ -123,8 +131,7 @@ class FriendProvider with ChangeNotifier {
           // reads them.
           final newLatest = {
             'content': data['content'] ?? data['message'] ?? '',
-            'createdAt': data['createdAt'] ??
-                DateTime.now().toIso8601String(),
+            'createdAt': data['createdAt'] ?? DateTime.now().toIso8601String(),
             'isFromMe': false,
           };
           final unreadInt = friends[idx]['unreadCount'] is int
@@ -139,12 +146,14 @@ class FriendProvider with ChangeNotifier {
           };
           // Re-sort by latest message time so the row jumps to the top.
           friends.sort((a, b) {
-            final aTime = (a['latestMessage'] is Map<String, dynamic>
+            final aTime =
+                (a['latestMessage'] is Map<String, dynamic>
                     ? (a['latestMessage'] as Map<String, dynamic>)['createdAt']
                     : null) ??
                 a['lastMessageTime'] ??
                 '';
-            final bTime = (b['latestMessage'] is Map<String, dynamic>
+            final bTime =
+                (b['latestMessage'] is Map<String, dynamic>
                     ? (b['latestMessage'] as Map<String, dynamic>)['createdAt']
                     : null) ??
                 b['lastMessageTime'] ??
@@ -180,12 +189,14 @@ class FriendProvider with ChangeNotifier {
       // response missing that field doesn't shuffle a non-deterministic
       // ordering on top.
       friends.sort((a, b) {
-        final aTime = (a['latestMessage'] is Map<String, dynamic>
+        final aTime =
+            (a['latestMessage'] is Map<String, dynamic>
                 ? (a['latestMessage'] as Map<String, dynamic>)['createdAt']
                 : null) ??
             a['lastMessageTime'] ??
             '';
-        final bTime = (b['latestMessage'] is Map<String, dynamic>
+        final bTime =
+            (b['latestMessage'] is Map<String, dynamic>
                 ? (b['latestMessage'] as Map<String, dynamic>)['createdAt']
                 : null) ??
             b['lastMessageTime'] ??
@@ -246,7 +257,8 @@ class FriendProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('FriendProvider.searchUsers error: $e');
       searchResults = [];
-      searchError = 'Contact search failed. Check your connection and try again.';
+      searchError =
+          'Contact search failed. Check your connection and try again.';
     } finally {
       isLoading = false;
       notifyListeners();

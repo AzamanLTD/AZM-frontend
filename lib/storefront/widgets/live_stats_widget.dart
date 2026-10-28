@@ -5,7 +5,11 @@ class LiveStatsWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const LiveStatsWidget({super.key, required this.props, required this.business});
+  const LiveStatsWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -15,9 +19,11 @@ class LiveStatsWidget extends StatelessWidget {
     final showRating = props['showRating'] ?? true;
 
     final stats = <_StatItem>[];
-    if (showFollowers) stats.add(const _StatItem(Icons.people, '1.2K', 'Followers'));
+    if (showFollowers)
+      stats.add(const _StatItem(Icons.people, '1.2K', 'Followers'));
     if (showReviews) stats.add(const _StatItem(Icons.star, '348', 'Reviews'));
-    if (showOrders) stats.add(const _StatItem(Icons.shopping_bag, '5.4K', 'Orders'));
+    if (showOrders)
+      stats.add(const _StatItem(Icons.shopping_bag, '5.4K', 'Orders'));
     if (showRating) stats.add(const _StatItem(Icons.thumb_up, '4.5', 'Rating'));
 
     return Container(
@@ -38,13 +44,37 @@ class LiveStatsWidget extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(stat.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
+        Text(
+          stat.value,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
         const SizedBox(height: 2),
-        Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(stat.icon, size: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)),
-          const SizedBox(width: 3),
-          Text(stat.label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5))),
-        ]),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              stat.icon,
+              size: 12,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 3),
+            Text(
+              stat.label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

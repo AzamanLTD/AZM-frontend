@@ -12,10 +12,7 @@ import 'package:azaman/storefront/models/storefront_models.dart';
 void main() {
   group('StorefrontThemeResolver — Color Parsing', () {
     test('resolves 6-digit hex colors correctly', () {
-      final tokens = ThemeTokenSet(
-        accent: '#B8860B',
-        textPrimary: '#111827',
-      );
+      final tokens = ThemeTokenSet(accent: '#B8860B', textPrimary: '#111827');
       final scheme = StorefrontThemeResolver.colorScheme(tokens);
       expect(scheme.primary, const Color(0xFFB8860B));
       expect(scheme.onSurface, const Color(0xFF111827));

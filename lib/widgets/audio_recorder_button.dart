@@ -36,16 +36,12 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
-
 /// Callback fired when a successful recording finishes. The file is on
 /// the local filesystem; the caller uploads it via
 /// `ChatMediaService.uploadAudio()` and includes the resulting URL +
 /// duration + waveform peaks in their `sendMessage` body.
-typedef OnAudioRecorded = void Function(
-  File file,
-  int durationSeconds,
-  List<int> waveformPeaks,
-);
+typedef OnAudioRecorded =
+    void Function(File file, int durationSeconds, List<int> waveformPeaks);
 
 class AudioRecorderButton extends ConsumerStatefulWidget {
   final OnAudioRecorded onRecorded;
@@ -124,8 +120,7 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
     }
 
     final dir = await getTemporaryDirectory();
-    final filename =
-        'voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
+    final filename = 'voice-${DateTime.now().millisecondsSinceEpoch}.m4a';
     final path = p.join(dir.path, filename);
 
     try {
@@ -179,18 +174,18 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
     _ampSub = _recorder
         .onAmplitudeChanged(const Duration(milliseconds: 200))
         .listen((amp) {
-      // amp.current is in dBFS, typically -160..0. Normalise to 0..100.
-      final db = amp.current.isFinite ? amp.current : -60.0;
-      final pct = ((db + 60) / 60 * 100).clamp(0, 100).round();
-      setState(() {
-        if (_peaks.length >= 50) {
-          // Keep the most recent 50 buckets so longer notes still produce
-          // a meaningful waveform without exploding the JSON payload.
-          _peaks.removeAt(0);
-        }
-        _peaks.add(pct);
-      });
-    });
+          // amp.current is in dBFS, typically -160..0. Normalise to 0..100.
+          final db = amp.current.isFinite ? amp.current : -60.0;
+          final pct = ((db + 60) / 60 * 100).clamp(0, 100).round();
+          setState(() {
+            if (_peaks.length >= 50) {
+              // Keep the most recent 50 buckets so longer notes still produce
+              // a meaningful waveform without exploding the JSON payload.
+              _peaks.removeAt(0);
+            }
+            _peaks.add(pct);
+          });
+        });
   }
 
   Future<void> _stopAndCommit() async {
@@ -249,13 +244,15 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
     try {
       final f = File(path);
       if (await f.exists()) await f.delete();
-    } catch (_) {/* swallow */}
+    } catch (_) {
+      /* swallow */
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    
+
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.bottomRight,
@@ -283,15 +280,18 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
               ),
             ),
           ),
-          
+
         // 2. Lock Indicator (Bouncing above mic)
         if (_recording && !_locked)
           Positioned(
             right: 0,
-            bottom: widget.size + 16 + (_dragDy.clamp(_lockThresholdDy, 0.0).abs() * 0.5),
+            bottom:
+                widget.size +
+                16 +
+                (_dragDy.clamp(_lockThresholdDy, 0.0).abs() * 0.5),
             child: _LockIndicator(colors: colors),
           ),
-          
+
         // 3. Main Mic/Send Button
         GestureDetector(
           onLongPressStart: (d) {
@@ -331,17 +331,26 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
             width: _recording && !_locked ? widget.size * 1.5 : widget.size,
             height: _recording && !_locked ? widget.size * 1.5 : widget.size,
             decoration: BoxDecoration(
-              color: _locked ? colors.accent : colors.accent.withValues(alpha: widget.disabled ? 0.05 : 0.12),
+              color: _locked
+                  ? colors.accent
+                  : colors.accent.withValues(
+                      alpha: widget.disabled ? 0.05 : 0.12,
+                    ),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 150),
-              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+              transitionBuilder: (child, anim) =>
+                  ScaleTransition(scale: anim, child: child),
               child: Icon(
                 _locked ? HugeIconsSolid.sent : Icons.mic_rounded,
                 key: ValueKey(_locked),
-                color: _locked ? Colors.white : colors.accent.withValues(alpha: widget.disabled ? 0.4 : 1.0),
+                color: _locked
+                    ? Colors.white
+                    : colors.accent.withValues(
+                        alpha: widget.disabled ? 0.4 : 1.0,
+                      ),
                 size: _recording && !_locked ? 28 : 20,
               ),
             ),
@@ -356,34 +365,58 @@ class _AudioRecorderButtonState extends ConsumerState<AudioRecorderButton> {
 class _LockIndicator extends StatefulWidget {
   final AzamanColors colors;
   const _LockIndicator({required this.colors});
-  @override State<_LockIndicator> createState() => _LockIndicatorState();
+  @override
+  State<_LockIndicator> createState() => _LockIndicatorState();
 }
 
-class _LockIndicatorState extends State<_LockIndicator> with SingleTickerProviderStateMixin {
+class _LockIndicatorState extends State<_LockIndicator>
+    with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
-  @override void initState() {
+  @override
+  void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800))..repeat(reverse: true);
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
   }
-  @override void dispose() { _ctrl.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) {
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (_, __) => Transform.translate(
         offset: Offset(0, -_ctrl.value * 6),
         child: Container(
-          width: 44, height: 60,
+          width: 44,
+          height: 60,
           decoration: BoxDecoration(
             color: widget.colors.surface,
             borderRadius: BorderRadius.circular(22),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2)],
+            boxShadow: const [
+              BoxShadow(color: Colors.black12, blurRadius: 10, spreadRadius: 2),
+            ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.lock_open_rounded, size: 16, color: widget.colors.textSecondary),
+              Icon(
+                Icons.lock_open_rounded,
+                size: 16,
+                color: widget.colors.textSecondary,
+              ),
               const SizedBox(height: 6),
-              Icon(Icons.keyboard_arrow_up, size: 18, color: widget.colors.textTertiary),
+              Icon(
+                Icons.keyboard_arrow_up,
+                size: 18,
+                color: widget.colors.textTertiary,
+              ),
             ],
           ),
         ),
@@ -416,16 +449,21 @@ class _RecordingStrip extends StatefulWidget {
     required this.peaks,
   });
 
-  @override State<_RecordingStrip> createState() => _RecordingStripState();
+  @override
+  State<_RecordingStrip> createState() => _RecordingStripState();
 }
 
-class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProviderStateMixin {
+class _RecordingStripState extends State<_RecordingStrip>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseCtrl;
 
   @override
   void initState() {
     super.initState();
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600))..repeat(reverse: true);
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -443,11 +481,15 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
   @override
   Widget build(BuildContext context) {
     final isCancelling = widget.cancelling;
-    final baseColor = isCancelling ? widget.colors.danger : widget.colors.accent;
+    final baseColor = isCancelling
+        ? widget.colors.danger
+        : widget.colors.accent;
 
     return Container(
       height: widget.size,
-      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.55),
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.55,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: widget.colors.surface,
@@ -462,13 +504,22 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
             builder: (_, __) => Container(
               width: _pulseCtrl.value * 3 + 8,
               height: _pulseCtrl.value * 3 + 8,
-              decoration: BoxDecoration(color: baseColor, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: baseColor,
+                shape: BoxShape.circle,
+              ),
             ),
           ),
           const SizedBox(width: 10),
           // Timer
-          Text(_formatElapsed(widget.elapsed),
-            style: TextStyle(color: widget.colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()]),
+          Text(
+            _formatElapsed(widget.elapsed),
+            style: TextStyle(
+              color: widget.colors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
           const SizedBox(width: 12),
           // Live Continuous Waveform
@@ -476,10 +527,14 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
             child: LayoutBuilder(
               builder: (context, constraints) {
                 // Ensure there is some width to draw waveform
-                final availableWidth = constraints.maxWidth > 0 ? constraints.maxWidth : 100.0;
+                final availableWidth = constraints.maxWidth > 0
+                    ? constraints.maxWidth
+                    : 100.0;
                 final maxVisiblePeaks = (availableWidth / 5.0).floor();
                 final visiblePeaks = widget.peaks.length > maxVisiblePeaks
-                    ? widget.peaks.sublist(widget.peaks.length - maxVisiblePeaks)
+                    ? widget.peaks.sublist(
+                        widget.peaks.length - maxVisiblePeaks,
+                      )
                     : widget.peaks;
 
                 return ClipRect(
@@ -489,23 +544,22 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisAlignment: MainAxisAlignment.end,
-                      children: List.generate(
-                        visiblePeaks.length,
-                        (i) {
-                          final peak = visiblePeaks[i];
-                          final h = (peak / 100 * 24).clamp(3.0, 24.0);
-                          return AnimatedContainer(
-                            duration: const Duration(milliseconds: 100),
-                            width: 2.5,
-                            height: h,
-                            margin: const EdgeInsets.only(left: 2.5),
-                            decoration: BoxDecoration(
-                              color: isCancelling ? widget.colors.danger.withValues(alpha: 0.5) : widget.colors.accent.withValues(alpha: 0.8),
-                              borderRadius: BorderRadius.circular(1.5),
-                            ),
-                          );
-                        },
-                      ),
+                      children: List.generate(visiblePeaks.length, (i) {
+                        final peak = visiblePeaks[i];
+                        final h = (peak / 100 * 24).clamp(3.0, 24.0);
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 100),
+                          width: 2.5,
+                          height: h,
+                          margin: const EdgeInsets.only(left: 2.5),
+                          decoration: BoxDecoration(
+                            color: isCancelling
+                                ? widget.colors.danger.withValues(alpha: 0.5)
+                                : widget.colors.accent.withValues(alpha: 0.8),
+                            borderRadius: BorderRadius.circular(1.5),
+                          ),
+                        );
+                      }),
                     ),
                   ),
                 );
@@ -522,13 +576,25 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
           // locked it's the sole cancel affordance, same as before.
           if (!widget.locked)
             Opacity(
-              opacity: isCancelling ? 1.0 : (1.0 - (widget.dragDx / -40).clamp(0.0, 1.0)),
+              opacity: isCancelling
+                  ? 1.0
+                  : (1.0 - (widget.dragDx / -40).clamp(0.0, 1.0)),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.keyboard_arrow_left, color: widget.colors.textTertiary, size: 16),
-                  Text(isCancelling ? 'Release to cancel' : 'Slide to cancel',
-                    style: TextStyle(color: widget.colors.textTertiary, fontSize: 12, fontWeight: FontWeight.w500)),
+                  Icon(
+                    Icons.keyboard_arrow_left,
+                    color: widget.colors.textTertiary,
+                    size: 16,
+                  ),
+                  Text(
+                    isCancelling ? 'Release to cancel' : 'Slide to cancel',
+                    style: TextStyle(
+                      color: widget.colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -547,7 +613,11 @@ class _RecordingStripState extends State<_RecordingStrip> with SingleTickerProvi
                 color: widget.colors.danger.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.close_rounded, color: widget.colors.danger, size: 16),
+              child: Icon(
+                Icons.close_rounded,
+                color: widget.colors.danger,
+                size: 16,
+              ),
             ),
           ),
         ],

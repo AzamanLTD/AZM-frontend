@@ -49,7 +49,11 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.storefront_outlined, color: Colors.white, size: 16),
+              child: const Icon(
+                Icons.storefront_outlined,
+                color: Colors.white,
+                size: 16,
+              ),
             ),
             const SizedBox(width: 10),
             Text(
@@ -71,11 +75,19 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.diamond_outlined, size: 14, color: colors.accent),
+                    Icon(
+                      Icons.diamond_outlined,
+                      size: 14,
+                      color: colors.accent,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       skinState.catalog!.azmBalance.toStringAsFixed(0),
-                      style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800, fontSize: 13),
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -91,7 +103,12 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
           children: [
             Text(
               'CARD SKINS',
-              style: TextStyle(color: colors.accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+              style: TextStyle(
+                color: colors.accent,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -114,7 +131,12 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
     if (skinState.loading && skinState.catalog == null) {
       return SizedBox(
         height: 160,
-        child: Center(child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2.5)),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: colors.accent,
+            strokeWidth: 2.5,
+          ),
+        ),
       );
     }
 
@@ -132,8 +154,10 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
             Icon(Icons.error_outline, size: 18, color: colors.textTertiary),
             const SizedBox(width: 10),
             Expanded(
-              child: Text('Couldn\'t load card skins. Pull to refresh.',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 12.5)),
+              child: Text(
+                'Couldn\'t load card skins. Pull to refresh.',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12.5),
+              ),
             ),
           ],
         ),
@@ -155,11 +179,14 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
         final isEquipped = catalog.equippedCardSkin == skin.id;
         final isPending = skinState.pendingSkinId == skin.id;
         return _SkinTile(
-          skin: skin,
-          isEquipped: isEquipped,
-          isPending: isPending,
-          onTap: () => _handleTileTap(skin, isEquipped),
-        ).animate().fadeIn(delay: (60 * i).ms, duration: 400.ms).slideY(begin: 0.08);
+              skin: skin,
+              isEquipped: isEquipped,
+              isPending: isPending,
+              onTap: () => _handleTileTap(skin, isEquipped),
+            )
+            .animate()
+            .fadeIn(delay: (60 * i).ms, duration: 400.ms)
+            .slideY(begin: 0.08);
       },
     );
   }
@@ -175,7 +202,9 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
       if (err != null && mounted) {
         _showSnack(err, isError: true);
       } else if (mounted) {
-        _showSnack('Equipped "${skin.label}" — your next transfers will use it.');
+        _showSnack(
+          'Equipped "${skin.label}" — your next transfers will use it.',
+        );
       }
       return;
     }
@@ -204,7 +233,13 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
     return AlertDialog(
       backgroundColor: colors.card,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Text('Buy "${skin.label}" skin?', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
+      title: Text(
+        'Buy "${skin.label}" skin?',
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +247,11 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
           Container(
             height: 60,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: def.colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+              gradient: LinearGradient(
+                colors: def.colors,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(12),
             ),
           ),
@@ -230,8 +269,10 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),
-          child: Text('Buy for ${skin.cost.toStringAsFixed(0)} AZM',
-              style: TextStyle(color: colors.accent, fontWeight: FontWeight.w800)),
+          child: Text(
+            'Buy for ${skin.cost.toStringAsFixed(0)} AZM',
+            style: TextStyle(color: colors.accent, fontWeight: FontWeight.w800),
+          ),
         ),
       ],
     );
@@ -264,20 +305,45 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
         children: [
           Text(
             'MORE COMING SOON',
-            style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+            style: TextStyle(
+              color: colors.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+            ),
           ),
           const SizedBox(height: 16),
-          _expectItem(Icons.auto_awesome, 'Profile Decorations', 'Unique rings & badges', colors),
+          _expectItem(
+            Icons.auto_awesome,
+            'Profile Decorations',
+            'Unique rings & badges',
+            colors,
+          ),
           const SizedBox(height: 12),
-          _expectItem(Icons.palette_outlined, 'Design Your Own Skin', 'Spend AZM on a custom card design', colors),
+          _expectItem(
+            Icons.palette_outlined,
+            'Design Your Own Skin',
+            'Spend AZM on a custom card design',
+            colors,
+          ),
           const SizedBox(height: 12),
-          _expectItem(Icons.card_giftcard_outlined, 'Gift Cards', 'Send store items to friends', colors),
+          _expectItem(
+            Icons.card_giftcard_outlined,
+            'Gift Cards',
+            'Send store items to friends',
+            colors,
+          ),
         ],
       ),
     );
   }
 
-  Widget _expectItem(IconData icon, String title, String subtitle, dynamic colors) {
+  Widget _expectItem(
+    IconData icon,
+    String title,
+    String subtitle,
+    dynamic colors,
+  ) {
     return Row(
       children: [
         Container(
@@ -293,8 +359,18 @@ class _AzamanStoreScreenState extends ConsumerState<AzamanStoreScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-              Text(subtitle, style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+              Text(
+                title,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                subtitle,
+                style: TextStyle(color: colors.textTertiary, fontSize: 11),
+              ),
             ],
           ),
         ),
@@ -325,11 +401,19 @@ class _SkinTile extends StatelessWidget {
       onTap: isPending ? null : onTap,
       child: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(colors: def.colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+          gradient: LinearGradient(
+            colors: def.colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(16),
           border: isEquipped ? Border.all(color: Colors.white, width: 2) : null,
           boxShadow: [
-            BoxShadow(color: def.colors.last.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 6)),
+            BoxShadow(
+              color: def.colors.last.withValues(alpha: 0.35),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         padding: const EdgeInsets.all(14),
@@ -339,12 +423,24 @@ class _SkinTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Text(def.label,
-                    style: TextStyle(color: def.textColor, fontWeight: FontWeight.w800, fontSize: 15)),
+                Text(
+                  def.label,
+                  style: TextStyle(
+                    color: def.textColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
                 const SizedBox(height: 4),
                 Text(
-                  skin.owned ? (isEquipped ? 'Equipped' : 'Owned — tap to equip') : '${skin.cost.toStringAsFixed(0)} AZM',
-                  style: TextStyle(color: def.textColor.withValues(alpha: 0.85), fontSize: 11, fontWeight: FontWeight.w600),
+                  skin.owned
+                      ? (isEquipped ? 'Equipped' : 'Owned — tap to equip')
+                      : '${skin.cost.toStringAsFixed(0)} AZM',
+                  style: TextStyle(
+                    color: def.textColor.withValues(alpha: 0.85),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -357,11 +453,18 @@ class _SkinTile extends StatelessWidget {
             if (isPending)
               Positioned.fill(
                 child: Container(
-                  decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.25), borderRadius: BorderRadius.circular(16)),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   child: Center(
                     child: SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: def.textColor),
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: def.textColor,
+                      ),
                     ),
                   ),
                 ),

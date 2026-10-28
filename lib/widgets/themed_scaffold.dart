@@ -84,8 +84,12 @@ class ThemedScaffold extends ConsumerWidget {
                     center: const Alignment(-0.85, -0.95),
                     radius: 1.4,
                     colors: [
-                      colors.glow.withValues(alpha: colors.isDark ? 0.18 : 0.10),
-                      colors.glow.withValues(alpha: colors.isDark ? 0.06 : 0.04),
+                      colors.glow.withValues(
+                        alpha: colors.isDark ? 0.18 : 0.10,
+                      ),
+                      colors.glow.withValues(
+                        alpha: colors.isDark ? 0.06 : 0.04,
+                      ),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 0.35, 1.0],
@@ -101,7 +105,9 @@ class ThemedScaffold extends ConsumerWidget {
                     center: const Alignment(0.95, 1.0),
                     radius: 1.2,
                     colors: [
-                      colors.accentSecondary.withValues(alpha: colors.isDark ? 0.10 : 0.06),
+                      colors.accentSecondary.withValues(
+                        alpha: colors.isDark ? 0.10 : 0.06,
+                      ),
                       Colors.transparent,
                     ],
                     stops: const [0.0, 1.0],
