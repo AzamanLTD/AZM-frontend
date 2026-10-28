@@ -72,7 +72,7 @@ class _IntroChrome {
     rimMid: Color(0xFFD3D9DC),
     rimEnd: Color(0xFFB7C2C8),
     edge: Color(0xFFFFFFFF),
-    specular: Color(0xFFFFFFFF),
+    specular: Color(0xFF8FA3B0),
   );
 }
 
@@ -157,9 +157,12 @@ class _AzamanIntroState extends State<AzamanIntro>
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;
-          final tileSize = (width * 0.366).clamp(180.0, 320.0).toDouble();
+          // The reference tile is 36.6% of the frame width (240 of 656).
+          // The floor is deliberately small: clamping up would break the
+          // composition on a phone, which is where most of these run.
+          final tileSize = (width * 0.366).clamp(120.0, 320.0).toDouble();
           final markWidth = tileSize * 0.479;
-          final lockupWidth = (width * 0.584).clamp(220.0, 520.0).toDouble();
+          final lockupWidth = (width * 0.584).clamp(180.0, 520.0).toDouble();
           final lockupHeight = lockupWidth * 192 / 819;
 
           return Stack(
@@ -255,6 +258,11 @@ class _AzamanIntroState extends State<AzamanIntro>
         Curves.easeOutCubic.transform(_seg(t, 1470, 1800));
 
     // --- specular sweep -------------------------------------------------
+    final isPaper = Theme.of(context).brightness == Brightness.light;
+    // Dark rides a white blade; paper rides bright steel so the sweep reads as
+    // a sheen instead of a white-out.
+    final sweepPaper = isPaper ? 0.82 : 0.0;
+    final sweepStrength = isPaper ? 0.55 : 1.0;
     final sweepT = _seg(t, 1520, 2050);
     final sweepX = _lerp(-1.6, 1.6, Curves.easeInOut.transform(sweepT));
 
@@ -323,9 +331,11 @@ class _AzamanIntroState extends State<AzamanIntro>
                   end: Alignment(sweepX + 0.45, 1),
                   colors: [
                     chrome.specular.withValues(alpha: 0.0),
-                    chrome.specular.withValues(alpha: 0.55),
-                    Colors.white.withValues(alpha: 0.9),
-                    chrome.specular.withValues(alpha: 0.45),
+                    chrome.specular.withValues(alpha: sweepStrength * 0.55),
+                    // The blade: white on dark glass, bright steel on paper.
+                    Color.lerp(Colors.white, chrome.specular, sweepPaper)!
+                        .withValues(alpha: sweepStrength * 0.9),
+                    chrome.specular.withValues(alpha: sweepStrength * 0.45),
                     chrome.specular.withValues(alpha: 0.0),
                   ],
                   stops: const [0.0, 0.42, 0.5, 0.58, 1.0],
