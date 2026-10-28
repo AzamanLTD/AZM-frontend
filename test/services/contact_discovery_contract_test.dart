@@ -30,6 +30,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import '_secure_storage_stub.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/contact_service.dart';
 
@@ -58,7 +59,15 @@ Map<String, dynamic> _ok(List<Map<String, dynamic>> matches) => {
   'data': {'matches': matches},
 };
 
+/// A stand-in for a network error: any thrown object must be caught and turned
+/// into an honest failure result rather than escaping to the UI.
+class SocketLikeError implements Exception {
+  const SocketLikeError();
+}
+
 void main() {
+  setUpAll(stubSecureStorage);
+
   group('the defect this replaces', () {
     test('1. a plain SHA-256 can never equal the server peppered HMAC', () {
       // The old client scheme, reproduced exactly.
@@ -169,6 +178,90 @@ void main() {
         expect(ContactService.messageForStatusForTest(400), isNotEmpty);
       },
     );
+  });
+
+  group('generalisation: scale, duplicates, refusals', () {
+    test(
+      '4b. a large address book is batched at the server cap of 1000',
+      () async {
+        final (:service, :calls) = _harness(
+          (i, __) => http.Response(jsonEncode(_ok(const [])), 200),
+        );
+
+        final numbers = List<String>.generate(
+          2500,
+          (i) => '+2332${i.toString().padLeft(8, '0')}',
+        );
+        final result = await service.discoverNumbersForTest(numbers);
+
+        expect(result.status, ContactDiscoveryStatus.ok);
+        expect(calls.length, 3, reason: '2500 numbers = 1000 + 1000 + 500');
+        expect((jsonDecode(calls[0].body) as Map)['phones'].length, 1000);
+        expect((jsonDecode(calls[1].body) as Map)['phones'].length, 1000);
+        expect((jsonDecode(calls[2].body) as Map)['phones'].length, 500);
+      },
+    );
+
+    test('4c. the same person reached by two numbers appears once', () async {
+      final (:service, :calls) = _harness(
+        (_, __) => http.Response(
+          jsonEncode(
+            _ok([
+              {'azamanId': 'AZM-000000042', 'displayName': 'Ama'},
+              {'azamanId': 'AZM-000000042', 'displayName': 'Ama'},
+            ]),
+          ),
+          200,
+        ),
+      );
+      final result = await service.discoverNumbersForTest(['+233244123456']);
+      expect(result.matches.length, 1);
+      expect(calls.length, 1);
+    });
+
+    test('4d. each refusal reason survives as its own message', () async {
+      for (final (code, fragment) in [
+        (401, 'Sign in'),
+        (429, 'Too many'),
+        (500, 'trouble'),
+        (400, 'failed'),
+      ]) {
+        final (:service, :calls) = _harness(
+          (_, __) => http.Response('{"success":false,"message":"x"}', code),
+        );
+        final result = await service.discoverNumbersForTest(['+233244123456']);
+        expect(result.status, ContactDiscoveryStatus.failed, reason: '$code');
+        expect(result.message, contains(fragment), reason: '$code');
+      }
+    });
+
+    test('4e. a 200 with success:false is a refusal, not a success', () async {
+      final (:service, :calls) = _harness(
+        (_, __) => http.Response('{"success":false}', 200),
+      );
+      final result = await service.discoverNumbersForTest(['+233244123456']);
+      expect(result.status, ContactDiscoveryStatus.failed);
+    });
+
+    test(
+      '4f. an unreachable server is a failure, not a zero-match answer',
+      () async {
+        final client = MockClient((_) async => throw const SocketLikeError());
+        final service = ContactService.withClient(ApiClient(client: client));
+        final result = await service.discoverNumbersForTest(['+233244123456']);
+        expect(result.status, ContactDiscoveryStatus.failed);
+        expect(result.message, contains('Try again'));
+      },
+    );
+
+    test('4g. no numbers means no call at all', () async {
+      final (:service, :calls) = _harness(
+        (_, __) => http.Response(jsonEncode(_ok(const [])), 200),
+      );
+      final result = await service.discoverNumbersForTest(const []);
+      expect(result.status, ContactDiscoveryStatus.noNumbers);
+      expect(calls, isEmpty);
+    });
   });
 
   group('outcomes are distinguishable', () {

@@ -317,6 +317,16 @@ class ContactService {
           if (match.azamanId.isNotEmpty) found[match.azamanId] = match;
         }
       }
+    } on ApiException catch (e) {
+      // ApiClient turns every non-2xx into a thrown ApiException, so the
+      // status has to be read from the exception, not from a response object.
+      // Without this, a 401/429/500 all collapsed into 'could not reach' —
+      // three different truths reported as one guess.
+      return ContactDiscoveryResult(
+        status: ContactDiscoveryStatus.failed,
+        message: _messageForStatus(e.statusCode),
+        normalizedCount: e164.length,
+      );
     } catch (_) {
       return ContactDiscoveryResult(
         status: ContactDiscoveryStatus.failed,

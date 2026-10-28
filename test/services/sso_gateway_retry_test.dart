@@ -70,58 +70,67 @@ void main() {
       expect(calls, 2);
     });
 
-    test('2. a pre-flight that keeps failing stays retryable every time', () async {
-      var calls = 0;
-      final gateway = FirebaseSsoGateway(
-        initializeFirebase: () async {
-          calls++;
-          throw Exception('still down');
-        },
-        firebaseAppsPresent: () => false,
-      );
-
-      for (var attempt = 0; attempt < 3; attempt++) {
-        await expectLater(
-          gateway.ensureFirebase(),
-          throwsA(isA<SsoException>()),
+    test(
+      '2. a pre-flight that keeps failing stays retryable every time',
+      () async {
+        var calls = 0;
+        final gateway = FirebaseSsoGateway(
+          initializeFirebase: () async {
+            calls++;
+            throw Exception('still down');
+          },
+          firebaseAppsPresent: () => false,
         );
-      }
-      expect(
-        calls,
-        3,
-        reason: 'every attempt must reach initialisation, not be skipped',
-      );
-    });
 
-    test('3. an already-initialised Firebase is never re-initialised', () async {
-      var calls = 0;
-      final gateway = FirebaseSsoGateway(
-        initializeFirebase: () async => calls++,
-        firebaseAppsPresent: () => true,
-      );
+        for (var attempt = 0; attempt < 3; attempt++) {
+          await expectLater(
+            gateway.ensureFirebase(),
+            throwsA(isA<SsoException>()),
+          );
+        }
+        expect(
+          calls,
+          3,
+          reason: 'every attempt must reach initialisation, not be skipped',
+        );
+      },
+    );
 
-      await gateway.ensureFirebase();
-      await gateway.ensureFirebase();
-      expect(calls, 0);
-    });
+    test(
+      '3. an already-initialised Firebase is never re-initialised',
+      () async {
+        var calls = 0;
+        final gateway = FirebaseSsoGateway(
+          initializeFirebase: () async => calls++,
+          firebaseAppsPresent: () => true,
+        );
+
+        await gateway.ensureFirebase();
+        await gateway.ensureFirebase();
+        expect(calls, 0);
+      },
+    );
   });
 
   group('the Apple credential', () {
-    test('4. carries the identity token and raw nonce, and NO access token', () {
-      final credential = buildAppleCredential(
-        idToken: 'apple.identity.token',
-        rawNonce: 'raw-nonce-value',
-      );
+    test(
+      '4. carries the identity token and raw nonce, and NO access token',
+      () {
+        final credential = buildAppleCredential(
+          idToken: 'apple.identity.token',
+          rawNonce: 'raw-nonce-value',
+        );
 
-      expect(credential.providerId, 'apple.com');
-      expect(credential.idToken, 'apple.identity.token');
-      expect(credential.rawNonce, 'raw-nonce-value');
-      expect(
-        credential.accessToken,
-        isNull,
-        reason: 'Apple authorizationCode is NOT an access token',
-      );
-    });
+        expect(credential.providerId, 'apple.com');
+        expect(credential.idToken, 'apple.identity.token');
+        expect(credential.rawNonce, 'raw-nonce-value');
+        expect(
+          credential.accessToken,
+          isNull,
+          reason: 'Apple authorizationCode is NOT an access token',
+        );
+      },
+    );
 
     test('5. two calls do not share state (a fresh credential each time)', () {
       final a = buildAppleCredential(idToken: 'one', rawNonce: 'n1');
