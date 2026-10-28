@@ -20,7 +20,7 @@
 //   MOTION — reduced-motion front and back (390 dark).
 //
 // Contract proven per capture:
-//   • the frame is exactly the Home deck footprint (165px) at every
+//   • the frame is exactly the Home deck footprint (180px) at every
 //     width and on BOTH faces — the surrounding layout cannot move;
 //   • front: eyebrow → headline → equivalent → rate row, refresh flush
 //     right, info icon beside the equivalent (fallback states only);
@@ -127,7 +127,7 @@ Future<void> _pump(
               child: RepaintBoundary(
                 key: const ValueKey('bcfx-capture-root'),
                 // The pair carries the Home deck's own fixed geometry
-                // (165px) and fills the parent width exactly as the
+                // (180px) and fills the parent width exactly as the
                 // Home layout does — never stretched to the surface.
                 child: BalanceCardPair(
                   key: const ValueKey('bcfx-pair'),
@@ -294,10 +294,10 @@ void main() {
         theme: AzamanTheme.light, width: 360, valuation: fresh);
     _assertFrame(tester, width: 360);
     await _assertFrontContract(tester, width: 360);
-    // PR #203 review round: the info icon is visible BESIDE the USDC
-    // equivalent line in the LIVE state too — the disclosure honestly
-    // distinguishes the converted GHS display valuation from a native
-    // GHS wallet holding.
+    // PR #206 review round: the info icon is visible BESIDE the USDC
+    // equivalent line in the LIVE state too — the disclosure says the
+    // USDC figure is the equivalent converted FROM the GHS balance
+    // (GHS is the app's main currency).
     final info = find.byKey(const ValueKey('balance-fx-equivalent-info'));
     expect(info, findsOneWidget);
     await tester.tap(info, warnIfMissed: false);
@@ -310,11 +310,13 @@ void main() {
         .widget<Text>(find
             .byKey(const ValueKey('balance-fx-fallback-disclosure-body')))
         .data!;
-    expect(body, contains('native GHS wallet'),
-        reason: 'this fixture HAS a native wallet, so the disclosure says '
-            'the total honestly combines it');
-    expect(body, isNot(contains('display valuation converted')),
-        reason: 'combined-native state is not the converted-display state');
+    expect(body, contains('Azaman\u2019s main currency'),
+        reason: 'GHS is the main currency — the headline figure is '
+            'canonical, never USDC-derived');
+    expect(body, contains('USDC equivalent'),
+        reason: 'the disclosure explains the USDC line is the equivalent');
+    expect(body, isNot(contains('held in USDC')),
+        reason: 'the GHS balance is never described as USDC-derived');
     await tester
         .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
     await tester.pumpAndSettle();

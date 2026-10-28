@@ -251,6 +251,59 @@ Future<void> _swipeCommit(WidgetTester tester, Key cardKey) async {
 /// The new balance-card seam: the valuation adapter reads the pinned
 /// [fxRateProvider] snapshot, not the legacy oracle double. `rate <= 0`
 /// means NO usable snapshot — the honest-unavailable state.
+/// The documented backend valuation contract (backend PR #367):
+/// `data.valuation`, money = { exact, value }. The deck fixture
+/// carries the AUTHORITATIVE native-GHS balance (owner-corrected
+/// contract 2026-10-27) — the headline is this figure verbatim, never a
+/// client-side derivation from the USDC holding. The rate matches the
+/// pinned [_pinnedFx] snapshot (1.0, source KOTANI) so the visible
+/// rate row is identical to the historical golden baseline.
+Map<String, dynamic> _nativeGhsValuation(double ghs) => {
+      'pair': 'USDC/GHS',
+      'nativeGhsAvailable': {
+        'exact': ghs.toStringAsFixed(8),
+        'value': ghs,
+      },
+      'availableUsdc': {
+        'exact': '100.00000000',
+        'value': 100,
+      },
+      'usdcEquivalent': {
+        'exact': (ghs / 1.0).toStringAsFixed(8),
+        'value': ghs / 1.0,
+      },
+      'availableGhsValue': {
+        'exact': ghs.toStringAsFixed(8),
+        'value': ghs,
+      },
+      'rateStatus': 'CURRENT',
+      'valuationStatus': 'CURRENT',
+      'currentRate': {
+        'rate': 1.0,
+        'rateExact': '1.00000000',
+        'isFresh': true,
+        'pair': 'USDC/GHS',
+        'source': 'KOTANI',
+        'observedAt': '2026-10-26T10:00:00Z',
+      },
+      'savedRate': null,
+      'displayRate': {'basis': 'CURRENT', 'rate': 1.0},
+      'usdcTransactionGateOpen': false,
+      'usdcTransactionGateReason': 'FRESH_CANONICAL_RATE',
+      'locked': {
+        'escrowUsdc': {'exact': '0E-8', 'value': 0},
+        'disputesUsdc': {'exact': '0E-8', 'value': 0},
+        'vaultsUsdc': {'exact': '0E-8', 'value': 0},
+        'savingsGhs': {'exact': '0E-8', 'value': 0},
+        'committedSusuUsdc': {'exact': '0E-8', 'value': 0},
+        'vendorUnallocatedUsdc': {'exact': '0E-8', 'value': 0},
+      },
+      'nonCash': {
+        'azmPoints': {'exact': '0E-8', 'value': 0},
+      },
+      'evaluatedAt': '2026-10-26T10:00:05Z',
+    };
+
 FxRateSnapshot? _pinnedFx(double rate) {
   if (rate <= 0 || !rate.isFinite) return null;
   final now = DateTime.now().toUtc();
@@ -290,7 +343,17 @@ Future<ProviderContainer> _pumpHome(
       ),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-        (ref) => const BalanceData(availableBalance: 100),
+        (ref) => BalanceData(
+          availableBalance: 100,
+          // The deck fixture carries the documented backend valuation
+          // contract (PR #367): the AUTHORITATIVE native-GHS balance.
+          // Under the owner-corrected contract the headline consumes
+          // ONLY this field — a legacy fixture (no valuation block)
+          // now renders the honest UNAVAILABLE headline, which is
+          // exactly what the provider suite pins separately.
+          valuationFieldPresent: true,
+          valuationRaw: _nativeGhsValuation(100),
+        ),
       ),
       // The seeded amount is a CONFIRMED balance, not a placeholder: the
       // readiness state must be loaded or the amount slot captures the
@@ -761,35 +824,33 @@ void main() {
         // would miss it; '.' matches any character, as the old
         // 'GH₵.100\.00.available' pattern knew.
         //
-        // The label is the HONEST current-contract wording
-        // (Workstream J2): the live backend publishes no native-GHS
-        // wallet yet, so the GH₵ figure — a total that includes a
-        // CONVERTED USDC component — is disclosed as an APPROXIMATE
-        // converted display valuation, never as a native 'in GHS'
-        // holding. The approximate framing travels with the figure
-        // wherever it is announced.
-        RegExp(
-            r'Approximately GH₵.100\.00.{0,40}display valuation'),
+        // Owner correction (2026-10-27): GHS is the app's MAIN
+        // currency — the headline is announced EXACTLY, as the
+        // available balance in GHS, on every fixture and at every
+        // text scale. The estimate framing lives ONLY on the USDC
+        // equivalent line, never on the GHS figure.
+        RegExp(r'Available balance GH₵.100\.00 in GHS'),
       ),
       findsOneWidget,
       reason: 'the balance semantics must carry the complete figure at '
-          'the OS\'s largest text setting, in the honest '
-          'approximate-converted-valuation wording',
+          'the OS\'s largest text setting, in the exact '
+          'main-currency wording — GHS is canonical, never a '
+          'USDC-derived estimate',
     );
     expect(
       find.bySemanticsLabel(
-        RegExp(r'not a native GHS wallet holding'),
+        RegExp(r'Approximately GH₵.{0,40}display valuation'),
       ),
-      findsOneWidget,
-      reason: 'the disclosure must state explicitly that the figure is '
-          'not a native GHS wallet holding',
+      findsNothing,
+      reason: 'the GHS figure is never announced as an approximate '
+          'converted display valuation — that framing was the wrong '
+          'conversion direction',
     );
     expect(
-      find.bySemanticsLabel(RegExp(r'Available balance.{0,20} in GHS')),
+      find.bySemanticsLabel(RegExp(r'not a native GHS wallet holding')),
       findsNothing,
-      reason: 'no native-GHS wallet is published by the live contract — '
-          'the reader must never hear the figure announced as a native '
-          'GHS holding',
+      reason: 'the corrected contract never announces the GHS balance '
+          'as anything other than the main-currency figure',
     );
 
   }, timeout: const Timeout(Duration(minutes: 2)));

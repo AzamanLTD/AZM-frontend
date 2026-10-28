@@ -8,13 +8,16 @@
 //   * right -> the durable bookmark POST keyed by the CANONICAL id,
 //   * left  -> the MANDATORY show-less confirm — cancel makes zero
 //              service calls, apply makes exactly one, Undo deletes,
-//   * tap   -> the action panel still opens (the joystick adds,
-//              never replaces).
+//   * tap   -> the persistent icon-only liquid dial (labels live in
+//              semantics — icon-only is a visual rule),
+//   * hold  -> the full action panel (the joystick adds, never
+//              replaces).
 // All against the recording fake backend client from the parent suite.
 // =============================================================================
 
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -239,6 +242,14 @@ Future<void> _moveAndRelease(
   await tester.pumpAndSettle();
 }
 
+Key _sat(String name) => ValueKey('profile-dial-satellite-$name');
+
+/// Opens the persistent dial with a plain tap on the card avatar.
+Future<void> _openDial(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -274,14 +285,25 @@ void main() {
       final gesture = await _touchAvatar(tester);
       await gesture.moveBy(const Offset(0, -22));
       await tester.pump();
-      expect(find.text('Menu (No catalog yet)'), findsOneWidget,
-          reason: 'FOOD_BEVERAGE uses the vertical-aware Menu label');
       await gesture.up();
       await tester.pumpAndSettle();
 
       expect(recorder.routes.where((r) => r != '/'), isEmpty,
           reason: 'no dead delegate ever navigates (ignoring the '
               'initial / entry)');
+
+      // The honest disclosure lives on the PERSISTENT dial: icon-only
+      // is a visual rule, labels are semantics.
+      final semantics = tester.ensureSemantics();
+      await _openDial(tester);
+      expect(find.bySemanticsLabel('Menu (No catalog yet)'),
+          findsOneWidget,
+          reason: 'the dimmed satellite says exactly why it is dimmed');
+      await tester.tap(find.byKey(_sat('menu')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('profile-dial')), findsOneWidget,
+          reason: 'tapping a disabled icon keeps the dial open');
+      semantics.dispose();
     });
 
     testWidgets('down + release opens the real story viewer from a live '
@@ -323,7 +345,6 @@ void main() {
       final gesture = await _touchAvatar(tester);
       await gesture.moveBy(const Offset(0, 22));
       await tester.pump();
-      expect(find.text('Story (No active story)'), findsOneWidget);
       await gesture.up();
       await tester.pumpAndSettle();
 
@@ -331,6 +352,14 @@ void main() {
           reason: 'a guessed story must never open');
       expect(client.calls.where((c) => c.contains('stories')), isEmpty,
           reason: 'no stories fetch without the authoritative state');
+
+      // The unavailable reason is disclosed on the persistent dial.
+      final semantics = tester.ensureSemantics();
+      await _openDial(tester);
+      expect(find.bySemanticsLabel('Story (No active story)'),
+          findsOneWidget,
+          reason: 'the unavailable direction discloses its reason');
+      semantics.dispose();
     });
 
     testWidgets('down when the fetched stories are all EXPIRED opens '
@@ -474,8 +503,9 @@ void main() {
       expect(client.showLess, false);
     });
 
-    testWidgets('a plain tap still opens the action panel — the joystick '
-        'adds, never replaces', (tester) async {
+    testWidgets('a plain tap opens the persistent icon-only dial — '
+        'labels only in semantics, no visible action text',
+        (tester) async {
       final client = _RecordingClient();
       await _pumpCard(
         tester,
@@ -483,14 +513,47 @@ void main() {
         client: client,
       );
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
-      await tester.pumpAndSettle();
+      await _openDial(tester);
 
+      expect(find.byKey(const ValueKey('profile-dial')), findsOneWidget);
+      for (final name in ['menu', 'story', 'bookmark', 'showLess']) {
+        expect(find.byKey(_sat(name)), findsOneWidget, reason: name);
+      }
       expect(
-          find.byKey(const ValueKey('business-action-follow')), findsOneWidget);
-      expect(
-          find.byKey(const ValueKey('business-action-bookmark')),
+        find.descendant(
+          of: find.byKey(const ValueKey('profile-dial')),
+          matching: find.byType(Text),
+        ),
+        findsNothing,
+        reason: 'icon-only is a visual rule',
+      );
+    });
+
+    testWidgets('press-and-hold opens the full ACTION PANEL — the '
+        'joystick adds, never replaces', (tester) async {
+      final client = _RecordingClient();
+      await _pumpCard(
+        tester,
+        _business(products: [_product('Jollof Plate')]),
+        client: client,
+      );
+
+      final gesture = await _touchAvatar(tester);
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+
+      expect(find.byKey(const ValueKey('business-action-follow')),
           findsOneWidget);
+      expect(find.byKey(const ValueKey('business-action-bookmark')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('profile-dial')), findsNothing,
+          reason: 'the hold never opens the dial');
+
+      // The same pointer's release fires nothing.
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('business-action-follow')),
+          findsOneWidget,
+          reason: 'the release neither closes the panel nor fires an action');
     });
   });
 }

@@ -24,30 +24,37 @@
 //     an unloaded list is not.
 //
 // CONTRACT GAP (honest): the current backend main publishes NO native
-// GHS wallet and NO precomputed valuation totals (backend PR #367 is
-// open). Therefore, while the balance response is LEGACY (no valuation
-// block), nativeGhsAvailable is NULL (the GHS wallet row on the
-// back face renders unknown, never GH₵ 0.00) and the combined GHS value
-// is the honest interim derivation: (native ?? 0) + availableUsdc ×
-// rate, applied ONLY while a usable rate exists — explicitly a
-// DISPLAY-ONLY conversion, labelled as such in the disclosure and the
-// screen-reader semantics.
+// GHS wallet (backend PR #367 is open). Under the owner-corrected
+// product contract (2026-10-27) the GHS headline consumes ONLY the
+// documented AUTHORITATIVE native-GHS balance field — there is NO
+// client-side derivation of GHS from USDC, on ANY branch. While the
+// balance response is LEGACY (no valuation block) that source does not
+// exist, so the card presents the honest UNAVAILABLE headline (the
+// fixed 180px footprint is preserved; the real USDC holding still
+// shows on the back face as its own fact). The USDC equivalent is the
+// display estimate converted FROM the GHS balance — it exists only
+// when the native-GHS balance and a usable rate both exist.
 //
 // WHEN backend PR #367 SHIPS, the response carries `data.valuation` and
 // this adapter consumes the strict typed parse of that exact contract
 // (BackendBalanceValuation):
-//   • valuation PRESENT + parses  → backend-authoritative everything:
-//     native GHS, actual USDC held, the backend's own GHS total and USDC
-//     equivalent (the card never recalculates), the backend's rate
-//     status (CURRENT / SAVED_FALLBACK / DEMO_FALLBACK / UNAVAILABLE),
-//     the AUTHORITATIVE usdcTransactionGateOpen verbatim, and the
-//     locked.* buckets (committedSusuUsdc is PARSED for contract
+//   • valuation PRESENT + parses  → the GHS headline maps the
+//     DOCUMENTED authoritative native-GHS balance
+//     (valuation.nativeGhsAvailable) verbatim. The backend's own
+//     combined `availableGhsValue`/`usdcEquivalent` totals (which fold
+//     a converted USDC component into the headline) are parsed for
+//     contract compatibility but deliberately NOT consumed by the
+//     card — the headline is native GHS only. The equivalent is derived
+//     from that GHS balance at the display rate. Rate status
+//     (CURRENT / SAVED_FALLBACK / DEMO_FALLBACK / UNAVAILABLE), the
+//     AUTHORITATIVE usdcTransactionGateOpen verbatim, and the locked.*
+//     buckets map as before (committedSusuUsdc is PARSED for contract
 //     compatibility but NOT displayed — see K2A at the mapping site).
 //   • valuation EXPLICITLY NULL or malformed → the backend SAYS the
 //     valuation is unavailable. The card shows no GHS figure at all —
 //     never a silent client-side substitution for a backend failure.
-//   • valuation key ABSENT (legacy) → the interim display-only
-//     derivation above.
+//   • valuation key ABSENT (legacy) → no authoritative GHS source: the
+//     honest unavailable headline above, never a derivation.
 //
 // UNKNOWN IS NOT ZERO, every branch below: readiness unresolved/failed →
 // balanceConfirmed false (dots, never 0.00); vaults/savings/susu not
@@ -86,14 +93,37 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
   final confirmed = readiness == BalanceReadiness.loaded;
 
   // ── FX: the oracle snapshot is a usable rate only while its full
-  // freshness contract holds. Loading is genuine when the fetch is in
-  // flight AND no usable snapshot is being displayed.
-  final rateUsable = fxSnapshot.asData?.value?.isUsable ?? false;
-  final usableRate = rateUsable ? fxSnapshot.asData!.value! : null;
+  // freshness contract holds. `loading` is the TRUTHFUL in-flight signal —
+  // a fetch is in progress — independent of whether a usable snapshot is
+  // still on screen. Riverpod keeps the previous value during an
+  // invalidate/refresh, so a refresh with a rate already displayed is
+  // exactly the case where isLoading is true AND hasRate is true: the
+  // card must show its inline updating indication while KEEPING the
+  // valid rate visible (it is not a return to the initial-fetch dots).
+  // The old gate (`isLoading && !rateUsable`) flattened this to
+  // loading=false and silently suppressed the refresh indication.
+  // `.value`, NOT `asData`: through an invalidate/refresh (and through a
+  // failed re-fetch) Riverpod keeps the PREVIOUS snapshot in `.value`
+  // while the state is AsyncLoading/AsyncError — `asData` is null there,
+  // which is exactly how the valid rate used to vanish from the card for
+  // the whole refresh window. The freshness contract (`isUsable`,
+  // re-verified against the caller's clock on every read) stays the ONLY
+  // authority on whether the retained snapshot may still be presented as
+  // a rate: a snapshot that has gone stale is never shown, retained or
+  // not. Loading is reported TRUTHFULLY alongside (in-flight fetch), so
+  // the card can show its inline updating indication while KEEPING the
+  // valid rate on screen.
+  // hasValue guard: `.value` on an AsyncError WITHOUT a previous snapshot
+  // rethrows the error — only a RETAINED snapshot (refresh/error window)
+  // may be read here. A first-fetch failure is the honest unavailable
+  // state, never a thrown error on the card.
+  final fxSnapshotRetained = fxSnapshot.hasValue ? fxSnapshot.value : null;
+  final rateUsable = fxSnapshotRetained?.isUsable ?? false;
+  final usableRate = rateUsable ? fxSnapshotRetained! : null;
   final rateView = FxRateView(
     ghsPerUsdc: usableRate?.ghsPerUsdc,
     kind: rateUsable ? FxRateKind.fresh : FxRateKind.none,
-    loading: fxSnapshot.isLoading && !rateUsable,
+    loading: fxSnapshot.isLoading,
     observedAt: usableRate?.lastExternalSync,
   );
 
@@ -263,16 +293,20 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
         sourceLabel: obs?.source,
         observedAt: obs?.observedAt,
       ),
-      availableGhsValue: backendValuation.availableGhsValue?.value,
-      availableUsdcEquivalent: backendValuation.usdcEquivalent?.value,
+      // OWNER-CORRECTED CONTRACT (2026-10-27): the GHS headline is the
+      // DOCUMENTED authoritative native-GHS balance, VERBATIM. The
+      // backend's own combined availableGhsValue / usdcEquivalent
+      // totals (which fold a converted USDC component into the figure)
+      // are parsed for contract compatibility but NOT consumed by the
+      // card: the headline is native GHS only. compute() then derives
+      // ONLY the USDC equivalent estimate from that GHS balance at the
+      // display rate — never a GHS figure from USDC.
+      availableGhsValue: backendValuation.nativeGhsAvailable.value,
+      availableUsdcEquivalent: null,
       // AUTHORITATIVE gate — the backend's own transaction
       // authorisation boolean, verbatim. Never derived from the rate.
       usdcTransactionGateOpen: backendValuation.usdcTransactionGateOpen,
-      // NO compute() here: [BalanceCardValuation.compute] re-derives the
-      // totals from the rate, and the backend's own availableGhsValue /
-      // usdcEquivalent are AUTHORITATIVE — the card renders them as
-      // given, never recalculated client-side.
-    );
+    ).compute();
   }
 
   if (backendSaysUnavailable) {
@@ -308,7 +342,12 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
     );
   }
 
-  // ── LEGACY branch: interim display-only derivation ────────────────────
+  // ── LEGACY branch: no authoritative GHS source ─────────────────────────
+  // The legacy balance response publishes NO native-GHS balance field.
+  // Under the owner-corrected contract the headline is NEVER derived
+  // from USDC: it renders the honest UNAVAILABLE state inside the
+  // fixed 180px card. The real USDC holding still shows on the back
+  // face as its own fact; the rate row keeps its informational state.
   return BalanceCardValuation(
     // No native GHS wallet exists on the current contract — NULL, and
     // the back-face row renders unknown. Never 0.
@@ -324,6 +363,13 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
     vendorRowRelevant: isVendor,
     azmPoints: balance.azmBalance,
     rate: rateView,
+    // No authoritative native-GHS source on this branch — the totals
+    // stay honestly NULL (no GHS headline, no equivalent). compute()
+    // is deliberately NOT called here: with nativeGhsAvailable NULL it
+    // could never produce a figure, and the explicit nulls document
+    // that no client-side derivation may ever fill this slot.
+    availableGhsValue: null,
+    availableUsdcEquivalent: null,
     // The USDC transaction gate is the BACKEND's transaction-
     // AUTHORISATION contract — it is NOT a client-side FX predicate.
     // No authoritative gate field exists on the current contract, so
@@ -331,5 +377,5 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
     // read as financial permission. When the backend publishes a gate
     // field, this maps it explicitly.
     usdcTransactionGateOpen: false,
-  ).compute();
+  );
 });

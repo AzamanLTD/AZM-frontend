@@ -219,7 +219,12 @@ class _ReduceMotionRow extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Row(
+          // NARROW-WIDTH FIX: three segments side by side overflow by
+          // ~34px at 400dp width. Wrap distributes to a second line
+          // instead of painting overflow stripes on narrow devices.
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _Segment(
                 colors: colors,
@@ -230,7 +235,6 @@ class _ReduceMotionRow extends StatelessWidget {
                   AzamanHaptics.selection();
                 },
               ),
-              const SizedBox(width: 8),
               _Segment(
                 colors: colors,
                 label: 'Always',
@@ -240,7 +244,6 @@ class _ReduceMotionRow extends StatelessWidget {
                   AzamanHaptics.selection();
                 },
               ),
-              const SizedBox(width: 8),
               _Segment(
                 colors: colors,
                 label: 'Never',

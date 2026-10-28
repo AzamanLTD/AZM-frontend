@@ -66,7 +66,13 @@ const double _kStoryRingGap = 3.5;
 const double kBusinessNotchGap = 6.0;
 
 /// The avatar's centre, measured from the CARD's leading edge and top.
-const double kBusinessAvatarCenterInset = 44.0;
+///
+/// PROFILE LIQUID DIAL (2026-10-27): 52, not 44 — the dial's LEFT
+/// satellite (show-less) needs its 40dp visual fully on screen at
+/// 320dp: the avatar centre must sit at ≥ 62dp from the screen edge
+/// (list padding 8 + card margin 2 + 52). The notch clipper follows
+/// this constant, so the cut-out and the avatar move together.
+const double kBusinessAvatarCenterInset = 52.0;
 
 /// Circular category badge diameter.
 const double kBusinessBadgeDiameter = 22.0;
@@ -301,7 +307,7 @@ class BusinessResultCard extends ConsumerWidget {
                     ),
                     child: Padding(
                       // Content clears the whole avatar + notch zone.
-                      padding: const EdgeInsets.fromLTRB(84, 10, 12, 10),
+                      padding: const EdgeInsets.fromLTRB(92, 10, 12, 10),
                       child: _Body(
                         business: business,
                         cat: cat,
@@ -316,14 +322,13 @@ class BusinessResultCard extends ConsumerWidget {
               ),
               // ── The circular avatar (its own action surface) ─────────────
               // ── The circular avatar (its own action surface) ─────────────
-              // WORKSTREAM A (2026-10-26): touch-down starts the SHARED
-              // directional joystick — up opens the real catalog
-              // destination (this card's is the business profile that
-              // hosts the catalog), down opens the story viewer only when
-              // the AUTHORITATIVE story state says a story is active,
-              // right rides the durable bookmark seam, left opens the
-              // MANDATORY show-less confirmation. A plain tap keeps the
-              // existing action-panel behaviour.
+              // PROFILE LIQUID DIAL (2026-10-27): tap opens the persistent
+              // icon-only goo dial (up opens the real catalog destination,
+              // down the story viewer only when the AUTHORITATIVE story
+              // state says a story is active, right the durable bookmark
+              // seam, left the MANDATORY show-less confirmation); a
+              // directional drag is the same dial in transient mode; HOLD
+              // opens the full action panel unchanged.
               PositionedDirectional(
                 start: kBusinessAvatarCenterInset - kBusinessAvatarDiameter / 2,
                 top: 0,
@@ -670,8 +675,11 @@ class _AvatarWithBadge extends ConsumerWidget {
       child: ProfileJoystick(
         key: ValueKey('business-avatar-$bizId'),
         actions: joystickActions,
-        // Short-tap behaviour preserved: the action panel.
-        onTap: () {
+        // HOLD opens the FULL action panel (the real follow / bookmark /
+        // watch-story / show-less menu). The TAP is the joystick's own
+        // persistent liquid dial now; the directional drags are the
+        // same real delegates as before.
+        onLongPress: () {
           AzamanHaptics.toggle();
           onTap();
         },

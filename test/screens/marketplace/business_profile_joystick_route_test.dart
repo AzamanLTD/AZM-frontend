@@ -7,7 +7,8 @@
 // dragging UP on the storefront hero avatar and releasing must push the
 // business's REAL catalog route (the CatalogStorefrontScreen built from
 // the live menu contract) — and an honestly EMPTY catalog must fire
-// nothing, with the dimmed satellite disclosing "No catalog yet".
+// nothing, with the dimmed satellite disclosing "No catalog yet" on the
+// persistent dial's semantics (icon-only is a visual rule).
 //
 // All data rides the DI seams this PR introduced: a fake BusinessService
 // (profile + locations + invoices) and a fake ApiClient via
@@ -188,13 +189,10 @@ void main() {
       await _pumpScreen(tester, client: _MenuClient());
       await _pumpToLiveHero(tester);
 
-      // Honest unavailability is disclosed on the satellite WHILE the
-      // dial is held open.
+      // Transient dial: release WITHOUT committing a route.
       final gesture = await tester.startGesture(
           tester.getCenter(find.byType(ProfileJoystick)));
       await tester.pump();
-      expect(find.text('Products (No catalog yet)'), findsOneWidget);
-
       await gesture.moveBy(const Offset(0, -90));
       await tester.pump();
       await gesture.up();
@@ -202,6 +200,23 @@ void main() {
 
       expect(find.byType(CatalogStorefrontScreen), findsNothing,
           reason: 'a dead delegate never pushes a route');
+
+    });
+
+    testWidgets('the dimmed menu satellite discloses its reason on the '
+        'persistent dial', (tester) async {
+      await _pumpScreen(tester, client: _MenuClient());
+      await _pumpToLiveHero(tester);
+
+      // Tap at the ARRIVAL beat (the choreography pointer-ignores the
+      // avatar once settled — the drag above covers the transient).
+      final semantics = tester.ensureSemantics();
+      await tester.tap(find.byType(ProfileJoystick));
+      await _settle(tester);
+      expect(find.bySemanticsLabel('Products (No catalog yet)'),
+          findsOneWidget,
+          reason: 'the dimmed satellite says exactly why it is dimmed');
+      semantics.dispose();
     });
   });
 }

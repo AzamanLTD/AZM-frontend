@@ -7,11 +7,15 @@
 // that replace each other.
 //
 // WHAT THIS FRAME OWNS (and the faces never re-implement):
-//   • ONE fixed size contract — height 165px, exactly the live Home deck's
-//     card height (home_screen.dart `_cardHeight`, the deck-geometry constant
-//     the cradle/pouch positioning depends on). The frame is width-filled by
-//     its parent, mirroring how the Home deck lays the card out. Neither face
-//     can influence this footprint: both are laid out inside tight, identical
+//   • ONE fixed size contract — height 180px, the ORIGINAL deck geometry
+//     (d63a4d4; the 2026-10-12 refresh had briefly reduced it to 165, which
+//     the 2026-10-27 UX pass restored — the balance card is the product's
+//     primary money surface and the founder wants the larger presentation:
+//     the GHS headline, the USDC-equivalent line and the FX status row each
+//     get a fixed reserved region inside the frame). The frame is width-filled
+//     by its parent, mirroring how the Home deck lays the card out (its
+//     `_cardHeight` mirrors BalanceCardGeometry.height). Neither face can
+//     influence this footprint: both are laid out inside tight, identical
 //     constraints, so the card's layout size never changes across a flip and
 //     nothing around it reflows.
 //   • ONE outer material and edge language — a single HolographicSurface
@@ -56,12 +60,15 @@ import 'package:azaman/widgets/home/balance_card_fx.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 /// The single geometric contract of the physical card, shared with the live
-/// Home deck. The front face of the existing Home card measures 165px tall
-/// (home_screen.dart `_cardHeight`) — the flip must not change it.
+/// Home deck (home_screen.dart `_cardHeight`). 180px is the ORIGINAL deck
+/// geometry (d63a4d4; restored by the 2026-10-27 UX pass after the brief
+/// 165px reduction) — the flip must not change it, and neither may any data
+/// state: the frame's footprint is identical whether the balance, the rate
+/// or both are loading, unavailable or populated.
 class BalanceCardGeometry {
   const BalanceCardGeometry._();
 
-  static const double height = 165;
+  static const double height = 180;
   static const double radius = 20;
 }
 
@@ -188,7 +195,7 @@ class _BalanceCardPairState extends State<BalanceCardPair>
         },
         child: MediaQuery.withClampedTextScaling(
           // The live Home card clamps at 1.25x — the largest scale its hard
-          // 165px budget accommodates at every width. Same clamp, same card.
+          // 180px budget accommodates at every width. Same clamp, same card.
           maxScaleFactor: 1.25,
           child: AnimatedBuilder(
             animation: _flip,

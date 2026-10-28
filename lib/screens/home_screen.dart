@@ -955,13 +955,17 @@ class _DeckHostState extends ConsumerState<_DeckHost>
     }
   }
 
-  // 2026-10-12 refresh: the physical cards' footprint is reduced ~8% (180 →
-  // 165) so the stack reads tighter and the depth/cradle treatment gets room
-  // to breathe. Both cards' contents were audited at this height (no text
-  // clipping at 320dp width or with enlarged text — covered by the card
-  // widget tests); if a future change needs more height, revisit BOTH cards,
+  // UX pass (2026-10-27): the physical cards' footprint returns to the
+  // ORIGINAL deck geometry, 180px (d63a4d4 — the reactive-surface deck PR;
+  // the 2026-10-12 refresh had reduced it to 165). The balance card is the
+  // product's primary money surface and the founder wants the larger
+  // presentation back: the GHS headline, the USDC-equivalent line and the
+  // FX status row each get a fixed reserved region inside the taller frame
+  // (see BalanceCardGeometry and balance_card_fx.dart). Both cards'
+  // contents were originally designed at this height and are audited here
+  // again; if a future change needs a different height, revisit BOTH cards,
   // not just this constant.
-  static const double _cardHeight = 165;
+  static const double _cardHeight = 180;
 
   @override
   Widget build(BuildContext context) {

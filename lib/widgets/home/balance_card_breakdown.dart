@@ -3,7 +3,7 @@
 //
 // The REVERSE of the shared physical card (BalanceCardPair). Content
 // only — the shared frame owns the material, corner radius, rim, edge
-// and the fixed 165dp footprint.
+// and the fixed 180dp footprint.
 //
 // NAVIGATION MODEL (B4): the back is NOT one long scrolling report. It
 // is a snap-paged walk through discrete sections, in this order:
@@ -120,7 +120,7 @@ class _BreakdownRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       // SECTION-PAGE RHYTHM: each section must fit its snap page inside
-      // the fixed 165dp footprint, so the row stays ONE compact line —
+      // the fixed 180dp footprint, so the row stays ONE compact line —
       // the optional detail rides INLINE as a muted suffix (never a
       // second line that could push a section past its page).
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -157,7 +157,7 @@ class _BreakdownRow extends StatelessWidget {
                   // long "no GHS wallet on the current contract" suffix
                   // must ELLIPSIZE, never wrap: a wrapped row pushed the
                   // AVAILABLE section 9.9dp past its snap page on the
-                  // real Home (fixed 165dp card). Screen readers still
+                  // real Home (fixed 180px card). Screen readers still
                   // get the full untruncated disclosure via the
                   // semantics label.
                   maxLines: 1,

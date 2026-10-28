@@ -4,9 +4,9 @@
 // Spec §2.3 ("make the nav aware of depth"):
 //
 //   Give the nav a `depth` value (0 on root tabs, 1+ on pushed routes). At
-//   depth ≥ 1 the pill morphs into a contextual bar: the active tab is
-//   replaced by the current route's title + a back chevron, and the other
-//   tabs collapse into a single "…" that reopens the pill on tap.
+//   depth ≥ 1 the band shows the current route's title + a back chevron
+//   (PR-B: the "…" pill-reopen affordance was removed on review — the bar
+//   is exactly back + title, with no dead hit targets).
 //
 // Depth comes from the router and ONLY from the router — NEW-A's
 // [RouteDepthTracker] owns the answer (never infer depth from screen
@@ -38,9 +38,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/back_navigation.dart';
 import 'package:azaman/router/route_depth.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/router/top_route_observer.dart';
@@ -148,12 +148,10 @@ abstract final class AzRouteTitles {
 /// The app-scoped shell signal bus between the imperative shell
 /// ([MainWrapper], below pushed routes) and this band (above them).
 ///
-/// The shell ENGAGES on mount and DISENGAGES on dispose, publishes its
-/// active tab on every switch, and accepts tab requests from the band's
-/// reopened pill. No navigation happens here — a tab request is handed to
-/// the shell's own tab handler so the shell's whole switch contract
-/// (+ launcher close, home-shell-active signal, compression reset,
-/// ticker budget) applies unchanged.
+/// The shell ENGAGES on mount and DISENGAGES on dispose and publishes its
+/// active tab on every switch; the band reads engagement for visibility.
+/// (PR-B: the band no longer reopens a tab pill, so no tab requests flow
+/// here any more. The API is kept for the shell's engagement seam.)
 class AppShellBus extends ChangeNotifier {
   bool _engaged = false;
   int _activeTab = 0;
@@ -214,9 +212,6 @@ class ContextualNavBand extends ConsumerStatefulWidget {
 }
 
 class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
-  /// Whether the "…" has reopened the pill over the depth page.
-  bool _pillOpen = false;
-
   AzamanColors get _colors => ref.watch(themeProvider.select((t) => t.colors));
 
   bool _visible(RouteDepthTracker tracker) =>
@@ -224,48 +219,16 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
       tracker.depth >= 1 &&
       topRouteObserver.topRouteIsRouterPage;
 
-  void _openPill() {
-    AzamanHaptics.selection();
-    // The compression notifier's writer — the shell's scroll listener — is
-    // not mounted above depth pages, so its value here is stale from the
-    // page below the push. Opening the pill at anything but rest would
-    // render a compressed pill over a page that never scrolled it. This is
-    // the ONLY value the band ever writes: rest.
-    if (navScrollCompression.value != 0) navScrollCompression.value = 0;
-    setState(() => _pillOpen = true);
-  }
-
-  void _collapsePill() {
-    AzamanHaptics.selection();
-    setState(() => _pillOpen = false);
-  }
-
-  /// Tapping any tab in the reopened pill returns to the shell — popping
-  /// every router page pushed above it — and switches the shell tab. The
-  /// band never pops imperative routes: it is only interactive when the
-  /// topmost route is a router page, so [GoRouter.pop] always targets the
-  /// right stack.
-  void _onBandTabTap(int tab) {
-    final router = RouteDepthTrackerHost.of(context).router;
-    _collapsePill();
-    while (router.canPop()) {
-      router.pop();
-    }
-    appShellBus.requestTab(tab);
-  }
-
-  /// The back chevron: pop one router page. A deep link with nothing under
-  /// it (no shell base beneath) falls back to the canonical root — this
-  /// can only happen when the shell is NOT engaged, and the band is not
-  /// interactive then, but the guard keeps the contract total.
+  /// The back chevron runs the app's ONE back contract (PR-B): transient
+  /// surfaces first, then the owning navigator's topmost route, then the
+  /// honest root fallback. While the band is interactive the topmost route
+  /// is a router page, so this pops exactly one router page per press; the
+  /// shared contract keeps the visible control and the platform back
+  /// gesture on the same route-stack behavior. See
+  /// router/back_navigation.dart for the precedence.
   void _onBack() {
     AzamanHaptics.navigation();
-    final router = RouteDepthTrackerHost.of(context).router;
-    if (router.canPop()) {
-      router.pop();
-    } else {
-      router.go(AzRoutes.home);
-    }
+    AzBackNavigation.handleBack(context);
   }
 
   @override
@@ -297,12 +260,7 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
                   padding: EdgeInsets.only(
                     bottom: bottom > 0 ? bottom + AzSpace.sm : AzSpace.lg,
                   ),
-                  child: AnimatedSwitcher(
-                    duration: presence,
-                    child: _pillOpen
-                        ? _buildPill()
-                        : _buildBar(context, tracker),
-                  ),
+                  child: _buildBar(context, tracker),
                 ),
               ),
             ),
@@ -340,7 +298,10 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
           ),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AzSpace.sm),
+              padding: const EdgeInsets.only(
+                left: AzSpace.sm,
+                right: NavScrollCompression.expandedInset,
+              ),
               child: Text(
                 title,
                 style: AzText.title.copyWith(color: colors.textPrimary),
@@ -349,41 +310,11 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
               ),
             ),
           ),
-          _BandTextAction(
-            key: const Key('contextual-nav-toggle'),
-            label: '…',
-            semanticLabel: 'Show tabs',
-            onTap: _openPill,
-          ),
         ],
       ),
     );
   }
 
-  /// The reopened pill: the REAL [PremiumBottomNav] (the same widget the
-  /// shell hosts, so identity — glass, LiquidTabBackdrop, badges — is
-  /// preserved), with a collapse affordance in the trailing slot the shell
-  /// reserves for a control beside the nav.
-  ///
-  /// The retap override is the review blocker fix: inside the contextual
-  /// pill, a tap on the ALREADY-SELECTED tab must still return to the
-  /// shell (pop + tab hand-off), exactly like any other tab tap. Only
-  /// '…'/'Hide tabs' collapses the pill in place. This override is local
-  /// to the band's pill; the shell's own depth-0 retap contract
-  /// (scroll-to-top / lift) is untouched.
-  Widget _buildPill() {
-    return PremiumBottomNav(
-      key: const Key('contextual-nav-pill'),
-      selectedIndex: appShellBus.activeTab,
-      onItemSelected: _onBandTabTap,
-      onActiveTabRetap: () => _onBandTabTap(appShellBus.activeTab),
-      trailing: _BandTextAction(
-        label: '…',
-        semanticLabel: 'Hide tabs',
-        onTap: _collapsePill,
-      ),
-    );
-  }
 }
 
 /// A square icon action inside the contextual bar (56×62 — the pill's full
@@ -414,45 +345,6 @@ class _BandIconAction extends StatelessWidget {
           child: Center(child: Icon(icon, size: 22, color: iconColor)),
         ),
       ),
-    );
-  }
-}
-
-/// A text action ("…") inside the contextual bar.
-class _BandTextAction extends StatelessWidget {
-  const _BandTextAction({super.key, required this.label,
-    required this.semanticLabel,
-    required this.onTap,
-  });
-
-  final String label;
-  final String semanticLabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final colors = ref.watch(themeProvider.select((t) => t.colors));
-        return Semantics(
-          button: true,
-          label: semanticLabel,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: AzRadius.brPill,
-            child: SizedBox(
-              width: 48,
-              height: NavScrollCompression.expandedHeight,
-              child: Center(
-                child: Text(
-                  label,
-                  style: AzText.titleL.copyWith(color: colors.textPrimary),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
     );
   }
 }

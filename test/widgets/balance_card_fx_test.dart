@@ -10,7 +10,7 @@
 // Groups:
 //   1. Shared-frame geometry — the card's outer bounds, width and height
 //      are IDENTICAL across the flip (within an explicit 0.5px tolerance)
-//      and its footprint is exactly the Home deck contract (165px). The
+//      and its footprint is exactly the Home deck contract (180px). The
 //      surrounding layout does not move when the card flips.
 //   2. Front-face contracts — GHS-first stack order, FX state laws, the
 //      equivalent + info icon placement, the disclosure dialog, keyboard
@@ -35,6 +35,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
+import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/balance_card_pair.dart';
 
@@ -185,7 +186,7 @@ Future<void> _pageDown(WidgetTester tester) async {
 
 void main() {
   group('shared frame — one physical card, fixed geometry', () {
-    testWidgets('the footprint is exactly the Home deck contract: 165px tall',
+    testWidgets('the footprint is exactly the Home deck contract: 180px tall',
         (tester) async {
       await _pumpPair(tester, valuation: _saved());
       final frame = _frameRect(tester);
@@ -227,7 +228,7 @@ void main() {
       expect(find.byKey(const ValueKey('bc-row-ghs-wallet')), findsOneWidget);
     });
 
-    testWidgets('the frame stays 165px on the back at 320dp and 390dp',
+    testWidgets('the frame stays 180px on the back at 320dp and 390dp',
         (tester) async {
       for (final width in [320.0, 390.0]) {
         await _pumpPair(tester, valuation: _saved(), width: width);
@@ -239,6 +240,156 @@ void main() {
             reason: 'the card fills the parent width at every size');
         await tester.pumpWidget(const SizedBox());
       }
+    });
+  });
+
+
+  group('PR-C: data-independent geometry + truthful FX refresh states', () {
+    // ───────────────────────────────────────────────────────────────────
+    // The 2026-10-27 UX pass: the restored 180px footprint reserves ONE
+    // fixed region per section (GHS headline / USDC line / FX status) and
+    // NO data state may move them; the FX row reports a genuine refresh
+    // truthfully — the valid rate STAYS on screen with an inline updating
+    // indication, instead of vanishing behind the initial-fetch dots.
+    // ───────────────────────────────────────────────────────────────────
+
+    BalanceCardValuation freshVal({bool loading = false}) =>
+        BalanceCardValuation(
+          nativeGhsAvailable: 100,
+          availableUsdc: 50,
+          balanceConfirmed: true,
+          rate: FxRateView(
+            ghsPerUsdc: 12.03,
+            kind: FxRateKind.fresh,
+            loading: loading,
+          ),
+        ).compute();
+
+    testWidgets('the three reserved regions NEVER move across every '
+        'data state — and the footprint is 180px in all of them',
+        (tester) async {
+      final states = <String, BalanceCardValuation>{
+        'fresh rate': freshVal(),
+        'genuine refresh (rate retained + loading)': freshVal(loading: true),
+        'saved fallback': _saved(),
+        'unavailable rate': const BalanceCardValuation(
+          nativeGhsAvailable: 100,
+          availableUsdc: 50,
+          balanceConfirmed: true,
+          rate: FxRateView(kind: FxRateKind.none),
+        ).compute(),
+        'USDC held, no GHS valuation (no rate, no native wallet)':
+            const BalanceCardValuation(
+          availableUsdc: 50,
+          balanceConfirmed: true,
+          rate: FxRateView(kind: FxRateKind.none),
+        ).compute(),
+        'balance loading': const BalanceCardValuation(
+          balanceConfirmed: false,
+          rate: FxRateView(kind: FxRateKind.none, loading: true),
+        ).compute(),
+      };
+
+      Rect? headline;
+      Rect? secondary;
+      Rect? rateRow;
+      double? frameHeight;
+      for (final entry in states.entries) {
+        await _pumpPair(tester, valuation: entry.value);
+        final h = tester
+            .getRect(find.byKey(const ValueKey('balance-fx-headline-slot')));
+        final sec = tester.getRect(
+            find.byKey(const ValueKey('balance-fx-secondary-slot')));
+        final rr = tester
+            .getRect(find.byKey(const ValueKey('balance-fx-rate-row')));
+        final fh = _frameRect(tester).height;
+        expect(fh, BalanceCardGeometry.height,
+            reason: '${entry.key}: the footprint is the fixed 180px deck '
+                'contract in EVERY state');
+        if (headline != null) {
+          expect(h.top, closeTo(headline.top, 0.5),
+              reason: '${entry.key}: the GHS headline region must be '
+                  'identical whether its value is present, loading or '
+                  'unavailable');
+          expect(sec.top, closeTo(secondary!.top, 0.5),
+              reason: '${entry.key}: the USDC line region never moves');
+          expect(rr.bottom, closeTo(rateRow!.bottom, 0.5),
+              reason: '${entry.key}: the FX status region stays pinned flush '
+                  'to the card bottom');
+        }
+        headline = h;
+        secondary = sec;
+        rateRow = rr;
+        frameHeight = fh;
+      }
+      expect(frameHeight, BalanceCardGeometry.height);
+    });
+
+    testWidgets('a genuine refresh KEEPS the valid rate on screen and adds '
+        'the inline updating indication — never the initial-fetch dots',
+        (tester) async {
+      await _pumpPair(tester, valuation: freshVal(loading: true));
+
+      // The rate stays visible, in its own node, unchanged.
+      expect(find.byKey(const ValueKey('balance-fx-rate-fresh')),
+          findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(
+                find.byKey(const ValueKey('balance-fx-rate-fresh')))
+            .data,
+        startsWith('1 USDC ≈ GH'),
+        reason: 'the valid rate value is not removed during a refresh');
+      // The refresh indication appears beside it.
+      expect(find.byKey(const ValueKey('balance-fx-rate-refreshing')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-rate-refresh-dots')),
+          findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(
+                find.byKey(const ValueKey('balance-fx-rate-refresh-label')))
+            .data,
+        'Updating…',
+      );
+      // The initial-fetch presentation (dots REPLACING the rate) must NOT
+      // be used when a rate is already on screen.
+      expect(find.byKey(const ValueKey('balance-fx-rate-dots')),
+          findsNothing);
+      expect(find.text('Updating rate…'), findsNothing);
+      expect(_frameRect(tester).height, BalanceCardGeometry.height);
+    });
+
+    testWidgets('an initial fetch (NO rate yet) still shows the animated '
+        'dots + updating caption — and never the refresh row',
+        (tester) async {
+      await _pumpPair(
+        tester,
+        valuation: const BalanceCardValuation(
+          nativeGhsAvailable: 100,
+          availableUsdc: 50,
+          balanceConfirmed: true,
+          rate: FxRateView(kind: FxRateKind.none, loading: true),
+        ).compute(),
+      );
+      expect(find.byKey(const ValueKey('balance-fx-rate-dots')),
+          findsOneWidget);
+      expect(find.text('Updating rate…'), findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-rate-refreshing')),
+          findsNothing);
+    });
+
+    testWidgets('an idle fresh rate shows NO indicator at all — the dots '
+        'are never decorative', (tester) async {
+      await _pumpPair(tester, valuation: freshVal());
+      expect(find.byKey(const ValueKey('balance-fx-rate-fresh')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-rate-refreshing')),
+          findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-rate-dots')),
+          findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-rate-updating')),
+          findsNothing);
     });
   });
 
@@ -293,15 +444,48 @@ void main() {
       expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
           findsOneWidget,
           reason: 'the disclosure stays available even without a '
-              'fallback — it explains the combined total');
+              'fallback — it explains the equivalent');
       expect(find.textContaining('Using saved rate'), findsNothing,
           reason: 'no fallback chrome in the rate row');
 
-      // WORKSTREAM J2 (2026-10-26): this fixture is a native+USDC
-      // COMBINED total — it includes a converted USDC component, so the
-      // GHS headline itself carries the approximate marker, alongside
-      // the USDC equivalent line's. Only a genuinely native-GHS-only
-      // total renders without ≈ on the headline.
+      // The headline is the NATIVE GHS balance only — USDC held never
+      // enters it (owner-corrected contract 2026-10-27): 100 native GHS,
+      // NOT 100 + 50 × 12.03 = 701.50.
+      final semantics = tester.firstWidget<Semantics>(
+        find.descendant(
+          of: find.byKey(const ValueKey('balance-fx-headline')),
+          matching: find.byType(Semantics),
+        ),
+      );
+      expect(semantics.properties.label,
+          'Available balance ${AzMoney.ghs(100)} in GHS');
+      // The equivalent is derived FROM that GHS balance: 100 / 12.03.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent')),
+          findsOneWidget);
+
+      // The disclosure says the USDC line is the equivalent converted
+      // FROM the GHS balance — never GHS derived from USDC.
+      await tester.tap(
+          find.byKey(const ValueKey('balance-fx-equivalent-info')));
+      await tester.pumpAndSettle();
+      final body = find.byKey(
+          const ValueKey('balance-fx-fallback-disclosure-body'));
+      expect(body, findsOneWidget);
+      // The body key sits on the Text itself — read its data directly.
+      final bodyText = tester.widget<Text>(body).data;
+      expect(bodyText, contains('Azaman\u2019s main currency'));
+      expect(bodyText, contains('converted from it'));
+      expect(bodyText, isNot(contains('held in USDC')));
+      await tester
+          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+          findsNothing);
+
+      // Owner correction (2026-10-27): GHS is the app's MAIN currency —
+      // the headline is the canonical balance figure and NEVER carries
+      // the ≈. Only the USDC equivalent line is the estimate (converted
+      // FROM the GHS balance at the display rate).
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('balance-fx-equivalent-row')),
@@ -315,17 +499,20 @@ void main() {
           of: find.byKey(const ValueKey('balance-fx-headline')),
           matching: find.text('≈'),
         ),
-        findsOneWidget,
-        reason: 'a total with a converted USDC component is marked '
-            'approximate on the headline too',
+        findsNothing,
+        reason: 'the GHS headline is the canonical figure — the ≈ '
+            'never marks it, on any fixture',
       );
     });
 
-    testWidgets('a fresh rate with NO native GHS wallet (the current live '
-        'contract) keeps the info icon and the converted-valuation '
-        'disclosure — never a claimed native total', (tester) async {
+    testWidgets('NO native GHS wallet (the current live contract): an '
+        'honest UNAVAILABLE headline — never a USDC-derived figure',
+        (tester) async {
       final v = const BalanceCardValuation(
-        // The current backend contract publishes no native-GHS wallet.
+        // The current backend contract publishes no native-GHS wallet:
+        // there is NO authoritative GHS source, so the headline may
+        // never be derived from the USDC holding (owner-corrected
+        // contract 2026-10-27).
         nativeGhsAvailable: null,
         availableUsdc: 50,
         balanceConfirmed: true,
@@ -335,41 +522,35 @@ void main() {
           kind: FxRateKind.fresh,
         ),
       ).compute();
-      expect(v.availableGhsValue, 601.5,
-          reason: 'the honest interim derivation: USDC × rate');
+      expect(v.availableGhsValue, isNull,
+          reason: 'NO client-side derivation of GHS from USDC — ever');
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.headlineKnown, isFalse);
       await _pumpPair(tester, valuation: v);
 
-      // The info icon is visible beside the USDC line in the live state.
-      expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
-          findsOneWidget);
-
-      // The GHS headline is NEVER semantically a confirmed native total
-      // while the wallet is absent from the contract.
-      final semantics = tester.firstWidget<Semantics>(
-        find.descendant(
-          of: find.byKey(const ValueKey('balance-fx-headline')),
-          matching: find.byType(Semantics),
-        ),
-      );
-      expect(semantics.properties.label, contains('display valuation'));
-      expect(semantics.properties.label, contains('not a native GHS'));
-
-      // The disclosure says exactly what the figure is.
-      await tester.tap(
-          find.byKey(const ValueKey('balance-fx-equivalent-info')));
-      await tester.pumpAndSettle();
-      final body = find.byKey(
-          const ValueKey('balance-fx-fallback-disclosure-body'));
-      expect(body, findsOneWidget);
-      // The body key sits on the Text itself — read its data directly.
-      final bodyText = tester.widget<Text>(body).data;
-      expect(bodyText, contains('not a native GHS wallet holding'));
-      expect(bodyText, contains('held in USDC'));
-      await tester
-          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('balance-fx-fallback-disclosure')),
+      // The headline renders the honest unavailable dash — never a
+      // fabricated GH₵ 0.00, never USDC relabelled as GHS, and never a
+      // loading state.
+      expect(find.byKey(const ValueKey('balance-fx-headline')),
           findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-headline-unavailable')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-headline-dash')),
+          findsOneWidget);
+      // No equivalent either: it is derived FROM the GHS balance, which
+      // does not exist on this fixture.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-unavailable')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-row')),
+          findsNothing);
+      // No estimate on screen → no ≈ and no disclosure icon.
+      expect(find.text('≈'), findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-info')),
+          findsNothing);
+      // The rate row keeps its own informational state — a rate fact is
+      // not a valuation.
+      expect(find.byKey(const ValueKey('balance-fx-rate-fresh')),
+          findsOneWidget);
     });
 
     testWidgets('the fallback disclosure opens on tap and does NOT flip the '
@@ -410,8 +591,9 @@ void main() {
       expect(find.byKey(const ValueKey('balance-fx-headline')), findsNothing);
     });
 
-    testWidgets('no rate and no fallback: stable unavailable state',
-        (tester) async {
+    testWidgets('no rate and no fallback: the GHS headline stays KNOWN — '
+        'GHS never needed a rate — and only the USDC estimate goes '
+        'unavailable', (tester) async {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 100,
         availableUsdc: 50,
@@ -421,19 +603,22 @@ void main() {
       await _pumpPair(tester, valuation: v);
       expect(find.byKey(const ValueKey('balance-fx-rate-unavailable')),
           findsOneWidget);
-      // The combined GHS value is NOT computable without a rate: the
-      // headline renders an honest dash — never a fabricated GH₵ 0.00
-      // and never USDC relabelled as GHS.
+      // The GHS headline is the native balance — it was NEVER a
+      // conversion, so it needs no rate. It renders in full.
+      expect(find.byKey(const ValueKey('balance-fx-headline')),
+          findsOneWidget);
       expect(find.byKey(const ValueKey('balance-fx-headline-unavailable')),
+          findsNothing);
+      // Only the USDC estimate is unavailable — an honest dash in the
+      // estimate slot. The REAL USDC holding never sits in that slot
+      // (it is a separate concept, shown on the back face); ≈ would
+      // claim a relationship that does not exist in this state.
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-unavailable')),
           findsOneWidget);
-      expect(find.byKey(const ValueKey('balance-fx-headline-dash')),
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-dash')),
           findsOneWidget);
-      // The REAL USDC holding still shows beneath — a fact, not a
-      // conversion, and its leading slot carries NO ≈.
-      expect(find.byKey(const ValueKey('balance-fx-usdc-held-no-rate')),
-          findsOneWidget);
-      expect(find.byKey(const ValueKey('balance-fx-usdc-held-amount')),
-          findsOneWidget);
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-row')),
+          findsNothing);
       expect(find.text('≈'), findsNothing,
           reason: 'no rate means no equivalence claim');
     });
@@ -455,14 +640,13 @@ void main() {
       // The GHS headline IS shown — no rate was ever needed for it.
       expect(find.byKey(const ValueKey('balance-fx-headline')),
           findsOneWidget);
-      // No equivalent row at all — and specifically no zero figure.
+      // The estimate slot renders the honest unavailable dash — never
+      // a fabricated "≈ 0.00 USDC" conversion.
       expect(find.byKey(const ValueKey('balance-fx-equivalent-row')),
           findsNothing);
+      expect(find.byKey(const ValueKey('balance-fx-equivalent-unavailable')),
+          findsOneWidget);
       expect(find.textContaining('0.00 USDC'), findsNothing);
-      // Not an incomplete valuation: there is nothing missing from the
-      // GHS total, only from its USDC translation.
-      expect(find.byKey(const ValueKey('balance-fx-valuation-incomplete')),
-          findsNothing);
       expect(find.byKey(const ValueKey('balance-fx-rate-unavailable')),
           findsOneWidget);
     });
@@ -575,7 +759,7 @@ void main() {
 
       // Page through EVERY remaining section. Each pumpAndSettle inside
       // _pageDown throws on any RenderFlex overflow inside the fixed
-      // 165dp card — COMMITTED (all-unknown rows), LOCKED, VENDOR
+      // 180dp card — COMMITTED (all-unknown rows), LOCKED, VENDOR
       // (present: vendor: true), NON-CASH.
       await _pageDown(tester); // COMMITTED
       expect(find.byKey(const ValueKey('bc-row-vaults')), findsOneWidget);

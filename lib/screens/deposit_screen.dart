@@ -63,6 +63,8 @@ import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 import 'package:azaman/widgets/scale_tap.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart' show AddPayoutSheet;
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 
 // =============================================================================
 // DEPOSIT SCREEN — the Add Cash surface
@@ -122,15 +124,15 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
   }
 
   Map<String, dynamic> _captureDraft() => {
-        'amountRaw': _fiatPanelKey.currentState?._amountRaw ?? '',
-        if (_fiatPanelKey.currentState?._selectedAccountId != null)
-          'accountId': _fiatPanelKey.currentState!._selectedAccountId,
-        // Deposit lifecycle (PR #202 item 1) — persist the reference of
-        // a deposit still in flight so a session interruption can be
-        // reconciled on resume. Never persisted once confirmed.
-        if (_fiatPanelKey.currentState?.hasInFlightDeposit == true)
-          'pendingReference': _fiatPanelKey.currentState!.inFlightReference,
-      };
+    'amountRaw': _fiatPanelKey.currentState?._amountRaw ?? '',
+    if (_fiatPanelKey.currentState?._selectedAccountId != null)
+      'accountId': _fiatPanelKey.currentState!._selectedAccountId,
+    // Deposit lifecycle (PR #202 item 1) — persist the reference of
+    // a deposit still in flight so a session interruption can be
+    // reconciled on resume. Never persisted once confirmed.
+    if (_fiatPanelKey.currentState?.hasInFlightDeposit == true)
+      'pendingReference': _fiatPanelKey.currentState!.inFlightReference,
+  };
 
   Future<void> _attemptClose() async {
     // REVIEW GAP 1 — initial-submit race: while POST /deposit/fiat/
@@ -184,7 +186,7 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/');
+      context.go(AzRoutes.shell);
     }
   }
 
@@ -212,11 +214,13 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                   key: _fiatPanelKey,
                   prefillAmount: widget.prefillAmount,
                   memo: widget.memo,
-                  restoredAmount: widget.restoredDraft?['amountRaw']?.toString(),
-                  restoredAccountId:
-                      widget.restoredDraft?['accountId']?.toString(),
+                  restoredAmount: widget.restoredDraft?['amountRaw']
+                      ?.toString(),
+                  restoredAccountId: widget.restoredDraft?['accountId']
+                      ?.toString(),
                   restoredPendingReference: widget
-                      .restoredDraft?['pendingReference']?.toString(),
+                      .restoredDraft?['pendingReference']
+                      ?.toString(),
                 ),
               ),
             ],
@@ -463,9 +467,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     // active now. Exact-reference only — deposit B's record is never
     // touched by deposit A's event, and the service's terminal
     // resolution makes this idempotent.
-    ref
-        .read(depositContinuationsProvider.notifier)
-        .resolve(owner, eventRef);
+    ref.read(depositContinuationsProvider.notifier).resolve(owner, eventRef);
     final colors = ref.read(themeProvider).colors;
     final visibleRef =
         _depositResult?['reference']?.toString() ?? _pendingReference ?? '';
@@ -500,6 +502,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
       );
     }
   }
+
   final _otpController = TextEditingController();
   bool _isConfirmingOtp = false;
   bool _depositConfirmed = false;
@@ -638,9 +641,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     // delete (or resolve under) a different account's records.
     final uid = owner?.trim();
     if (uid == null || uid.isEmpty) return;
-    ref
-        .read(depositContinuationsProvider.notifier)
-        .resolve(uid, reference);
+    ref.read(depositContinuationsProvider.notifier).resolve(uid, reference);
   }
 
   @override
@@ -694,7 +695,9 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     // is dropped silently and the input stays empty so the user notices and
     // re-enters.
     final raw = widget.prefillAmount?.trim();
-    if (raw != null && raw.isEmpty && (widget.restoredAmount ?? '').isNotEmpty) {
+    if (raw != null &&
+        raw.isEmpty &&
+        (widget.restoredAmount ?? '').isNotEmpty) {
       // §C resume: no deep-link prefill — restore the draft amount
       // through the SAME validator. A malformed stored value is dropped
       // exactly like a malformed deep link.
@@ -772,8 +775,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
     });
     DepositRecoveryOutcome? outcome;
     try {
-      outcome =
-          await DepositRecoveryService(apiClient).recover(reference);
+      outcome = await DepositRecoveryService(apiClient).recover(reference);
     } catch (_) {
       outcome = null; // network/refused: no claim, fresh form
     }
@@ -1368,7 +1370,8 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                   // submission is in flight — a mid-validation switch is
                   // exactly the race that would confirm one account's name
                   // and charge another (release-level review blocker 3).
-                  final bool locked = _isSubmitting ||
+                  final bool locked =
+                      _isSubmitting ||
                       _isValidatingName ||
                       _persistingContinuation;
                   if (accounts.isEmpty) {
@@ -1433,7 +1436,8 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: AmountKeypad(
                 onKey: _onKeypadKey,
-                enabled: !_isSubmitting &&
+                enabled:
+                    !_isSubmitting &&
                     !_isValidatingName &&
                     !_persistingContinuation,
                 rowHeight: compact ? 46 : 54,
@@ -1480,7 +1484,8 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                                   null)
                         ? null
                         : _validateAndConfirm,
-                    isBusy: _recovering ||
+                    isBusy:
+                        _recovering ||
                         _isSubmitting ||
                         _isValidatingName ||
                         _persistingContinuation,
@@ -1753,9 +1758,7 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 : _depositConfirmed
                 ? 'Start another deposit'
                 : 'Back to Add Cash',
-            onTap: _continuationPersistFailed
-                ? _retryContinuationSave
-                : _reset,
+            onTap: _continuationPersistFailed ? _retryContinuationSave : _reset,
           ),
         ],
       ),
@@ -1818,48 +1821,50 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               TextButton(
-              // REVIEW FOLLOW-UP — while the continuation record is
-              // UNPERSISTED the only offered action is the SAME save's
-              // retry: the reference is the only way back to an
-              // already-submitted instruction.
-              //
-              // LAST REVIEW — once the record is durable the action is
-              // honestly labelled as a RETURN, never a cancellation: no
-              // cancellation contract exists with the provider, so the
-              // instruction stays live (tracked by exact reference and
-              // durably stored under its owner) and settles whenever
-              // the user's provider processes it. The user can get back
-              // to it any time from the notification centre's
-              // "Deposits in progress" row.
-              onPressed: _isConfirmingOtp
-                  ? null
-                  : _continuationPersistFailed
-                  ? _retryContinuationSave
-                  : () => setState(() {
-                      _requiresOtp = false;
-                      _pendingReference = null;
-                      _otpController.clear();
-                    }),
-              child: Text(
-                _continuationPersistFailed ? 'Save receipt' : 'Back to Add Cash',
-                style: TextStyle(
-                  color: _continuationPersistFailed
-                      ? colors.accent
-                      : colors.textTertiary,
+                // REVIEW FOLLOW-UP — while the continuation record is
+                // UNPERSISTED the only offered action is the SAME save's
+                // retry: the reference is the only way back to an
+                // already-submitted instruction.
+                //
+                // LAST REVIEW — once the record is durable the action is
+                // honestly labelled as a RETURN, never a cancellation: no
+                // cancellation contract exists with the provider, so the
+                // instruction stays live (tracked by exact reference and
+                // durably stored under its owner) and settles whenever
+                // the user's provider processes it. The user can get back
+                // to it any time from the notification centre's
+                // "Deposits in progress" row.
+                onPressed: _isConfirmingOtp
+                    ? null
+                    : _continuationPersistFailed
+                    ? _retryContinuationSave
+                    : () => setState(() {
+                        _requiresOtp = false;
+                        _pendingReference = null;
+                        _otpController.clear();
+                      }),
+                child: Text(
+                  _continuationPersistFailed
+                      ? 'Save receipt'
+                      : 'Back to Add Cash',
+                  style: TextStyle(
+                    color: _continuationPersistFailed
+                        ? colors.accent
+                        : colors.textTertiary,
+                  ),
                 ),
               ),
-            ),
-            if (!_continuationPersistFailed && !_isConfirmingOtp)
-              Text(
-                'The deposit stays active — going back does not cancel '
-                'it. You can pick it up again from your notifications.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 12,
-                  height: 1.5,
+              if (!_continuationPersistFailed && !_isConfirmingOtp)
+                Text(
+                  'The deposit stays active — going back does not cancel '
+                  'it. You can pick it up again from your notifications.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 12,
+                    height: 1.5,
+                  ),
                 ),
-              ),
             ],
           ),
         ],
@@ -1915,7 +1920,7 @@ class _RecoveryUnresolvedBanner extends StatelessWidget {
                       : ref.isEmpty
                       ? 'We could not confirm your earlier deposit yet.'
                       : 'We could not confirm your earlier deposit '
-                          '($short) yet.',
+                            '($short) yet.',
                   style: TextStyle(
                     color: colors.textPrimary,
                     fontSize: 12.5,
@@ -2369,9 +2374,7 @@ class _PaymentSelectorSheetState extends State<_PaymentSelectorSheet> {
                   Expanded(
                     child: Text(
                       'Payment method',
-                      style: AzText.titleL.copyWith(
-                        color: colors.textPrimary,
-                      ),
+                      style: AzText.titleL.copyWith(color: colors.textPrimary),
                     ),
                   ),
                   Semantics(
@@ -2510,8 +2513,7 @@ class CryptoReceivePanel extends ConsumerStatefulWidget {
   const CryptoReceivePanel();
 
   @override
-  ConsumerState<CryptoReceivePanel> createState() =>
-      CryptoReceivePanelState();
+  ConsumerState<CryptoReceivePanel> createState() => CryptoReceivePanelState();
 }
 
 class CryptoReceivePanelState extends ConsumerState<CryptoReceivePanel>

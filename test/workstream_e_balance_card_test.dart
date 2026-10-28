@@ -24,10 +24,11 @@
 //
 // PR #203 wires BalanceCardPair into the live Home deck through
 // HomeBalanceCard, so this suite pins the production card's own
-// contract. The FRONT-face figures stay interim-honest: until the
-// backend valuation contract (#367/8/9) ships and is revalidated, the
-// GHS headline is an APPROXIMATE converted display valuation, and the
-// #367 mapper activates only after that compatibility review.
+// contract. The FRONT-face contract (owner-corrected 2026-10-27):
+// GHS is the app's MAIN currency — the GH₵ headline is the canonical
+// balance figure and renders EXACT (never ≈); only the USDC line
+// carries ≈ as the equivalent converted from the GHS balance. The
+// #367 mapper activates only after the compatibility review.
 // =============================================================================
 
 import 'dart:io';
@@ -78,6 +79,10 @@ Future<void> _loadFonts() async {
 /// default good state, and the one the disclosure control shows.
 BalanceCardValuation _fresh() {
   const base = BalanceCardValuation(
+    // Owner-corrected contract (2026-10-27): the headline is the
+    // authoritative native-GHS balance — a fixture for the card's good
+    // state carries it natively, never as USDC-derived GHS.
+    nativeGhsAvailable: 100,
     availableUsdc: 100,
     balanceConfirmed: true,
     rate: FxRateView(
@@ -90,8 +95,11 @@ BalanceCardValuation _fresh() {
 }
 
 BalanceCardValuation _freshGhs(double ghs) => BalanceCardValuation(
-  nativeGhsAvailable: 0,
-  availableUsdc: ghs / 12.5,
+  // The given figure IS the native GHS balance (owner-corrected
+  // contract) — never a USDC holding masquerading as GHS via the old
+  // (removed) combined-total derivation.
+  nativeGhsAvailable: ghs,
+  availableUsdc: 25,
   balanceConfirmed: true,
   azmPoints: 0,
   rate: const FxRateView(
@@ -302,7 +310,7 @@ void main() {
         reason: 'the caption reads AFTER the dots, one coherent status',
       );
       // SAME slot: the rate row itself is PINNED at the bottom of the
-      // fixed 165px card — identical whether the slot shows the idle
+      // fixed 180px card — identical whether the slot shows the idle
       // rate or the updating status. The updating row is its leading
       // content.
       final loadRow = tester.getRect(
@@ -325,14 +333,14 @@ void main() {
 
   group('E2 — the documented 320dp overflow, fixed at the cause', () {
     testWidgets('the PR #190 repro figure fits on ONE line at 320dp: '
-        'no overflow, no pre-shrunk fixture, 165px frame', (tester) async {
+        'no overflow, no pre-shrunk fixture, 180px frame', (tester) async {
       // ~GH₵ 5,234.50 — the documented 4-digit repro scale.
       await _pumpPair(tester, valuation: _freshGhs(5234.50), width: 320);
       expect(tester.takeException(), isNull);
       expect(
         _frameRect(tester).height,
         BalanceCardGeometry.height,
-        reason: 'the 165px geometry is preserved',
+        reason: 'the 180px geometry is preserved',
       );
       final headline = tester.getRect(
         find.byKey(const ValueKey('balance-fx-headline')),
@@ -522,7 +530,7 @@ void main() {
     // The equivalent line's info control is the card's ONLY tappable
     // affordance besides the flip itself. Its target is the full
     // 44 x 44 dp mobile accessibility target while the glyph stays 16px,
-    // and the fixed 165px footprint must still hold it at the pair's
+    // and the fixed 180px footprint must still hold it at the pair's
     // 1.25x text-scale clamp on the narrowest supported width.
     for (final scale in [1.0, 1.25, 1.3]) {
       testWidgets('info target ≥ 44 x 44 at 320dp / ${scale}x scale, '
@@ -537,8 +545,8 @@ void main() {
             reason: 'WCAG 2.5.8 / Material minimum touch target');
         expect(target.height, greaterThanOrEqualTo(44));
 
-        // The footprint contract: the fixed 165px frame is untouched.
-        expect(_frameRect(tester).height, 165);
+        // The footprint contract: the fixed 180px frame is untouched.
+        expect(_frameRect(tester).height, BalanceCardGeometry.height);
         expect(tester.takeException(), isNull);
       });
     }
@@ -582,7 +590,7 @@ void main() {
         find.byKey(const ValueKey('balance-pair-front-surface')),
         findsOneWidget,
       );
-      expect(_frameRect(tester).height, 165);
+      expect(_frameRect(tester).height, BalanceCardGeometry.height);
     });
   });
 
