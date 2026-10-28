@@ -16,6 +16,17 @@
 // Sibling-to-sibling navigation inside a feature (e.g. settings → child
 // picker, marketplace → ad detail) stays imperative.
 //
+// ONE NAVIGATION AUTHORITY (2026-10-28 defect fix): the app shell is a
+// ROUTER-OWNED page at '/home' (guarded), and the splash-to-app handoff
+// is `context.go('/home')` — never an imperative pushReplacement. The
+// old imperative swap left GoRouter believing the location was '/' while
+// the Navigator held an anonymous shell route; every context.push then
+// re-instantiated a hidden SplashScreen below the new screen, whose 2s
+// branding floor disposed the user's screen from underneath them
+// (pushReplacement completes the TOPMOST history entry — see
+// navigator.dart _pushReplacementEntry). '/' stays the boot resolver;
+// every destination that means "the app itself" is '/home'.
+//
 // Action → route mapping for `handleNotificationTap` mirrors the
 // `actionPayload.action` strings the BE emits in
 // notificationService.sendNotification calls.
@@ -36,6 +47,12 @@ import 'package:azaman/screens/marketplace/dinein_tab_screen.dart';
 import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Commented if not exists yet
 
 import 'package:azaman/screens/splash_screen.dart';
+import 'package:azaman/screens/auth/login_screen.dart';
+import 'package:azaman/screens/onboarding_screen.dart';
+import 'package:azaman/screens/force_update_screen.dart';
+// The canonical app shell: MainWrapper is the router-owned '/home' page —
+// it must be importable here like every other route destination.
+import 'package:azaman/main.dart' show MainWrapper;
 import 'package:azaman/screens/notification_hub_screen.dart';
 import 'package:azaman/screens/active_trade_screen.dart';
 import 'package:azaman/screens/waiting_room_screen.dart';
@@ -126,7 +143,15 @@ final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 /// nav chrome reads this — never infer depth from screen names.
 final RouteDepthTracker routeDepthTracker = RouteDepthTracker(appRouter);
 
-final GoRouter appRouter = GoRouter(
+/// Builds the app's router. The production instance is [appRouter]; tests
+/// build a FRESH router from the SAME route table + redirect (the real
+/// splash-to-shell handoff, no shared singleton state between tests).
+@visibleForTesting
+GoRouter createAppRouter() => _buildAppRouter();
+
+final GoRouter appRouter = _buildAppRouter();
+
+GoRouter _buildAppRouter() => GoRouter(
   initialLocation: '/',
   navigatorKey: rootNavigatorKey,
   // NEW-A (restoration): gives the Navigator a stable restoration scope so
@@ -149,7 +174,13 @@ final GoRouter appRouter = GoRouter(
     }
     final path = state.uri.path;
     // Public routes always pass
-    if (path == '/' || path.startsWith('/susu/invite/') || path.startsWith('/request/')) return null;
+    if (path == '/' ||
+        path == '/login' ||
+        path == '/force-update' ||
+        path.startsWith('/susu/invite/') ||
+        path.startsWith('/request/')) {
+      return null;
+    }
     // Demo mode: bypass auth gating entirely — demo build has no real session to protect.
     if (AppConfig.demoMode) return null;
     // Crash-safe auth check: if AuthGuard throws, treat as NOT authenticated
@@ -178,6 +209,40 @@ final GoRouter appRouter = GoRouter(
       path: '/',
       name: AzRouteNames.home,
       builder: (context, state) => const SplashScreen(),
+    ),
+
+    // ── The canonical app shell (guarded) ──────────────────────────────────
+    // MainWrapper is a ROUTER-OWNED page: the declarative page stack and
+    // the Navigator can never diverge, back from a pushed destination
+    // returns DIRECTLY to the shell (same instance, preserved tab state),
+    // and no hidden splash can ever run beneath it again.
+    GoRoute(
+      path: AzRoutes.shell,
+      name: AzRouteNames.shell,
+      builder: (context, state) => const MainWrapper(),
+    ),
+
+    // ── Boot-flow destinations (the splash exits via go()) ─────────────────
+    GoRoute(
+      path: AzRoutes.login,
+      name: AzRouteNames.login,
+      builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: AzRoutes.onboarding,
+      name: AzRouteNames.onboarding,
+      builder: (context, state) => const OnboardingScreen(),
+    ),
+    GoRoute(
+      path: AzRoutes.forceUpdate,
+      name: AzRouteNames.forceUpdate,
+      builder: (context, state) => ForceUpdateScreen(
+        message:
+            state.uri.queryParameters['message'] ??
+            'A new version of Azaman is available. Please update to continue.',
+        updateUrl: state.uri.queryParameters['updateUrl'],
+        minVersion: state.uri.queryParameters['minVersion'],
+      ),
     ),
 
     // ── Notifications ───────────────────────────────────────────────────────
@@ -1201,7 +1266,7 @@ class _AzamanRouteErrorScreen extends ConsumerWidget {
                 ),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: () => context.go('/'),
+                onPressed: () => context.go(AzRoutes.shell),
                 child: const Text('Back to Home'),
               ),
             ],

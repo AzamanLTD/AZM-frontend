@@ -57,9 +57,12 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/currency_math.dart';
 import 'package:azaman/widgets/amount_keypad.dart';
 import 'package:azaman/widgets/card_transfer/compact_card_pair.dart';
-import 'package:azaman/widgets/home/azm_visa_card.dart' show azmCardProgrammeProvider;
+import 'package:azaman/widgets/home/azm_visa_card.dart'
+    show azmCardProgrammeProvider;
 import 'package:azaman/widgets/currency_wheel_toggle.dart';
 import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 
 export 'package:azaman/widgets/card_transfer/compact_card_pair.dart'
     show DirectionalMoneyFlow, DirectionalMoneyFlowState;
@@ -71,17 +74,14 @@ enum _Stage { amount, review }
 /// The transfer direction's human labels — the single source for every
 /// surface (tabs, review statement, semantics).
 extension CardTransferDirectionCopy on CardTransferDirection {
-  String get tabLabel => this == CardTransferDirection.toVisa
-      ? 'To Visa'
-      : 'From Visa';
+  String get tabLabel =>
+      this == CardTransferDirection.toVisa ? 'To Visa' : 'From Visa';
 
-  String get sourceLabel => this == CardTransferDirection.toVisa
-      ? 'Azaman Balance'
-      : 'AZM Visa card';
+  String get sourceLabel =>
+      this == CardTransferDirection.toVisa ? 'Azaman Balance' : 'AZM Visa card';
 
-  String get destinationLabel => this == CardTransferDirection.toVisa
-      ? 'AZM Visa card'
-      : 'Azaman Balance';
+  String get destinationLabel =>
+      this == CardTransferDirection.toVisa ? 'AZM Visa card' : 'Azaman Balance';
 }
 
 class CardTransferScreen extends ConsumerStatefulWidget {
@@ -98,10 +98,8 @@ class CardTransferScreen extends ConsumerStatefulWidget {
 
 class _CardTransferScreenState extends ConsumerState<CardTransferScreen>
     with TickerProviderStateMixin {
-  late final TabController _tabs = TabController(
-    length: 2,
-    vsync: this,
-  )..addListener(_onTabChanged);
+  late final TabController _tabs = TabController(length: 2, vsync: this)
+    ..addListener(_onTabChanged);
 
   _Stage _stage = _Stage.amount;
   String _amountRaw = '';
@@ -157,7 +155,7 @@ class _CardTransferScreenState extends ConsumerState<CardTransferScreen>
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/');
+      context.go(AzRoutes.shell);
     }
   }
 
@@ -174,7 +172,11 @@ class _CardTransferScreenState extends ConsumerState<CardTransferScreen>
     if (amount == null) return null;
     if (rate == null) return null;
     return CurrencyMath.convert(
-        amount: amount, from: _entryUnit, to: next, ghsPerUsdc: rate);
+      amount: amount,
+      from: _entryUnit,
+      to: next,
+      ghsPerUsdc: rate,
+    );
   }
 
   void _onEntryUnitChanged(int newIndex) {
@@ -195,11 +197,13 @@ class _CardTransferScreenState extends ConsumerState<CardTransferScreen>
     if (converted == null) {
       // Fail closed: the switch is REFUSED — digits are never relabelled,
       // never silently zeroed, never converted at a fabricated rate.
-      setState(() => _entryError = rate == null
-          ? 'Exchange rate unavailable — the amount stays in '
-              '${_entryUnit.symbol}. Enter it in ${next.symbol} if needed.'
-          : 'That amount converts to less than the smallest ${next.symbol} '
-              'unit — enter a larger amount.');
+      setState(
+        () => _entryError = rate == null
+            ? 'Exchange rate unavailable — the amount stays in '
+                  '${_entryUnit.symbol}. Enter it in ${next.symbol} if needed.'
+            : 'That amount converts to less than the smallest ${next.symbol} '
+                  'unit — enter a larger amount.',
+      );
       return;
     }
     AzamanHaptics.toggle();
@@ -639,7 +643,8 @@ class _AmountStage extends StatelessWidget {
             : '≈ ${AzMoney.ghs(converted)} · current estimate';
       }
     }
-    final equivalentUnavailable = amount != null && amount > 0 && equivalent == null;
+    final equivalentUnavailable =
+        amount != null && amount > 0 && equivalent == null;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -673,8 +678,8 @@ class _AmountStage extends StatelessWidget {
                 equivalent ??
                     (equivalentUnavailable
                         ? (entryUnit.code == 'GHS'
-                            ? 'USDC rail equivalent unavailable'
-                            : 'GH₵ equivalent unavailable')
+                              ? 'USDC rail equivalent unavailable'
+                              : 'GH₵ equivalent unavailable')
                         : ''),
                 key: const ValueKey('card-transfer-equivalent'),
                 textAlign: TextAlign.center,
@@ -702,10 +707,7 @@ class _AmountStage extends StatelessWidget {
               ),
             ],
           ),
-          AmountKeypad(
-            onKey: onKey,
-            rowHeight: keypadRow,
-          ),
+          AmountKeypad(onKey: onKey, rowHeight: keypadRow),
           _ReviewCta(
             enabled: (amountValue ?? 0) > 0,
             colors: colors,
@@ -735,7 +737,8 @@ class _RouteRow extends StatelessWidget {
     final cardLabel = 'AZM Visa $maskedCardNumber';
     return Row(
       key: ValueKey(
-          'card-transfer-route-${direction == CardTransferDirection.toVisa ? 'to' : 'from'}-visa'),
+        'card-transfer-route-${direction == CardTransferDirection.toVisa ? 'to' : 'from'}-visa',
+      ),
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Flexible(
@@ -836,8 +839,8 @@ class _ReviewStage extends StatelessWidget {
     final equivalentText = eq == null || eq.value == null
         ? 'Unavailable'
         : (eq.fromGhs
-            ? '≈ ${AzMoney.usdc(eq.value!)} — preview'
-            : '≈ ${AzMoney.ghs(eq.value!)} — current estimate');
+              ? '≈ ${AzMoney.usdc(eq.value!)} — preview'
+              : '≈ ${AzMoney.ghs(eq.value!)} — current estimate');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, AzSpace.lg, 20, 16),
@@ -910,17 +913,14 @@ class _ReviewStage extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.softSurface,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: colors.warning.withValues(alpha: 0.4),
-              ),
+              border: Border.all(color: colors.warning.withValues(alpha: 0.4)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline,
-                        size: 16, color: colors.warning),
+                    Icon(Icons.info_outline, size: 16, color: colors.warning),
                     const SizedBox(width: AzSpace.sm),
                     Expanded(
                       child: Text(
@@ -980,7 +980,8 @@ class _ReviewStage extends StatelessWidget {
           Semantics(
             button: true,
             enabled: false,
-            label: 'Transfer — unavailable while the card programme is a sample',
+            label:
+                'Transfer — unavailable while the card programme is a sample',
             excludeSemantics: true,
             child: Container(
               key: const ValueKey('card-transfer-submit'),
@@ -989,15 +990,16 @@ class _ReviewStage extends StatelessWidget {
               decoration: BoxDecoration(
                 color: colors.softSurface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colors.border.withValues(alpha: 0.6),
-                ),
+                border: Border.all(color: colors.border.withValues(alpha: 0.6)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.lock_outline,
-                      size: 16, color: colors.textTertiary),
+                  Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: colors.textTertiary,
+                  ),
                   const SizedBox(width: AzSpace.sm),
                   Text(
                     'Transfer unavailable',
@@ -1052,7 +1054,6 @@ class _StatementRow extends StatelessWidget {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // THE STAGE SCROLL VIEW — scroll only when the content actually overflows.

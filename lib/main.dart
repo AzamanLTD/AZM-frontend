@@ -154,17 +154,48 @@ void main() async {
   }
 }
 
-Future<void> _bootstrap() async {
+/// Testable core of the framework-error wiring: chains the app's local
+/// error record onto whatever [FlutterError.onError] is ALREADY installed
+/// (Sentry's capture+present handler when SENTRY_DSN is compiled in) —
+/// instead of clobbering it. Previously this assignment REPLACED
+/// Sentry's handler, so framework errors were only debugPrinted and
+/// NEVER reported to Sentry. Verified by
+/// test/router/framework_error_chain_test.dart.
+@visibleForTesting
+void installAzamanFrameworkErrorHooks({
+  required void Function(Object error) recordFrameworkError,
+  void Function(FlutterErrorDetails details)? chainedOnError,
+}) {
   FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
+    // Chain FIRST: Sentry's handler both captures to Sentry and presents
+    // the error to the console; the app's local record is additive.
+    chainedOnError?.call(details);
     debugPrint('[AZM-FATAL] ${details.exception}');
-    _lastFrameworkError.value = details.exception;
+    recordFrameworkError(details.exception);
   };
+}
+
+Future<void> _bootstrap() async {
+  // DEFECT FIX (2026-10-28): chain onto the installed handler (Sentry's,
+  // when enabled) instead of replacing it — framework errors must reach
+  // BOTH the local record and the configured reporter.
+  installAzamanFrameworkErrorHooks(
+    recordFrameworkError: (error) => _lastFrameworkError.value = error,
+    chainedOnError: FlutterError.onError,
+  );
 
   Isolate.current.addErrorListener(
     RawReceivePort((dynamic data) {
       final list = data as List;
       debugPrint('[AZM-ISOLATE] ${list[0]}: ${list[1]}');
+      if (AppConfig.sentryEnabled) {
+        unawaited(
+          Sentry.captureException(
+            list[0],
+            stackTrace: StackTrace.fromString(list[1] as String),
+          ),
+        );
+      }
     }).sendPort,
   );
 
@@ -203,6 +234,13 @@ Future<void> _bootstrap() async {
     },
     (Object error, StackTrace stack) {
       debugPrint('[AZM-ZONE] Uncaught async error: $error\n$stack');
+      // This inner zone guard would otherwise swallow errors from the
+      // zone Sentry installed around the app runner — forward them.
+      if (AppConfig.sentryEnabled) {
+        unawaited(
+          Sentry.captureException(error, stackTrace: stack),
+        );
+      }
     },
   );
 }

@@ -42,7 +42,6 @@ import 'package:azaman/services/socket_service.dart';
 
 import 'package:azaman/screens/account_activity_screen.dart';
 import 'package:azaman/screens/account_deactivation_screen.dart';
-import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/screens/accounts_screen.dart';
 import 'package:azaman/screens/change_password_screen.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
@@ -59,6 +58,8 @@ import 'package:azaman/widgets/az_toggle.dart';
 import 'package:azaman/widgets/azaman_confirm_sheet.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -118,10 +119,8 @@ class SettingsScreen extends ConsumerWidget {
                 // The GENUINE editor (photo pick, display name, bio,
                 // phone with save). ProfileDetailsScreen is the read-only
                 // KYC identity view — never labelled "Edit Profile".
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const ProfileScreen(),
-                ),
+                onTap: () =>
+                    pushWithVerticalTransition(context, const ProfileScreen()),
               ),
               _Divider(colors),
               _NavRow(
@@ -143,10 +142,8 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.card_giftcard_outlined,
                 title: 'Refer & Earn',
                 subtitle: 'Invite friends, earn rewards',
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const ReferralScreen(),
-                ),
+                onTap: () =>
+                    pushWithVerticalTransition(context, const ReferralScreen()),
               ),
             ],
           ),
@@ -161,10 +158,8 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.account_balance_wallet_outlined,
                 title: 'Accounts',
                 subtitle: 'Deposits and payout destinations',
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const AccountsScreen(),
-                ),
+                onTap: () =>
+                    pushWithVerticalTransition(context, const AccountsScreen()),
               ),
             ],
           ),
@@ -297,7 +292,7 @@ class SettingsScreen extends ConsumerWidget {
                     colors: colors,
                     icon: Icons.security_outlined,
                     title: 'Security & PIN',
-                subtitle: 'Sign-in protection',
+                    subtitle: 'Sign-in protection',
                     trailingText: bio ? 'Biometrics on' : null,
                     onTap: () => pushWithVerticalTransition(
                       context,
@@ -341,10 +336,8 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.help_outline,
                 title: 'Help & FAQ',
                 subtitle: 'Quick answers',
-                onTap: () => pushWithVerticalTransition(
-                  context,
-                  const SupportScreen(),
-                ),
+                onTap: () =>
+                    pushWithVerticalTransition(context, const SupportScreen()),
               ),
             ],
           ),
@@ -399,7 +392,7 @@ class SettingsScreen extends ConsumerWidget {
                   imageCache.clear();
                   final message = cachedImages > 0
                       ? 'Cleared $cachedImages cached '
-                        '${cachedImages == 1 ? 'image' : 'images'}.'
+                            '${cachedImages == 1 ? 'image' : 'images'}.'
                       : 'Cache is already empty.';
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -486,6 +479,7 @@ class SettingsScreen extends ConsumerWidget {
         return null;
     }
   }
+
   // ── DROPDOWN HELPER (iOS-style action sheet) ──────────────────────────────
   //
   // Replaces the previous DropdownButton crammed inside a row tile. Renders
@@ -571,12 +565,9 @@ class SettingsScreen extends ConsumerWidget {
     if (confirm == true && context.mounted) {
       SocketService.instance.disconnect();
       ref.read(authProvider).logout();
-      if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
-      }
+      // ONE NAVIGATION AUTHORITY: go() replaces the whole declarative
+      // stack — logout leaves the shell, and back can never return to it.
+      if (context.mounted) context.go(AzRoutes.login);
     }
   }
 }
@@ -732,10 +723,7 @@ class _NavRow extends StatelessWidget {
             ),
             if (trailingText != null && trailingText!.isNotEmpty) ...[
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 9,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: colors.accent.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(20),
@@ -823,8 +811,9 @@ class _AccountHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final username =
-        (user?.username.isNotEmpty ?? false) ? user!.username : 'Guest';
+    final username = (user?.username.isNotEmpty ?? false)
+        ? user!.username
+        : 'Guest';
     final azm = (user?.azamanId != null && user!.azamanId!.isNotEmpty)
         ? user!.azamanId!
         : null;
@@ -919,11 +908,7 @@ class _AccountHeaderCard extends StatelessWidget {
                         ),
                         if (user?.kycStatus == KycStatus.verified) ...[
                           const SizedBox(width: 6),
-                          Icon(
-                            Icons.verified,
-                            color: colors.success,
-                            size: 14,
-                          ),
+                          Icon(Icons.verified, color: colors.success, size: 14),
                         ],
                       ],
                     ),

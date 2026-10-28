@@ -35,6 +35,7 @@ import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 import 'package:azaman/widgets/home/activity_doorway.dart'
     show ActivityHandoffPhysics;
 import 'package:azaman/screens/deposit_screen.dart' show CryptoReceivePanel;
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 
 enum _ReceiveTab { fiat, crypto }
 
@@ -102,7 +103,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/');
+      context.go(AzRoutes.shell);
     }
   }
 
@@ -140,8 +141,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     _dragPx += details.delta.dy * direction;
     final raw = ActivityHandoffPhysics.progressFor(_dragPx);
     final curved = ActivityHandoffPhysics.revealFor(raw);
-    _requestProgress.value =
-        _dragStartValue < 0.5 ? curved : 1.0 - curved;
+    _requestProgress.value = _dragStartValue < 0.5 ? curved : 1.0 - curved;
 
     _armedDepth = ActivityHandoffPhysics.armedFor(raw);
     if (!_armedHapticFired && ActivityHandoffPhysics.commits(raw)) {
@@ -157,7 +157,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     final directionalVelocity = opening
         ? -details.velocity.pixelsPerSecond.dy
         : details.velocity.pixelsPerSecond.dy;
-    final commits = ActivityHandoffPhysics.commits(
+    final commits =
+        ActivityHandoffPhysics.commits(
           ActivityHandoffPhysics.progressFor(_dragPx),
         ) ||
         directionalVelocity >= _flingVelocity;
@@ -178,9 +179,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     if (azamanId.trim().isEmpty) return;
     Clipboard.setData(ClipboardData(text: azamanId));
     AzamanHaptics.confirm();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Azaman ID copied')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Azaman ID copied')));
   }
 
   void _setAmount(String raw) {
@@ -199,14 +200,13 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
 
   Map<String, dynamic> _recipientUser(Map<String, dynamic> row) {
     final nested = row['friend'] ?? row['user'];
-    return nested is Map
-        ? Map<String, dynamic>.from(nested)
-        : row;
+    return nested is Map ? Map<String, dynamic>.from(nested) : row;
   }
 
   String _recipientName(Map<String, dynamic> user) {
     final person = _recipientUser(user);
-    final value = person['username'] ??
+    final value =
+        person['username'] ??
         person['displayName'] ??
         person['name'] ??
         user['friendUsername'] ??
@@ -255,9 +255,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     });
   }
 
-  Future<Map<String, dynamic>> _createRequest({
-    required bool linkOnly,
-  }) async {
+  Future<Map<String, dynamic>> _createRequest({required bool linkOnly}) async {
     final amount = _amountValue;
     final recipient = _selectedRecipient;
     if (amount == null) {
@@ -275,20 +273,26 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     // from this create response only. There is NO pay/accept-and-pay
     // endpoint and NO PAID transition — GHS settlement is a separate,
     // still-missing dependency, so this composer never fakes success.
-    final response = await ref.read(apiClientProvider).postFinancial(
-      '/payment-requests',
-      {
-        'amount': amount.toStringAsFixed(2),
-        'currency': 'GHS',
-        'requestMode': linkOnly ? 'LINK' : 'DIRECT',
-        if (!linkOnly && recipient != null && _recipientId(recipient).isNotEmpty)
-          'recipientUserId': _recipientId(recipient),
-      },
-      operationType: 'payment.request.create',
-      ref: _requestOperation,
-    );
+    final response = await ref
+        .read(apiClientProvider)
+        .postFinancial(
+          '/payment-requests',
+          {
+            'amount': amount.toStringAsFixed(2),
+            'currency': 'GHS',
+            'requestMode': linkOnly ? 'LINK' : 'DIRECT',
+            if (!linkOnly &&
+                recipient != null &&
+                _recipientId(recipient).isNotEmpty)
+              'recipientUserId': _recipientId(recipient),
+          },
+          operationType: 'payment.request.create',
+          ref: _requestOperation,
+        );
     final decoded = jsonDecode(response.body);
-    final root = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    final root = decoded is Map<String, dynamic>
+        ? decoded
+        : <String, dynamic>{};
     final data = root['data'] is Map<String, dynamic>
         ? root['data'] as Map<String, dynamic>
         : root;
@@ -318,8 +322,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
     try {
       final fingerprint =
           '${_amountValue!.toStringAsFixed(2)}|GHS|${linkOnly ? 'LINK' : 'DIRECT'}|${_selectedRecipient == null ? '' : _recipientId(_selectedRecipient!)}';
-      final reuseCreatedRequest = _lastCreatedRequest != null &&
-          _lastCreatedFingerprint == fingerprint;
+      final reuseCreatedRequest =
+          _lastCreatedRequest != null && _lastCreatedFingerprint == fingerprint;
       if (!reuseCreatedRequest) {
         if (_requestOperationUnresolved && _pendingLinkOnly != linkOnly) {
           throw StateError(
@@ -356,10 +360,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
         _requestError = unresolved
             ? 'We could not confirm the result. Retry the same action before changing this request.'
             : error is StateError
-                ? error.message
-                : error is ApiException
-                    ? error.message
-                    : 'Could not create the request. Please try again.';
+            ? error.message
+            : error is ApiException
+            ? error.message
+            : 'Could not create the request. Please try again.';
       });
     } finally {
       if (mounted) setState(() => _creatingRequest = false);
@@ -440,7 +444,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
         : 0.0;
     final armed = _reduceMotion ? 0.0 : _armedDepth;
     final scale = _reduceMotion ? 1.0 : 1.0 + 0.14 * progress + 0.045 * armed;
-    final wobble = _reduceMotion ? 0.0 : ActivityHandoffPhysics.wobbleFor(armed);
+    final wobble = _reduceMotion
+        ? 0.0
+        : ActivityHandoffPhysics.wobbleFor(armed);
 
     return Scaffold(
       backgroundColor: colors.surface,
@@ -537,7 +543,9 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
                                 right: 0,
                                 child: Center(
                                   child: GestureDetector(
-                                    key: const ValueKey('receive-request-toggle'),
+                                    key: const ValueKey(
+                                      'receive-request-toggle',
+                                    ),
                                     behavior: HitTestBehavior.opaque,
                                     onTap: _toggleRequest,
                                     onVerticalDragStart: _onRequestDragStart,
@@ -661,9 +669,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
                       const SizedBox(height: 4),
                       SelectableText(
                         idAvailable ? azamanId : 'Unavailable',
-                        style: AzText.title.copyWith(
-                          color: colors.textPrimary,
-                        ),
+                        style: AzText.title.copyWith(color: colors.textPrimary),
                       ),
                     ],
                   ),
@@ -775,10 +781,10 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
           onClear: _requestOperationUnresolved || _creatingRequest
               ? null
               : () => setState(() {
-                      _selectedRecipient = null;
-                      _lastCreatedRequest = null;
-                      _lastCreatedFingerprint = null;
-                    }),
+                  _selectedRecipient = null;
+                  _lastCreatedRequest = null;
+                  _lastCreatedFingerprint = null;
+                }),
           colors: colors,
         ),
         if (_requestError != null)
@@ -804,10 +810,12 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
                   key: const ValueKey('receive-request-submit'),
                   label: _creatingRequest ? 'Creating…' : 'Request',
                   primary: true,
-                  enabled: !_creatingRequest &&
+                  enabled:
+                      !_creatingRequest &&
                       _amountValue != null &&
                       _selectedRecipient != null &&
-                      (!_requestOperationUnresolved || _pendingLinkOnly == false),
+                      (!_requestOperationUnresolved ||
+                          _pendingLinkOnly == false),
                   onTap: () => _submitRequest(linkOnly: false),
                   colors: colors,
                 ),
@@ -818,9 +826,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
                   key: const ValueKey('receive-request-link'),
                   label: 'Open request link',
                   primary: false,
-                  enabled: !_creatingRequest &&
+                  enabled:
+                      !_creatingRequest &&
                       _amountValue != null &&
-                      (!_requestOperationUnresolved || _pendingLinkOnly == true),
+                      (!_requestOperationUnresolved ||
+                          _pendingLinkOnly == true),
                   onTap: () => _submitRequest(linkOnly: true),
                   colors: colors,
                 ),
@@ -864,11 +874,7 @@ class _ReceiveHeader extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
-                child: Icon(
-                  Icons.close,
-                  size: 18,
-                  color: colors.textPrimary,
-                ),
+                child: Icon(Icons.close, size: 18, color: colors.textPrimary),
               ),
             ),
           ),
@@ -887,7 +893,6 @@ class _ReceiveHeader extends StatelessWidget {
             onPressed: onOpenRequests,
             icon: Icon(Icons.receipt_long_rounded, color: colors.textPrimary),
           ),
-
         ],
       ),
     );
@@ -976,7 +981,9 @@ class _RequestBubble extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: selected ? 'Request section, selected. Tap to return to Receive.' : 'Open Request section',
+      label: selected
+          ? 'Request section, selected. Tap to return to Receive.'
+          : 'Open Request section',
       // The visible "Request" face text is redundant with the label —
       // without this they merge and screen readers announce both.
       excludeSemantics: true,
@@ -1048,9 +1055,7 @@ class _RequestActionButton extends StatelessWidget {
             color: enabled ? bg : colors.softSurface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: primary
-                  ? Colors.transparent
-                  : colors.border,
+              color: primary ? Colors.transparent : colors.border,
             ),
           ),
           alignment: Alignment.center,
@@ -1117,7 +1122,9 @@ class _ContactSelectorRow extends StatelessWidget {
                   radius: 17,
                   backgroundColor: colors.softSurface,
                   child: Icon(
-                    selected ? Icons.person_rounded : Icons.person_search_rounded,
+                    selected
+                        ? Icons.person_rounded
+                        : Icons.person_search_rounded,
                     size: 18,
                     color: selected ? colors.textPrimary : colors.textTertiary,
                   ),
@@ -1232,8 +1239,7 @@ class _ContactPickerSheetState extends ConsumerState<_ContactPickerSheet> {
       padding: EdgeInsets.only(bottom: viewInsets),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxHeight:
-              (MediaQuery.of(context).size.height - viewInsets) * 0.85,
+          maxHeight: (MediaQuery.of(context).size.height - viewInsets) * 0.85,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1241,7 +1247,10 @@ class _ContactPickerSheetState extends ConsumerState<_ContactPickerSheet> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AzSpace.lg, AzSpace.lg, AzSpace.lg, AzSpace.sm,
+                AzSpace.lg,
+                AzSpace.lg,
+                AzSpace.lg,
+                AzSpace.sm,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1297,9 +1306,17 @@ class _ContactPickerSheetState extends ConsumerState<_ContactPickerSheet> {
               ),
             ),
             Flexible(
-              child: _buildResults(context, colors, contacts, searching, results),
+              child: _buildResults(
+                context,
+                colors,
+                contacts,
+                searching,
+                results,
+              ),
             ),
-            SizedBox(height: AzSpace.md + MediaQuery.of(context).padding.bottom),
+            SizedBox(
+              height: AzSpace.md + MediaQuery.of(context).padding.bottom,
+            ),
           ],
         ),
       ),
@@ -1320,11 +1337,7 @@ class _ContactPickerSheetState extends ConsumerState<_ContactPickerSheet> {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _sheetMessage(
-            colors,
-            Icons.cloud_off_rounded,
-            contacts.searchError!,
-          ),
+          _sheetMessage(colors, Icons.cloud_off_rounded, contacts.searchError!),
           TextButton(
             onPressed: () => _onQueryChanged(_searchController.text),
             child: const Text('Try again'),
@@ -1339,9 +1352,9 @@ class _ContactPickerSheetState extends ConsumerState<_ContactPickerSheet> {
         searching
             ? 'No matching Azaman users found.'
             : contacts.isLoading
-                ? 'Loading your contacts…'
-                : 'Your Azaman contacts will appear here. '
-                    'Search by name or username to find anyone on Azaman.',
+            ? 'Loading your contacts…'
+            : 'Your Azaman contacts will appear here. '
+                  'Search by name or username to find anyone on Azaman.',
       );
     }
     return ListView.separated(
@@ -1356,9 +1369,13 @@ class _ContactPickerSheetState extends ConsumerState<_ContactPickerSheet> {
         final row = person is Map
             ? Map<String, dynamic>.from(person)
             : recipient;
-        final displayName = (row['displayName'] ?? row['username'] ??
-                row['name'] ?? recipient['friendUsername'] ?? '')
-            .toString();
+        final displayName =
+            (row['displayName'] ??
+                    row['username'] ??
+                    row['name'] ??
+                    recipient['friendUsername'] ??
+                    '')
+                .toString();
         final name = displayName.trim().isNotEmpty
             ? displayName
             : 'Azaman contact';

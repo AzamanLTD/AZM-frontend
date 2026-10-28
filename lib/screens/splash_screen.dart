@@ -4,16 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/version_gate_service.dart';
-import 'package:azaman/screens/auth/login_screen.dart';
-import 'package:azaman/screens/onboarding_screen.dart';
-import 'package:azaman/screens/force_update_screen.dart';
-import 'package:azaman/main.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/settings_provider.dart';
 import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/config.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:azaman/data/demo_seed_data.dart';
 import 'package:azaman/router/auth_guard.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -50,7 +48,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
 
     _animController.forward();
-    _checkAuthStatus();
+    // The auth waterfall modifies providers (demo seeding, session state)
+    // — running it from inside initState modifies providers DURING the
+    // build frame, which Riverpod rejects ("tried to modify a provider
+    // while the widget tree was building"). The real /health await on web
+    // used to push this out of the frame by accident; a native demo build
+    // takes the synchronous path and throws. Post-frame is the correct
+    // lifecycle seam (MainWrapper defers its socket/startup work the same
+    // way).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _checkAuthStatus();
+    });
   }
 
   Future<bool> _checkOnboardingStatus() async {
@@ -76,10 +84,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   /// Every splash exit goes through here, so the branding floor elapses
   /// while the network work runs — never before it.
-  Future<void> _exitTo(WidgetBuilder builder) async {
+  ///
+  /// ONE NAVIGATION AUTHORITY: the exit is a ROUTER-MANAGED `go` to a
+  /// registered destination — never an imperative pushReplacement. The
+  /// old anonymous swap left GoRouter's declarative state pointing at '/'
+  /// while the Navigator held an anonymous shell route; every later
+  /// context.push re-instantiated this splash beneath the new screen,
+  /// and its 2s floor then disposed the user's screen (pushReplacement
+  /// completes the TOPMOST history entry — navigator.dart
+  /// _pushReplacementEntry). go() rebuilds the whole declarative stack:
+  /// router state and Navigator stay identical, back is honest, and no
+  /// hidden splash instance can ever exist.
+  Future<void> _exitTo(String location) async {
     await _brandingFloor;
     if (!mounted) return;
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: builder));
+    context.go(location);
   }
 
   Future<void> _checkAuthStatus() async {
@@ -112,7 +131,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       AuthGuard.isAuthenticated = true;
       ref.read(themeProvider).loadFromBackend();
       ref.read(settingsProvider).loadFromBackend();
-      await _exitTo((_) => const MainNavigationWrapper());
+      await _exitTo(AzRoutes.shell);
       return;
     }
 
@@ -121,11 +140,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (!mounted) return;
 
     if (versionResult.updateRequired) {
-      await _exitTo((_) => ForceUpdateScreen(
-        message: versionResult.message ?? 'A new version of Azaman is available. Please update to continue.',
-        updateUrl: versionResult.updateUrl,
-        minVersion: versionResult.minVersion,
-      ));
+      final q = <String>[
+        if (versionResult.message != null)
+          'message=${Uri.encodeComponent(versionResult.message!)}',
+        if (versionResult.updateUrl != null)
+          'updateUrl=${Uri.encodeComponent(versionResult.updateUrl!)}',
+        if (versionResult.minVersion != null)
+          'minVersion=${Uri.encodeComponent(versionResult.minVersion!)}',
+      ].join('&');
+      await _exitTo('${AzRoutes.forceUpdate}${q.isEmpty ? '' : '?$q'}');
       return;
     }
 
@@ -159,31 +182,32 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               ]);
               if (!mounted) return;
               final needsOnboarding = results[3] == true;
-              await _exitTo(needsOnboarding
-                  ? (_) => const OnboardingScreen()
-                  : (_) => const MainNavigationWrapper());
+              await _exitTo(
+                  needsOnboarding ? AzRoutes.onboarding : AzRoutes.shell);
               return;
             case AuthStatus.profileNotFound:
-              await _exitTo((_) => const LoginScreen());
-              if (!mounted) return;
+              // The snackbar must be shown BEFORE the go(): the root
+              // ScaffoldMessenger survives the route change, but this
+              // context does not (the login page is a different route).
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('No profile found for this account. Please sign up.')));
+              await _exitTo(AzRoutes.login);
               return;
             case AuthStatus.unauthenticated:
             case AuthStatus.error:
             case AuthStatus.idle:
             case AuthStatus.loading:
-              await _exitTo((_) => const LoginScreen());
+              await _exitTo(AzRoutes.login);
               return;
           }
         } else {
-          await _exitTo((_) => const LoginScreen());
+          await _exitTo(AzRoutes.login);
         }
       } catch (e) {
-        await _exitTo((_) => const LoginScreen());
+        await _exitTo(AzRoutes.login);
       }
     } else {
-      await _exitTo((_) => const LoginScreen());
+      await _exitTo(AzRoutes.login);
     }
   }
 
