@@ -27,6 +27,19 @@
 //   16. (AUDIT) the automatic entrance peek is GONE: stillness is the
 //       contract — the sheet opens at overview and only user gestures
 //       (handle tap/drag, list drag) ever move it.
+//   17. (PART B) the market information lives in the natural content area
+//       BELOW the banner band, strictly below the identity hero (never
+//       overlapping, beside, or above it) — a real layout hierarchy, not
+//       a floating overlay.
+//   18. (PART B) the information section is NOT a card: no card
+//       background, rounded border, shadow or enclosing card padding
+//       anywhere in the panel subtree.
+//   19. (PART B) on arrival the section stays hidden behind the sheet
+//       (opacity 0); only the user pulling the sheet to the information
+//       snap reveals it (opacity 1); pushing back into shopping hides
+//       it again.
+//   20. (PART B) the position contract holds responsively across the
+//       small-device size band (320/360/390 logical widths).
 //
 // Extents are measured behaviorally via the sheet's on-screen rect, so the
 // tests survive any internal controller refactor.
@@ -159,6 +172,32 @@ Future<void> _settle(WidgetTester tester) async {
   // overview (arrival) snap and stays there. A plain settle is enough.
   await tester.pumpAndSettle();
 }
+
+
+Rect _heroRect(WidgetTester tester) =>
+    tester.getRect(find.byKey(const Key('market-identity-hero')));
+
+Rect _panelRect(WidgetTester tester) =>
+    tester.getRect(find.byKey(const Key('market-info-panel')));
+
+double _panelOpacity(WidgetTester tester) => tester.widget<Opacity>(
+  find
+      .ancestor(
+        of: find.byKey(const Key('market-info-panel')),
+        matching: find.byType(Opacity),
+      )
+      .first,
+).opacity;
+
+Future<void> _pullToInfo(WidgetTester tester) async {
+  await tester.drag(
+    find.byType(ListView).last,
+    const Offset(0, 300),
+    warnIfMissed: false,
+  );
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
+}
+
 
 void main() {
   testWidgets(
@@ -668,4 +707,143 @@ void main() {
     await tester.pumpAndSettle(const Duration(milliseconds: 50));
     expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
   });
+
+  // =========================================================================
+  // PART B — the market information occupies the natural content area below
+  // the banner (layout hierarchy fix). These pin the actual on-screen
+  // geometry: whatever the sheet/hero internals become, information content
+  // must sit strictly below the identity hero, carry no card chrome, be
+  // hidden on arrival, and be revealed only by the user.
+  // =========================================================================
+
+
+  testWidgets(
+    'PART B: information sits strictly below the identity hero at the info snap',
+    (tester) async {
+      await _pumpShell(tester, locations: [_location()]);
+      await _settle(tester);
+      await _pullToInfo(tester);
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
+
+      final hero = _heroRect(tester);
+      final panel = _panelRect(tester);
+      final band =
+          tester.getRect(find.byKey(const Key('market-banner-band')));
+      final content =
+          tester.getRect(find.byKey(const Key('market-content-area')));
+
+      // The content area begins exactly at the banner band's bottom edge —
+      // a real two-region hierarchy, not a floating overlay.
+      expect(content.top, band.bottom);
+      // Natural content flow BELOW the banner/hero — never overlapping,
+      // beside, or above the profile or logo.
+      expect(panel.top, greaterThanOrEqualTo(hero.bottom));
+      expect(panel.top, greaterThanOrEqualTo(band.bottom));
+      expect(panel.top, greaterThan(hero.top));
+    },
+  );
+
+  testWidgets(
+    'PART B: the information section is not a card — no box decoration in the panel',
+    (tester) async {
+      await _pumpShell(tester, locations: [_location()]);
+      await _settle(tester);
+      await _pullToInfo(tester);
+
+      // Structural honesty check: no Container/DecoratedBox INSIDE the
+      // information panel may carry a background color, border or shadow.
+      final panel = find.byKey(const Key('market-info-panel'));
+      for (final type in [Container, DecoratedBox]) {
+        final boxes = find.descendant(of: panel, matching: find.byType(type));
+        for (final e in boxes.evaluate()) {
+          final w = e.widget;
+          Decoration? decoration;
+          if (w is Container) decoration = w.decoration;
+          if (w is DecoratedBox) decoration = w.decoration;
+          if (decoration is BoxDecoration) {
+            expect(
+              decoration.border,
+              isNull,
+              reason: 'panel $type must not draw a border: $decoration',
+            );
+            expect(
+              decoration.boxShadow,
+              isNull,
+              reason: 'panel $type must not draw a shadow: $decoration',
+            );
+            expect(
+              decoration.color,
+              isNull,
+              reason: 'panel $type must not paint a card background: '
+                  '$decoration',
+            );
+          }
+        }
+      }
+    },
+  );
+
+  testWidgets(
+    'PART B: on arrival the section hides behind the sheet; the user reveals it',
+    (tester) async {
+      await _pumpShell(tester, locations: [_location()]);
+      await _settle(tester);
+
+      // ARRIVAL: fully faded out, and its top edge is behind the sheet.
+      expect(_panelOpacity(tester), 0.0);
+      final sheetTop = _sheetRect(tester).top;
+      expect(
+        _panelRect(tester).top,
+        greaterThanOrEqualTo(sheetTop),
+        reason: 'the section must start behind the sheet at arrival',
+      );
+
+      // USER ACTION: pull the sheet down to the information snap.
+      await _pullToInfo(tester);
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.01));
+      expect(_panelOpacity(tester), 1.0);
+      expect(find.text('About this market'), findsOneWidget);
+
+      // USER ACTION back up: information hides again behind the sheet.
+      await tester.drag(
+        find.byType(ListView).last,
+        const Offset(0, -400),
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 50));
+      expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.shopping, 0.01));
+      expect(_panelOpacity(tester), 0.0);
+    },
+  );
+
+  testWidgets(
+    'PART B: the below-hero position contract holds responsively (320/360/390)',
+    (tester) async {
+      tester.view.devicePixelRatio = 3.0;
+      for (final width in const [320.0, 360.0, 390.0]) {
+        tester.view.physicalSize = Size(width, _screenHeight) * 3.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await _pumpShell(tester, locations: [_location()]);
+        await _settle(tester);
+        await _pullToInfo(tester);
+        expect(_extentOf(tester), closeTo(MarketStorefrontSnaps.info, 0.02));
+
+        final hero = _heroRect(tester);
+        final panel = _panelRect(tester);
+        expect(
+          panel.top,
+          greaterThanOrEqualTo(hero.bottom),
+          reason: 'width $width: the section must start below the hero',
+        );
+        expect(
+          _panelOpacity(tester),
+          1.0,
+          reason: 'width $width: the section must be revealed',
+        );
+        expect(tester.takeException(), isNull, reason: 'width $width');
+      }
+    },
+  );
 }

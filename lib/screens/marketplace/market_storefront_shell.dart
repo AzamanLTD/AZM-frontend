@@ -2,8 +2,10 @@
 // MARKET STOREFRONT SHELL — Marketplace Storefront Redesign (2026-10-02)
 //
 // The canonical customer-facing market surface: ONE continuous motion from a
-// full-bleed hero identity (arrival) into a locked shopping sheet, with the
-// market's information living BEHIND the sheet.
+// full-bleed hero identity (arrival) into a locked shopping sheet. The back
+// layer is a two-region column: a top banner band (banner + identity hero)
+// and the natural content area below it, where the market's information
+// lives behind the draggable sheet (PART B layout hierarchy fix).
 //
 // Interaction model (three deliberate snap states, one shopping scroll owner):
 //   • INFO     (extent 0.46) — sheet pulled down; "About this market" panel
@@ -19,8 +21,8 @@
 // drag hands control to the sheet (it recedes toward the info snap); an
 // upward drag locks it back at shopping. The product ListView is the ONLY
 // vertical scrollable while the sheet is up (shopping/overview states).
-// The information layer BEHIND the sheet may scroll its own content
-// (SingleChildScrollView) while the info state is explicitly exposed; the
+// The information layer in the content area below the banner may scroll
+// its own content (SingleChildScrollView) while the info state is exposed; the
 // sheet's grab handle remains the deterministic way to change snap states.
 // No additional nested vertical scrolling exists anywhere in the shell.
 //
@@ -387,6 +389,25 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   }
 
   // ── Back layer ────────────────────────────────────────────────────────────
+  // LAYOUT HIERARCHY FIX (PART B, 2026-10-28): the back layer is a REAL
+  // two-region COLUMN, not a fullscreen wash with floating overlays.
+  //
+  //   ┌──────────────────────────────┐
+  //   │  TOP REGION — banner band:   │   the store banner image + the
+  //   │  banner, action row, hero    │   profile/identity hero. The logo
+  //   │  identity, compact pill      │   may straddle the band's edge.
+  //   ├──────────────────────────────┤
+  //   │  CONTENT AREA — the market   │   NATURAL content flow directly
+  //   │  information, behind the     │   BELOW the banner, behind the
+  //   │  draggable sheet             │   draggable sheet. NOT a card: no
+  //   └──────────────────────────────┘   card background/border/shadow.
+  //
+  // The old layout painted the banner fullscreen and floated the info
+  // panel as a boxed card at `top: safeTop + 64` — overlapping the hero.
+  // This restructure is the actual fix: the information OCCUPIES the
+  // content area below the banner band, so it can never overlap, sit
+  // beside, or appear above the profile or logo, and it reads as page
+  // content (no card chrome) on the page background.
   Widget _backLayer(
     AzamanColors colors,
     double pillT,
@@ -397,94 +418,122 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
     final safeTop = media.padding.top;
     final business = widget.business;
 
+    // The banner band is sized to hold the identity hero comfortably:
+    // logo + ring (78px), md gap, up-to-2-line name, meta line and the
+    // social proof line — all under the live text scale, so large-text
+    // users never get their hero clipped by the band edge.
+    final textScale =
+        MediaQuery.textScalerOf(context).scale(14) / 14;
+    final identityReserve =
+        78.0 + (12 + 57 + 6 + 18 + 4 + 18) * textScale + AzSpace.xs;
+    final bandHeight = safeTop + 72 + identityReserve;
+
     return Positioned.fill(
-      child: Stack(
-        fit: StackFit.expand,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Banner, with a subtle parallax lift as it collapses.
-          Transform.translate(
-            offset: Offset(0, -18 * pillT),
-            child: Transform.scale(
-              scale: 1.0 + (0.05 * pillT),
-              child: _banner(colors),
-            ),
-          ),
-          // Top action row — always available over the banner strip.
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AzSpace.md,
-                vertical: AzSpace.xs,
-              ),
-              child: Row(
-                children: [
-                  _circleButton(
-                    colors,
-                    Icons.arrow_back_rounded,
-                    widget.onBack ?? () => Navigator.maybePop(context),
+          // ── Top region: the banner band + identity hero ──────────────
+          SizedBox(
+            key: const Key('market-banner-band'),
+            height: bandHeight,
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.none,
+              children: [
+                // Banner, with a subtle parallax lift as it collapses.
+                // Clip.none keeps the parallax translate/scale bleed
+                // from clipping the banner inside the band; the content
+                // area below paints over any bleed at its top edge.
+                Transform.translate(
+                  offset: Offset(0, -18 * pillT),
+                  child: Transform.scale(
+                    scale: 1.0 + (0.05 * pillT),
+                    child: _banner(colors),
                   ),
-                  const Spacer(),
-                  _circleButton(
-                    colors,
-                    widget.isFollowing
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.person_add_outlined,
-                    widget.onToggleFollow,
-                    tint: widget.isFollowing ? colors.success : null,
-                  ),
-                  const SizedBox(width: AzSpace.sm),
-                  _circleButton(
-                    colors,
-                    Icons.ios_share_rounded,
-                    widget.onShare,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Large hero identity block (arrival composition).
-          Positioned(
-            top: safeTop + 72,
-            left: AzSpace.lg,
-            right: AzSpace.lg,
-            child: IgnorePointer(
-              ignoring: identityT < 0.05,
-              child: Opacity(
-                opacity: identityT,
-                child: Transform.scale(
-                  scale: 1.0 - (0.18 * pillT),
-                  child: _identityBlock(business, colors),
                 ),
-              ),
-            ),
-          ),
-          // Compact market pill — crossfades in as the hero collapses.
-          Positioned(
-            top: safeTop + AzSpace.xs,
-            left: AzSpace.md,
-            right: AzSpace.md,
-            child: IgnorePointer(
-              ignoring: pillT < 0.95,
-              child: Opacity(
-                opacity: Curves.easeOutCubic.transform(pillT),
-                child: Transform.scale(
-                  scale: 0.96 + (0.04 * pillT),
-                  child: Center(child: _compactPill(business, colors)),
+                // Top action row — always available over the banner strip.
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AzSpace.md,
+                      vertical: AzSpace.xs,
+                    ),
+                    child: Row(
+                      children: [
+                        _circleButton(
+                          colors,
+                          Icons.arrow_back_rounded,
+                          widget.onBack ?? () => Navigator.maybePop(context),
+                        ),
+                        const Spacer(),
+                        _circleButton(
+                          colors,
+                          widget.isFollowing
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.person_add_outlined,
+                          widget.onToggleFollow,
+                          tint: widget.isFollowing ? colors.success : null,
+                        ),
+                        const SizedBox(width: AzSpace.sm),
+                        _circleButton(
+                          colors,
+                          Icons.ios_share_rounded,
+                          widget.onShare,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                // Large hero identity block (arrival composition).
+                Positioned(
+                  top: safeTop + 72,
+                  left: AzSpace.lg,
+                  right: AzSpace.lg,
+                  child: IgnorePointer(
+                    ignoring: identityT < 0.05,
+                    child: Opacity(
+                      opacity: identityT,
+                      child: Transform.scale(
+                        scale: 1.0 - (0.18 * pillT),
+                        child: _identityBlock(business, colors),
+                      ),
+                    ),
+                  ),
+                ),
+                // Compact market pill — crossfades in as the hero collapses.
+                Positioned(
+                  top: safeTop + AzSpace.xs,
+                  left: AzSpace.md,
+                  right: AzSpace.md,
+                  child: IgnorePointer(
+                    ignoring: pillT < 0.95,
+                    child: Opacity(
+                      opacity: Curves.easeOutCubic.transform(pillT),
+                      child: Transform.scale(
+                        scale: 0.96 + (0.04 * pillT),
+                        child: Center(child: _compactPill(business, colors)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          // Information panel — revealed behind the sheet at the info snap.
-          Positioned(
-            left: AzSpace.lg,
-            right: AzSpace.lg,
-            top: safeTop + 64,
-            bottom: 0,
-            child: IgnorePointer(
-              ignoring: infoT < 0.95,
-              child: Opacity(
-                opacity: Curves.easeOutCubic.transform(infoT),
-                child: _infoPanel(business, colors),
+          // ── Content area: market information, BELOW the banner ────────
+          // The natural content region of the page. It sits behind the
+          // draggable sheet on arrival (the sheet covers it) and is
+          // revealed only when the user pulls the sheet to the info
+          // snap. Page background, never a card.
+          Expanded(
+            child: ColoredBox(
+              key: const Key('market-content-area'),
+              color: colors.background,
+              child: IgnorePointer(
+                ignoring: infoT < 0.95,
+                child: Opacity(
+                  opacity: Curves.easeOutCubic.transform(infoT),
+                  child: _infoPanel(business, colors),
+                ),
               ),
             ),
           ),
@@ -553,6 +602,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
 
   Widget _identityBlock(BusinessProfile business, AzamanColors colors) {
     return Column(
+      key: const Key('market-identity-hero'),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -1048,29 +1098,23 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
 
     if (children.isEmpty) return const SizedBox.shrink();
 
+    // PART B FIX: the information is PAGE CONTENT in the content area
+    // below the banner — NOT a card. No card background, no rounded
+    // border, no shadow, no enclosing card padding: only natural page
+    // padding so the section reads as the market's own page body.
     return SingleChildScrollView(
       key: const Key('market-info-panel'),
       physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.all(AzSpace.lg),
-      child: Container(
-        padding: const EdgeInsets.all(AzSpace.lg),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: AzRadius.brXl,
-          border: Border.all(color: colors.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        ),
+      padding: const EdgeInsets.fromLTRB(
+        AzSpace.lg,
+        AzSpace.lg,
+        AzSpace.lg,
+        AzSpace.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
       ),
     );
   }
