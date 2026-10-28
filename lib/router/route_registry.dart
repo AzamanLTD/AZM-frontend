@@ -30,6 +30,7 @@ abstract final class AzRouteNames {
   /// RESOLVER at '/', never the app itself.
   static const shell = 'shell';
   static const login = 'login';
+  static const intro = 'intro';
   static const onboarding = 'onboarding';
   static const forceUpdate = 'force-update';
 
@@ -151,6 +152,10 @@ abstract final class AzRoutes {
   static const home = '/';
   static const shell = '/home';
   static const login = '/login';
+
+  /// The PUBLIC first-launch intro (local `azaman_intro_seen` flag). Runs
+  /// before login; unrelated to the authenticated setup below.
+  static const intro = '/intro';
   static const onboarding = '/onboarding';
   static const forceUpdate = '/force-update';
   static const notifications = '/notifications';

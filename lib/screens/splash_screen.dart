@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/intro_store.dart';
 import 'package:azaman/services/version_gate_service.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/auth_provider.dart';
@@ -19,7 +20,10 @@ import 'package:flutter/foundation.dart';
 import 'package:azaman/widgets/logo_trace_loader.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({super.key, this.introStore});
+
+  /// Injected for tests; production reads the device flag.
+  final IntroStore? introStore;
 
   @override
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
@@ -137,6 +141,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ref.read(themeProvider).loadFromBackend();
       ref.read(settingsProvider).loadFromBackend();
       await _exitTo(AzRoutes.shell);
+      return;
+    }
+
+    // THE PUBLIC INTRO, BEFORE ANY AUTH WORK (P7). A device that has not
+    // seen the tour goes there first: the splash is the only boot resolver,
+    // so this is the one place the decision can be made. The flag is LOCAL
+    // and unrelated to the authenticated setup; a returning user never sees
+    // it again, and a corrupt/unreadable flag shows it (see IntroStore).
+    final introStore = widget.introStore ?? const IntroStore();
+    final seenIntro = await introStore.hasSeenIntro();
+    if (!mounted) return;
+    if (!seenIntro) {
+      await _exitTo(AzRoutes.intro);
       return;
     }
 

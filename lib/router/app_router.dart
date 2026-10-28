@@ -48,6 +48,7 @@ import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Com
 
 import 'package:azaman/screens/splash_screen.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
+import 'package:azaman/screens/intro/app_intro_screen.dart';
 import 'package:azaman/screens/onboarding_screen.dart';
 import 'package:azaman/screens/force_update_screen.dart';
 // The canonical app shell: MainWrapper is the router-owned '/home' page —
@@ -176,6 +177,7 @@ GoRouter _buildAppRouter() => GoRouter(
     // Public routes always pass
     if (path == '/' ||
         path == '/login' ||
+        path == AzRoutes.intro ||
         path == '/force-update' ||
         path.startsWith('/susu/invite/') ||
         path.startsWith('/request/')) {
@@ -225,6 +227,12 @@ GoRouter _buildAppRouter() => GoRouter(
     ),
 
     // ── Boot-flow destinations (the splash exits via go()) ─────────────────
+    // The PUBLIC intro: shown before login, gated only by a local flag.
+    GoRoute(
+      path: AzRoutes.intro,
+      name: AzRouteNames.intro,
+      builder: (context, state) => const AppIntroScreen(),
+    ),
     GoRoute(
       path: AzRoutes.login,
       name: AzRouteNames.login,
