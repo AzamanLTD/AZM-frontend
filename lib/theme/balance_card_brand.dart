@@ -5,9 +5,9 @@
 //   1. the physical card face the Home wallet renders (card palette below);
 //   2. the app's brand accent everywhere (BrandAccent below).
 //
-// The three variants (azablue / azagreen / azadark) are three COLOURWAYS of
-// ONE design: identical geometry, logo block, chip, contour work and content
-// placement. Only the palette differs. Nothing in this file knows about
+// The FOUR variants (azablue / azagreen / azadark / azared) are four
+// COLOURWAYS of ONE design: identical geometry, logo block, chip, contour work
+// and content placement. Only the palette differs. Nothing in this file knows about
 // widgets; the painter reads [AzamanCardPalette], the theme reads
 // [BrandAccent]. A future brand redesign changes these two records, not the
 // wallet interaction or any money logic.
@@ -17,6 +17,8 @@
 //            deep #003072 (bottom-left); silver chip #CFCDCC
 //   azagreen olive gradient #747B5D -> #596145 -> #475139; warm chip #BBB1A7
 //   azadark  graphite gradient #30343E -> #161D26 -> #111821; chip #B8AFAA
+//   azared   (no reference supplied) built to the same construction as a
+//            premium oxide red: #8E1B2C bright -> #6B1220 mid -> #4A0E17 deep
 //
 // Accent tones are deliberate ACCESSIBLE companions of each card, not raw
 // copies of card pixels: a card face is a large flat surface, an accent is
@@ -37,7 +39,8 @@ import 'package:flutter/widgets.dart';
 enum BalanceCardVariant {
   blue,
   green,
-  dark;
+  dark,
+  red;
 
   /// Persisted value. Stable strings, never indices, so enum order can never
   /// silently remap a user's saved card.
@@ -45,6 +48,7 @@ enum BalanceCardVariant {
     BalanceCardVariant.blue => 'azablue',
     BalanceCardVariant.green => 'azagreen',
     BalanceCardVariant.dark => 'azadark',
+    BalanceCardVariant.red => 'azared',
   };
 
   /// Human label for the selector and settings.
@@ -52,6 +56,7 @@ enum BalanceCardVariant {
     BalanceCardVariant.blue => 'Blue',
     BalanceCardVariant.green => 'Green',
     BalanceCardVariant.dark => 'Dark',
+    BalanceCardVariant.red => 'Red',
   };
 }
 
@@ -180,6 +185,22 @@ const Map<BalanceCardVariant, AzamanCardPalette> kCardPalettes = {
     inkDivider: Color(0x2EE4E9F2),
     inkAccent: Color(0xFFC9D2E0),
   ),
+  BalanceCardVariant.red: AzamanCardPalette(
+    bright: Color(0xFF8E1B2C),
+    mid: Color(0xFF6B1220),
+    deep: Color(0xFF4A0E17),
+    contourLight: Color(0x14FFE3E6),
+    contourDark: Color(0x220B0104),
+    chipHigh: Color(0xFFE7E1D9),
+    chipBase: Color(0xFFC9C0B5),
+    chipLow: Color(0xFFA0968B),
+    chipLine: Color(0xFF83786D),
+    inkPrimary: Color(0xFFFFF5F6),
+    inkSecondary: Color(0xB8FFE6E9),
+    inkTertiary: Color(0x85F5CDD3),
+    inkDivider: Color(0x33FFE1E6),
+    inkAccent: Color(0xFFFFC9D2),
+  ),
 };
 
 /// The accent family the app theme uses for an applied card, per brightness.
@@ -223,5 +244,59 @@ BrandAccent brandAccentFor(BalanceCardVariant variant, bool isDark) {
               onAccent: Color(0xFFF5F7FA),
               secondary: Color(0xFF4E5766),
             );
+    case BalanceCardVariant.red:
+      return isDark
+          ? const BrandAccent(
+              accent: Color(0xFFF0788C),
+              onAccent: Color(0xFF1A0509),
+              secondary: Color(0xFFFFA6B4),
+            )
+          : const BrandAccent(
+              accent: Color(0xFF9E1B2E),
+              onAccent: Color(0xFFFFF5F6),
+              secondary: Color(0xFFC22B41),
+            );
   }
+}
+
+// =============================================================================
+// MARKETPLACE CATEGORY IDENTITY  (fixed, semantic, palette-derived)
+//
+// The Marketplace KEEPS its per-category colour identity: Shop, Stay, Eat and
+// Ride must stay visually distinguishable at a glance. What it must not keep
+// is a SECOND, disconnected collection of arbitrary colours. Each vertical now
+// takes its hue from the SAME four card palettes, through a FIXED mapping:
+//
+//     Shop -> azadark (graphite)   Stay -> azablue
+//     Eat  -> azagreen             Ride -> azared
+//
+// The mapping is semantic, not personal: Stay stays blue even when the user's
+// own balance card is green. Category colour therefore never reads the applied
+// variant and can never mutate it — a vertical only BORROWS its accent for the
+// duration of its route (see AzVerticalAccentScope).
+//
+// The accents are contrast-resolved companions of the card palettes rather
+// than raw card pixels: a card face is a large flat surface, a chip or a pill
+// is small type on the app's own surface, so each vertical resolves to the
+// tone that actually reads in the current brightness.
+// =============================================================================
+
+/// The four Marketplace verticals that own a colour identity.
+enum MarketplaceVertical { shop, stay, eat, ride }
+
+/// The FIXED vertical -> card-palette mapping. Do not make this depend on the
+/// applied card: category identity must be stable across users.
+const Map<MarketplaceVertical, BalanceCardVariant> kVerticalCardVariant = {
+  MarketplaceVertical.shop: BalanceCardVariant.dark,
+  MarketplaceVertical.stay: BalanceCardVariant.blue,
+  MarketplaceVertical.eat: BalanceCardVariant.green,
+  MarketplaceVertical.ride: BalanceCardVariant.red,
+};
+
+/// The brand accent a Marketplace vertical borrows, resolved for brightness
+/// from that vertical's card palette. This is the ONLY way a category should
+/// reach for its colour.
+BrandAccent verticalAccentFor(MarketplaceVertical vertical, bool isDark) {
+  final variant = kVerticalCardVariant[vertical] ?? BalanceCardVariant.dark;
+  return brandAccentFor(variant, isDark);
 }

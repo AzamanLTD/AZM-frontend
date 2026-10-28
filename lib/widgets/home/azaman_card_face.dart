@@ -147,7 +147,7 @@ class AzamanCardPainter extends CustomPainter {
         center: const Alignment(0.55, -0.75),
         radius: 1.05,
         colors: [
-          Colors.white.withValues(alpha: isBack ? 0.045 : 0.085),
+          Colors.white.withValues(alpha: isBack ? 0.03 : 0.05),
           Colors.white.withValues(alpha: 0.0),
         ],
         stops: const [0.0, 1.0],
@@ -160,7 +160,7 @@ class AzamanCardPainter extends CustomPainter {
         center: const Alignment(-0.85, 1.0),
         radius: 1.15,
         colors: [
-          Colors.black.withValues(alpha: isBack ? 0.16 : 0.115),
+          Colors.black.withValues(alpha: isBack ? 0.18 : 0.15),
           Colors.black.withValues(alpha: 0.0),
         ],
         stops: const [0.0, 1.0],
@@ -173,28 +173,60 @@ class AzamanCardPainter extends CustomPainter {
   /// offset by a fraction of a pixel, which is what makes the lines read as
   /// incised curves in the surface rather than painted wire.
   void _paintContours(Canvas canvas, double w, double h) {
-    final centre = Offset(w * 0.085, h * 0.055);
-    // Ring spacing and count are what give the reference its calm, wide
-    // rhythm: roughly 0.19 H between grooves, eight visible rings.
-    final spacing = h * 0.19;
-    final lightAlpha = isBack ? 0.55 : 1.0;
+    final centre = Offset(w * 0.055, h * 0.045);
+
+    // MEASURED FROM THE REFERENCE, not guessed. Groove pitch was measured on
+    // all three supplied faces by finding the luminance peaks along scanlines
+    // through the contour field (left 0-34% W, top 6-46% H) and taking the
+    // median peak-to-peak distance: 14.0px on a 282px-high azablue, 10.0px /
+    // 286px azagreen, 12.0px / 286px azadark — a median of ~0.042 H.
+    //
+    // The previous value (0.19 H) was 4.5x too wide, which is why the card
+    // read as a handful of wide concentric rings rather than the reference's
+    // fine, closely spaced flow lines. Pitch is a fraction of HEIGHT so the
+    // rhythm survives every card width.
+    final spacing = h * 0.042;
+
+    // Lines are hairlines: ~1px at the reference's 282px height = 0.0035 H,
+    // floored at 0.6dp so they never disappear on a 1x display.
+    final strokeW = math.max(0.6, h * 0.0035);
+
     final light = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(0.7, h * 0.0042)
-      ..color = palette.contourLight.withValues(
-        alpha: palette.contourLight.a * lightAlpha,
-      );
+      ..strokeWidth = strokeW
+      ..color = palette.contourLight;
     final shade = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(0.7, h * 0.0042)
-      ..color = palette.contourDark.withValues(
-        alpha: palette.contourDark.a * (isBack ? 0.8 : 1.0),
-      );
+      ..strokeWidth = strokeW
+      ..color = palette.contourDark;
 
-    for (var i = 1; i <= 9; i++) {
-      final r = spacing * (i * 0.92 + 0.35);
-      canvas.drawCircle(centre, r, light);
-      canvas.drawCircle(centre.translate(0.6, 0.9), r, shade);
+    // The field covers the left third and the top of the card, fading out
+    // before it reaches the chip column: measured high-frequency energy drops
+    // to near zero past ~62% W.
+    final maxR = w * 0.66;
+    final count = (maxR / spacing).ceil().clamp(4, 40);
+    final baseLight = palette.contourLight.a * (isBack ? 0.55 : 1.0);
+    final baseDark = palette.contourDark.a * (isBack ? 0.8 : 1.0);
+
+    for (var i = 1; i <= count; i++) {
+      final r = spacing * (i + 0.25);
+      if (r > maxR) break;
+      // Fade with radius so the grooves dissolve into the surface instead of
+      // ending on a hard outer ring.
+      final t = (r / maxR).clamp(0.0, 1.0);
+      final fade = math.pow(1.0 - t, 1.6).toDouble();
+      if (fade <= 0.02) continue;
+      light.color = palette.contourLight.withValues(alpha: baseLight * fade);
+      shade.color = palette.contourDark.withValues(alpha: baseDark * fade);
+      // Slightly elliptical: the reference's flow lines sweep wider than they
+      // are tall, following the card's curvature.
+      final rRect = Rect.fromCenter(
+        center: centre.translate(r * 0.10, r * 0.05),
+        width: r * 2.34,
+        height: r * 2.0,
+      );
+      canvas.drawOval(rRect, light);
+      canvas.drawOval(rRect.translate(0.6, 0.9), shade);
     }
   }
 

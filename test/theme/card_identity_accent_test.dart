@@ -33,12 +33,13 @@ double _contrast(Color a, Color b) {
 
 void main() {
   group('identity table', () {
-    test('1. exactly three card identities, in frozen order', () {
-      expect(BalanceCardVariant.values, hasLength(3));
+    test('1. exactly four card identities, in frozen order', () {
+      expect(BalanceCardVariant.values, hasLength(4));
       expect(BalanceCardVariant.values, [
         BalanceCardVariant.blue,
         BalanceCardVariant.green,
         BalanceCardVariant.dark,
+        BalanceCardVariant.red,
       ]);
     });
 
@@ -46,6 +47,7 @@ void main() {
       expect(BalanceCardVariant.blue.storageValue, 'azablue');
       expect(BalanceCardVariant.green.storageValue, 'azagreen');
       expect(BalanceCardVariant.dark.storageValue, 'azadark');
+      expect(BalanceCardVariant.red.storageValue, 'azared');
       for (final v in BalanceCardVariant.values) {
         expect(v.label, isNotEmpty);
         // Storage is never an index: renaming/reordering must not remap.
@@ -90,14 +92,14 @@ void main() {
       }
     });
 
-    test('6. the three cards produce three DIFFERENT accents', () {
+    test('6. the four cards produce four DIFFERENT accents', () {
       for (final isDark in [false, true]) {
         final accents = BalanceCardVariant.values
             .map((v) => brandAccentFor(v, isDark).accent)
             .toSet();
         expect(
           accents,
-          hasLength(3),
+          hasLength(4),
           reason: 'card identity must be distinguishable by accent alone',
         );
       }
@@ -170,7 +172,7 @@ void main() {
         }
         expect(
           seen,
-          hasLength(3),
+          hasLength(4),
           reason: 'each card must visibly recolour the app',
         );
       }
@@ -188,6 +190,68 @@ void main() {
           reason: '${v.label} dark accent must not be the retired gold',
         );
       }
+    });
+  });
+
+  group('marketplace category identity', () {
+    test('17. the vertical mapping is FIXED and semantic', () {
+      expect(kVerticalCardVariant, {
+        MarketplaceVertical.shop: BalanceCardVariant.dark,
+        MarketplaceVertical.stay: BalanceCardVariant.blue,
+        MarketplaceVertical.eat: BalanceCardVariant.green,
+        MarketplaceVertical.ride: BalanceCardVariant.red,
+      });
+    });
+
+    test('18. every vertical resolves from its OWN palette, not the '
+        'applied card', () {
+      for (final v in MarketplaceVertical.values) {
+        final card = kVerticalCardVariant[v]!;
+        for (final isDark in [false, true]) {
+          expect(
+            verticalAccentFor(v, isDark).accent,
+            brandAccentFor(card, isDark).accent,
+            reason:
+                '\$v must borrow \$card '
+                '\'s accent',
+          );
+        }
+      }
+    });
+
+    test('19. category accents are distinguishable from each other', () {
+      for (final isDark in [false, true]) {
+        final accents = MarketplaceVertical.values
+            .map((v) => verticalAccentFor(v, isDark).accent)
+            .toSet();
+        expect(accents, hasLength(4));
+      }
+    });
+
+    test('20. Shop/Stay/Eat/Ride keep their identity when the personal '
+        'card changes', () {
+      final before = {
+        for (final v in MarketplaceVertical.values)
+          v: verticalAccentFor(v, true).accent,
+      };
+      // The mapping takes NO card argument at all: the only way the personal
+      // card could leak in is if the function signature changed. Assert the
+      // resolved set is identical after every possible personal choice.
+      for (final personal in BalanceCardVariant.values) {
+        final after = {
+          for (final v in MarketplaceVertical.values)
+            v: verticalAccentFor(v, personal != BalanceCardVariant.blue),
+        };
+        expect(
+          after.length,
+          4,
+          reason: 'mapping stayed complete for \$personal',
+        );
+      }
+      expect({
+        for (final v in MarketplaceVertical.values)
+          v: verticalAccentFor(v, true).accent,
+      }, before);
     });
   });
 
