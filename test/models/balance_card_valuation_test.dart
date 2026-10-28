@@ -1,18 +1,22 @@
 // BALANCE CARD VALUATION — view-model contract tests.
 //
-// The valuation semantics of the Final Balance Card Redesign (§4 of the
-// product definition):
-//   availableGhsValue       = nativeGhsAvailable + availableUsdc * rate
-//   availableUsdcEquivalent = availableGhsValue / rate
-// The backend's returned valuation is authoritative once the contract
-// lands; [compute] is the honest derivation for fixtures/interim state.
+// OWNER-CORRECTED PRODUCT CONTRACT (2026-10-27):
+//   availableGhsValue       = nativeGhsAvailable   — the authoritative
+//     native-GHS balance ONLY, never derived from USDC, never combined
+//     with it. USDC held NEVER feeds the GHS headline.
+//   availableUsdcEquivalent = availableGhsValue / displayRate — a display
+//     estimate converted FROM that GHS balance, marked ≈ on the card.
+// The two headline regressions this suite pins:
+//   1. changes to actual USDC held do NOT affect the GHS headline;
+//   2. the USDC estimate IS derived from the GHS balance (÷ rate).
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
 
 void main() {
-  group('compute — the agreed valuation semantics', () {
-    test('combined value = native GHS + (USDC held x rate)', () {
+  group('compute — the owner-corrected valuation semantics', () {
+    test('REGRESSION: the GHS headline is native GHS ONLY — USDC held '
+        'never enters it, whatever the rate', () {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 100,
         availableUsdc: 50,
@@ -20,32 +24,91 @@ void main() {
         rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
       ).compute();
 
-      expect(v.availableGhsValue, closeTo(100 + 50 * 12.03, 1e-9));
-      expect(
-        v.availableUsdcEquivalent,
-        closeTo((100 + 50 * 12.03) / 12.03, 1e-9),
-      );
+      expect(v.availableGhsValue, 100,
+          reason: 'the headline is the native-GHS balance verbatim — '
+              'NOT 100 + 50 × 12.03');
+      expect(v.availableUsdcEquivalent, closeTo(100 / 12.03, 1e-9),
+          reason: 'the equivalent is converted FROM the GHS balance');
     });
 
-    test('a zero-USDC wallet needs no rate: GHS alone is the total — but '
-        'without a rate its USDC equivalent is unknown, never zero', () {
+    test('REGRESSION: changing actual USDC held NEVER changes the GHS '
+        'headline', () {
+      final noUsdc = const BalanceCardValuation(
+        nativeGhsAvailable: 100,
+        availableUsdc: 0,
+        balanceConfirmed: true,
+        rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
+      ).compute();
+      final someUsdc = const BalanceCardValuation(
+        nativeGhsAvailable: 100,
+        availableUsdc: 50,
+        balanceConfirmed: true,
+        rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
+      ).compute();
+      final lotsOfUsdc = const BalanceCardValuation(
+        nativeGhsAvailable: 100,
+        availableUsdc: 5000,
+        balanceConfirmed: true,
+        rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
+      ).compute();
+
+      expect(noUsdc.availableGhsValue, 100);
+      expect(someUsdc.availableGhsValue, 100,
+          reason: '50 USDC held must not move the GHS headline');
+      expect(lotsOfUsdc.availableGhsValue, 100,
+          reason: '5000 USDC held must not move the GHS headline');
+      // ...but the USDC holding passes through untouched as its own fact.
+      expect(noUsdc.availableUsdc, 0);
+      expect(lotsOfUsdc.availableUsdc, 5000);
+    });
+
+    test('REGRESSION: the USDC estimate is derived FROM the GHS balance '
+        'at the rate — never from USDC held', () {
+      final v = const BalanceCardValuation(
+        nativeGhsAvailable: 240.60,
+        availableUsdc: 500,
+        balanceConfirmed: true,
+        rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
+      ).compute();
+
+      expect(v.availableUsdcEquivalent, closeTo(240.60 / 12.03, 1e-9),
+          reason: 'the estimate is GHS ÷ rate — NOT 500 USDC relabelled');
+      expect(
+        v.availableUsdcEquivalent == v.availableUsdc,
+        isFalse,
+        reason: 'the estimate must never read as USDC actually held',
+      );
+      // The equivalent tracks the GHS balance, not the holding: halve
+      // the GHS and the estimate halves; the holding is irrelevant.
+      final half = const BalanceCardValuation(
+        nativeGhsAvailable: 120.30,
+        availableUsdc: 500,
+        balanceConfirmed: true,
+        rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
+      ).compute();
+      expect(half.availableUsdcEquivalent,
+          closeTo(v.availableUsdcEquivalent! / 2, 1e-9));
+    });
+
+    test('a GHS balance needs NO rate: the headline is known without FX; '
+        'only the USDC equivalent waits for a rate', () {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 250,
-        availableUsdc: 0,
+        availableUsdc: 77,
         balanceConfirmed: true,
         rate: FxRateView(), // no rate at all
       ).compute();
 
-      // The GHS headline is fully known without any rate.
+      // The GHS headline is fully known without any rate — GHS is the
+      // main currency; it was never a conversion.
       expect(v.availableGhsValue, 250);
       expect(v.headlineKnown, isTrue);
-      expect(v.valuationIncomplete, isFalse);
-      // The equivalent CANNOT be derived without a rate — a zero here would
-      // be a fabricated conversion, not an honest one.
+      // The equivalent CANNOT be derived without a rate — a zero here
+      // would be a fabricated conversion, not an honest one.
       expect(v.availableUsdcEquivalent, isNull);
     });
 
-    test('a zero-USDC wallet WITH a valid rate: the equivalent is native '
+    test('a GHS-only wallet WITH a valid rate: the equivalent is native '
         'GHS divided by the rate, not zero', () {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 250,
@@ -57,11 +120,26 @@ void main() {
       expect(v.availableGhsValue, 250);
       expect(v.availableUsdcEquivalent, closeTo(250 / 12.5, 1e-9));
       expect(v.headlineKnown, isTrue);
-      expect(v.valuationIncomplete, isFalse);
+    });
+
+    test('NO authoritative native-GHS balance (null): the headline is '
+        'honestly unavailable — never derived from USDC', () {
+      final v = const BalanceCardValuation(
+        nativeGhsAvailable: null,
+        availableUsdc: 500,
+        balanceConfirmed: true,
+        rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
+      ).compute();
+
+      expect(v.availableGhsValue, isNull,
+          reason: '500 USDC × 12.03 must NOT become a GHS figure');
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.headlineKnown, isFalse);
     });
 
     test('a zero-zero wallet without a rate keeps an honest null '
-        'equivalent — zero GHS converts to zero USDC only under a rate', () {
+        'equivalent — zero GHS converts to zero USDC only under a rate',
+        () {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 0,
         availableUsdc: 0,
@@ -71,31 +149,6 @@ void main() {
 
       expect(v.availableGhsValue, 0);
       expect(v.availableUsdcEquivalent, isNull);
-      expect(v.valuationIncomplete, isFalse);
-    });
-
-    test('USDC held with no valid rate → the combined total is honestly '
-        'unavailable, never native-GHS-as-total', () {
-      final v = const BalanceCardValuation(
-        nativeGhsAvailable: 100,
-        availableUsdc: 50,
-        balanceConfirmed: true,
-        rate: FxRateView(kind: FxRateKind.none),
-      ).compute();
-
-      expect(
-        v.availableGhsValue,
-        isNull,
-        reason: 'no fabricated combined total without a rate',
-      );
-      expect(v.availableUsdcEquivalent, isNull);
-      expect(
-        v.valuationIncomplete,
-        isTrue,
-        reason:
-            'known native GHS + unvaluable USDC is explicitly '
-            'incomplete',
-      );
     });
 
     test('locked, committed, savings, vendor and points NEVER feed the '
@@ -126,22 +179,8 @@ void main() {
         withLocks.availableGhsValue,
         base.availableGhsValue,
         reason:
-            'only backend-confirmed withdrawable funds count toward '
-            'the headline',
+            'only the authoritative native-GHS balance is the headline',
       );
-    });
-
-    test('savings is excluded from the headline — there is no '
-        'savings-withdrawable concept in the contract', () {
-      final noNet = const BalanceCardValuation(
-        nativeGhsAvailable: 0,
-        availableUsdc: 10,
-        balanceConfirmed: true,
-        savingsLockedGhs: 500,
-        rate: FxRateView(ghsPerUsdc: 10, kind: FxRateKind.fresh),
-      ).compute();
-
-      expect(noNet.availableGhsValue, 100, reason: '10 USDC x 10 only');
     });
 
     test('savings is GHS-denominated: it passes through the model '
@@ -165,8 +204,8 @@ void main() {
   });
 
   group('an FX revaluation is NOT funds movement', () {
-    test('a rate change changes ONLY the USDC valuation component — no '
-        'delta channel exists in the model', () {
+    test('a rate change moves ONLY the USDC estimate — the GHS headline '
+        'and the ledger are untouched', () {
       final a = const BalanceCardValuation(
         nativeGhsAvailable: 100,
         availableUsdc: 50,
@@ -185,10 +224,13 @@ void main() {
       expect(b.availableUsdc, a.availableUsdc);
       expect(b.escrowLocked, a.escrowLocked);
       expect(b.savingsLockedGhs, a.savingsLockedGhs);
-      // ...and only the GHS valuation of the USDC component moved.
+      // ...the GHS headline is IDENTICAL (it is not a conversion)...
+      expect(b.availableGhsValue, a.availableGhsValue,
+          reason: 'the native-GHS balance does not move with the rate');
+      // ...and only the USDC equivalent estimate moved.
       expect(
-        b.availableGhsValue! - a.availableGhsValue!,
-        closeTo(50 * (13.00 - 12.03), 1e-9),
+        b.availableUsdcEquivalent! / a.availableUsdcEquivalent!,
+        closeTo(12.03 / 13.00, 1e-9),
       );
       // There is no deposit/withdrawal/delta field to set: the model has
       // no movement channel, so no false notification can exist.
@@ -197,7 +239,7 @@ void main() {
     test('structurally distinct fields stay distinct', () {
       // A fixture where the equivalent is NOT the held amount proves the
       // two figures are separate display concepts (100 GHS + 50 USDC at
-      // 12.03 → equivalent 58.35 ≠ 50 held).
+      // 12.03 → equivalent 8.31 ≠ 50 held).
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 100,
         availableUsdc: 50,
@@ -205,7 +247,7 @@ void main() {
         rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.saved),
       ).compute();
 
-      expect(v.availableUsdcEquivalent, closeTo(701.5 / 12.03, 1e-9));
+      expect(v.availableUsdcEquivalent, closeTo(100 / 12.03, 1e-9));
       expect(v.availableUsdc, 50);
       expect(
         v.availableUsdcEquivalent! == v.availableUsdc,

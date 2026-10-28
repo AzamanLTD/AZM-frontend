@@ -73,6 +73,15 @@ int effectiveDepth(GoRouter router) {
   // Matches are ordered outermost-first; the last match is the current
   // page. Shell routes contribute no literal segments, so they are
   // transparent to the count.
+  //
+  // ONE NAVIGATION AUTHORITY: the canonical app shell is the '/home'
+  // page (see app_router.dart). Depth 0 means "the app itself, at
+  // rest" — the shell's own literal segment must not count as a level,
+  // or the contextual nav band would render over the resting shell.
+  if (matches.last.route is GoRoute &&
+      (matches.last.route as GoRoute).path == '/home') {
+    return 0;
+  }
   return routePatternDepth(matches.last.route);
 }
 

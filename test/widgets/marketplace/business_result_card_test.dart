@@ -19,6 +19,7 @@
 //     PR, and the card must not invent one)
 // =============================================================================
 
+import 'package:flutter/gestures.dart' show kLongPressTimeout;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -236,6 +237,16 @@ Future<void> _pumpCard(
 }
 
 
+/// The avatar's FULL ACTION PANEL opens on press-and-hold now — the
+/// plain tap belongs to the persistent liquid dial (Workstream A PR-A).
+Future<void> _holdForPanel(WidgetTester tester) async {
+  final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('business-avatar-BIZ-1'))));
+  await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -299,13 +310,12 @@ void main() {
           reason: 'no inline accordion/dropdown state exists');
     });
 
-    testWidgets('tapping the avatar opens the actions panel with '
+    testWidgets('holding the avatar opens the actions panel with '
         'follow, bookmark and rate-and-review', (tester) async {
       final client = _RecordingClient();
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
-      await tester.pumpAndSettle();
+      await _holdForPanel(tester);
 
       expect(find.byKey(const ValueKey('business-action-follow')), findsOneWidget);
       expect(find.byKey(const ValueKey('business-action-bookmark')), findsOneWidget);
@@ -320,8 +330,7 @@ void main() {
       final client = _RecordingClient()..following = false;
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
-      await tester.pumpAndSettle();
+      await _holdForPanel(tester);
 
       await tester.tap(find.byKey(const ValueKey('business-action-follow')));
       await tester.pumpAndSettle();
@@ -341,8 +350,7 @@ void main() {
       final client = _RecordingClient();
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
-      await tester.pumpAndSettle();
+      await _holdForPanel(tester);
 
       expect(find.text('Bookmark'), findsOneWidget,
           reason: 'the business starts unsaved');
@@ -364,8 +372,7 @@ void main() {
       final client = _RecordingClient();
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
-      await tester.pumpAndSettle();
+      await _holdForPanel(tester);
 
       // The check ran on open; the row is honest absence before it.
       expect(client.calls, contains('GET /recommendation-feedback/check/$kCanonicalId'));
@@ -395,8 +402,7 @@ void main() {
       final client = _RecordingClient()..showLessCheckFails = true;
       await _pumpCard(tester, _business(), client: client);
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
-      await tester.pumpAndSettle();
+      await _holdForPanel(tester);
 
       expect(client.calls, contains('GET /recommendation-feedback/check/$kCanonicalId'));
       expect(find.byKey(const ValueKey('business-action-show-less')),
@@ -425,8 +431,7 @@ void main() {
           observer: recorder, client: _RecordingClient());
 
       // Avatar tap: panel opens, and the body route callback is NOT fired.
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
-      await tester.pumpAndSettle();
+      await _holdForPanel(tester);
       expect(recorder.routes.where((r) => r.startsWith('/business/')),
           isEmpty,
           reason: 'the avatar opens the action panel; it must never '
@@ -448,8 +453,7 @@ void main() {
         'with this business', (tester) async {
       await _pumpCard(tester, _business(), client: _RecordingClient());
 
-      await tester.tap(find.byKey(const ValueKey('business-avatar-BIZ-1')));
-      await tester.pumpAndSettle();
+      await _holdForPanel(tester);
       await tester.tap(find.byKey(const ValueKey('business-action-review')));
       await tester.pumpAndSettle();
 

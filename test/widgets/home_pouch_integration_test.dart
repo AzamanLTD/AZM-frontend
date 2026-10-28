@@ -18,6 +18,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/widgets/home/home_balance_card.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -25,7 +26,6 @@ import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/providers/notification_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
-import 'package:azaman/widgets/flippable_balance_card.dart';
 import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
 
@@ -190,11 +190,16 @@ void main() {
       expect(find.byType(AzmCardDetailsPanel), findsNothing);
 
       // Flip-when-out: the balance card's own flip gesture works while
-      // it is out of the pouch.
-      await tester.tap(find.byType(FlippableBalanceCard));
+      // it is out of the pouch. The back face is the section-paged
+      // breakdown — its first section (AVAILABLE) is the marker.
+      await tester.tap(find.byType(HomeBalanceCard));
       await _settle(tester);
-      expect(find.text('BREAKDOWN'), findsOneWidget,
-          reason: 'the out card flips to its breakdown face');
+      expect(
+        find.byKey(const ValueKey('balance-pair-back-surface')),
+        findsOneWidget,
+        reason: 'the out card flips to its breakdown face',
+      );
+      expect(find.text('AVAILABLE'), findsOneWidget);
 
       // Returning to the pouch covers the card again: the still-flipped
       // back face is EXCLUDED from the semantics tree (the deck's
@@ -206,7 +211,7 @@ void main() {
       ).tuck();
       await _settle(tester);
       expect(_deckState(tester), WalletDeckState.tucked);
-      expect(find.bySemanticsLabel('BREAKDOWN'), findsNothing,
+      expect(find.bySemanticsLabel('Available'), findsNothing,
           reason: 'the tucked pouch must cover the breakdown face too — '
               'privacy is physical, so a flipped card cannot leak');
       semantics.dispose();

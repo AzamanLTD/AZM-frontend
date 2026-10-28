@@ -23,8 +23,8 @@ import 'package:azaman/models/business_models.dart';
 
 // ── PROVIDER ─────────────────────────────────────────────────────────────────
 
-final marketplaceBookingServiceProvider =
-    Provider<MarketplaceBookingService>((ref) => MarketplaceBookingService());
+final marketplaceBookingServiceProvider = Provider<MarketplaceBookingService>(
+    (ref) => MarketplaceBookingService(apiClient: ref.watch(apiClientProvider)));
 
 // ── EXCEPTION ────────────────────────────────────────────────────────────────
 

@@ -41,6 +41,7 @@ import 'package:azaman/providers/theme_provider.dart';
 
 import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/currency_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/marketplace_relevance_provider.dart';
@@ -50,7 +51,7 @@ import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/services/home_summary_service.dart';
-import 'package:azaman/widgets/hologram_balance_card.dart';
+import 'package:azaman/widgets/home/home_balance_card.dart';
 import 'package:azaman/widgets/home/wallet_card_deck.dart';
 
 bool _fontsLoaded = false;
@@ -131,6 +132,82 @@ const _cartIntent = ResumeIntent(
   businessProfileId: 'biz-1',
 );
 
+/// The documented backend valuation contract (backend PR #367):
+/// `data.valuation`, money = { exact, value }. The deck fixture carries
+/// the AUTHORITATIVE native-GHS balance (owner-corrected contract
+/// 2026-10-27) — the sheet and the card face consume the valuation
+/// adapter and NEVER derive GHS from USDC. `rate <= 0` maps to the
+/// payload's UNAVAILABLE rate status — the honest-unavailable state.
+Map<String, dynamic> _nativeGhsValuation(double ghs, double rate) => {
+      'pair': 'USDC/GHS',
+      'nativeGhsAvailable': {
+        'exact': ghs.toStringAsFixed(8),
+        'value': ghs,
+      },
+      'availableUsdc': {
+        'exact': '100.00000000',
+        'value': 100,
+      },
+      'usdcEquivalent': rate > 0
+          ? {
+              'exact': (ghs / rate).toStringAsFixed(8),
+              'value': ghs / rate,
+            }
+          : null,
+      'availableGhsValue': rate > 0
+          ? {
+              'exact': (ghs + 100 * rate).toStringAsFixed(8),
+              'value': ghs + 100 * rate,
+            }
+          : null,
+      'rateStatus': rate > 0 ? 'CURRENT' : 'UNAVAILABLE',
+      'valuationStatus': rate > 0 ? 'CURRENT' : 'PARTIAL_FX_UNAVAILABLE',
+      'currentRate': rate > 0
+          ? {
+              'rate': rate,
+              'rateExact': rate.toStringAsFixed(8),
+              'isFresh': true,
+              'pair': 'USDC/GHS',
+              'source': 'KOTANI',
+              'observedAt': '2026-10-26T10:00:00Z',
+            }
+          : null,
+      'savedRate': null,
+      'displayRate': rate > 0 ? {'basis': 'CURRENT', 'rate': rate} : null,
+      'usdcTransactionGateOpen': false,
+      'usdcTransactionGateReason': 'FRESH_CANONICAL_RATE',
+      'locked': {
+        'escrowUsdc': {'exact': '0E-8', 'value': 0},
+        'disputesUsdc': {'exact': '0E-8', 'value': 0},
+        'vaultsUsdc': {'exact': '0E-8', 'value': 0},
+        'savingsGhs': {'exact': '0E-8', 'value': 0},
+        'committedSusuUsdc': {'exact': '0E-8', 'value': 0},
+        'vendorUnallocatedUsdc': {'exact': '0E-8', 'value': 0},
+      },
+      'nonCash': {
+        'azmPoints': {'exact': '0E-8', 'value': 0},
+      },
+      'evaluatedAt': '2026-10-26T10:00:05Z',
+    };
+
+/// The new balance-card seam: the valuation adapter reads the pinned
+/// [fxRateProvider] snapshot, not the legacy oracle double. `rate <= 0`
+/// means NO usable snapshot — the honest-unavailable state.
+FxRateSnapshot? _pinnedFx(double rate) {
+  if (rate <= 0 || !rate.isFinite) return null;
+  final now = DateTime.now().toUtc();
+  return FxRateSnapshot(
+    ghsPerUsdc: rate,
+    source: 'KOTANI',
+    lastSync: now,
+    fetchedAt: now,
+    serverFresh: true,
+    lastExternalSync: now,
+    externalRateAgeSeconds: 0,
+    rateFreshnessMaxAgeSeconds: 60,
+  );
+}
+
 Future<ProviderContainer> _pumpHome(
   WidgetTester tester, {
   Size surface = const Size(320, 540),
@@ -166,10 +243,21 @@ Future<ProviderContainer> _pumpHome(
       transactionHistoryProvider.overrideWith((ref) => _NoopHistoryNotifier()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-        (ref) => const BalanceData(availableBalance: 100),
+        (ref) => BalanceData(
+          availableBalance: 100,
+          // The deck fixture carries the documented backend valuation
+          // contract (PR #367): the AUTHORITATIVE native-GHS balance
+          // and the rate status for the given rate. Under the
+          // owner-corrected contract the headline consumes ONLY this
+          // field — a legacy fixture (no valuation block) renders the
+          // honest UNAVAILABLE headline (pinned in the provider suite).
+          valuationFieldPresent: true,
+          valuationRaw: _nativeGhsValuation(100, rate),
+        ),
       ),
       balanceReadinessProvider.overrideWith((ref) => readiness),
       oracleRateProvider.overrideWith((ref) => rate),
+      fxRateProvider.overrideWith((ref) async => _pinnedFx(rate)),
       homeSummaryProvider.overrideWith(
         (ref) => _NoopHomeSummaryNotifier(ref, HomeSummaryService()),
       ),
@@ -253,13 +341,18 @@ void main() {
   testWidgets('the expand affordance sits on the balance card at 1.0x',
       (tester) async {
     await _pumpHome(tester);
-    expect(find.byKey(const ValueKey('deck-large-text-button')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('deck-large-text-hit-region')),
+        findsOneWidget);
   });
+
 
   testWidgets('the expand affordance is still present at 2.0x system text '
       '(a low-vision user must be able to find it)', (tester) async {
     await _pumpHome(tester, textScale: 2.0);
-    expect(find.byKey(const ValueKey('deck-large-text-button')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('deck-large-text-hit-region')),
+        findsOneWidget);
   });
 
   // ── THE HIT-TARGET CONTRACT (review requirement) ─────────────────
@@ -269,7 +362,7 @@ void main() {
   // open the sheet — not flip the card.
 
   testWidgets('THE HIT-TARGET CONTRACT: the interactive region measures '
-      '48x48dp at 1.0x while the painted glyph stays compact', (tester) async {
+      '48x48dp at 1.0x and owns the affordance semantics', (tester) async {
     await _pumpHome(tester);
 
     // The interactive region's render box — measured, not assumed.
@@ -279,12 +372,11 @@ void main() {
     expect(region.size.width, 48.0);
     expect(region.size.height, 48.0);
 
-    // The painted slot stays 24x24 — the affordance did not grow.
-    final slot = tester.renderObject<RenderBox>(
-      find.byKey(const ValueKey('deck-large-text-button')),
-    );
-    expect(slot.size.width, 24.0);
-    expect(slot.size.height, 24.0);
+    // The region is the shared LargeTextDeckButton overlay: transparent,
+    // nothing painted, but it owns a real button semantics node so a
+    // screen reader gets the same 48dp target a sighted user taps.
+    expect(find.bySemanticsLabel('View deck details in large text'),
+        findsOneWidget);
   });
 
   testWidgets('THE HIT-TARGET CONTRACT: the region still measures 48x48dp '
@@ -301,7 +393,7 @@ void main() {
     // rounded clip would otherwise kill hit tests at the edges).
     // The card's render object is its rounded-clip face.
     final face = tester.renderObject<RenderBox>(
-      find.byType(HologramBalanceCard),
+      find.byType(HomeBalanceCard),
     );
     final faceRect = Rect.fromPoints(
       face.localToGlobal(Offset.zero),
@@ -370,8 +462,10 @@ void main() {
       findsOneWidget,
     );
     // …and the card did NOT flip to its back face.
-    expect(find.text('Azaman Balance'), findsOneWidget);
-    expect(find.text('BREAKDOWN'), findsNothing);
+    expect(find.byKey(const ValueKey('balance-fx-headline')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('balance-pair-back-surface')),
+        findsNothing);
   });
 
   testWidgets('tapping the affordance opens the deck detail sheet WITHOUT '
@@ -384,12 +478,13 @@ void main() {
       find.byKey(const ValueKey('deck-sheet-heading')),
       findsOneWidget,
     );
-    // …and the card did NOT flip: the FRONT face's brand title is still
-    // mounted and the sheet (not the visa back face) owns the stage.
-    expect(find.text('Azaman Balance'), findsOneWidget);
-        // The back face's own unique marker — NOT 'CARDHOLDER', which the
-    // deck's separately-mounted AzmVisaCard shows permanently.
-    expect(find.text('BREAKDOWN'), findsNothing);
+    // …and the card did NOT flip: the FRONT face's GHS headline is still
+    // mounted and the sheet (not the section-paged back face) owns the
+    // stage.
+    expect(find.byKey(const ValueKey('balance-fx-headline')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('balance-pair-back-surface')),
+        findsNothing);
   });
 
   testWidgets('THE REVIEW REQUIREMENT: the amount visibly enlarges at 2.0x '
@@ -399,12 +494,30 @@ void main() {
     await _pumpHome(tester, textScale: 1.0);
     await _openSheet(tester);
     heights[1.0] = _sheetAmountHeight(tester);
-    expect(find.text('100.00'), findsOneWidget);
+    // Scoped to the sheet's own amount node: the new front face
+    // renders the same figure behind the open sheet, so a global
+    // find.text would be ambiguous. The keyed widget IS the Text, so
+    // assert on its data directly.
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('deck-sheet-balance-amount')))
+          .data,
+      '100.00',
+    );
 
     await _pumpHome(tester, textScale: 2.0);
     await _openSheet(tester);
     heights[2.0] = _sheetAmountHeight(tester);
-    expect(find.text('100.00'), findsOneWidget);
+    // Scoped to the sheet's own amount node: the new front face
+    // renders the same figure behind the open sheet, so a global
+    // find.text would be ambiguous. The keyed widget IS the Text, so
+    // assert on its data directly.
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('deck-sheet-balance-amount')))
+          .data,
+      '100.00',
+    );
 
     // Visibly enlarging: the 2.0x amount line is close to TWICE the 1.0x
     // height. A clamped implementation would cap at ~1.25x and fail this
@@ -500,7 +613,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('deck-sheet-heading')), findsNothing);
     // The card is still on the front face after the round trip.
-    expect(find.text('Azaman Balance'), findsOneWidget);
+    expect(find.byKey(const ValueKey('balance-fx-headline')), findsOneWidget);
   });
 
   // ── THE TUCKED-STATE CONTRACT (PR #186 review, round 2) ─────────────
@@ -560,7 +673,9 @@ void main() {
     // The card was NOT silently extracted.
     expect(deckState.state, WalletDeckState.tucked);
     // And it never flipped.
-    expect(find.text('BREAKDOWN'), findsNothing);
+    expect(
+        find.byKey(const ValueKey('balance-pair-back-surface')),
+        findsNothing);
   });
 
   testWidgets('THE TUCKED CONTRACT: a far-corner tap on the tucked zone — '
@@ -588,7 +703,9 @@ void main() {
       findsOneWidget,
     );
     expect(deckState.state, WalletDeckState.tucked);
-    expect(find.text('BREAKDOWN'), findsNothing);
+    expect(
+        find.byKey(const ValueKey('balance-pair-back-surface')),
+        findsNothing);
   });
 
   testWidgets('THE TUCKED CONTRACT: a header tap OUTSIDE the affordance '
@@ -674,7 +791,7 @@ void main() {
     // The concealed card's content is NOT exposed: the brand row that
     // the excluded card paints behind the band has no semantics while
     // tucked.
-    expect(find.bySemanticsLabel('Azaman Balance'), findsNothing);
+    expect(find.bySemanticsLabel('Available balance'), findsNothing);
     semanticsHandle.dispose();
   });
 }

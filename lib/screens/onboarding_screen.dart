@@ -18,7 +18,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:azaman/main.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
@@ -89,10 +90,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _navigateToMain() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainNavigationWrapper()),
-      (route) => false,
-    );
+    // ONE NAVIGATION AUTHORITY: the shell is the router-owned '/home'
+    // page; go() replaces the whole declarative stack, so onboarding
+    // cannot be reached by back.
+    context.go(AzRoutes.shell);
     Future.delayed(const Duration(milliseconds: 700), () {
       if (context.mounted) {
         pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat));

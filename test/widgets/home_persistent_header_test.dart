@@ -200,8 +200,15 @@ void main() {
         reason: 'scrolled content must frost the pinned band');
 
     // Reverse the scroll to the top: the frost disappears (driven by the
-    // real scroll state, not a timer).
-    await tester.drag(scrollable, const Offset(0, 120));
+    // real scroll state, not a timer). The return drag is deliberately
+    // short: this harness's Home content nearly fills the viewport (the
+    // scrollable's max extent is ~8px), so every downward pixel past the
+    // top is a REAL pull-to-refresh pull (AzLogoRefreshIndicator triggers
+    // at 55px of accumulated pull — 0.5 × overscroll). A full +120
+    // return drag is therefore a 112px refresh pull, and this test is
+    // about the frost, not the refresh — keep the return gesture below
+    // the refresh threshold and let it verify what it actually claims.
+    await tester.drag(scrollable, const Offset(0, 40));
     await _drain(tester);
     expect(_surface, findsNothing,
         reason: 'the frost must clear when the scroll returns to the top');

@@ -10,6 +10,8 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 
 enum _RequestDirection { incoming, outgoing }
 
@@ -68,8 +70,9 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
       _error = null;
     });
     try {
-      final direction =
-          _direction == _RequestDirection.incoming ? 'INCOMING' : 'OUTGOING';
+      final direction = _direction == _RequestDirection.incoming
+          ? 'INCOMING'
+          : 'OUTGOING';
       final response = await ref
           .read(apiClientProvider)
           .get('/payment-requests?direction=$direction');
@@ -79,7 +82,8 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
           : <String, dynamic>{};
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ApiException(
-          message: (root['message'] ?? 'Could not load payment requests.').toString(),
+          message: (root['message'] ?? 'Could not load payment requests.')
+              .toString(),
           statusCode: response.statusCode,
           code: root['code']?.toString(),
         );
@@ -89,7 +93,10 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
           : root;
       final raw = data['requests'];
       final requests = raw is List
-          ? raw.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList()
+          ? raw
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList()
           : <Map<String, dynamic>>[];
       if (!mounted) return;
       setState(() {
@@ -122,8 +129,11 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
         ? request['requester']
         : request['recipient'];
     if (person is Map) {
-      final value = person['displayName'] ?? person['name'] ??
-          person['username'] ?? person['azamanId'];
+      final value =
+          person['displayName'] ??
+          person['name'] ??
+          person['username'] ??
+          person['azamanId'];
       if (value != null && value.toString().trim().isNotEmpty) {
         return value.toString();
       }
@@ -134,8 +144,8 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
     return value?.toString().trim().isNotEmpty == true
         ? value.toString()
         : _direction == _RequestDirection.incoming
-            ? 'Azaman contact'
-            : 'Anyone with the link';
+        ? 'Azaman contact'
+        : 'Anyone with the link';
   }
 
   String _amount(Map<String, dynamic> request) {
@@ -145,8 +155,8 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
     final prefix = currency == 'GHS'
         ? 'GH₵ '
         : currency == 'USDC'
-            ? ''
-            : '$currency ';
+        ? ''
+        : '$currency ';
     return prefix + amount + (currency == 'USDC' ? ' USDC' : '');
   }
 
@@ -167,7 +177,11 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
       return null;
     }
     final ref = _operationRef(requestId, action);
-    final outcome = await _resolveRequest(action: action, id: requestId, opRef: ref);
+    final outcome = await _resolveRequest(
+      action: action,
+      id: requestId,
+      opRef: ref,
+    );
     if (outcome == null) return null;
     final updated = outcome;
     if (!mounted) return null;
@@ -182,12 +196,17 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
       // armed: the SAME retry reuses the SAME idempotency key, so it can
       // never double-fire. Definitive 4xx conflicts converge honestly on
       // the server-reported committed state.
-      final unknown = statusCode == 0 || statusCode >= 500 ||
-          statusCode == 401 || statusCode == 429;
-      onMessage(unknown
-          ? 'We could not confirm whether the request was updated. '
-              'Retrying the same action is safe.'
-          : message);
+      final unknown =
+          statusCode == 0 ||
+          statusCode >= 500 ||
+          statusCode == 401 ||
+          statusCode == 429;
+      onMessage(
+        unknown
+            ? 'We could not confirm whether the request was updated. '
+                  'Retrying the same action is safe.'
+            : message,
+      );
       await _load();
       return null;
     }
@@ -215,12 +234,14 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
     required FinancialOperationRef opRef,
   }) async {
     try {
-      final response = await ref.read(apiClientProvider).postFinancial(
-        '/payment-requests/$id/$action',
-        {},
-        operationType: 'payment.request.$action',
-        ref: opRef,
-      );
+      final response = await ref
+          .read(apiClientProvider)
+          .postFinancial(
+            '/payment-requests/$id/$action',
+            {},
+            operationType: 'payment.request.$action',
+            ref: opRef,
+          );
       return {
         'statusCode': response.statusCode,
         'body': jsonDecode(response.body),
@@ -284,7 +305,7 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
                       if (context.canPop()) {
                         context.pop();
                       } else {
-                        context.go('/');
+                        context.go(AzRoutes.shell);
                       }
                     },
                     icon: Icon(Icons.close, color: colors.textPrimary),
@@ -299,7 +320,10 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
                   IconButton(
                     tooltip: 'Refresh requests',
                     onPressed: _load,
-                    icon: Icon(Icons.refresh_rounded, color: colors.textPrimary),
+                    icon: Icon(
+                      Icons.refresh_rounded,
+                      color: colors.textPrimary,
+                    ),
                   ),
                 ],
               ),
@@ -339,150 +363,164 @@ class _PaymentRequestsScreenState extends ConsumerState<PaymentRequestsScreen> {
                         ],
                       )
                     : _error != null
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.all(AzSpace.xl),
-                            children: [
-                              const SizedBox(height: 100),
-                              Icon(Icons.cloud_off_rounded,
-                                  color: colors.textTertiary, size: 42),
-                              const SizedBox(height: AzSpace.md),
-                              Text(_error!,
-                                  style: AzText.body.copyWith(
-                                      color: colors.textSecondary),
-                                  textAlign: TextAlign.center),
-                              const SizedBox(height: AzSpace.md),
-                              Center(
-                                child: TextButton(
-                                  onPressed: _load,
-                                  child: const Text('Try again'),
-                                ),
-                              ),
-                            ],
-                          )
-                        : _requests.isEmpty
-                            ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.all(AzSpace.xl),
-                                children: [
-                                  const SizedBox(height: 100),
-                                  Icon(
-                                    incoming ? Icons.inbox_rounded : Icons.outbox_rounded,
-                                    color: colors.textTertiary,
-                                    size: 46,
-                                  ),
-                                  const SizedBox(height: AzSpace.md),
-                                  Text(
-                                    incoming
-                                        ? 'No incoming requests'
-                                        : 'No requests sent yet',
-                                    style: AzText.title.copyWith(
-                                        color: colors.textPrimary),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: AzSpace.sm),
-                                  Text(
-                                    incoming
-                                        ? 'Requests from Azaman contacts will appear here, outside your chats.'
-                                        : 'Requests you create will be tracked here independently of chat.',
-                                    style: AzText.body.copyWith(
-                                        color: colors.textSecondary),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              )
-                            : ListView.separated(
-                                key: const ValueKey('payment-requests-list'),
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                padding: const EdgeInsets.fromLTRB(
-                                    AzSpace.lg, 0, AzSpace.lg, 24),
-                                itemCount: _requests.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: AzSpace.sm),
-                                itemBuilder: (context, index) {
-                                  final request = _requests[index];
-                                  final status = (request['status']?.toString() ??
-                                          'UNKNOWN')
-                                      .replaceAll('_', ' ');
-                                  final terminal = _terminalStatuses.contains(
-                                      (request['status']?.toString() ?? '')
-                                          .toUpperCase());
-                                  return Material(
-                                    color: colors.card,
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(20),
-                                      onTap: () => _openDetail(request),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(AzSpace.lg),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              width: 44,
-                                              height: 44,
-                                              decoration: BoxDecoration(
-                                                color: terminal
-                                                    ? colors.softSurface
-                                                    : colors.isDark
-                                                        ? const Color(0xFF254B39)
-                                                        : const Color(0xFFC9DDCF),
-                                                shape: BoxShape.circle,
-                                              ),
-                                              alignment: Alignment.center,
-                                              child: Icon(
-                                                terminal
-                                                    ? Icons.receipt_long_rounded
-                                                    : incoming
-                                                        ? Icons.south_west_rounded
-                                                        : Icons.north_east_rounded,
-                                                color: terminal
-                                                    ? colors.textSecondary
-                                                    : colors.isDark
-                                                        ? const Color(0xFFD9EBDD)
-                                                        : const Color(0xFF254B39),
-                                              ),
-                                            ),
-                                            const SizedBox(width: AzSpace.md),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    _person(request),
-                                                    maxLines: 1,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: AzText.body.copyWith(
-                                                      color: colors.textPrimary,
-                                                      fontWeight: FontWeight.w800,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    status,
-                                                    style: AzText.bodyS.copyWith(
-                                                      color: colors.textSecondary,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(width: AzSpace.sm),
-                                            Text(
-                                              _amount(request),
-                                              textAlign: TextAlign.end,
-                                              style: AzText.body.copyWith(
-                                                color: colors.textPrimary,
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(AzSpace.xl),
+                        children: [
+                          const SizedBox(height: 100),
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            color: colors.textTertiary,
+                            size: 42,
+                          ),
+                          const SizedBox(height: AzSpace.md),
+                          Text(
+                            _error!,
+                            style: AzText.body.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AzSpace.md),
+                          Center(
+                            child: TextButton(
+                              onPressed: _load,
+                              child: const Text('Try again'),
+                            ),
+                          ),
+                        ],
+                      )
+                    : _requests.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.all(AzSpace.xl),
+                        children: [
+                          const SizedBox(height: 100),
+                          Icon(
+                            incoming
+                                ? Icons.inbox_rounded
+                                : Icons.outbox_rounded,
+                            color: colors.textTertiary,
+                            size: 46,
+                          ),
+                          const SizedBox(height: AzSpace.md),
+                          Text(
+                            incoming
+                                ? 'No incoming requests'
+                                : 'No requests sent yet',
+                            style: AzText.title.copyWith(
+                              color: colors.textPrimary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: AzSpace.sm),
+                          Text(
+                            incoming
+                                ? 'Requests from Azaman contacts will appear here, outside your chats.'
+                                : 'Requests you create will be tracked here independently of chat.',
+                            style: AzText.body.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      )
+                    : ListView.separated(
+                        key: const ValueKey('payment-requests-list'),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(
+                          AzSpace.lg,
+                          0,
+                          AzSpace.lg,
+                          24,
+                        ),
+                        itemCount: _requests.length,
+                        separatorBuilder: (_, _) =>
+                            const SizedBox(height: AzSpace.sm),
+                        itemBuilder: (context, index) {
+                          final request = _requests[index];
+                          final status =
+                              (request['status']?.toString() ?? 'UNKNOWN')
+                                  .replaceAll('_', ' ');
+                          final terminal = _terminalStatuses.contains(
+                            (request['status']?.toString() ?? '').toUpperCase(),
+                          );
+                          return Material(
+                            color: colors.card,
+                            borderRadius: BorderRadius.circular(20),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () => _openDetail(request),
+                              child: Padding(
+                                padding: const EdgeInsets.all(AzSpace.lg),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: terminal
+                                            ? colors.softSurface
+                                            : colors.isDark
+                                            ? const Color(0xFF254B39)
+                                            : const Color(0xFFC9DDCF),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: Icon(
+                                        terminal
+                                            ? Icons.receipt_long_rounded
+                                            : incoming
+                                            ? Icons.south_west_rounded
+                                            : Icons.north_east_rounded,
+                                        color: terminal
+                                            ? colors.textSecondary
+                                            : colors.isDark
+                                            ? const Color(0xFFD9EBDD)
+                                            : const Color(0xFF254B39),
                                       ),
                                     ),
-                                  );
-                                },
+                                    const SizedBox(width: AzSpace.md),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _person(request),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AzText.body.copyWith(
+                                              color: colors.textPrimary,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            status,
+                                            style: AzText.bodyS.copyWith(
+                                              color: colors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: AzSpace.sm),
+                                    Text(
+                                      _amount(request),
+                                      textAlign: TextAlign.end,
+                                      style: AzText.body.copyWith(
+                                        color: colors.textPrimary,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                            ),
+                          );
+                        },
+                      ),
               ),
             ),
           ],
@@ -515,7 +553,8 @@ class _RequestDetailSheet extends StatefulWidget {
   final Future<String?> Function({
     required String action,
     required void Function(String message) onMessage,
-  }) onResolve;
+  })
+  onResolve;
 
   @override
   State<_RequestDetailSheet> createState() => _RequestDetailSheetState();
@@ -544,7 +583,8 @@ class _RequestDetailSheetState extends State<_RequestDetailSheet> {
     final fallback = widget.viewerIsRequester
         ? widget.request['recipientDisplayName']
         : widget.request['requesterDisplayName'];
-    if (fallback?.toString().trim().isNotEmpty == true) return fallback.toString();
+    if (fallback?.toString().trim().isNotEmpty == true)
+      return fallback.toString();
     return widget.viewerIsRequester && !_isDirect
         ? 'Anyone with the link'
         : 'Azaman contact';
@@ -591,9 +631,7 @@ class _RequestDetailSheetState extends State<_RequestDetailSheet> {
         .replaceAll('_', ' ');
     final canCancel = widget.viewerIsRequester && _pending;
     final canDecline = !widget.viewerIsRequester && _pending && _isDirect;
-    final missingLink = widget.viewerIsRequester &&
-        !_isDirect &&
-        _pending;
+    final missingLink = widget.viewerIsRequester && !_isDirect && _pending;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -605,7 +643,10 @@ class _RequestDetailSheetState extends State<_RequestDetailSheet> {
         ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
-            AzSpace.lg, AzSpace.lg, AzSpace.lg, AzSpace.xl,
+            AzSpace.lg,
+            AzSpace.lg,
+            AzSpace.lg,
+            AzSpace.xl,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -652,7 +693,10 @@ class _RequestDetailSheetState extends State<_RequestDetailSheet> {
                     if (_date('expiresAt') != null)
                       _DetailRow(label: 'Expires', value: _date('expiresAt')!),
                     if (_date('resolvedAt') != null)
-                      _DetailRow(label: 'Resolved', value: _date('resolvedAt')!),
+                      _DetailRow(
+                        label: 'Resolved',
+                        value: _date('resolvedAt')!,
+                      ),
                     _DetailRow(
                       label: 'Request ID',
                       value: widget.request['id']?.toString() ?? 'Unavailable',

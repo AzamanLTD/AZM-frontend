@@ -14,14 +14,19 @@
 // translates the response into [BalanceCardValuation] and the tests are
 // updated to the final field names — nothing in the widget changes.
 //
-// ARITHMETIC (valuation semantics, per the agreed product definition):
-//   availableGhsValue     = nativeGhsAvailable + (availableUsdc * displayRate)
-//   availableUsdcEquivalent = availableGhsValue / displayRate
-// The backend's returned valuation is AUTHORITATIVE for the presented
-// summary. [BalanceCardValuation.compute] implements the same formula for
-// test fixtures and for the interim state where the backend does not yet
-// return precomputed totals — a widget NEVER recalculates a valuation from
-// a separately sourced rate; it renders what it is given.
+// ARITHMETIC (owner-corrected product contract, 2026-10-27):
+//   availableGhsValue       = nativeGhsAvailable        — the AUTHORITATIVE
+//     native-GHS balance ONLY, verbatim from the backend's documented
+//     field. NEVER derived from USDC, NEVER combined with it.
+//   availableUsdcEquivalent = availableGhsValue / displayRate — a
+//     DISPLAY estimate converted FROM that GHS balance, marked ≈.
+// Actual USDC held ([availableUsdc]) is a SEPARATE concept: it never
+// feeds the GHS headline and never feeds the equivalent calculation.
+// It appears only as its own fact (the back-face "USDC held" row).
+// [BalanceCardValuation.compute] implements exactly this: it maps the
+// native-GHS balance through verbatim and derives ONLY the equivalent
+// estimate from it. A widget NEVER recalculates a valuation from a
+// separately sourced rate; it renders what it is given.
 //
 // FX REVALUATION IS NOT FUNDS MOVEMENT — changing the rate changes the GHS
 // valuation of the USDC component ONLY. It must never mutate a ledger
@@ -112,8 +117,11 @@ class FxRateView {
 @immutable
 class BalanceCardValuation {
   // ── Available assets ───────────────────────────────────────────────────
-  /// Actual native GHS available (the GHS wallet).
-  final double nativeGhsAvailable;
+  /// Actual native GHS available (the GHS wallet). NULL when the current
+  /// backend contract publishes no native-GHS wallet at all — the absence
+  /// of the wallet is not a GH₵ 0.00 holding, and the breakdown row must
+  /// render unknown, never zero.
+  final double? nativeGhsAvailable;
 
   /// Actual liquid USDC held. This is a REAL holding; it is never the same
   /// number as the USDC equivalent of the GHS total.
@@ -127,18 +135,36 @@ class BalanceCardValuation {
   // ── Locked or committed (separate fields, never merged) ────────────────
   final double escrowLocked;
   final double disputeEscrow;
-  final double vaultLocked;
+
+  /// Committed vault total (USDC). NULL when the vault list has not
+  /// loaded or its fetch failed — unknown must never render as a zero.
+  final double? vaultLocked;
 
   /// Committed Susu total. Null when the susu list has not loaded or its
   /// fetch failed — unknown must never render as a zero.
   final double? susuCommitted;
 
-  /// Savings total as held (locked), in GHS — the savings goal is
-  /// denominated in cedis (backend: SavingsGoal.currentAmountGhs →
-  /// locked.savingsGhs), NOT in USDC. The GHS-suffixed name exists so a
-  /// cross-currency mapping error fails loudly at the call site instead
-  /// of silently rendering a cedi amount as USDC.
-  final double savingsLockedGhs;
+  /// PARSED-ONLY on the card this release (K2B-2): the aggregate of
+  /// ACTIVE/PAUSED SavingsGoal.currentAmountGhs (backend valuation:
+  /// locked.savingsGhs). Four distinct meanings, never conflated:
+  ///   1. the NOMINAL GHS amount recorded toward savings goals,
+  ///   2. the actual USDC the deposits moved into escrow accounting
+  ///      (the backend debits availableBalance and increments
+  ///      escrowLockedBalance in USDC while incrementing the goal in
+  ///      GHS — savingsController),
+  ///   3. a current GHS display valuation of those USDC assets (it
+  ///      changes with the rate),
+  ///   4. a guaranteed/promised GHS payout (none on the contract).
+  /// This figure is #1 only — it is NOT native GHS held, NOT a
+  /// guaranteed value, and never implies GHS spendability or
+  /// withdrawability. The balance-card breakdown therefore renders it
+  /// UNKNOWN (—) while the K2B-2 display gate is closed
+  /// (kCardDisplaysSavingsAggregate); the Savings screen keeps the
+  /// factual goal progress under its own contract. The GHS-suffixed
+  /// name still exists so a cross-currency mapping error fails loudly
+  /// at the call site. NULL when the savings overview has not loaded
+  /// or its fetch failed — unknown, never zero.
+  final double? savingsLockedGhs;
 
   // NOTE (contract gap, deliberate): there is NO savings-withdrawable
   // field. The backend balance valuation does not publish a verified
@@ -166,16 +192,21 @@ class BalanceCardValuation {
   // ── FX + valuation ─────────────────────────────────────────────────────
   final FxRateView rate;
 
-  /// The backend-authoritative combined available value in GHS, when it
-  /// could be computed (backend-returned, or the honest derivation in
-  /// [compute]). Null means the combined valuation is NOT available — the
-  /// card must present an incomplete-valuation state, never native GHS
-  /// alone masquerading as the total.
+  /// The AUTHORITATIVE native-GHS available balance — the GHS headline,
+  /// verbatim from the backend's documented field (the wallet balance in
+  /// the app's MAIN currency). NEVER includes a converted USDC component
+  /// and NEVER derives from USDC in any way. Null means the backend
+  /// published no authoritative native-GHS balance: the card presents
+  /// the honest unavailable state (never a derived figure, never a
+  /// fabricated GH₵ 0.00).
   final double? availableGhsValue;
 
-  /// The overall USDC equivalent of the entire available GHS value.
-  /// Null when no valid valuation rate exists. This is an EQUIVALENT —
-  /// it must be labelled as one and never read as USDC actually held.
+  /// The approximate USDC EQUIVALENT of [availableGhsValue] — a display
+  /// estimate converted FROM the GHS balance at the display rate, marked
+  /// ≈ on the card. Null when the GHS headline is unknown or no usable
+  /// rate exists. This is an EQUIVALENT — it must be labelled as one and
+  /// never read as USDC actually held (the real holding is the separate
+  /// [availableUsdc]).
   final double? availableUsdcEquivalent;
 
   /// Whether USDC-enabled transactions are allowed, per the backend gate.
@@ -184,14 +215,14 @@ class BalanceCardValuation {
   final bool usdcTransactionGateOpen;
 
   const BalanceCardValuation({
-    this.nativeGhsAvailable = 0,
+    this.nativeGhsAvailable,
     this.availableUsdc = 0,
     this.balanceConfirmed = false,
     this.escrowLocked = 0,
     this.disputeEscrow = 0,
-    this.vaultLocked = 0,
+    this.vaultLocked,
     this.susuCommitted,
-    this.savingsLockedGhs = 0,
+    this.savingsLockedGhs,
     this.vendorUnallocatedUsdc = 0,
     this.vendorRowRelevant = false,
     this.azmPoints = 0,
@@ -201,32 +232,19 @@ class BalanceCardValuation {
     this.usdcTransactionGateOpen = false,
   });
 
-  /// Applies the agreed valuation semantics to derive the presentation
-  /// totals. Used by test fixtures and by the interim derivation until the
-  /// backend returns precomputed authoritative totals; a widget renders
-  /// [availableGhsValue]/[availableUsdcEquivalent] and never recalculates.
-  ///
-  /// A combined GHS value exists when the USDC component is zero (native
-  /// GHS alone is the whole total — no rate needed) or a valid rate exists.
-  /// The USDC equivalent, however, ALWAYS needs a usable rate: with zero
-  /// USDC held it is nativeGhsAvailable / rate, and without a usable rate it
-  /// is honestly unavailable (null) — never a fabricated zero. With USDC
-  /// held and no usable rate, the combined total itself is honestly
-  /// unavailable (null) even though native GHS is known.
+  /// Applies the owner-corrected valuation contract (2026-10-27):
+  ///   • the GHS headline maps the AUTHORITATIVE native-GHS balance
+  ///     through VERBATIM — USDC held never enters it, whatever the rate;
+  ///   • the USDC equivalent is the display estimate converted FROM that
+  ///     GHS balance (ghs / displayRate), and exists ONLY when both the
+  ///     native-GHS balance and a usable rate exist — otherwise it is
+  ///     honestly unavailable (null), never a fabricated zero.
+  /// A widget renders [availableGhsValue]/[availableUsdcEquivalent] and
+  /// never recalculates.
   BalanceCardValuation compute() {
-    final hasUsdc = availableUsdc > 0;
+    final ghs = nativeGhsAvailable;
     final r = rate.hasRate ? rate.ghsPerUsdc! : null;
-
-    double? ghs;
-    double? usdcEquiv;
-    if (!hasUsdc) {
-      ghs = nativeGhsAvailable;
-      // hasRate guarantees a positive, finite rate.
-      usdcEquiv = r != null ? nativeGhsAvailable / r : null;
-    } else if (r != null) {
-      ghs = nativeGhsAvailable + availableUsdc * r;
-      usdcEquiv = ghs / r;
-    }
+    final usdcEquiv = ghs != null && r != null ? ghs / r : null;
     return BalanceCardValuation(
       nativeGhsAvailable: nativeGhsAvailable,
       availableUsdc: availableUsdc,
@@ -249,14 +267,7 @@ class BalanceCardValuation {
   /// The headline can only be shown as a confirmed combined value.
   bool get headlineKnown => balanceConfirmed && availableGhsValue != null;
 
-  /// A known USDC holding that cannot be valued: the combined GHS valuation
-  /// is incomplete and must be presented as such — native GHS alone may
-  /// never appear to be the whole total.
-  bool get valuationIncomplete =>
-      balanceConfirmed &&
-      availableGhsValue == null &&
-      nativeGhsAvailable > 0 &&
-      availableUsdc > 0;
+
 
   @override
   bool operator ==(Object other) =>

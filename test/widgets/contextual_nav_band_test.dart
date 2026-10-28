@@ -1,16 +1,17 @@
 // =============================================================================
-// NEW-C — depth-aware contextual nav band regression suite (§2.3)
+// PR-B — depth-aware contextual nav band regression suite
 //
 // Pins the band's behavior against the REAL router stack:
 //
 //   * invisible at depth 0 (root) while the shell is engaged,
-//   * at depth ≥ 1 the bar shows the current route's TITLE + back chevron
-//     and the "…" affordance,
-//   * the back chevron pops ONE router page (depth 2 → depth 1 → root),
-//   * "…" reopens the REAL PremiumBottomNav; tapping a tab pops back to the
-//     shell and hands the tab to the shell bus,
-//   * a sanctioned imperative route pushed ABOVE the top router page hides
-//     the band; popping it restores the band,
+//   * at depth ≥ 1 the bar shows the current route's TITLE + back
+//     chevron ONLY (the "…" pill-reopen affordance was removed on
+//     review — no dead hit target remains, and the band never renders
+//     a tab pill),
+//   * the back chevron runs the ONE back contract and pops ONE router
+//     page (depth 2 → depth 1 → root),
+//   * a sanctioned imperative route pushed ABOVE the top router page
+//     hides the band; popping it restores the band,
 //   * no shell engaged (cold deep link before the shell mounts, or a
 //     shell-less state) keeps the app honest: no chrome,
 //   * a deep-link-only stack (nothing to pop under it) backs out to the
@@ -167,7 +168,7 @@ void main() {
   });
 
   testWidgets(
-      'at depth ≥ 1 the bar shows the route title + back chevron + "…"',
+      'at depth ≥ 1 the bar shows the route title + back chevron, and NO "…"',
       (tester) async {
     appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
     await _pumpApp(tester);
@@ -178,8 +179,18 @@ void main() {
 
     expect(_bandOpacity(tester), 1.0);
     expect(find.byKey(const Key('contextual-nav-back')), findsOneWidget);
-    expect(find.byKey(const Key('contextual-nav-toggle')), findsOneWidget);
     expect(find.text('Transactions'), findsOneWidget); // the bar's title
+    // PR-B: the ellipsis is GONE — no dead hit target, no hidden affordance.
+    expect(find.byKey(const Key('contextual-nav-toggle')), findsNothing);
+    expect(find.text('…'), findsNothing);
+    // The band never renders a tab pill any more: exactly the bar.
+    expect(find.byType(PremiumBottomNav), findsNothing);
+    // A11y honesty: the bar's semantics describe exactly the two
+    // remaining controls — back + title text. No 'Show tabs' stop.
+    expect(
+      find.bySemanticsLabel(RegExp('Show tabs|Hide tabs')),
+      findsNothing,
+    );
   });
 
   testWidgets('the back chevron pops ONE router page per tap',
@@ -197,75 +208,48 @@ void main() {
     await tester.tap(find.byKey(const Key('contextual-nav-back')));
     await tester.pumpAndSettle();
     expect(find.text('Transactions'), findsOneWidget); // one level up
+    expect(_stackOf(tester), ['home', 'transactions']);
 
     await tester.tap(find.byKey(const Key('contextual-nav-back')));
     await tester.pumpAndSettle();
     expect(_bandOpacity(tester), 0.0); // back at the root: no chrome
-    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/');
+    expect(_stackOf(tester), ['home']);
   });
 
   testWidgets(
-      '"…" reopens the real pill; a tab tap returns to the shell and hands the tab over',
+      'rapid repeated back presses consume exactly one level per press',
       (tester) async {
-    final requested = <int>[];
-    appShellBus.engage(onTabRequest: requested.add, initialTab: 0);
+    appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
     await _pumpApp(tester);
 
     final router = _routerOf(tester);
     router.push('/transactions');
     await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('contextual-nav-toggle')));
+    router.push('/deep/leaf');
     await tester.pumpAndSettle();
 
-    // The REAL nav — the same widget type the shell hosts, key asserted
-    // on it directly (the pill IS the nav, not a wrapper around one).
-    final pill = find.byKey(const Key('contextual-nav-pill'));
-    expect(pill, findsOneWidget);
-    expect(tester.widget(pill), isA<PremiumBottomNav>());
-    // UX-CORRECTION §3: the resting nav is icon-only — the
-    // Marketplace tab is the nav-item-2 button, not a label.
-    expect(find.byKey(const ValueKey('nav-item-2')), findsOneWidget);
+    expect(_stackOf(tester), ['home', 'transactions', 'story-editor']);
 
-    await tester.tap(find.byKey(const ValueKey('nav-item-2')));
+    // Three rapid presses, asserted after EACH: every press consumes
+    // exactly one level (leaf → transactions → root). If a single press
+    // ever double-applied, the first assertion would already see 'home'.
+    await tester.tap(find.byKey(const Key('contextual-nav-back')));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(_stackOf(tester), ['home', 'transactions'],
+        reason: 'press one pops exactly the leaf page');
+    expect(find.text('TXN PAGE'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('contextual-nav-back')));
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(_stackOf(tester), ['home'],
+        reason: 'press two pops exactly the transactions page');
+
+    // At the root base there is nothing more to pop; the next press is
+    // the honest root fallback (stack stays ['home']), never a phantom
+    // pop or a crash.
+    await tester.tap(find.byKey(const Key('contextual-nav-back')));
     await tester.pumpAndSettle();
-
-    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/'); // popped back to the shell base
-    expect(requested, [2]); // the shell bus got the tab
-    expect(_bandOpacity(tester), 0.0); // the band left with the depth
-  });
-
-  // Review-blocker regression: inside the REOPENED pill, a tap on the
-  // already-selected tab must return to the shell (pop + bus hand-off),
-  // not merely collapse the pill in place.
-  testWidgets(
-      'the reopened pill: tapping the ALREADY-SELECTED tab still returns to the shell',
-      (tester) async {
-    final requested = <int>[];
-    appShellBus.engage(onTabRequest: requested.add, initialTab: 0);
-    await _pumpApp(tester);
-
-    final router = _routerOf(tester);
-    router.push('/transactions');
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byKey(const Key('contextual-nav-toggle')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('contextual-nav-pill')), findsOneWidget);
-
-    // Active tab is Home (0) — the same tab the pill marks selected.
-    final pill = tester.widget<PremiumBottomNav>(
-      find.byKey(const Key('contextual-nav-pill')),
-    );
-    expect(pill.selectedIndex, 0);
-
-    await tester.tap(find.byKey(const ValueKey('nav-item-0')));
-    await tester.pumpAndSettle();
-
-    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/'); // shell base
-    expect(requested, [0]); // same tab handed to the shell bus
-    expect(_bandOpacity(tester), 0.0); // the band left with the depth
-    expect(find.byKey(const Key('contextual-nav-pill')), findsNothing); // pill gone with it
+    expect(_stackOf(tester), ['home']);
   });
 
   testWidgets(
@@ -316,12 +300,22 @@ void main() {
     expect(_bandOpacity(tester), 1.0);
     expect(find.text('Transactions'), findsOneWidget);
 
-    final router = _routerOf(tester);
     await tester.tap(find.byKey(const Key('contextual-nav-back')));
     await tester.pumpAndSettle();
-    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/'); // went home instead of stalling
+    expect(_stackOf(tester), ['home']); // went home instead of stalling
     expect(_bandOpacity(tester), 0.0);
   });
+}
+
+
+/// The live navigator's page stack, by route name — the truthful
+/// route-stack read (GoRouter's currentConfiguration.uri can lag the
+/// navigator's own page list).
+List<String> _stackOf(WidgetTester tester) {
+  final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+  return nav.widget.pages
+      .map((pg) => pg.name ?? '?')
+      .toList();
 }
 
 // ── helpers that read the LIVE app from the tester ─────────────────────────

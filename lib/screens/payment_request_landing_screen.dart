@@ -10,6 +10,8 @@ import 'package:intl/intl.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 
 /// Public, share-link landing for a standalone payment request.
 ///
@@ -58,19 +60,19 @@ class _PaymentRequestLandingScreenState
     });
     try {
       final token = Uri.encodeComponent(widget.token);
-      final response = await ref.read(apiClientProvider).get(
-        '/payment-requests/public/$token',
-        requireAuth: false,
-      );
+      final response = await ref
+          .read(apiClientProvider)
+          .get('/payment-requests/public/$token', requireAuth: false);
       final decoded = jsonDecode(response.body);
       final root = decoded is Map<String, dynamic>
           ? decoded
           : <String, dynamic>{};
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw ApiException(
-          message: (root['message'] ??
-                  'This payment request could not be found or is no longer available.')
-              .toString(),
+          message:
+              (root['message'] ??
+                      'This payment request could not be found or is no longer available.')
+                  .toString(),
           statusCode: response.statusCode,
           code: root['code']?.toString(),
         );
@@ -101,12 +103,16 @@ class _PaymentRequestLandingScreenState
     final who = request['requester'];
     if (who is Map) {
       final name =
-          who['displayName'] ?? who['name'] ?? who['username'] ?? who['azamanId'];
+          who['displayName'] ??
+          who['name'] ??
+          who['username'] ??
+          who['azamanId'];
       if (name != null && name.toString().trim().isNotEmpty) {
         return name.toString();
       }
     }
-    final name = request['requesterDisplayName'] ??
+    final name =
+        request['requesterDisplayName'] ??
         request['requesterName'] ??
         request['fromName'];
     return name?.toString().trim().isNotEmpty == true
@@ -121,8 +127,8 @@ class _PaymentRequestLandingScreenState
     final prefix = currency == 'GHS'
         ? 'GH₵ '
         : currency == 'USDC'
-            ? ''
-            : '$currency ';
+        ? ''
+        : '$currency ';
     return prefix + amount + (currency == 'USDC' ? ' USDC' : '');
   }
 
@@ -168,7 +174,7 @@ class _PaymentRequestLandingScreenState
                       if (context.canPop()) {
                         context.pop();
                       } else {
-                        context.go('/');
+                        context.go(AzRoutes.shell);
                       }
                     },
                     icon: Icon(Icons.close, color: colors.textPrimary),
@@ -187,130 +193,110 @@ class _PaymentRequestLandingScreenState
                   child: _loading
                       ? const CircularProgressIndicator()
                       : _error != null
-                          ? _UnavailableRequest(
-                              message: _error!,
-                              onRetry: _load,
-                            )
-                          : request == null
-                              ? _UnavailableRequest(
-                                  message: 'This request is unavailable.',
-                                  onRetry: _load,
-                                )
-                              : SingleChildScrollView(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      const SizedBox(height: AzSpace.xl),
-                                      Center(
-                                        child: Container(
-                                          width: 76,
-                                          height: 76,
-                                          decoration: BoxDecoration(
-                                            color: active
-                                                ? colors.isDark
-                                                    ? const Color(0xFF254B39)
-                                                    : const Color(0xFFC9DDCF)
-                                                : colors.softSurface,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: Icon(
-                                            active
-                                                ? Icons.request_quote_rounded
-                                                : Icons.receipt_long_rounded,
-                                            size: 34,
-                                            color: active
-                                                ? colors.isDark
-                                                    ? const Color(0xFFD9EBDD)
-                                                    : const Color(0xFF254B39)
-                                                : colors.textSecondary,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: AzSpace.lg),
-                                      Text(
-                                        'Payment request from ${_requester(request)}',
-                                        style: AzText.title.copyWith(
-                                          color: colors.textPrimary,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: AzSpace.sm),
-                                      Text(
-                                        _amount(request),
-                                        style: AzText.display.copyWith(
-                                          color: colors.textPrimary,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: AzSpace.md),
-                                      Container(
-                                        padding: const EdgeInsets.all(
-                                          AzSpace.lg,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: colors.card,
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                          border: Border.all(
-                                            color: colors.border,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            _RequestDetailRow(
-                                              label: 'Status',
-                                              value: (request['status']
-                                                          ?.toString() ??
-                                                      'UNKNOWN')
-                                                  .replaceAll('_', ' '),
-                                            ),
-                                            if (_date(request, 'createdAt') !=
-                                                null)
-                                              _RequestDetailRow(
-                                                label: 'Created',
-                                                value: _date(
-                                                  request,
-                                                  'createdAt',
-                                                )!,
-                                              ),
-                                            if (_date(request, 'expiresAt') !=
-                                                null)
-                                              _RequestDetailRow(
-                                                label: 'Expires',
-                                                value: _date(
-                                                  request,
-                                                  'expiresAt',
-                                                )!,
-                                              ),
-                                            const SizedBox(
-                                              height: AzSpace.md,
-                                            ),
-                                            _RequestDetailRow(
-                                              label: 'Request ID',
-                                              value: (request['id'] ??
-                                                      'Unavailable')
-                                                  .toString(),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(height: AzSpace.lg),
-                                      Text(
-                                        active
-                                            ? 'This link only shows this request. Opening it does not start, authorize or complete any payment. In-app GHS settlement is a separate Azaman feature and is not part of this link.'
-                                            : 'This request is no longer active. Contact the requester if you need an updated request.',
-                                        style: AzText.body.copyWith(
-                                          color: colors.textSecondary,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: AzSpace.md),
-                                    ],
+                      ? _UnavailableRequest(message: _error!, onRetry: _load)
+                      : request == null
+                      ? _UnavailableRequest(
+                          message: 'This request is unavailable.',
+                          onRetry: _load,
+                        )
+                      : SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: AzSpace.xl),
+                              Center(
+                                child: Container(
+                                  width: 76,
+                                  height: 76,
+                                  decoration: BoxDecoration(
+                                    color: active
+                                        ? colors.isDark
+                                              ? const Color(0xFF254B39)
+                                              : const Color(0xFFC9DDCF)
+                                        : colors.softSurface,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Icon(
+                                    active
+                                        ? Icons.request_quote_rounded
+                                        : Icons.receipt_long_rounded,
+                                    size: 34,
+                                    color: active
+                                        ? colors.isDark
+                                              ? const Color(0xFFD9EBDD)
+                                              : const Color(0xFF254B39)
+                                        : colors.textSecondary,
                                   ),
                                 ),
+                              ),
+                              const SizedBox(height: AzSpace.lg),
+                              Text(
+                                'Payment request from ${_requester(request)}',
+                                style: AzText.title.copyWith(
+                                  color: colors.textPrimary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: AzSpace.sm),
+                              Text(
+                                _amount(request),
+                                style: AzText.display.copyWith(
+                                  color: colors.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: AzSpace.md),
+                              Container(
+                                padding: const EdgeInsets.all(AzSpace.lg),
+                                decoration: BoxDecoration(
+                                  color: colors.card,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: colors.border),
+                                ),
+                                child: Column(
+                                  children: [
+                                    _RequestDetailRow(
+                                      label: 'Status',
+                                      value:
+                                          (request['status']?.toString() ??
+                                                  'UNKNOWN')
+                                              .replaceAll('_', ' '),
+                                    ),
+                                    if (_date(request, 'createdAt') != null)
+                                      _RequestDetailRow(
+                                        label: 'Created',
+                                        value: _date(request, 'createdAt')!,
+                                      ),
+                                    if (_date(request, 'expiresAt') != null)
+                                      _RequestDetailRow(
+                                        label: 'Expires',
+                                        value: _date(request, 'expiresAt')!,
+                                      ),
+                                    const SizedBox(height: AzSpace.md),
+                                    _RequestDetailRow(
+                                      label: 'Request ID',
+                                      value: (request['id'] ?? 'Unavailable')
+                                          .toString(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: AzSpace.lg),
+                              Text(
+                                active
+                                    ? 'This link only shows this request. Opening it does not start, authorize or complete any payment. In-app GHS settlement is a separate Azaman feature and is not part of this link.'
+                                    : 'This request is no longer active. Contact the requester if you need an updated request.',
+                                style: AzText.body.copyWith(
+                                  color: colors.textSecondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: AzSpace.md),
+                            ],
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -322,10 +308,7 @@ class _PaymentRequestLandingScreenState
 }
 
 class _UnavailableRequest extends StatelessWidget {
-  const _UnavailableRequest({
-    required this.message,
-    required this.onRetry,
-  });
+  const _UnavailableRequest({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
@@ -336,9 +319,11 @@ class _UnavailableRequest extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.link_off_rounded,
-            color: colors.colorScheme.onSurface.withValues(alpha: 0.5),
-            size: 44),
+        Icon(
+          Icons.link_off_rounded,
+          color: colors.colorScheme.onSurface.withValues(alpha: 0.5),
+          size: 44,
+        ),
         const SizedBox(height: AzSpace.md),
         Text(
           message,

@@ -58,7 +58,8 @@ import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/withdrawal_progress_sheet.dart';
-
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 
 // ── Mode / network enums ─────────────────────────────────────────────────────
 
@@ -176,8 +177,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   // ── Fee preview ────────────────────────────────────────────────────────
   double _feeComputed = 0.0;
-  double _youReceive  = 0.0;
-  double _amountVal   = 0.0;
+  double _youReceive = 0.0;
+  double _amountVal = 0.0;
 
   void _updateFeePreview(String raw) {
     final amt = double.tryParse(raw) ?? 0.0;
@@ -185,9 +186,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     final discount = _selectedFeeDiscount?.discount ?? 0.0;
     final fee = amt * baseRate * (1 - discount);
     setState(() {
-      _amountVal   = amt;
+      _amountVal = amt;
       _feeComputed = fee;
-      _youReceive  = amt - fee;
+      _youReceive = amt - fee;
     });
   }
 
@@ -264,14 +265,18 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   /// Returns (proceed: false, target: null) on cancel/race (send NOTHING),
   /// (proceed: true, target: null) for a genuinely new operation, and
   /// (proceed: true, target: op) to resume op through the exact-only path.
-  Future<({bool proceed, DurableOperation? target})>
-      _resolveRecoveryInstance(
-      FinancialOperationRef ref, String type, Map<String, dynamic> body) async {
+  Future<({bool proceed, DurableOperation? target})> _resolveRecoveryInstance(
+    FinancialOperationRef ref,
+    String type,
+    Map<String, dynamic> body,
+  ) async {
     final account = await apiClient.operationAccount(failClosed: true);
     if (ref.operationId != null) {
       // case 1 / 2: is the armed instance still pending and still THIS body?
-      final armed = await DurableOperationRegistry.byId(ref.operationId!,
-          account: account);
+      final armed = await DurableOperationRegistry.byId(
+        ref.operationId!,
+        account: account,
+      );
       if (armed != null &&
           armed.fingerprint == DurableOperationRegistry.fingerprintOf(body)) {
         return (proceed: true, target: armed); // exact: fail-closed path
@@ -279,7 +284,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       ref.operationId = null; // released; re-run recovery below
     }
     final match = await DurableOperationRegistry.recoverExact(
-        account: account, type: type, request: body);
+      account: account,
+      type: type,
+      request: body,
+    );
     if (match is DurableRecoveryNone) {
       return (proceed: true, target: null); // case 3: genuinely new
     }
@@ -294,23 +302,31 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         title: const Text('Unfinished operations found'),
         content: SizedBox(
           width: double.maxFinite,
-          child: ListView(shrinkWrap: true, children: [
-            const Text(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Text(
                 'More than one unfinished operation with these exact '
                 'details exists. Choose which one to resume — resuming '
                 'reuses its original safety key and can never double-send. '
-                'The others stay untouched and recoverable.'),
-            const SizedBox(height: 8),
-            ...candidates.map((op) => ListTile(
+                'The others stay untouched and recoverable.',
+              ),
+              const SizedBox(height: 8),
+              ...candidates.map(
+                (op) => ListTile(
                   dense: true,
                   title: Text(
-                      'Started ${op.createdAt.toLocal().toString().substring(0, 19)}'),
+                    'Started ${op.createdAt.toLocal().toString().substring(0, 19)}',
+                  ),
                   subtitle: Text(
-                      '${op.safeSummary()} · key …${op.key.substring(op.key.length - 6)}'),
+                    '${op.safeSummary()} · key …${op.key.substring(op.key.length - 6)}',
+                  ),
                   trailing: const Text('Resume'),
                   onTap: () => Navigator.pop(ctx, op.operationId),
-                )),
-          ]),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -330,8 +346,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     if (picked == 'new') {
       return (proceed: true, target: null); // explicit new operation
     }
-    final chosen =
-        await DurableOperationRegistry.byId(picked, account: account);
+    final chosen = await DurableOperationRegistry.byId(
+      picked,
+      account: account,
+    );
     if (chosen == null) {
       return (proceed: false, target: null); // raced away: fail closed
     }
@@ -466,8 +484,11 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         if (_selectedFeeDiscount != null)
           'feeDiscountTierId': _selectedFeeDiscount!.id,
       };
-      final resolved =
-          await _resolveRecoveryInstance(_fiatRef, _fiatActionId, body);
+      final resolved = await _resolveRecoveryInstance(
+        _fiatRef,
+        _fiatActionId,
+        body,
+      );
       if (!resolved.proceed) {
         setState(() => _isSubmitting = false);
         return;
@@ -479,8 +500,12 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // silently become a new operation.
         response = await apiClient.postFinancialRecovered(resolved.target!);
       } else {
-        response = await apiClient.postFinancial('/withdraw/fiat', body,
-            operationType: _fiatActionId, ref: _fiatRef);
+        response = await apiClient.postFinancial(
+          '/withdraw/fiat',
+          body,
+          operationType: _fiatActionId,
+          ref: _fiatRef,
+        );
       }
 
       if (!mounted) return;
@@ -489,7 +514,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       final data = jsonDecode(response.body);
       final accepted =
           (response.statusCode == 200 || response.statusCode == 202) &&
-              data['success'] == true;
+          data['success'] == true;
       if (accepted) {
         // The logical withdrawal is complete — postFinancial has already
         // retired the durable entry (2xx), so the next one is a new action.
@@ -513,8 +538,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // + poll driven), never a generic "requested!" dead-end.
         final reference = data['data']?['reference']?.toString();
         if (reference != null && reference.isNotEmpty) {
-          await WithdrawalProgressSheet.show(context,
-              WithdrawalProgressSheet.fiat(reference: reference));
+          await WithdrawalProgressSheet.show(
+            context,
+            WithdrawalProgressSheet.fiat(reference: reference),
+          );
         } else {
           _showSnack(
             data['message']?.toString() ?? 'Mobile-money withdrawal accepted',
@@ -591,8 +618,11 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         'destination': destination,
         'networkPref': networkPref,
       };
-      final resolved =
-          await _resolveRecoveryInstance(_walletRef, _walletActionId, body);
+      final resolved = await _resolveRecoveryInstance(
+        _walletRef,
+        _walletActionId,
+        body,
+      );
       if (!resolved.proceed) {
         setState(() => _isSubmitting = false);
         return;
@@ -602,8 +632,12 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // EXACT-ONLY resume of the recovered instance (see the fiat path).
         response = await apiClient.postFinancialRecovered(resolved.target!);
       } else {
-        response = await apiClient.postFinancial('/wallet/withdraw', body,
-            operationType: _walletActionId, ref: _walletRef);
+        response = await apiClient.postFinancial(
+          '/wallet/withdraw',
+          body,
+          operationType: _walletActionId,
+          ref: _walletRef,
+        );
       }
 
       if (!mounted) return;
@@ -612,7 +646,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       final data = jsonDecode(response.body);
       final accepted =
           (response.statusCode == 200 || response.statusCode == 202) &&
-              data['success'] == true;
+          data['success'] == true;
       if (accepted) {
         // (2xx → postFinancial retired the durable entry already.)
         HapticFeedback.heavyImpact();
@@ -624,9 +658,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         final rawId = withdrawal?['id'];
         if (rawId is num) {
           await WithdrawalProgressSheet.show(
-              context,
-              WithdrawalProgressSheet.wallet(
-                  withdrawalId: rawId.toInt()));
+            context,
+            WithdrawalProgressSheet.wallet(withdrawalId: rawId.toInt()),
+          );
         } else {
           _showSnack(
             data['message']?.toString() ?? 'Withdrawal requested!',
@@ -859,16 +893,16 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                   const SizedBox(height: 2),
                   Text(
                     'Automate recurring withdrawals',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                    ),
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded,
-                color: colors.textTertiary, size: 14),
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: colors.textTertiary,
+              size: 14,
+            ),
           ],
         ),
       ),
@@ -892,11 +926,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           },
           child: Row(
             children: [
-              Icon(
-                Icons.history,
-                color: colors.textPrimary,
-                size: 18,
-              ),
+              Icon(Icons.history, color: colors.textPrimary, size: 18),
               const SizedBox(width: 8),
               Text(
                 'Recent withdrawals',
@@ -1103,7 +1133,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   /// trimmed/capped rather than naively formatted.
   void _setMax() {
     if (_isSubmitting) return;
-    var raw = _availableBalance <= 0 ? '' : _availableBalance.toStringAsFixed(2);
+    var raw = _availableBalance <= 0
+        ? ''
+        : _availableBalance.toStringAsFixed(2);
     if (raw.endsWith('.00')) raw = raw.substring(0, raw.length - 3);
     final intPart = raw.split('.').first;
     if (intPart.length > 7) raw = '9999999';
@@ -1129,16 +1161,16 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           (_mode == _WithdrawMode.cryptoWallet && _walletChosenByUser));
 
   Map<String, dynamic> _captureDraft() => {
-        'amountRaw': _amountRaw,
-        'mode': _mode == _WithdrawMode.cryptoWallet
-            ? 'cryptoWallet'
-            : 'mobileMoney',
-        'network': _selectedNetwork.apiValue,
-        'phone': _phoneController.text.trim(),
-        'accountName': _accountNameController.text.trim(),
-        if (_selectedWallet?['address'] != null)
-          'walletAddress': _selectedWallet!['address'].toString(),
-      };
+    'amountRaw': _amountRaw,
+    'mode': _mode == _WithdrawMode.cryptoWallet
+        ? 'cryptoWallet'
+        : 'mobileMoney',
+    'network': _selectedNetwork.apiValue,
+    'phone': _phoneController.text.trim(),
+    'accountName': _accountNameController.text.trim(),
+    if (_selectedWallet?['address'] != null)
+      'walletAddress': _selectedWallet!['address'].toString(),
+  };
 
   /// §C.1 — the guarded close through the SHARED launcher prompt. An
   /// empty form closes silently; a meaningful one offers Keep/Discard/
@@ -1146,9 +1178,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   Future<void> _attemptClose() async {
     if (_isSubmitting) return;
     if (_mode == _WithdrawMode.mobileMoney &&
-        (_amountRaw.isNotEmpty ||
-            _phoneController.text.trim().isNotEmpty ||
-            _accountNameController.text.trim().isNotEmpty) ||
+            (_amountRaw.isNotEmpty ||
+                _phoneController.text.trim().isNotEmpty ||
+                _accountNameController.text.trim().isNotEmpty) ||
         _mode == _WithdrawMode.cryptoWallet &&
             (_amountRaw.isNotEmpty || _selectedWallet != null)) {
       final user = ref.read(authProvider).user;
@@ -1172,7 +1204,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     if (context.canPop()) {
       context.pop();
     } else {
-      context.go('/');
+      context.go(AzRoutes.shell);
     }
   }
 
@@ -1233,20 +1265,30 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                             onClose: _attemptClose,
                           ),
                           Padding(
-                            padding:
-                                EdgeInsets.fromLTRB(20, compact ? 6 : 10, 20, 0),
+                            padding: EdgeInsets.fromLTRB(
+                              20,
+                              compact ? 6 : 10,
+                              20,
+                              0,
+                            ),
                             child: _buildModeToggle(colors),
                           ),
-                          _buildAmountComposition(colors, balanceLabel, compact),
+                          _buildAmountComposition(
+                            colors,
+                            balanceLabel,
+                            compact,
+                          ),
                           Expanded(
                             child: PageView(
                               key: const ValueKey('withdraw-mode-pages'),
                               controller: _modePageController,
                               onPageChanged: (index) {
                                 if (_isSubmitting) return;
-                                setState(() => _mode = index == 0
-                                    ? _WithdrawMode.mobileMoney
-                                    : _WithdrawMode.cryptoWallet);
+                                setState(
+                                  () => _mode = index == 0
+                                      ? _WithdrawMode.mobileMoney
+                                      : _WithdrawMode.cryptoWallet,
+                                );
                               },
                               children: [
                                 _buildMomoPage(colors),
@@ -1263,8 +1305,12 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                             ),
                           ),
                           Padding(
-                            padding:
-                                EdgeInsets.fromLTRB(20, 12, 20, 12 + bottomInset),
+                            padding: EdgeInsets.fromLTRB(
+                              20,
+                              12,
+                              20,
+                              12 + bottomInset,
+                            ),
                             child: _buildSubmitButton(colors),
                           ),
                         ],
@@ -1436,9 +1482,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
-                isCritical
-                    ? Icons.error_outline
-                    : Icons.info_outline,
+                isCritical ? Icons.error_outline : Icons.info_outline,
                 color: accent,
                 size: 18,
               ),
@@ -1644,9 +1688,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
             // destination can slide out by accident.
             final selected = _selectedSavedMomoId == null
                 ? null
-                : accounts.where((a) => a.id == _selectedSavedMomoId)
-                    .cast<SavedMomoAccount?>()
-                    .firstWhere((a) => a != null, orElse: () => null);
+                : accounts
+                      .where((a) => a.id == _selectedSavedMomoId)
+                      .cast<SavedMomoAccount?>()
+                      .firstWhere((a) => a != null, orElse: () => null);
             if (selected == null) {
               return _ChooseAccountRow(
                 colors: colors,
@@ -1720,9 +1765,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      hasNote
-                          ? note
-                          : 'Optional note sent with the payout SMS',
+                      hasNote ? note : 'Optional note sent with the payout SMS',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -1737,9 +1780,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               Text(
                 hasNote ? 'Edit' : 'Add',
                 style: TextStyle(
-                  color: _isSubmitting
-                      ? colors.textTertiary
-                      : colors.accent,
+                  color: _isSubmitting ? colors.textTertiary : colors.accent,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1763,10 +1804,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (sheetContext) => _ReferenceSheet(
-        colors: colors,
-        initial: _accountNameController.text,
-      ),
+      builder: (sheetContext) =>
+          _ReferenceSheet(colors: colors, initial: _accountNameController.text),
     );
     // Cancel-safe: anything but a non-null result leaves the committed
     // note exactly as it was.
@@ -1889,10 +1928,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
               value: wallets.contains(_selectedWallet)
                   ? _selectedWallet
                   : (wallets.isNotEmpty ? wallets.first : null),
-              icon: Icon(
-                Icons.arrow_downward,
-                color: colors.textTertiary,
-              ),
+              icon: Icon(Icons.arrow_downward, color: colors.textTertiary),
               items: wallets.map((wallet) {
                 final label = wallet['label']?.toString() ?? 'Unnamed';
                 final provider = wallet['provider']?.toString() ?? '';
@@ -2342,42 +2378,62 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           Container(
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14), border: Border.all(color: colors.divider)),
-            child: Column(children: [
-              _FeeRow("Amount", "${_amountVal.toStringAsFixed(2)} USDC", colors),
-              _FeeRow("Service fee (2%)", "-${_feeComputed.toStringAsFixed(2)} USDC", colors, isDanger: true),
-              const Divider(height: 16),
-              _FeeRow("You receive", "${_youReceive.toStringAsFixed(2)} USDC", colors, isBold: true),
-            ]),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: colors.divider),
+            ),
+            child: Column(
+              children: [
+                _FeeRow(
+                  "Amount",
+                  "${_amountVal.toStringAsFixed(2)} USDC",
+                  colors,
+                ),
+                _FeeRow(
+                  "Service fee (2%)",
+                  "-${_feeComputed.toStringAsFixed(2)} USDC",
+                  colors,
+                  isDanger: true,
+                ),
+                const Divider(height: 16),
+                _FeeRow(
+                  "You receive",
+                  "${_youReceive.toStringAsFixed(2)} USDC",
+                  colors,
+                  isBold: true,
+                ),
+              ],
+            ),
           ),
         ],
         SlideToConfirm(
-      key: _slideKey,
-      text: _mode == _WithdrawMode.mobileMoney
-          ? 'Slide to send mobile money'
-          : 'Slide to send to wallet',
-      backgroundColor: colors.card,
-      thumbColor: colors.accent,
-      isLoading: _isSubmitting,
-      onConfirmed: () {
-        // Phase H3 — biometric pre-gate. No-op when biometric lock is
-        // disabled in Settings (opt-in); blocks _submit() if enabled and
-        // the prompt fails or is cancelled. The commit() haptic now fires
-        // INSIDE the gate's success path so a cancelled auth doesn't
-        // emit a "transaction sent" buzz.
-        AzamanBiometricGate.runSync(
-          context,
-          () {
-            AzamanHaptics.commit();
-            _submit();
+          key: _slideKey,
+          text: _mode == _WithdrawMode.mobileMoney
+              ? 'Slide to send mobile money'
+              : 'Slide to send to wallet',
+          backgroundColor: colors.card,
+          thumbColor: colors.accent,
+          isLoading: _isSubmitting,
+          onConfirmed: () {
+            // Phase H3 — biometric pre-gate. No-op when biometric lock is
+            // disabled in Settings (opt-in); blocks _submit() if enabled and
+            // the prompt fails or is cancelled. The commit() haptic now fires
+            // INSIDE the gate's success path so a cancelled auth doesn't
+            // emit a "transaction sent" buzz.
+            AzamanBiometricGate.runSync(
+              context,
+              () {
+                AzamanHaptics.commit();
+                _submit();
+              },
+              reason: _mode == _WithdrawMode.mobileMoney
+                  ? 'Authenticate to send mobile money'
+                  : 'Authenticate to send crypto',
+              onCancelled: () => _slideKey.currentState?.reset(),
+            );
           },
-          reason: _mode == _WithdrawMode.mobileMoney
-              ? 'Authenticate to send mobile money'
-              : 'Authenticate to send crypto',
-          onCancelled: () => _slideKey.currentState?.reset(),
-        );
-      },
-    ),
+        ),
       ],
     );
   }
@@ -2408,7 +2464,6 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         return Icons.payments_outlined;
     }
   }
-
 }
 
 /// The reference editor sheet. Owns its draft [TextEditingController] and
@@ -2425,8 +2480,9 @@ class _ReferenceSheet extends StatefulWidget {
 }
 
 class _ReferenceSheetState extends State<_ReferenceSheet> {
-  late final TextEditingController _draft =
-      TextEditingController(text: widget.initial);
+  late final TextEditingController _draft = TextEditingController(
+    text: widget.initial,
+  );
 
   @override
   void dispose() {
@@ -2438,8 +2494,9 @@ class _ReferenceSheetState extends State<_ReferenceSheet> {
   Widget build(BuildContext context) {
     final colors = widget.colors;
     return Padding(
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
         child: Column(
@@ -2514,8 +2571,9 @@ class _ReferenceSheetState extends State<_ReferenceSheet> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
@@ -2593,7 +2651,10 @@ class _WithdrawAccountRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              momo_net.MomoNetworkBadge(provider: account.provider, showLabel: false),
+              momo_net.MomoNetworkBadge(
+                provider: account.provider,
+                showLabel: false,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -2651,10 +2712,7 @@ class _WithdrawAccountRow extends StatelessWidget {
 /// the selected row, but stating that a payout account must be chosen.
 /// Tapping opens the same selector sheet; nothing is preselected.
 class _ChooseAccountRow extends StatelessWidget {
-  const _ChooseAccountRow({
-    required this.colors,
-    required this.onTap,
-  });
+  const _ChooseAccountRow({required this.colors, required this.onTap});
 
   final AzamanColors colors;
 
@@ -2677,8 +2735,11 @@ class _ChooseAccountRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.account_balance_wallet_outlined,
-                  color: colors.textTertiary, size: 22),
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: colors.textTertiary,
+                size: 22,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -2772,9 +2833,7 @@ class _WithdrawAccountSelectorSheetState
                   Expanded(
                     child: Text(
                       'Payout account',
-                      style: AzText.titleL.copyWith(
-                        color: colors.textPrimary,
-                      ),
+                      style: AzText.titleL.copyWith(color: colors.textPrimary),
                     ),
                   ),
                   Semantics(
@@ -2852,7 +2911,10 @@ class _PayoutOptionRow extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        leading: momo_net.MomoNetworkBadge(provider: account.provider, showLabel: false),
+        leading: momo_net.MomoNetworkBadge(
+          provider: account.provider,
+          showLabel: false,
+        ),
         title: Text(
           name,
           maxLines: 1,
@@ -2940,12 +3002,20 @@ class _FeeRow extends StatelessWidget {
   final AzamanColors colors;
   final bool isDanger;
   final bool isBold;
-  const _FeeRow(this.label, this.value, this.colors,
-    {this.isDanger = false, this.isBold = false});
+  const _FeeRow(
+    this.label,
+    this.value,
+    this.colors, {
+    this.isDanger = false,
+    this.isBold = false,
+  });
   @override
   Widget build(BuildContext context) {
-    final color = isDanger ? colors.danger
-      : isBold ? colors.textPrimary : colors.textSecondary;
+    final color = isDanger
+        ? colors.danger
+        : isBold
+        ? colors.textPrimary
+        : colors.textSecondary;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
@@ -2969,10 +3039,15 @@ class _FeeRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: TextStyle(color: color, fontSize: 12, fontWeight: isBold ? FontWeight.w800 : FontWeight.w500),
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: isBold ? FontWeight.w800 : FontWeight.w500,
+              ),
             ),
           ),
-        ]),
+        ],
+      ),
     );
   }
 }
@@ -3021,9 +3096,7 @@ class _WithdrawHeader extends StatelessWidget {
                 child: Icon(
                   Icons.close,
                   size: 18,
-                  color: enabled
-                      ? colors.textPrimary
-                      : colors.textTertiary,
+                  color: enabled ? colors.textPrimary : colors.textTertiary,
                 ),
               ),
             ),

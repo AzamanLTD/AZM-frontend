@@ -7,11 +7,15 @@
 // that replace each other.
 //
 // WHAT THIS FRAME OWNS (and the faces never re-implement):
-//   • ONE fixed size contract — height 165px, exactly the live Home deck's
-//     card height (home_screen.dart `_cardHeight`, the deck-geometry constant
-//     the cradle/pouch positioning depends on). The frame is width-filled by
-//     its parent, mirroring how the Home deck lays the card out. Neither face
-//     can influence this footprint: both are laid out inside tight, identical
+//   • ONE fixed size contract — height 180px, the ORIGINAL deck geometry
+//     (d63a4d4; the 2026-10-12 refresh had briefly reduced it to 165, which
+//     the 2026-10-27 UX pass restored — the balance card is the product's
+//     primary money surface and the founder wants the larger presentation:
+//     the GHS headline, the USDC-equivalent line and the FX status row each
+//     get a fixed reserved region inside the frame). The frame is width-filled
+//     by its parent, mirroring how the Home deck lays the card out (its
+//     `_cardHeight` mirrors BalanceCardGeometry.height). Neither face can
+//     influence this footprint: both are laid out inside tight, identical
 //     constraints, so the card's layout size never changes across a flip and
 //     nothing around it reflows.
 //   • ONE outer material and edge language — a single HolographicSurface
@@ -27,16 +31,19 @@
 //     the back face's inner scroll. Reduced motion lands the flip on the
 //     first frame (Duration.Zero, re-checked per toggle).
 //   • ONE nested-gesture guard contract — interactive affordances hosted by
-//     a face (the equivalent's disclosure button, the refresh slot, the
+//     a face (the equivalent's disclosure button,
 //     back-face "return to balance" control) mark the shared flipGuard on
 //     pointer-down exactly like the live card's nested affordances; the
 //     frame's Listener consumes the mark on pointer-up and cedes the
 //     gesture, so an affordance tap NEVER also flips the card.
 //
-// CONTRACT-SEAM STAGE: this component is pure and fixture-driven — it renders
-// the typed BalanceCardValuation it is given and is NOT yet wired into the
-// live Home screen. The backend valuation contract is pending; the wiring
-// adapter lands with it.
+// WIRED (superseding the old contract-seam note): this component renders
+// the typed BalanceCardValuation it is given, and the live Home deck now
+// mounts it through HomeBalanceCard — the production adapter
+// (balanceCardValuationProvider) is the only seam numbers enter through.
+// The backend valuation contract (PR #367) is still pending on the live
+// API: until it ships the adapter feeds the honest interim derivation,
+// and its `data.valuation` mapper activates the moment the field does.
 // =============================================================================
 
 import 'dart:math' as math;
@@ -53,12 +60,15 @@ import 'package:azaman/widgets/home/balance_card_fx.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 /// The single geometric contract of the physical card, shared with the live
-/// Home deck. The front face of the existing Home card measures 165px tall
-/// (home_screen.dart `_cardHeight`) — the flip must not change it.
+/// Home deck (home_screen.dart `_cardHeight`). 180px is the ORIGINAL deck
+/// geometry (d63a4d4; restored by the 2026-10-27 UX pass after the brief
+/// 165px reduction) — the flip must not change it, and neither may any data
+/// state: the frame's footprint is identical whether the balance, the rate
+/// or both are loading, unavailable or populated.
 class BalanceCardGeometry {
   const BalanceCardGeometry._();
 
-  static const double height = 165;
+  static const double height = 180;
   static const double radius = 20;
 }
 
@@ -68,15 +78,17 @@ class BalanceCardPair extends StatefulWidget {
     super.key,
     required this.valuation,
     required this.colors,
-    this.trailingRefresh,
+    this.flipGuard,
   });
 
   final BalanceCardValuation valuation;
   final AzamanColors colors;
 
-  /// The right-edge refresh affordance slot (the live wiring will pass the
-  /// real RateRefreshIndicator; the frame pins it flush right).
-  final Widget? trailingRefresh;
+  /// The shared nested-gesture guard. When the HOST mounts card-level
+  /// affordances (the Home deck's large-text overlay), it owns the guard
+  /// and passes it here so both the frame's listener and the host's
+  /// overlay read/write ONE mark. Null → the frame allocates its own.
+  final ValueNotifier<bool>? flipGuard;
 
   @override
   State<BalanceCardPair> createState() => _BalanceCardPairState();
@@ -91,18 +103,23 @@ class _BalanceCardPairState extends State<BalanceCardPair>
   /// NESTED-GESTURE GUARD — affordances hosted by a face mark this on
   /// pointer-down; the frame's Listener reads it on pointer-up and cedes
   /// the gesture (the same contract as the live card's affordances).
-  final ValueNotifier<bool> _flipGuard = ValueNotifier<bool>(false);
+  /// The frame's guard: the host-supplied [BalanceCardPair.flipGuard]
+  /// when the host owns card-level affordances, else a private one.
+  late final ValueNotifier<bool> _flipGuard =
+      widget.flipGuard ?? ValueNotifier<bool>(false);
+  bool _ownsGuard = false;
 
   @override
   void initState() {
     super.initState();
+    _ownsGuard = widget.flipGuard == null;
     _ctrl = AnimationController(vsync: this, duration: MotionTokens.spatial);
     _flip = CurvedAnimation(parent: _ctrl, curve: MotionTokens.symmetric);
   }
 
   @override
   void dispose() {
-    _flipGuard.dispose();
+    if (_ownsGuard) _flipGuard.dispose();
     _ctrl.dispose();
     super.dispose();
   }
@@ -132,107 +149,129 @@ class _BalanceCardPairState extends State<BalanceCardPair>
     // back face's inner scroll; nothing about a drag can flip the card.
     Offset? downAt;
     bool? downOnAffordance;
-    return Listener(
-      key: const ValueKey('balance-pair-flip-listener'),
-      behavior: HitTestBehavior.translucent,
-      onPointerDown: (e) {
-        downAt = e.position;
-        // A deeper affordance Listener fires before this one, so the mark
-        // is already set if the press began on a nested control.
-        downOnAffordance = _flipGuard.value;
-      },
-      onPointerCancel: (e) {
-        downAt = null;
-        downOnAffordance = null;
-        _flipGuard.value = false;
-      },
-      onPointerUp: (e) {
-        final guarded = downOnAffordance ?? false;
-        downOnAffordance = null;
-        _flipGuard.value = false;
-        if (guarded) return;
-        if (downAt == null) return;
-        final dist = (e.position - downAt!).distance;
-        downAt = null;
-        if (dist < 8) _toggle();
-      },
-      child: MediaQuery.withClampedTextScaling(
-        // The live Home card clamps at 1.25x — the largest scale its hard
-        // 165px budget accommodates at every width. Same clamp, same card.
-        maxScaleFactor: 1.25,
-        child: AnimatedBuilder(
-          animation: _flip,
-          builder: (context, _) {
-            final t = _flip.value;
-            final angle = t * math.pi;
-            final showBack = t > 0.5;
+    // WORKSTREAM J3 — screen-reader/switch discoverability: the flip is
+    // exposed as a REAL semantic tap action with a meaningful,
+    // state-aware hint ('Show balance details' / 'Return to the
+    // balance'). The semantic activation and the pointer tap both call
+    // the same _toggle, so nothing about the arbitration below changes:
+    // a SEMANTIC activation of the frame itself is the deliberate
+    // reveal, while the nested disclosure/return controls carry their
+    // own semantic taps on deeper nodes, so activating THEM never
+    // reaches this action.
+    return Semantics(
+      key: const ValueKey('balance-pair-semantics'),
+      container: true,
+      button: true,
+      label: _isBack
+          ? 'Balance card — details breakdown'
+          : 'Balance card — available balance',
+      onTapHint: _isBack
+          ? 'return to the balance summary'
+          : 'show the balance details',
+      onTap: _toggle,
+      child: Listener(
+        key: const ValueKey('balance-pair-flip-listener'),
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (e) {
+          downAt = e.position;
+          // A deeper affordance Listener fires before this one, so the mark
+          // is already set if the press began on a nested control.
+          downOnAffordance = _flipGuard.value;
+        },
+        onPointerCancel: (e) {
+          downAt = null;
+          downOnAffordance = null;
+          _flipGuard.value = false;
+        },
+        onPointerUp: (e) {
+          final guarded = downOnAffordance ?? false;
+          downOnAffordance = null;
+          _flipGuard.value = false;
+          if (guarded) return;
+          if (downAt == null) return;
+          final dist = (e.position - downAt!).distance;
+          downAt = null;
+          if (dist < 8) _toggle();
+        },
+        child: MediaQuery.withClampedTextScaling(
+          // The live Home card clamps at 1.25x — the largest scale its hard
+          // 180px budget accommodates at every width. Same clamp, same card.
+          maxScaleFactor: 1.25,
+          child: AnimatedBuilder(
+            animation: _flip,
+            builder: (context, _) {
+              final t = _flip.value;
+              final angle = t * math.pi;
+              final showBack = t > 0.5;
 
-            return SizedBox(
-              key: const ValueKey('balance-pair-frame'),
-              height: BalanceCardGeometry.height,
-              width: double.infinity,
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateX(angle),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // ── THE ONE MATERIAL ────────────────────────────────
-                    // Both faces live inside the same HolographicSurface —
-                    // the app's graphite/hologram family. The back is the
-                    // same family, subdued (lower intensity): a matte
-                    // reverse side, never a second card.
-                    if (showBack)
-                      Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..rotateX(math.pi),
-                        child: HolographicSurface(
-                          key: const ValueKey('balance-pair-back-surface'),
+              return SizedBox(
+                key: const ValueKey('balance-pair-frame'),
+                height: BalanceCardGeometry.height,
+                width: double.infinity,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..setEntry(3, 2, 0.001)
+                    ..rotateX(angle),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // ── THE ONE MATERIAL ────────────────────────────────
+                      // Both faces live inside the same HolographicSurface —
+                      // the app's graphite/hologram family. The back is the
+                      // same family, subdued (lower intensity): a matte
+                      // reverse side, never a second card.
+                      if (showBack)
+                        Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.identity()..rotateX(math.pi),
+                          child: HolographicSurface(
+                            key: const ValueKey('balance-pair-back-surface'),
+                            base: widget.colors.card,
+                            tint: widget.colors.textSecondary,
+                            intensity: 0.6,
+                            sheenPeak: 0.10,
+                            showSheen: false,
+                            showReactiveParticles: false,
+                            interactive: false,
+                            borderRadius: BalanceCardGeometry.radius,
+                            child: BalanceCardBreakdown(
+                              valuation: widget.valuation,
+                              colors: widget.colors,
+                              flipGuard: _flipGuard,
+                              onFlipBackRequested: _toggle,
+                            ),
+                          ),
+                        )
+                      else
+                        HolographicSurface(
+                          key: const ValueKey('balance-pair-front-surface'),
                           base: widget.colors.card,
                           tint: widget.colors.textSecondary,
-                          intensity: 0.6,
-                          sheenPeak: 0.10,
                           showSheen: false,
                           showReactiveParticles: false,
                           interactive: false,
                           borderRadius: BalanceCardGeometry.radius,
-                          child: BalanceCardBreakdown(
+                          child: BalanceCardFx(
                             valuation: widget.valuation,
                             colors: widget.colors,
                             flipGuard: _flipGuard,
-                            onFlipBackRequested: _toggle,
                           ),
                         ),
-                      )
-                    else
-                      HolographicSurface(
-                        key: const ValueKey('balance-pair-front-surface'),
-                        base: widget.colors.card,
-                        tint: widget.colors.textSecondary,
-                        showSheen: false,
-                        showReactiveParticles: false,
-                        interactive: false,
-                        borderRadius: BalanceCardGeometry.radius,
-                        child: BalanceCardFx(
-                          valuation: widget.valuation,
-                          colors: widget.colors,
-                          flipGuard: _flipGuard,
-                          trailingRefresh: widget.trailingRefresh,
+                      // ── THE ONE EDGE ─────────────────────────────────────
+                      // The rim is INSIDE the flip transform: the perimeter
+                      // travels with the card, exactly like the live card.
+                      const Positioned.fill(
+                        child: PremiumCardRim(
+                          radius: BalanceCardGeometry.radius,
                         ),
                       ),
-                    // ── THE ONE EDGE ─────────────────────────────────────
-                    // The rim is INSIDE the flip transform: the perimeter
-                    // travels with the card, exactly like the live card.
-                    const Positioned.fill(
-                      child: PremiumCardRim(radius: BalanceCardGeometry.radius),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );

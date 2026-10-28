@@ -29,7 +29,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'package:azaman/config.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
@@ -38,10 +37,9 @@ import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
-import 'package:azaman/widgets/flippable_balance_card.dart';
-import 'package:azaman/widgets/home/balance_card_preview_section.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/home/home_persistent_header.dart';
+import 'package:azaman/widgets/home/home_balance_card.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
@@ -957,13 +955,17 @@ class _DeckHostState extends ConsumerState<_DeckHost>
     }
   }
 
-  // 2026-10-12 refresh: the physical cards' footprint is reduced ~8% (180 →
-  // 165) so the stack reads tighter and the depth/cradle treatment gets room
-  // to breathe. Both cards' contents were audited at this height (no text
-  // clipping at 320dp width or with enlarged text — covered by the card
-  // widget tests); if a future change needs more height, revisit BOTH cards,
+  // UX pass (2026-10-27): the physical cards' footprint returns to the
+  // ORIGINAL deck geometry, 180px (d63a4d4 — the reactive-surface deck PR;
+  // the 2026-10-12 refresh had reduced it to 165). The balance card is the
+  // product's primary money surface and the founder wants the larger
+  // presentation back: the GHS headline, the USDC-equivalent line and the
+  // FX status row each get a fixed reserved region inside the taller frame
+  // (see BalanceCardGeometry and balance_card_fx.dart). Both cards'
+  // contents were originally designed at this height and are audited here
+  // again; if a future change needs a different height, revisit BOTH cards,
   // not just this constant.
-  static const double _cardHeight = 165;
+  static const double _cardHeight = 180;
 
   @override
   Widget build(BuildContext context) {
@@ -990,7 +992,7 @@ class _DeckHostState extends ConsumerState<_DeckHost>
             // its hand animation played invisibly behind the opaque pouch
             // (the deck's exposed headers already teach tap-to-select).
             // No perpetual ambient animation replaces it.
-            balanceCard: const FlippableBalanceCard(),
+            balanceCard: const HomeBalanceCard(),
             visaCard: const AzmVisaCard(),
             onStateChanged: _onDeckStateChanged,
           ),
@@ -1010,16 +1012,6 @@ class _DeckHostState extends ConsumerState<_DeckHost>
               ),
             ),
           ),
-        // WORKSTREAM E PREVIEW — the redesigned BalanceCardPair, visible
-        // ONLY in demo builds and explicitly labelled as fixture data
-        // (never real funds). The real deck keeps FlippableBalanceCard
-        // until the backend valuation contract (#367 → GET /api/users
-        // /balance, additive data.valuation) lands and the production
-        // adapter is wired. Non-demo builds render nothing here.
-        BalanceCardPreviewSection(
-          colors: colors,
-          visible: AppConfig.demoMode,
-        ),
       ],
     );
   }

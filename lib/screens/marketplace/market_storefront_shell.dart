@@ -2,8 +2,10 @@
 // MARKET STOREFRONT SHELL — Marketplace Storefront Redesign (2026-10-02)
 //
 // The canonical customer-facing market surface: ONE continuous motion from a
-// full-bleed hero identity (arrival) into a locked shopping sheet, with the
-// market's information living BEHIND the sheet.
+// full-bleed hero identity (arrival) into a locked shopping sheet. The back
+// layer is a two-region column: a top banner band (banner + identity hero)
+// and the natural content area below it, where the market's information
+// lives behind the draggable sheet (PART B layout hierarchy fix).
 //
 // Interaction model (three deliberate snap states, one shopping scroll owner):
 //   • INFO     (extent 0.46) — sheet pulled down; "About this market" panel
@@ -19,8 +21,8 @@
 // drag hands control to the sheet (it recedes toward the info snap); an
 // upward drag locks it back at shopping. The product ListView is the ONLY
 // vertical scrollable while the sheet is up (shopping/overview states).
-// The information layer BEHIND the sheet may scroll its own content
-// (SingleChildScrollView) while the info state is explicitly exposed; the
+// The information layer in the content area below the banner may scroll
+// its own content (SingleChildScrollView) while the info state is exposed; the
 // sheet's grab handle remains the deterministic way to change snap states.
 // No additional nested vertical scrolling exists anywhere in the shell.
 //
@@ -29,10 +31,12 @@
 // info panel reveal, and the compact pill fade/scale together — not two
 // unrelated header widgets.
 //
-// Discovery: on first entry the sheet dips to the info snap and springs
-// back to shopping (MotionTokens-timed, easeOutBack settle), teaching
-// "there is something behind this sheet". Runs once per screen; skipped
-// entirely (immediate settle) under reduced motion (AzMotion).
+// Stillness: the screen opens at its arrival snap (overview — the full
+// hero identity composition) and moves ONLY on user interaction. There is
+// no automatic entrance choreography: the sheet never dips, springs, or
+// repositions itself. Every state change is a real user gesture (handle
+// tap, handle drag, or the product list's own drag), and reduced-motion
+// users get the identical still, honest first frame.
 // =============================================================================
 
 import 'dart:async';
@@ -43,13 +47,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/server_social_proof_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_radius.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
+import 'package:azaman/widgets/marketplace/profile_joystick.dart';
+import 'package:azaman/widgets/marketplace/profile_joystick_delegates.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart'
     show OpenStatus, currentOpenStatus;
 
@@ -141,7 +146,8 @@ class MarketStorefrontShell extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<MarketStorefrontShell> createState() => _MarketStorefrontShellState();
+  ConsumerState<MarketStorefrontShell> createState() =>
+      _MarketStorefrontShellState();
 }
 
 class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
@@ -161,22 +167,27 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   /// overview) so the identity block and the info panel never fight.
   static const double _infoVisibleBelow = 0.56;
 
-  bool _discoveryStarted = false;
   double _lastExtent = MarketStorefrontSnaps.overview;
-  Timer? _discoveryTimer;
+
+  /// PR D (hero + sheet collapse): the extent now flows through a
+  /// ValueNotifier so ONLY the back layer (hero / pill / info) rebuilds
+  /// during a drag. The old per-tick setState rebuilt the WHOLE shell —
+  /// including the product sheet's ListView — on every frame of the
+  /// collapse, a real jank source on the low-end Androids this app
+  /// targets.
+  final ValueNotifier<double> _extentNotifier = ValueNotifier<double>(
+    MarketStorefrontSnaps.overview,
+  );
 
   @override
   void initState() {
     super.initState();
     _sheetController.addListener(_onExtentChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _runDiscoveryAnimation();
-    });
   }
 
   @override
   void dispose() {
-    _discoveryTimer?.cancel();
+    _extentNotifier.dispose();
     _sheetController.dispose();
     super.dispose();
   }
@@ -189,15 +200,18 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
 
   /// 0 at/below overview → 1 at shopping. Drives the hero collapse and the
   /// compact pill appearance.
-  double get _pillProgress {
-    final t = (_extent - _overviewSnap) / (_shoppingSnap - _overviewSnap);
+  /// [e] is the CURRENT extent value (from [_extentNotifier] during a
+  /// back-layer build) — the getters no longer read the controller, so
+  /// the back layer can be driven by the notifier alone.
+  double _pillProgressOf(double e) {
+    final t = (e - _overviewSnap) / (_shoppingSnap - _overviewSnap);
     return t.clamp(0.0, 1.0);
   }
 
   /// 1 at/below the info-visible line → 0 at overview. Drives the info
   /// panel reveal.
-  double get _infoProgress {
-    final t = (_extent - _infoSnap) / (_infoVisibleBelow - _infoSnap);
+  double _infoProgressOf(double e) {
+    final t = (e - _infoSnap) / (_infoVisibleBelow - _infoSnap);
     return (1.0 - t).clamp(0.0, 1.0);
   }
 
@@ -212,11 +226,13 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   /// [_infoVisibleBelow]'s contract: the panel is fully faded out by
   /// 0.56, so the two surfaces never fight) is that the identity fades
   /// IN from 0.56 → overview, reaching FULL exactly at the overview snap.
-  double get _identityOpacity {
-    final fromInfo = ((_extent - _infoVisibleBelow) /
-            (_overviewSnap - _infoVisibleBelow))
-        .clamp(0.0, 1.0);
-    return (1.0 - _pillProgress) * fromInfo;
+  double _identityOpacityOf(double e) {
+    final fromInfo =
+        ((e - _infoVisibleBelow) / (_overviewSnap - _infoVisibleBelow)).clamp(
+          0.0,
+          1.0,
+        );
+    return (1.0 - _pillProgressOf(e)) * fromInfo;
   }
 
   void _onExtentChanged() {
@@ -227,80 +243,101 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
       AzamanHaptics.selection();
     }
     _lastExtent = e;
-    setState(() {});
+    // Notifies ONLY the back layer (hero / pill / info crossfades) —
+    // the product sheet is NOT rebuilt by the collapse.
+    _extentNotifier.value = e;
   }
 
-  // ── Initial discovery animation ────────────────────────────────────────────
-  // A single physical dip-and-settle, once per screen. Under reduced motion
-  // the sheet simply settles at the shopping snap with no choreography.
-  void _runDiscoveryAnimation() {
-    if (_discoveryStarted || !_sheetController.isAttached) return;
-    _discoveryStarted = true;
-    final travel = AzMotion.of(context).travel;
-    try {
-      if (!travel) {
-        // Reduced motion: no choreography — settle immediately.
-        _sheetController.animateTo(
-          _shoppingSnap,
-          duration: const Duration(milliseconds: 1),
-          curve: Curves.linear,
-        );
-        return;
-      }
-    } catch (_) {
-      return;
+  // ── Grab handle: the deterministic way to change snap states ─────────
+  //
+  // PR D (hero + sheet collapse). The handle is the ONLY control that
+  // guarantees every snap is reachable:
+  //   • TAP cycles all three states in a fixed order —
+  //     shopping → overview (the arrival hero RETURNS) → info → shopping.
+  //     Before, the overview composition was reachable only by a
+  //     precise drag, and a tap merely toggled the outer two states.
+  //   • DRAG rides the extent directly: down reveals the information
+  //     layer, up re-locks shopping, and the release snaps to the
+  //     nearest (or flung) state with the shell's spring. Before, a
+  //     vertical drag on the handle did NOTHING (the sheet's drag only
+  //     lived on the product list).
+  // The sheet only ever moves through these real user gestures.
+
+  static const List<double> _cycle = [_shoppingSnap, _overviewSnap, _infoSnap];
+
+  /// The snap nearest to [e].
+  double _nearestSnapOf(double e) {
+    var best = _cycle.first;
+    for (final snap in _cycle) {
+      if ((e - snap).abs() < (e - best).abs()) best = snap;
     }
-    // Small entrance beat so the arrival composition registers first.
-    _discoveryTimer = Timer(MotionTokens.control, () {
-      if (!mounted) return;
-      // Reveal: dip to the info snap — "there is something behind me".
-      _animateSheetTo(
-        _infoSnap,
-        duration: MotionTokens.standard,
-        curve: MotionTokens.enter,
-        onDone: () {
-          _discoveryTimer = Timer(const Duration(milliseconds: 220), () {
-            if (!mounted) return;
-            // Settle into shopping with a soft spring.
-            _animateSheetTo(
-              _shoppingSnap,
-              duration: MotionTokens.emphasized,
-              curve: MotionTokens.spring,
-            );
-          });
-        },
-      );
-    });
+    return best;
   }
 
-  void _animateSheetTo(
-    double target, {
-    required Duration duration,
-    required Curve curve,
-    VoidCallback? onDone,
-  }) {
-    Future(() async {
-      try {
-        await _sheetController.animateTo(
-          target,
-          duration: duration,
-          curve: curve,
-        );
-      } catch (_) {
-        // The sheet can be disposed mid-flight; never crash the entrance.
-      }
-      if (mounted) onDone?.call();
-    });
+  /// The accessibility label for the sheet's current snap.
+  String _snapLabelOf(double e) {
+    final nearest = _nearestSnapOf(e);
+    if (nearest == _shoppingSnap) return 'Products';
+    if (nearest == _infoSnap) return 'Market information';
+    return 'Overview';
   }
 
-  /// Tap on the grab handle: at shopping → reveal information; anywhere
-  /// else → lift into shopping.
   void _onHandleTap() {
     if (!_sheetController.isAttached) return;
     AzamanHaptics.nav();
-    final target = _extent >= (_overviewSnap + _shoppingSnap) / 2
-        ? _infoSnap
-        : _shoppingSnap;
+    final nearest = _nearestSnapOf(_extent);
+    final next = nearest == _shoppingSnap
+        ? _overviewSnap
+        : (nearest == _overviewSnap ? _infoSnap : _shoppingSnap);
+    _sheetController.animateTo(
+      next,
+      duration: MotionTokens.emphasized,
+      curve: MotionTokens.spring,
+    );
+  }
+
+  void _onHandleDragStart(DragStartDetails details) {}
+
+  void _onHandleDragUpdate(DragUpdateDetails details) {
+    if (!_sheetController.isAttached) return;
+    // The extent is a fraction of the sheet's available height. Read the
+    // REAL render height — the shell's own RenderBox — never
+    // MediaQuery.sizeOf: some embedding surfaces (and every widget test
+    // harness that overrides the ambient MediaQuery) report a zero size,
+    // and a zero height would silently kill the drag.
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox) return;
+    final height = renderObject.size.height;
+    if (height <= 0) return;
+    // Finger down → sheet recedes; finger up → sheet lifts.
+    final target = (_extent - details.delta.dy / height).clamp(
+      _infoSnap,
+      _shoppingSnap,
+    );
+    try {
+      _sheetController.jumpTo(target);
+    } catch (_) {
+      // Detached mid-drag: nothing to drive.
+    }
+  }
+
+  void _onHandleDragEnd(DragEndDetails details) {
+    if (!_sheetController.isAttached) return;
+    AzamanHaptics.nav();
+    final e = _extent;
+    final v = details.velocity.pixelsPerSecond.dy;
+    double target = _nearestSnapOf(e);
+    if (v.abs() > 700) {
+      // A fling commits ONE step in its direction, never past it; at a
+      // boundary the nearest snap keeps the sheet honest.
+      final candidates = v > 0
+          ? _cycle.where((snap) => snap < e - 0.01).toList()
+          : _cycle.where((snap) => snap > e + 0.01).toList();
+      if (candidates.isNotEmpty) {
+        candidates.sort();
+        target = v > 0 ? candidates.last : candidates.first;
+      }
+    }
     _sheetController.animateTo(
       target,
       duration: MotionTokens.emphasized,
@@ -312,9 +349,6 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    final pillT = _pillProgress;
-    final infoT = _infoProgress;
-    final identityT = _identityOpacity;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -322,7 +356,19 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
         fit: StackFit.expand,
         children: [
           // ── Back layer: banner + identity + information (behind sheet) ──
-          _backLayer(colors, pillT, infoT, identityT),
+          // Rebuilt on every extent tick — and ONLY this layer is: the
+          // hero crossfade needs the live extent, the product sheet does
+          // not. (PR D jank fix: per-tick setState used to rebuild the
+          // whole sheet, products included, on every frame of a drag.)
+          ValueListenableBuilder<double>(
+            valueListenable: _extentNotifier,
+            builder: (context, e, _) {
+              final pillT = _pillProgressOf(e);
+              final infoT = _infoProgressOf(e);
+              final identityT = _identityOpacityOf(e);
+              return _backLayer(colors, pillT, infoT, identityT);
+            },
+          ),
           // ── The sheet ────────────────────────────────────────────────────
           Positioned.fill(
             child: DraggableScrollableSheet(
@@ -343,6 +389,25 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   }
 
   // ── Back layer ────────────────────────────────────────────────────────────
+  // LAYOUT HIERARCHY FIX (PART B, 2026-10-28): the back layer is a REAL
+  // two-region COLUMN, not a fullscreen wash with floating overlays.
+  //
+  //   ┌──────────────────────────────┐
+  //   │  TOP REGION — banner band:   │   the store banner image + the
+  //   │  banner, action row, hero    │   profile/identity hero. The logo
+  //   │  identity, compact pill      │   may straddle the band's edge.
+  //   ├──────────────────────────────┤
+  //   │  CONTENT AREA — the market   │   NATURAL content flow directly
+  //   │  information, behind the     │   BELOW the banner, behind the
+  //   │  draggable sheet             │   draggable sheet. NOT a card: no
+  //   └──────────────────────────────┘   card background/border/shadow.
+  //
+  // The old layout painted the banner fullscreen and floated the info
+  // panel as a boxed card at `top: safeTop + 64` — overlapping the hero.
+  // This restructure is the actual fix: the information OCCUPIES the
+  // content area below the banner band, so it can never overlap, sit
+  // beside, or appear above the profile or logo, and it reads as page
+  // content (no card chrome) on the page background.
   Widget _backLayer(
     AzamanColors colors,
     double pillT,
@@ -353,94 +418,122 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
     final safeTop = media.padding.top;
     final business = widget.business;
 
+    // The banner band is sized to hold the identity hero comfortably:
+    // logo + ring (78px), md gap, up-to-2-line name, meta line and the
+    // social proof line — all under the live text scale, so large-text
+    // users never get their hero clipped by the band edge.
+    final textScale =
+        MediaQuery.textScalerOf(context).scale(14) / 14;
+    final identityReserve =
+        78.0 + (12 + 57 + 6 + 18 + 4 + 18) * textScale + AzSpace.xs;
+    final bandHeight = safeTop + 72 + identityReserve;
+
     return Positioned.fill(
-      child: Stack(
-        fit: StackFit.expand,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Banner, with a subtle parallax lift as it collapses.
-          Transform.translate(
-            offset: Offset(0, -18 * pillT),
-            child: Transform.scale(
-              scale: 1.0 + (0.05 * pillT),
-              child: _banner(colors),
-            ),
-          ),
-          // Top action row — always available over the banner strip.
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AzSpace.md,
-                vertical: AzSpace.xs,
-              ),
-              child: Row(
-                children: [
-                  _circleButton(
-                    colors,
-                    Icons.arrow_back_rounded,
-                    widget.onBack ?? () => Navigator.maybePop(context),
+          // ── Top region: the banner band + identity hero ──────────────
+          SizedBox(
+            key: const Key('market-banner-band'),
+            height: bandHeight,
+            child: Stack(
+              fit: StackFit.expand,
+              clipBehavior: Clip.none,
+              children: [
+                // Banner, with a subtle parallax lift as it collapses.
+                // Clip.none keeps the parallax translate/scale bleed
+                // from clipping the banner inside the band; the content
+                // area below paints over any bleed at its top edge.
+                Transform.translate(
+                  offset: Offset(0, -18 * pillT),
+                  child: Transform.scale(
+                    scale: 1.0 + (0.05 * pillT),
+                    child: _banner(colors),
                   ),
-                  const Spacer(),
-                  _circleButton(
-                    colors,
-                    widget.isFollowing
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.person_add_outlined,
-                    widget.onToggleFollow,
-                    tint: widget.isFollowing ? colors.success : null,
-                  ),
-                  const SizedBox(width: AzSpace.sm),
-                  _circleButton(
-                    colors,
-                    Icons.ios_share_rounded,
-                    widget.onShare,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // Large hero identity block (arrival composition).
-          Positioned(
-            top: safeTop + 72,
-            left: AzSpace.lg,
-            right: AzSpace.lg,
-            child: IgnorePointer(
-              ignoring: identityT < 0.05,
-              child: Opacity(
-                opacity: identityT,
-                child: Transform.scale(
-                  scale: 1.0 - (0.18 * pillT),
-                  child: _identityBlock(business, colors),
                 ),
-              ),
-            ),
-          ),
-          // Compact market pill — crossfades in as the hero collapses.
-          Positioned(
-            top: safeTop + AzSpace.xs,
-            left: AzSpace.md,
-            right: AzSpace.md,
-            child: IgnorePointer(
-              ignoring: pillT < 0.95,
-              child: Opacity(
-                opacity: Curves.easeOutCubic.transform(pillT),
-                child: Transform.scale(
-                  scale: 0.96 + (0.04 * pillT),
-                  child: Center(child: _compactPill(business, colors)),
+                // Top action row — always available over the banner strip.
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AzSpace.md,
+                      vertical: AzSpace.xs,
+                    ),
+                    child: Row(
+                      children: [
+                        _circleButton(
+                          colors,
+                          Icons.arrow_back_rounded,
+                          widget.onBack ?? () => Navigator.maybePop(context),
+                        ),
+                        const Spacer(),
+                        _circleButton(
+                          colors,
+                          widget.isFollowing
+                              ? Icons.check_circle_outline_rounded
+                              : Icons.person_add_outlined,
+                          widget.onToggleFollow,
+                          tint: widget.isFollowing ? colors.success : null,
+                        ),
+                        const SizedBox(width: AzSpace.sm),
+                        _circleButton(
+                          colors,
+                          Icons.ios_share_rounded,
+                          widget.onShare,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                // Large hero identity block (arrival composition).
+                Positioned(
+                  top: safeTop + 72,
+                  left: AzSpace.lg,
+                  right: AzSpace.lg,
+                  child: IgnorePointer(
+                    ignoring: identityT < 0.05,
+                    child: Opacity(
+                      opacity: identityT,
+                      child: Transform.scale(
+                        scale: 1.0 - (0.18 * pillT),
+                        child: _identityBlock(business, colors),
+                      ),
+                    ),
+                  ),
+                ),
+                // Compact market pill — crossfades in as the hero collapses.
+                Positioned(
+                  top: safeTop + AzSpace.xs,
+                  left: AzSpace.md,
+                  right: AzSpace.md,
+                  child: IgnorePointer(
+                    ignoring: pillT < 0.95,
+                    child: Opacity(
+                      opacity: Curves.easeOutCubic.transform(pillT),
+                      child: Transform.scale(
+                        scale: 0.96 + (0.04 * pillT),
+                        child: Center(child: _compactPill(business, colors)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          // Information panel — revealed behind the sheet at the info snap.
-          Positioned(
-            left: AzSpace.lg,
-            right: AzSpace.lg,
-            top: safeTop + 64,
-            bottom: 0,
-            child: IgnorePointer(
-              ignoring: infoT < 0.95,
-              child: Opacity(
-                opacity: Curves.easeOutCubic.transform(infoT),
-                child: _infoPanel(business, colors),
+          // ── Content area: market information, BELOW the banner ────────
+          // The natural content region of the page. It sits behind the
+          // draggable sheet on arrival (the sheet covers it) and is
+          // revealed only when the user pulls the sheet to the info
+          // snap. Page background, never a card.
+          Expanded(
+            child: ColoredBox(
+              key: const Key('market-content-area'),
+              color: colors.background,
+              child: IgnorePointer(
+                ignoring: infoT < 0.95,
+                child: Opacity(
+                  opacity: Curves.easeOutCubic.transform(infoT),
+                  child: _infoPanel(business, colors),
+                ),
               ),
             ),
           ),
@@ -509,33 +602,44 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
 
   Widget _identityBlock(BusinessProfile business, AzamanColors colors) {
     return Column(
+      key: const Key('market-identity-hero'),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Logo / profile image, straddling the banner. Long-press bursts
-        // the JOYSTICK — the radial shortcut fan (§9.4 vocabulary, the
-        // shared LiquidLauncher) anchored on this avatar.
-        Semantics(
-          button: true,
-          label: 'Market shortcuts',
-          hint: 'Long-press for quick actions',
-          child: GestureDetector(
-            key: _heroAvatarKey,
-            onLongPress: _openJoystick,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 3),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    blurRadius: 18,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: _logoAvatar(business, colors, radius: 36),
+        // Logo / profile image, straddling the banner. PROFILE LIQUID
+        // DIAL (2026-10-27): tap opens the persistent icon-only goo dial
+        // — up opens the real catalog destination, down opens the story
+        // viewer only when the authoritative story contract says a story
+        // is active, right rides the durable bookmark seam, left opens
+        // the MANDATORY show-less confirmation. HOLD opens the full
+        // action menu as a bottom sheet so the extra shortcuts (Share,
+        // Reviews, Follow) stay reachable — the joystick does not
+        // replace them.
+        ProfileJoystick(
+          key: _heroAvatarKey,
+          semanticLabel: 'Market shortcuts',
+          semanticHint:
+              'Tap to open quick actions. Drag up for '
+              '${widget.catalogLabel.toLowerCase()}, down for story, '
+              'right to save, left to show less. Hold for the full menu.',
+          actions: _joystickActions(),
+          // HOLD presents the FULL action menu from the bottom, reusing
+          // the shell's real wired shortcuts (bookmark / share / follow /
+          // reviews) with their real availability conditions.
+          onLongPress: _openShortcutsSheet,
+          child: Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 18,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
+            child: _logoAvatar(business, colors, radius: 36),
           ),
         ),
         const SizedBox(height: AzSpace.md),
@@ -571,10 +675,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   /// ever claims "Followed by", never "visited by".
   Widget _identitySocialProof(BusinessProfile business, AzamanColors colors) {
     final proof = ref.watch(serverSocialProofProvider(business.id));
-    final line = proof.maybeWhen(
-      data: socialProofLine,
-      orElse: () => null,
-    );
+    final line = proof.maybeWhen(data: socialProofLine, orElse: () => null);
     if (line == null) return const SizedBox.shrink();
     return Text(
       line,
@@ -655,17 +756,61 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
   // launcher's contract); every pick plays exactly one confirm() haptic
   // inside the launcher, then closes the route and runs the delegate.
 
+  /// WORKSTREAM A — the hero joystick's four directions, ALL wired to
+  /// the shell's real delegates. Unavailable directions carry a null
+  /// delegate: the satellite renders honestly dimmed and a release on it
+  /// fires nothing.
+  ProfileJoystickActions _joystickActions() {
+    final business = widget.business;
+    final hasActiveStory = business.storyState?.hasActiveStory == true;
+    return ProfileJoystickActions(
+      menu: ProfileJoystickAction(
+        icon: Icons.menu_book_rounded,
+        label: widget.catalogLabel,
+        onRelease: widget.hasCatalog && widget.onOpenCatalog != null
+            ? widget.onOpenCatalog
+            : null,
+        unavailableLabel: 'No catalog yet',
+      ),
+      story: ProfileJoystickAction(
+        icon: Icons.play_circle_outline_rounded,
+        label: 'Story',
+        onRelease: hasActiveStory
+            ? () => openJoystickStory(context, ref, business)
+            : null,
+        unavailableLabel: 'No active story',
+      ),
+      bookmark: ProfileJoystickAction(
+        icon: widget.isBookmarked
+            ? Icons.bookmark_rounded
+            : Icons.bookmark_border_rounded,
+        label: widget.isBookmarked ? 'Saved' : 'Save',
+        onRelease: widget.onToggleBookmark,
+        unavailableLabel: 'Unavailable',
+      ),
+      showLess: ProfileJoystickAction(
+        icon: Icons.visibility_off_outlined,
+        label: 'Show less',
+        // The release only OPENS the mandatory confirmation; the real
+        // service call happens after an explicit confirm.
+        onRelease: () => openJoystickShowLessConfirm(context, ref, business),
+      ),
+    );
+  }
+
   List<LiquidLauncherItem> _joystickItems() {
     final items = <LiquidLauncherItem>[];
     void add(IconData icon, String label, VoidCallback action) {
-      items.add(LiquidLauncherItem(
-        icon: icon,
-        label: label,
-        onTap: () {
-          Navigator.of(context).pop(); // close the joystick route
-          action();
-        },
-      ));
+      items.add(
+        LiquidLauncherItem(
+          icon: icon,
+          label: label,
+          onTap: () {
+            Navigator.of(context).pop(); // close the open surface
+            action();
+          },
+        ),
+      );
     }
 
     if (widget.onToggleBookmark != null) {
@@ -693,18 +838,55 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
     return items;
   }
 
-  void _openJoystick() {
+  /// HOLD outcome (2026-10-27): the full action menu from the BOTTOM.
+  /// Reuses the shell's real wired shortcuts and their real
+  /// availability conditions — no invented actions, no second radial.
+  /// Nothing wired → nothing opens (honest silence).
+  void _openShortcutsSheet() {
     final items = _joystickItems();
-    if (items.isEmpty) return; // nothing wired — stay silent, no dead burst
-
-    final avatarCtx = _heroAvatarKey.currentContext;
-    if (avatarCtx == null) return;
-    final render = avatarCtx.findRenderObject();
-    if (render is! RenderBox || !render.attached) return;
-    final anchor =
-        render.localToGlobal(Offset.zero) & render.size; // GLOBAL rect
-    Navigator.of(context, rootNavigator: true)
-        .push(_JoystickRoute(anchor: anchor, items: items));
+    if (items.isEmpty) return;
+    final colors = ref.read(themeProvider).colors;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: colors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          key: const Key('market-shortcuts-sheet'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+              child: Text(
+                'Market shortcuts',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                  color: colors.textSecondary,
+                ),
+              ),
+            ),
+            for (final item in items)
+              ListTile(
+                key: Key('market-shortcut-${item.label}'),
+                leading: Icon(item.icon, color: colors.accent),
+                title: Text(
+                  item.label,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                onTap: item.onTap,
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _logoAvatar(
@@ -916,29 +1098,23 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
 
     if (children.isEmpty) return const SizedBox.shrink();
 
+    // PART B FIX: the information is PAGE CONTENT in the content area
+    // below the banner — NOT a card. No card background, no rounded
+    // border, no shadow, no enclosing card padding: only natural page
+    // padding so the section reads as the market's own page body.
     return SingleChildScrollView(
       key: const Key('market-info-panel'),
       physics: const ClampingScrollPhysics(),
-      padding: const EdgeInsets.all(AzSpace.lg),
-      child: Container(
-        padding: const EdgeInsets.all(AzSpace.lg),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: AzRadius.brXl,
-          border: Border.all(color: colors.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.12),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: children,
-        ),
+      padding: const EdgeInsets.fromLTRB(
+        AzSpace.lg,
+        AzSpace.lg,
+        AzSpace.lg,
+        AzSpace.xl,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
       ),
     );
   }
@@ -1049,28 +1225,51 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
       ),
       child: Column(
         children: [
-          // Grab handle — physical but extremely subtle. Tap cycles the
-          // sheet between its locked states; the ride of the discovery
-          // dip gives it its only "lift".
-          GestureDetector(
-            key: const Key('market-storefront-handle'),
-            behavior: HitTestBehavior.opaque,
-            onTap: _onHandleTap,
-            child: Container(
-              width: double.infinity,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(
-                vertical: AzSpace.sm,
-                horizontal: AzSpace.lg,
-              ),
+          // Grab handle — physical but extremely subtle. TAP cycles
+          // the three locked states deterministically; DRAG rides the
+          // extent and snaps on release. Screen readers get the sheet
+          // as a real button with its current snap announced.
+          //
+          // The GestureDetector is the ValueListenableBuilder's CHILD,
+          // deliberately: a per-tick builder rebuild would hand
+          // RawGestureDetector a fresh set of tear-off callbacks and
+          // RESET the drag recognizers mid-drag — exactly the gesture
+          // this handle owns. The stable child keeps the recognizers
+          // alive while only the Semantics value follows the extent.
+          ValueListenableBuilder<double>(
+            valueListenable: _extentNotifier,
+            child: GestureDetector(
+              key: const Key('market-storefront-handle'),
+              behavior: HitTestBehavior.opaque,
+              onTap: _onHandleTap,
+              onVerticalDragStart: _onHandleDragStart,
+              onVerticalDragUpdate: _onHandleDragUpdate,
+              onVerticalDragEnd: _onHandleDragEnd,
               child: Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colors.textTertiary.withValues(alpha: 0.28),
-                  borderRadius: BorderRadius.circular(AzRadius.pill),
+                width: double.infinity,
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(
+                  vertical: AzSpace.sm,
+                  horizontal: AzSpace.lg,
+                ),
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.textTertiary.withValues(alpha: 0.28),
+                    borderRadius: BorderRadius.circular(AzRadius.pill),
+                  ),
                 ),
               ),
+            ),
+            builder: (context, e, child) => Semantics(
+              button: true,
+              label: 'Market sheet',
+              value: _snapLabelOf(e),
+              hint:
+                  'Tap to move between products, overview and '
+                  'market information. Drag to change directly.',
+              child: child,
             ),
           ),
           // Action row: primary market CTA + the vertical content
@@ -1382,72 +1581,4 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
         return Icons.local_mall_outlined;
     }
   }
-}
-
-/// The joystick surface: a transparent route whose only content is the
-/// LiquidLauncher burst box, anchored (centered, screen-clamped) on the
-/// hero avatar's live rect at open time. The PopupRoute's own barrier
-/// owns scrim + tap-outside dismissal (barrierDismissible); the launcher
-/// owns the burst animation and its haptic contract.
-class _JoystickRoute extends PopupRoute<void> {
-  _JoystickRoute({required this.anchor, required this.items});
-
-  /// The avatar's global rect when the joystick opened.
-  final Rect anchor;
-  final List<LiquidLauncherItem> items;
-
-  @override
-  Color get barrierColor => Colors.black38;
-
-  @override
-  bool get barrierDismissible => true;
-
-  @override
-  String? get barrierLabel => 'Dismiss shortcuts';
-
-  @override
-  Duration get transitionDuration => Duration.zero;
-
-  @override
-  Duration get reverseTransitionDuration => Duration.zero;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    final screen = MediaQuery.sizeOf(context);
-    const boxW = 300.0;
-    const boxH = 280.0;
-    // Center the burst box on the avatar, clamped fully on-screen.
-    final left =
-        (anchor.center.dx - boxW / 2).clamp(8.0, screen.width - boxW - 8);
-    final top =
-        (anchor.center.dy - boxH / 2).clamp(8.0, screen.height - boxH - 8);
-    return Stack(
-      children: [
-        Positioned(
-          key: const Key('market-joystick-burst'),
-          left: left,
-          top: top,
-          width: boxW,
-          height: boxH,
-          child: LiquidLauncher(
-            semanticLabel: 'Market shortcuts',
-            items: items,
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) =>
-      child; // the launcher animates its own satellites
 }

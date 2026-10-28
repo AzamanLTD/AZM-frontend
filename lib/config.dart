@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 // =============================================================================
 // AZAMAN V4 — ENVIRONMENT CONFIGURATION
 //
@@ -29,6 +31,12 @@ class AppConfig {
   static bool? _demoModeOverride;
   static bool get demoMode => _demoModeOverride ?? _demoModeCompileTime;
   static void enableDemoMode() => _demoModeOverride = true;
+
+  /// Test-only: clears the runtime demo override so the compile-time
+  /// flag governs again — needed to exercise the router's real auth
+  /// redirect (demo mode deliberately bypasses auth gating).
+  @visibleForTesting
+  static void clearDemoModeOverrideForTest() => _demoModeOverride = null;
 
   static String get apiUrl => '$baseUrl/api';
 

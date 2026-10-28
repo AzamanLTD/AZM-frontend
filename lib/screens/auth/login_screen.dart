@@ -7,12 +7,13 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/sso_service.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/main.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/screens/auth/signup_screen.dart';
 import 'package:azaman/widgets/google_logo.dart';
 import 'package:azaman/data/demo_seed_data.dart';
 import 'package:azaman/router/auth_guard.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:azaman/config.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
@@ -152,17 +153,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
         switch (status) {
           case AuthStatus.authenticated:
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const MainNavigationWrapper()),
-            );
+            // ONE NAVIGATION AUTHORITY: the shell is the router-owned
+            // '/home' page. The snackbar is shown BEFORE the go() — the
+            // root ScaffoldMessenger survives the route change, this
+            // screen's context does not.
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(data['message'] ?? 'Login Successful!'),
                 backgroundColor: const Color(0xFF02C076),
               ),
             );
+            context.go(AzRoutes.shell);
             break;
 
           case AuthStatus.profileNotFound:
@@ -222,10 +223,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     ref.read(authProvider).setUser(user);
     AuthGuard.isAuthenticated = true;
     if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const MainNavigationWrapper()),
-    );
+    // ONE NAVIGATION AUTHORITY: go to the router-owned shell.
+    context.go(AzRoutes.shell);
   }
 
   @override
@@ -656,7 +655,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   //
   //   * Other — generic network error message inline.
   //
-  //   * Success — push MainNavigationWrapper, mirror the email/password flow.
+  //   * Success — go to the router-owned shell, mirror the email/password flow.
   Future<void> _signInWithSso(SsoProvider provider) async {
     if (_isLoading) return;
     setState(() {
@@ -673,13 +672,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       if (!mounted) return;
       // Phase H review pass: capture the messenger BEFORE pushReplacement
       // disposes this screen's ScaffoldMessenger, then show the snackbar
-      // on the inbound MainNavigationWrapper's messenger so the user
+      // on the shell's messenger so the user
       // actually sees it.
       final colors = ref.read(themeProvider).colors;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainNavigationWrapper()),
-      );
+      // ONE NAVIGATION AUTHORITY: go to the router-owned shell. The
+      // snackbar is shown BEFORE the go() — the root ScaffoldMessenger
+      // survives the route change; using this screen's context after
+      // the go() would look up a deactivated ancestor.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.message),
@@ -687,6 +686,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           behavior: SnackBarBehavior.floating,
         ),
       );
+      if (context.mounted) context.go(AzRoutes.shell);
     } on SsoNotConfiguredException catch (e) {
       _showSsoNotConfiguredDialog(e.provider);
     } on SsoException catch (e) {

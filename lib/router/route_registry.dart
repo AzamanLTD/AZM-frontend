@@ -25,6 +25,14 @@ abstract final class AzRouteNames {
   // Boot & shell
   static const home = 'home';
 
+  /// The canonical app-shell destination (ONE navigation authority —
+  /// see app_router.dart's '/home' route). The splash is the boot
+  /// RESOLVER at '/', never the app itself.
+  static const shell = 'shell';
+  static const login = 'login';
+  static const onboarding = 'onboarding';
+  static const forceUpdate = 'force-update';
+
   // Notifications
   static const notifications = 'notifications';
 
@@ -137,7 +145,14 @@ abstract final class AzRouteNames {
 /// being re-implemented at every call site).
 abstract final class AzRoutes {
   // ── Boot & shell ────────────────────────────────────────────────────────
+  /// `/` is the splash BOOT RESOLVER (public). The app shell lives at
+  /// `/home` (guarded) — one navigation authority for the route stack:
+  /// every exit that means "the app itself" targets this, never '/'.
   static const home = '/';
+  static const shell = '/home';
+  static const login = '/login';
+  static const onboarding = '/onboarding';
+  static const forceUpdate = '/force-update';
   static const notifications = '/notifications';
 
   // ── Trade lifecycle ─────────────────────────────────────────────────────
