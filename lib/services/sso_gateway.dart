@@ -60,6 +60,27 @@ import 'package:azaman/services/sso_service.dart'
         SsoNotConfiguredException,
         SsoProvider;
 
+/// Builds the Firebase credential for an Apple sign-in.
+///
+/// APPLE TOKEN BUG (fixed 2026-10-28). This used to pass
+/// `credential.authorizationCode` as `accessToken`. That code is a one-time
+/// authorization code for Apple's own token endpoint, NOT an access token:
+/// handing it to Firebase made the exchange marginally valid at best and
+/// usually a confusing rejection. Firebase verifies Apple sign-ins from the
+/// identity token plus the raw nonce alone, so the access token is omitted
+/// entirely rather than filled with the wrong thing.
+///
+/// Kept as a named function so the contract can be asserted directly:
+/// the credential must carry the id token and raw nonce, and no access token.
+OAuthCredential buildAppleCredential({
+  required String idToken,
+  required String rawNonce,
+}) {
+  return OAuthProvider(
+    'apple.com',
+  ).credential(idToken: idToken, rawNonce: rawNonce);
+}
+
 /// The native provider boundary.
 abstract class SsoGateway {
   /// Returns a FIREBASE id token for a completed Google sign-in.
@@ -82,51 +103,85 @@ class FirebaseSsoGateway implements SsoGateway {
       'GOOGLE_SERVER_CLIENT_ID',
       defaultValue: '',
     ),
-  });
+    Future<void> Function()? initializeFirebase,
+    bool Function()? firebaseAppsPresent,
+  }) : _initializeFirebase =
+           initializeFirebase ??
+           (() async {
+             await Firebase.initializeApp();
+           }),
+       _firebaseAppsPresent =
+           firebaseAppsPresent ?? (() => Firebase.apps.isNotEmpty);
 
   final String serverClientId;
 
+  /// Seams for the Firebase pre-flight, so its retry contract can be tested
+  /// without a real native Firebase plugin. Production uses the defaults.
+  final Future<void> Function() _initializeFirebase;
+  final bool Function() _firebaseAppsPresent;
+
   bool _googleInitialized = false;
-  bool _firebaseChecked = false;
+  bool _firebaseReady = false;
 
   /// Firebase must exist before any credential exchange. The app initialises
   /// it during startup; this is the defensive path for the login screen being
   /// the first thing that runs (deep link straight to /login).
-  Future<void> _ensureFirebase() async {
-    if (_firebaseChecked) return;
-    _firebaseChecked = true;
-    if (Firebase.apps.isEmpty) {
-      try {
-        await Firebase.initializeApp();
-      } catch (e) {
-        throw const SsoException(
-          'Could not reach the sign-in service on this build. '
-          'Please try again in a moment.',
-        );
-      }
+  ///
+  /// RETRY-AFTER-FAILURE (fixed 2026-10-28). This used to set its "checked"
+  /// flag BEFORE attempting initialisation, so a single transient failure
+  /// (plugin not attached yet, cold start, flaky network) permanently
+  /// poisoned the gateway: every later attempt returned early, Firebase was
+  /// never initialised, and the user kept seeing the same "try again" error
+  /// that could never succeed. The flag is now set only AFTER Firebase is
+  /// actually available, so a retry genuinely retries.
+  Future<void> ensureFirebase() async {
+    if (_firebaseReady) return;
+    if (_firebaseAppsPresent()) {
+      _firebaseReady = true;
+      return;
+    }
+    try {
+      await _initializeFirebase();
+      _firebaseReady = true;
+    } catch (_) {
+      // Stay un-ready: the next attempt retries instead of failing forever.
+      _firebaseReady = false;
+      throw const SsoException(
+        'Could not reach the sign-in service on this build. '
+        'Please try again in a moment.',
+      );
     }
   }
 
+  /// Google's plugin initialisation, with the same retry rule: a transient
+  /// failure is NOT "this build has no Google client", so it must not be
+  /// reported as one, and it must not latch a permanent failure.
   Future<void> _ensureGoogleInitialized() async {
     if (_googleInitialized) return;
+    final hasClientId = serverClientId.trim().isNotEmpty;
     try {
       await GoogleSignIn.instance.initialize(
-        serverClientId: serverClientId.trim().isEmpty
-            ? null
-            : serverClientId.trim(),
+        serverClientId: hasClientId ? serverClientId.trim() : null,
       );
       _googleInitialized = true;
     } catch (e) {
-      throw const SsoNotConfiguredException(
-        SsoProvider.google,
-        reason: 'This build has no Google sign-in client configured.',
+      // A genuine configuration failure is only provable when no client id
+      // was supplied at all; anything else is retryable.
+      if (!hasClientId) {
+        throw const SsoNotConfiguredException(
+          SsoProvider.google,
+          reason: 'This build has no Google sign-in client configured.',
+        );
+      }
+      throw const SsoException(
+        'Google sign-in could not start. Please try again in a moment.',
       );
     }
   }
 
   @override
   Future<String> acquireGoogleIdToken() async {
-    await _ensureFirebase();
+    await ensureFirebase();
     await _ensureGoogleInitialized();
 
     final GoogleSignInAccount account;
@@ -169,7 +224,7 @@ class FirebaseSsoGateway implements SsoGateway {
 
   @override
   Future<String> acquireAppleIdToken() async {
-    await _ensureFirebase();
+    await ensureFirebase();
 
     if (kIsWeb) {
       throw const SsoNotConfiguredException(
@@ -222,11 +277,7 @@ class FirebaseSsoGateway implements SsoGateway {
 
     return _exchangeWithFirebase(
       () => FirebaseAuth.instance.signInWithCredential(
-        OAuthProvider('apple.com').credential(
-          idToken: identityToken,
-          rawNonce: rawNonce,
-          accessToken: credential.authorizationCode,
-        ),
+        buildAppleCredential(idToken: identityToken, rawNonce: rawNonce),
       ),
       SsoProvider.apple,
     );
