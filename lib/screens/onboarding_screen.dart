@@ -21,9 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/widgets/nav_transitions.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -98,25 +96,32 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         'primaryUseCase': _selectedUseCase,
       });
       if (!mounted) return;
-      _navigateToMain();
+      _goToPhoneStep();
     } catch (_) {
-      if (mounted) _navigateToMain();
+      // A failed completion call is NOT a completed setup. The previous
+      // code moved the user on regardless, which told the server one thing
+      // and the person another. Stay here, say so, and let them retry.
+      if (!mounted) return;
+      setState(() => _isCompleting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Could not save your setup. Check your connection.',
+          ),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: _completeOnboarding,
+          ),
+        ),
+      );
     }
   }
 
-  void _navigateToMain() {
-    // ONE NAVIGATION AUTHORITY: the shell is the router-owned '/home'
-    // page; go() replaces the whole declarative stack, so onboarding
-    // cannot be reached by back.
-    context.go(AzRoutes.shell);
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (context.mounted) {
-        pushWithVerticalTransition(
-          context,
-          const DepositScreen(initialTab: DepositTab.fiat),
-        );
-      }
-    });
+  /// After setup the next real step is the phone number, not a deposit form.
+  /// Adding a phone is offered, not imposed: the screen itself allows
+  /// 'Do this later' and the gate lives at the financial action that needs it.
+  void _goToPhoneStep() {
+    context.go(AzRoutes.verifyPhone);
   }
 
   void _nextPage() {

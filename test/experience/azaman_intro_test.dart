@@ -5,16 +5,15 @@ import 'package:azaman/experience/launch/azaman_intro.dart';
 
 void main() {
   Widget host(Widget child) => MaterialApp(
-        theme: ThemeData.dark(),
-        home: Scaffold(body: child),
-      );
+    theme: ThemeData.dark(),
+    home: Scaffold(body: child),
+  );
 
-  testWidgets('plays the entrance and reports the settled lockup',
-      (tester) async {
+  testWidgets('plays the entrance and reports the settled lockup', (
+    tester,
+  ) async {
     var revealed = 0;
-    await tester.pumpWidget(
-      host(AzamanIntro(onRevealed: () => revealed++)),
-    );
+    await tester.pumpWidget(host(AzamanIntro(onRevealed: () => revealed++)));
     await tester.pump();
     expect(find.byType(AzamanIntro), findsOneWidget);
     expect(revealed, 0, reason: 'the tile phase comes first');
@@ -30,8 +29,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('reduced motion shows the settled lockup immediately',
-      (tester) async {
+  testWidgets('reduced motion shows the settled lockup immediately', (
+    tester,
+  ) async {
     var revealed = 0;
     await tester.pumpWidget(
       host(AzamanIntro(animate: false, onRevealed: () => revealed++)),

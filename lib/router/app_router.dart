@@ -50,6 +50,7 @@ import 'package:azaman/screens/splash_screen.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/screens/intro/app_intro_screen.dart';
 import 'package:azaman/screens/onboarding_screen.dart';
+import 'package:azaman/screens/auth/phone_verification_screen.dart';
 import 'package:azaman/screens/force_update_screen.dart';
 // The canonical app shell: MainWrapper is the router-owned '/home' page —
 // it must be importable here like every other route destination.
@@ -242,6 +243,11 @@ GoRouter _buildAppRouter() => GoRouter(
       path: AzRoutes.onboarding,
       name: AzRouteNames.onboarding,
       builder: (context, state) => const OnboardingScreen(),
+    ),
+    GoRoute(
+      path: AzRoutes.verifyPhone,
+      name: 'verify-phone',
+      builder: (context, state) => const PhoneVerificationScreen(),
     ),
     GoRoute(
       path: AzRoutes.forceUpdate,

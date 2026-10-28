@@ -157,6 +157,10 @@ abstract final class AzRoutes {
   /// before login; unrelated to the authenticated setup below.
   static const intro = '/intro';
   static const onboarding = '/onboarding';
+
+  /// The primary phone step after account creation. Guarded: it needs a
+  /// session because the code is bound to the signed-in user server-side.
+  static const verifyPhone = '/verify-phone';
   static const forceUpdate = '/force-update';
   static const notifications = '/notifications';
 

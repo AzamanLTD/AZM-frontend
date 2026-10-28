@@ -21,7 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import '_secure_storage_stub.dart';
+import '../support/secure_storage_stub.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/contact_service.dart' show kDefaultDialCode;
 import 'package:azaman/services/phone_verification_service.dart';

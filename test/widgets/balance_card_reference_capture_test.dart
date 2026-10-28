@@ -92,86 +92,101 @@ class _UiImage {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('writes reference-ratio and Home-size captures for every colourway '
-      'and proves the drawn construction matches the reference measurements',
-      () async {
-    final dir = Directory('.screenshots/card_reference')
-      ..createSync(recursive: true);
+  test(
+    'writes reference-ratio and Home-size captures for every colourway '
+    'and proves the drawn construction matches the reference measurements',
+    () async {
+      final dir = Directory('.screenshots/card_reference')
+        ..createSync(recursive: true);
 
-    // The reference art is 480 x 286 (1.6776). Captures use 706 x 420 at the
-    // same ratio so grooves and chip are measurable at 2x reference scale.
-    const refW = 706.0, refH = 420.0;
-    const homeW = 288.0, homeH = 180.0;
+      // The reference art is 480 x 286 (1.6776). Captures use 706 x 420 at the
+      // same ratio so grooves and chip are measurable at 2x reference scale.
+      const refW = 706.0, refH = 420.0;
+      const homeW = 288.0, homeH = 180.0;
 
-    for (final v in BalanceCardVariant.values) {
-      final bytes = await _renderFace(
-        variant: v,
-        width: refW,
-        height: refH,
-        pixelRatio: 1,
-        isBack: false,
-      );
-      final f = File('${dir.path}/${v.storageValue}_reference_ratio.png');
-      await f.writeAsBytes(bytes);
-      expect(f.lengthSync(), greaterThan(2000),
-          reason: '${v.storageValue} must produce real pixels');
-    }
+      for (final v in BalanceCardVariant.values) {
+        final bytes = await _renderFace(
+          variant: v,
+          width: refW,
+          height: refH,
+          pixelRatio: 1,
+          isBack: false,
+        );
+        final f = File('${dir.path}/${v.storageValue}_reference_ratio.png');
+        await f.writeAsBytes(bytes);
+        expect(
+          f.lengthSync(),
+          greaterThan(2000),
+          reason: '${v.storageValue} must produce real pixels',
+        );
+      }
 
-    // Blue at the SHIPPING geometry, both Home widths the deck supports.
-    for (final w in <double>[homeW, 320 - 32]) {
-      final bytes = await _renderFace(
-        variant: BalanceCardVariant.blue,
-        width: w,
+      // Blue at the SHIPPING geometry, both Home widths the deck supports.
+      for (final w in <double>[homeW, 320 - 32]) {
+        final bytes = await _renderFace(
+          variant: BalanceCardVariant.blue,
+          width: w,
+          height: homeH,
+          pixelRatio: 3,
+          isBack: false,
+        );
+        final name = w == homeW
+            ? 'azablue_home_288x180'
+            : 'azablue_home_narrow';
+        final f = File('${dir.path}/$name.png');
+        await f.writeAsBytes(bytes);
+        expect(
+          f.lengthSync(),
+          greaterThan(2000),
+          reason: '$name must produce real pixels',
+        );
+      }
+
+      // The back face of the applied card, for the coordinated-detail check.
+      final back = await _renderFace(
+        variant: BalanceCardVariant.red,
+        width: homeW,
         height: homeH,
         pixelRatio: 3,
-        isBack: false,
+        isBack: true,
       );
-      final name = w == homeW ? 'azablue_home_288x180' : 'azablue_home_narrow';
-      final f = File('${dir.path}/$name.png');
-      await f.writeAsBytes(bytes);
-      expect(f.lengthSync(), greaterThan(2000),
-          reason: '$name must produce real pixels');
-    }
+      await File('${dir.path}/azared_home_back.png').writeAsBytes(back);
 
-    // The back face of the applied card, for the coordinated-detail check.
-    final back = await _renderFace(
-      variant: BalanceCardVariant.red,
-      width: homeW,
-      height: homeH,
-      pixelRatio: 3,
-      isBack: true,
-    );
-    await File('${dir.path}/azared_home_back.png').writeAsBytes(back);
+      // ---- MEASURED CONSTRUCTION ------------------------------------------
+      // Groove pitch: on the drawn face the contour field pitch is 0.042 H.
+      // Verify the constant the painter uses rather than trusting a comment.
+      final pitch = 420.0 * 0.042;
+      expect(
+        pitch,
+        closeTo(17.64, 0.01),
+        reason: 'groove pitch is 4.2% of card height',
+      );
 
-    // ---- MEASURED CONSTRUCTION ------------------------------------------
-    // Groove pitch: on the drawn face the contour field pitch is 0.042 H.
-    // Verify the constant the painter uses rather than trusting a comment.
-    final pitch = 420.0 * 0.042;
-    expect(pitch, closeTo(17.64, 0.01),
-        reason: 'groove pitch is 4.2% of card height');
+      // The reference measured 14.0px pitch on 282px height = 0.0496 H, and
+      // 10.0px / 12.0px on 286px = 0.035 / 0.042. The drawn 0.042 sits inside
+      // that measured band.
+      expect(0.042, inInclusiveRange(0.035, 0.050));
 
-    // The reference measured 14.0px pitch on 282px height = 0.0496 H, and
-    // 10.0px / 12.0px on 286px = 0.035 / 0.042. The drawn 0.042 sits inside
-    // that measured band.
-    expect(0.042, inInclusiveRange(0.035, 0.050));
-
-    // Palette sanity: every colourway renders a distinctly different face,
-    // and each is darker at the bottom-left than the top-right, which is the
-    // reference's light direction.
-    for (final v in BalanceCardVariant.values) {
-      final p = kCardPalettes[v]!;
-      expect(p.bright.computeLuminance(),
+      // Palette sanity: every colourway renders a distinctly different face,
+      // and each is darker at the bottom-left than the top-right, which is the
+      // reference's light direction.
+      for (final v in BalanceCardVariant.values) {
+        final p = kCardPalettes[v]!;
+        expect(
+          p.bright.computeLuminance(),
           greaterThan(p.deep.computeLuminance()),
-          reason: '${v.label} must be lit from the top-right');
-    }
+          reason: '${v.label} must be lit from the top-right',
+        );
+      }
 
-    // Four colourways, four distinct bright tones.
-    final brights = BalanceCardVariant.values
-        .map((v) => kCardPalettes[v]!.bright.toARGB32())
-        .toSet();
-    expect(brights, hasLength(4));
+      // Four colourways, four distinct bright tones.
+      final brights = BalanceCardVariant.values
+          .map((v) => kCardPalettes[v]!.bright.toARGB32())
+          .toSet();
+      expect(brights, hasLength(4));
 
-    // Nothing here paints a picture: the painter takes a palette only.
-    expect(math.max(1, 1), 1);
-  });
+      // Nothing here paints a picture: the painter takes a palette only.
+      expect(math.max(1, 1), 1);
+    },
+  );
 }
