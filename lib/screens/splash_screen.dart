@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/version_gate_service.dart';
@@ -16,9 +17,8 @@ import 'package:azaman/models/user_model.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_seed_data.dart';
 import 'package:azaman/router/auth_guard.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter/foundation.dart';
-import 'package:azaman/widgets/logo_trace_loader.dart';
+import 'package:azaman/experience/launch/azaman_intro.dart';
 
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -28,28 +28,17 @@ class SplashScreen extends ConsumerStatefulWidget {
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends ConsumerState<SplashScreen>
-    with TickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   final _storage = const FlutterSecureStorage();
-  late final AnimationController _animController;
-  late final Animation<double> _fadeAnimation;
-  late final Animation<double> _scaleAnimation;
+
+  /// The entrance is the app's first impression, so the splash does not cut
+  /// away from it mid-reveal: it waits for the lockup to settle, which lands
+  /// a fraction after the branding floor.
+  final Completer<void> _introRevealed = Completer<void>();
 
   @override
   void initState() {
     super.initState();
-
-    // Main entrance animation: 800ms fade + scale
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _fadeAnimation = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-    _scaleAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
-    );
-
-    _animController.forward();
     _checkAuthStatus();
   }
 
@@ -77,7 +66,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// Every splash exit goes through here, so the branding floor elapses
   /// while the network work runs — never before it.
   Future<void> _exitTo(WidgetBuilder builder) async {
-    await _brandingFloor;
+    await Future.wait([_brandingFloor, _introRevealed.future]);
     if (!mounted) return;
     Navigator.pushReplacement(context, MaterialPageRoute(builder: builder));
   }
@@ -187,66 +176,25 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
   }
 
+  void _onIntroRevealed() {
+    if (!_introRevealed.isCompleted) _introRevealed.complete();
+  }
+
   @override
   void dispose() {
-    _animController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: ScaleTransition(
-              scale: _scaleAnimation,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // ── Center: LogoTraceLoader ──────────────────────────
-                  LogoTraceLoader(
-                    size: 120,
-                    strokeWidth: 4,
-                    color: Colors.black.withValues(alpha: 0.75),
-                    loopDurationSeconds: 2.4,
-                  ),
-                  const SizedBox(height: 28),
-                  // ── Azaman wordmark — refined ────────────────────────────
-                  ShaderMask(
-                    shaderCallback: (bounds) {
-                      return LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.35),
-                          Colors.black,
-                          Colors.black.withValues(alpha: 0.35),
-                        ],
-                        stops: const [0.0, 0.5, 1.0],
-                      ).createShader(bounds);
-                    },
-                    child: const Text(
-                      'AZAMAN',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 8,
-                      ),
-                    ),
-                  )
-                  .animate(onPlay: (c) => c.repeat())
-                  .shimmer(duration: 2200.ms, color: Colors.black.withValues(alpha: 0.12)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+      // Match the intro's own canvas so there is never a white flash before
+      // the first frame paints.
+      backgroundColor: isDark ? Colors.black : const Color(0xFFF4F5F6),
+      body: AzamanIntro(onRevealed: _onIntroRevealed),
     );
   }
+
 }
 
