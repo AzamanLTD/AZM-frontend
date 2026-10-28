@@ -88,10 +88,20 @@ class AzamanIntro extends StatefulWidget {
   final bool animate;
 
   /// Milliseconds from mount to the settled lockup.
-  static const int revealMs = 2320;
+  ///
+  /// The reference settles at 2320ms, but the app's branding floor is 2s and
+  /// the startup contract (router tests + perceived cold start) is built
+  /// around it. The entrance therefore PLAYS THE SAME CHOREOGRAPHY 14%
+  /// FASTER rather than stretching every cold start by 320ms — the pacing
+  /// is invisible, the startup contract is untouched.
+  static const int revealMs = 2000;
 
-  /// Total reference length; the settled lockup simply holds afterwards.
-  static const int totalMs = 3733;
+  /// Reference length scaled by the same pace factor.
+  static const int totalMs = 3218;
+
+  /// Reference choreography (measured) -> paced: the melt window below is
+  /// expressed in these units and divided by the pace.
+  static const double _pace = revealMs / 2320;
 
   @override
   State<AzamanIntro> createState() => _AzamanIntroState();
@@ -133,9 +143,11 @@ class _AzamanIntroState extends State<AzamanIntro>
     super.dispose();
   }
 
+  /// Elapsed time in REFERENCE milliseconds (the constants below are the
+  /// measured ones, so the choreography reads exactly as it was measured).
   int get _elapsed => _controller == null
       ? AzamanIntro.totalMs
-      : (AzamanIntro.totalMs * _controller!.value).round();
+      : (AzamanIntro.totalMs / AzamanIntro._pace * _controller!.value).round();
 
   static double _seg(int t, int from, int to) =>
       ((t - from) / (to - from)).clamp(0.0, 1.0).toDouble();
@@ -243,6 +255,11 @@ class _AzamanIntroState extends State<AzamanIntro>
     final tileScale = _lerp(0.94, 1.0, _seg(t, 0, 420)) *
         _lerp(1.0, 1.05, Curves.easeInOut.transform(_seg(t, 950, 1370)));
 
+    // Liquid melt: 0 outside the window, 1 at its peak (f42 = 1380ms).
+    final meltIn = Curves.easeInCubic.transform(_seg(t, 1240, 1380));
+    final meltOut = Curves.easeOutCubic.transform(_seg(t, 1380, 1620));
+    final melt = (meltIn * (1 - meltOut)).clamp(0.0, 1.0).toDouble();
+
     final markOpacity = t < 1470 ? 1.0 : 1 - _seg(t, 1470, 1620);
     final flashCurve = Curves.easeOutQuint.transform(_seg(t, 1370, 1600));
     final markGlow = (0.30 * _seg(t, 80, 420) +
@@ -280,13 +297,21 @@ class _AzamanIntroState extends State<AzamanIntro>
           ),
         ),
 
-        // Chrome mark.
+        // Chrome mark. The liquid melt lives HERE: a gooey blur + alpha
+        // threshold closes the tier gaps so the mark behaves like one blob
+        // for the beat before it resolves, with a slight squash to sell the
+        // surface tension.
         Center(
           child: Opacity(
             opacity: markOpacity.clamp(0.0, 1.0).toDouble(),
             child: Transform.scale(
               scale: markScale,
-              child: Stack(
+              child: Transform.scale(
+                scaleX: 1 + 0.07 * melt,
+                scaleY: 1 - 0.06 * melt,
+                child: _goo(
+                  melt: melt,
+                  child: Stack(
                 alignment: Alignment.center,
                 children: [
                   if (markGlow > 0.01)
@@ -313,6 +338,8 @@ class _AzamanIntroState extends State<AzamanIntro>
                     height: markWidth * 549 / 564,
                   ),
                 ],
+              ),
+                ),
               ),
             ),
           ),
@@ -356,6 +383,39 @@ class _AzamanIntroState extends State<AzamanIntro>
     );
   }
 }
+
+/// Gooey melt: blur the silhouette, then push alpha through a steep ramp so
+/// the blurred edges snap to solid/transparent. Gaps narrower than the blur
+/// radius fuse; the silhouette stays crisp because the ramp is sharp.
+///
+/// `melt` is 0 outside the melt window, so this costs nothing for most of the
+/// entrance (the child is returned untouched below the threshold).
+class _Goo extends StatelessWidget {
+  const _Goo({required this.melt, required this.child});
+
+  final double melt;
+  final Widget child;
+
+  static const ColorFilter _ramp = ColorFilter.matrix(<double>[
+    1, 0, 0, 0, 0, //
+    0, 1, 0, 0, 0, //
+    0, 0, 1, 0, 0, //
+    0, 0, 0, 20, -8, // alpha: 0.40 becomes the fusing edge
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    if (melt < 0.02) return child;
+    final sigma = 0.5 + 5.5 * melt;
+    return ImageFiltered(
+      imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+      child: ColorFiltered(colorFilter: _ramp, child: child),
+    );
+  }
+}
+
+Widget _goo({required double melt, required Widget child}) =>
+    _Goo(melt: melt, child: child);
 
 /// The dark glass square. No halo behind it: the light sits on the rim, as a
 /// gradient border plus a tight inner highlight, so the tile reads as lit

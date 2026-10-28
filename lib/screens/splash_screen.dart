@@ -67,8 +67,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   /// trip on top. It now runs CONCURRENTLY with the auth/version/onboarding
   /// work — the splash still holds for its branding beat, but the network
   /// is never idled behind it: startup is max(2s, waterfall), not 2s+waterfall.
-  late final Future<void> _brandingFloor =
-      Future<void>.delayed(const Duration(seconds: 2));
+  /// The branding floor now COVERS the entrance: the lockup settles at
+  /// [AzamanIntro.revealMs], so the floor is that plus a frame of grace
+  /// rather than a flat 2s that could cut the reveal off.
+  late final Future<void> _brandingFloor = Future<void>.delayed(
+    const Duration(milliseconds: AzamanIntro.revealMs + 120),
+  );
 
   /// Every splash exit goes through here, so the branding floor elapses
   /// while the network work runs — never before it.
