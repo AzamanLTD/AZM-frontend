@@ -92,10 +92,11 @@ unchanged:
 > `--update-goldens` to make a suite green — a regeneration must be a
 > reviewable diff in the commit.
 
-Regenerating on **one** host only would reintroduce cross-host drift, so the
-regenerated rasters must be produced in the pinned CI environment (Linux,
-Flutter 3.47.5) and committed from there. This is why the CI version pin is a
-prerequisite and not an optional tidy-up.
+Cross-host drift is a real risk, which is why the Flutter version is pinned in
+`flutter-ci.yml`. On that pinned version (3.47.5) a dev machine and the CI runner
+were later measured to produce byte-identical output, so regenerating locally
+with the pinned SDK is valid. See "Updating a golden today" at the end of this
+file for the only procedure.
 
 ## Regeneration — DONE, and CI is green
 
