@@ -383,16 +383,17 @@ class AzamanCardSurface extends StatelessWidget {
           // line of text used to render straight through the glyph and the
           // wordmark. Reserve the block's own band — inset + glyph height plus
           // a breath — so the breakdown begins under it.
-          final brandBand =
-              AzamanCardMetrics.insetY(h) +
-              AzamanCardMetrics.glyphHeight(h) +
-              h * 0.045;
+          // Only the TOP band is reserved. An earlier version also added a
+          // second horizontal inset, which narrowed the reverse's rows to
+          // ~283px and made the labels wrap onto extra lines — that wrapping is
+          // what pushed the section 20px past its box. The base inset already
+          // clears the rounded rim; the brand band only has to clear the glyph.
+          // The glyph's own height, and not a pixel more: on a 180px card every
+          // extra pixel here comes straight out of the section below, and the
+          // committed peek has to stay visible.
+          final brandBand = AzamanCardMetrics.glyphHeight(h);
           final inset = isBack
-              ? baseInset.copyWith(
-                  top: baseInset.top + brandBand,
-                  left: baseInset.left + AzamanCardMetrics.insetX(w),
-                  right: baseInset.right + AzamanCardMetrics.insetX(w),
-                )
+              ? baseInset.copyWith(top: baseInset.top + brandBand)
               : baseInset;
           return Stack(
             fit: StackFit.expand,

@@ -559,26 +559,7 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
                     // the section sequence.
                     key: section.key,
                     padding: const EdgeInsets.only(bottom: AzSpace.xxs),
-                    // A page must never overflow its own height. The brand
-                    // block now owns the top band of the reverse, so a page has
-                    // slightly less room; a section whose rows do not fit
-                    // scales down just enough to be fully visible instead of
-                    // painting a yellow overflow stripe over the card. Nothing
-                    // is clipped and nothing is hidden — the committed peek
-                    // still shows at the bottom.
-                    child: LayoutBuilder(
-                      builder: (context, page) => Align(
-                        alignment: Alignment.topLeft,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.topLeft,
-                          child: SizedBox(
-                            width: page.maxWidth,
-                            child: section.child,
-                          ),
-                        ),
-                      ),
-                    ),
+                    child: section.child,
                   ),
               ],
             ),
