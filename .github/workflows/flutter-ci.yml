@@ -36,7 +36,26 @@ jobs:
   #
   # GUARDS: the regenerating run must itself be green (a throwing capture suite
   # would otherwise record its broken frame as the new truth), and this job
-  # never commits or pushes — it publishes the images and a human commits them.
+  # never commits or pushes.
+  #
+  # HOW THE ARTIFACT BECOMES A COMMITTED BASELINE (the step that was missing,
+  # and the reason Quality stayed red across several heads while the corrected
+  # images existed only in an artifact):
+  #
+  #   1. Download the `goldens` artifact from this job.
+  #   2. Inspect the images as pictures, not as pass/fail: the transfer capture
+  #      must show one Azaman card and one distinct Visa card; the shell diff
+  #      must sit inside the card band rather than shifting the layout.
+  #   3. Copy them over the existing paths, then `git status test` MUST list
+  #      exactly the files whose appearance changed. An empty list means the
+  #      copy did nothing — commit nothing rather than assume success.
+  #   4. Commit those files, push, and let the normal `quality` job compare
+  #      the committed PNGs. Regeneration is never part of that path.
+  #
+  # NOTE ON RENDERER PARITY: a local `flutter test` on Flutter 3.47.5 produces
+  # byte-identical goldens to this runner (verified by sha256 on the
+  # front_saved_390_dark capture), so the artifact is authoritative for review
+  # but not the only valid source of the bytes.
   regenerate:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'regen-goldens') }}
     runs-on: ubuntu-latest

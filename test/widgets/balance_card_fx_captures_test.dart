@@ -32,7 +32,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
-import 'dart:ui' show ImageByteFormat;
+import 'dart:ui' show ImageByteFormat, SemanticsAction;
 import 'package:flutter/services.dart' show FontLoader, rootBundle;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -149,14 +149,44 @@ Future<void> _pump(
 }
 
 /// Flip the card in place — the same instance the front capture used.
+/// Flip the front card to its back face, PROVING it happened.
+///
+/// This used to tap the eyebrow label, and on the narrow captures that tap
+/// missed: the warning ("derived an Offset(157.5, 67.0) that would not hit
+/// test on the specified widget", landing on the face's RenderCustomPaint)
+/// meant the gesture never reached the flip. A missed tap is silent — the
+/// widget simply does not move — so `--update-goldens` would then record the
+/// FRONT face as the new back-face baseline and the test would look satisfied
+/// while measuring nothing.
+///
+/// So this drives the card's own declared action (the `Semantics(onTap:)` it
+/// exposes as 'show the balance details') and then asserts the state change
+/// before any caller captures: back face present, front face gone.
 Future<void> _flipToBack(WidgetTester tester) async {
-  // Tap the EYEBROW band, not the card's center: at narrow capture
-  // widths the center falls on the disclosure info button, whose
-  // nested-gesture guard correctly suppresses the flip. The eyebrow is
-  // a neutral region — the only control in it is the flip itself.
-  await tester.tap(find.byKey(const ValueKey('balance-fx-label')));
+  final handle = tester.ensureSemantics();
+  final node = tester.getSemantics(
+    find.byKey(const ValueKey('balance-pair-semantics')),
+  );
+  tester.binding.pipelineOwner.semanticsOwner!.performAction(
+    node.id,
+    SemanticsAction.tap,
+  );
   await tester.pump();
   await tester.pumpAndSettle();
+
+  // THE FLIP MUST BE REAL. A capture of the wrong face is worse than no
+  // capture: it would enshrine a front face as the back-face truth.
+  expect(
+    find.byKey(const ValueKey('balance-fx-breakdown-card')),
+    findsOneWidget,
+    reason: 'the breakdown card is on screen — the card is really on its back',
+  );
+  expect(
+    find.byKey(const ValueKey('balance-fx-card')),
+    findsNothing,
+    reason: 'the front face is gone — this frame is the back, not the front',
+  );
+  handle.dispose();
 }
 
 /// The frame contract, true in EVERY capture on BOTH faces: the pair is
