@@ -73,5 +73,18 @@ jobs:
           path: coverage/lcov.info
           if-no-files-found: ignore
 
+      # Diagnostic only (branch-local): when a golden mismatches, Flutter writes
+      # the produced/masked/diff images next to the test. Uploading them makes a
+      # rasterisation difference inspectable instead of a number in a log.
+      - name: Upload golden failure images
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: |
+            test/widgets/failures/
+            test/**/failures/
+          if-no-files-found: ignore
+
       # Android compilation is intentionally kept out of the PR feedback loop.
       # Run the dedicated integration workflow when a coherent batch is ready.
