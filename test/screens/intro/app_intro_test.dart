@@ -19,6 +19,7 @@
 //      smallest phone size or at large text.
 // =============================================================================
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -71,7 +72,9 @@ Widget _app({IntroStore? store, String initial = AzRoutes.intro}) {
       ),
     ],
   );
-  return MaterialApp.router(routerConfig: router);
+  // AppIntroScreen watches themeProvider for the saved appearance and card
+  // variant, so the harness has to provide a scope like the real app does.
+  return ProviderScope(child: MaterialApp.router(routerConfig: router));
 }
 
 Future<void> _pumpIntro(

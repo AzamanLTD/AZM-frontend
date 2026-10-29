@@ -25,7 +25,9 @@ import 'package:flutter/material.dart';
 import 'package:azaman/models/balance_card_valuation.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/balance_card_brand.dart';
+import 'package:azaman/widgets/home/azaman_card_face.dart';
 import 'package:azaman/widgets/home/balance_card_fx.dart';
+import 'package:azaman/widgets/home/balance_card_pair.dart';
 
 /// What a slide shows, as opposed to what it says.
 enum IntroArt { wallet, marketplace, community }
@@ -51,16 +53,26 @@ BalanceCardValuation introExampleValuation() => BalanceCardValuation(
 ).compute();
 
 class IntroSlideArt extends StatelessWidget {
-  const IntroSlideArt({super.key, required this.art, required this.colors});
+  const IntroSlideArt({
+    super.key,
+    required this.art,
+    required this.colors,
+    required this.variant,
+  });
 
   final IntroArt art;
   final AzamanColors colors;
+
+  /// The applied balance-card variant. The wallet slide renders THAT card; the
+  /// marketplace slide deliberately ignores it (its four category colours are
+  /// semantic and fixed).
+  final BalanceCardVariant variant;
 
   @override
   Widget build(BuildContext context) {
     switch (art) {
       case IntroArt.wallet:
-        return _WalletArt(colors: colors);
+        return _WalletArt(colors: colors, variant: variant);
       case IntroArt.marketplace:
         return _MarketplaceArt(colors: colors);
       case IntroArt.community:
@@ -72,13 +84,16 @@ class IntroSlideArt extends StatelessWidget {
 // ── Slide 1: the wallet ────────────────────────────────────────────────────
 
 class _WalletArt extends StatelessWidget {
-  const _WalletArt({required this.colors});
+  const _WalletArt({required this.colors, required this.variant});
 
   final AzamanColors colors;
+  final BalanceCardVariant variant;
 
   @override
   Widget build(BuildContext context) {
-    final palette = kCardPalettes[BalanceCardVariant.blue]!;
+    // The card material follows the SAVED variant, including the depth plate
+    // and the glow behind it. A hardcoded blue hero is the defect this fixes.
+    final palette = kCardPalettes[variant]!;
     // The badge is text, so the art's height is text-scale dependent. A fixed
     // box clipped at 1.6x on a 320dp phone.
     final badgeHeight =
@@ -135,12 +150,24 @@ class _WalletArt extends StatelessWidget {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // The real card: the same surface and the same on-card ink
+                  // ladder Home uses, so the hero obeys the saved variant.
+                  // A STILL, not a live surface: the card's glass sheen
+                  // repeats indefinitely, which on a three-slide tour is noise
+                  // (and a ticker that never settles in tests).
                   SizedBox(
                     width: cardWidth,
                     height: 180,
-                    child: BalanceCardFx(
-                      valuation: introExampleValuation(),
-                      colors: colors,
+                    child: TickerMode(
+                      enabled: false,
+                      child: AzamanCardSurface(
+                        variant: variant,
+                        radius: 22,
+                        child: BalanceCardFx(
+                          valuation: introExampleValuation(),
+                          colors: balanceCardInk(variant, colors),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),

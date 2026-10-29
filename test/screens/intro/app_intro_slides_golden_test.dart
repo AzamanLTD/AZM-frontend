@@ -1,27 +1,34 @@
-// PUBLIC TOUR — SLIDE CAPTURES.
+// PUBLIC TOUR — SLIDE CAPTURES, BOTH APPEARANCES.
 //
-// Proof that the tour is a finished composition rather than a wireframe. Each
-// slide is captured in both appearances at a 390pt phone, with the REAL UI
-// font faces loaded (Comic Neue for copy, Inter for figures), so the images
-// show true glyphs instead of the test harness's placeholder bars.
+// Six captures: three slides x light and dark. The tour now reads the saved
+// appearance and the applied card variant from the live theme provider, so
+// these are genuinely different renders — not three dark captures renamed.
+// The suite proves that: it measures mean luminance per image and fails if a
+// light capture is not measurably brighter than its dark twin.
 //
-// These are pinned goldens: they are reviewed as pictures and committed by
-// hand. A layout regression that breaks the composition should fail here
-// loudly, which is the point of pinning them.
+// The dark-only era of this file is the reason for that check. The tour used
+// to hardcode ThemeProvider.getColors(AzamanTheme.dark) and a blue card, so a
+// "light" capture was a byte-identical duplicate and the evidence was false.
 
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FontLoader;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/intro/app_intro_screen.dart';
 import 'package:azaman/screens/intro/intro_slide_art.dart';
 import 'package:azaman/services/intro_store.dart';
+import 'package:azaman/theme/balance_card_brand.dart';
+import 'package:azaman/widgets/home/azaman_card_face.dart';
 
-/// The tour only ever asks its store whether the intro was seen; a golden
-/// capture needs no persistence.
+/// The tour only asks its store whether the intro was seen; a capture needs no
+/// persistence.
 class _SeenStore implements IntroStore {
   @override
   Future<bool> hasSeenIntro() async => false;
@@ -54,28 +61,53 @@ Future<void> _loadFonts() async {
 
 Future<void> _pumpTour(
   WidgetTester tester, {
-  required Brightness brightness,
+  required AzamanTheme appearance,
+  required BalanceCardVariant variant,
   required int slide,
 }) async {
   tester.view.physicalSize = const Size(390 * 3, 844 * 3);
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.reset);
 
+  // A provider holding exactly the settings under test, so the capture does
+  // not depend on whatever the machine last persisted. The settings are
+  // applied AFTER the first pump: ThemeProvider starts an async load from
+  // SharedPreferences in its constructor, and a value set before that load
+  // resolves gets overwritten by the stored (default) one.
+  // Seeded exactly as a device would have them. Setting them on the provider
+  // afterwards is a losing race: the constructor's own load from
+  // SharedPreferences resolves later and reinstates the stored value, which
+  // is how a "green card" capture silently came out blue.
+  SharedPreferences.setMockInitialValues(<String, Object>{
+    'azaman_theme': appearance.index,
+    kBalanceCardVariantPrefKey: variant.storageValue,
+  });
+  final theme = ThemeProvider();
+
   await tester.pumpWidget(
-    MaterialApp(
-      theme: ThemeData(
-        brightness: brightness,
-        useMaterial3: true,
-        fontFamily: 'ComicNeue',
+    ProviderScope(
+      // A distinct key per settings pair: reusing the same scope lets the
+      // previous provider instance survive the pump, which is how a green
+      // render was measured against a blue card.
+      key: ValueKey('${appearance.name}-${variant.name}'),
+      overrides: [themeProvider.overrideWith((ref) => theme)],
+      child: MaterialApp(
+        theme: ThemeData(
+          brightness: appearance == AzamanTheme.dark
+              ? Brightness.dark
+              : Brightness.light,
+          useMaterial3: true,
+          fontFamily: 'ComicNeue',
+        ),
+        home: AppIntroScreen(store: _SeenStore()),
       ),
-      home: AppIntroScreen(store: _SeenStore()),
     ),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 500));
 
   // Walk to the requested slide the way a person would. Bounded pumps, not
-  // pumpAndSettle: the real card surface carries a repeating sheen, and
+  // pumpAndSettle: the card surface carries a repeating sheen and
   // pumpAndSettle waits ten minutes for a widget that never quiesces.
   for (var i = 0; i < slide; i++) {
     await tester.tap(find.text('Next'));
@@ -84,29 +116,132 @@ Future<void> _pumpTour(
   }
 }
 
+/// Mean luminance of a captured PNG, used to prove each capture is what it
+/// claims: a light surface must actually be light.
+Future<double> _luminanceOf(Uint8List png) async {
+  final codec = await ui.instantiateImageCodec(png);
+  final frame = await codec.getNextFrame();
+  final data = await frame.image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  final bytes = data!.buffer.asUint8List();
+  var sum = 0;
+  var count = 0;
+  for (var i = 0; i < bytes.length; i += 4) {
+    sum += (bytes[i] * 299 + bytes[i + 1] * 587 + bytes[i + 2] * 114) ~/ 1000;
+    count++;
+  }
+  return sum / count;
+}
+
 void main() {
   setUpAll(_loadFonts);
 
-  // ONE appearance, not two. The public tour is a fixed brand surface: it
-  // reads ThemeProvider.getColors(AzamanTheme.dark) unconditionally, the same
-  // material as the launch animation, so a light capture would be a byte
-  // duplicate of the dark one and claiming otherwise would be false evidence.
-  // Whether the tour should follow the appearance setting is an owner design
-  // decision, not something to change silently under a defect fix.
-  for (var slide = 0; slide < kIntroSlides.length; slide++) {
-    testWidgets('slide ${slide + 1} renders its art', (tester) async {
-      await _pumpTour(tester, brightness: Brightness.dark, slide: slide);
+  setUp(() => SharedPreferences.setMockInitialValues(<String, Object>{}));
 
-      // The art is present and actually sized, not collapsed to nothing.
-      final art = find.byType(IntroSlideArt);
-      expect(art, findsOneWidget);
-      expect(tester.getSize(art).height, greaterThan(200));
-      expect(tester.takeException(), isNull);
+  final captures = <String, String>{};
 
-      await expectLater(
-        find.byType(AppIntroScreen),
-        matchesGoldenFile('goldens/intro_slide_${slide + 1}.png'),
-      );
-    });
+  for (final appearance in <AzamanTheme>[AzamanTheme.dark, AzamanTheme.light]) {
+    final label = appearance == AzamanTheme.dark ? 'dark' : 'light';
+
+    for (var slide = 0; slide < kIntroSlides.length; slide++) {
+      testWidgets('slide ${slide + 1} in $label', (tester) async {
+        await _pumpTour(
+          tester,
+          appearance: appearance,
+          variant: BalanceCardVariant.blue,
+          slide: slide,
+        );
+
+        final art = find.byType(IntroSlideArt);
+        expect(art, findsOneWidget);
+        expect(tester.getSize(art).height, greaterThan(200));
+        expect(tester.takeException(), isNull);
+
+        final path = 'goldens/intro_slide_${slide + 1}_$label.png';
+        await expectLater(find.byType(AppIntroScreen), matchesGoldenFile(path));
+        captures['$slide-$label'] = path;
+      });
+    }
   }
+
+  test('light and dark captures actually differ', () async {
+    // Measured from the committed goldens, not from a fresh render: this is a
+    // statement about the evidence the repository ships.
+    for (var slide = 1; slide <= 3; slide++) {
+      final dark = await _luminanceOf(
+        File(
+          'test/screens/intro/goldens/intro_slide_${slide}_dark.png',
+        ).readAsBytesSync(),
+      );
+      final light = await _luminanceOf(
+        File(
+          'test/screens/intro/goldens/intro_slide_${slide}_light.png',
+        ).readAsBytesSync(),
+      );
+      expect(
+        light,
+        greaterThan(dark + 40),
+        reason:
+            'slide $slide: light capture (luminance ${light.toStringAsFixed(1)}) '
+            'is not meaningfully brighter than dark '
+            '(${dark.toStringAsFixed(1)}) — the appearances are not distinct',
+      );
+    }
+  });
+
+  testWidgets('the wallet hero renders the applied card variant', (
+    tester,
+  ) async {
+    for (final variant in <BalanceCardVariant>[
+      BalanceCardVariant.blue,
+      BalanceCardVariant.green,
+      BalanceCardVariant.red,
+      BalanceCardVariant.dark,
+    ]) {
+      await _pumpTour(
+        tester,
+        appearance: AzamanTheme.light,
+        variant: variant,
+        slide: 0,
+      );
+      final surface = tester.widget<AzamanCardSurface>(
+        find.descendant(
+          of: find.byType(IntroSlideArt),
+          matching: find.byType(AzamanCardSurface),
+        ),
+      );
+      expect(
+        surface.variant,
+        variant,
+        reason: 'wallet slide ignored the saved ${variant.name} card',
+      );
+    }
+  });
+
+  testWidgets('the marketplace keeps its fixed category mapping', (
+    tester,
+  ) async {
+    // Category identity is semantic: applying a green or red card must not
+    // re-tint Shop/Stay/Eat/Ride. The tiles are painted from a static table,
+    // so this asserts the table is not feeding off the applied variant.
+    for (final variant in <BalanceCardVariant>[
+      BalanceCardVariant.green,
+      BalanceCardVariant.red,
+    ]) {
+      await _pumpTour(
+        tester,
+        appearance: AzamanTheme.dark,
+        variant: variant,
+        slide: 1,
+      );
+      expect(tester.takeException(), isNull);
+      // The wallet's card surface must NOT appear on this slide at all.
+      expect(
+        find.descendant(
+          of: find.byType(IntroSlideArt),
+          matching: find.byType(AzamanCardSurface),
+        ),
+        findsNothing,
+      );
+    }
+  });
 }

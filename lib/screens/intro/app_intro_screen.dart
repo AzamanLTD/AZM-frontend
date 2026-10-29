@@ -19,6 +19,7 @@
 // described as an approximate equivalent, never as a second native balance.
 // =============================================================================
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/router/route_registry.dart';
@@ -72,17 +73,17 @@ const List<IntroSlide> kIntroSlides = <IntroSlide>[
   ),
 ];
 
-class AppIntroScreen extends StatefulWidget {
+class AppIntroScreen extends ConsumerStatefulWidget {
   const AppIntroScreen({super.key, this.store});
 
   /// Injected for tests; production uses the device flag.
   final IntroStore? store;
 
   @override
-  State<AppIntroScreen> createState() => _AppIntroScreenState();
+  ConsumerState<AppIntroScreen> createState() => _AppIntroScreenState();
 }
 
-class _AppIntroScreenState extends State<AppIntroScreen> {
+class _AppIntroScreenState extends ConsumerState<AppIntroScreen> {
   final PageController _pages = PageController();
   int _index = 0;
   bool _leaving = false;
@@ -120,10 +121,19 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = ThemeProvider.getColors(AzamanTheme.dark);
+    // The tour is the first surface a person sees, so it must look like the
+    // app they are about to use: the SAVED appearance and the APPLIED card
+    // variant, read from the local provider (no network, no auth). A fresh
+    // install gets the product defaults because that is what the provider
+    // holds — not because the tour hardcodes them.
+    final theme = ref.watch(themeProvider);
+    final colors = theme.colors;
+    final variant = theme.cardVariant;
     final last = _index >= kIntroSlides.length - 1;
     return Scaffold(
-      backgroundColor: kCardPalettes[BalanceCardVariant.blue]!.deep,
+      backgroundColor: colors.isDark
+          ? kCardPalettes[variant]!.deep
+          : colors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -145,8 +155,11 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
                 controller: _pages,
                 itemCount: kIntroSlides.length,
                 onPageChanged: (i) => setState(() => _index = i),
-                itemBuilder: (context, i) =>
-                    _IntroPage(slide: kIntroSlides[i], colors: colors),
+                itemBuilder: (context, i) => _IntroPage(
+                  slide: kIntroSlides[i],
+                  colors: colors,
+                  variant: variant,
+                ),
               ),
             ),
             _Dots(count: kIntroSlides.length, index: _index, colors: colors),
@@ -180,10 +193,15 @@ class _AppIntroScreenState extends State<AppIntroScreen> {
 }
 
 class _IntroPage extends StatelessWidget {
-  const _IntroPage({required this.slide, required this.colors});
+  const _IntroPage({
+    required this.slide,
+    required this.colors,
+    required this.variant,
+  });
 
   final IntroSlide slide;
   final AzamanColors colors;
+  final BalanceCardVariant variant;
 
   @override
   Widget build(BuildContext context) {
@@ -201,7 +219,11 @@ class _IntroPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
-                  child: IntroSlideArt(art: slide.art, colors: colors),
+                  child: IntroSlideArt(
+                    art: slide.art,
+                    colors: colors,
+                    variant: variant,
+                  ),
                 ),
                 const SizedBox(height: 36),
                 Text(

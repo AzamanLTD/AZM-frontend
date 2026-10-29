@@ -81,6 +81,29 @@ class BalanceCardGeometry {
 }
 
 /// The paired physical card: shared frame, one flip, two faces.
+/// The on-card colour ladder for a variant: the theme's own semantics with
+/// every ink value replaced by the applied card's tones, so the faces stay
+/// palette-agnostic and read a normal [AzamanColors].
+///
+/// Public because the public tour draws the same card (the wallet slide's
+/// hero) and must obey the same ladder as Home — otherwise the tour's card
+/// would be a look-alike with off-palette ink.
+AzamanColors balanceCardInk(BalanceCardVariant variant, AzamanColors colors) {
+  final p = kCardPalettes[variant]!;
+  return colors.copyWith(
+    card: p.mid,
+    textPrimary: p.inkPrimary,
+    textSecondary: p.inkSecondary,
+    textTertiary: p.inkTertiary,
+    divider: p.inkDivider,
+    accent: p.inkAccent,
+    accentSecondary: p.inkAccent,
+    accentSurface: p.inkAccent.withValues(alpha: 0.16),
+    glow: p.inkAccent,
+    border: p.inkDivider,
+  );
+}
+
 class BalanceCardPair extends StatefulWidget {
   const BalanceCardPair({
     super.key,
@@ -165,25 +188,9 @@ class _BalanceCardPairState extends State<BalanceCardPair>
     setState(() => _isBack = !_isBack);
   }
 
-  /// The colour ladder the faces draw with: the theme's own semantics, with
-  /// every ink value replaced by the applied card's on-card tones. The faces
-  /// stay palette-agnostic: they read a normal AzamanColors.
-  AzamanColors get _ink {
-    final p = kCardPalettes[widget.variant]!;
-    final c = widget.colors;
-    return c.copyWith(
-      card: p.mid,
-      textPrimary: p.inkPrimary,
-      textSecondary: p.inkSecondary,
-      textTertiary: p.inkTertiary,
-      divider: p.inkDivider,
-      accent: p.inkAccent,
-      accentSecondary: p.inkAccent,
-      accentSurface: p.inkAccent.withValues(alpha: 0.16),
-      glow: p.inkAccent,
-      border: p.inkDivider,
-    );
-  }
+  /// The colour ladder the faces draw with. Kept as a field accessor so the
+  /// faces below read exactly as before.
+  AzamanColors get _ink => balanceCardInk(widget.variant, widget.colors);
 
   /// Fired by the hold timer: the card lifts away from the wallet and the
   /// host opens the selector. The gesture is consumed so the release cannot
