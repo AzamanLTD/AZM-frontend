@@ -19,6 +19,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:azaman/experience/launch/azaman_intro.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -106,10 +108,18 @@ void main() {
     await tester.pump();
     expect(find.byType(SplashScreenProbe), findsNothing);
 
-    // The splash's intro gate resolves on the first frame it can.
-    // The splash's branding floor is 2s; the intro gate resolves behind it.
+    // The splash holds for the WHOLE launch sequence. Derive the wait from the
+    // real timeline instead of a magic 3.3s, so retiming the intro cannot
+    // silently break the boot decision again.
     await tester.pump(const Duration(milliseconds: 2400));
-    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pump(AzamanIntro.total);
+    // The branding floor elapses on that last pump; `go()` then needs a frame
+    // to build the destination AND to finish its route transition. Without
+    // letting the transition settle, the tour is still sliding in and its
+    // controls are laid out off-screen (a tap on "Skip" lands at x=448 on a
+    // 400pt viewport and silently misses).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(
       find.byType(AppIntroScreen),
@@ -126,12 +136,22 @@ void main() {
       'sign-in', (tester) async {
     await _pumpRealApp(tester);
     await tester.pump(const Duration(milliseconds: 2400));
-    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pump(AzamanIntro.total);
+    // The branding floor elapses on that last pump; `go()` then needs a frame
+    // to build the destination AND to finish its route transition. Without
+    // letting the transition settle, the tour is still sliding in and its
+    // controls are laid out off-screen (a tap on "Skip" lands at x=448 on a
+    // 400pt viewport and silently misses).
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
     expect(find.byType(AppIntroScreen), findsOneWidget);
 
     await tester.tap(find.text('Skip'));
+    // _leave() awaits the local flag write before it navigates, so give the
+    // async a turn and then a frame to build the destination.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(find.byType(LoginScreen), findsOneWidget);
     expect(topMatch(), AzRoutes.login);

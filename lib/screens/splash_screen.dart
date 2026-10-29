@@ -52,6 +52,28 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _checkAuthStatus();
     });
+
+    _brandingFloorTimer = Timer(
+      _reduceMotion
+          ? const Duration(milliseconds: 320)
+          : AzamanIntro.total + const Duration(milliseconds: 100),
+      () {
+        if (!_brandingFloorDone.isCompleted) _brandingFloorDone.complete();
+      },
+    );
+    _revealFloorTimer = Timer(
+      _reduceMotion
+          ? const Duration(milliseconds: 900)
+          : AzamanIntro.total + const Duration(milliseconds: 900),
+      () {
+        if (!_revealFloorDone.isCompleted) _revealFloorDone.complete();
+      },
+    );
+
+    // Reduced motion still needs the reveal gate released: the static state
+    // has nothing to finish, and waiting the full 3.8s would just be a slow
+    // blank hold for someone who asked for less motion.
+    if (_reduceMotion) _onIntroRevealed();
   }
 
   Future<bool> _checkOnboardingStatus() async {
@@ -67,30 +89,57 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     return false;
   }
 
-  /// §9 startup audit: the two-second branding floor used to run SERIALLY
-  /// before the waterfall, so a cold start paid 2s + every network round
-  /// trip on top. It now runs CONCURRENTLY with the auth/version/onboarding
-  /// work — the splash still holds for its branding beat, but the network
-  /// is never idled behind it: startup is max(2s, waterfall), not 2s+waterfall.
+  /// §9 startup audit: the branding floor used to run SERIALLY before the
+  /// waterfall, so a cold start paid the animation + every network round trip
+  /// on top. It runs CONCURRENTLY with the auth/version/onboarding work: the
+  /// splash still holds for the entrance, but the network is never idled
+  /// behind it, so startup is max(animation, waterfall).
   ///
-  /// The floor now COVERS the entrance: the lockup settles at
-  /// [AzamanIntro.revealMs], so the floor is that plus a frame of grace
-  /// rather than a flat 2s that could cut the reveal off.
-  late final Future<void> _brandingFloor = Future<void>.delayed(
-    const Duration(milliseconds: AzamanIntro.revealMs + 120),
-  );
+  /// THE FLOOR IS THE WHOLE SEQUENCE, NOT THE WORDMARK'S FIRST APPEARANCE.
+  /// This used to be `revealMs + 120` (2.12s) against a 3.83s reference: the
+  /// route changed while the ring and halo still had ~1.7s of motion left,
+  /// which is precisely what makes an intro feel cut off. The floor is now
+  /// [AzamanIntro.total], the length of the approved clip.
+  /// Both floors are TIMERS, not fire-and-forget futures, so leaving the
+  /// splash cancels them. An orphaned deadman timer firing after the route
+  /// changed is harmless on a device but it keeps a real timer alive past the
+  /// widget's life — which also trips Flutter's "a Timer is still pending"
+  /// invariant in tests.
+  final Completer<void> _brandingFloorDone = Completer<void>();
+  final Completer<void> _revealFloorDone = Completer<void>();
+  Timer? _brandingFloorTimer;
+  Timer? _revealFloorTimer;
 
-  /// Deadman switch for the reveal. The lockup normally reports through
-  /// [AzamanIntro.onRevealed]; if that callback never arrives (a platform
-  /// with tickers disabled, a build that swaps the intro out) the splash must
-  /// still be able to leave. This can only ever run LATE, never early, so the
-  /// "never cut the reveal" guarantee holds either way.
-  late final Future<void> _revealFloor = Future<void>.delayed(
-    const Duration(milliseconds: AzamanIntro.revealMs + 600),
-  );
+  Future<void> get _brandingFloor => _brandingFloorDone.future;
+  Future<void> get _revealFloor => _revealFloorDone.future;
+
+  /// Deadman switch for the animation. The player normally reports through
+  /// [AzamanIntroPlayer.onCompleted]; if that callback never arrives (tickers
+  /// disabled at the platform level, a build that swaps the intro out) the
+  /// splash must still be able to leave. It can only ever run LATE, never
+  /// early, so the "never cut the animation" guarantee holds either way.
+
+
+  /// Reduced motion never plays the full travel; it shows the settled brand
+  /// state and continues through boot.
+  late final bool _reduceMotion = WidgetsBinding
+      .instance
+      .platformDispatcher
+      .accessibilityFeatures
+      .disableAnimations;
 
   void _onIntroRevealed() {
     if (!_introRevealed.isCompleted) _introRevealed.complete();
+  }
+
+  /// Playback failed (no frame ever painted, an exception in the painter).
+  /// Show the static brand lockup and keep booting: never a black screen, and
+  /// never a fake success.
+  bool _introFailed = false;
+  void _onIntroFailed() {
+    if (_introFailed) return;
+    setState(() => _introFailed = true);
+    _onIntroRevealed();
   }
 
   /// Every splash exit goes through here, so the branding floor elapses
@@ -254,6 +303,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   void dispose() {
+    _brandingFloorTimer?.cancel();
+    _revealFloorTimer?.cancel();
     super.dispose();
   }
 
@@ -264,7 +315,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       // Match the intro's own canvas so there is never a white flash before
       // the first frame paints.
       backgroundColor: isDark ? Colors.black : const Color(0xFFF4F5F6),
-      body: AzamanIntro(onRevealed: _onIntroRevealed),
+      body: _reduceMotion || _introFailed
+          ? const AzamanIntroStatic()
+          : AzamanIntroPlayer(
+              onCompleted: _onIntroRevealed,
+              onFailed: _onIntroFailed,
+            ),
     );
   }
 }

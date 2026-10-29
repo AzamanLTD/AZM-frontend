@@ -39,6 +39,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data' show ByteData, Uint8List;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:azaman/experience/launch/azaman_intro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/config.dart';
@@ -139,8 +141,12 @@ Future<void> _bootDemoShell(WidgetTester tester) async {
   expect(find.byType(SplashScreen), findsOneWidget);
   // The real branding floor is 2 seconds; the demo waterfall then replaces
   // the route. Generous pumps through the floor + the transition.
+  // The splash holds for the WHOLE launch sequence now, so the wait is derived
+  // from it. A hardcoded ~3.1s here silently stopped reaching the shell the
+  // moment the intro was retimed.
   await tester.pump(const Duration(milliseconds: 2300));
-  await tester.pump(const Duration(milliseconds: 800));
+  await tester.pump(AzamanIntro.total);
+  await tester.pump(const Duration(milliseconds: 600));
   expect(find.byType(MainWrapper), findsOneWidget);
 }
 

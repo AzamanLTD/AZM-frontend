@@ -1,3 +1,9 @@
+// Ported to the rebuilt launch API.
+//
+// The old version asserted that the entrance "settled" at `AzamanIntro.revealMs`
+// (2.12s) — which is exactly the behaviour that was wrong: the route changed
+// while the ring and halo still had motion left. These tests now assert the
+// opposite: nothing is reported until the full reference sequence has played.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -9,37 +15,43 @@ void main() {
     home: Scaffold(body: child),
   );
 
-  testWidgets('plays the entrance and reports the settled lockup', (
+  testWidgets('plays the entrance and reports only when it has finished', (
     tester,
   ) async {
-    var revealed = 0;
-    await tester.pumpWidget(host(AzamanIntro(onRevealed: () => revealed++)));
+    var completed = 0;
+    await tester.pumpWidget(
+      host(AzamanIntroPlayer(onCompleted: () => completed++)),
+    );
     await tester.pump();
-    expect(find.byType(AzamanIntro), findsOneWidget);
-    expect(revealed, 0, reason: 'the tile phase comes first');
+    expect(find.byType(AzamanIntroPlayer), findsOneWidget);
+    expect(completed, 0, reason: 'the tile phase comes first');
 
-    await tester.pump(const Duration(milliseconds: AzamanIntro.revealMs + 40));
-    expect(revealed, 1, reason: 'the lockup has settled by revealMs');
+    // Past the moment the wordmark is legible, the sequence is still moving.
+    await tester.pump(const Duration(milliseconds: 2500));
+    expect(
+      completed,
+      0,
+      reason: 'the ring and halo still have motion after 2.5s',
+    );
 
-    // The reveal is reported exactly once, even as the animation holds.
-    await tester.pump(const Duration(milliseconds: 1400));
-    expect(revealed, 1);
+    // Finish the reference timeline.
+    await tester.pump(AzamanIntro.total);
+    expect(completed, 1, reason: 'reported at the end of the sequence');
 
-    // Drain the controller so no timer outlives the test.
+    // Reported exactly once, even if pumped further.
+    await tester.pump(const Duration(seconds: 2));
+    expect(completed, 1);
     await tester.pumpAndSettle();
   });
 
-  testWidgets('reduced motion shows the settled lockup immediately', (
+  testWidgets('reduced motion shows the settled brand state immediately', (
     tester,
   ) async {
-    var revealed = 0;
-    await tester.pumpWidget(
-      host(AzamanIntro(animate: false, onRevealed: () => revealed++)),
-    );
+    await tester.pumpWidget(host(const AzamanIntroStatic()));
     await tester.pump();
-    expect(revealed, 1);
+    expect(find.byType(AzamanIntroStatic), findsOneWidget);
+    expect(tester.takeException(), isNull);
     await tester.pumpAndSettle();
-    expect(revealed, 1);
   });
 
   testWidgets('renders in both brightnesses', (tester) async {
@@ -47,7 +59,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: ThemeData(brightness: brightness),
-          home: const Scaffold(body: AzamanIntro(animate: false)),
+          home: const Scaffold(body: AzamanIntroStatic()),
         ),
       );
       await tester.pump();
