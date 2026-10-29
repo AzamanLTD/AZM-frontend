@@ -23,8 +23,9 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/intro_store.dart';
-import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/screens/intro/intro_slide_art.dart';
 import 'package:azaman/theme/balance_card_brand.dart';
+import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
 /// One page of the public intro. `bodhi`-style: a short promise, a plain
@@ -33,40 +34,41 @@ class IntroSlide {
   const IntroSlide({
     required this.headline,
     required this.body,
-    required this.marker,
+    required this.art,
   });
 
   final String headline;
   final String body;
 
-  /// A simple glyph stand-in (drawn, not an emoji): the slide's anchor.
-  final IntroMarker marker;
+  /// What the slide SHOWS. The artwork lives in [IntroSlideArt], built from
+  /// real product components rather than a stand-in glyph.
+  final IntroArt art;
 }
-
-enum IntroMarker { balance, marketplace, transfer }
 
 const List<IntroSlide> kIntroSlides = <IntroSlide>[
   IntroSlide(
-    marker: IntroMarker.balance,
+    art: IntroArt.wallet,
     headline: 'Your money, one card',
     body:
-        'Your Azaman balance is held in Ghana cedis and shown exact. '
-        'The USDC equivalent is marked ≈ because it is a conversion, '
-        'not a second balance.',
+        'Your balance is held in Ghana cedis and shown exact. The ≈ USDC line '
+        'beneath it is a conversion at the current rate, not a second '
+        'account. '
+        'The card above is an example.',
   ),
   IntroSlide(
-    marker: IntroMarker.marketplace,
+    art: IntroArt.marketplace,
     headline: 'Shop, stay, eat, ride',
     body:
-        'A marketplace for everyday Ghana: stores, hotels, kitchens and '
-        'transport in one place, each run by a verified business profile.',
+        'Everyday places in one marketplace. Each category carries its own '
+        'colour, and every listing belongs to a business profile you can open '
+        'before you commit.',
   ),
   IntroSlide(
-    marker: IntroMarker.transfer,
-    headline: 'Send it in the chat',
+    art: IntroArt.community,
+    headline: 'Money inside the conversation',
     body:
-        'Move money to the people you already talk to, keep savings groups '
-        'together, and see every movement in one ledger you can read.',
+        'Chat with the people you already know, save together in a Susu '
+        'circle, and read every movement in one ledger instead of guessing.',
   ),
 ];
 
@@ -199,16 +201,7 @@ class _IntroPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Center(
-                  child: SizedBox(
-                    width: 168,
-                    height: 104,
-                    child: CustomPaint(
-                      painter: IntroMarkerPainter(
-                        marker: slide.marker,
-                        palette: kCardPalettes[BalanceCardVariant.blue]!,
-                      ),
-                    ),
-                  ),
+                  child: IntroSlideArt(art: slide.art, colors: colors),
                 ),
                 const SizedBox(height: 36),
                 Text(
@@ -265,103 +258,3 @@ class _Dots extends StatelessWidget {
 
 /// The slide anchors, drawn — a miniature of the real thing rather than a
 /// decorative blob (the balance card, a storefront row, a transfer lane).
-class IntroMarkerPainter extends CustomPainter {
-  IntroMarkerPainter({required this.marker, required this.palette});
-
-  final IntroMarker marker;
-  final AzamanCardPalette palette;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rect = Offset.zero & size;
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(14));
-    canvas.save();
-    canvas.clipRRect(rrect);
-    canvas.drawRect(
-      rect,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [palette.bright, palette.deep],
-        ).createShader(rect),
-    );
-
-    final white = Paint()
-      ..color = Colors.white.withValues(alpha: 0.92)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    final faint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.28)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-
-    switch (marker) {
-      case IntroMarker.balance:
-        // The chip, top right, and three ledger rules: a card face.
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(size.width - 44, size.height * 0.30, 26, 20),
-            const Radius.circular(5),
-          ),
-          faint,
-        );
-        for (var i = 0; i < 3; i++) {
-          final y = size.height * 0.62 + i * 9;
-          canvas.drawLine(
-            Offset(size.width * 0.16, y),
-            Offset(size.width * (0.44 + i * 0.12), y),
-            faint,
-          );
-        }
-        canvas.drawLine(
-          Offset(size.width * 0.16, size.height * 0.24),
-          Offset(size.width * 0.42, size.height * 0.24),
-          white,
-        );
-      case IntroMarker.marketplace:
-        // Four storefront columns with awnings.
-        final w = size.width * 0.14;
-        for (var i = 0; i < 4; i++) {
-          final x = size.width * 0.13 + i * (w + 6);
-          canvas.drawRect(
-            Rect.fromLTWH(x, size.height * 0.42, w, size.height * 0.40),
-            faint,
-          );
-          canvas.drawLine(
-            Offset(x - 1, size.height * 0.40),
-            Offset(x + w + 1, size.height * 0.40),
-            white,
-          );
-        }
-      case IntroMarker.transfer:
-        // Two rails converging on one dot: money moving between people.
-        canvas.drawLine(
-          Offset(size.width * 0.18, size.height * 0.34),
-          Offset(size.width * 0.78, size.height * 0.62),
-          faint,
-        );
-        canvas.drawLine(
-          Offset(size.width * 0.18, size.height * 0.72),
-          Offset(size.width * 0.78, size.height * 0.44),
-          faint,
-        );
-        canvas.drawCircle(
-          Offset(size.width * 0.80, size.height * 0.53),
-          4.5,
-          Paint()..color = Colors.white,
-        );
-        canvas.drawLine(
-          Offset(size.width * 0.18, size.height * 0.53),
-          Offset(size.width * 0.34, size.height * 0.53),
-          white,
-        );
-    }
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant IntroMarkerPainter oldDelegate) =>
-      oldDelegate.marker != marker || oldDelegate.palette != palette;
-}

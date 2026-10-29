@@ -204,6 +204,7 @@ flutter:
   assets:
     - assets/brand/
     - assets/images/
+    - assets/experience/launch/
     - assets/audio/
     - assets/images/food/
     - assets/animations/

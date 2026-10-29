@@ -310,14 +310,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       // Match the intro's own canvas so there is never a white flash before
       // the first frame paints.
-      backgroundColor: isDark ? Colors.black : const Color(0xFFF4F5F6),
+      // The clip is a black-ground composition and is the same material in
+      // both themes, so the surface behind it is black in light mode too.
+      backgroundColor: Colors.black,
       body: _reduceMotion || _introFailed
-          ? const AzamanIntroStatic()
+          ? const AzamanIntroStatic(chrome: IntroChrome.dark)
           : AzamanIntroPlayer(
+              chrome: IntroChrome.dark,
               onCompleted: _onIntroRevealed,
               onFailed: _onIntroFailed,
             ),

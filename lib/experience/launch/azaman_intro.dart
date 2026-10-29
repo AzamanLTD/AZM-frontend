@@ -28,12 +28,13 @@
 // feel cut off.
 // =============================================================================
 
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
 import 'azaman_intro_art.dart';
+import 'package:video_player/video_player.dart';
+import 'dart:async';
 
 /// Chrome for the intro. This is artwork, not a theme token: the same brand
 /// object rendered in two materials.
@@ -316,332 +317,299 @@ class _Tokenize {
   }
 }
 
-/// The live animation.
+// ---------------------------------------------------------------------------
+// THE CLIP IS THE ANIMATION
+// ---------------------------------------------------------------------------
+
+/// The owner's motion reference, packaged as an asset and played as-is.
 ///
-/// Plays exactly once per widget instance; the splash owns that instance, so a
-/// rebuild or a tab switch can never replay it. [onCompleted] fires when the
-/// FULL reference sequence has finished.
+/// Everything above is brand material: the chrome, the settled wordmark lockup
+/// and the path parses that draw it. Everything below plays the actual motion.
+///
+/// An earlier revision re-drew the sequence with a painter. It matched the
+/// measured frames closely and still read as separate artwork being swapped,
+/// because every transition between mark, tile, ring and wordmark was
+/// reconstructed from stills rather than played. Tests on that painter passed
+/// while the owner was reporting the defect: they asserted the reconstruction,
+/// not the motion. This file no longer competes with the reference.
+const String kLaunchVideoAsset = 'assets/experience/launch/azaman_launch.mp4';
+
+/// The clip's own frame geometry (656 x 848). The launch is letterboxed on
+/// black rather than cropped, so no part of the composition is lost on a
+/// taller phone and the clip's black ground blends into the viewport.
+const double kLaunchAspectRatio = 656 / 848;
+
+/// Silver gradient of the owner's mark, in the 1024-unit design box.
+const List<Color> kMarkSilver = <Color>[
+  Color(0xFF80898B),
+  Color(0xFFDCE0E0),
+  Color(0xFF8D9699),
+  Color(0xFFF1F3F3),
+  Color(0xFF929A9D),
+  Color(0xFF717A7D),
+];
+
+/// Seam over the platform player.
+///
+/// The launch has to be exercisable without the plugin: the assertions that
+/// matter are about the SEQUENCE (plays once, never reports early, holds the
+/// settled state on failure), and none of those need real time or a decoder.
+abstract class LaunchVideo {
+  Future<void> initialize();
+  Future<void> setVolume(double value);
+  Future<void> play();
+  Future<void> seekTo(Duration position);
+  Future<void> dispose();
+  bool get isInitialized;
+  bool get isPlaying;
+  bool get hasError;
+  Duration get position;
+  Duration get duration;
+  double get aspectRatio;
+  void addListener(VoidCallback listener);
+  void removeListener(VoidCallback listener);
+  Widget buildSurface();
+}
+
+/// Production player. Asset-backed, silent, played exactly once.
+class AssetLaunchVideo implements LaunchVideo {
+  AssetLaunchVideo({String asset = kLaunchVideoAsset})
+    : _controller = VideoPlayerController.asset(asset);
+
+  final VideoPlayerController _controller;
+
+  @override
+  Future<void> initialize() => _controller.initialize();
+  @override
+  Future<void> setVolume(double value) => _controller.setVolume(value);
+  @override
+  Future<void> play() => _controller.play();
+  @override
+  Future<void> seekTo(Duration position) => _controller.seekTo(position);
+  @override
+  Future<void> dispose() => _controller.dispose();
+  @override
+  bool get isInitialized => _controller.value.isInitialized;
+  @override
+  bool get isPlaying => _controller.value.isPlaying;
+  @override
+  bool get hasError => _controller.value.hasError;
+  @override
+  Duration get position => _controller.value.position;
+  @override
+  Duration get duration => _controller.value.duration;
+  @override
+  double get aspectRatio => _controller.value.isInitialized
+      ? _controller.value.aspectRatio
+      : kLaunchAspectRatio;
+  @override
+  void addListener(VoidCallback listener) => _controller.addListener(listener);
+  @override
+  void removeListener(VoidCallback listener) =>
+      _controller.removeListener(listener);
+  @override
+  Widget buildSurface() => VideoPlayer(_controller);
+}
+
+/// Test hook: the "already played" guard is per process, which is what stops a
+/// rebuild or an internal navigation replaying the entrance. Tests need to
+/// clear it between cases.
+@visibleForTesting
+void resetLaunchPlayGuard() => _AzamanIntroPlayerState._playedInProcess = false;
+
+/// Plays the reference clip once, reports only when it has finished, and keeps
+/// the final wordmark on screen afterwards instead of cutting to black.
+///
+/// [onFailed] is for a genuine playback failure (no decoder, corrupt asset,
+/// stalled player). The caller swaps in [AzamanIntroStatic]; this widget also
+/// renders it, so a failure never leaves an empty canvas.
 class AzamanIntroPlayer extends StatefulWidget {
   const AzamanIntroPlayer({
     super.key,
     required this.onCompleted,
     this.onFailed,
     this.chrome,
-    this.controllerOverride,
+    this.video,
   });
 
+  /// Fires when the clip has reached its end — the full sequence, not an
+  /// approximation of it. [AzamanIntro.total] is the floor, enforced by the
+  /// watchdog, so a silently dead player cannot strand the splash.
   final VoidCallback onCompleted;
 
-  /// Called if the artwork cannot be prepared. The caller shows the static
-  /// lockup and keeps booting — never a black screen, never a fake success.
+  /// Fires on a real failure. Never fires together with [onCompleted] for the
+  /// same playback, so the caller can hold the settled state and move on
+  /// without pretending the video played.
   final VoidCallback? onFailed;
   final IntroChrome? chrome;
 
-  /// Test seam: drives the sequence without real time.
-  final AnimationController? controllerOverride;
+  /// Test seam. Production passes nothing and gets [AssetLaunchVideo].
+  final LaunchVideo? video;
 
   @override
   State<AzamanIntroPlayer> createState() => _AzamanIntroPlayerState();
 }
 
-class _AzamanIntroPlayerState extends State<AzamanIntroPlayer>
-    with SingleTickerProviderStateMixin {
-  AnimationController? _own;
-  AnimationController? get _c => widget.controllerOverride ?? _own;
+class _AzamanIntroPlayerState extends State<AzamanIntroPlayer> {
+  /// One entrance per app process. A widget rebuild, a theme change or an
+  /// internal navigation cannot replay it: the second instance reports
+  /// completion immediately and paints the settled frame instead.
+  static bool _playedInProcess = false;
+
+  late final LaunchVideo _video = widget.video ?? AssetLaunchVideo();
+  late final bool _ownsVideo = widget.video == null;
+
+  bool _ready = false;
   bool _done = false;
+  bool _failed = false;
+  Timer? _watchdog;
 
   @override
   void initState() {
     super.initState();
-    // Prepare the artwork BEFORE starting the clock. There is no decoder to
-    // warm up (this is vector painting, not video), but a malformed path is
-    // the equivalent failure: it must surface as the static fallback rather
-    // than as an exception in the middle of paint().
-    try {
-      ensureIntroArtPrepared();
-    } catch (_) {
-      widget.onFailed?.call();
+    if (_playedInProcess) {
+      _done = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onCompleted();
+      });
       return;
     }
-    final c =
-        widget.controllerOverride ??
-        (AnimationController(vsync: this, duration: AzamanIntro.total));
-    if (widget.controllerOverride == null) _own = c;
-    c.addStatusListener((s) {
-      if (s == AnimationStatus.completed && !_done) {
-        _done = true;
-        widget.onCompleted();
-      }
-    });
-    c.forward();
+    _playedInProcess = true;
+    _start();
+  }
+
+  Future<void> _start() async {
+    try {
+      // The packaged asset has no audio track at all; muting is a second belt
+      // so a future replacement clip cannot start making noise in a lift.
+      await _video.setVolume(0);
+      await _video.initialize();
+      if (!mounted) return;
+      if (_video.hasError) return _fail();
+
+      // Start from the top: a reused platform player could otherwise resume.
+      await _video.seekTo(Duration.zero);
+      _video.addListener(_onTick);
+      await _video.play();
+      if (!mounted) return;
+      setState(() => _ready = true);
+
+      _watchdog = Timer(
+        AzamanIntro.total + const Duration(milliseconds: 1500),
+        () {
+          if (!_done) _fail();
+        },
+      );
+    } catch (_) {
+      _fail();
+    }
+  }
+
+  void _onTick() {
+    if (_done || !mounted) return;
+    if (_video.hasError) return _fail();
+    final total = _video.duration;
+    if (total <= Duration.zero) return;
+    if (_video.position >= total - const Duration(milliseconds: 120)) {
+      _complete();
+    }
+  }
+
+  void _complete() {
+    if (_done) return;
+    _done = true;
+    _watchdog?.cancel();
+    widget.onCompleted();
+  }
+
+  void _fail() {
+    if (_done || _failed) return;
+    _failed = true;
+    _watchdog?.cancel();
+    if (mounted) setState(() {});
+    widget.onFailed?.call();
   }
 
   @override
   void dispose() {
-    _own?.dispose();
+    _watchdog?.cancel();
+    if (!_playedInProcess || _ownsVideo) {
+      _video.removeListener(_onTick);
+      if (_ownsVideo) _video.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final chrome = widget.chrome ?? IntroChrome.of(context);
-    final controller = _c;
-    if (controller == null) {
-      // Preparation failed: the caller renders the static lockup, but if it
-      // has not swapped yet, at least never show an empty black canvas.
-      return ColoredBox(color: chrome.background);
-    }
+    final chrome = widget.chrome ?? IntroChrome.dark;
+    if (_failed) return AzamanIntroStatic(chrome: chrome);
     return ColoredBox(
       color: chrome.background,
-      child: LayoutBuilder(
-        builder: (context, constraints) => AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) => CustomPaint(
-            size: Size(constraints.maxWidth, constraints.maxHeight),
-            painter: _IntroPainter(
-              progress: controller.value,
-              elapsedMs: (controller.value * AzamanIntro.total.inMilliseconds)
-                  .round(),
-              chrome: chrome,
-            ),
-          ),
+      child: Center(
+        child: AspectRatio(
+          aspectRatio: _ready ? _video.aspectRatio : kLaunchAspectRatio,
+          // Until the decoder has produced a frame, hold the clip's OWN first
+          // composition (the mark alone on black), which is also what the
+          // native splash shows. Nothing else is drawn, so there is no second
+          // logo and no blank frame between the system splash and playback.
+          child: _ready
+              ? _video.buildSurface()
+              : _LaunchFrameZeroHold(
+                  key: const ValueKey('launch-frame-zero'),
+                  chrome: chrome,
+                ),
         ),
       ),
     );
   }
 }
 
-class _IntroPainter extends CustomPainter {
-  _IntroPainter({
-    required this.progress,
-    required this.elapsedMs,
-    required this.chrome,
-  });
-
-  final double progress;
-  final int elapsedMs;
+/// Static hold of the clip's frame 0: the silver mark, centred, at its exact
+/// size relative to the frame. Used only before the first decoded frame and by
+/// the failure path — never animated, so it cannot read as its own entrance.
+class _LaunchFrameZeroHold extends StatelessWidget {
+  const _LaunchFrameZeroHold({super.key, required this.chrome});
   final IntroChrome chrome;
 
-  static double _seg(int t, int a, int b) =>
-      ((t - a) / (b - a)).clamp(0.0, 1.0);
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: chrome.background,
+    child: const SizedBox.expand(
+      child: CustomPaint(painter: _MarkHoldPainter()),
+    ),
+  );
+}
 
-  static double _easeOut(double t) => 1 - math.pow(1 - t, 3).toDouble();
-  static double _easeIn(double t) => t * t * t;
+class _MarkHoldPainter extends CustomPainter {
+  const _MarkHoldPainter();
+
+  static List<Path>? _paths;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final t = elapsedMs;
-    final w = size.width;
-    final center = Offset(size.width / 2, size.height / 2);
-
-    // ---- mark scale over the whole sequence -------------------------------
-    double markWidth;
-    if (t < AzamanIntro.markIn) {
-      markWidth = _lerp(
-        AzamanIntro.markStartWidth,
-        AzamanIntro.markPeakWidth,
-        _easeOut(_seg(t, 0, AzamanIntro.markIn)),
-      );
-    } else if (t < AzamanIntro.collapseStart) {
-      // A breath, not a bounce: a slow swell and release inside the tile.
-      final b = _seg(t, AzamanIntro.markIn, AzamanIntro.collapseStart);
-      markWidth =
-          AzamanIntro.markPeakWidth * (1 + 0.035 * math.sin(math.pi * b));
-    } else {
-      markWidth = _lerp(
-        AzamanIntro.markPeakWidth,
-        AzamanIntro.markCollapsedWidth,
-        _easeIn(_seg(t, AzamanIntro.collapseStart, AzamanIntro.collapseEnd)),
-      );
-    }
-    // The mark is absorbed by the aperture as it opens: it stays solid until
-    // the ring reaches it, then goes.
-    final markAlpha = t < AzamanIntro.ringStart
-        ? 1.0
-        : (1 - _seg(t, AzamanIntro.ringStart, AzamanIntro.ringStart + 180))
-              .clamp(0.0, 1.0);
-
-    // ---- glass tile -------------------------------------------------------
-    final tileT = _seg(t, 60, AzamanIntro.tileSettled);
-    final tileGone = _seg(
-      t,
-      AzamanIntro.collapseStart,
-      AzamanIntro.collapseEnd,
-    );
-    if (tileT > 0 && tileGone < 1) {
-      final tileSide =
-          w * AzamanIntro.tileWidth * _easeOut(tileT) * (1 - _easeIn(tileGone));
-      final breathe = 1 + 0.012 * math.sin(math.pi * _seg(t, 200, 1150));
-      _paintTile(canvas, center, tileSide * breathe, tileAlpha: 1 - tileGone);
-    }
-
-    // ---- mark, clipped away by the aperture once the reveal starts --------
-    if (markAlpha > 0.001) {
-      _paintMark(canvas, center, w * markWidth, markAlpha);
-    }
-
-    // ---- the aperture: ring + wordmark reveal -----------------------------
-    if (t >= AzamanIntro.ringStart) {
-      final wordW = w * AzamanIntro.wordWidth;
-      final fullR = (wordW / 2) * 1.01; // just covers the wordmark
-      final open = _apertureAt(t);
-      final radius = fullR * open;
-
-      // The ink rides behind the aperture edge.
-      if (open > 0) {
-        canvas.save();
-        canvas.clipPath(
-          Path()..addOval(Rect.fromCircle(center: center, radius: radius)),
-        );
-        _paintWordmark(canvas, center, wordW, 1.0);
-        canvas.restore();
-      }
-
-      // The ring: travels to [AzamanIntro.ringReach], then dissolves.
-      if (t < AzamanIntro.ringGone) {
-        // The bright edge runs slightly AHEAD of the ink it uncovers — that
-        // lead is what makes it read as a flash rather than a wipe. It closes
-        // to zero as the reveal completes, then coasts on to [ringReach].
-        final ringOpen = open >= 1
-            ? _lerp(
-                1,
-                AzamanIntro.ringReach,
-                _easeOut(
-                  _seg(
-                    t,
-                    AzamanIntro.revealEnd,
-                    AzamanIntro.ringFadeStart + 100,
-                  ),
-                ),
-              )
-            : open + 0.06 * (1 - open);
-        final fade =
-            1 - _seg(t, AzamanIntro.ringFadeStart, AzamanIntro.ringGone);
-        if (fade > 0.01) {
-          canvas.drawCircle(
-            center,
-            fullR * ringOpen,
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = math.max(1.2, w * 0.004)
-              ..color = chrome.ring.withValues(alpha: 0.9 * fade),
-          );
-          // The reference's chromatic edge: one thin cyan offset stroke.
-          canvas.drawCircle(
-            center,
-            fullR * ringOpen + math.max(1.0, w * 0.0022),
-            Paint()
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = math.max(0.8, w * 0.0018)
-              ..color = chrome.ringEdge.withValues(alpha: 0.55 * fade),
-          );
-        }
-      }
-    }
-
-    // ---- the settled wordmark never fades out ----------------------------
-    if (t >= AzamanIntro.revealEnd) {
-      _paintWordmark(canvas, center, w * AzamanIntro.wordWidth, 1.0);
-    }
-  }
-
-  static double _lerp(double a, double b, double t) => a + (b - a) * t;
-
-  /// Samples the measured aperture curve.
-  static double _apertureAt(int t) {
-    const curve = AzamanIntro.apertureCurve;
-    if (t <= curve.first.$1) return curve.first.$2;
-    for (var i = 1; i < curve.length; i++) {
-      final (t1, v1) = curve[i];
-      if (t <= t1) {
-        final (t0, v0) = curve[i - 1];
-        return _lerp(v0, v1, (t - t0) / (t1 - t0));
-      }
-    }
-    return curve.last.$2;
-  }
-
-  void _paintTile(
-    Canvas canvas,
-    Offset c,
-    double side, {
-    required double tileAlpha,
-  }) {
-    if (side <= 0.5) return;
-    final rect = Rect.fromCenter(center: c, width: side, height: side);
-    final r = Radius.circular(side * 0.215); // ~52/242, measured
-    final rr = RRect.fromRectAndRadius(rect, r);
-
-    // Body: a cool near-black glass, lit from the top-left.
-    canvas.drawRRect(
-      rr,
-      Paint()
-        ..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, <Color>[
-          chrome.tileTop.withValues(alpha: tileAlpha),
-          chrome.tileBottom.withValues(alpha: tileAlpha),
-        ]),
-    );
-
-    // Rim: a single restrained highlight, strongest top-left.
-    canvas.drawRRect(
-      rr.deflate(side * 0.004),
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(1.0, side * 0.006)
-        ..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, <Color>[
-          chrome.rimStart.withValues(alpha: chrome.rimStart.a * tileAlpha),
-          chrome.rimEnd.withValues(alpha: chrome.rimEnd.a * tileAlpha),
-        ]),
-    );
-  }
-
-  void _paintMark(Canvas canvas, Offset c, double width, double alpha) {
-    if (width <= 0.5) return;
-    final scale = width / 600.0; // mark ink spans ~600 units of the 1024 box
+    final paths = _paths ??= kMarkPaths
+        .map(parseIntroPath)
+        .toList(growable: false);
+    final width = size.width * AzamanIntro.markStartWidth;
+    if (width <= 0) return;
+    final scale = width / kMarkBox;
     canvas.save();
-    canvas.translate(c.dx, c.dy);
+    canvas.translate((size.width - width) / 2, (size.height - width) / 2);
     canvas.scale(scale);
-    canvas.translate(-512, -492); // centre of the mark's ink box
-    var mark = _markCache;
-    if (mark == null) {
-      ensureIntroArtPrepared();
-      mark = _markCache ?? Path();
-    }
-    {
-      canvas.drawPath(
-        mark,
-        Paint()
-          ..shader = ui.Gradient.linear(
-            const Offset(398, 360),
-            const Offset(531, 153),
-            chrome.markStops,
-            const <double>[0, 0.19, 0.39, 0.62, 0.83, 1],
-          )
-          ..color = Colors.white.withValues(alpha: alpha),
+    final paint = Paint()
+      ..shader = ui.Gradient.linear(
+        const Offset(0, 0),
+        const Offset(0, kMarkBox),
+        kMarkSilver,
+        const <double>[0, 0.18, 0.42, 0.62, 0.80, 1],
       );
+    for (final path in paths) {
+      canvas.drawPath(path, paint);
     }
-    canvas.restore();
-  }
-
-  void _paintWordmark(Canvas canvas, Offset c, double width, double alpha) {
-    final h = width * (kWordmarkHeight / kWordmarkWidth);
-    canvas.save();
-    canvas.translate(c.dx - width / 2, c.dy - h / 2);
-    canvas.scale(width / kWordmarkWidth, h / kWordmarkHeight);
-    canvas.drawPath(
-      _wordCache ?? parseIntroPath(kWordmarkPath),
-      Paint()
-        ..shader = ui.Gradient.linear(
-          Offset(0, 0),
-          Offset(0, kWordmarkHeight),
-          chrome.wordStops,
-          const <double>[0, 0.18, 0.42, 0.62, 0.80, 1],
-        ),
-    );
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_IntroPainter old) =>
-      old.progress != progress || old.chrome != chrome;
+  bool shouldRepaint(_MarkHoldPainter oldDelegate) => false;
 }
