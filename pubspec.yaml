@@ -213,7 +213,6 @@ flutter:
     - assets/stickers/static/
     - assets/stickers/animated/
     - assets/chat_wallpapers/
-    - assets/experience/azaman_intro/
 
   # Bundled Inter variable font (replaces runtime GoogleFonts.inter() fetch
   # from fonts.gstatic.com — that network round-trip was adding load-time
