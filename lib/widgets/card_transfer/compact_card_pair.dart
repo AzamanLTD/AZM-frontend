@@ -46,7 +46,7 @@ import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
 import 'package:azaman/widgets/home/azaman_card_face.dart';
-import 'package:azaman/widgets/premium_card_surface.dart';
+import 'package:azaman/widgets/home/azm_visa_card.dart';
 
 /// The compact pair's fixed tile height — drawn for this footprint.
 const double kCompactCardHeight = 96.0;
@@ -390,134 +390,40 @@ class CompactVisaPreview extends ConsumerWidget {
     required this.cardholderLabel,
   });
 
+  /// Kept for the caller's contract and semantics; the face itself reads the
+  /// card programme, exactly like the Home deck does.
   final String maskedCardNumber;
   final String cardholderLabel;
 
+  /// The Home deck card's design box. The transfer tile renders the SAME
+  /// widget at this size and scales it to the tile, so the two surfaces can
+  /// never drift apart again.
+  static const Size designSize = Size(344, 180);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // OWNER-CORRECTED 2026-10-29: this tile used to be a hand-built miniature
+    // — a navy gradient body with its own stacked SAMPLE plate and VISA mark —
+    // which is NOT the card the user sees on Home. The transfer surface is
+    // supposed to show the same two physical cards the deck holds: the real
+    // balance face and the real Visa face. So it now renders [AzmVisaCard]
+    // itself, uniformly scaled: same frame material, same marks, same number,
+    // same "powered by Flutterwave" footer, one source of truth.
     return Semantics(
       label: 'AZM Visa sample card preview',
       excludeSemantics: true,
-      child: DecoratedBox(
+      child: ClipRRect(
         key: const ValueKey('card-transfer-compact-visa'),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: const LinearGradient(
-            begin: Alignment.topRight,
-            end: Alignment.bottomLeft,
-            colors: [kVisCardNavy, kVisCardNavyDeep],
-          ),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.14),
-            width: 0.8,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: LayoutBuilder(
-            builder: (context, vc) => FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: (vc.maxWidth.isFinite ? vc.maxWidth : 96) - 0,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // TWO STACKED LINES, left aligned: at ~110dp wide the
-                    // disclosure chip and the network mark cannot share one row.
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.22),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: const Text(
-                        'SAMPLE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    // The network mark on its own light plate — the Visa card's
-                    // signature element, and the thing that makes this tile
-                    // unmistakably NOT the Azaman balance card.
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: const Text(
-                          'VISA',
-                          style: TextStyle(
-                            color: kVisCardNavy,
-                            fontWeight: FontWeight.w900,
-                            fontStyle: FontStyle.italic,
-                            fontSize: 10,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'AZM Visa card',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.7,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        maskedCardNumber,
-                        key: const ValueKey(
-                          'card-transfer-compact-visa-number',
-                        ),
-                        maxLines: 1,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        cardholderLabel,
-                        maxLines: 1,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 7.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        borderRadius: BorderRadius.circular(16),
+        child: FittedBox(
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: designSize.width,
+            height: designSize.height,
+            // Static: this surface has no loop of its own (the pair is
+            // contractually motionless), but it is the SAME card as Home.
+            child: const AzmVisaCard(sheen: false),
           ),
         ),
       ),
@@ -525,13 +431,6 @@ class CompactVisaPreview extends ConsumerWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THE PAIR — both tiles side by side with the flow lane between them.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// The compact side-by-side pair: balance tile | flow lane | Visa tile.
-/// One composition, fixed grammar — the stage content below owns the
-/// rest of the viewport.
 class CompactCardPair extends StatelessWidget {
   const CompactCardPair({
     super.key,

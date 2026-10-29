@@ -120,7 +120,11 @@ class AzamanCardPainter extends CustomPainter {
 
     _paintBase(canvas, rect, w, h);
     _paintContours(canvas, w, h);
-    _paintChip(canvas, w, h);
+    // THE CHIP IS A FRONT-FACE ELEMENT ONLY. On the reverse it read as a
+    // punched-out hole: the breakdown scrolls over it and there is nothing
+    // for a chip to sit in. The back is the same card body, one tone deeper,
+    // with no chip and no cut-out.
+    if (!isBack) _paintChip(canvas, w, h);
     _paintEdgeLight(canvas, rect, rrect);
 
     canvas.restore();
@@ -372,8 +376,24 @@ class AzamanCardSurface extends StatelessWidget {
         builder: (context, constraints) {
           final w = constraints.maxWidth;
           final h = constraints.maxHeight;
-          final inset =
+          final baseInset =
               childInsetOverride ?? AzamanCardMetrics.contentInsets(w, h);
+          // THE BRAND BLOCK HAS THE TOP-LEFT CORNER ON BOTH FACES. The reverse
+          // supplies its own (zero) padding for its scroll view, so its first
+          // line of text used to render straight through the glyph and the
+          // wordmark. Reserve the block's own band — inset + glyph height plus
+          // a breath — so the breakdown begins under it.
+          final brandBand =
+              AzamanCardMetrics.insetY(h) +
+              AzamanCardMetrics.glyphHeight(h) +
+              h * 0.045;
+          final inset = isBack
+              ? baseInset.copyWith(
+                  top: baseInset.top + brandBand,
+                  left: baseInset.left + AzamanCardMetrics.insetX(w),
+                  right: baseInset.right + AzamanCardMetrics.insetX(w),
+                )
+              : baseInset;
           return Stack(
             fit: StackFit.expand,
             children: [

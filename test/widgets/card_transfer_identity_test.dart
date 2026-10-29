@@ -22,6 +22,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:azaman/widgets/home/azm_visa_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
@@ -168,10 +170,24 @@ void main() {
       await tester.pump();
 
       expect(find.text(_visaPlateFinder), findsOneWidget);
+      // OWNER-CORRECTED 2026-10-29: the tile used to be a hand-built miniature
+      // that named itself "AZM Visa card". The transfer surface must show the
+      // SAME physical card the Home deck holds, so the tile now renders the
+      // real [AzmVisaCard] and carries its marks verbatim.
       expect(
-        find.text('AZM Visa card'),
+        find.byType(AzmVisaCard),
         findsOneWidget,
-        reason: 'the tile names the Visa product',
+        reason: 'the tile renders the same Visa card as Home',
+      );
+      expect(
+        find.text('AZM'),
+        findsOneWidget,
+        reason: 'the Home card\'s AZM mark is present',
+      );
+      expect(
+        find.text('SAMPLE'),
+        findsOneWidget,
+        reason: 'the demo disclosure travels with the card',
       );
       expect(
         find.byType(AzamanCardBrandBlock),
@@ -191,7 +207,10 @@ void main() {
           .whereType<BoxDecoration>()
           .firstWhere((d) => d.gradient != null);
       final colors = (decorated.gradient! as LinearGradient).colors;
-      expect(colors.first, kVisCardNavy);
+      // OWNER-CORRECTED 2026-10-29: this pinned the hand-built navy body of the
+      // old miniature. The tile now renders the real [AzmVisaCard], so the
+      // navy literal is gone by design; the load-bearing claim — that the tile
+      // never wears a balance-card palette colour — is asserted right below.
       final balanceBrights = BalanceCardVariant.values
           .map((v) => kCardPalettes[v]!.bright)
           .toList();
@@ -200,6 +219,7 @@ void main() {
     });
 
     testWidgets('5. it never follows the applied balance card', (tester) async {
+      Color? materialAcrossVariants;
       for (final v in BalanceCardVariant.values) {
         SharedPreferences.setMockInitialValues(<String, Object>{
           kBalanceCardVariantPrefKey: v.storageValue,
@@ -226,9 +246,15 @@ void main() {
             .map((w) => w.decoration)
             .whereType<BoxDecoration>()
             .firstWhere((d) => d.gradient != null);
+        final first = (decorated.gradient! as LinearGradient).colors.first;
+        // Equality across variants, not a hardcoded colour: the assertion
+        // survives a redesign but still fails the moment the tile follows the
+        // applied balance card.
+        materialAcrossVariants ??= first;
         expect(
-          (decorated.gradient! as LinearGradient).colors.first,
-          kVisCardNavy,
+          first,
+          materialAcrossVariants,
+          reason: 'the Visa tile must not repaint for variant ${v.name}',
         );
       }
     });

@@ -393,12 +393,15 @@ void main() {
             'the full-height Home balance card must not be mounted '
             'on the transfer surface',
       );
+      // OWNER-CORRECTED 2026-10-29: this used to assert the Home Visa card was
+      // ABSENT, because the surface drew its own miniature. That miniature was
+      // the reported defect ("completely wrong … should be the same as Home"),
+      // so the surface now mounts the real card. What must still hold is that
+      // the tile is the COMPACT preview, not a second full-height deck.
       expect(
-        find.byType(AzmVisaCard),
-        findsNothing,
-        reason:
-            'the full-height Home Visa card must not be mounted '
-            'on the transfer surface',
+        find.byType(CompactVisaPreview),
+        findsOneWidget,
+        reason: 'the Visa card rides the compact tile',
       );
 
       // SIDE BY SIDE: the balance tile is LEFT of the Visa tile, and both

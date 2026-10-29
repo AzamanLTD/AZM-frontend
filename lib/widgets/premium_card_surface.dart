@@ -37,9 +37,15 @@ abstract final class PremiumCardPalette {
 ///
 /// or use [PremiumCardFrame] which does the stacking for you.
 class PremiumCardSurface extends StatelessWidget {
-  const PremiumCardSurface({super.key, this.radius = 22});
+  const PremiumCardSurface({super.key, this.radius = 22, this.sheen = true});
 
   final double radius;
+
+  /// Whether the slow diagonal sheen sweep runs. Home's cards keep it. A
+  /// surface that must stay still (the Card Transfer pair is contractually
+  /// static — no loop of its own) turns it off and still paints the identical
+  /// material, minus repainting 60 times a second forever.
+  final bool sheen;
 
   @override
   Widget build(BuildContext context) {
@@ -94,13 +100,14 @@ class PremiumCardSurface extends StatelessWidget {
             ),
           ),
           // Restrained slow diagonal glass sheen sweep.
-          Positioned.fill(
-            child: IgnorePointer(
-              child: _PremiumCardSheen(
-                color: const Color(0xFFFFFFFF).withValues(alpha: 0.05),
+          if (sheen)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: _PremiumCardSheen(
+                  color: const Color(0xFFFFFFFF).withValues(alpha: 0.05),
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -109,16 +116,26 @@ class PremiumCardSurface extends StatelessWidget {
 
 /// Convenience wrapper: [PremiumCardSurface] painted behind [child].
 class PremiumCardFrame extends StatelessWidget {
-  const PremiumCardFrame({super.key, this.radius = 22, required this.child});
+  const PremiumCardFrame({
+    super.key,
+    this.radius = 22,
+    required this.child,
+    this.sheen = true,
+  });
 
   final double radius;
   final Widget child;
+
+  /// See [PremiumCardSurface.sheen].
+  final bool sheen;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Positioned.fill(child: PremiumCardSurface(radius: radius)),
+        Positioned.fill(
+          child: PremiumCardSurface(radius: radius, sheen: sheen),
+        ),
         child,
         // §4 EDGE LANGUAGE — the Visa surface keeps its own carbon/gold
         // material but wears the SAME crisp metallic perimeter as the
