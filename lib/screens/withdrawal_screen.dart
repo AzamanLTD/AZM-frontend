@@ -44,6 +44,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/smart_route/smart_route_list_screen.dart';
+import 'package:azaman/services/kyc_gate.dart';
 import 'package:azaman/services/receipt_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/services/az_sound.dart';
@@ -512,6 +513,21 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       setState(() => _isSubmitting = false);
 
       final data = jsonDecode(response.body);
+      // Identity gate (P9): the backend refuses money that leaves the app
+      // until the account is verified. That refusal is not a failure to
+      // apologise for — it is a redirect, so it gets its own surface and the
+      // fix one tap away instead of a red "withdrawal failed" snackbar.
+      final kycRefusal = KycRefusal.fromResponse(response);
+      if (kycRefusal != null) {
+        setState(() => _isSubmitting = false);
+        await presentKycRefusal(
+          context,
+          kycRefusal,
+          colors: ref.read(themeProvider).colors,
+        );
+        return;
+      }
+
       final accepted =
           (response.statusCode == 200 || response.statusCode == 202) &&
           data['success'] == true;
@@ -642,6 +658,18 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
       if (!mounted) return;
       setState(() => _isSubmitting = false);
+
+      // Identity gate (P9) — same redirect as the fiat path.
+      final cryptoKycRefusal = KycRefusal.fromResponse(response);
+      if (cryptoKycRefusal != null) {
+        setState(() => _isSubmitting = false);
+        await presentKycRefusal(
+          context,
+          cryptoKycRefusal,
+          colors: ref.read(themeProvider).colors,
+        );
+        return;
+      }
 
       final data = jsonDecode(response.body);
       final accepted =
