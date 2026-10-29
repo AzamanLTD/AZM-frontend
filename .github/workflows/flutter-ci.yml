@@ -20,6 +20,75 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Golden regeneration (opt-in per PR via the `regen-goldens` label) ─────
+  #
+  # WHY A JOB HERE AND NOT ITS OWN WORKFLOW: a workflow file that only exists on
+  # a feature branch cannot be dispatched — the API returns 404 until it is on
+  # the default branch (golden-regen.yml, kept in the branch for the record,
+  # is exactly that case). Riding the workflow that already fires on every push
+  # needs no dispatch at all: the label is the switch, and a push is the trigger.
+  #
+  # WHY IT MUST RUN ON THE RUNNER: measured on front_saved_390_dark, a
+  # dev-machine golden and this runner's render correlate at 0.999 — the same
+  # picture — while differing by a ~2% luminance shift across the whole face,
+  # which is past the 2% pixel tolerance. Every golden recorded off this runner
+  # is a guaranteed red here, regardless of what the widget looks like.
+  #
+  # GUARDS: the regenerating run must itself be green (a throwing capture suite
+  # would otherwise record its broken frame as the new truth), and this job
+  # never commits or pushes — it publishes the images and a human commits them.
+  regenerate:
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'regen-goldens') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Regenerate every golden suite
+        run: |
+          set -o pipefail
+          flutter test --update-goldens --concurrency=1 \
+            test/widgets/native_amount_captures_test.dart \
+            test/widgets/card_transfer_captures_test.dart \
+            test/widgets/balance_card_fx_captures_test.dart \
+            test/widgets/shell_responsive_captures_test.dart \
+            test/widgets/convert_captures_test.dart \
+            test/send/send_visual_captures_test.dart \
+            test/widgets/home_entrance_test.dart \
+            test/widgets/liquid/liquid_golden_test.dart \
+            test/widgets/premium_glass_container_golden_test.dart \
+            test/widgets/premium_nav_golden_test.dart \
+            2>&1 | tee /tmp/regen.log
+          if grep -q "Some tests failed" /tmp/regen.log; then
+            echo "::error::A capture suite failed while regenerating; new goldens would record a broken frame."
+            exit 1
+          fi
+
+      - name: List what changed
+        run: git status --short | tee /tmp/status.txt
+
+      - name: Upload regenerated goldens
+        uses: actions/upload-artifact@v4
+        with:
+          name: goldens
+          path: |
+            test/goldens/
+            test/widgets/goldens/
+            test/send/
+          if-no-files-found: error
+          retention-days: 14
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
