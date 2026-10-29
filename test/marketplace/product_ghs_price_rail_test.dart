@@ -20,20 +20,25 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/widgets/product_card.dart';
 
 BusinessProduct _product({dynamic priceGhs, double priceUsdc = 13.42}) {
-  return BusinessProduct.fromJson({
-    'id': 'prod-1',
-    'businessProfileId': 'biz-1',
-    'name': 'Rail Product',
-    'slug': 'rail-product',
-    'priceUsdc': priceUsdc,
-    'imageUrls': const <String>[],
-    'isActive': true,
-  }..['priceGhs'] = priceGhs);
+  return BusinessProduct.fromJson(
+    {
+      'id': 'prod-1',
+      'businessProfileId': 'biz-1',
+      'name': 'Rail Product',
+      'slug': 'rail-product',
+      'priceUsdc': priceUsdc,
+      'imageUrls': const <String>[],
+      'isActive': true,
+    }..['priceGhs'] = priceGhs,
+  );
 }
 
 Widget _wrap(Widget child) {
   return ProviderScope(
-    child: MaterialApp(theme: ThemeData.light(), home: Scaffold(body: child)),
+    child: MaterialApp(
+      theme: ThemeData.light(),
+      home: Scaffold(body: child),
+    ),
   );
 }
 
@@ -58,14 +63,17 @@ void main() {
       expect(_product(priceGhs: 49.999).priceGhs, isNull);
     });
 
-    test('malformed strings → absent (1dp, 3dp, exponent, currency symbol, blank)', () {
-      expect(_product(priceGhs: '49.9').priceGhs, isNull);
-      expect(_product(priceGhs: '49.999').priceGhs, isNull);
-      expect(_product(priceGhs: '1e2').priceGhs, isNull);
-      expect(_product(priceGhs: 'GH₵49.99').priceGhs, isNull);
-      expect(_product(priceGhs: '  ').priceGhs, isNull);
-      expect(_product(priceGhs: '-5.00').priceGhs, isNull);
-    });
+    test(
+      'malformed strings → absent (1dp, 3dp, exponent, currency symbol, blank)',
+      () {
+        expect(_product(priceGhs: '49.9').priceGhs, isNull);
+        expect(_product(priceGhs: '49.999').priceGhs, isNull);
+        expect(_product(priceGhs: '1e2').priceGhs, isNull);
+        expect(_product(priceGhs: 'GH₵49.99').priceGhs, isNull);
+        expect(_product(priceGhs: '  ').priceGhs, isNull);
+        expect(_product(priceGhs: '-5.00').priceGhs, isNull);
+      },
+    );
 
     test('priceUsdc is untouched by the rail', () {
       expect(_product(priceGhs: '49.99').priceUsdc, 13.42);
@@ -74,34 +82,48 @@ void main() {
   });
 
   group('ProductCard GHS presentation preference', () {
-    testWidgets('server-confirmed GHS renders as exact GH₵ string', (tester) async {
-      await tester.pumpWidget(_wrap(Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(width: 170, child: ProductCard(
-          product: _product(priceGhs: '49.99'),
-          onOrder: (_) {},
-        )),
-      )));
+    testWidgets('server-confirmed GHS renders as exact GH₵ string', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _wrap(
+          Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 170,
+              child: ProductCard(
+                product: _product(priceGhs: '49.99'),
+                onOrder: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.text('GH₵49.99'), findsOneWidget);
       expect(find.textContaining('USDC'), findsNothing);
     });
 
     testWidgets(
-        'no GHS price renders "Price unavailable" (no USDC fallback, no conversion)',
-        (tester) async {
-      await tester.pumpWidget(_wrap(Align(
-        alignment: Alignment.topLeft,
-        child: SizedBox(width: 170, child: ProductCard(
-          product: _product(),
-          onOrder: (_) {},
-        )),
-      )));
-      await tester.pumpAndSettle();
-      expect(find.text('Price unavailable'), findsOneWidget);
-      // No invented GHS figure and no legacy USDC price presentation.
-      expect(find.textContaining('GH₵'), findsNothing);
-      expect(find.textContaining('USDC'), findsNothing);
-    });
+      'no GHS price renders "Price unavailable" (no USDC fallback, no conversion)',
+      (tester) async {
+        await tester.pumpWidget(
+          _wrap(
+            Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 170,
+                child: ProductCard(product: _product(), onOrder: (_) {}),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Price unavailable'), findsOneWidget);
+        // No invented GHS figure and no legacy USDC price presentation.
+        expect(find.textContaining('GH₵'), findsNothing);
+        expect(find.textContaining('USDC'), findsNothing);
+      },
+    );
   });
 }

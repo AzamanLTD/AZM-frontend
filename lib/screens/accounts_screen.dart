@@ -63,10 +63,8 @@ class AccountsScreen extends ConsumerWidget {
             iconColor: colors.accent,
             title: 'Payout destinations',
             subtitle: 'Where withdrawals land',
-            onTap: () => pushWithVerticalTransition(
-              context,
-              const SavedWalletsScreen(),
-            ),
+            onTap: () =>
+                pushWithVerticalTransition(context, const SavedWalletsScreen()),
           ),
         ],
       ),
@@ -146,11 +144,7 @@ class _AccountsRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward,
-              color: colors.textTertiary,
-              size: 18,
-            ),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
           ],
         ),
       ),

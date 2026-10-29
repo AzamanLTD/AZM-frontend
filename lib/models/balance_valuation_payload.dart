@@ -215,14 +215,16 @@ class BackendBalanceValuation {
       _ => null,
     };
     final valuationStatusRaw = json['valuationStatus'];
-    final BackendValuationStatus? valuationStatus = switch (valuationStatusRaw) {
-      'CURRENT' => BackendValuationStatus.current,
-      'SAVED_FALLBACK' => BackendValuationStatus.savedFallback,
-      'DEMO_FALLBACK' => BackendValuationStatus.demoFallback,
-      'NATIVE_GHS_ONLY' => BackendValuationStatus.nativeGhsOnly,
-      'PARTIAL_FX_UNAVAILABLE' => BackendValuationStatus.partialFxUnavailable,
-      _ => null,
-    };
+    final BackendValuationStatus? valuationStatus =
+        switch (valuationStatusRaw) {
+          'CURRENT' => BackendValuationStatus.current,
+          'SAVED_FALLBACK' => BackendValuationStatus.savedFallback,
+          'DEMO_FALLBACK' => BackendValuationStatus.demoFallback,
+          'NATIVE_GHS_ONLY' => BackendValuationStatus.nativeGhsOnly,
+          'PARTIAL_FX_UNAVAILABLE' =>
+            BackendValuationStatus.partialFxUnavailable,
+          _ => null,
+        };
     if (rateStatus == null || valuationStatus == null) return null;
 
     // ── Optional observation blocks — strict when present.
@@ -255,8 +257,7 @@ class BackendBalanceValuation {
     }
 
     final currentRateRaw = json['currentRate'];
-    final currentRate =
-        observation(currentRateRaw, isFresh: true);
+    final currentRate = observation(currentRateRaw, isFresh: true);
     if (currentRateRaw != null && currentRate == null) return null;
 
     final savedRateRaw = json['savedRate'];
@@ -294,8 +295,9 @@ class BackendBalanceValuation {
     final vaultsUsdc = requireMoney(lockedRaw['vaultsUsdc']);
     final savingsGhs = requireMoney(lockedRaw['savingsGhs']);
     final committedSusuUsdc = requireMoney(lockedRaw['committedSusuUsdc']);
-    final vendorUnallocatedUsdc =
-        requireMoney(lockedRaw['vendorUnallocatedUsdc']);
+    final vendorUnallocatedUsdc = requireMoney(
+      lockedRaw['vendorUnallocatedUsdc'],
+    );
     if (escrowUsdc == null ||
         disputesUsdc == null ||
         vaultsUsdc == null ||

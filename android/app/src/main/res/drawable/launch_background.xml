@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Launch background for pre-Android-12 devices.
+  The Flutter intro paints silver-on-black from its first frame, so the native
+  window must start from the SAME black and the SAME silver mark at the SAME
+  size. The previous version was a dark mark on white, which is why launch read
+  as two separate images.
+-->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/launch_background_color" />
     <item>
-        <bitmap android:gravity="fill" android:src="@drawable/background"/>
-    </item>
-    <item>
-        <bitmap android:gravity="center" android:src="@drawable/splash"/>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_mark" />
     </item>
 </layer-list>

@@ -29,7 +29,6 @@ import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 import 'package:azaman/theme/az_space.dart';
 
-
 class SusuHubScreen extends ConsumerWidget {
   const SusuHubScreen({super.key});
 
@@ -45,14 +44,21 @@ class SusuHubScreen extends ConsumerWidget {
       context,
       builder: (ctx) => Padding(
         padding: const EdgeInsets.fromLTRB(
-            AzSpace.lg, AzSpace.xl, AzSpace.lg, AzSpace.xxl),
+          AzSpace.lg,
+          AzSpace.xl,
+          AzSpace.lg,
+          AzSpace.xxl,
+        ),
         child: AzStaggeredColumn(
           children: [
-            Text('Start a Susu',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900)),
+            Text(
+              'Start a Susu',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
             const SizedBox(height: 10),
             Text(
               'A Susu now starts inside a group chat:\n\n'
@@ -62,7 +68,10 @@ class SusuHubScreen extends ConsumerWidget {
               '4.  Everyone verifies KYC + proof of residency before the '
               'countdown ends, and the Susu activates automatically.',
               style: TextStyle(
-                  color: colors.textSecondary, fontSize: 13, height: 1.5),
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 18),
             SizedBox(
@@ -73,15 +82,20 @@ class SusuHubScreen extends ConsumerWidget {
                   ctx.push('/messages');
                 },
                 icon: const Icon(Icons.chat_outlined, size: 16),
-                label: const Text('Go to Chats',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+                label: const Text(
+                  'Go to Chats',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.warning,
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(11)),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
                   elevation: 0,
                 ),
               ),
@@ -103,8 +117,7 @@ class SusuHubScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
@@ -119,7 +132,10 @@ class SusuHubScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.credit_score, color: colors.textPrimary, size: 20),
-            onPressed: () => pushWithVerticalTransition(context, const SusuCreditScoreScreen()),
+            onPressed: () => pushWithVerticalTransition(
+              context,
+              const SusuCreditScoreScreen(),
+            ),
             tooltip: 'Credit Score',
           ),
         ],
@@ -140,9 +156,8 @@ class SusuHubScreen extends ConsumerWidget {
           color: colors.warning,
           onRefresh: () => ref.read(susuListProvider.notifier).refresh(),
           child: listAsync.when(
-            loading: () => Center(
-              child: CircularProgressIndicator(color: colors.warning),
-            ),
+            loading: () =>
+                Center(child: CircularProgressIndicator(color: colors.warning)),
             error: (e, _) => _ErrorView(error: e, colors: colors),
             data: (rows) => _HubBody(rows: rows, colors: colors),
           ),
@@ -161,12 +176,16 @@ class _HubBody extends StatelessWidget {
   Widget build(BuildContext context) {
     if (rows.isEmpty) return _EmptyState(colors: colors);
 
-    final pending = rows.where((s) => s.status == SusuStatus.configuring).toList();
+    final pending = rows
+        .where((s) => s.status == SusuStatus.configuring)
+        .toList();
     final active = rows.where((s) => s.status == SusuStatus.active).toList();
-    final frozen =
-        rows.where((s) => s.status == SusuStatus.frozenDispute).toList();
-    final completed =
-        rows.where((s) => s.status == SusuStatus.completed).toList();
+    final frozen = rows
+        .where((s) => s.status == SusuStatus.frozenDispute)
+        .toList();
+    final completed = rows
+        .where((s) => s.status == SusuStatus.completed)
+        .toList();
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -217,14 +236,14 @@ class _Section extends StatelessWidget {
             ),
           ),
           ...rows.asMap().entries.map(
-                (e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _SusuTile(row: e.value, colors: colors)
-                      .animate()
-                      .fadeIn(delay: (e.key * 35).ms, duration: 260.ms)
-                      .slideY(begin: 0.04, end: 0),
-                ),
-              ),
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _SusuTile(row: e.value, colors: colors)
+                  .animate()
+                  .fadeIn(delay: (e.key * 35).ms, duration: 260.ms)
+                  .slideY(begin: 0.04, end: 0),
+            ),
+          ),
         ],
       ),
     );
@@ -284,12 +303,16 @@ class _SusuTile extends StatelessWidget {
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                          color: statusColor.withValues(alpha: 0.30), width: 0.7),
+                        color: statusColor.withValues(alpha: 0.30),
+                        width: 0.7,
+                      ),
                     ),
                     child: Text(
                       statusLabel,
@@ -315,13 +338,16 @@ class _SusuTile extends StatelessWidget {
                   if (row.myCycleSlot != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.accent.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                            color: colors.accent.withValues(alpha: 0.30),
-                            width: 0.7),
+                          color: colors.accent.withValues(alpha: 0.30),
+                          width: 0.7,
+                        ),
                       ),
                       child: Text(
                         'Slot #${row.myCycleSlot}',
@@ -335,7 +361,9 @@ class _SusuTile extends StatelessWidget {
                   if (row.myCycleSlot != null) const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.divider,
                       borderRadius: BorderRadius.circular(6),
@@ -390,8 +418,11 @@ class _EmptyState extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 80, 20, 32),
       children: [
-        Icon(Icons.account_balance_outlined,
-            size: 56, color: colors.warning.withValues(alpha: 0.30)),
+        Icon(
+          Icons.account_balance_outlined,
+          size: 56,
+          color: colors.warning.withValues(alpha: 0.30),
+        ),
         const SizedBox(height: 14),
         Text(
           'No Susus yet',
@@ -408,7 +439,11 @@ class _EmptyState extends StatelessWidget {
           'configure a contribution amount, frequency, and invite up to 23 '
           'trusted members.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: colors.textTertiary, fontSize: 12, height: 1.4),
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 12,
+            height: 1.4,
+          ),
         ),
       ],
     );

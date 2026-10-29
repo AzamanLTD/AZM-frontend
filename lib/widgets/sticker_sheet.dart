@@ -6,10 +6,7 @@ import 'package:azaman/providers/theme_provider.dart';
 class StickerSheet extends StatefulWidget {
   final void Function(String assetPath, bool isAnimated) onStickerSelected;
 
-  const StickerSheet({
-    super.key,
-    required this.onStickerSelected,
-  });
+  const StickerSheet({super.key, required this.onStickerSelected});
 
   @override
   State<StickerSheet> createState() => _StickerSheetState();
@@ -84,10 +81,7 @@ class _StickerSheetState extends State<StickerSheet>
           Expanded(
             child: TabBarView(
               controller: _tabController,
-              children: [
-                _buildStaticGrid(colors),
-                _buildAnimatedGrid(colors),
-              ],
+              children: [_buildStaticGrid(colors), _buildAnimatedGrid(colors)],
             ),
           ),
         ],

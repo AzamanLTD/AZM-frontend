@@ -38,8 +38,8 @@ class DemoInterceptor {
     // 201 Created routes — the REAL backend's contract for creates:
     // /saved-momo and both chat send endpoints.
     final creates = RegExp(
-            r'^/saved-momo$|^/friends/chat/\d+/messages$|^/group-chats/[^/]+/messages$')
-        .hasMatch(path);
+      r'^/saved-momo$|^/friends/chat/\d+/messages$|^/group-chats/[^/]+/messages$',
+    ).hasMatch(path);
     final status = creates ? 201 : 200;
     return http.Response(
       jsonEncode(mock),

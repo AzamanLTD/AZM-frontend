@@ -29,7 +29,10 @@ class RoundUpService {
         // Cache locally for offline access
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_keyEnabled, settings['enabled'] ?? false);
-        await prefs.setDouble(_keyTotalSaved, (settings['totalSavedUsdc'] ?? 0).toDouble());
+        await prefs.setDouble(
+          _keyTotalSaved,
+          (settings['totalSavedUsdc'] ?? 0).toDouble(),
+        );
         return RoundUpSettings(
           enabled: settings['enabled'] ?? false,
           totalSaved: (settings['totalSavedUsdc'] ?? 0).toDouble(),
@@ -73,7 +76,10 @@ class RoundUpService {
   /// Compute the round-up amount for a transaction.
   /// Rounds up to the nearest $1 (or custom multiple).
   /// Example: $4.30 → round up to $5.00 → save $0.70
-  static double computeRoundUp(double amountUsdc, {double roundToMultiple = 1.0}) {
+  static double computeRoundUp(
+    double amountUsdc, {
+    double roundToMultiple = 1.0,
+  }) {
     if (amountUsdc <= 0) return 0;
     final rounded = (amountUsdc / roundToMultiple).ceil() * roundToMultiple;
     final difference = rounded - amountUsdc;
@@ -83,7 +89,9 @@ class RoundUpService {
   /// Process a round-up for a transaction (server-side deposits into vault)
   static Future<double> processRoundUp(double amountUsdc) async {
     try {
-      final res = await apiClient.post('/round-up/process', {'amountUsdc': amountUsdc});
+      final res = await apiClient.post('/round-up/process', {
+        'amountUsdc': amountUsdc,
+      });
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         final roundUp = (body['roundUpAmount'] ?? 0).toDouble();

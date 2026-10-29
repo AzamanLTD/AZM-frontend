@@ -39,7 +39,8 @@ class VendorAnalyticsNotifier extends ChangeNotifier {
   // ── Convenience getters ─────────────────────────────────────────────────
   VendorAnalyticsSummary? get summary => _data?.summary;
   List<VolumeDataPoint> get volumeTimeline => _data?.volumeTimeline ?? [];
-  List<MethodBreakdownEntry> get methodBreakdown => _data?.methodBreakdown ?? [];
+  List<MethodBreakdownEntry> get methodBreakdown =>
+      _data?.methodBreakdown ?? [];
 
   // ── Actions ─────────────────────────────────────────────────────────────
 
@@ -87,5 +88,5 @@ class VendorAnalyticsNotifier extends ChangeNotifier {
 /// Riverpod provider
 final vendorAnalyticsProvider =
     ChangeNotifierProvider.autoDispose<VendorAnalyticsNotifier>((ref) {
-  return VendorAnalyticsNotifier();
-});
+      return VendorAnalyticsNotifier();
+    });

@@ -32,8 +32,8 @@ class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
 
 final followProvider = StateNotifierProvider.autoDispose
     .family<FollowNotifier, AsyncValue<bool>, String>(
-  (ref, bizId) => FollowNotifier(ref.watch(apiClientProvider)),
-);
+      (ref, bizId) => FollowNotifier(ref.watch(apiClientProvider)),
+    );
 
 class AdFeedNotifier extends StateNotifier<AsyncValue<List<BusinessAdPost>>> {
   final ApiClient _api;
@@ -43,9 +43,11 @@ class AdFeedNotifier extends StateNotifier<AsyncValue<List<BusinessAdPost>>> {
     try {
       final res = await _api.get('/ad-posts/feed?limit=20');
       final body = jsonDecode(res.body);
-      final ads = (body['ads'] as List?)
-          ?.map((e) => BusinessAdPost.fromJson(e))
-          .toList() ?? [];
+      final ads =
+          (body['ads'] as List?)
+              ?.map((e) => BusinessAdPost.fromJson(e))
+              .toList() ??
+          [];
       state = AsyncValue.data(ads);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -53,11 +55,14 @@ class AdFeedNotifier extends StateNotifier<AsyncValue<List<BusinessAdPost>>> {
   }
 }
 
-final adFeedProvider = StateNotifierProvider.autoDispose<AdFeedNotifier, AsyncValue<List<BusinessAdPost>>>(
-  (ref) => AdFeedNotifier(ref.watch(apiClientProvider))..load(),
-);
+final adFeedProvider =
+    StateNotifierProvider.autoDispose<
+      AdFeedNotifier,
+      AsyncValue<List<BusinessAdPost>>
+    >((ref) => AdFeedNotifier(ref.watch(apiClientProvider))..load());
 
-class FollowingListNotifier extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
+class FollowingListNotifier
+    extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
   final ApiClient _api;
   FollowingListNotifier(this._api) : super(const AsyncValue.loading());
 
@@ -66,7 +71,8 @@ class FollowingListNotifier extends StateNotifier<AsyncValue<List<Map<String, dy
     try {
       final res = await _api.get('/follows/following?limit=50');
       final body = jsonDecode(res.body);
-      final following = (body['following'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final following =
+          (body['following'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       state = AsyncValue.data(following);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -74,9 +80,11 @@ class FollowingListNotifier extends StateNotifier<AsyncValue<List<Map<String, dy
   }
 }
 
-final followingListProvider = StateNotifierProvider.autoDispose<FollowingListNotifier, AsyncValue<List<Map<String, dynamic>>>>(
-  (ref) => FollowingListNotifier(ref.watch(apiClientProvider))..load(),
-);
+final followingListProvider =
+    StateNotifierProvider.autoDispose<
+      FollowingListNotifier,
+      AsyncValue<List<Map<String, dynamic>>>
+    >((ref) => FollowingListNotifier(ref.watch(apiClientProvider))..load());
 
 // ── Dine-In Tab ─────────────────────────────────────────────────────────────
 /// Converts an authoritative payment recovery response into the canonical tab
@@ -100,7 +108,8 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   late final void Function(Map<String, dynamic>) _dineInSocketListener;
   int _loadGeneration = 0;
 
-  DineInTabNotifier(this._api, this._socket, this._tabId) : super(const AsyncValue.data(null)) {
+  DineInTabNotifier(this._api, this._socket, this._tabId)
+    : super(const AsyncValue.data(null)) {
     _dineInSocketListener = (payload) {
       if (!mounted) return;
       final eventTabId = payload['tabId']?.toString();
@@ -147,7 +156,8 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
       });
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       final itemJson = body['item'];
-      if (itemJson is! Map) throw const FormatException('Dine-in item response is invalid.');
+      if (itemJson is! Map)
+        throw const FormatException('Dine-in item response is invalid.');
       await loadTab(tabId);
       return DineInTabItem.fromJson(Map<String, dynamic>.from(itemJson));
     } catch (e, st) {
@@ -189,14 +199,15 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
 
 final dineInTabProvider = StateNotifierProvider.autoDispose
     .family<DineInTabNotifier, AsyncValue<DineInTab?>, String>(
-  (ref, tabId) => DineInTabNotifier(
-    ref.watch(apiClientProvider),
-    ref.watch(socketServiceProvider),
-    tabId,
-  )..loadTab(tabId),
-);
+      (ref, tabId) => DineInTabNotifier(
+        ref.watch(apiClientProvider),
+        ref.watch(socketServiceProvider),
+        tabId,
+      )..loadTab(tabId),
+    );
 
-class ShowcaseNotifier extends StateNotifier<AsyncValue<List<BusinessShowcase>>> {
+class ShowcaseNotifier
+    extends StateNotifier<AsyncValue<List<BusinessShowcase>>> {
   final ApiClient _api;
   ShowcaseNotifier(this._api) : super(const AsyncValue.loading());
 
@@ -204,9 +215,11 @@ class ShowcaseNotifier extends StateNotifier<AsyncValue<List<BusinessShowcase>>>
     try {
       final res = await _api.get('/showcases/$businessProfileId');
       final body = jsonDecode(res.body);
-      final items = (body['items'] as List?)
-          ?.map((e) => BusinessShowcase.fromJson(e))
-          .toList() ?? [];
+      final items =
+          (body['items'] as List?)
+              ?.map((e) => BusinessShowcase.fromJson(e))
+              .toList() ??
+          [];
       state = AsyncValue.data(items);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -216,5 +229,6 @@ class ShowcaseNotifier extends StateNotifier<AsyncValue<List<BusinessShowcase>>>
 
 final showcaseProvider = StateNotifierProvider.autoDispose
     .family<ShowcaseNotifier, AsyncValue<List<BusinessShowcase>>, String>(
-  (ref, bizId) => ShowcaseNotifier(ref.watch(apiClientProvider))..load(bizId),
-);
+      (ref, bizId) =>
+          ShowcaseNotifier(ref.watch(apiClientProvider))..load(bizId),
+    );

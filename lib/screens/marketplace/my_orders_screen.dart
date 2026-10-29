@@ -11,7 +11,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -97,10 +96,7 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
     if (tid == null || tid.isEmpty) return;
     pushWithVerticalTransition(
       context,
-      TicketWorkspaceScreen(
-        ticketId: tid,
-        friendUsername: order.title,
-      ),
+      TicketWorkspaceScreen(ticketId: tid, friendUsername: order.title),
     );
   }
 
@@ -116,18 +112,23 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
         backgroundColor: colors.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        title: Text('My Orders',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          'My Orders',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabs,
           labelColor: colors.accent,
           unselectedLabelColor: colors.textTertiary,
           indicatorColor: colors.accent,
-          labelStyle:
-              const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+          labelStyle: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+          ),
           tabs: const [
             Tab(text: 'All'),
             Tab(text: 'Active'),
@@ -138,29 +139,28 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen>
       body: state.isLoading
           ? const SkeletonList(itemHeight: 72, count: 5)
           : orders.isEmpty
-              ? const AzamanEmptyState(
-                  icon: Icons.shopping_bag_outlined,
-                  title: 'No orders here',
-                  subtitle: 'Your marketplace orders will appear here.',
-                )
-              : AzPullToRefresh(
-        onRefresh: () =>
-                      ref.read(myOrdersProvider.notifier).load(),
-        child: ListView.separated(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: orders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => StaggeredItem(
-                      index: i,
-                      child: _OrderCard(
-                      order: orders[i],
-                      colors: colors,
-                      onTap: () => _openOrderWorkspace(orders[i]),
-                    ),
-                    ),
+          ? const AzamanEmptyState(
+              icon: Icons.shopping_bag_outlined,
+              title: 'No orders here',
+              subtitle: 'Your marketplace orders will appear here.',
+            )
+          : AzPullToRefresh(
+              onRefresh: () => ref.read(myOrdersProvider.notifier).load(),
+              child: ListView.separated(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.all(16),
+                itemCount: orders.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (_, i) => StaggeredItem(
+                  index: i,
+                  child: _OrderCard(
+                    order: orders[i],
+                    colors: colors,
+                    onTap: () => _openOrderWorkspace(orders[i]),
                   ),
                 ),
+              ),
+            ),
     );
   }
 }
@@ -178,13 +178,18 @@ class _OrderCard extends StatelessWidget {
 
   Color _statusColor() {
     switch (order.status) {
-      case BusinessOrderStatus.awaitingPayment: return colors.warning;
+      case BusinessOrderStatus.awaitingPayment:
+        return colors.warning;
       case BusinessOrderStatus.paid:
-      case BusinessOrderStatus.delivered: return colors.accent;
-      case BusinessOrderStatus.completed: return colors.success;
-      case BusinessOrderStatus.disputed: return colors.danger;
+      case BusinessOrderStatus.delivered:
+        return colors.accent;
+      case BusinessOrderStatus.completed:
+        return colors.success;
+      case BusinessOrderStatus.disputed:
+        return colors.danger;
       case BusinessOrderStatus.refunded:
-      case BusinessOrderStatus.cancelled: return colors.textTertiary;
+      case BusinessOrderStatus.cancelled:
+        return colors.textTertiary;
     }
   }
 
@@ -198,116 +203,248 @@ class _OrderCard extends StatelessWidget {
         order.ticketId != null &&
         order.ticketId!.isNotEmpty;
     return GestureDetector(
-      onTap: onTap,
-      child: PremiumGlassContainer(
-        blur: 12, opacity: 0.04, borderRadius: 16, padding: const EdgeInsets.all(16), margin: const EdgeInsets.only(bottom: 10),
-        child: Row(children: [
-          AnimatedContainer(duration: 300.ms, width: 3, height: 48, decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(order.orderRef, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: colors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 3),
-            Text(order.title, style: TextStyle(fontSize: 12, color: colors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 6),
-            Row(children: [
-              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                child: Text(order.status.label.toUpperCase(), style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: statusColor))),
-              const SizedBox(width: 8),
-              Text(_fmtDate(order.createdAt), style: TextStyle(fontSize: 10.5, color: colors.textTertiary)),
-            ]),
-          ])),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('\$${order.amountUsdc.toStringAsFixed(2)}', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: colors.accent)),
-            if (needsEscrowFunding) ...[
-              const SizedBox(height: 4),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: onTap,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          onTap: onTap,
+          child: PremiumGlassContainer(
+            blur: 12,
+            opacity: 0.04,
+            borderRadius: 16,
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              children: [
+                AnimatedContainer(
+                  duration: 300.ms,
+                  width: 3,
+                  height: 48,
                   decoration: BoxDecoration(
-                    color: colors.warning.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.lock_outline, size: 12, color: colors.warning),
-                      const SizedBox(width: 3),
-                      Text('Fund escrow', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: colors.warning)),
-                    ],
-                  ),
-                ),
-              ),
-            ] else if (order.status == BusinessOrderStatus.paid || order.status == BusinessOrderStatus.delivered) ...[
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: () => pushWithVerticalTransition(context,
-                  OrderTrackingScreen(
-                    orderId: order.id,
-                    orderRef: order.orderRef,
-                  ),
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colors.accent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.delivery_dining, size: 12, color: colors.accent),
-                      const SizedBox(width: 3),
-                      Text('Track', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent)),
-                    ],
-                  ),
-                ),
-              ),
-            ] else if (order.status == BusinessOrderStatus.completed) ...[
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: () {
-                  // Reorder: navigate to the business storefront for re-ordering
-                  // The cart system handles adding items from the storefront
-                  if (order.businessProfileId.isNotEmpty) {
-                    pushWithVerticalTransition(context,
-                      StorefrontScreen(
-                        businessProfileId: order.businessProfileId,
-                        businessName: order.title,
+                      Text(
+                        order.orderRef,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: colors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    );
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: colors.accent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.replay_rounded, size: 12, color: colors.accent),
-                      const SizedBox(width: 3),
-                      Text('Reorder', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: colors.accent)),
+                      const SizedBox(height: 3),
+                      Text(
+                        order.title,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              order.status.label.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: statusColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _fmtDate(order.createdAt),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              color: colors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              ),
-            ] else
-              Icon(Icons.chevron_right_rounded, size: 18, color: colors.textTertiary),
-          ]),
-        ]),
-      ),
-    ).animate().fadeIn(delay: 50.ms, duration: 250.ms).slideX(begin: 0.1, end: 0, delay: 50.ms, duration: 250.ms);
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '\$${order.amountUsdc.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        color: colors.accent,
+                      ),
+                    ),
+                    if (needsEscrowFunding) ...[
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onTap,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.warning.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.lock_outline,
+                                size: 12,
+                                color: colors.warning,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Fund escrow',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: colors.warning,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ] else if (order.status == BusinessOrderStatus.paid ||
+                        order.status == BusinessOrderStatus.delivered) ...[
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () => pushWithVerticalTransition(
+                          context,
+                          OrderTrackingScreen(
+                            orderId: order.id,
+                            orderRef: order.orderRef,
+                          ),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.delivery_dining,
+                                size: 12,
+                                color: colors.accent,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Track',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ] else if (order.status ==
+                        BusinessOrderStatus.completed) ...[
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () {
+                          // Reorder: navigate to the business storefront for re-ordering
+                          // The cart system handles adding items from the storefront
+                          if (order.businessProfileId.isNotEmpty) {
+                            pushWithVerticalTransition(
+                              context,
+                              StorefrontScreen(
+                                businessProfileId: order.businessProfileId,
+                                businessName: order.title,
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.replay_rounded,
+                                size: 12,
+                                color: colors.accent,
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Reorder',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.accent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ] else
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 18,
+                        color: colors.textTertiary,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        )
+        .animate()
+        .fadeIn(delay: 50.ms, duration: 250.ms)
+        .slideX(begin: 0.1, end: 0, delay: 50.ms, duration: 250.ms);
   }
 
   String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}';
   }

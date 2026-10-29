@@ -46,42 +46,45 @@ class _FakeGateway implements StoryGateway {
 }
 
 StoryItem _story() => StoryItem(
-      id: 's1',
-      mediaUrl: 'https://cdn.example.com/s1.jpg',
-      mediaType: 'IMAGE',
-      durationSeconds: 5,
-      boosted: false,
-      seen: false,
-      createdAt: DateTime(2026, 10, 1),
-    );
+  id: 's1',
+  mediaUrl: 'https://cdn.example.com/s1.jpg',
+  mediaType: 'IMAGE',
+  durationSeconds: 5,
+  boosted: false,
+  seen: false,
+  createdAt: DateTime(2026, 10, 1),
+);
 
 Widget _host(StoryGateway gateway) => ProviderScope(
-      overrides: [storyGatewayProvider.overrideWithValue(gateway)],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                // The sheet lives on a pushed route so a server-confirmed
-                // reaction can actually pop it.
-                builder: (_) => Scaffold(
-                  body: StoryDetailsSheet(
-                    story: _story(),
-                    authorId: 7,
-                    currentUserId: 99,
-                  ),
+  overrides: [storyGatewayProvider.overrideWithValue(gateway)],
+  child: MaterialApp(
+    home: Scaffold(
+      body: Builder(
+        builder: (context) => TextButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              // The sheet lives on a pushed route so a server-confirmed
+              // reaction can actually pop it.
+              builder: (_) => Scaffold(
+                body: StoryDetailsSheet(
+                  story: _story(),
+                  authorId: 7,
+                  currentUserId: 99,
                 ),
-              )),
-              child: const Text('OPEN'),
+              ),
             ),
           ),
+          child: const Text('OPEN'),
         ),
       ),
-    );
+    ),
+  ),
+);
 
 void main() {
-  testWidgets('real gateway caps → the honest empty state, no dead rows',
-      (tester) async {
+  testWidgets('real gateway caps → the honest empty state, no dead rows', (
+    tester,
+  ) async {
     // Exactly what HttpStoryGateway advertises today.
     final gateway = _FakeGateway({StoryCapability.view, StoryCapability.boost});
     await tester.pumpWidget(_host(gateway));
@@ -93,30 +96,40 @@ void main() {
     expect(gateway.reactedWith, isEmpty);
   });
 
-  testWidgets('own story with viewers cap → viewers boundary, no reactions',
-      (tester) async {
-    final gateway = _FakeGateway({StoryCapability.view, StoryCapability.viewers});
-    await tester.pumpWidget(ProviderScope(
-      overrides: [storyGatewayProvider.overrideWithValue(gateway)],
-      child: MaterialApp(
-        home: Scaffold(
-          body: StoryDetailsSheet(
-            story: _story(),
-            authorId: 99, // same as currentUserId
-            currentUserId: 99,
+  testWidgets('own story with viewers cap → viewers boundary, no reactions', (
+    tester,
+  ) async {
+    final gateway = _FakeGateway({
+      StoryCapability.view,
+      StoryCapability.viewers,
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [storyGatewayProvider.overrideWithValue(gateway)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: StoryDetailsSheet(
+              story: _story(),
+              authorId: 99, // same as currentUserId
+              currentUserId: 99,
+            ),
           ),
         ),
       ),
-    ));
+    );
     expect(find.text('Viewers'), findsOneWidget);
     expect(find.text('Send a reaction'), findsNothing);
   });
 
-  testWidgets('reaction send: unsupported result surfaces, sheet stays open',
-      (tester) async {
-    final gateway = _FakeGateway({StoryCapability.view, StoryCapability.react},
-        reactResult: const AzUnsupported(
-            'POST /api/stories/:id/react — no endpoint exists yet'));
+  testWidgets('reaction send: unsupported result surfaces, sheet stays open', (
+    tester,
+  ) async {
+    final gateway = _FakeGateway(
+      {StoryCapability.view, StoryCapability.react},
+      reactResult: const AzUnsupported(
+        'POST /api/stories/:id/react — no endpoint exists yet',
+      ),
+    );
     await tester.pumpWidget(_host(gateway));
     await tester.tap(find.text('OPEN'));
     await tester.pumpAndSettle();
@@ -131,10 +144,13 @@ void main() {
     expect(find.text('OPEN'), findsNothing);
   });
 
-  testWidgets('reaction send: server-confirmed result pops the sheet',
-      (tester) async {
-    final gateway = _FakeGateway({StoryCapability.view, StoryCapability.react},
-        reactResult: const AzOk<void>(null));
+  testWidgets('reaction send: server-confirmed result pops the sheet', (
+    tester,
+  ) async {
+    final gateway = _FakeGateway({
+      StoryCapability.view,
+      StoryCapability.react,
+    }, reactResult: const AzOk<void>(null));
     await tester.pumpWidget(_host(gateway));
     await tester.tap(find.text('OPEN'));
     await tester.pumpAndSettle();
@@ -144,7 +160,10 @@ void main() {
     await tester.pump();
     expect(gateway.reactedWith, ['🔥']);
     await tester.pumpAndSettle();
-    expect(find.text('Send a reaction'), findsNothing,
-        reason: 'only a server-confirmed reaction closes the sheet');
+    expect(
+      find.text('Send a reaction'),
+      findsNothing,
+      reason: 'only a server-confirmed reaction closes the sheet',
+    );
   });
 }

@@ -44,7 +44,10 @@ class ReceiptService {
   }
 
   /// Internal: fetch the PDF binary, save to temp dir, open with system viewer.
-  static Future<String> _downloadAndOpen(String endpoint, String filename) async {
+  static Future<String> _downloadAndOpen(
+    String endpoint,
+    String filename,
+  ) async {
     // Use apiClient.get() which handles auth and headers automatically.
     // The response body will be binary PDF data.
     final response = await apiClient.get(endpoint);

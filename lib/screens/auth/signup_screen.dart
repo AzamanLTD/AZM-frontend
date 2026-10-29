@@ -12,7 +12,6 @@ import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/main.dart';
 import 'package:azaman/widgets/google_logo.dart';
 
-
 class SignUpScreen extends ConsumerStatefulWidget {
   const SignUpScreen({super.key});
 
@@ -61,9 +60,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       setState(() => _errorMessage = 'Password must be at least 8 characters.');
       return;
     }
-    if (!RegExp(r"[A-Z]").hasMatch(password) || !RegExp(r"[0-9]").hasMatch(password)) {
-      setState(() => _errorMessage =
-        "Password needs at least one uppercase letter and one number.");
+    if (!RegExp(r"[A-Z]").hasMatch(password) ||
+        !RegExp(r"[0-9]").hasMatch(password)) {
+      setState(
+        () => _errorMessage =
+            "Password needs at least one uppercase letter and one number.",
+      );
       return;
     }
 
@@ -74,52 +76,49 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     try {
       // Use the API client for consistent error handling
-      final response = await apiClient.post(
-        '/auth/register',
-        {
-          'username': username,
-          'email': email,
-          'password': password,
-        },
-        requireAuth: false,
-      );
+      final response = await apiClient.post('/auth/register', {
+        'username': username,
+        'email': email,
+        'password': password,
+      }, requireAuth: false);
 
       final data = jsonDecode(response.body);
-      
+
       if (data['success'] == true) {
         // Registration successful, now automatically log in
         setState(() => _errorMessage = null);
-        
+
         // Try to log in with the new credentials
-        final loginResponse = await apiClient.post(
-          '/auth/login',
-          {
-            'email': email,
-            'password': password,
-          },
-          requireAuth: false,
-        );
+        final loginResponse = await apiClient.post('/auth/login', {
+          'email': email,
+          'password': password,
+        }, requireAuth: false);
 
         final loginData = jsonDecode(loginResponse.body);
-        
+
         if (loginData['success'] == true) {
           // Token can be at root level, nested under "data", or under "user"
-          final String rawToken = (loginData['token'] ??
-                  loginData['data']?['token'] ??
-                  loginData['user']?['token'] ??
-                  '')
-              .toString();
+          final String rawToken =
+              (loginData['token'] ??
+                      loginData['data']?['token'] ??
+                      loginData['user']?['token'] ??
+                      '')
+                  .toString();
           // User object can be at root level or nested under "data"
-          final Map<String, dynamic> u = loginData['user'] is Map<String, dynamic>
+          final Map<String, dynamic> u =
+              loginData['user'] is Map<String, dynamic>
               ? loginData['user'] as Map<String, dynamic>
               : (loginData['data']?['user'] is Map<String, dynamic>
-                  ? loginData['data']!['user'] as Map<String, dynamic>
-                  : <String, dynamic>{});
-          double d(dynamic v) =>
-              v is num ? v.toDouble() : (double.tryParse(v?.toString() ?? '') ?? 0.0);
-          
+                    ? loginData['data']!['user'] as Map<String, dynamic>
+                    : <String, dynamic>{});
+          double d(dynamic v) => v is num
+              ? v.toDouble()
+              : (double.tryParse(v?.toString() ?? '') ?? 0.0);
+
           final newUser = User(
-            id: u['id'] is int ? u['id'].toString() : u['id']?.toString() ?? '0',
+            id: u['id'] is int
+                ? u['id'].toString()
+                : u['id']?.toString() ?? '0',
             username: u['username'] ?? '',
             email: u['email'] ?? '',
             token: rawToken,
@@ -128,19 +127,27 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             availableBalance: d(u['availableBalance']),
           );
 
-          final signupRefreshToken = (loginData['refreshToken'] ?? loginData['data']?['refreshToken'])?.toString();
+          final signupRefreshToken =
+              (loginData['refreshToken'] ?? loginData['data']?['refreshToken'])
+                  ?.toString();
           await _storage.write(key: 'auth_token', value: newUser.token);
           if (signupRefreshToken != null && signupRefreshToken.isNotEmpty) {
-            await _storage.write(key: 'refresh_token', value: signupRefreshToken);
+            await _storage.write(
+              key: 'refresh_token',
+              value: signupRefreshToken,
+            );
           }
           await _storage.write(key: 'user_id', value: newUser.id);
-          await _storage.write(key: 'user_role', value: newUser.role.toLowerCase());
+          await _storage.write(
+            key: 'user_role',
+            value: newUser.role.toLowerCase(),
+          );
 
           final auth = ref.read(authProvider);
           auth.setUser(newUser);
 
           if (!mounted) return;
-          
+
           // Show success message
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -148,7 +155,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               backgroundColor: const Color(0xFF02C076),
             ),
           );
-          
+
           // Navigate to main app
           Navigator.pushReplacement(
             context,
@@ -156,7 +163,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           );
         } else {
           // Registration successful but auto-login failed
-          setState(() => _errorMessage = 'Registration successful! Please log in.');
+          setState(
+            () => _errorMessage = 'Registration successful! Please log in.',
+          );
           await Future.delayed(const Duration(seconds: 1));
           Navigator.pushReplacement(
             context,
@@ -165,7 +174,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         }
       } else {
         // Handle registration error
-        setState(() => _errorMessage = data['message'] ?? 'Registration failed.');
+        setState(
+          () => _errorMessage = data['message'] ?? 'Registration failed.',
+        );
       }
     } on ApiException catch (e) {
       setState(() => _errorMessage = e.toString());
@@ -188,7 +199,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         iconTheme: IconThemeData(color: colors.textPrimary),
         title: Text(
           'Create Account',
-          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SafeArea(
@@ -224,7 +238,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   decoration: BoxDecoration(
                     color: colors.danger.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: colors.danger.withValues(alpha: 0.4)),
+                    border: Border.all(
+                      color: colors.danger.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: Text(
                     _errorMessage!,
@@ -239,7 +255,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Username',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(Icons.person_outline, color: colors.textTertiary),
+                  prefixIcon: Icon(
+                    Icons.person_outline,
+                    color: colors.textTertiary,
+                  ),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -248,7 +267,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
+                    borderSide: BorderSide(
+                      color: colors.accent.withValues(alpha: 0.5),
+                    ),
                   ),
                 ),
               ),
@@ -260,7 +281,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Email',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(Icons.mail_outline, color: colors.textTertiary),
+                  prefixIcon: Icon(
+                    Icons.mail_outline,
+                    color: colors.textTertiary,
+                  ),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -269,7 +293,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
+                    borderSide: BorderSide(
+                      color: colors.accent.withValues(alpha: 0.5),
+                    ),
                   ),
                 ),
               ),
@@ -282,7 +308,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Password',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
+                  prefixIcon: Icon(
+                    Icons.lock_outline,
+                    color: colors.textTertiary,
+                  ),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -291,10 +320,15 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
+                    borderSide: BorderSide(
+                      color: colors.accent.withValues(alpha: 0.5),
+                    ),
                   ),
                   helperText: 'Minimum 8 characters, 1 uppercase & 1 number',
-                  helperStyle: TextStyle(color: colors.textTertiary, fontSize: 12),
+                  helperStyle: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 12,
+                  ),
                 ),
               ),
               if (_passwordText.isNotEmpty)
@@ -307,7 +341,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 decoration: InputDecoration(
                   labelText: 'Confirm Password',
                   labelStyle: TextStyle(color: colors.textTertiary),
-                  prefixIcon: Icon(Icons.lock_outline, color: colors.textTertiary),
+                  prefixIcon: Icon(
+                    Icons.lock_outline,
+                    color: colors.textTertiary,
+                  ),
                   filled: true,
                   fillColor: colors.card,
                   border: OutlineInputBorder(
@@ -316,7 +353,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
+                    borderSide: BorderSide(
+                      color: colors.accent.withValues(alpha: 0.5),
+                    ),
                   ),
                 ),
               ),
@@ -328,7 +367,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   onPressed: _isLoading ? null : _signUp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
-                    foregroundColor: colors.isDark ? Colors.black : Colors.white,
+                    foregroundColor: colors.isDark
+                        ? Colors.black
+                        : Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -436,10 +477,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               Text(
                 'By creating an account, you agree to our Terms of Service and Privacy Policy.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colors.textTertiary,
-                ),
+                style: TextStyle(fontSize: 12, color: colors.textTertiary),
               ),
             ],
           ),
@@ -495,15 +533,12 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   void _showSsoNotConfiguredDialog(SsoProvider provider) {
     final colors = ref.read(themeProvider).colors;
-    final providerLabel =
-        provider == SsoProvider.google ? 'Google' : 'Apple';
+    final providerLabel = provider == SsoProvider.google ? 'Google' : 'Apple';
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Icon(Icons.info_outline, color: colors.accent),
@@ -598,30 +633,47 @@ class _PasswordStrengthBar extends StatelessWidget {
     if (RegExp(r"[!@#\$%^&*]").hasMatch(password)) s++;
     return s;
   }
+
   @override
   Widget build(BuildContext context) {
     final labels = ["Too weak", "Weak", "Fair", "Strong", "Very strong"];
-    final score  = _score;
+    final score = _score;
     final clr = score <= 1
-      ? const Color(0xFFEF4444)
-      : score == 2
+        ? const Color(0xFFEF4444)
+        : score == 2
         ? const Color(0xFFF59E0B)
         : const Color(0xFF10B981);
     return Padding(
       padding: const EdgeInsets.only(top: 6, bottom: 2),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: List.generate(4, (i) => Expanded(
-          child: Container(
-            height: 4,
-            margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
-            decoration: BoxDecoration(
-              color: i < score ? clr : const Color(0xFFE5E7EB),
-              borderRadius: BorderRadius.circular(2))))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: List.generate(
+              4,
+              (i) => Expanded(
+                child: Container(
+                  height: 4,
+                  margin: EdgeInsets.only(right: i < 3 ? 4 : 0),
+                  decoration: BoxDecoration(
+                    color: i < score ? clr : const Color(0xFFE5E7EB),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
           ),
-        const SizedBox(height: 4),
-        Text(labels[score], style: TextStyle(
-          color: clr, fontSize: 11, fontWeight: FontWeight.w600)),
-      ]),
+          const SizedBox(height: 4),
+          Text(
+            labels[score],
+            style: TextStyle(
+              color: clr,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

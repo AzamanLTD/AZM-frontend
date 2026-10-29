@@ -13,21 +13,33 @@ class StorefrontThemeResolver {
     final tokens = theme.tokenSet;
     final accent = _parseColor(tokens?.accent, const Color(0xFF6C4FD1));
     final accentHover = _parseColor(tokens?.accentHover, accent);
-    final isDark = _isDarkColor(_parseColor(
-      tokens?.background, const Color(0xFFF7F5F2)));
-    final background = _parseColor(tokens?.background,
-        isDark ? const Color(0xFF0F0E13) : const Color(0xFFF7F5F2));
+    final isDark = _isDarkColor(
+      _parseColor(tokens?.background, const Color(0xFFF7F5F2)),
+    );
+    final background = _parseColor(
+      tokens?.background,
+      isDark ? const Color(0xFF0F0E13) : const Color(0xFFF7F5F2),
+    );
     final surface = _parseColor(
-        tokens?.surfaceSolid ?? tokens?.surface,
-        isDark ? const Color(0xFF1E1C26) : Colors.white);
-    final border = _parseColor(tokens?.border,
-        isDark ? const Color(0x14FFFFFF) : const Color(0x14111111));
-    final textPrimary = _parseColor(tokens?.textPrimary,
-        isDark ? const Color(0xFFF0F0F5) : const Color(0xFF15141A));
-    final textSecondary = _parseColor(tokens?.textSecondary,
-        isDark ? const Color(0xFFC6BDCF) : const Color(0xFF5D5A66));
-    final textMuted = _parseColor(tokens?.textMuted,
-        isDark ? const Color(0xFF776589) : const Color(0xFF9A96A3));
+      tokens?.surfaceSolid ?? tokens?.surface,
+      isDark ? const Color(0xFF1E1C26) : Colors.white,
+    );
+    final border = _parseColor(
+      tokens?.border,
+      isDark ? const Color(0x14FFFFFF) : const Color(0x14111111),
+    );
+    final textPrimary = _parseColor(
+      tokens?.textPrimary,
+      isDark ? const Color(0xFFF0F0F5) : const Color(0xFF15141A),
+    );
+    final textSecondary = _parseColor(
+      tokens?.textSecondary,
+      isDark ? const Color(0xFFC6BDCF) : const Color(0xFF5D5A66),
+    );
+    final textMuted = _parseColor(
+      tokens?.textMuted,
+      isDark ? const Color(0xFF776589) : const Color(0xFF9A96A3),
+    );
     final danger = _parseColor(tokens?.danger, const Color(0xFFE15361));
 
     final radiusValue = _parseBorderRadius(theme.borderRadius);
@@ -54,7 +66,13 @@ class StorefrontThemeResolver {
         surface: surface,
         onSurface: textPrimary,
       ),
-      textTheme: _buildTextTheme(textPrimary, textSecondary, textMuted, headingFont, bodyFont),
+      textTheme: _buildTextTheme(
+        textPrimary,
+        textSecondary,
+        textMuted,
+        headingFont,
+        bodyFont,
+      ),
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
@@ -140,27 +158,67 @@ class StorefrontThemeResolver {
 
   static double _parseBorderRadius(String? radius) {
     switch (radius) {
-      case 'small': return 6.0;
-      case 'large': return 16.0;
+      case 'small':
+        return 6.0;
+      case 'large':
+        return 16.0;
       case 'medium':
-      default: return 10.0;
+      default:
+        return 10.0;
     }
   }
 
   static TextTheme _buildTextTheme(
-    Color primary, Color secondary, Color muted,
-    String headingFont, String bodyFont,
+    Color primary,
+    Color secondary,
+    Color muted,
+    String headingFont,
+    String bodyFont,
   ) {
     return TextTheme(
-      displayLarge: TextStyle(fontFamily: headingFont, color: primary, fontSize: 28, fontWeight: FontWeight.bold),
-      displayMedium: TextStyle(fontFamily: headingFont, color: primary, fontSize: 24, fontWeight: FontWeight.bold),
-      headlineMedium: TextStyle(fontFamily: headingFont, color: primary, fontSize: 20, fontWeight: FontWeight.w600),
-      titleLarge: TextStyle(fontFamily: headingFont, color: primary, fontSize: 18, fontWeight: FontWeight.w600),
-      titleMedium: TextStyle(fontFamily: bodyFont, color: primary, fontSize: 16, fontWeight: FontWeight.w500),
+      displayLarge: TextStyle(
+        fontFamily: headingFont,
+        color: primary,
+        fontSize: 28,
+        fontWeight: FontWeight.bold,
+      ),
+      displayMedium: TextStyle(
+        fontFamily: headingFont,
+        color: primary,
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
+      headlineMedium: TextStyle(
+        fontFamily: headingFont,
+        color: primary,
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+      ),
+      titleLarge: TextStyle(
+        fontFamily: headingFont,
+        color: primary,
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+      ),
+      titleMedium: TextStyle(
+        fontFamily: bodyFont,
+        color: primary,
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
+      ),
       bodyLarge: TextStyle(fontFamily: bodyFont, color: primary, fontSize: 16),
-      bodyMedium: TextStyle(fontFamily: bodyFont, color: secondary, fontSize: 14),
+      bodyMedium: TextStyle(
+        fontFamily: bodyFont,
+        color: secondary,
+        fontSize: 14,
+      ),
       bodySmall: TextStyle(fontFamily: bodyFont, color: muted, fontSize: 12),
-      labelLarge: TextStyle(fontFamily: bodyFont, color: primary, fontSize: 14, fontWeight: FontWeight.w600),
+      labelLarge: TextStyle(
+        fontFamily: bodyFont,
+        color: primary,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
       labelSmall: TextStyle(fontFamily: bodyFont, color: muted, fontSize: 11),
     );
   }

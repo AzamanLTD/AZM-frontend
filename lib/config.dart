@@ -18,16 +18,28 @@ class AppConfig {
   AppConfig._();
 
   static const String _env = String.fromEnvironment('ENV', defaultValue: 'dev');
-  static const String _apiHost = String.fromEnvironment('API_HOST', defaultValue: '');
-  static const String _apiPort = String.fromEnvironment('API_PORT', defaultValue: '');
-  static const String _apiScheme = String.fromEnvironment('API_SCHEME', defaultValue: '');
+  static const String _apiHost = String.fromEnvironment(
+    'API_HOST',
+    defaultValue: '',
+  );
+  static const String _apiPort = String.fromEnvironment(
+    'API_PORT',
+    defaultValue: '',
+  );
+  static const String _apiScheme = String.fromEnvironment(
+    'API_SCHEME',
+    defaultValue: '',
+  );
 
   static String get environment => _env;
   static bool get isDevelopment => _env == 'dev';
   static bool get isStaging => _env == 'staging';
   static bool get isProduction => _env == 'prod';
 
-  static const bool _demoModeCompileTime = bool.fromEnvironment('DEMO_MODE', defaultValue: false);
+  static const bool _demoModeCompileTime = bool.fromEnvironment(
+    'DEMO_MODE',
+    defaultValue: false,
+  );
   static bool? _demoModeOverride;
   static bool get demoMode => _demoModeOverride ?? _demoModeCompileTime;
   static void enableDemoMode() => _demoModeOverride = true;

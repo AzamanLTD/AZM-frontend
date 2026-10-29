@@ -23,23 +23,31 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('CurrencyNotifier lifecycle', () {
-    test('a fresh/unset preference defaults to GHS and writes nothing',
-        () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      final notifier = CurrencyNotifier();
-      await notifier.ready;
+    test(
+      'a fresh/unset preference defaults to GHS and writes nothing',
+      () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final notifier = CurrencyNotifier();
+        await notifier.ready;
 
-      expect(notifier.state, DisplayCurrency.ghs,
-          reason: 'Ghana-first: fresh users see GHS-first everywhere');
+        expect(
+          notifier.state,
+          DisplayCurrency.ghs,
+          reason: 'Ghana-first: fresh users see GHS-first everywhere',
+        );
 
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.containsKey('display_currency'), isFalse,
-          reason: 'a fresh default must not masquerade as a deliberate '
-              'choice — nothing is persisted until the user picks');
-    });
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.containsKey('display_currency'),
+          isFalse,
+          reason:
+              'a fresh default must not masquerade as a deliberate '
+              'choice — nothing is persisted until the user picks',
+        );
+      },
+    );
 
-    test('a deliberately saved USDC choice survives a full reload',
-        () async {
+    test('a deliberately saved USDC choice survives a full reload', () async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final first = CurrencyNotifier();
       await first.ready;
@@ -48,8 +56,11 @@ void main() {
       // A brand-new notifier = a cold restart reading the same store.
       final reloaded = CurrencyNotifier();
       await reloaded.ready;
-      expect(reloaded.state, DisplayCurrency.usdc,
-          reason: 'an explicit user choice must survive restart/reload');
+      expect(
+        reloaded.state,
+        DisplayCurrency.usdc,
+        reason: 'an explicit user choice must survive restart/reload',
+      );
     });
 
     test('a deliberately saved GHS choice also survives reload', () async {
@@ -64,21 +75,22 @@ void main() {
       expect(reloaded.state, DisplayCurrency.ghs);
     });
 
-    test("legacy 'GHC' spellings normalize to GHS, never become USDC",
-        () async {
-      // 'display_currency' was historically only ever written by an
-      // explicit pick — but legacy spellings may exist. 'ghc' is the
-      // obsolete cedi code and must land on GHS.
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'display_currency': 'ghc',
-      });
-      final notifier = CurrencyNotifier();
-      await notifier.ready;
-      expect(notifier.state, DisplayCurrency.ghs);
-    });
+    test(
+      "legacy 'GHC' spellings normalize to GHS, never become USDC",
+      () async {
+        // 'display_currency' was historically only ever written by an
+        // explicit pick — but legacy spellings may exist. 'ghc' is the
+        // obsolete cedi code and must land on GHS.
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          'display_currency': 'ghc',
+        });
+        final notifier = CurrencyNotifier();
+        await notifier.ready;
+        expect(notifier.state, DisplayCurrency.ghs);
+      },
+    );
 
-    test("legacy 'usd' spelling normalizes to the USDC preference",
-        () async {
+    test("legacy 'usd' spelling normalizes to the USDC preference", () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'display_currency': 'usd',
       });
@@ -95,18 +107,24 @@ void main() {
       final notifier = CurrencyNotifier();
       await notifier.ready;
 
-      expect(notifier.state, DisplayCurrency.ghs,
-          reason: 'junk must fall back to the Ghana-first default');
+      expect(
+        notifier.state,
+        DisplayCurrency.ghs,
+        reason: 'junk must fall back to the Ghana-first default',
+      );
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('display_currency'), isNull,
-          reason: 'the poisoned value is cleaned out so it cannot '
-              'resurface on a later load');
+      expect(
+        prefs.getString('display_currency'),
+        isNull,
+        reason:
+            'the poisoned value is cleaned out so it cannot '
+            'resurface on a later load',
+      );
     });
   });
 
   group('CurrencyCatalog.normalizeCode', () {
-    test('maps the obsolete cedi spellings onto the canonical GHS code',
-        () {
+    test('maps the obsolete cedi spellings onto the canonical GHS code', () {
       expect(CurrencyCatalog.normalizeCode('GHS'), 'GHS');
       expect(CurrencyCatalog.normalizeCode('GHC'), 'GHS');
       expect(CurrencyCatalog.normalizeCode('cedis'), 'GHS');
@@ -115,8 +133,7 @@ void main() {
       expect(CurrencyCatalog.normalizeCode('usd'), 'USDC');
     });
 
-    test('unknown or future assets normalize to null — never invented',
-        () {
+    test('unknown or future assets normalize to null — never invented', () {
       expect(CurrencyCatalog.normalizeCode('BTC'), isNull);
       expect(CurrencyCatalog.normalizeCode('ETH'), isNull);
       expect(CurrencyCatalog.normalizeCode(null), isNull);

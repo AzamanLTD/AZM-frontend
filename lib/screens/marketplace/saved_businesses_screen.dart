@@ -7,7 +7,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -30,8 +29,7 @@ class SavedBusinessesScreen extends ConsumerStatefulWidget {
       _SavedBusinessesScreenState();
 }
 
-class _SavedBusinessesScreenState
-    extends ConsumerState<SavedBusinessesScreen> {
+class _SavedBusinessesScreenState extends ConsumerState<SavedBusinessesScreen> {
   final Map<String, BusinessProfile> _cache = {};
   bool _loading = true;
 
@@ -85,58 +83,139 @@ class _SavedBusinessesScreenState
                 AzamanHaptics.toggle();
                 ref.read(savedBusinessesProvider.notifier).clear();
               },
-              child: Text('Clear all',
-                  style: TextStyle(color: colors.textTertiary, fontSize: 13)),
+              child: Text(
+                'Clear all',
+                style: TextStyle(color: colors.textTertiary, fontSize: 13),
+              ),
             ),
         ],
       ),
       body: _loading
           ? const SkeletonList(itemHeight: 90, count: 6)
           : saved.isEmpty
-              ? const AzamanEmptyState(
-                  icon: Icons.bookmark_outline,
-                  title: 'No saved businesses',
-                  subtitle: 'Tap the bookmark icon on any business to save it here.',
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.78),
-                  itemCount: saved.length,
-                  itemBuilder: (context, i) {
-                    final bizId = saved.elementAt(i);
-                    final b = _cache[bizId];
-                    if (b == null) {
-                      return Container(decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(16)));
-                    }
-                    return Dismissible(
-                      key: ValueKey(bizId), direction: DismissDirection.up,
-                      background: Container(decoration: BoxDecoration(color: colors.danger.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
-                        child: Align(alignment: Alignment.topCenter, child: Padding(padding: const EdgeInsets.only(top: 12), child: Icon(Icons.delete_outline_rounded, color: colors.danger)))),
-                      onDismissed: (_) {
-                        AzamanHaptics.toggle();
-                        ref.read(savedBusinessesProvider.notifier).remove(bizId);
-                      },
-                      child: GestureDetector(
-                        onTap: () => pushWithVerticalTransition(context, BusinessProfileScreen(bizId: bizId)),
-                        child: PremiumGlassContainer(
-                          blur: 12, opacity: 0.04, borderRadius: 16, padding: const EdgeInsets.all(12),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Expanded(flex: 3, child: Center(
-                              child: b.logoUrl != null
-                                ? ClipRRect(borderRadius: BorderRadius.circular(12), child: AzamanNetworkImage(imageUrl: b.logoUrl!, fit: BoxFit.cover, width: double.infinity))
-                                : Container(decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), shape: BoxShape.circle), padding: const EdgeInsets.all(16),
-                                    child: Icon(Icons.storefront_outlined, size: 28, color: colors.accent)),
-                            )),
-                            const SizedBox(height: 8),
-                            Text(b.businessName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: colors.textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 3),
-                            Row(children: [AnimatedRatingStars(rating: b.averageRating, size: 10), const Spacer(), Icon(Icons.bookmark_rounded, size: 14, color: colors.accent)]),
-                          ]),
+          ? const AzamanEmptyState(
+              icon: Icons.bookmark_outline,
+              title: 'No saved businesses',
+              subtitle:
+                  'Tap the bookmark icon on any business to save it here.',
+            )
+          : GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.78,
+              ),
+              itemCount: saved.length,
+              itemBuilder: (context, i) {
+                final bizId = saved.elementAt(i);
+                final b = _cache[bizId];
+                if (b == null) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: colors.softSurface,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  );
+                }
+                return Dismissible(
+                  key: ValueKey(bizId),
+                  direction: DismissDirection.up,
+                  background: Container(
+                    decoration: BoxDecoration(
+                      color: colors.danger.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Icon(
+                          Icons.delete_outline_rounded,
+                          color: colors.danger,
                         ),
                       ),
-                    );
+                    ),
+                  ),
+                  onDismissed: (_) {
+                    AzamanHaptics.toggle();
+                    ref.read(savedBusinessesProvider.notifier).remove(bizId);
                   },
-                ),
+                  child: GestureDetector(
+                    onTap: () => pushWithVerticalTransition(
+                      context,
+                      BusinessProfileScreen(bizId: bizId),
+                    ),
+                    child: PremiumGlassContainer(
+                      blur: 12,
+                      opacity: 0.04,
+                      borderRadius: 16,
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Center(
+                              child: b.logoUrl != null
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: AzamanNetworkImage(
+                                        imageUrl: b.logoUrl!,
+                                        fit: BoxFit.cover,
+                                        width: double.infinity,
+                                      ),
+                                    )
+                                  : Container(
+                                      decoration: BoxDecoration(
+                                        color: colors.accent.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      padding: const EdgeInsets.all(16),
+                                      child: Icon(
+                                        Icons.storefront_outlined,
+                                        size: 28,
+                                        color: colors.accent,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            b.businessName,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: colors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              AnimatedRatingStars(
+                                rating: b.averageRating,
+                                size: 10,
+                              ),
+                              const Spacer(),
+                              Icon(
+                                Icons.bookmark_rounded,
+                                size: 14,
+                                color: colors.accent,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

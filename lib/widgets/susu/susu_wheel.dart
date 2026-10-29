@@ -69,7 +69,10 @@ double susuSnapRotation(double current, int slot, int total) {
 /// Nearest free slot to the 12-o'clock position at [rotation], with the
 /// angular distance to it. Null when no slot is free or [total] <= 0.
 ({int slot, double delta})? susuNearestFreeSlot(
-    double rotation, int total, Set<int> taken) {
+  double rotation,
+  int total,
+  Set<int> taken,
+) {
   if (total <= 0) return null;
   var bestSlot = -1;
   var bestDist = double.infinity;
@@ -142,10 +145,12 @@ Widget _twelveOClockIndicator(AzamanColors colors) {
     // The key sits on the Icon, not the Align: the Align expands to fill
     // the wheel, so its rect is the wheel's rect and cannot prove
     // placement — the indicator element itself is what must be measured.
-    child: Icon(Icons.arrow_drop_down,
-        key: const ValueKey('susu-12-oclock-indicator'),
-        color: colors.accent,
-        size: 22),
+    child: Icon(
+      Icons.arrow_drop_down,
+      key: const ValueKey('susu-12-oclock-indicator'),
+      color: colors.accent,
+      size: 22,
+    ),
   );
 }
 
@@ -278,44 +283,48 @@ class _SusuWheelState extends ConsumerState<SusuWheel>
       sweep = susuArcSweep(prev.scheduledRunAt, next.scheduledRunAt, now);
     }
 
-    final allTerminal = widget.cycles.isNotEmpty &&
-        widget.cycles.every((c) =>
-            c.status == SusuCycleStatus.paidOut ||
-            c.status == SusuCycleStatus.defaulted);
+    final allTerminal =
+        widget.cycles.isNotEmpty &&
+        widget.cycles.every(
+          (c) =>
+              c.status == SusuCycleStatus.paidOut ||
+              c.status == SusuCycleStatus.defaulted,
+        );
 
     return AnimatedBuilder(
       animation: _clock,
-      builder: (context, _) =>
-          LayoutBuilder(builder: (context, constraints) {
-        final size = math.min(constraints.maxWidth, _kWheelMaxDiameter);
-        final center = Offset(size / 2, size / 2);
-        final radius = size / 2 - _kDotSize / 2 - _kDotPad - 2;
+      builder: (context, _) => LayoutBuilder(
+        builder: (context, constraints) {
+          final size = math.min(constraints.maxWidth, _kWheelMaxDiameter);
+          final center = Offset(size / 2, size / 2);
+          final radius = size / 2 - _kDotSize / 2 - _kDotPad - 2;
 
-        return SizedBox(
-          width: size,
-          height: size,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CustomPaint(
-                key: const ValueKey('susu-wheel-canvas'),
-                size: Size.square(size),
-                painter: _WheelArcPainter(
-                  colors: colors,
-                  center: center,
-                  radius: radius,
-                  previousAngle: arcPrevAngle,
-                  nextAngle: arcNextAngle,
-                  sweep: sweep,
+          return SizedBox(
+            width: size,
+            height: size,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  key: const ValueKey('susu-wheel-canvas'),
+                  size: Size.square(size),
+                  painter: _WheelArcPainter(
+                    colors: colors,
+                    center: center,
+                    radius: radius,
+                    previousAngle: arcPrevAngle,
+                    nextAngle: arcNextAngle,
+                    sweep: sweep,
+                  ),
                 ),
-              ),
-              ..._slotDots(center, radius, membersBySlot, meId, colors),
-              _twelveOClockIndicator(colors),
-              _centerLabel(next, allTerminal, now, meId, colors),
-            ],
-          ),
-        );
-      }),
+                ..._slotDots(center, radius, membersBySlot, meId, colors),
+                _twelveOClockIndicator(colors),
+                _centerLabel(next, allTerminal, now, meId, colors),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -331,29 +340,32 @@ class _SusuWheelState extends ConsumerState<SusuWheel>
 
     for (var slot = 1; slot <= widget.totalSlots; slot++) {
       final angle = susuSlotAngle(slot, widget.totalSlots);
-      final pos = center +
-          Offset(radius * math.cos(angle), radius * math.sin(angle));
+      final pos =
+          center + Offset(radius * math.cos(angle), radius * math.sin(angle));
       final member = membersBySlot[slot];
       final cycle = _cycleForSlot(slot);
       final isNext = upcoming != null && upcoming.cycleNumber == slot;
       final isMe = member != null && member.userId.toString() == meId;
 
-      dots.add(Positioned(
-        left: pos.dx - _kDotSize / 2,
-        top: pos.dy - _kDotSize / 2,
-        child: _ReadOnlySlotDot(
-          key: isNext ? const ValueKey('susu-wheel-next-dot') : null,
-          slot: slot,
-          member: member,
-          isNext: isNext,
-          isDone: cycle != null &&
-              (cycle.status == SusuCycleStatus.paidOut ||
-                  cycle.status == SusuCycleStatus.defaulted),
-          defaulted: cycle?.status == SusuCycleStatus.defaulted,
-          isMe: isMe,
-          colors: colors,
+      dots.add(
+        Positioned(
+          left: pos.dx - _kDotSize / 2,
+          top: pos.dy - _kDotSize / 2,
+          child: _ReadOnlySlotDot(
+            key: isNext ? const ValueKey('susu-wheel-next-dot') : null,
+            slot: slot,
+            member: member,
+            isNext: isNext,
+            isDone:
+                cycle != null &&
+                (cycle.status == SusuCycleStatus.paidOut ||
+                    cycle.status == SusuCycleStatus.defaulted),
+            defaulted: cycle?.status == SusuCycleStatus.defaulted,
+            isMe: isMe,
+            colors: colors,
+          ),
         ),
-      ));
+      );
     }
     return dots;
   }
@@ -386,14 +398,19 @@ class _SusuWheelState extends ConsumerState<SusuWheel>
         key: const ValueKey('susu-wheel-center-label'),
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title,
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900)),
+          Text(
+            title,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           if (subtitle != null)
-            Text(subtitle,
-                style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+            Text(
+              subtitle,
+              style: TextStyle(color: colors.textTertiary, fontSize: 10),
+            ),
         ],
       ),
     );
@@ -446,18 +463,22 @@ class _ReadOnlySlotDot extends StatelessWidget {
         boxShadow: isNext
             ? [
                 BoxShadow(
-                    color: colors.accent.withValues(alpha: 0.35),
-                    blurRadius: 10)
+                  color: colors.accent.withValues(alpha: 0.35),
+                  blurRadius: 10,
+                ),
               ]
             : null,
       ),
       child: Center(
         child: member == null
-            ? Text('$slot',
+            ? Text(
+                '$slot',
                 style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700))
+                  color: colors.textTertiary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              )
             : _MemberAvatar(
                 displayName: member!.displayName,
                 avatarUrl: member!.avatar,
@@ -480,20 +501,26 @@ class _ReadOnlySlotDot extends StatelessWidget {
               color: colors.accent,
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const Text('YOU',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w900)),
+            child: const Text(
+              'YOU',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
           )
         else
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text('$slot',
-                style: TextStyle(
-                    color: isNext ? colors.accent : colors.textTertiary,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              '$slot',
+              style: TextStyle(
+                color: isNext ? colors.accent : colors.textTertiary,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
       ],
     );
@@ -517,15 +544,20 @@ class _MemberAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fallback =
-        HSLColor.fromAHSL(1, susuAvatarHue(seedId), 0.45, 0.52).toColor();
+    final fallback = HSLColor.fromAHSL(
+      1,
+      susuAvatarHue(seedId),
+      0.45,
+      0.52,
+    ).toColor();
     final fallbackChild = Center(
       child: Text(
         displayName.isEmpty ? '?' : displayName[0].toUpperCase(),
         style: TextStyle(
-            color: Colors.white,
-            fontSize: size * 0.38,
-            fontWeight: FontWeight.w800),
+          color: Colors.white,
+          fontSize: size * 0.38,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
 
@@ -582,19 +614,26 @@ class _WheelArcPainter extends CustomPainter {
 
     final rect = Rect.fromCircle(center: center, radius: radius);
     canvas.drawArc(
-        rect, previousAngle, span * sweep.clamp(0.0, 1.0).toDouble(), false, arc);
+      rect,
+      previousAngle,
+      span * sweep.clamp(0.0, 1.0).toDouble(),
+      false,
+      arc,
+    );
 
     // Glow tip at the arc's leading edge (where the sweep currently is).
     if (sweep > 0.02) {
       final tipAngle = previousAngle + span * sweep.clamp(0.0, 1.0).toDouble();
-      final tip = center +
+      final tip =
+          center +
           Offset(radius * math.cos(tipAngle), radius * math.sin(tipAngle));
       canvas.drawCircle(
-          tip,
-          5,
-          Paint()
-            ..style = PaintingStyle.fill
-            ..color = colors.accent.withValues(alpha: 0.30));
+        tip,
+        5,
+        Paint()
+          ..style = PaintingStyle.fill
+          ..color = colors.accent.withValues(alpha: 0.30),
+      );
     }
   }
 
@@ -619,7 +658,8 @@ class _WheelArcPainter extends CustomPainter {
 class SusuPositionWheel extends ConsumerStatefulWidget {
   final int totalPositions;
   final int? selectedPosition;
-  final List<Map<String, dynamic>> members; // [{position, username, avatarUrl, paid}]
+  final List<Map<String, dynamic>>
+  members; // [{position, username, avatarUrl, paid}]
   final ValueChanged<int> onPositionSelected;
 
   const SusuPositionWheel({
@@ -651,10 +691,8 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
   // selectedPosition changes so the contract never contradicts the host.
   int? _lastCommittedSlot;
 
-  Set<int> get _taken => widget.members
-      .map((m) => m['position'] as int?)
-      .whereType<int>()
-      .toSet();
+  Set<int> get _taken =>
+      widget.members.map((m) => m['position'] as int?).whereType<int>().toSet();
 
   @override
   void initState() {
@@ -694,8 +732,10 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
     final start = _dragStartPoint;
     if (start == null || _wheelRadius <= 0) return;
     final delta = d.localPosition - start;
-    _rot.value =
-        (_dragStartRotation + delta.dx / _wheelRadius).clamp(-1000.0, 1000.0);
+    _rot.value = (_dragStartRotation + delta.dx / _wheelRadius).clamp(
+      -1000.0,
+      1000.0,
+    );
   }
 
   void _onDragEnd(DragEndDetails d) {
@@ -704,11 +744,17 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
   }
 
   void _snapToNearest() {
-    final nearest =
-        susuNearestFreeSlot(_rot.value, widget.totalPositions, _taken);
+    final nearest = susuNearestFreeSlot(
+      _rot.value,
+      widget.totalPositions,
+      _taken,
+    );
     if (nearest == null) return;
-    final target =
-        susuSnapRotation(_rot.value, nearest.slot, widget.totalPositions);
+    final target = susuSnapRotation(
+      _rot.value,
+      nearest.slot,
+      widget.totalPositions,
+    );
     if (liquidReducedMotion(context)) {
       _rot.value = target;
       return;
@@ -758,11 +804,15 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
             animation: _rot,
             builder: (context, _) {
               final nearest = susuNearestFreeSlot(
-                  _rot.value, widget.totalPositions, taken);
+                _rot.value,
+                widget.totalPositions,
+                taken,
+              );
               final step = widget.totalPositions > 0
                   ? 2 * math.pi / widget.totalPositions
                   : double.infinity;
-              final hubSlot = (nearest != null && nearest.delta <= step / 2 + 0.01)
+              final hubSlot =
+                  (nearest != null && nearest.delta <= step / 2 + 0.01)
                   ? nearest.slot
                   : null;
 
@@ -787,8 +837,14 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
                     ),
                     Transform.rotate(
                       angle: _rot.value,
-                      child:
-                          Stack(children: _slotDots(center, _wheelRadius, taken, colors)),
+                      child: Stack(
+                        children: _slotDots(
+                          center,
+                          _wheelRadius,
+                          taken,
+                          colors,
+                        ),
+                      ),
                     ),
                     _twelveOClockIndicator(colors),
                     _hub(hubSlot, colors),
@@ -813,10 +869,10 @@ class _SusuPositionWheelState extends ConsumerState<SusuPositionWheel>
       final angle = susuSlotAngle(slot, widget.totalPositions);
       final pos =
           center + Offset(radius * math.cos(angle), radius * math.sin(angle));
-      final member = widget.members
-          .cast<Map<String, dynamic>?>()
-          .firstWhere((m) => (m?['position'] as int?) == slot,
-              orElse: () => null);
+      final member = widget.members.cast<Map<String, dynamic>?>().firstWhere(
+        (m) => (m?['position'] as int?) == slot,
+        orElse: () => null,
+      );
       final isTaken = taken.contains(slot);
       final isSelected = widget.selectedPosition == slot;
 
@@ -921,9 +977,10 @@ class _PickerSlotDot extends StatelessWidget {
         boxShadow: isSelected
             ? [
                 BoxShadow(
-                    color: colors.accent.withValues(alpha: 0.4),
-                    blurRadius: 12,
-                    spreadRadius: 2)
+                  color: colors.accent.withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
               ]
             : null,
       ),
@@ -933,8 +990,9 @@ class _PickerSlotDot extends StatelessWidget {
             child: Text(
               '$slot',
               style: TextStyle(
-                color:
-                    isTaken || isSelected ? Colors.white : colors.textTertiary,
+                color: isTaken || isSelected
+                    ? Colors.white
+                    : colors.textTertiary,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -955,10 +1013,11 @@ class _PickerSlotDot extends StatelessWidget {
                 child: member!['avatarUrl'] != null
                     ? ClipOval(
                         child: AzamanNetworkImage(
-                            imageUrl: member!['avatarUrl'],
-                            fit: BoxFit.cover,
-                            errorWidget: (_, __, ___) =>
-                                const SizedBox.shrink()))
+                          imageUrl: member!['avatarUrl'],
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      )
                     : _initials(member!, colors),
               ),
             ),
@@ -967,8 +1026,11 @@ class _PickerSlotDot extends StatelessWidget {
               top: -8,
               left: 0,
               right: 0,
-              child: Icon(Icons.workspace_premium,
-                  size: 16, color: Color(0xFFFFD700)),
+              child: Icon(
+                Icons.workspace_premium,
+                size: 16,
+                color: Color(0xFFFFD700),
+              ),
             ),
         ],
       ),
@@ -978,11 +1040,14 @@ class _PickerSlotDot extends StatelessWidget {
   Widget _initials(Map<String, dynamic> member, AzamanColors colors) {
     final name = member['username']?.toString() ?? '?';
     return Center(
-      child: Text(name[0].toUpperCase(),
-          style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 9,
-              fontWeight: FontWeight.w600)),
+      child: Text(
+        name[0].toUpperCase(),
+        style: TextStyle(
+          color: colors.textTertiary,
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

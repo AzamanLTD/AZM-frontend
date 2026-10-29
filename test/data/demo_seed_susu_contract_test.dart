@@ -28,8 +28,9 @@ void main() {
     final cycles = DemoSeedData.susuCycles()
         .map(SusuCycleView.fromJson)
         .toList();
-    final summary =
-        (DemoSeedData.susuGroups()['data'] as List).cast<Map<String, dynamic>>().single;
+    final summary = (DemoSeedData.susuGroups()['data'] as List)
+        .cast<Map<String, dynamic>>()
+        .single;
 
     test('the detail parses as an ACTIVE weekly susu of 4 cycles', () {
       expect(detail.id, 'susu-1');
@@ -39,11 +40,9 @@ void main() {
       expect(detail.contributionUsdc, 200.0);
     });
 
-    test('four active members hold the four distinct slots exactly once',
-        () {
+    test('four active members hold the four distinct slots exactly once', () {
       expect(members.length, 4);
-      expect(members.every((m) => m.status == SusuMemberStatus.active),
-          isTrue);
+      expect(members.every((m) => m.status == SusuMemberStatus.active), isTrue);
       final slots = members.map((m) => m.cycleSlot).toList()..sort();
       expect(slots, [1, 2, 3, 4]);
     });
@@ -51,8 +50,10 @@ void main() {
     test('the cycle schedule is complete, ordered and honest', () {
       expect(cycles.map((c) => c.cycleNumber), [1, 2, 3, 4]);
       for (var i = 1; i < cycles.length; i++) {
-        expect(cycles[i].scheduledRunAt.isAfter(cycles[i - 1].scheduledRunAt),
-            isTrue);
+        expect(
+          cycles[i].scheduledRunAt.isAfter(cycles[i - 1].scheduledRunAt),
+          isTrue,
+        );
       }
       // Cycle 1 is the only paid one; 2 collects; 3 and 4 wait.
       expect(cycles[0].status, SusuCycleStatus.paidOut);
@@ -63,15 +64,19 @@ void main() {
     });
 
     test('every cycle pays a member who actually holds that slot', () {
-      final bySlot = {
-        for (final m in members) m.cycleSlot!: m,
-      };
+      final bySlot = {for (final m in members) m.cycleSlot!: m};
       for (final c in cycles) {
         final payee = bySlot[c.cycleNumber];
-        expect(payee, isNotNull,
-            reason: 'cycle ${c.cycleNumber} pays an unslotted member');
-        expect(payee!.userId, c.payoutUserId,
-            reason: 'cycle ${c.cycleNumber} pays the wrong member');
+        expect(
+          payee,
+          isNotNull,
+          reason: 'cycle ${c.cycleNumber} pays an unslotted member',
+        );
+        expect(
+          payee!.userId,
+          c.payoutUserId,
+          reason: 'cycle ${c.cycleNumber} pays the wrong member',
+        );
       }
     });
 
@@ -81,27 +86,32 @@ void main() {
       expect(summary['status'], detail.status.wire);
       expect(summary['name'], detail.name);
       // cycle 2 of 4 = the first non-terminal cycle.
-      final upcoming = cycles.firstWhere((c) =>
-          c.status != SusuCycleStatus.paidOut &&
-          c.status != SusuCycleStatus.defaulted);
+      final upcoming = cycles.firstWhere(
+        (c) =>
+            c.status != SusuCycleStatus.paidOut &&
+            c.status != SusuCycleStatus.defaulted,
+      );
       expect(upcoming.cycleNumber, summary['cycle']);
       // "next payout: Lamar" must be the member the upcoming cycle pays.
       final payee = members.singleWhere(
-          (m) => m.userId == upcoming.payoutUserId);
+        (m) => m.userId == upcoming.payoutUserId,
+      );
       expect(payee.displayName, summary['nextPayoutUser']);
     });
 
     test("the summary's next payout date matches the schedule", () {
       final upcoming = cycles[1];
       final summaryDate = DateTime.parse(summary['nextPayoutDate'] as String);
-      expect(summaryDate.difference(upcoming.scheduledRunAt).abs(),
-          lessThan(const Duration(minutes: 1)));
+      expect(
+        summaryDate.difference(upcoming.scheduledRunAt).abs(),
+        lessThan(const Duration(minutes: 1)),
+      );
     });
 
-    test('the group-chat status payload parses and opens the same susu',
-        () {
-      final status =
-          SusuInitiationStatus.fromJson(DemoSeedData.susuGroupStatus());
+    test('the group-chat status payload parses and opens the same susu', () {
+      final status = SusuInitiationStatus.fromJson(
+        DemoSeedData.susuGroupStatus(),
+      );
       expect(status.isActive, isTrue);
       expect(status.susuGroupId, detail.id);
       expect(status.memberCount, members.length);
@@ -112,7 +122,10 @@ void main() {
 
     test('the wheel arc sweeps a live, honest fraction right now', () {
       final sweep = susuArcSweep(
-          cycles[0].scheduledRunAt, cycles[1].scheduledRunAt, DateTime.now());
+        cycles[0].scheduledRunAt,
+        cycles[1].scheduledRunAt,
+        DateTime.now(),
+      );
       // A weekly cadence with cycle 2 paying out in 7 days: the window
       // is 14 days wide and centred on now, so the arc sits near half.
       expect(sweep, greaterThan(0.45));
@@ -120,8 +133,9 @@ void main() {
     });
 
     test('the susu roster is the susu group chat roster (grp-2)', () {
-      final grp2 = DemoSeedData.groupChats()
-          .singleWhere((g) => g['id'] == 'grp-2');
+      final grp2 = DemoSeedData.groupChats().singleWhere(
+        (g) => g['id'] == 'grp-2',
+      );
       final roster = (grp2['members'] as List)
           .map((m) => (m as Map<String, dynamic>)['userId'] as int)
           .toSet();

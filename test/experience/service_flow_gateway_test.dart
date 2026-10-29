@@ -12,10 +12,19 @@ void main() {
 
     expect(gw, isA<UnsupportedServiceFlowGateway>());
     expect(gw.supportedStages, isEmpty);
-    expect(await gw.slots('biz', DateTime(2026)), isA<AzUnsupported<List<ServiceSlot>>>());
-    expect(await gw.estimate(const ServiceRequestDraft(bizId: 'biz')), isA<AzUnsupported<ServiceEstimate>>());
     expect(
-      await gw.confirm(const ServiceRequestDraft(bizId: 'biz'), idempotencyKey: 'k'),
+      await gw.slots('biz', DateTime(2026)),
+      isA<AzUnsupported<List<ServiceSlot>>>(),
+    );
+    expect(
+      await gw.estimate(const ServiceRequestDraft(bizId: 'biz')),
+      isA<AzUnsupported<ServiceEstimate>>(),
+    );
+    expect(
+      await gw.confirm(
+        const ServiceRequestDraft(bizId: 'biz'),
+        idempotencyKey: 'k',
+      ),
       isA<AzUnsupported<String>>(),
     );
     expect(await gw.liveStatus('r').toList(), isEmpty);

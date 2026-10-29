@@ -22,8 +22,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/balance_card_valuation_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/balance_card_pair.dart';
+import 'package:azaman/widgets/home/balance_card_selector.dart';
 import 'package:azaman/widgets/home/large_text_deck_sheet.dart'
     show LargeTextDeckButton;
+
 class HomeBalanceCard extends ConsumerStatefulWidget {
   const HomeBalanceCard({super.key});
 
@@ -37,25 +39,57 @@ class _HomeBalanceCardState extends ConsumerState<HomeBalanceCard> {
   // pointer-up and cedes the gesture — the card does not flip.
   final ValueNotifier<bool> _flipGuard = ValueNotifier<bool>(false);
 
+  /// The card's own key: the selector needs the card's REAL on-screen rect so
+  /// the lift begins exactly where the card sits in the wallet.
+  final GlobalKey _cardKey = GlobalKey(debugLabel: 'home-balance-card');
+
   @override
   void dispose() {
     _flipGuard.dispose();
     super.dispose();
   }
 
+  /// Opens the wallet selector from the card's current position. The rect is
+  /// measured from the live render box (never guessed), so the lift starts
+  /// at the card the user actually pressed.
+  Future<void> _openSelector() async {
+    final theme = ref.read(themeProvider);
+    final box = _cardKey.currentContext?.findRenderObject() as RenderBox?;
+    final size = MediaQuery.sizeOf(context);
+    final fallback = Rect.fromLTWH(
+      16,
+      size.height * 0.34,
+      size.width - 32,
+      BalanceCardGeometry.height,
+    );
+    final rect = box != null && box.hasSize
+        ? box.localToGlobal(Offset.zero) & box.size
+        : fallback;
+    await showBalanceCardSelector(
+      context,
+      current: theme.cardVariant,
+      originRect: rect,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final valuation = ref.watch(balanceCardValuationProvider);
-    final colors = ref.watch(themeProvider).colors;
+    final theme = ref.watch(themeProvider);
+    final colors = theme.colors;
+    final variant = theme.cardVariant;
 
     return Stack(
+      key: _cardKey,
       fit: StackFit.passthrough,
       children: [
         BalanceCardPair(
           key: const ValueKey('home-balance-card-pair'),
           valuation: valuation,
           colors: colors,
+          variant: variant,
           flipGuard: _flipGuard,
+          onCardLongPress: _openSelector,
         ),
         // LARGE-TEXT HIT TARGET — the same card-level 48x48 overlay the
         // retired FlippableBalanceCard hosted: the interactive +

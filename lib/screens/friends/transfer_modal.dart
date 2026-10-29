@@ -17,7 +17,6 @@ import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:go_router/go_router.dart';
 
-
 class TransferModal extends ConsumerStatefulWidget {
   final String friendshipId;
   final String friendUsername;
@@ -41,7 +40,8 @@ class TransferModal extends ConsumerStatefulWidget {
 }
 
 class _TransferModalState extends ConsumerState<TransferModal> {
-  late bool _isSendMode = widget.initialSendMode; // true = Send, false = Request
+  late bool _isSendMode =
+      widget.initialSendMode; // true = Send, false = Request
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _referenceController = TextEditingController();
   final FriendService _service = FriendService();

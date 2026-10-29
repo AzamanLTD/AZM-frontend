@@ -110,8 +110,11 @@ class _FakeHttpClientRequest implements HttpClientRequest {
 
 class _FakeHttpClientResponse extends Stream<List<int>>
     implements HttpClientResponse {
-  _FakeHttpClientResponse(this.statusCode, this.body,
-      {required this.reasonPhrase});
+  _FakeHttpClientResponse(
+    this.statusCode,
+    this.body, {
+    required this.reasonPhrase,
+  });
 
   @override
   final int statusCode;
@@ -126,8 +129,12 @@ class _FakeHttpClientResponse extends Stream<List<int>>
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return _singleShot().listen(onData,
-        onError: onError, onDone: onDone, cancelOnError: cancelOnError);
+    return _singleShot().listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
   }
 
   Stream<Uint8List> _singleShot() async* {
@@ -193,15 +200,17 @@ SavedMomoAccount _acct(String id, String label, String provider) =>
       createdAt: DateTime.utc(2026, 9, 1),
     );
 
-final List<SavedMomoAccount> _accounts = [_acct('acct-a', 'Kwame Mensah', 'MTN')];
+final List<SavedMomoAccount> _accounts = [
+  _acct('acct-a', 'Kwame Mensah', 'MTN'),
+];
 
 Map<String, dynamic> _ledgerRow(String id, String status) => {
-      'id': id,
-      'txHash': _ref,
-      'status': status,
-      'type': 'DEPOSIT_FIAT',
-      'amountUsdc': '12.340000000000',
-    };
+  'id': id,
+  'txHash': _ref,
+  'status': status,
+  'type': 'DEPOSIT_FIAT',
+  'amountUsdc': '12.340000000000',
+};
 
 const _ref = 'MOOLRE_DEP_12_1712345678_a1b2c3d4';
 
@@ -274,41 +283,44 @@ Widget _app() {
 }
 
 GoRouter _router() => GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (c, s) => Scaffold(
-            body: Center(
-              child: TextButton(
-                // Resume pushes the canonical route with the draft's
-                // editable inputs as extra — same as the notification
-                // centre's launcher resume path.
-                onPressed: () => GoRouter.of(c).push('/deposit', extra: {
-                  'amountRaw': '50',
-                  'accountId': 'acct-a',
-                  'pendingReference': _ref,
-                }),
-                child: const Text('home-sentinel'),
-              ),
+  initialLocation: '/',
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (c, s) => Scaffold(
+        body: Center(
+          child: TextButton(
+            // Resume pushes the canonical route with the draft's
+            // editable inputs as extra — same as the notification
+            // centre's launcher resume path.
+            onPressed: () => GoRouter.of(c).push(
+              '/deposit',
+              extra: {
+                'amountRaw': '50',
+                'accountId': 'acct-a',
+                'pendingReference': _ref,
+              },
             ),
+            child: const Text('home-sentinel'),
           ),
         ),
-        GoRoute(
-          path: '/deposit',
-          name: 'deposit',
-          pageBuilder: (c, s) => risePage(
-            key: s.pageKey,
-            restorationId: s.name,
-            child: DepositScreen(
-              restoredDraft: s.extra is Map<String, dynamic>
-                  ? s.extra as Map<String, dynamic>
-                  : null,
-            ),
-          ),
+      ),
+    ),
+    GoRoute(
+      path: '/deposit',
+      name: 'deposit',
+      pageBuilder: (c, s) => risePage(
+        key: s.pageKey,
+        restorationId: s.name,
+        child: DepositScreen(
+          restoredDraft: s.extra is Map<String, dynamic>
+              ? s.extra as Map<String, dynamic>
+              : null,
         ),
-      ],
-    );
+      ),
+    ),
+  ],
+);
 
 void _phoneSize(WidgetTester tester) {
   tester.view.physicalSize = const Size(420, 920);
@@ -328,8 +340,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = _TestHttpOverrides();
 
-  const secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
 
   setUp(() {
     _wire.clear();
@@ -348,42 +361,47 @@ void main() {
 
   group('Interrupted-deposit recovery', () {
     testWidgets(
-        '(a) ledger PENDING -> the in-flight view with the exact reference, '
-        'no keypad', (tester) async {
-      _phoneSize(tester);
-      _wire['GET /finance/transactions'] = _Route(200, {
-        'success': true,
-        'transactions': [_ledgerRow('row-1', 'PENDING')],
-        'hasMore': false,
-        'nextCursor': null,
-      });
-      _wire['GET /deposit/fiat/status/row-1'] = _Route(200, {
-        'success': true,
-        'transaction': {'id': 'row-1', 'status': 'PENDING'},
-        'continuation': {
-          'provider': 'MTN',
-          'amountGhs': '50.00',
-          'payerPhoneMasked': '0244***222',
-        },
-      });
+      '(a) ledger PENDING -> the in-flight view with the exact reference, '
+      'no keypad',
+      (tester) async {
+        _phoneSize(tester);
+        _wire['GET /finance/transactions'] = _Route(200, {
+          'success': true,
+          'transactions': [_ledgerRow('row-1', 'PENDING')],
+          'hasMore': false,
+          'nextCursor': null,
+        });
+        _wire['GET /deposit/fiat/status/row-1'] = _Route(200, {
+          'success': true,
+          'transaction': {'id': 'row-1', 'status': 'PENDING'},
+          'continuation': {
+            'provider': 'MTN',
+            'amountGhs': '50.00',
+            'payerPhoneMasked': '0244***222',
+          },
+        });
 
-      await tester.pumpWidget(_app());
-      await _openDepositWithDraft(tester);
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 100));
-      await tester.pump(const Duration(milliseconds: 600));
-      await tester.pump(const Duration(milliseconds: 100));
+        await tester.pumpWidget(_app());
+        await _openDepositWithDraft(tester);
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump(const Duration(milliseconds: 100));
 
-      // The in-flight view: waiting state, exact reference visible, and
-      // NO keypad/form (a new instruction cannot be started). The view
-      // pulses forever — fixed pumps only, never pumpAndSettle.
-      expect(find.text('Waiting for confirmation...'), findsOneWidget);
-      expect(find.text(_ref), findsOneWidget);
-      expect(find.text('Prompt sent'), findsOneWidget);
-      expect(find.byType(TextField), findsNothing,
-          reason: 'no OTP/form field: nothing new can be instructed');
-      expect(_unexpectedCalls, isEmpty);
-    });
+        // The in-flight view: waiting state, exact reference visible, and
+        // NO keypad/form (a new instruction cannot be started). The view
+        // pulses forever — fixed pumps only, never pumpAndSettle.
+        expect(find.text('Waiting for confirmation...'), findsOneWidget);
+        expect(find.text(_ref), findsOneWidget);
+        expect(find.text('Prompt sent'), findsOneWidget);
+        expect(
+          find.byType(TextField),
+          findsNothing,
+          reason: 'no OTP/form field: nothing new can be instructed',
+        );
+        expect(_unexpectedCalls, isEmpty);
+      },
+    );
 
     testWidgets('(b) ledger COMPLETED -> confirmed end state + '
         'settle-while-away snackbar', (tester) async {
@@ -406,16 +424,22 @@ void main() {
 
       expect(find.text('Deposit Confirmed!'), findsOneWidget);
       expect(find.text('Start another deposit'), findsOneWidget);
-      expect(find.textContaining('completed while you were away'),
-          findsOneWidget);
+      expect(
+        find.textContaining('completed while you were away'),
+        findsOneWidget,
+      );
       // Settled is terminal: the continuation endpoint is never consulted.
       expect(_unexpectedCalls, isEmpty);
-      expect(await contSvc.loadForUser('user-1'), isEmpty,
-          reason: 'a settled deposit leaves the continuation lifecycle');
+      expect(
+        await contSvc.loadForUser('user-1'),
+        isEmpty,
+        reason: 'a settled deposit leaves the continuation lifecycle',
+      );
     });
 
-    testWidgets('(c) ledger FAILED -> fresh form + honest failure snackbar',
-        (tester) async {
+    testWidgets('(c) ledger FAILED -> fresh form + honest failure snackbar', (
+      tester,
+    ) async {
       _phoneSize(tester);
       _wire['GET /finance/transactions'] = _Route(200, {
         'success': true,
@@ -434,16 +458,23 @@ void main() {
       // The draft's amount was restored into the fresh form.
       expect(find.text('Add Cash'), findsWidgets);
       expect(find.textContaining('did not go through'), findsOneWidget);
-      expect(find.byType(TextField), findsNothing,
-          reason: 'the restored keypad form, not a result view');
+      expect(
+        find.byType(TextField),
+        findsNothing,
+        reason: 'the restored keypad form, not a result view',
+      );
       expect(_unexpectedCalls, isEmpty);
-      expect(await contSvc.loadForUser('user-1'), isEmpty,
-          reason: 'a failed deposit is authoritatively resolved too');
+      expect(
+        await contSvc.loadForUser('user-1'),
+        isEmpty,
+        reason: 'a failed deposit is authoritatively resolved too',
+      );
     });
 
     testWidgets('(d) FAIL CLOSED: a lookup that cannot resolve the '
-        'reference blocks new deposits — never a silent fresh form',
-        (tester) async {
+        'reference blocks new deposits — never a silent fresh form', (
+      tester,
+    ) async {
       _phoneSize(tester);
       // The ledger lookup itself FAILS (server error) — which is NOT
       // evidence the earlier instruction did not commit.
@@ -460,24 +491,29 @@ void main() {
 
       // The explicit unresolved state: the reference is preserved and
       // shown, nothing is claimed, and the CTA is blocked.
-      expect(find.textContaining('could not confirm your earlier deposit'),
-          findsOneWidget);
+      expect(
+        find.textContaining('could not confirm your earlier deposit'),
+        findsOneWidget,
+      );
       expect(find.text('Check again'), findsOneWidget);
       final semantics = tester.ensureSemantics();
-      expect(find.bySemanticsLabel('Confirm your earlier deposit first'),
-          findsOneWidget,
-          reason: 'the blocked CTA states exactly what it wants');
+      expect(
+        find.bySemanticsLabel('Confirm your earlier deposit first'),
+        findsOneWidget,
+        reason: 'the blocked CTA states exactly what it wants',
+      );
       semantics.dispose();
       // No success, no failure, no "start fresh" claim of any kind.
       expect(find.text('Waiting for confirmation...'), findsNothing);
       expect(find.textContaining('while you were away'), findsNothing);
       expect(find.textContaining('did not go through'), findsNothing);
-      expect(find.textContaining('Nothing was charged again'),
-          findsOneWidget);
+      expect(find.textContaining('Nothing was charged again'), findsOneWidget);
       expect(_unexpectedCalls, isEmpty);
       // The submitted continuation survives an unresolved lookup.
-      expect((await contSvc.loadForUser('user-1')).map((c) => c.reference),
-          contains(_ref));
+      expect(
+        (await contSvc.loadForUser('user-1')).map((c) => c.reference),
+        contains(_ref),
+      );
     });
 
     testWidgets('(e) FAIL CLOSED -> retry re-checks the SAME operation and '
@@ -511,13 +547,20 @@ void main() {
 
       // Honest resolution at last: confirmed end state, banner gone.
       expect(find.text('Deposit Confirmed!'), findsOneWidget);
-      expect(find.textContaining('completed while you were away'),
-          findsOneWidget);
+      expect(
+        find.textContaining('completed while you were away'),
+        findsOneWidget,
+      );
       expect(find.text('Check again'), findsNothing);
-      expect(find.textContaining('could not confirm your earlier deposit'),
-          findsNothing);
-      expect(await contSvc.loadForUser('user-1'), isEmpty,
-          reason: 'the settled ledger resolved the continuation');
+      expect(
+        find.textContaining('could not confirm your earlier deposit'),
+        findsNothing,
+      );
+      expect(
+        await contSvc.loadForUser('user-1'),
+        isEmpty,
+        reason: 'the settled ledger resolved the continuation',
+      );
       expect(_unexpectedCalls, isEmpty);
     });
   });

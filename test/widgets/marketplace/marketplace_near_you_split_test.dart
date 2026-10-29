@@ -104,17 +104,17 @@ BusinessLocation _nearbyRow(String id, String name, {double? distanceKm}) =>
     });
 
 Position _position(double lat, double lng) => Position(
-      longitude: lng,
-      latitude: lat,
-      timestamp: DateTime.now(),
-      accuracy: 10,
-      altitude: 0,
-      altitudeAccuracy: 0,
-      heading: 0,
-      headingAccuracy: 0,
-      speed: 0,
-      speedAccuracy: 0,
-    );
+  longitude: lng,
+  latitude: lat,
+  timestamp: DateTime.now(),
+  accuracy: 10,
+  altitude: 0,
+  altitudeAccuracy: 0,
+  heading: 0,
+  headingAccuracy: 0,
+  speed: 0,
+  speedAccuracy: 0,
+);
 
 /// Resolver that SUCCEEDS — a device with location on.
 class _SucceedingResolver extends NearbyLocationResolver {
@@ -129,8 +129,7 @@ class _SucceedingResolver extends NearbyLocationResolver {
 
 Future<(_RecordingSearchNotifier, _FakeNearbyNotifier)> _pumpHome(
   WidgetTester tester, {
-  NearbyLocationResolver resolver =
-      const FailingNearbyLocationResolver(),
+  NearbyLocationResolver resolver = const FailingNearbyLocationResolver(),
 }) async {
   final search = _RecordingSearchNotifier();
   final nearby = _FakeNearbyNotifier();
@@ -162,15 +161,22 @@ void main() {
     // The pill fired a nearby resolve (no platform location in the test
     // environment → the resolve fails and sets _locationError, but the
     // FEED is now active).
-    expect(nearby.searchNearbyCalls, 0,
-        reason: 'no position in the test env — the resolve fails before '
-            'any nearby search fires');
+    expect(
+      nearby.searchNearbyCalls,
+      0,
+      reason:
+          'no position in the test env — the resolve fails before '
+          'any nearby search fires',
+    );
     // The VIEW never changed: the list seg is still the active surface —
     // the screen still renders the SEARCH list container, not a map
     // location prompt.
     expect(find.byIcon(Icons.view_agenda_outlined), findsOneWidget);
-    expect(find.text('Find businesses near you'), findsNothing,
-        reason: 'the pill must not open the map');
+    expect(
+      find.text('Find businesses near you'),
+      findsNothing,
+      reason: 'the pill must not open the map',
+    );
   });
 
   testWidgets('Near You ON renders the proximity rows from the nearby '
@@ -213,12 +219,18 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('marketplace-near-you')));
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.text('Corner Kiosk'), findsNothing,
-        reason: 'the proximity feed is gone');
+    expect(
+      find.text('Corner Kiosk'),
+      findsNothing,
+      reason: 'the proximity feed is gone',
+    );
     // The initState search count is UNCHANGED — the plain list did not
     // re-fetch, its state was preserved the entire time.
-    expect(search.searchCalls, 1,
-        reason: 'toggling Near You off must not re-fire the search list');
+    expect(
+      search.searchCalls,
+      1,
+      reason: 'toggling Near You off must not re-fire the search list',
+    );
     // Settle pump: the home screen owns pre-existing one-shot timers
     // longer than the interaction pumps (all near-you streams and
     // debounces are disposed/canceled — this is not a leak). Flush them
@@ -247,8 +259,10 @@ void main() {
 
   testWidgets('a RESOLVED position fires the nearby search with the real '
       'coordinates', (tester) async {
-    final (search, nearby) =
-        await _pumpHome(tester, resolver: const _SucceedingResolver());
+    final (search, nearby) = await _pumpHome(
+      tester,
+      resolver: const _SucceedingResolver(),
+    );
 
     expect(nearby.searchNearbyCalls, 0);
     await tester.tap(find.byKey(const ValueKey('marketplace-near-you')));
@@ -262,8 +276,9 @@ void main() {
     expect(search.searchCalls, 1);
   });
 
-  testWidgets('a nearby search failure renders the truthful failure state',
-      (tester) async {
+  testWidgets('a nearby search failure renders the truthful failure state', (
+    tester,
+  ) async {
     final (search, nearby) = await _pumpHome(tester);
 
     await tester.tap(find.byKey(const ValueKey('marketplace-near-you')));
@@ -271,10 +286,7 @@ void main() {
     nearby.injectError('SocketException');
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(
-      find.byKey(const Key('marketplace-nearby-failure')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('marketplace-nearby-failure')), findsOneWidget);
     expect(find.text("Couldn't load nearby businesses"), findsOneWidget);
   });
 
@@ -299,8 +311,10 @@ void main() {
     // (separate controls, separate state).
     await tester.tap(find.byIcon(Icons.view_agenda_outlined).first);
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.byKey(const Key('marketplace-nearby-location-error')),
-        findsOneWidget,
-        reason: 'the proximity feed is still active after a map round-trip');
+    expect(
+      find.byKey(const Key('marketplace-nearby-location-error')),
+      findsOneWidget,
+      reason: 'the proximity feed is still active after a map round-trip',
+    );
   });
 }

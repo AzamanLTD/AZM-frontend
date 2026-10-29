@@ -25,8 +25,6 @@ import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
-
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -54,7 +52,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String _azamanId = '';
   bool _isUploadingAvatar = false;
   final ImagePicker _picker = ImagePicker();
-
 
   @override
   void initState() {
@@ -104,7 +101,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-
   Future<void> _submitProfileEdit({
     required String displayName,
     required String bio,
@@ -150,25 +146,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final uri = Uri.parse('${ApiClient.baseUrl}/users/profile/avatar');
       final request = http.MultipartRequest('POST', uri);
       request.files.add(
-        await http.MultipartFile.fromPath('avatar', picked.path,
-            filename: 'avatar.jpg'),
+        await http.MultipartFile.fromPath(
+          'avatar',
+          picked.path,
+          filename: 'avatar.jpg',
+        ),
       );
 
-      final response = await apiClient.multipart('/users/profile/avatar', request);
+      final response = await apiClient.multipart(
+        '/users/profile/avatar',
+        request,
+      );
 
       Map<String, dynamic> data;
       try {
         data = jsonDecode(response.body) as Map<String, dynamic>;
       } catch (_) {
-        throw Exception('Server returned unexpected response (${response.statusCode})');
+        throw Exception(
+          'Server returned unexpected response (${response.statusCode})',
+        );
       }
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        final msg = data['message']?.toString() ?? 'Upload failed (${response.statusCode})';
+        final msg =
+            data['message']?.toString() ??
+            'Upload failed (${response.statusCode})';
         throw Exception(msg);
       }
 
-      final newUrl = (data['data']?['profilePictureUrl'] ?? data['profilePictureUrl'])?.toString();
+      final newUrl =
+          (data['data']?['profilePictureUrl'] ?? data['profilePictureUrl'])
+              ?.toString();
 
       if (!mounted) return;
       setState(() {
@@ -190,7 +198,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         setState(() => _isUploadingAvatar = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not update photo: ${e.toString().replaceFirst("Exception: ", "")}'),
+            content: Text(
+              'Could not update photo: ${e.toString().replaceFirst("Exception: ", "")}',
+            ),
             backgroundColor: colors.danger,
           ),
         );
@@ -213,7 +223,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.fromLTRB(
-          24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24,
+          24,
+          24,
+          24,
+          MediaQuery.of(ctx).viewInsets.bottom + 24,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -239,9 +252,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            _buildTextField(colors, nameCtrl, 'Display Name', Icons.person_outline),
+            _buildTextField(
+              colors,
+              nameCtrl,
+              'Display Name',
+              Icons.person_outline,
+            ),
             const SizedBox(height: 12),
-            _buildTextField(colors, bioCtrl, 'Bio', Icons.edit_outlined, maxLines: 3),
+            _buildTextField(
+              colors,
+              bioCtrl,
+              'Bio',
+              Icons.edit_outlined,
+              maxLines: 3,
+            ),
             const SizedBox(height: 12),
             _buildTextField(colors, phoneCtrl, 'Phone', Icons.phone_outlined),
             const SizedBox(height: 24),
@@ -275,7 +299,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
   }
-
 
   Widget _buildTextField(
     AzamanColors colors,
@@ -340,62 +363,85 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             )
           : _error != null
-              ? _buildErrorState(colors)
-              : AzPullToRefresh(
-                  onRefresh: _fetchProfile,
-                  color: colors.accent,
-                  backgroundColor: colors.surface,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(
-                      parent: ClampingScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.only(bottom: 40),
-                    child: Column(
-                      children: [
-                        _kycBanner(colors),
-                        const SizedBox(height: 28),
-                        _buildAvatarSection(colors),
-                        const SizedBox(height: 24),
-                        _buildKycBadge(colors),
-                        const SizedBox(height: 24),
-                        _buildSection(colors, 'Account Info', [
-                          _buildInfoRow(colors, 'Display Name', _displayName),
-                          _buildInfoRow(colors, 'Username', _username),
-                          _buildInfoRow(colors, 'Email', _email),
-                          _buildInfoRow(colors, 'AZM ID', _azamanId),
-                        ]),
-                        _buildSection(colors, 'Stats & Reputation', [
-                          _buildInfoRow(colors, 'Trades Completed', '$_tradesCompleted'),
-                          _buildInfoRow(colors, 'Rating', '${_rating.toStringAsFixed(1)} / 5.0'),
-                          _buildInfoRow(colors, 'Member Since', _formatDate(_memberSince)),
-                          _buildInfoRow(colors, 'Login Streak', '$_loginStreak days'),
-                        ]),
-                        _buildSection(colors, 'Security', [
-                          _buildInfoRow(colors, 'KYC Status', _kycStatus),
-                          _buildInfoRow(colors, 'Two-Factor Auth', 'Enabled'),
-                        ]),
-                        // Danger Zone / Delete Account lives at the bottom of
-                        // the main Settings screen now (next to Sign Out) —
-                        // one canonical place for it instead of two.
-                      ],
-                    ),
-                  ),
+          ? _buildErrorState(colors)
+          : AzPullToRefresh(
+              onRefresh: _fetchProfile,
+              color: colors.accent,
+              backgroundColor: colors.surface,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
                 ),
+                padding: const EdgeInsets.only(bottom: 40),
+                child: Column(
+                  children: [
+                    _kycBanner(colors),
+                    const SizedBox(height: 28),
+                    _buildAvatarSection(colors),
+                    const SizedBox(height: 24),
+                    _buildKycBadge(colors),
+                    const SizedBox(height: 24),
+                    _buildSection(colors, 'Account Info', [
+                      _buildInfoRow(colors, 'Display Name', _displayName),
+                      _buildInfoRow(colors, 'Username', _username),
+                      _buildInfoRow(colors, 'Email', _email),
+                      _buildInfoRow(colors, 'AZM ID', _azamanId),
+                    ]),
+                    _buildSection(colors, 'Stats & Reputation', [
+                      _buildInfoRow(
+                        colors,
+                        'Trades Completed',
+                        '$_tradesCompleted',
+                      ),
+                      _buildInfoRow(
+                        colors,
+                        'Rating',
+                        '${_rating.toStringAsFixed(1)} / 5.0',
+                      ),
+                      _buildInfoRow(
+                        colors,
+                        'Member Since',
+                        _formatDate(_memberSince),
+                      ),
+                      _buildInfoRow(
+                        colors,
+                        'Login Streak',
+                        '$_loginStreak days',
+                      ),
+                    ]),
+                    _buildSection(colors, 'Security', [
+                      _buildInfoRow(colors, 'KYC Status', _kycStatus),
+                      _buildInfoRow(colors, 'Two-Factor Auth', 'Enabled'),
+                    ]),
+                    // Danger Zone / Delete Account lives at the bottom of
+                    // the main Settings screen now (next to Sign Out) —
+                    // one canonical place for it instead of two.
+                  ],
+                ),
+              ),
+            ),
     );
   }
-
 
   Widget _kycBanner(AzamanColors colors) {
     final status = _kycStatus.toUpperCase();
     final isVerified = status == "VERIFIED";
-    final isPending  = status == "PENDING";
-    final color = isVerified ? colors.success
-      : isPending ? colors.warning : colors.danger;
-    final icon = isVerified ? Icons.shield_outlined
-      : isPending ? Icons.access_time : Icons.error_outline;
-    final label = isVerified ? "KYC Verified"
-      : isPending ? "KYC Pending Review"
-      : "Verify Identity to Unlock Higher Limits";
+    final isPending = status == "PENDING";
+    final color = isVerified
+        ? colors.success
+        : isPending
+        ? colors.warning
+        : colors.danger;
+    final icon = isVerified
+        ? Icons.shield_outlined
+        : isPending
+        ? Icons.access_time
+        : Icons.error_outline;
+    final label = isVerified
+        ? "KYC Verified"
+        : isPending
+        ? "KYC Pending Review"
+        : "Verify Identity to Unlock Higher Limits";
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -405,20 +451,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.4), width: 1.2),
       ),
-      child: Row(children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(width: 12),
-        Expanded(child: Text(label,
-          style: TextStyle(color: color, fontSize: 13,
-            fontWeight: FontWeight.w700))),
-        if (!isVerified && !isPending)
-          GestureDetector(
-            onTap: () => pushWithVerticalTransition(context, const KycVerificationScreen()),
-            child: Text("Verify ->",
-              style: TextStyle(color: color, fontSize: 12,
-                fontWeight: FontWeight.w800)),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-      ]),
+          if (!isVerified && !isPending)
+            GestureDetector(
+              onTap: () => pushWithVerticalTransition(
+                context,
+                const KycVerificationScreen(),
+              ),
+              child: Text(
+                "Verify ->",
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -449,11 +512,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ? _displayName[0].toUpperCase()
         : (_username.isNotEmpty ? _username[0].toUpperCase() : 'A');
     return Container(
-      width: 88, height: 88,
+      width: 88,
+      height: 88,
       color: colors.accent.withValues(alpha: 0.15),
-      child: Center(child: Text(initial, style: TextStyle(
-        color: colors.accent, fontSize: 32,
-        fontWeight: FontWeight.w800))),
+      child: Center(
+        child: Text(
+          initial,
+          style: TextStyle(
+            color: colors.accent,
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 
@@ -465,59 +536,66 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Hero(
             tag: 'profile-avatar',
             child: Stack(
-            alignment: Alignment.bottomRight,
-            children: [
-              CircleAvatar(
-                radius: 44,
-                backgroundColor: colors.card,
-                child: ClipOval(
-                  child: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                    ? AzamanNetworkImage(
-                        imageUrl: _avatarUrl!,
-                        width: 88, height: 88,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => CircularProgressIndicator(
-                          strokeWidth: 2, color: colors.accent),
-                        errorWidget: (_, __, ___) => _initialsAvatar(colors),
-                      )
-                    : _initialsAvatar(colors),
+              alignment: Alignment.bottomRight,
+              children: [
+                CircleAvatar(
+                  radius: 44,
+                  backgroundColor: colors.card,
+                  child: ClipOval(
+                    child: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                        ? AzamanNetworkImage(
+                            imageUrl: _avatarUrl!,
+                            width: 88,
+                            height: 88,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colors.accent,
+                            ),
+                            errorWidget: (_, __, ___) =>
+                                _initialsAvatar(colors),
+                          )
+                        : _initialsAvatar(colors),
+                  ),
                 ),
-              ),
-              if (_isUploadingAvatar)
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withValues(alpha: 0.45),
-                    ),
-                    child: Center(
-                      child: SizedBox(
-                        width: 22, height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(colors.accent),
+                if (_isUploadingAvatar)
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.45),
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              colors.accent,
+                            ),
+                          ),
                         ),
                       ),
                     ),
+                  )
+                else
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: colors.accent,
+                      border: Border.all(color: colors.surface, width: 2.5),
+                    ),
+                    child: Icon(
+                      Icons.camera_alt,
+                      size: 14,
+                      color: colors.isDark ? Colors.black : Colors.white,
+                    ),
                   ),
-                )
-              else
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: colors.accent,
-                    border: Border.all(color: colors.surface, width: 2.5),
-                  ),
-                  child: Icon(
-                    Icons.camera_alt,
-                    size: 14,
-                    color: colors.isDark ? Colors.black : Colors.white,
-                  ),
-                ),
-            ],
-          ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 14),
@@ -543,7 +621,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ],
     );
   }
-
 
   Widget _buildKycBadge(AzamanColors colors) {
     Color badgeColor;
@@ -593,7 +670,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildSection(AzamanColors colors, String title, List<Widget> children) {
+  Widget _buildSection(
+    AzamanColors colors,
+    String title,
+    List<Widget> children,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -616,9 +697,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             color: colors.card,
             border: Border.all(color: colors.divider),
           ),
-          child: Column(
-            children: children,
-          ),
+          child: Column(children: children),
         ),
       ],
     );
@@ -660,8 +739,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final date = DateTime.parse(isoDate);
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return '${months[date.month - 1]} ${date.day}, ${date.year}';
     } catch (_) {

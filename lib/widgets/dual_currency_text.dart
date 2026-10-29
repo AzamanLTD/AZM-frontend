@@ -31,16 +31,20 @@ class DualCurrencyText extends ConsumerWidget {
     final preferred = ref.watch(currencyProvider);
     final double rate = ghsRate ?? ref.watch(oracleRateProvider);
     final colors = ref.watch(themeProvider).colors;
-    final primary = style ?? TextStyle(
-      color: colors.textPrimary,
-      fontSize: 18,
-      fontWeight: FontWeight.bold,
-    );
-    final secondary = secondaryStyle ?? TextStyle(
-      color: colors.textSecondary,
-      fontSize: 12,
-      fontWeight: FontWeight.normal,
-    );
+    final primary =
+        style ??
+        TextStyle(
+          color: colors.textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+        );
+    final secondary =
+        secondaryStyle ??
+        TextStyle(
+          color: colors.textSecondary,
+          fontSize: 12,
+          fontWeight: FontWeight.normal,
+        );
 
     final ghsText = formatGhsEquivalent(usdc, rate);
 

@@ -110,7 +110,9 @@ class TradeProvider with ChangeNotifier {
   void attachAuthBalance(AuthProvider auth) {
     // No longer needed — SocketService handles balance_update directly
     // and writes to balanceDataProvider. Kept as no-op for API compat.
-    debugPrint('[TradeProvider] attachAuthBalance — no-op (Phase P3: SocketService handles balance_update)');
+    debugPrint(
+      '[TradeProvider] attachAuthBalance — no-op (Phase P3: SocketService handles balance_update)',
+    );
   }
 
   /// Join a specific trade room. Idempotent — safe to call multiple times.
@@ -126,7 +128,9 @@ class TradeProvider with ChangeNotifier {
   // --- METHODS ---
 
   void toggleRole() {
-    _currentRole = (_currentRole == AppRole.user) ? AppRole.vendor : AppRole.user;
+    _currentRole = (_currentRole == AppRole.user)
+        ? AppRole.vendor
+        : AppRole.user;
     notifyListeners();
   }
 
@@ -176,8 +180,7 @@ class TradeProvider with ChangeNotifier {
       final response = await apiClient.get('/oracle/yellowcard-rate');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        _yellowCardRate =
-            (data['rate'] as num?)?.toDouble() ?? 0.0;
+        _yellowCardRate = (data['rate'] as num?)?.toDouble() ?? 0.0;
       }
     } catch (_) {
       // keep last cached value
@@ -323,8 +326,6 @@ class TradeProvider with ChangeNotifier {
   }
 }
 
-
-
 // =============================================================================
 // RIVERPOD HANDLE  (canonical V2 access path)
 //
@@ -348,9 +349,11 @@ final activeTradeCountProvider = FutureProvider<int>((ref) async {
       final trades = data["trades"] as List? ?? [];
       return trades.where((t) {
         final status = t["status"]?.toString() ?? "";
-        return ["PENDING_PAYMENT","PAID","DISPUTED"].contains(status);
+        return ["PENDING_PAYMENT", "PAID", "DISPUTED"].contains(status);
       }).length;
     }
     return 0;
-  } catch (_) { return 0; }
+  } catch (_) {
+    return 0;
+  }
 });

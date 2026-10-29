@@ -25,7 +25,6 @@ import 'package:azaman/widgets/vault/vault_progress_card.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class VaultListScreen extends ConsumerWidget {
   const VaultListScreen({super.key});
 
@@ -41,8 +40,7 @@ class VaultListScreen extends ConsumerWidget {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
@@ -57,7 +55,8 @@ class VaultListScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.groups, color: colors.textPrimary, size: 20),
-            onPressed: () => pushWithVerticalTransition(context, const SharedVaultScreen()),
+            onPressed: () =>
+                pushWithVerticalTransition(context, const SharedVaultScreen()),
             tooltip: 'Shared Vaults',
           ),
         ],
@@ -67,7 +66,8 @@ class VaultListScreen extends ConsumerWidget {
         backgroundColor: colors.card,
         onRefresh: () => ref.read(vaultsProvider.notifier).refresh(),
         child: vaultsAsync.when(
-          loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+          loading: () =>
+              Center(child: CircularProgressIndicator(color: colors.accent)),
           error: (e, _) => _ErrorView(
             message: e.toString(),
             onRetry: () => ref.read(vaultsProvider.notifier).refresh(),
@@ -101,7 +101,9 @@ class _Body extends StatelessWidget {
   Widget build(BuildContext context) {
     if (vaults.isEmpty) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: ClampingScrollPhysics(),
+        ),
         children: [
           const SizedBox(height: 80),
           Icon(Icons.lock_outline, size: 56, color: colors.textTertiary),
@@ -132,19 +134,29 @@ class _Body extends StatelessWidget {
     }
 
     return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       itemCount: vaults.length,
       itemBuilder: (context, i) {
         final v = vaults[i];
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: VaultProgressCard(vault: v, colors: colors, onTap: () {
-            pushWithVerticalTransition(context, VaultDetailScreen(vaultId: v.id));
-          })
-              .animate()
-              .fadeIn(delay: (i * 60).ms, duration: 280.ms)
-              .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+          child:
+              VaultProgressCard(
+                    vault: v,
+                    colors: colors,
+                    onTap: () {
+                      pushWithVerticalTransition(
+                        context,
+                        VaultDetailScreen(vaultId: v.id),
+                      );
+                    },
+                  )
+                  .animate()
+                  .fadeIn(delay: (i * 60).ms, duration: 280.ms)
+                  .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
         );
       },
     );

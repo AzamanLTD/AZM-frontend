@@ -205,8 +205,7 @@ class _TransactionHistoryScreenState
   /// rate, and the secondary line is the OTHER recorded value.
   /// Resolved ONCE per build (itemBuilder runs during layout, where
   /// ref.watch is illegal) and threaded into the row helpers.
-  bool _isGhsFirst() =>
-      ref.watch(currencyProvider) == DisplayCurrency.ghs;
+  bool _isGhsFirst() => ref.watch(currencyProvider) == DisplayCurrency.ghs;
 
   String _primaryAmount(dynamic txn, bool ghsFirst) {
     final sign = txn.category == 'WITHDRAWAL' ? "-" : "+";
@@ -221,7 +220,11 @@ class _TransactionHistoryScreenState
         : 'GH\u{20B5} ${txn.amountGhs.toStringAsFixed(2)}';
   }
 
-  Widget _buildGroupedList(AzamanColors colors, TransactionHistoryState state, {required bool ghsFirst}) {
+  Widget _buildGroupedList(
+    AzamanColors colors,
+    TransactionHistoryState state, {
+    required bool ghsFirst,
+  }) {
     final allTxns = state.items;
     final filtered = _searchQuery.isEmpty
         ? allTxns

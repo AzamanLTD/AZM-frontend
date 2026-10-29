@@ -16,23 +16,23 @@ void main() {
   late ComputedGeometry geometry;
 
   setUp(() {
-    solver = const SeatGeometrySolver(SeatGeometryConfig(
-      seatWidth: 50,
-      seatHeight: 50,
-      colGap: 6,
-      rowGap: 10,
-      aisleGap: 28,
-      minHitTarget: 44,
-      layoutPadding: 20,
-      headerHeight: 40,
-    ));
+    solver = const SeatGeometrySolver(
+      SeatGeometryConfig(
+        seatWidth: 50,
+        seatHeight: 50,
+        colGap: 6,
+        rowGap: 10,
+        aisleGap: 28,
+        minHitTarget: 44,
+        layoutPadding: 20,
+        headerHeight: 40,
+      ),
+    );
 
     // 4 rows × 4 cols with aisle in the middle
     layout = VehicleLayout(
       id: 'test-layout',
-      decks: [
-        Deck(deckIndex: 0, grid: _buildTestGrid()),
-      ],
+      decks: [Deck(deckIndex: 0, grid: _buildTestGrid())],
     );
 
     geometry = solver.compute(layout);
@@ -64,8 +64,14 @@ void main() {
 
     test('hit-test rect is centered on visual rect', () {
       for (final rect in geometry.seatRects) {
-        expect(rect.hitRect.center.dx, closeTo(rect.visualRect.center.dx, 0.01));
-        expect(rect.hitRect.center.dy, closeTo(rect.visualRect.center.dy, 0.01));
+        expect(
+          rect.hitRect.center.dx,
+          closeTo(rect.visualRect.center.dx, 0.01),
+        );
+        expect(
+          rect.hitRect.center.dy,
+          closeTo(rect.visualRect.center.dy, 0.01),
+        );
       }
     });
 
@@ -93,7 +99,10 @@ void main() {
       final firstSeat = geometry.seatRects.first;
       final tapPoint = Offset(
         firstSeat.visualRect.left - 5, // Outside visual rect
-        firstSeat.visualRect.center.dy, // But within hit-test padding (since hit rect ≥44 wide)
+        firstSeat
+            .visualRect
+            .center
+            .dy, // But within hit-test padding (since hit rect ≥44 wide)
       );
 
       final hit = solver.hitTestLocal(geometry, tapPoint);
@@ -234,7 +243,10 @@ void main() {
         final bounds = multiGeometry.deckBounds[deck.deckIndex];
         expect(bounds, isNotNull);
         expect(multiGeometry.totalBounds.top, lessThanOrEqualTo(bounds!.top));
-        expect(multiGeometry.totalBounds.bottom, greaterThanOrEqualTo(bounds.bottom));
+        expect(
+          multiGeometry.totalBounds.bottom,
+          greaterThanOrEqualTo(bounds.bottom),
+        );
       }
     });
   });
@@ -251,14 +263,16 @@ List<List<GridSlot>> _buildTestGrid() {
         rowSlots.add(GridSlot(type: SlotType.aisle, row: row, col: col));
       }
       final letter = String.fromCharCode(65 + col);
-      rowSlots.add(GridSlot(
-        type: SlotType.seat,
-        row: row,
-        col: col,
-        seatId: '${row + 1}$letter',
-        tier: row == 0 ? SeatTier.vip : SeatTier.standard,
-        fare: row == 0 ? 25.0 : 18.0,
-      ));
+      rowSlots.add(
+        GridSlot(
+          type: SlotType.seat,
+          row: row,
+          col: col,
+          seatId: '${row + 1}$letter',
+          tier: row == 0 ? SeatTier.vip : SeatTier.standard,
+          fare: row == 0 ? 25.0 : 18.0,
+        ),
+      );
     }
     grid.add(rowSlots);
   }

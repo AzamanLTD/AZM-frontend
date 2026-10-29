@@ -23,16 +23,34 @@ import 'package:azaman/screens/story_camera_screen.dart';
 
 // Available stickers
 const _STICKERS = [
-  '🔥', '⭐', '❤️', '🎉', '✨', '👏', '💯', '🚀',
-  '😂', '😍', '🤩', '👍', '💰', '🏆', '🌟', '🎁',
+  '🔥',
+  '⭐',
+  '❤️',
+  '🎉',
+  '✨',
+  '👏',
+  '💯',
+  '🚀',
+  '😂',
+  '😍',
+  '🤩',
+  '👍',
+  '💰',
+  '🏆',
+  '🌟',
+  '🎁',
 ];
 
 // Text colors
 const _TEXT_COLORS = [
-  Color(0xFFFFFFFF), Color(0xFF000000),
-  Color(0xFFFF0000), Color(0xFF00FF00),
-  Color(0xFF00B4D8), Color(0xFFFFD700),
-  Color(0xFFFF00FF), Color(0xFF8B4513),
+  Color(0xFFFFFFFF),
+  Color(0xFF000000),
+  Color(0xFFFF0000),
+  Color(0xFF00FF00),
+  Color(0xFF00B4D8),
+  Color(0xFFFFD700),
+  Color(0xFFFF00FF),
+  Color(0xFF8B4513),
 ];
 
 enum EditMode { none, text, sticker, draw }
@@ -120,16 +138,18 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
   void _addTextOverlay() {
     if (_textController.text.trim().isEmpty) return;
     setState(() {
-      _overlays.add(_OverlayItem(
-        id: 'overlay_${DateTime.now().millisecondsSinceEpoch}',
-        position: Offset(
-          MediaQuery.of(context).size.width / 2 - 80,
-          MediaQuery.of(context).size.height / 3,
+      _overlays.add(
+        _OverlayItem(
+          id: 'overlay_${DateTime.now().millisecondsSinceEpoch}',
+          position: Offset(
+            MediaQuery.of(context).size.width / 2 - 80,
+            MediaQuery.of(context).size.height / 3,
+          ),
+          text: _textController.text.trim(),
+          color: _textColor,
+          scale: 1.2,
         ),
-        text: _textController.text.trim(),
-        color: _textColor,
-        scale: 1.2,
-      ));
+      );
       _textController.clear();
       _mode = EditMode.none;
     });
@@ -138,15 +158,17 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
 
   void _addSticker(String sticker) {
     setState(() {
-      _overlays.add(_OverlayItem(
-        id: 'overlay_${DateTime.now().millisecondsSinceEpoch}',
-        position: Offset(
-          MediaQuery.of(context).size.width / 2 - 28,
-          MediaQuery.of(context).size.height / 3,
+      _overlays.add(
+        _OverlayItem(
+          id: 'overlay_${DateTime.now().millisecondsSinceEpoch}',
+          position: Offset(
+            MediaQuery.of(context).size.width / 2 - 28,
+            MediaQuery.of(context).size.height / 3,
+          ),
+          sticker: sticker,
+          scale: 2.0,
         ),
-        sticker: sticker,
-        scale: 2.0,
-      ));
+      );
     });
     AzamanHaptics.toggle();
   }
@@ -167,19 +189,32 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Icon(Icons.close, color: Colors.white, size: 28),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 28,
+                    ),
                   ),
                   const Spacer(),
                   if (_mode != EditMode.none)
                     GestureDetector(
                       onTap: () => setState(() => _mode = EditMode.none),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                        child: const Text(
+                          'Done',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
                   const SizedBox(width: 8),
@@ -189,14 +224,21 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                       widget.onPublish(widget.mediaFile, widget.isVideo);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: colors.accent,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
                         'Publish',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
@@ -222,18 +264,21 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                       child: ColorFiltered(
                         colorFilter: _filter.colorFilter,
                         child: widget.isVideo
-                            ? Container(color: Colors.black) // Video placeholder
-                            : Image.file(
-                                widget.mediaFile,
-                                fit: BoxFit.contain,
-                              ),
+                            ? Container(
+                                color: Colors.black,
+                              ) // Video placeholder
+                            : Image.file(widget.mediaFile, fit: BoxFit.contain),
                       ),
                     ),
 
                     // Doodle drawing layer
                     if (_drawPoints.isNotEmpty)
                       CustomPaint(
-                        painter: _DoodlePainter(_drawPoints, _drawColor, _brushSize),
+                        painter: _DoodlePainter(
+                          _drawPoints,
+                          _drawColor,
+                          _brushSize,
+                        ),
                         size: Size.infinite,
                       ),
 
@@ -262,10 +307,16 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                             child: Transform.rotate(
                               angle: item.rotation,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
                                 decoration: isSelected
                                     ? BoxDecoration(
-                                        border: Border.all(color: colors.accent, width: 1.5),
+                                        border: Border.all(
+                                          color: colors.accent,
+                                          width: 1.5,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       )
                                     : null,
@@ -303,7 +354,10 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
             // ── Text input (when in text mode) ──
             if (_mode == EditMode.text) ...[
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     // Color picker
@@ -317,13 +371,16 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                           return GestureDetector(
                             onTap: () => setState(() => _textColor = c),
                             child: Container(
-                              width: 28, height: 28,
+                              width: 28,
+                              height: 28,
                               margin: const EdgeInsets.symmetric(horizontal: 4),
                               decoration: BoxDecoration(
                                 color: c,
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                  color: _textColor == c ? colors.accent : Colors.transparent,
+                                  color: _textColor == c
+                                      ? colors.accent
+                                      : Colors.transparent,
                                   width: 2,
                                 ),
                               ),
@@ -336,24 +393,35 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Expanded(
                       child: TextField(
                         controller: _textController,
                         autofocus: true,
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Type something...',
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                          hintStyle: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.4),
+                          ),
                           filled: true,
                           fillColor: Colors.white.withValues(alpha: 0.1),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                         onSubmitted: (_) => _addTextOverlay(),
                       ),
@@ -388,14 +456,18 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                     return GestureDetector(
                       onTap: () => _addSticker(_STICKERS[index]),
                       child: Container(
-                        width: 56, height: 56,
+                        width: 56,
+                        height: 56,
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Center(
-                          child: Text(_STICKERS[index], style: const TextStyle(fontSize: 28)),
+                          child: Text(
+                            _STICKERS[index],
+                            style: const TextStyle(fontSize: 28),
+                          ),
                         ),
                       ),
                     );
@@ -406,24 +478,34 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
             // ── Draw tools ──
             if (_mode == EditMode.draw)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
-                    ..._TEXT_COLORS.take(5).map((c) => GestureDetector(
-                      onTap: () => setState(() => _drawColor = c),
-                      child: Container(
-                        width: 28, height: 28,
-                        margin: const EdgeInsets.only(right: 8),
-                        decoration: BoxDecoration(
-                          color: c,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _drawColor == c ? colors.accent : Colors.transparent,
-                            width: 2,
+                    ..._TEXT_COLORS
+                        .take(5)
+                        .map(
+                          (c) => GestureDetector(
+                            onTap: () => setState(() => _drawColor = c),
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: c,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: _drawColor == c
+                                      ? colors.accent
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    )),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Slider(
@@ -436,7 +518,11 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                     ),
                     GestureDetector(
                       onTap: () => setState(() => _drawPoints.clear()),
-                      child: const Icon(Icons.undo, color: Colors.white70, size: 24),
+                      child: const Icon(
+                        Icons.undo,
+                        color: Colors.white70,
+                        size: 24,
+                      ),
                     ),
                   ],
                 ),
@@ -527,11 +613,14 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                       child: Column(
                         children: [
                           Container(
-                            width: 56, height: 56,
+                            width: 56,
+                            height: 56,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: isSelected ? colors.accent : Colors.transparent,
+                                color: isSelected
+                                    ? colors.accent
+                                    : Colors.transparent,
                                 width: 2,
                               ),
                               color: filter.thumbTint,
@@ -541,9 +630,13 @@ class _StoryEditorScreenState extends ConsumerState<StoryEditorScreen> {
                           Text(
                             filter.label,
                             style: TextStyle(
-                              color: isSelected ? colors.accent : colors.textTertiary,
+                              color: isSelected
+                                  ? colors.accent
+                                  : colors.textTertiary,
                               fontSize: 10,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
                             ),
                           ),
                         ],
@@ -581,7 +674,8 @@ class _ToolButton extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 48, height: 48,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16),

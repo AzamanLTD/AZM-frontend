@@ -94,14 +94,7 @@ class ActivityRecipient {
 /// the backend's type vocabulary and the UI. [ActivityActionResolver]
 /// switches on the enum only; an unmappable type normalises to
 /// [ActivityRecordKind.other], whose action is always Details.
-enum ActivityRecordKind {
-  transfer,
-  susu,
-  deposit,
-  withdrawal,
-  trade,
-  other,
-}
+enum ActivityRecordKind { transfer, susu, deposit, withdrawal, trade, other }
 
 class ActivityKindNormalizer {
   const ActivityKindNormalizer._();
@@ -158,9 +151,12 @@ class ActivityActionResolver {
   static ActivityRecipient? _recipientFrom(TransactionRecord t) {
     final meta = t.metadata ?? const <String, dynamic>{};
     final azamId =
-        meta['recipientAzamId']?.toString() ?? meta['counterpartyAzamId']?.toString() ?? '';
+        meta['recipientAzamId']?.toString() ??
+        meta['counterpartyAzamId']?.toString() ??
+        '';
     if (azamId.isEmpty) return null;
-    final name = meta['recipientName']?.toString() ??
+    final name =
+        meta['recipientName']?.toString() ??
         meta['counterparty']?.toString() ??
         azamId;
     return ActivityRecipient(azamanId: azamId, displayName: name);
@@ -182,8 +178,10 @@ class ActivityActionResolver {
         if (t.isOutbound) {
           final recipient = _recipientFrom(t);
           if (recipient != null) {
-            return ActivityAction(ActivityActionType.sendAgain,
-                recipient: recipient);
+            return ActivityAction(
+              ActivityActionType.sendAgain,
+              recipient: recipient,
+            );
           }
         }
         // Outbound transfer without an authoritative recipient, or an
@@ -192,8 +190,7 @@ class ActivityActionResolver {
       case ActivityRecordKind.susu:
         final susuId = t.metadata?['susuGroupId']?.toString();
         if (susuId != null && susuId.isNotEmpty) {
-          return ActivityAction(ActivityActionType.viewSusu,
-              reference: susuId);
+          return ActivityAction(ActivityActionType.viewSusu, reference: susuId);
         }
         return const ActivityAction(ActivityActionType.viewSusu);
       case ActivityRecordKind.deposit:

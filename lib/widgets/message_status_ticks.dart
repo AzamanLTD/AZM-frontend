@@ -26,12 +26,16 @@ class MessageStatusTicks extends StatelessWidget {
       MessageStatus.sending => (Icons.access_time_rounded, Colors.white38),
       MessageStatus.sent => (Icons.done_rounded, Colors.white54),
       MessageStatus.delivered => (Icons.done_all_rounded, Colors.white54),
-      MessageStatus.read => (Icons.done_all_rounded, accentColor ?? const Color(0xFF4FC3F7)),
+      MessageStatus.read => (
+        Icons.done_all_rounded,
+        accentColor ?? const Color(0xFF4FC3F7),
+      ),
       _ => (Icons.done_rounded, Colors.white38),
     };
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 150),
-      transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+      transitionBuilder: (child, anim) =>
+          FadeTransition(opacity: anim, child: child),
       child: Icon(icon, key: ValueKey('$status'), size: 15, color: color),
     );
   }

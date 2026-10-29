@@ -27,7 +27,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
 
-
 class LiabilityAcceptanceScreen extends ConsumerStatefulWidget {
   final String susuId;
   const LiabilityAcceptanceScreen({super.key, required this.susuId});
@@ -92,15 +91,15 @@ class _LiabilityAcceptanceScreenState
         });
         _loadContract();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not accept contract: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not accept contract: $e')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -115,8 +114,7 @@ class _LiabilityAcceptanceScreenState
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
@@ -192,13 +190,14 @@ class _ContractBody extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.warning.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(10),
-              border:
-                  Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.7),
+              border: Border.all(
+                color: colors.warning.withValues(alpha: 0.30),
+                width: 0.7,
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.refresh,
-                    color: colors.warning, size: 16),
+                Icon(Icons.refresh, color: colors.warning, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -219,8 +218,10 @@ class _ContractBody extends StatelessWidget {
           decoration: BoxDecoration(
             color: colors.danger.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(10),
-            border:
-                Border.all(color: colors.danger.withValues(alpha: 0.30), width: 0.7),
+            border: Border.all(
+              color: colors.danger.withValues(alpha: 0.30),
+              width: 0.7,
+            ),
           ),
           child: Row(
             children: [
@@ -320,7 +321,9 @@ class _ContractBody extends StatelessWidget {
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.black),
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
                         )
                       : const Icon(Icons.check_circle_outline, size: 16),
                   label: Text(
@@ -333,11 +336,13 @@ class _ContractBody extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.warning,
                     foregroundColor: Colors.black,
-                    disabledBackgroundColor:
-                        colors.warning.withValues(alpha: 0.30),
+                    disabledBackgroundColor: colors.warning.withValues(
+                      alpha: 0.30,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -357,8 +362,11 @@ class _ErrorView extends StatelessWidget {
   final String error;
   final AzamanColors colors;
   final VoidCallback onRetry;
-  const _ErrorView(
-      {required this.error, required this.colors, required this.onRetry});
+  const _ErrorView({
+    required this.error,
+    required this.colors,
+    required this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -394,7 +402,8 @@ class _ErrorView extends StatelessWidget {
                 backgroundColor: colors.warning,
                 foregroundColor: Colors.black,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 elevation: 0,
               ),
             ),

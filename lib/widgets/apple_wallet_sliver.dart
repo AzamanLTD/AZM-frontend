@@ -67,19 +67,20 @@ class _RenderAppleWalletSliver extends RenderSliverMultiBoxAdaptor {
     double lastBottom = 0;
 
     while (child != null) {
-      final parentData =
-          child.parentData as SliverMultiBoxAdaptorParentData;
+      final parentData = child.parentData as SliverMultiBoxAdaptorParentData;
 
       double totalCompressionBefore = 0;
       for (int j = 0; j < index; j++) {
         totalCompressionBefore += _compression(j, scrollOffset, compressible);
       }
 
-      final double cardCompression =
-          _compression(index, scrollOffset, compressible);
+      final double cardCompression = _compression(
+        index,
+        scrollOffset,
+        compressible,
+      );
       final double cardHeight = expandedHeight - cardCompression;
-      final double cardTop =
-          index * expandedHeight - totalCompressionBefore;
+      final double cardTop = index * expandedHeight - totalCompressionBefore;
 
       parentData.layoutOffset = cardTop;
 
@@ -99,8 +100,10 @@ class _RenderAppleWalletSliver extends RenderSliverMultiBoxAdaptor {
 
     childManager.didFinishLayout();
 
-    final double paintExtent =
-        (lastBottom - scrollOffset).clamp(0.0, remainingPaintExtent);
+    final double paintExtent = (lastBottom - scrollOffset).clamp(
+      0.0,
+      remainingPaintExtent,
+    );
     final double maxPaintExtent =
         expandedHeight + (count - 1) * collapsedHeight;
 
@@ -115,8 +118,7 @@ class _RenderAppleWalletSliver extends RenderSliverMultiBoxAdaptor {
   void paint(PaintingContext context, Offset offset) {
     RenderBox? child = firstChild;
     while (child != null) {
-      final parentData =
-          child.parentData as SliverMultiBoxAdaptorParentData;
+      final parentData = child.parentData as SliverMultiBoxAdaptorParentData;
       final double top = parentData.layoutOffset ?? 0;
       final double h = child.size.height;
 

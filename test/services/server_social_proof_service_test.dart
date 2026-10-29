@@ -19,9 +19,11 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/providers/server_social_proof_provider.dart';
 import 'package:azaman/services/server_social_proof_service.dart';
 
-http.Response _json(int status, Map<String, dynamic> body) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
+http.Response _json(int status, Map<String, dynamic> body) => http.Response(
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
 
 class _FakeClient extends ApiClient {
   final int getStatus;
@@ -35,8 +37,11 @@ class _FakeClient extends ApiClient {
   });
 
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     endpoints.add(endpoint);
     if (getStatus != 200) return _json(getStatus, {'success': false});
     final id = endpoint.split('/').last;
@@ -48,15 +53,17 @@ class _FakeClient extends ApiClient {
   }
 
   @override
-  Future<http.Response> post(String endpoint, Map<String, dynamic> body,
-      {Map<String, String>? headers,
-      bool requireAuth = true,
-      String? idempotencyKey}) async {
+  Future<http.Response> post(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+    String? idempotencyKey,
+  }) async {
     endpoints.add(endpoint);
     if (getStatus != 200) return _json(getStatus, {'success': false});
     // A real server echoes proofs only for the ids in the request body.
-    final requested =
-        List<String>.from(body['businessProfileIds'] as List);
+    final requested = List<String>.from(body['businessProfileIds'] as List);
     return _json(200, {
       'success': true,
       'proofs': {
@@ -69,8 +76,11 @@ class _FakeClient extends ApiClient {
 
 class _NetworkFailClient extends ApiClient {
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     throw Exception('network down');
   }
 }
@@ -78,12 +88,14 @@ class _NetworkFailClient extends ApiClient {
 void main() {
   group('service fetch', () {
     test('parses real counts from the single route', () async {
-      final svc = ServerSocialProofService(client: _FakeClient(
-        singleBody: (id) => {
-          'friendsFollowingCount': 3,
-          'friendsOfFriendsFollowingCount': 7,
-        },
-      ));
+      final svc = ServerSocialProofService(
+        client: _FakeClient(
+          singleBody: (id) => {
+            'friendsFollowingCount': 3,
+            'friendsOfFriendsFollowingCount': 7,
+          },
+        ),
+      );
       final proof = await svc.fetch('bp-1');
       expect(proof.businessProfileId, 'bp-1');
       expect(proof.friendsFollowingCount, 3);
@@ -91,37 +103,38 @@ void main() {
     });
 
     test('404 is honest absence, not zero friends', () async {
-      final svc = ServerSocialProofService(
-          client: _FakeClient(getStatus: 404));
-      await expectLater(svc.fetch('bp-404'),
-          throwsA(isA<SocialProofUnavailable>()));
+      final svc = ServerSocialProofService(client: _FakeClient(getStatus: 404));
+      await expectLater(
+        svc.fetch('bp-404'),
+        throwsA(isA<SocialProofUnavailable>()),
+      );
     });
 
     test('401 (anonymous) is honest absence', () async {
-      final svc = ServerSocialProofService(
-          client: _FakeClient(getStatus: 401));
-      await expectLater(svc.fetch('bp-1'),
-          throwsA(isA<SocialProofUnavailable>()));
+      final svc = ServerSocialProofService(client: _FakeClient(getStatus: 401));
+      await expectLater(
+        svc.fetch('bp-1'),
+        throwsA(isA<SocialProofUnavailable>()),
+      );
     });
 
     test('network failure is honest absence', () async {
       final svc = ServerSocialProofService(client: _NetworkFailClient());
-      await expectLater(svc.fetch('bp-1'),
-          throwsA(isA<SocialProofUnavailable>()));
+      await expectLater(
+        svc.fetch('bp-1'),
+        throwsA(isA<SocialProofUnavailable>()),
+      );
     });
 
     test('batch maps ids to proofs and caps at 50', () async {
       final proofs = {
         for (final id in List.generate(60, (i) => 'bp-$i'))
-          id: {
-            'friendsFollowingCount': 1,
-            'friendsOfFriendsFollowingCount': 0,
-          }
+          id: {'friendsFollowingCount': 1, 'friendsOfFriendsFollowingCount': 0},
       };
       final svc = ServerSocialProofService(
-          client: _FakeClient(batchBody: proofs));
-      final result = await svc.fetchBatch(
-          List.generate(60, (i) => 'bp-$i'));
+        client: _FakeClient(batchBody: proofs),
+      );
+      final result = await svc.fetchBatch(List.generate(60, (i) => 'bp-$i'));
       expect(result.length, 50, reason: 'the contract caps a batch at 50');
       expect(result['bp-0']!.friendsFollowingCount, 1);
     });
@@ -135,9 +148,12 @@ void main() {
       // A proof value that is not an object → unavailable, never a
       // guessed zero.
       final svc = ServerSocialProofService(
-          client: _FakeClient(batchBody: {'bp-1': 'garbage-string'}));
-      await expectLater(svc.fetchBatch(['bp-1']),
-          throwsA(isA<SocialProofUnavailable>()));
+        client: _FakeClient(batchBody: {'bp-1': 'garbage-string'}),
+      );
+      await expectLater(
+        svc.fetchBatch(['bp-1']),
+        throwsA(isA<SocialProofUnavailable>()),
+      );
     });
   });
 
@@ -146,17 +162,18 @@ void main() {
   // NO second '/api' segment. These tests pin the ACTUAL request path,
   // not just parsing of the mocked response.
   group('request paths', () {
-    test('single fetch requests exactly /social-proof/<id> — no double /api',
-        () async {
-      final fake = _FakeClient(singleBody: (id) => const {});
-      await ServerSocialProofService(client: fake).fetch('BIZ-PROFILE-9');
-      expect(fake.endpoints, ['/social-proof/BIZ-PROFILE-9']);
-    });
+    test(
+      'single fetch requests exactly /social-proof/<id> — no double /api',
+      () async {
+        final fake = _FakeClient(singleBody: (id) => const {});
+        await ServerSocialProofService(client: fake).fetch('BIZ-PROFILE-9');
+        expect(fake.endpoints, ['/social-proof/BIZ-PROFILE-9']);
+      },
+    );
 
     test('batch requests exactly /social-proof — no double /api', () async {
       final fake = _FakeClient(batchBody: const {});
-      await ServerSocialProofService(client: fake)
-          .fetchBatch(['a', 'b']);
+      await ServerSocialProofService(client: fake).fetchBatch(['a', 'b']);
       expect(fake.endpoints, ['/social-proof']);
     });
 
@@ -166,15 +183,17 @@ void main() {
       await svc.fetch('x');
       await svc.fetchBatch(['x', 'y']);
       for (final e in fake.endpoints) {
-        expect(e.contains('/api/api/'), isFalse,
-            reason: 'doubled /api segment would 404 on device');
+        expect(
+          e.contains('/api/api/'),
+          isFalse,
+          reason: 'doubled /api segment would 404 on device',
+        );
       }
     });
   });
 
   group('presentation seam', () {
-    test('real friends render a "Followed by" line — never a visit claim',
-        () {
+    test('real friends render a "Followed by" line — never a visit claim', () {
       const proof = ServerSocialProof(
         businessProfileId: 'bp-1',
         friendsFollowingCount: 3,
@@ -200,15 +219,21 @@ void main() {
         friendsFollowingCount: 2,
         friendsOfFriendsFollowingCount: 4,
       );
-      expect(socialProofLine(both), 'Followed by 2 friends · 4 friends of friends');
+      expect(
+        socialProofLine(both),
+        'Followed by 2 friends · 4 friends of friends',
+      );
 
       const fofOnly = ServerSocialProof(
         businessProfileId: 'bp-1',
         friendsFollowingCount: 0,
         friendsOfFriendsFollowingCount: 9,
       );
-      expect(socialProofLine(fofOnly), isNull,
-          reason: 'FoF without a direct anchor adds no social weight');
+      expect(
+        socialProofLine(fofOnly),
+        isNull,
+        reason: 'FoF without a direct anchor adds no social weight',
+      );
     });
 
     test('honest zeros render NOTHING — no broken-looking zero row', () {

@@ -54,7 +54,8 @@ class VendorBadgeService {
       final body = jsonDecode(response.body);
       if (body['success'] == true && body['data'] != null) {
         final data = body['data'] as Map<String, dynamic>;
-        final badges = (data['badges'] as List<dynamic>?)
+        final badges =
+            (data['badges'] as List<dynamic>?)
                 ?.map((e) => VendorBadge.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [];

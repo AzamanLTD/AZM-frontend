@@ -39,39 +39,59 @@ class _Gateway implements RetailCheckoutGateway {
 }
 
 void main() {
-  const product = RetailProduct(id: 'p1', name: 'Bag', price: 20, currency: 'GHS');
+  const product = RetailProduct(
+    id: 'p1',
+    name: 'Bag',
+    price: 20,
+    currency: 'GHS',
+  );
 
   test('empty cart does not call gateway', () async {
     final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
-    final result = await RetailCheckoutController(gateway).submit(const RetailCart());
+    final result = await RetailCheckoutController(
+      gateway,
+    ).submit(const RetailCart());
 
     expect(result, isA<RetailCheckoutFailure>());
     expect(gateway.received, isNull);
   });
 
-  test('checkout delegates cart and operation identity to authoritative gateway', () async {
-    final cart = const RetailCart().add(product);
-    final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
+  test(
+    'checkout delegates cart and operation identity to authoritative gateway',
+    () async {
+      final cart = const RetailCart().add(product);
+      final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
 
-    final result = await RetailCheckoutController(gateway).submit(cart, idempotencyKey: 'checkout-1');
+      final result = await RetailCheckoutController(
+        gateway,
+      ).submit(cart, idempotencyKey: 'checkout-1');
 
-    expect(result, isA<RetailCheckoutSuccess>());
-    expect(gateway.received?.itemCount, 1);
-    expect(gateway.receivedOptions?.paymentProtection, RetailPaymentProtection.direct);
-    expect(gateway.receivedIdempotencyKey, 'checkout-1');
-  });
+      expect(result, isA<RetailCheckoutSuccess>());
+      expect(gateway.received?.itemCount, 1);
+      expect(
+        gateway.receivedOptions?.paymentProtection,
+        RetailPaymentProtection.direct,
+      );
+      expect(gateway.receivedIdempotencyKey, 'checkout-1');
+    },
+  );
 
-  test('escrow selection is rejected when the store does not offer it', () async {
-    final cart = const RetailCart().add(product);
-    final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
-    final result = await RetailCheckoutController(gateway).submit(
-      cart,
-      options: const RetailCheckoutOptions(paymentProtection: RetailPaymentProtection.escrow),
-    );
+  test(
+    'escrow selection is rejected when the store does not offer it',
+    () async {
+      final cart = const RetailCart().add(product);
+      final gateway = _Gateway(const RetailCheckoutSuccess(orderId: 'o1'));
+      final result = await RetailCheckoutController(gateway).submit(
+        cart,
+        options: const RetailCheckoutOptions(
+          paymentProtection: RetailPaymentProtection.escrow,
+        ),
+      );
 
-    expect(result, isA<RetailCheckoutFailure>());
-    expect(gateway.received, isNull);
-  });
+      expect(result, isA<RetailCheckoutFailure>());
+      expect(gateway.received, isNull);
+    },
+  );
 
   test('escrow selection is delegated when the store offers it', () async {
     final cart = const RetailCart().add(product);

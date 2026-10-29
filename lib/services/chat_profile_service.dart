@@ -58,7 +58,9 @@ class ChatProfileFriend {
   factory ChatProfileFriend.fromJson(Map<String, dynamic> json) {
     final ratingRaw = json['rating'];
     return ChatProfileFriend(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       username: (json['username'] ?? '').toString(),
       profilePictureUrl: json['profilePictureUrl']?.toString(),
       kycStatus: (json['kycStatus'] ?? 'UNVERIFIED').toString(),
@@ -83,15 +85,15 @@ class ChatProfileFriend {
           : int.tryParse('${json['completedTransactions'] ?? 0}') ?? 0,
       completedTransactionsBreakdown:
           json['completedTransactionsBreakdown'] is Map<String, dynamic>
-              ? TrustBreakdown.fromJson(
-                  json['completedTransactionsBreakdown']
-                      as Map<String, dynamic>)
-              : null,
+          ? TrustBreakdown.fromJson(
+              json['completedTransactionsBreakdown'] as Map<String, dynamic>,
+            )
+          : null,
       rating: ratingRaw == null
           ? null
           : (ratingRaw is num
-              ? ratingRaw.toDouble()
-              : double.tryParse(ratingRaw.toString())),
+                ? ratingRaw.toDouble()
+                : double.tryParse(ratingRaw.toString())),
       isVerifiedVendor: json['isVerifiedVendor'] == true,
     );
   }
@@ -120,7 +122,8 @@ class ChatProfileResponse {
       friendSince: DateTime.parse(json['friendSince'].toString()),
       friendshipStatus: (json['friendshipStatus'] ?? 'ACCEPTED').toString(),
       friend: ChatProfileFriend.fromJson(
-          json['friend'] as Map<String, dynamic>),
+        json['friend'] as Map<String, dynamic>,
+      ),
       myNicknameForFriend: json['myNicknameForFriend']?.toString(),
       mutualTradesCompleted: json['mutualTradesCompleted'] is int
           ? json['mutualTradesCompleted']
@@ -137,7 +140,7 @@ class VaultItem {
   final String id;
   final String? ticketId;
   final int senderId;
-  final String type;     // IMAGE | VIDEO | DOCUMENT | LINK
+  final String type; // IMAGE | VIDEO | DOCUMENT | LINK
   final String? content; // for LINK type, this is the URL
   final String? mediaUrl;
   final String? mediaMimeType;
@@ -174,8 +177,9 @@ class VaultItem {
       mediaUrl: json['mediaUrl']?.toString(),
       mediaMimeType: json['mediaMimeType']?.toString(),
       mediaSize: json['mediaSize'] is int ? json['mediaSize'] as int : null,
-      mediaDuration:
-          json['mediaDuration'] is int ? json['mediaDuration'] as int : null,
+      mediaDuration: json['mediaDuration'] is int
+          ? json['mediaDuration'] as int
+          : null,
       linkPreview: json['linkPreview'] is Map<String, dynamic>
           ? json['linkPreview'] as Map<String, dynamic>
           : null,
@@ -193,7 +197,8 @@ class ReceiptItem {
   final String currency;
   final String? reference;
   final String type; // SEND | REQUEST
-  final String status; // PENDING | COMPLETED | DECLINED | FAILED | INSUFFICIENT_FUNDS
+  final String
+  status; // PENDING | COMPLETED | DECLINED | FAILED | INSUFFICIENT_FUNDS
   final String direction; // SENT | RECEIVED
   final Map<String, dynamic>? counterparty;
   final DateTime createdAt;
@@ -266,8 +271,7 @@ class TrustBreakdown {
   int get total => tradesCompleted + completedTransfers + closedTickets;
 
   factory TrustBreakdown.fromJson(Map<String, dynamic> json) {
-    int parse(dynamic v) =>
-        v is int ? v : int.tryParse('${v ?? 0}') ?? 0;
+    int parse(dynamic v) => v is int ? v : int.tryParse('${v ?? 0}') ?? 0;
     return TrustBreakdown(
       tradesCompleted: parse(json['tradesCompleted']),
       completedTransfers: parse(json['completedTransfers']),
@@ -325,8 +329,8 @@ class ChatTrustMetrics {
       rating: ratingRaw == null
           ? null
           : (ratingRaw is num
-              ? ratingRaw.toDouble()
-              : double.tryParse(ratingRaw.toString())),
+                ? ratingRaw.toDouble()
+                : double.tryParse(ratingRaw.toString())),
       positiveReviews: json['positiveReviews'] is int
           ? json['positiveReviews']
           : int.tryParse('${json['positiveReviews'] ?? 0}') ?? 0,
@@ -363,7 +367,8 @@ class ChatProfileService {
       throw _exception(res.statusCode, body, 'Profile fetch failed');
     }
     return ChatProfileResponse.fromJson(
-        body['profile'] as Map<String, dynamic>);
+      body['profile'] as Map<String, dynamic>,
+    );
   }
 
   /// Set the caller's local nickname for this friend. Pass null or an empty
@@ -390,8 +395,10 @@ class ChatProfileService {
       if (type != null) 'type': type.toUpperCase(),
     };
     final query = params.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
     final res = await apiClient.get('/friends/$friendshipId/media?$query');
     final body = jsonDecode(res.body);
@@ -412,8 +419,9 @@ class ChatProfileService {
     String friendshipId, {
     int limit = 50,
   }) async {
-    final res =
-        await apiClient.get('/friends/$friendshipId/docs-links?limit=$limit');
+    final res = await apiClient.get(
+      '/friends/$friendshipId/docs-links?limit=$limit',
+    );
     final body = jsonDecode(res.body);
     if (res.statusCode != 200) {
       throw _exception(res.statusCode, body, 'Docs/links fetch failed');
@@ -440,8 +448,10 @@ class ChatProfileService {
       if (cursor != null) 'cursor': cursor,
     };
     final query = params.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
     final res = await apiClient.get('/friends/$friendshipId/receipts?$query');
     final body = jsonDecode(res.body);
@@ -461,7 +471,10 @@ class ChatProfileService {
   }
 
   ChatProfileServiceException _exception(
-      int code, Map<String, dynamic> body, String fallback) {
+    int code,
+    Map<String, dynamic> body,
+    String fallback,
+  ) {
     return ChatProfileServiceException(
       statusCode: code,
       message: body['message']?.toString() ?? fallback,
@@ -472,8 +485,7 @@ class ChatProfileService {
   /// Cheaper than [getProfile] — skips mutual-trade aggregation and
   /// nickname resolution. Used by the persistent header subtitle.
   Future<ChatTrustMetrics> getTrustMetrics(String friendshipId) async {
-    final res =
-        await apiClient.get('/friends/$friendshipId/trust-metrics');
+    final res = await apiClient.get('/friends/$friendshipId/trust-metrics');
     final body = jsonDecode(res.body);
     if (res.statusCode != 200 || body['metrics'] == null) {
       throw _exception(res.statusCode, body, 'Trust metrics fetch failed');

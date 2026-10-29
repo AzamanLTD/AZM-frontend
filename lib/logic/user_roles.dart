@@ -1,5 +1,1 @@
-enum UserRole {
-  customer,
-  vendor,
-  admin,
-}
+enum UserRole { customer, vendor, admin }

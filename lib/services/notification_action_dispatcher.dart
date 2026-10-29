@@ -45,8 +45,12 @@ class NotificationAction {
   final String? actionName;
   final Map<String, dynamic>? payload;
 
-  const NotificationAction._(this.resolution, this.route,
-      [this.actionName, this.payload]);
+  const NotificationAction._(
+    this.resolution,
+    this.route, [
+    this.actionName,
+    this.payload,
+  ]);
 
   const NotificationAction.navigable(String route)
     : this._(NotificationActionResolution.navigable, route);
@@ -60,8 +64,7 @@ class NotificationAction {
   const NotificationAction.delegated(
     String actionName,
     Map<String, dynamic>? payload,
-  ) : this._(NotificationActionResolution.delegated, null, actionName,
-       payload);
+  ) : this._(NotificationActionResolution.delegated, null, actionName, payload);
 }
 
 abstract final class NotificationActionDispatcher {
@@ -179,7 +182,7 @@ abstract final class NotificationActionDispatcher {
           orderRef == null || orderRef.isEmpty
               ? '/orders/$orderId/tracking'
               : '/orders/$orderId/tracking'
-                  '?orderRef=${Uri.encodeQueryComponent(orderRef)}',
+                    '?orderRef=${Uri.encodeQueryComponent(orderRef)}',
         );
 
       // ── KYC proof of residency (restored 4.2) ──────────────────────────
@@ -246,17 +249,53 @@ abstract final class NotificationActionDispatcher {
   /// are exactly the paths `lib/router/` registers at the root — a
   /// payload `route` outside this set never navigates.
   static const Set<String> _knownTopLevelRoutes = {
-    '/account', '/azm-auction', '/biz', '/business', '/business-market',
-    '/card-transfer', '/chat', '/close-friends', '/convert', '/deposit',
-    '/discover', '/dispute', '/friends', '/leaderboard', '/loyalty-cards',
-    '/marketplace', '/messages', '/my-orders',
-    '/notification-preferences', '/notifications', '/orders',
-    '/payment-requests', '/profile', '/proof-of-residency', '/queue',
-    '/receive', '/referral', '/request', '/round-up', '/savings',
-    '/search', '/send', '/settings', '/spending-insights', '/storefront',
-    '/story-analytics', '/story-camera', '/story-create', '/story-editor',
-    '/story-highlights', '/susu', '/trade', '/transactions', '/vault',
-    '/wallet-pass', '/withdraw', '/worker',
+    '/account',
+    '/azm-auction',
+    '/biz',
+    '/business',
+    '/business-market',
+    '/card-transfer',
+    '/chat',
+    '/close-friends',
+    '/convert',
+    '/deposit',
+    '/discover',
+    '/dispute',
+    '/friends',
+    '/leaderboard',
+    '/loyalty-cards',
+    '/marketplace',
+    '/messages',
+    '/my-orders',
+    '/notification-preferences',
+    '/notifications',
+    '/orders',
+    '/payment-requests',
+    '/profile',
+    '/proof-of-residency',
+    '/queue',
+    '/receive',
+    '/referral',
+    '/request',
+    '/round-up',
+    '/savings',
+    '/search',
+    '/send',
+    '/settings',
+    '/spending-insights',
+    '/storefront',
+    '/story-analytics',
+    '/story-camera',
+    '/story-create',
+    '/story-editor',
+    '/story-highlights',
+    '/susu',
+    '/trade',
+    '/transactions',
+    '/vault',
+    '/wallet-pass',
+    '/withdraw',
+    '/worker',
   };
 
   /// True when [route] is a route the app registers at the top level —

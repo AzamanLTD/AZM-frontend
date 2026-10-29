@@ -13,8 +13,9 @@ void main() {
     expect(AzIdentityTag.user(3), isNot(AzIdentityTag.story(3)));
   });
 
-  testWidgets('wraps the child in a Hero when travel is allowed',
-      (tester) async {
+  testWidgets('wraps the child in a Hero when travel is allowed', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -31,8 +32,9 @@ void main() {
     expect(find.byType(FlutterLogo), findsOneWidget);
   });
 
-  testWidgets('skips the Hero under reduced motion (plain cut)',
-      (tester) async {
+  testWidgets('skips the Hero under reduced motion (plain cut)', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(

@@ -13,13 +13,13 @@ import 'azaman_sheet.dart';
 
 /// Pre-defined timer options (seconds, label, icon)
 const List<({int seconds, String label, IconData icon})> _kDisappearOptions = [
-  (seconds: 0,       label: 'Off',           icon: Icons.timer_off_outlined),
-  (seconds: 30,      label: '30 seconds',    icon: Icons.timer_outlined),
-  (seconds: 60,      label: '1 minute',      icon: Icons.timer_outlined),
-  (seconds: 300,     label: '5 minutes',    icon: Icons.timer_outlined),
-  (seconds: 3600,    label: '1 hour',        icon: Icons.hourglass_top_outlined),
-  (seconds: 86400,   label: '24 hours',      icon: Icons.today_outlined),
-  (seconds: 604800,  label: '7 days',        icon: Icons.date_range_outlined),
+  (seconds: 0, label: 'Off', icon: Icons.timer_off_outlined),
+  (seconds: 30, label: '30 seconds', icon: Icons.timer_outlined),
+  (seconds: 60, label: '1 minute', icon: Icons.timer_outlined),
+  (seconds: 300, label: '5 minutes', icon: Icons.timer_outlined),
+  (seconds: 3600, label: '1 hour', icon: Icons.hourglass_top_outlined),
+  (seconds: 86400, label: '24 hours', icon: Icons.today_outlined),
+  (seconds: 604800, label: '7 days', icon: Icons.date_range_outlined),
 ];
 
 /// Show the disappearing message timer sheet.
@@ -39,8 +39,9 @@ void showDisappearTimerSheet(BuildContext context, ChatContextParams params) {
       builder: (ctx, ref, _) {
         final theme = Theme.of(ctx);
         final cs = theme.colorScheme;
-        final currentTimer =
-            ref.watch(premiumChatProvider(params)).disappearAfterSeconds;
+        final currentTimer = ref
+            .watch(premiumChatProvider(params))
+            .disappearAfterSeconds;
 
         return SingleChildScrollView(
           controller: scrollController,
@@ -50,27 +51,32 @@ void showDisappearTimerSheet(BuildContext context, ChatContextParams params) {
             children: [
               // Title row
               Padding(
-                padding:
-                    const EdgeInsets.only(left: 24, right: 24, bottom: 4),
+                padding: const EdgeInsets.only(left: 24, right: 24, bottom: 4),
                 child: Row(
                   children: [
                     Icon(Icons.timer_outlined, size: 22, color: cs.primary),
                     const SizedBox(width: 8),
-                    Text('Disappearing Messages',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600)),
+                    Text(
+                      'Disappearing Messages',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
                 ),
               ),
               // Description
               Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 24, vertical: 4),
+                  horizontal: 24,
+                  vertical: 4,
+                ),
                 child: Text(
                   'New messages sent in this chat will disappear after the '
                   'selected time. The timer starts when the message is sent.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant),
+                    color: cs.onSurfaceVariant,
+                  ),
                 ),
               ),
               const Divider(height: 24),
@@ -78,11 +84,11 @@ void showDisappearTimerSheet(BuildContext context, ChatContextParams params) {
               ..._kDisappearOptions.map((opt) {
                 final isSelected = (currentTimer ?? 0) == opt.seconds;
                 return ListTile(
-                  leading: Icon(opt.icon,
-                      size: 22,
-                      color: isSelected
-                          ? cs.primary
-                          : cs.onSurfaceVariant),
+                  leading: Icon(
+                    opt.icon,
+                    size: 22,
+                    color: isSelected ? cs.primary : cs.onSurfaceVariant,
+                  ),
                   title: Text(opt.label),
                   trailing: isSelected
                       ? Icon(Icons.check_circle, size: 22, color: cs.primary)
@@ -91,7 +97,8 @@ void showDisappearTimerSheet(BuildContext context, ChatContextParams params) {
                     ref
                         .read(premiumChatProvider(params).notifier)
                         .setDisappearTimer(
-                            opt.seconds == 0 ? null : opt.seconds);
+                          opt.seconds == 0 ? null : opt.seconds,
+                        );
                     Navigator.of(ctx).pop();
                   },
                 );

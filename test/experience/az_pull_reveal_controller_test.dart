@@ -4,10 +4,8 @@ import 'package:azaman/experience/motion/az_pull_reveal_controller.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 
 void main() {
-  AzPullRevealController make() => AzPullRevealController(
-        vsync: const TestVSync(),
-        maxExtentPx: 200,
-      );
+  AzPullRevealController make() =>
+      AzPullRevealController(vsync: const TestVSync(), maxExtentPx: 200);
 
   test('starts closed at extent 0', () {
     final c = make();
@@ -30,22 +28,24 @@ void main() {
     c.dispose();
   });
 
-  test('dragEnd below commit fraction closes; above opens (reduced motion)',
-      () {
-    final c = make();
-    c.dragStart();
-    c.dragUpdate(60); // 0.30 < 0.40
-    c.dragEnd(0, travel: false);
-    expect(c.state, AzRevealState.closed);
-    expect(c.extent, 0);
+  test(
+    'dragEnd below commit fraction closes; above opens (reduced motion)',
+    () {
+      final c = make();
+      c.dragStart();
+      c.dragUpdate(60); // 0.30 < 0.40
+      c.dragEnd(0, travel: false);
+      expect(c.state, AzRevealState.closed);
+      expect(c.extent, 0);
 
-    c.dragStart();
-    c.dragUpdate(100); // 0.50 >= 0.40
-    c.dragEnd(0, travel: false);
-    expect(c.state, AzRevealState.open);
-    expect(c.extent, 1);
-    c.dispose();
-  });
+      c.dragStart();
+      c.dragUpdate(100); // 0.50 >= 0.40
+      c.dragEnd(0, travel: false);
+      expect(c.state, AzRevealState.open);
+      expect(c.extent, 1);
+      c.dispose();
+    },
+  );
 
   test('fling velocity decides direction regardless of position', () {
     final c = make();
@@ -57,8 +57,9 @@ void main() {
     c.dispose();
   });
 
-  testWidgets('with travel the extent animates to the target over time',
-      (tester) async {
+  testWidgets('with travel the extent animates to the target over time', (
+    tester,
+  ) async {
     final c = AzPullRevealController(vsync: tester, maxExtentPx: 200);
     var notifications = 0;
     c.addListener(() => notifications++);

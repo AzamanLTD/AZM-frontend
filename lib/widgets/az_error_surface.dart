@@ -176,7 +176,9 @@ class _Action extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: primary ? (colors.isDark ? Colors.black : Colors.white) : colors.textSecondary,
+            color: primary
+                ? (colors.isDark ? Colors.black : Colors.white)
+                : colors.textSecondary,
             fontSize: 14,
             fontWeight: FontWeight.w700,
           ),

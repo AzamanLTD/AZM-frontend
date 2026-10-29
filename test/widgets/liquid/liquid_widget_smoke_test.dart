@@ -13,20 +13,32 @@ void main() {
   // segfault flutter_tester in headless mode. The full rendering is verified
   // via the APK build and unit tests for engine + placement.
 
-  testWidgets('LiquidDropdownMenu trigger renders with correct semantics', (tester) async {
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: LiquidDropdownMenu(
-            colors: _colors,
-            items: [
-              LiquidDropdownItem(icon: Icons.camera, label: 'Camera', onTap: () {}),
-              LiquidDropdownItem(icon: Icons.image, label: 'Gallery', onTap: () {}),
-            ],
+  testWidgets('LiquidDropdownMenu trigger renders with correct semantics', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: LiquidDropdownMenu(
+              colors: _colors,
+              items: [
+                LiquidDropdownItem(
+                  icon: Icons.camera,
+                  label: 'Camera',
+                  onTap: () {},
+                ),
+                LiquidDropdownItem(
+                  icon: Icons.image,
+                  label: 'Gallery',
+                  onTap: () {},
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ));
+    );
 
     expect(find.byIcon(Icons.add), findsOneWidget);
     expect(find.bySemanticsLabel('Attachments'), findsOneWidget);

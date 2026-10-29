@@ -247,23 +247,26 @@ void main() {
     expect(find.text('Everyday Bag added to cart'), findsNothing);
   });
 
-  testWidgets('a product without a price is uncommittable everywhere',
-      (tester) async {
+  testWidgets('a product without a price is uncommittable everywhere', (
+    tester,
+  ) async {
     final cart = _RecordingCartNotifier();
-    await tester.pumpWidget(buildWidget(
-      cart: cart,
-      products: [
-        {
-          'id': 'p1',
-          'name': 'Everyday Bag',
-          'currency': 'GHS',
-          // No price key: the server never sent one.
-          'variants': {
-            'Size': ['Small', 'Large'],
+    await tester.pumpWidget(
+      buildWidget(
+        cart: cart,
+        products: [
+          {
+            'id': 'p1',
+            'name': 'Everyday Bag',
+            'currency': 'GHS',
+            // No price key: the server never sent one.
+            'variants': {
+              'Size': ['Small', 'Large'],
+            },
           },
-        },
-      ],
-    ));
+        ],
+      ),
+    );
 
     // The lift gesture is fully disabled — dragging does nothing at all.
     await tester.drag(find.text('Everyday Bag'), const Offset(0, 184));
@@ -284,21 +287,24 @@ void main() {
     expect(find.text('Everyday Bag added to cart'), findsNothing);
   });
 
-  testWidgets('an unavailable product is uncommittable everywhere',
-      (tester) async {
+  testWidgets('an unavailable product is uncommittable everywhere', (
+    tester,
+  ) async {
     final cart = _RecordingCartNotifier();
-    await tester.pumpWidget(buildWidget(
-      cart: cart,
-      products: [
-        {
-          'id': 'p1',
-          'name': 'Everyday Bag',
-          'price': 25,
-          'currency': 'GHS',
-          'available': false,
-        },
-      ],
-    ));
+    await tester.pumpWidget(
+      buildWidget(
+        cart: cart,
+        products: [
+          {
+            'id': 'p1',
+            'name': 'Everyday Bag',
+            'price': 25,
+            'currency': 'GHS',
+            'available': false,
+          },
+        ],
+      ),
+    );
 
     await tester.drag(find.text('Everyday Bag'), const Offset(0, 184));
     await tester.pumpAndSettle();
@@ -311,8 +317,9 @@ void main() {
     expect(cart.addItemCalls, isEmpty);
   });
 
-  testWidgets('the shelf count never claims more than it shows',
-      (tester) async {
+  testWidgets('the shelf count never claims more than it shows', (
+    tester,
+  ) async {
     final cart = _RecordingCartNotifier();
     final products = [
       for (var i = 1; i <= 8; i++)
@@ -325,21 +332,24 @@ void main() {
     expect(find.text('8 items'), findsNothing);
   });
 
-  testWidgets('the unavailable presentation covers the whole card',
-      (tester) async {
+  testWidgets('the unavailable presentation covers the whole card', (
+    tester,
+  ) async {
     final cart = _RecordingCartNotifier();
-    await tester.pumpWidget(buildWidget(
-      cart: cart,
-      products: [
-        {
-          'id': 'p1',
-          'name': 'Everyday Bag',
-          'price': 25,
-          'currency': 'GHS',
-          'available': false,
-        },
-      ],
-    ));
+    await tester.pumpWidget(
+      buildWidget(
+        cart: cart,
+        products: [
+          {
+            'id': 'p1',
+            'name': 'Everyday Bag',
+            'price': 25,
+            'currency': 'GHS',
+            'available': false,
+          },
+        ],
+      ),
+    );
 
     // The image/fallback AND the title are desaturated/dimmed — the
     // state is a whole-card presentation, not an image-only one.

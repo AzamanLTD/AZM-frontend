@@ -5,7 +5,11 @@ class CustomHtmlWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const CustomHtmlWidget({super.key, required this.props, required this.business});
+  const CustomHtmlWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -19,8 +23,22 @@ class CustomHtmlWidget extends StatelessWidget {
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: html.isEmpty
-          ? Text('Custom HTML content will appear here', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.4)))
-          : Text(html, style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface)),
+          ? Text(
+              'Custom HTML content will appear here',
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            )
+          : Text(
+              html,
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
     );
   }
 }

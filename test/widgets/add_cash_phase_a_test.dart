@@ -70,7 +70,9 @@ final _twoWithPrimary = [
 
 Widget _app() {
   return ProviderScope(
-    overrides: [savedMomoProvider.overrideWith(() => _FakeSavedMomo(_twoWithPrimary))],
+    overrides: [
+      savedMomoProvider.overrideWith(() => _FakeSavedMomo(_twoWithPrimary)),
+    ],
     child: MaterialApp.router(routerConfig: _router()),
   );
 }
@@ -137,10 +139,16 @@ void main() {
       // glued to the 24px page margin and the amount glyph follows it —
       // both live in the left region. The pre-fix CENTERED instrument put
       // the symbol at ~left 110 and the glyph at ~left 200.
-      expect(symbolRect.left <= 30, isTrue,
-          reason: 'the amount row must start at the page margin');
-      expect(zeroRect.left < 140, isTrue,
-          reason: 'the amount must sit in the top-left region, not centered');
+      expect(
+        symbolRect.left <= 30,
+        isTrue,
+        reason: 'the amount row must start at the page margin',
+      );
+      expect(
+        zeroRect.left < 140,
+        isTrue,
+        reason: 'the amount must sit in the top-left region, not centered',
+      );
       // And it is genuinely at the TOP: below it come the method row,
       // pills, keypad and CTA — all with larger vertical positions.
       final methodRect = tester.getRect(find.text('Kwame Mensah'));
@@ -149,9 +157,13 @@ void main() {
       final ctaRect = tester.getRect(find.text('Add Cash').last);
 
       expect(zeroRect.bottom < methodRect.top, isTrue);
-      expect(methodRect.bottom < pillRect.top, isTrue,
-          reason: 'the method row must sit directly under the amount, '
-              'above the quick amounts');
+      expect(
+        methodRect.bottom < pillRect.top,
+        isTrue,
+        reason:
+            'the method row must sit directly under the amount, '
+            'above the quick amounts',
+      );
       expect(pillRect.bottom < keypadRect.top, isTrue);
       expect(keypadRect.bottom < ctaRect.top, isTrue);
     });
@@ -169,8 +181,9 @@ void main() {
       expect(method.top < keypad.top - 100, isTrue);
     });
 
-    testWidgets('the selected-method row is a filled surface with NO border',
-        (tester) async {
+    testWidgets('the selected-method row is a filled surface with NO border', (
+      tester,
+    ) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openDeposit(tester);
@@ -189,8 +202,11 @@ void main() {
             c.decoration is BoxDecoration &&
             (c.decoration as BoxDecoration).border != null,
       );
-      expect(bordered, isEmpty,
-          reason: 'the method row must be borderless (fill only)');
+      expect(
+        bordered,
+        isEmpty,
+        reason: 'the method row must be borderless (fill only)',
+      );
     });
 
     testWidgets('no overflow on a narrow 360dp viewport', (tester) async {
@@ -259,8 +275,9 @@ void main() {
       );
     });
 
-    testWidgets('the selector is a bottom sheet with the 28dp top radius',
-        (tester) async {
+    testWidgets('the selector is a bottom sheet with the 28dp top radius', (
+      tester,
+    ) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openDeposit(tester);
@@ -282,7 +299,10 @@ void main() {
           .toList();
       expect(barriers, isNotEmpty);
       for (final barrier in barriers) {
-        expect((barrier.color!.a * 255.0).round(), closeTo(153, 2)); // 0.6 × 255
+        expect(
+          (barrier.color!.a * 255.0).round(),
+          closeTo(153, 2),
+        ); // 0.6 × 255
       }
     });
 

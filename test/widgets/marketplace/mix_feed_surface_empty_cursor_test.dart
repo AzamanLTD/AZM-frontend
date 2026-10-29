@@ -72,15 +72,17 @@ Future<void> _pumpSurface(WidgetTester tester, _FakeGateway gateway) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [marketplaceMixGatewayProvider.overrideWithValue(gateway)],
-      child: const MaterialApp(home: Scaffold(body: MixFeedSurface(onOpenStore: _noop, bottomPadding: 0))),
+      child: const MaterialApp(
+        home: Scaffold(
+          body: MixFeedSurface(onOpenStore: _noop, bottomPadding: 0),
+        ),
+      ),
     ),
   );
   // The initial load is the HOST screen's job (screen entry calls load());
   // this test drives the real notifier through the widget's scope.
   final ctx = tester.element(find.byType(MixFeedSurface));
-  ProviderScope.containerOf(ctx)
-      .read(marketplaceMixProvider.notifier)
-      .load();
+  ProviderScope.containerOf(ctx).read(marketplaceMixProvider.notifier).load();
   // pumpAndSettle never returns for this surface (decorative animations run
   // continuously), so pump explicit bounded frames instead — enough for the
   // full first-page walk to resolve.
@@ -102,7 +104,11 @@ void main() {
       });
       await _pumpSurface(tester, g);
 
-      expect(g.calls, 2, reason: 'the initial page plus exactly one bounded follow-up');
+      expect(
+        g.calls,
+        2,
+        reason: 'the initial page plus exactly one bounded follow-up',
+      );
       expect(find.byKey(const ValueKey('mix_feed')), findsOneWidget);
       expect(find.byKey(const ValueKey('mix_empty')), findsNothing);
       expect(find.byKey(const ValueKey('mix_empty_continue')), findsNothing);
@@ -244,9 +250,9 @@ void main() {
       // (Fire-and-forget like the harness load(): the fake-async gateway
       // future only advances while frames pump.)
       final ctx = tester.element(find.byType(MixFeedSurface));
-      ProviderScope.containerOf(ctx)
-          .read(marketplaceMixProvider.notifier)
-          .loadMore();
+      ProviderScope.containerOf(
+        ctx,
+      ).read(marketplaceMixProvider.notifier).loadMore();
       for (var i = 0; i < 30; i++) {
         await tester.pump(const Duration(milliseconds: 16));
       }

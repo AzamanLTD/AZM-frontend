@@ -12,13 +12,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/experience/gateways/az_gateway_result.dart';
 
-enum ServiceFlowStage { request, slot, location, estimate, confirm, live, complete }
+enum ServiceFlowStage {
+  request,
+  slot,
+  location,
+  estimate,
+  confirm,
+  live,
+  complete,
+}
 
 class ServiceSlot {
   final DateTime start;
   final DateTime end;
   final bool available;
-  const ServiceSlot({required this.start, required this.end, required this.available});
+  const ServiceSlot({
+    required this.start,
+    required this.end,
+    required this.available,
+  });
 }
 
 class ServiceEstimate {
@@ -58,29 +70,33 @@ abstract interface class ServiceFlowGateway {
 class UnsupportedServiceFlowGateway implements ServiceFlowGateway {
   const UnsupportedServiceFlowGateway();
 
-  static const _reason = 'Service flows are not available for this business yet.';
+  static const _reason =
+      'Service flows are not available for this business yet.';
 
   @override
   Set<ServiceFlowStage> get supportedStages => const {};
 
   @override
-  Future<AzGatewayResult<List<ServiceSlot>>> slots(String bizId, DateTime day) async =>
-      const AzUnsupported(_reason);
+  Future<AzGatewayResult<List<ServiceSlot>>> slots(
+    String bizId,
+    DateTime day,
+  ) async => const AzUnsupported(_reason);
 
   @override
-  Future<AzGatewayResult<ServiceEstimate>> estimate(ServiceRequestDraft draft) async =>
-      const AzUnsupported(_reason);
+  Future<AzGatewayResult<ServiceEstimate>> estimate(
+    ServiceRequestDraft draft,
+  ) async => const AzUnsupported(_reason);
 
   @override
   Future<AzGatewayResult<String>> confirm(
     ServiceRequestDraft draft, {
     required String idempotencyKey,
-  }) async =>
-      const AzUnsupported(_reason);
+  }) async => const AzUnsupported(_reason);
 
   @override
   Stream<ServiceFlowStage> liveStatus(String requestId) => const Stream.empty();
 }
 
-final serviceFlowGatewayProvider =
-    Provider<ServiceFlowGateway>((_) => const UnsupportedServiceFlowGateway());
+final serviceFlowGatewayProvider = Provider<ServiceFlowGateway>(
+  (_) => const UnsupportedServiceFlowGateway(),
+);

@@ -17,7 +17,11 @@ void main() {
       expect(ad['pricePerUSD'], isNotNull, reason: 'Ad missing pricePerUSD');
       expect(ad['minLimit'], isNotNull, reason: 'Ad missing minLimit');
       expect(ad['maxLimit'], isNotNull, reason: 'Ad missing maxLimit');
-      expect(ad['paymentMethod'], isNotNull, reason: 'Ad missing paymentMethod');
+      expect(
+        ad['paymentMethod'],
+        isNotNull,
+        reason: 'Ad missing paymentMethod',
+      );
       expect(ad['status'], isNotNull, reason: 'Ad missing status');
     }
 

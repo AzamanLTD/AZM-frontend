@@ -131,7 +131,9 @@ class TradeAccountNotifier extends StateNotifier<TradeAccountState> {
       // Optimistic: remove from lists immediately
       state = state.copyWith(
         accounts: state.accounts.where((a) => a.id != id).toList(),
-        approvedAccounts: state.approvedAccounts.where((a) => a.id != id).toList(),
+        approvedAccounts: state.approvedAccounts
+            .where((a) => a.id != id)
+            .toList(),
       );
       return true;
     } catch (e) {
@@ -148,5 +150,5 @@ class TradeAccountNotifier extends StateNotifier<TradeAccountState> {
 
 final tradeAccountProvider =
     StateNotifierProvider<TradeAccountNotifier, TradeAccountState>(
-  (ref) => TradeAccountNotifier(),
-);
+      (ref) => TradeAccountNotifier(),
+    );

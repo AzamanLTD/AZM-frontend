@@ -53,8 +53,9 @@ Future<void> _loadFonts() async {
       Future<ByteData>.value(ByteData.view(Uint8List.fromList(inter).buffer)),
     );
   await interLoader.load();
-  final regular =
-      await File('assets/fonts/ComicNeue-Regular.ttf').readAsBytes();
+  final regular = await File(
+    'assets/fonts/ComicNeue-Regular.ttf',
+  ).readAsBytes();
   final bold = await File('assets/fonts/ComicNeue-Bold.ttf').readAsBytes();
   final comicLoader = FontLoader('ComicNeue')
     ..addFont(
@@ -150,10 +151,7 @@ Future<ProviderContainer> _pumpHome(
           data: MediaQueryData(size: _surfaceSize),
           child: Scaffold(
             backgroundColor: Colors.transparent,
-            body: RepaintBoundary(
-              key: _rootKey,
-              child: AzamanHomePage(),
-            ),
+            body: RepaintBoundary(key: _rootKey, child: AzamanHomePage()),
           ),
         ),
       ),
@@ -187,8 +185,9 @@ Future<void> _settle(WidgetTester tester, {int rounds = 3}) async {
 Future<void> _capture(WidgetTester tester, String name) async {
   var ok = false;
   await tester.runAsync(() async {
-    final boundary =
-        tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(_rootKey),
+    );
     final image = await boundary.toImage(pixelRatio: 2.0);
     final data = (await image.toByteData(format: ImageByteFormat.png))!;
     final dir = Directory('.screenshots')..createSync(recursive: true);
@@ -203,8 +202,9 @@ WalletDeckState _deckState(WidgetTester tester) =>
     tester.state<WalletCardDeckState>(find.byType(WalletCardDeck)).state;
 
 void main() {
-  testWidgets('dark mode: tucked → balance-out → visa-out captures',
-      (tester) async {
+  testWidgets('dark mode: tucked → balance-out → visa-out captures', (
+    tester,
+  ) async {
     await _pumpHome(tester, theme: AzamanTheme.dark);
 
     // 1. TUCKED — both cards in the pouch, both headers exposed.
@@ -220,8 +220,11 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Reveal balance card').first);
     await _settle(tester, rounds: 5);
     expect(_deckState(tester), WalletDeckState.balanceOut);
-    expect(find.text('AVAILABLE BALANCE'), findsOneWidget,
-        reason: 'the header is the card\'s own — one widget in both states');
+    expect(
+      find.text('AVAILABLE BALANCE'),
+      findsOneWidget,
+      reason: 'the header is the card\'s own — one widget in both states',
+    );
     await _capture(tester, 'dark_balance_out');
 
     // Return to tucked, then open the Visa card.
@@ -239,10 +242,12 @@ void main() {
 
     // Geometry proof inside the capture: the concealed balance card's
     // bottom sits at or above the deck window's floor.
-    final windowBottom =
-        tester.getBottomLeft(find.byKey(const ValueKey('wallet-deck-window'))).dy;
-    final balanceBottom =
-        tester.getBottomLeft(find.byKey(const ValueKey('wallet-deck-balance-slot'))).dy;
+    final windowBottom = tester
+        .getBottomLeft(find.byKey(const ValueKey('wallet-deck-window')))
+        .dy;
+    final balanceBottom = tester
+        .getBottomLeft(find.byKey(const ValueKey('wallet-deck-balance-slot')))
+        .dy;
     expect(balanceBottom, lessThanOrEqualTo(windowBottom + 0.5));
     await _capture(tester, 'dark_visa_out');
   });

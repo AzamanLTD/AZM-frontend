@@ -40,36 +40,48 @@ class _FakeApiClient extends ApiClient {
   final List<String> calls = <String>[];
 
   /// Canned handlers, installable per test.
-  Future<http.Response> Function(String endpoint) onGet =
-      (_) async => http.Response('{"success": true, "total": 0, "bookmarks": []}', 200);
-  Future<http.Response> Function(String endpoint, Map<String, dynamic> body) onPost =
-      (_, __) async => http.Response(
-          '{"success": true, "state": "BOOKMARKED", "alreadyBookmarked": false,'
-          ' "bookmark": {"businessProfileId": "u1", "savedAt": "2026-10-25T10:00:00Z"}}',
-          201);
-  Future<http.Response> Function(String endpoint) onDelete =
-      (_) async => http.Response(
-          '{"success": true, "state": "NOT_BOOKMARKED", "removed": true}', 200);
+  Future<http.Response> Function(String endpoint) onGet = (_) async =>
+      http.Response('{"success": true, "total": 0, "bookmarks": []}', 200);
+  Future<http.Response> Function(String endpoint, Map<String, dynamic> body)
+  onPost = (_, __) async => http.Response(
+    '{"success": true, "state": "BOOKMARKED", "alreadyBookmarked": false,'
+    ' "bookmark": {"businessProfileId": "u1", "savedAt": "2026-10-25T10:00:00Z"}}',
+    201,
+  );
+  Future<http.Response> Function(String endpoint) onDelete = (_) async =>
+      http.Response(
+        '{"success": true, "state": "NOT_BOOKMARKED", "removed": true}',
+        200,
+      );
 
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) {
     calls.add('GET $endpoint');
     return onGet(endpoint);
   }
 
   @override
-  Future<http.Response> post(String endpoint, Map<String, dynamic> body,
-      {Map<String, String>? headers,
-      bool requireAuth = true,
-      String? idempotencyKey}) {
+  Future<http.Response> post(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+    String? idempotencyKey,
+  }) {
     calls.add('POST $endpoint');
     return onPost(endpoint, body);
   }
 
   @override
-  Future<http.Response> delete(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) {
+  Future<http.Response> delete(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) {
     calls.add('DELETE $endpoint');
     return onDelete(endpoint);
   }
@@ -83,14 +95,14 @@ String _pageJson(List<Map<String, dynamic>> items, {int? total}) =>
     });
 
 Map<String, dynamic> _dto(String id, {String? name}) => {
-      'businessProfileId': id,
-      'businessName': name ?? 'Business $id',
-      'logoUrl': null,
-      'category': 'RESTAURANT',
-      'isVerified': true,
-      'averageRating': 4.5,
-      'savedAt': '2026-10-2${id.length}T10:00:00Z',
-    };
+  'businessProfileId': id,
+  'businessName': name ?? 'Business $id',
+  'logoUrl': null,
+  'category': 'RESTAURANT',
+  'isVerified': true,
+  'averageRating': 4.5,
+  'savedAt': '2026-10-2${id.length}T10:00:00Z',
+};
 
 // ── Harness ─────────────────────────────────────────────────────────────────
 
@@ -101,14 +113,13 @@ class _Harness {
 
   _Harness() {
     // A notifier seeded via a canned GET — autoHydrate rides the fake.
-    container = ProviderContainer(overrides: [
-      apiClientProvider.overrideWithValue(api),
-    ]);
+    container = ProviderContainer(
+      overrides: [apiClientProvider.overrideWithValue(api)],
+    );
     notifier = container.read(serverBookmarksProvider.notifier);
   }
 
-  Set<String> get ids =>
-      container.read(serverBookmarkIdsProvider);
+  Set<String> get ids => container.read(serverBookmarkIdsProvider);
 
   void dispose() => container.dispose();
 }
@@ -119,117 +130,166 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('hydrate — GET /api/bookmarks', () {
-    test('parses the BookmarkPage shape; newest first is the server order',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      h.api.onGet = (_) async =>
-          http.Response(_pageJson([_dto('u1'), _dto('u2', name: 'Second')], total: 2), 200);
+    test(
+      'parses the BookmarkPage shape; newest first is the server order',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        h.api.onGet = (_) async => http.Response(
+          _pageJson([_dto('u1'), _dto('u2', name: 'Second')], total: 2),
+          200,
+        );
 
-      await h.notifier.hydrate();
+        await h.notifier.hydrate();
 
-      final state = h.container.read(serverBookmarksProvider);
-      expect(state.loaded, isTrue);
-      expect(state.error, isNull);
-      expect(
-          state.bookmarks.map((b) => b.businessProfileId), ['u1', 'u2']);
-      expect(state.bookmarks.first.businessName, 'Business u1');
-      expect(h.ids, {'u1', 'u2'});
-    });
+        final state = h.container.read(serverBookmarksProvider);
+        expect(state.loaded, isTrue);
+        expect(state.error, isNull);
+        expect(state.bookmarks.map((b) => b.businessProfileId), ['u1', 'u2']);
+        expect(state.bookmarks.first.businessName, 'Business u1');
+        expect(h.ids, {'u1', 'u2'});
+      },
+    );
 
-    test('hydrate failure KEEPS the last known list and records an honest error',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      h.api.onGet = (_) async => http.Response(_pageJson([_dto('u1')]), 200);
-      await h.notifier.hydrate();
-      expect(h.ids, {'u1'});
+    test(
+      'hydrate failure KEEPS the last known list and records an honest error',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        h.api.onGet = (_) async => http.Response(_pageJson([_dto('u1')]), 200);
+        await h.notifier.hydrate();
+        expect(h.ids, {'u1'});
 
-      // Now the network dies mid-refresh.
-      h.api.onGet = (_) async => throw const SocketException('offline');
-      await h.notifier.hydrate();
+        // Now the network dies mid-refresh.
+        h.api.onGet = (_) async => throw const SocketException('offline');
+        await h.notifier.hydrate();
 
-      final state = h.container.read(serverBookmarksProvider);
-      expect(state.error, isNotNull,
-          reason: 'the failure must be surfaced, never swallowed');
-      expect(state.loaded, isTrue,
-          reason: 'a failed refresh does not un-load the screen');
-      expect(h.ids, {'u1'},
-          reason: 'a failed load NEVER silently clears the bookmark list');
-    });
+        final state = h.container.read(serverBookmarksProvider);
+        expect(
+          state.error,
+          isNotNull,
+          reason: 'the failure must be surfaced, never swallowed',
+        );
+        expect(
+          state.loaded,
+          isTrue,
+          reason: 'a failed refresh does not un-load the screen',
+        );
+        expect(h.ids, {
+          'u1',
+        }, reason: 'a failed load NEVER silently clears the bookmark list');
+      },
+    );
 
-    test('a successful hydrate replaces optimistic placeholders with server truth',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      // Save lands with a placeholder row...
-      await h.notifier.save('u1');
-      expect(h.container.read(serverBookmarksProvider).bookmarks.single.businessName, '');
+    test(
+      'a successful hydrate replaces optimistic placeholders with server truth',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        // Save lands with a placeholder row...
+        await h.notifier.save('u1');
+        expect(
+          h.container
+              .read(serverBookmarksProvider)
+              .bookmarks
+              .single
+              .businessName,
+          '',
+        );
 
-      // ...then hydrate replaces it with the durable row.
-      h.api.onGet = (_) async => http.Response(_pageJson([_dto('u1')]), 200);
-      await h.notifier.hydrate();
-      expect(h.container.read(serverBookmarksProvider).bookmarks.single.businessName,
-          'Business u1');
-    });
+        // ...then hydrate replaces it with the durable row.
+        h.api.onGet = (_) async => http.Response(_pageJson([_dto('u1')]), 200);
+        await h.notifier.hydrate();
+        expect(
+          h.container
+              .read(serverBookmarksProvider)
+              .bookmarks
+              .single
+              .businessName,
+          'Business u1',
+        );
+      },
+    );
   });
 
   group('save — POST /api/bookmarks', () {
-    test('201 — optimistic placeholder confirmed durable, returns true',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
+    test(
+      '201 — optimistic placeholder confirmed durable, returns true',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
 
-      final pending = h.notifier.save('u1');
-      await _drain();
-      // Optimistic membership is visible BEFORE the response resolves.
-      expect(h.ids, contains('u1'));
+        final pending = h.notifier.save('u1');
+        await _drain();
+        // Optimistic membership is visible BEFORE the response resolves.
+        expect(h.ids, contains('u1'));
 
-      expect(await pending, isTrue);
-      expect(h.api.calls, contains('POST /bookmarks'));
-      expect(h.container.read(serverBookmarksProvider).error, isNull);
-    });
+        expect(await pending, isTrue);
+        expect(h.api.calls, contains('POST /bookmarks'));
+        expect(h.container.read(serverBookmarksProvider).error, isNull);
+      },
+    );
 
-    test('200 alreadyBookmarked (idempotent repeat) converges to BOOKMARKED',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      h.api.onPost = (endpoint, body) async => http.Response(
+    test(
+      '200 alreadyBookmarked (idempotent repeat) converges to BOOKMARKED',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        h.api.onPost = (endpoint, body) async => http.Response(
           '{"success": true, "state": "BOOKMARKED", "alreadyBookmarked": true,'
           ' "bookmark": {"businessProfileId": "u1", "savedAt": "2026-10-25T10:00:00Z"}}',
-          200);
+          200,
+        );
 
-      final ok = await h.notifier.save('u1');
+        final ok = await h.notifier.save('u1');
 
-      expect(ok, isTrue,
-          reason: 'alreadyBookmarked is a durable end state, not an error');
-    });
+        expect(
+          ok,
+          isTrue,
+          reason: 'alreadyBookmarked is a durable end state, not an error',
+        );
+      },
+    );
 
-    test('404 — wrong business id: EXACT rollback, never simulated, never retried',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      h.api.onGet = (_) async =>
-          http.Response(_pageJson([_dto('u1'), _dto('u2')]), 200);
-      await h.notifier.hydrate();
-      final before = h.container.read(serverBookmarksProvider).bookmarks;
+    test(
+      '404 — wrong business id: EXACT rollback, never simulated, never retried',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        h.api.onGet = (_) async =>
+            http.Response(_pageJson([_dto('u1'), _dto('u2')]), 200);
+        await h.notifier.hydrate();
+        final before = h.container.read(serverBookmarksProvider).bookmarks;
 
-      h.api.onPost = (endpoint, body) async =>
-          http.Response('{"success": false, "message": "Business not found."}', 404);
-      final ok = await h.notifier.save('u9');
+        h.api.onPost = (endpoint, body) async => http.Response(
+          '{"success": false, "message": "Business not found."}',
+          404,
+        );
+        final ok = await h.notifier.save('u9');
 
-      expect(ok, isFalse, reason: 'the contract forbids simulating a 404 save');
-      expect(
-          h.container.read(serverBookmarksProvider).bookmarks, before,
-          reason: 'rollback restores the exact snapshot');
-      expect(h.api.calls.where((c) => c == 'POST /bookmarks').length, 1,
-          reason: 'a 404 must NOT be retried');
-    });
+        expect(
+          ok,
+          isFalse,
+          reason: 'the contract forbids simulating a 404 save',
+        );
+        expect(
+          h.container.read(serverBookmarksProvider).bookmarks,
+          before,
+          reason: 'rollback restores the exact snapshot',
+        );
+        expect(
+          h.api.calls.where((c) => c == 'POST /bookmarks').length,
+          1,
+          reason: 'a 404 must NOT be retried',
+        );
+      },
+    );
 
     test('network failure — EXACT rollback, returns false', () async {
       final h = _Harness();
       addTearDown(h.dispose);
-      h.api.onPost = (endpoint, body) async => throw const SocketException('offline');
+      h.api.onPost = (endpoint, body) async =>
+          throw const SocketException('offline');
 
       final ok = await h.notifier.save('u1');
 
@@ -237,19 +297,24 @@ void main() {
       expect(h.ids, isEmpty, reason: 'offline must not leave a phantom save');
     });
 
-    test('a 2xx WITHOUT state BOOKMARKED is a contract violation → rollback',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      h.api.onPost = (endpoint, body) async =>
-          http.Response('{"success": true, "unexpected": true}', 200);
+    test(
+      'a 2xx WITHOUT state BOOKMARKED is a contract violation → rollback',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        h.api.onPost = (endpoint, body) async =>
+            http.Response('{"success": true, "unexpected": true}', 200);
 
-      final ok = await h.notifier.save('u1');
+        final ok = await h.notifier.save('u1');
 
-      expect(ok, isFalse,
-          reason: 'the client trusts `state`, never the status code alone');
-      expect(h.ids, isEmpty);
-    });
+        expect(
+          ok,
+          isFalse,
+          reason: 'the client trusts `state`, never the status code alone',
+        );
+        expect(h.ids, isEmpty);
+      },
+    );
   });
 
   group('remove — DELETE /api/bookmarks/:id', () {
@@ -265,20 +330,27 @@ void main() {
       expect(h.api.calls, contains('DELETE /bookmarks/u1'));
     });
 
-    test('200 removed:false (was not bookmarked) is STILL the durable end state',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      await h.notifier.save('u1');
-      h.api.onDelete = (_) async => http.Response(
-          '{"success": true, "state": "NOT_BOOKMARKED", "removed": false}', 200);
+    test(
+      '200 removed:false (was not bookmarked) is STILL the durable end state',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        await h.notifier.save('u1');
+        h.api.onDelete = (_) async => http.Response(
+          '{"success": true, "state": "NOT_BOOKMARKED", "removed": false}',
+          200,
+        );
 
-      final ok = await h.notifier.remove('u1');
+        final ok = await h.notifier.remove('u1');
 
-      expect(ok, isTrue,
-          reason: 'idempotent removal: the user wanted it gone; it is gone');
-      expect(h.ids, isEmpty);
-    });
+        expect(
+          ok,
+          isTrue,
+          reason: 'idempotent removal: the user wanted it gone; it is gone',
+        );
+        expect(h.ids, isEmpty);
+      },
+    );
 
     test('500 — EXACT rollback, returns false', () async {
       final h = _Harness();
@@ -317,11 +389,11 @@ void main() {
       expect(h.ids, {'u1', 'u2'});
 
       await h.notifier.remove('u1');
-      expect(h.ids, {'u2'},
-          reason: 'badge/toggle state and the list can never disagree');
+      expect(h.ids, {
+        'u2',
+      }, reason: 'badge/toggle state and the list can never disagree');
     });
   });
-
 
   // ==========================================================================
   // REVIEW 4.4 — ROLLBACK ATOMICITY: a failed save/remove must roll back
@@ -331,8 +403,7 @@ void main() {
   // id, or a fresh hydrate).
   // ==========================================================================
   group('rollback atomicity (review 4.4)', () {
-    test('a failed save cannot erase a concurrently saved different id',
-        () async {
+    test('a failed save cannot erase a concurrently saved different id', () async {
       final h = _Harness();
       addTearDown(h.dispose);
       h.api.onGet = (_) async =>
@@ -340,76 +411,97 @@ void main() {
       await h.notifier.hydrate();
 
       // Save 'x' will FAIL (500); save 'y' succeeds mid-flight.
-      h.api.onPost = (endpoint, body) async =>
-          body['businessProfileId'] == 'x'
-              ? http.Response('{"error": "boom"}', 500)
-              : http.Response(
-                  '{"success": true, "state": "BOOKMARKED", "alreadyBookmarked": false,'
-                  ' "bookmark": {"businessProfileId": "${body['businessProfileId']}", "savedAt": "2026-10-25T10:00:00Z"}}',
-                  201);
+      h.api.onPost = (endpoint, body) async => body['businessProfileId'] == 'x'
+          ? http.Response('{"error": "boom"}', 500)
+          : http.Response(
+              '{"success": true, "state": "BOOKMARKED", "alreadyBookmarked": false,'
+              ' "bookmark": {"businessProfileId": "${body['businessProfileId']}", "savedAt": "2026-10-25T10:00:00Z"}}',
+              201,
+            );
 
       final failed = h.notifier.save('x');
       final ok = await h.notifier.save('y');
       await Future.wait([Future.sync(() => failed), Future.value(true)]);
 
       expect(ok, isTrue);
-      expect(h.ids, isNot(contains('x')),
-          reason: 'the failed save rolls its own placeholder back');
-      expect(h.ids, containsAll(['y', 'u1', 'u2']),
-          reason: 'the concurrent SUCCESS and hydrated rows must survive');
+      expect(
+        h.ids,
+        isNot(contains('x')),
+        reason: 'the failed save rolls its own placeholder back',
+      );
+      expect(
+        h.ids,
+        containsAll(['y', 'u1', 'u2']),
+        reason: 'the concurrent SUCCESS and hydrated rows must survive',
+      );
     });
 
-    test('a failed remove cannot resurrect a concurrently removed row',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      h.api.onGet = (_) async =>
-          http.Response(_pageJson([_dto('u1'), _dto('u2')], total: 2), 200);
-      await h.notifier.hydrate();
-      expect(h.ids, containsAll(['u1', 'u2']));
+    test(
+      'a failed remove cannot resurrect a concurrently removed row',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        h.api.onGet = (_) async =>
+            http.Response(_pageJson([_dto('u1'), _dto('u2')], total: 2), 200);
+        await h.notifier.hydrate();
+        expect(h.ids, containsAll(['u1', 'u2']));
 
-      // Remove 'u1' will FAIL (503); remove 'u2' succeeds mid-flight.
-      h.api.onDelete = (endpoint) async => endpoint.contains('/u1')
-          ? http.Response('{"error": "nope"}', 503)
-          : http.Response(
-              '{"success": true, "state": "NOT_BOOKMARKED", "removed": true}',
-              200);
+        // Remove 'u1' will FAIL (503); remove 'u2' succeeds mid-flight.
+        h.api.onDelete = (endpoint) async => endpoint.contains('/u1')
+            ? http.Response('{"error": "nope"}', 503)
+            : http.Response(
+                '{"success": true, "state": "NOT_BOOKMARKED", "removed": true}',
+                200,
+              );
 
-      final failed = h.notifier.remove('u1');
-      final ok = await h.notifier.remove('u2');
-      await Future.wait([Future.sync(() => failed), Future.value(true)]);
+        final failed = h.notifier.remove('u1');
+        final ok = await h.notifier.remove('u2');
+        await Future.wait([Future.sync(() => failed), Future.value(true)]);
 
-      expect(ok, isTrue);
-      expect(h.ids, contains('u1'),
-          reason: 'the failed removal rolls its own row back');
-      expect(h.ids, isNot(contains('u2')),
-          reason: 'the concurrent SUCCESS must not be resurrected');
-    });
+        expect(ok, isTrue);
+        expect(
+          h.ids,
+          contains('u1'),
+          reason: 'the failed removal rolls its own row back',
+        );
+        expect(
+          h.ids,
+          isNot(contains('u2')),
+          reason: 'the concurrent SUCCESS must not be resurrected',
+        );
+      },
+    );
 
-    test('a failed remove keeps the row that was optimistically saved mid-flight',
-        () async {
-      final h = _Harness();
-      addTearDown(h.dispose);
-      h.api.onGet = (_) async =>
-          http.Response(_pageJson([_dto('u1'), _dto('u2')], total: 2), 200);
-      await h.notifier.hydrate();
+    test(
+      'a failed remove keeps the row that was optimistically saved mid-flight',
+      () async {
+        final h = _Harness();
+        addTearDown(h.dispose);
+        h.api.onGet = (_) async =>
+            http.Response(_pageJson([_dto('u1'), _dto('u2')], total: 2), 200);
+        await h.notifier.hydrate();
 
-      // Remove 'u1' will FAIL; while in flight, a save for a brand-new
-      // id lands successfully.
-      h.api.onDelete = (_) async => http.Response('{"error": "nope"}', 503);
-      h.api.onPost = (_, body) async => http.Response(
+        // Remove 'u1' will FAIL; while in flight, a save for a brand-new
+        // id lands successfully.
+        h.api.onDelete = (_) async => http.Response('{"error": "nope"}', 503);
+        h.api.onPost = (_, body) async => http.Response(
           '{"success": true, "state": "BOOKMARKED", "alreadyBookmarked": false,'
           ' "bookmark": {"businessProfileId": "${body['businessProfileId']}", "savedAt": "2026-10-25T10:00:00Z"}}',
-          201);
+          201,
+        );
 
-      final failed = h.notifier.remove('u1');
-      await h.notifier.save('fresh-9');
-      final result = await Future.sync(() => failed);
+        final failed = h.notifier.remove('u1');
+        await h.notifier.save('fresh-9');
+        final result = await Future.sync(() => failed);
 
-      expect(result, isFalse);
-      expect(h.ids, containsAll(['u1', 'fresh-9']),
-          reason: 'failed remove restores u1 WITHOUT stomping the fresh save');
-    });
+        expect(result, isFalse);
+        expect(
+          h.ids,
+          containsAll(['u1', 'fresh-9']),
+          reason: 'failed remove restores u1 WITHOUT stomping the fresh save',
+        );
+      },
+    );
 
     test('a failed remove re-inserts at the original position', () async {
       final h = _Harness();
@@ -425,9 +517,11 @@ void main() {
 
       final after = h.container.read(serverBookmarksProvider).bookmarks;
       expect(after.length, before.length);
-      expect(after.map((b) => b.businessProfileId).toList(),
-          before.map((b) => b.businessProfileId).toList(),
-          reason: 'identical order to the pre-optimistic state');
+      expect(
+        after.map((b) => b.businessProfileId).toList(),
+        before.map((b) => b.businessProfileId).toList(),
+        reason: 'identical order to the pre-optimistic state',
+      );
     });
   });
 
@@ -443,20 +537,25 @@ void main() {
       });
 
       final api = _FakeApiClient();
-      final container = ProviderContainer(overrides: [
-        apiClientProvider.overrideWithValue(api),
-      ]);
+      final container = ProviderContainer(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+      );
       addTearDown(container.dispose);
 
       final notifier = ServerBookmarksNotifier(
-          service: ServerBookmarkService(client: api), autoHydrate: true);
+        service: ServerBookmarkService(client: api),
+        autoHydrate: true,
+      );
       await _drain();
       await notifier.save('u1');
       await notifier.remove('u1');
       await notifier.hydrate();
 
-      expect(api.calls, isEmpty,
-          reason: 'no bookmark HTTP may ever fire in demo mode');
+      expect(
+        api.calls,
+        isEmpty,
+        reason: 'no bookmark HTTP may ever fire in demo mode',
+      );
       expect(container.read(serverBookmarkIdsProvider), isEmpty);
     });
   });

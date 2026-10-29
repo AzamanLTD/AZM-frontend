@@ -15,7 +15,9 @@ class StorefrontSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? const Color(0xFF1E2329) : const Color(0xFFF0F0F0);
+    final baseColor = isDark
+        ? const Color(0xFF1E2329)
+        : const Color(0xFFF0F0F0);
 
     return SingleChildScrollView(
       physics: const NeverScrollableScrollPhysics(),
@@ -36,15 +38,30 @@ class StorefrontSkeleton extends StatelessWidget {
             // Business name + rating row
             Row(
               children: [
-                PremiumShimmerBox(width: 200, height: 24, radius: 8, baseColor: baseColor),
+                PremiumShimmerBox(
+                  width: 200,
+                  height: 24,
+                  radius: 8,
+                  baseColor: baseColor,
+                ),
                 const Spacer(),
-                PremiumShimmerBox(width: 60, height: 20, radius: 8, baseColor: baseColor),
+                PremiumShimmerBox(
+                  width: 60,
+                  height: 20,
+                  radius: 8,
+                  baseColor: baseColor,
+                ),
               ],
             ),
             const SizedBox(height: 12),
 
             // Quick info bar
-            PremiumShimmerBox(width: double.infinity, height: 48, radius: 12, baseColor: baseColor),
+            PremiumShimmerBox(
+              width: double.infinity,
+              height: 48,
+              radius: 12,
+              baseColor: baseColor,
+            ),
             const SizedBox(height: 16),
 
             // Product grid (2x2)
@@ -68,7 +85,12 @@ class StorefrontSkeleton extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Reviews carousel placeholder
-            PremiumShimmerBox(width: double.infinity, height: 100, radius: 12, baseColor: baseColor),
+            PremiumShimmerBox(
+              width: double.infinity,
+              height: 100,
+              radius: 12,
+              baseColor: baseColor,
+            ),
           ],
         ),
       ),

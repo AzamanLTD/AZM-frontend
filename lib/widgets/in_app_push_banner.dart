@@ -55,10 +55,7 @@ class _InAppPushBannerState extends State<InAppPushBanner>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: MotionTokens.standard,
-    );
+    _ctrl = AnimationController(vsync: this, duration: MotionTokens.standard);
 
     _autoDismiss = Timer(const Duration(seconds: 4), _dismiss);
   }
@@ -125,7 +122,9 @@ class _InAppPushBannerState extends State<InAppPushBanner>
         container: true,
         liveRegion: true,
         label: '${widget.title}. ${widget.body}',
-        hint: hasAction ? 'Double tap to open. Dismiss is also available.' : 'Dismiss is available.',
+        hint: hasAction
+            ? 'Double tap to open. Dismiss is also available.'
+            : 'Dismiss is available.',
         button: hasAction,
         child: InkWell(
           onTap: hasAction ? _activate : null,
@@ -151,8 +150,11 @@ class _InAppPushBannerState extends State<InAppPushBanner>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.notifications_active_rounded,
-                    size: 18, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.notifications_active_rounded,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -172,7 +174,9 @@ class _InAppPushBannerState extends State<InAppPushBanner>
                         Text(
                           widget.body,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -190,8 +194,11 @@ class _InAppPushBannerState extends State<InAppPushBanner>
                               ),
                             ),
                             const SizedBox(width: 3),
-                            Icon(Icons.arrow_forward_rounded,
-                                size: 14, color: theme.colorScheme.primary),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 14,
+                              color: theme.colorScheme.primary,
+                            ),
                           ],
                         ),
                       ],
@@ -224,7 +231,9 @@ class _InAppPushBannerState extends State<InAppPushBanner>
       top: 0,
       left: 0,
       right: 0,
-      child: reducedMotion ? banner : SlideTransition(position: _slide, child: banner),
+      child: reducedMotion
+          ? banner
+          : SlideTransition(position: _slide, child: banner),
     );
   }
 }

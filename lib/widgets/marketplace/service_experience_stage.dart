@@ -61,13 +61,33 @@ class _ServiceExperienceStageState extends State<ServiceExperienceStage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Explore ${widget.business.businessName}', style: TextStyle(color: widget.colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+                      Text(
+                        'Explore ${widget.business.businessName}',
+                        style: TextStyle(
+                          color: widget.colors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(widget.blueprint.navigationLabel, style: TextStyle(color: widget.colors.textTertiary, fontSize: 11)),
+                      Text(
+                        widget.blueprint.navigationLabel,
+                        style: TextStyle(
+                          color: widget.colors.textTertiary,
+                          fontSize: 11,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Text('${_page + 1} / ${offerings.length}', style: TextStyle(color: widget.colors.textTertiary, fontSize: 10, fontWeight: FontWeight.w700)),
+                Text(
+                  '${_page + 1} / ${offerings.length}',
+                  style: TextStyle(
+                    color: widget.colors.textTertiary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -95,10 +115,15 @@ class _ServiceExperienceStageState extends State<ServiceExperienceStage> {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: AnimatedContainer(
-                      duration: MotionTokens.accessibleDuration(context, MotionTokens.microInteraction),
+                      duration: MotionTokens.accessibleDuration(
+                        context,
+                        MotionTokens.microInteraction,
+                      ),
                       height: 3,
                       decoration: BoxDecoration(
-                        color: index == _page ? widget.colors.accent : widget.colors.divider.withValues(alpha: 0.55),
+                        color: index == _page
+                            ? widget.colors.accent
+                            : widget.colors.divider.withValues(alpha: 0.55),
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
@@ -125,7 +150,12 @@ class _ServiceExperienceStageState extends State<ServiceExperienceStage> {
                 child: FilledButton.icon(
                   onPressed: widget.onContinue,
                   icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                  label: Text(widget.blueprint.commitStyle == MarketplaceCommitStyle.material ? 'Continue' : 'Choose this service'),
+                  label: Text(
+                    widget.blueprint.commitStyle ==
+                            MarketplaceCommitStyle.material
+                        ? 'Continue'
+                        : 'Choose this service',
+                  ),
                 ),
               ),
             ],
@@ -137,22 +167,37 @@ class _ServiceExperienceStageState extends State<ServiceExperienceStage> {
   }
 
   Widget _detailOverlay(BusinessProduct product) {
-    final duration = MotionTokens.accessibleDuration(context, MotionTokens.standard);
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.standard,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       child: TweenAnimationBuilder<double>(
         tween: Tween(begin: 0.96, end: 1),
         duration: duration,
         curve: MotionTokens.enter,
-        builder: (_, value, child) => Transform.scale(scale: value, alignment: Alignment.topCenter, child: child),
+        builder: (_, value, child) => Transform.scale(
+          scale: value,
+          alignment: Alignment.topCenter,
+          child: child,
+        ),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: widget.colors.card,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: widget.colors.accent.withValues(alpha: 0.45)),
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 18, offset: const Offset(0, 8))],
+            border: Border.all(
+              color: widget.colors.accent.withValues(alpha: 0.45),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,19 +210,65 @@ class _ServiceExperienceStageState extends State<ServiceExperienceStage> {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: widget.colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w800))),
-                        IconButton(onPressed: () => setState(() => _selected = null), icon: const Icon(Icons.close_rounded, size: 18), tooltip: 'Close'),
+                        Expanded(
+                          child: Text(
+                            product.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: widget.colors.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => setState(() => _selected = null),
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          tooltip: 'Close',
+                        ),
                       ],
                     ),
-                    if (widget.blueprint.showSpecifications && product.description != null && product.description!.isNotEmpty)
+                    if (widget.blueprint.showSpecifications &&
+                        product.description != null &&
+                        product.description!.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text(product.description!, maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: widget.colors.textSecondary, fontSize: 12, height: 1.35)),
+                        child: Text(
+                          product.description!,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: widget.colors.textSecondary,
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
                       ),
                     const SizedBox(height: 8),
-                    Text(product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable', style: TextStyle(color: widget.colors.accent, fontSize: 14, fontWeight: FontWeight.w900)),
+                    Text(
+                      product.priceGhs != null
+                          ? 'GH₵${product.priceGhs}'
+                          : 'Price unavailable',
+                      style: TextStyle(
+                        color: widget.colors.accent,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                     const SizedBox(height: 9),
-                    SizedBox(width: double.infinity, child: FilledButton(onPressed: widget.onContinue, child: Text(widget.blueprint.detailPresentation == MarketplaceDetailPresentation.serviceDossier ? 'Continue with this' : 'Continue'))),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: widget.onContinue,
+                        child: Text(
+                          widget.blueprint.detailPresentation ==
+                                  MarketplaceDetailPresentation.serviceDossier
+                              ? 'Continue with this'
+                              : 'Continue',
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -194,14 +285,37 @@ class _ServiceExperienceStageState extends State<ServiceExperienceStage> {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: widget.colors.card, borderRadius: BorderRadius.circular(20), border: Border.all(color: widget.colors.divider)),
+        decoration: BoxDecoration(
+          color: widget.colors.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: widget.colors.divider),
+        ),
         child: Column(
           children: [
-            Icon(Icons.auto_awesome_outlined, size: 34, color: widget.colors.accent),
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 34,
+              color: widget.colors.accent,
+            ),
             const SizedBox(height: 11),
-            Text('Explore this business', style: TextStyle(color: widget.colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800)),
+            Text(
+              'Explore this business',
+              style: TextStyle(
+                color: widget.colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 5),
-            Text('The business has not published offerings for this experience yet.', textAlign: TextAlign.center, style: TextStyle(color: widget.colors.textSecondary, fontSize: 12, height: 1.35)),
+            Text(
+              'The business has not published offerings for this experience yet.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: widget.colors.textSecondary,
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
           ],
         ),
       ),
@@ -215,15 +329,24 @@ class _OfferingCard extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
-  const _OfferingCard({required this.product, required this.colors, required this.active, required this.onTap});
+  const _OfferingCard({
+    required this.product,
+    required this.colors,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final label = '${product.name}, ${product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable'}';
+    final label =
+        '${product.name}, ${product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable'}';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
       child: AnimatedScale(
-        duration: MotionTokens.accessibleDuration(context, MotionTokens.microInteraction),
+        duration: MotionTokens.accessibleDuration(
+          context,
+          MotionTokens.microInteraction,
+        ),
         scale: active ? 1 : 0.965,
         child: Semantics(
           container: true,
@@ -240,13 +363,50 @@ class _OfferingCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _OfferingImage(product: product, colors: colors, size: double.infinity)),
+                  Expanded(
+                    child: _OfferingImage(
+                      product: product,
+                      colors: colors,
+                      size: double.infinity,
+                    ),
+                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
                     child: Row(
                       children: [
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(product.priceGhs != null ? 'GH₵${product.priceGhs}' : 'Price unavailable', style: TextStyle(color: colors.accent, fontSize: 11.5, fontWeight: FontWeight.w800))])),
-                        Icon(Icons.open_in_full_rounded, size: 17, color: colors.textTertiary),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                product.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: colors.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                product.priceGhs != null
+                                    ? 'GH₵${product.priceGhs}'
+                                    : 'Price unavailable',
+                                style: TextStyle(
+                                  color: colors.accent,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          Icons.open_in_full_rounded,
+                          size: 17,
+                          color: colors.textTertiary,
+                        ),
                       ],
                     ),
                   ),
@@ -265,14 +425,37 @@ class _OfferingImage extends StatelessWidget {
   final AzamanColors colors;
   final double size;
 
-  const _OfferingImage({required this.product, required this.colors, required this.size});
+  const _OfferingImage({
+    required this.product,
+    required this.colors,
+    required this.size,
+  });
 
   @override
   Widget build(BuildContext context) {
     final image = product.primaryImage;
     if (image == null || image.isEmpty) {
-      return Container(width: size == double.infinity ? null : size, color: colors.softSurface, child: Center(child: Icon(Icons.auto_awesome_mosaic_outlined, color: colors.textTertiary, size: 26)));
+      return Container(
+        width: size == double.infinity ? null : size,
+        color: colors.softSurface,
+        child: Center(
+          child: Icon(
+            Icons.auto_awesome_mosaic_outlined,
+            color: colors.textTertiary,
+            size: 26,
+          ),
+        ),
+      );
     }
-    return SizedBox(width: size == double.infinity ? null : size, height: size == double.infinity ? null : size, child: AzamanNetworkImage(imageUrl: image, width: size == double.infinity ? null : size, height: size == double.infinity ? null : size, fit: BoxFit.cover));
+    return SizedBox(
+      width: size == double.infinity ? null : size,
+      height: size == double.infinity ? null : size,
+      child: AzamanNetworkImage(
+        imageUrl: image,
+        width: size == double.infinity ? null : size,
+        height: size == double.infinity ? null : size,
+        fit: BoxFit.cover,
+      ),
+    );
   }
 }

@@ -27,22 +27,21 @@ BusinessProfile _biz(
   String name, {
   String category = 'FOOD_BEVERAGE',
   bool suspended = false,
-}) =>
-    BusinessProfile(
-      id: id,
-      bizId: 'BIZ-$id',
-      businessName: name,
-      category: category,
-      isVerified: true,
-      isSuspended: suspended,
-      kybStatus: 'VERIFIED',
-      totalEscrows: 3,
-      completedEscrows: 3,
-      userId: 1,
-      totalVolume: 100,
-      averageRating: 4.5,
-      username: 'vendor-$id',
-    );
+}) => BusinessProfile(
+  id: id,
+  bizId: 'BIZ-$id',
+  businessName: name,
+  category: category,
+  isVerified: true,
+  isSuspended: suspended,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 3,
+  completedEscrows: 3,
+  userId: 1,
+  totalVolume: 100,
+  averageRating: 4.5,
+  username: 'vendor-$id',
+);
 
 void main() {
   final now = DateTime(2026, 10, 4, 12, 0);
@@ -52,33 +51,38 @@ void main() {
     List<BusinessProfile> featured = const [],
     DateTime Function()? clock,
   }) {
-    final c = ProviderContainer(overrides: [
-      discoveryClockProvider.overrideWithValue(clock ?? () => now),
-      worldMemoryProvider.overrideWith(
-          (_) => WorldMemoryNotifier(clock: clock ?? () => now)),
-      discoverySnapshotProvider.overrideWithValue(DiscoverySnapshot(
-        catalog: catalog,
-        featured: featured,
-        distanceKmByBusinessId: null,
-        savedBizIds: const {},
-        now: clock?.call() ?? now,
-      )),
-    ]);
+    final c = ProviderContainer(
+      overrides: [
+        discoveryClockProvider.overrideWithValue(clock ?? () => now),
+        worldMemoryProvider.overrideWith(
+          (_) => WorldMemoryNotifier(clock: clock ?? () => now),
+        ),
+        discoverySnapshotProvider.overrideWithValue(
+          DiscoverySnapshot(
+            catalog: catalog,
+            featured: featured,
+            distanceKmByBusinessId: null,
+            savedBizIds: const {},
+            now: clock?.call() ?? now,
+          ),
+        ),
+      ],
+    );
     addTearDown(c.dispose);
     return c;
   }
 
   test('no fresh marketplace memory → no reminder', () {
-    final c = make(
-        catalog: [_biz('b1', 'Auntie Muni')]);
+    final c = make(catalog: [_biz('b1', 'Auntie Muni')]);
     expect(c.read(marketplaceRelevanceProvider), isNull);
   });
 
   test('fresh category with no matching business → no reminder', () {
     final c = make(
-        // The user browsed RETAIL, but only a restaurant exists in the
-        // snapshot — a restaurant is NOT relevant to a retail visit.
-        catalog: [_biz('b1', 'Auntie Muni', category: 'FOOD_BEVERAGE')]);
+      // The user browsed RETAIL, but only a restaurant exists in the
+      // snapshot — a restaurant is NOT relevant to a retail visit.
+      catalog: [_biz('b1', 'Auntie Muni', category: 'FOOD_BEVERAGE')],
+    );
     c.read(worldMemoryProvider.notifier).remember('RETAIL');
     final r = c.read(marketplaceRelevanceProvider);
     expect(r, isNull);
@@ -86,27 +90,27 @@ void main() {
 
   test('stale memory → ignored', () {
     var t = now;
-    final c = make(
-        catalog: [_biz('b1', 'Auntie Muni')],
-        clock: () => t,
-    );
+    final c = make(catalog: [_biz('b1', 'Auntie Muni')], clock: () => t);
     c.read(worldMemoryProvider.notifier).remember('FOOD_BEVERAGE');
     t = now.add(const Duration(hours: 1)); // beyond the 30-minute window
     c.invalidate(marketplaceRelevanceProvider);
     expect(c.read(marketplaceRelevanceProvider), isNull);
   });
 
-  test('fresh category with a matching real business → the correct reminder',
-      () {
-    final c = make(
-        catalog: [_biz('b1', 'Auntie Muni', category: 'FOOD_BEVERAGE')]);
-    c.read(worldMemoryProvider.notifier).remember('FOOD_BEVERAGE');
-    final r = c.read(marketplaceRelevanceProvider)!;
-    expect(r.worldWire, 'FOOD_BEVERAGE');
-    expect(r.categoryLabel, 'Restaurants');
-    expect(r.business.id, 'b1');
-    expect(r.business.businessName, 'Auntie Muni');
-  });
+  test(
+    'fresh category with a matching real business → the correct reminder',
+    () {
+      final c = make(
+        catalog: [_biz('b1', 'Auntie Muni', category: 'FOOD_BEVERAGE')],
+      );
+      c.read(worldMemoryProvider.notifier).remember('FOOD_BEVERAGE');
+      final r = c.read(marketplaceRelevanceProvider)!;
+      expect(r.worldWire, 'FOOD_BEVERAGE');
+      expect(r.categoryLabel, 'Restaurants');
+      expect(r.business.id, 'b1');
+      expect(r.business.businessName, 'Auntie Muni');
+    },
+  );
 
   test('most recently touched fresh context wins', () {
     var t = now;
@@ -127,8 +131,7 @@ void main() {
     expect(r.business.id, 'retail-1');
   });
 
-  test('category mapping uses the canonical BusinessCategories utility',
-      () {
+  test('category mapping uses the canonical BusinessCategories utility', () {
     final c = make(catalog: [_biz('b1', 'Auntie Muni')]);
     c.read(worldMemoryProvider.notifier).remember('FOOD_BEVERAGE');
     final r = c.read(marketplaceRelevanceProvider)!;
@@ -148,10 +151,12 @@ void main() {
   });
 
   test('suspended or unopenable businesses do not earn the reminder', () {
-    final c = make(catalog: [
-      _biz('b1', 'Suspended Spot', suspended: true),
-      _biz('b2', 'Open Spot'),
-    ]);
+    final c = make(
+      catalog: [
+        _biz('b1', 'Suspended Spot', suspended: true),
+        _biz('b2', 'Open Spot'),
+      ],
+    );
     c.read(worldMemoryProvider.notifier).remember('FOOD_BEVERAGE');
     final r = c.read(marketplaceRelevanceProvider)!;
     expect(r.business.id, 'b2');

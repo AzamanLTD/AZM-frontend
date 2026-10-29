@@ -17,9 +17,7 @@ Future<void> _pumpHost(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        azmCardProgrammeProvider.overrideWith((ref) => programme),
-      ],
+      overrides: [azmCardProgrammeProvider.overrideWith((ref) => programme)],
       child: MaterialApp(
         home: Builder(
           builder: (context) => Scaffold(
@@ -46,38 +44,49 @@ Future<void> _openGate(WidgetTester tester) async {
 
 void main() {
   group('DemoCardProgramme (the placeholder seam)', () {
-    test('starts without a PIN; set then verify works; wrong PIN fails',
-        () async {
-      final p = DemoCardProgramme();
-      expect(p.hasPin, isFalse);
+    test(
+      'starts without a PIN; set then verify works; wrong PIN fails',
+      () async {
+        final p = DemoCardProgramme();
+        expect(p.hasPin, isFalse);
 
-      expect(await p.setPin('1234'), isTrue);
-      expect(p.hasPin, isTrue);
-      expect(await p.verifyPin('1234'), isTrue);
-      expect(await p.verifyPin('0000'), isFalse);
-    });
+        expect(await p.setPin('1234'), isTrue);
+        expect(p.hasPin, isTrue);
+        expect(await p.verifyPin('1234'), isTrue);
+        expect(await p.verifyPin('0000'), isFalse);
+      },
+    );
 
-    test('rejects malformed PINs instead of creating fake security state',
-        () async {
-      final p = DemoCardProgramme();
-      expect(await p.setPin('12'), isFalse, reason: 'too short');
-      expect(await p.setPin('1234567'), isFalse, reason: 'too long');
-      expect(await p.setPin('12a4'), isFalse, reason: 'non-digit');
-      expect(p.hasPin, isFalse);
-    });
+    test(
+      'rejects malformed PINs instead of creating fake security state',
+      () async {
+        final p = DemoCardProgramme();
+        expect(await p.setPin('12'), isFalse, reason: 'too short');
+        expect(await p.setPin('1234567'), isFalse, reason: 'too long');
+        expect(await p.setPin('12a4'), isFalse, reason: 'non-digit');
+        expect(p.hasPin, isFalse);
+      },
+    );
 
     test('the masked number is a sample, never a real credential', () {
       final p = DemoCardProgramme();
-      expect(p.maskedNumber, isNot(contains(RegExp(r'\d{6}'))),
-          reason: 'no six consecutive digits may appear on the sample card');
-      expect(p.expiryLabel, 'MM/YY',
-          reason: 'placeholder expiry — never a real date');
+      expect(
+        p.maskedNumber,
+        isNot(contains(RegExp(r'\d{6}'))),
+        reason: 'no six consecutive digits may appear on the sample card',
+      );
+      expect(
+        p.expiryLabel,
+        'MM/YY',
+        reason: 'placeholder expiry — never a real date',
+      );
     });
   });
 
   group('CardPinGateSheet', () {
-    testWidgets('no PIN yet → "Set your card PIN"; verification succeeds',
-        (tester) async {
+    testWidgets('no PIN yet → "Set your card PIN"; verification succeeds', (
+      tester,
+    ) async {
       final programme = DemoCardProgramme();
       bool? verified;
       await _pumpHost(
@@ -90,8 +99,10 @@ void main() {
       expect(find.text('Set your card PIN'), findsOneWidget);
       // The card PIN is explicitly a SEPARATE credential from the account
       // PIN — the copy must say so.
-      expect(find.textContaining('separate from your AZM account PIN'),
-          findsOneWidget);
+      expect(
+        find.textContaining('separate from your AZM account PIN'),
+        findsOneWidget,
+      );
 
       // Sensitive card content is NOT mounted while the gate is open.
       expect(find.byType(AzmCardDetailsPanel), findsNothing);
@@ -102,25 +113,36 @@ void main() {
       await tester.tap(find.text('Set PIN'));
       await tester.pumpAndSettle();
 
-      expect(programme.hasPin, isFalse,
-          reason: 'a single entry must never become the credential');
+      expect(
+        programme.hasPin,
+        isFalse,
+        reason: 'a single entry must never become the credential',
+      );
       expect(verified, isNull, reason: 'stage one does not unlock anything');
       expect(find.text('Confirm your card PIN'), findsOneWidget);
       expect(find.text('Confirm PIN'), findsOneWidget);
-      expect(find.textContaining('Re-enter the same PIN'),
-          findsAtLeastNWidgets(1),
-          reason: 'the confirmation stage is announced in copy + hint');
+      expect(
+        find.textContaining('Re-enter the same PIN'),
+        findsAtLeastNWidgets(1),
+        reason: 'the confirmation stage is announced in copy + hint',
+      );
 
       // A MISMATCHED second entry restarts stage one; still no PIN.
       await tester.enterText(find.byType(TextField), '5678');
       await tester.tap(find.text('Confirm PIN'));
       await tester.pumpAndSettle();
 
-      expect(programme.hasPin, isFalse,
-          reason: 'a mismatched pair sets nothing');
+      expect(
+        programme.hasPin,
+        isFalse,
+        reason: 'a mismatched pair sets nothing',
+      );
       expect(find.textContaining('did not match'), findsOneWidget);
-      expect(find.text('Set your card PIN'), findsOneWidget,
-          reason: 'the flow restarts from stage one');
+      expect(
+        find.text('Set your card PIN'),
+        findsOneWidget,
+        reason: 'the flow restarts from stage one',
+      );
 
       // The confirmed pair (re-entering the SAME value) sets the PIN.
       await tester.enterText(find.byType(TextField), '1234');
@@ -132,8 +154,11 @@ void main() {
 
       expect(verified, isTrue, reason: 'confirmed pair → verification passes');
       expect(programme.hasPin, isTrue);
-      expect(await programme.verifyPin('1234'), isTrue,
-          reason: 'the set value is exactly the confirmed pair');
+      expect(
+        await programme.verifyPin('1234'),
+        isTrue,
+        reason: 'the set value is exactly the confirmed pair',
+      );
     });
 
     testWidgets('PIN exists → "Enter your card PIN"; a wrong attempt does '

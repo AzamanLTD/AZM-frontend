@@ -212,10 +212,7 @@ void main() {
       // digits are the hero.
       final headline = find.byKey(const ValueKey('balance-fx-headline'));
       final unitLabel = tester.widget<Text>(
-        find.descendant(
-          of: headline,
-          matching: find.text('GH₵'),
-        ),
+        find.descendant(of: headline, matching: find.text('GH₵')),
       );
       final amountText = tester.widget<Text>(
         find.descendant(
@@ -236,7 +233,10 @@ void main() {
         find.descendant(of: headline, matching: find.text('GH₵')),
       );
       final amountRect = tester.getRect(
-        find.descendant(of: headline, matching: find.text(AzMoney.amount(1234.56))),
+        find.descendant(
+          of: headline,
+          matching: find.text(AzMoney.amount(1234.56)),
+        ),
       );
       expect(unitRect.right, lessThan(amountRect.left));
       // One typographic line: the small marker rides the hero line —
@@ -414,34 +414,35 @@ void main() {
     // native GHS held or a guaranteed GHS value) — the row points at
     // the Savings screen instead.
     BalanceCardValuation unconfirmed() => const BalanceCardValuation(
-          nativeGhsAvailable: 100,
-          availableUsdc: 50,
-          balanceConfirmed: false,
-          escrowLocked: 4,
-          disputeEscrow: 1,
-          vaultLocked: 10,
-          savingsLockedGhs: 20,
-          azmPoints: 1200,
-          vendorRowRelevant: true,
-          vendorUnallocatedUsdc: 7.5,
-          rate: const FxRateView(
-            ghsPerUsdc: 12.5,
-            kind: FxRateKind.fresh,
-            sourceLabel: 'oracle',
-          ),
-        ).compute();
+      nativeGhsAvailable: 100,
+      availableUsdc: 50,
+      balanceConfirmed: false,
+      escrowLocked: 4,
+      disputeEscrow: 1,
+      vaultLocked: 10,
+      savingsLockedGhs: 20,
+      azmPoints: 1200,
+      vendorRowRelevant: true,
+      vendorUnallocatedUsdc: 7.5,
+      rate: const FxRateView(
+        ghsPerUsdc: 12.5,
+        kind: FxRateKind.fresh,
+        sourceLabel: 'oracle',
+      ),
+    ).compute();
 
     /// The amount the row shows, judged by the TEXT the row actually
     /// renders (rows compose rich/label spans, so widget.data can be
     /// null — assert on the rendered strings instead).
     Finder rowText(Key row, String containing) => find.descendant(
-          of: find.byKey(row),
-          matching: find.textContaining(containing),
-        );
+      of: find.byKey(row),
+      matching: find.textContaining(containing),
+    );
 
     testWidgets('flip to the back face of an UNCONFIRMED balance: '
-        'balance-sourced rows dash, independent rows keep real values',
-        (tester) async {
+        'balance-sourced rows dash, independent rows keep real values', (
+      tester,
+    ) async {
       await _pumpPair(tester, valuation: unconfirmed());
       await _flipToBack(tester);
 
@@ -449,66 +450,82 @@ void main() {
       // UNKNOWN, not zero, not shown); the GHS-wallet row is
       // independently confirmed and keeps its real amount.
       expect(
-          rowText(const ValueKey('bc-row-usdc-held'), '—'), findsOneWidget,
-          reason: 'an unconfirmed balance is never rendered as its cached '
-              'figure');
+        rowText(const ValueKey('bc-row-usdc-held'), '—'),
+        findsOneWidget,
+        reason:
+            'an unconfirmed balance is never rendered as its cached '
+            'figure',
+      );
       expect(
-          rowText(const ValueKey('bc-row-usdc-held'), 'not confirmed yet'),
-          findsOneWidget,
-          reason: 'the dash carries its honest reason');
+        rowText(const ValueKey('bc-row-usdc-held'), 'not confirmed yet'),
+        findsOneWidget,
+        reason: 'the dash carries its honest reason',
+      );
       expect(
-          rowText(const ValueKey('bc-row-ghs-wallet'), '100'),
-          findsOneWidget,
-          reason: 'the native GHS wallet figure is its OWN contract — '
-              'an unconfirmed USDC balance never hides it');
+        rowText(const ValueKey('bc-row-ghs-wallet'), '100'),
+        findsOneWidget,
+        reason:
+            'the native GHS wallet figure is its OWN contract — '
+            'an unconfirmed USDC balance never hides it',
+      );
 
       // COMMITTED page: vaults keep their own confirmed value; savings
       // dashes under the K2B-2 display gate (its figure is parsed but
       // never displayed on the card this release).
       await _dragToNextSection(tester);
       expect(
-          rowText(const ValueKey('bc-row-vaults'), '10'), findsOneWidget,
-          reason: 'vault commitments are independently confirmed and are '
-              'NOT hidden by a loading general balance');
+        rowText(const ValueKey('bc-row-vaults'), '10'),
+        findsOneWidget,
+        reason:
+            'vault commitments are independently confirmed and are '
+            'NOT hidden by a loading general balance',
+      );
       expect(
-          rowText(const ValueKey('bc-row-savings'), '—'), findsOneWidget,
-          reason: 'K2B-2: the nominal GHS savings goal figure is never '
-              'presented on the card as a monetary holding');
+        rowText(const ValueKey('bc-row-savings'), '—'),
+        findsOneWidget,
+        reason:
+            'K2B-2: the nominal GHS savings goal figure is never '
+            'presented on the card as a monetary holding',
+      );
       expect(
-          rowText(
-              const ValueKey('bc-row-savings'), 'on the Savings screen'),
-          findsOneWidget,
-          reason: 'the row points at the surface that shows the factual '
-              'GHS-denominated goal progress');
+        rowText(const ValueKey('bc-row-savings'), 'on the Savings screen'),
+        findsOneWidget,
+        reason:
+            'the row points at the surface that shows the factual '
+            'GHS-denominated goal progress',
+      );
       expect(
-          rowText(const ValueKey('bc-row-savings'), '20.00'),
-          findsNothing,
-          reason: 'the parsed figure (20 GHS nominal goal progress) must '
-              'not render — not as native GHS, not as guaranteed value');
+        rowText(const ValueKey('bc-row-savings'), '20.00'),
+        findsNothing,
+        reason:
+            'the parsed figure (20 GHS nominal goal progress) must '
+            'not render — not as native GHS, not as guaranteed value',
+      );
 
       // LOCKED page: escrow + dispute escrow dash.
       await _dragToNextSection(tester);
-      expect(rowText(const ValueKey('bc-row-escrow'), '—'),
-          findsOneWidget);
-      expect(rowText(const ValueKey('bc-row-dispute-escrow'), '—'),
-          findsOneWidget);
+      expect(rowText(const ValueKey('bc-row-escrow'), '—'), findsOneWidget);
+      expect(
+        rowText(const ValueKey('bc-row-dispute-escrow'), '—'),
+        findsOneWidget,
+      );
 
       // VENDOR page: the vendor row dashes and its capability-free
       // description waits with it.
       await _dragToNextSection(tester);
-      expect(rowText(const ValueKey('bc-row-vendor'), '—'),
-          findsOneWidget);
+      expect(rowText(const ValueKey('bc-row-vendor'), '—'), findsOneWidget);
       expect(
-          rowText(const ValueKey('bc-row-vendor'), 'not confirmed yet'),
-          findsOneWidget,
-          reason: 'withdrawability is never inferred — and while the '
-              'amount is unknown the description never claims '
-              'unallocated funds');
+        rowText(const ValueKey('bc-row-vendor'), 'not confirmed yet'),
+        findsOneWidget,
+        reason:
+            'withdrawability is never inferred — and while the '
+            'amount is unknown the description never claims '
+            'unallocated funds',
+      );
 
       // NON-CASH page: AZM points dash too (never a fabricated 0 pts).
       await _dragToNextSection(tester);
-      expect(rowText(const ValueKey('bc-row-azm-points'), '—'),
-          findsOneWidget);
+      expect(rowText(const ValueKey('bc-row-azm-points'), '—'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
     });
 
@@ -518,9 +535,11 @@ void main() {
       await _pumpPair(tester, valuation: _saved(vendor: true));
       await _flipToBack(tester);
 
-      expect(rowText(const ValueKey('bc-row-usdc-held'), '50'),
-          findsOneWidget,
-          reason: 'confirmed: the same row shows the real cached figure');
+      expect(
+        rowText(const ValueKey('bc-row-usdc-held'), '50'),
+        findsOneWidget,
+        reason: 'confirmed: the same row shows the real cached figure',
+      );
       expect(find.text('not confirmed yet'), findsNothing);
       await tester.pumpWidget(const SizedBox());
     });
@@ -541,9 +560,17 @@ void main() {
         final target = tester.getRect(
           find.byKey(const ValueKey('balance-fx-equivalent-info')),
         );
-        expect(target.width, greaterThanOrEqualTo(44),
-            reason: 'WCAG 2.5.8 / Material minimum touch target');
-        expect(target.height, greaterThanOrEqualTo(44));
+        // The contract is a 44 x 44 dp target. The comparison carries a
+        // floating-point tolerance (1e-6, far below one device pixel) because
+        // a global rect difference of two fractional offsets can read
+        // 43.99999999999999 for a genuinely 44dp box; the requirement itself
+        // is unrounded and unchanged.
+        expect(
+          target.width,
+          greaterThanOrEqualTo(44 - 1e-6),
+          reason: 'WCAG 2.5.8 / Material minimum touch target',
+        );
+        expect(target.height, greaterThanOrEqualTo(44 - 1e-6));
 
         // The footprint contract: the fixed 180px frame is untouched.
         expect(_frameRect(tester).height, BalanceCardGeometry.height);
@@ -579,8 +606,9 @@ void main() {
       );
 
       // Dismiss and confirm the card settles back, still front.
-      await tester
-          .tap(find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')));
+      await tester.tap(
+        find.byKey(const ValueKey('balance-fx-fallback-disclosure-close')),
+      );
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('balance-fx-fallback-disclosure')),

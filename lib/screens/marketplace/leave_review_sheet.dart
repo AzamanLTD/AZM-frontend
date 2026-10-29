@@ -27,7 +27,10 @@ class LeaveReviewSheet extends ConsumerStatefulWidget {
   final BusinessProfile business;
   const LeaveReviewSheet({super.key, required this.business});
 
-  static Future<bool> show(BuildContext context, {required BusinessProfile business}) async {
+  static Future<bool> show(
+    BuildContext context, {
+    required BusinessProfile business,
+  }) async {
     // Panel, not Whisper: the body is keyboard-bound (a 4-line TextField plus
     // a keyboard-inset padding) and the comment is free text the user types, so
     // the height is not bounded by a constant. The commit row is gated on a
@@ -107,7 +110,11 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
         Flexible(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(
-              AzSpace.xl, AzSpace.lg, AzSpace.xl, AzSpace.md),
+              AzSpace.xl,
+              AzSpace.lg,
+              AzSpace.xl,
+              AzSpace.md,
+            ),
             children: [
               Text(
                 'Rate ${widget.business.businessName}',
@@ -125,11 +132,12 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
               const SizedBox(height: 20),
               // Star row
               Center(
-              child: AnimatedRatingStars.interactive(
-                initialRating: _rating.toDouble(), size: 40,
-                onRatingChanged: (r) => setState(() => _rating = r.toInt()),
-                filledColor: colors.accent,
-              ),
+                child: AnimatedRatingStars.interactive(
+                  initialRating: _rating.toDouble(),
+                  size: 40,
+                  onRatingChanged: (r) => setState(() => _rating = r.toInt()),
+                  filledColor: colors.accent,
+                ),
               ),
               if (_rating > 0) ...[
                 const SizedBox(height: 6),
@@ -159,12 +167,18 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide.none,
                   ),
-                  counterStyle: TextStyle(color: colors.textTertiary, fontSize: 11),
+                  counterStyle: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 11,
+                  ),
                 ),
               ),
               if (_error != null) ...[
                 const SizedBox(height: 8),
-                Text(_error!, style: TextStyle(color: colors.danger, fontSize: 13)),
+                Text(
+                  _error!,
+                  style: TextStyle(color: colors.danger, fontSize: 13),
+                ),
               ],
               // ── Share as Story option (Marketplace Overhaul 2026-07-02) ──
               // Lives in the scroll flow, above the commit row: it only exists
@@ -182,46 +196,88 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
                     children: [
                       Icon(Icons.celebration, color: colors.accent, size: 32),
                       const SizedBox(height: 8),
-                      Text('Review submitted!',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary)),
+                      Text(
+                        'Review submitted!',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: colors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Share your review as a Story so friends can discover this business.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                      Text(
+                        'Share your review as a Story so friends can discover this business.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: _sharing ? null : () async {
-                                setState(() => _sharing = true);
-                                try {
-                                  if (_reviewId != null) {
-                                    await ref.read(marketplaceBookingServiceProvider).promoteReviewToStory(_reviewId!);
-                                  }
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: const Text('Shared as Story!'), backgroundColor: colors.accent),
-                                  );
-                                  if (context.mounted) Navigator.pop(context, true);
-                                } catch (e) {
-                                  if (!context.mounted) return;
-                                  setState(() => _sharing = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Could not share: $e')),
-                                  );
-                                }
-                              },
+                              onPressed: _sharing
+                                  ? null
+                                  : () async {
+                                      setState(() => _sharing = true);
+                                      try {
+                                        if (_reviewId != null) {
+                                          await ref
+                                              .read(
+                                                marketplaceBookingServiceProvider,
+                                              )
+                                              .promoteReviewToStory(_reviewId!);
+                                        }
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: const Text(
+                                              'Shared as Story!',
+                                            ),
+                                            backgroundColor: colors.accent,
+                                          ),
+                                        );
+                                        if (context.mounted)
+                                          Navigator.pop(context, true);
+                                      } catch (e) {
+                                        if (!context.mounted) return;
+                                        setState(() => _sharing = false);
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Could not share: $e',
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    },
                               icon: _sharing
-                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
                                   : Icon(Icons.share, color: colors.accent),
-                              label: Text('Share as Story', style: TextStyle(color: colors.accent)),
+                              label: Text(
+                                'Share as Story',
+                                style: TextStyle(color: colors.accent),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           TextButton(
                             onPressed: () => Navigator.pop(context, true),
-                            child: Text('Not now', style: TextStyle(color: colors.textSecondary)),
+                            child: Text(
+                              'Not now',
+                              style: TextStyle(color: colors.textSecondary),
+                            ),
                           ),
                         ],
                       ),
@@ -280,8 +336,6 @@ class _LeaveReviewSheetState extends ConsumerState<LeaveReviewSheet> {
   }
 
   String _ratingLabel(int r) {
-
-
     switch (r) {
       case 1:
         return 'Poor';

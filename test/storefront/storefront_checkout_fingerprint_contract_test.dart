@@ -78,38 +78,40 @@ String _sha256Hex(String value) =>
 /// customerNotes ?? null, deliveryNotes ?? null, paymentMode normalized
 /// to upper case with '' / absent → 'DIRECT'.
 String _mirrorCheckoutFingerprint(Map<String, dynamic> body) {
-  final items = (body['items'] as List? ?? [])
-      .map((raw) {
-        final item = raw as Map<String, dynamic>;
-        return <String, dynamic>{
-          'productId': item['productId'],
-          'quantity': item['quantity'],
-          'notes': item['notes'],
-          'variants': item['variants'] ?? <String, dynamic>{},
-        };
-      })
-      .toList();
+  final items = (body['items'] as List? ?? []).map((raw) {
+    final item = raw as Map<String, dynamic>;
+    return <String, dynamic>{
+      'productId': item['productId'],
+      'quantity': item['quantity'],
+      'notes': item['notes'],
+      'variants': item['variants'] ?? <String, dynamic>{},
+    };
+  }).toList();
   final rawMode = body['paymentMode'];
   final mode =
       (rawMode == null || rawMode == '' ? 'DIRECT' : rawMode.toString())
           .toUpperCase();
-  return _sha256Hex(_stableJson(<String, dynamic>{
-    'items': items,
-    'customerNotes': body['customerNotes'],
-    'deliveryNotes': body['deliveryNotes'],
-    'paymentMode': mode,
-  }));
+  return _sha256Hex(
+    _stableJson(<String, dynamic>{
+      'items': items,
+      'customerNotes': body['customerNotes'],
+      'deliveryNotes': body['deliveryNotes'],
+      'paymentMode': mode,
+    }),
+  );
 }
 
 /// Mirror of orderFingerprint: the single-item /order projection —
 /// productId, quantity, customerNotes ?? null, deliveryNotes ?? null.
 String _mirrorOrderFingerprint(Map<String, dynamic> body) {
-  return _sha256Hex(_stableJson(<String, dynamic>{
-    'productId': body['productId'],
-    'quantity': body['quantity'],
-    'customerNotes': body['customerNotes'],
-    'deliveryNotes': body['deliveryNotes'],
-  }));
+  return _sha256Hex(
+    _stableJson(<String, dynamic>{
+      'productId': body['productId'],
+      'quantity': body['quantity'],
+      'customerNotes': body['customerNotes'],
+      'deliveryNotes': body['deliveryNotes'],
+    }),
+  );
 }
 
 Map<String, dynamic> _deepCopy(Map<String, dynamic> m) =>
@@ -118,20 +120,20 @@ Map<String, dynamic> _deepCopy(Map<String, dynamic> m) =>
 // The exact cart body shape CartScreen sends (cartProvider.toCheckoutItems
 // + checkoutCart's body construction), with a durable key attached.
 Map<String, dynamic> _checkoutBodyA() => {
-      'items': [
-        {'productId': 'p1', 'quantity': 2},
-        {
-          'productId': 'p2',
-          'quantity': 1,
-          'notes': 'extra hot',
-          'variants': {'Size': 'Large'}
-        },
-      ],
-      'customerNotes': 'call on arrival',
-      'deliveryNotes': null,
-      'paymentMode': 'DIRECT',
-      'idempotencyKey': 'v1:biz-001:user-1:abc',
-    };
+  'items': [
+    {'productId': 'p1', 'quantity': 2},
+    {
+      'productId': 'p2',
+      'quantity': 1,
+      'notes': 'extra hot',
+      'variants': {'Size': 'Large'},
+    },
+  ],
+  'customerNotes': 'call on arrival',
+  'deliveryNotes': null,
+  'paymentMode': 'DIRECT',
+  'idempotencyKey': 'v1:biz-001:user-1:abc',
+};
 
 // ── Known-answer vectors, produced by the REAL backend module ───────────
 // node -e "require('./utils/storefrontOrderIdentity.js')" @ d7dd53c.
@@ -153,164 +155,203 @@ const _vecOrderA =
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('known-answer vectors — the Dart mirror IS the backend algorithm (@ $_backendCommit)', () {
-    test('checkoutFingerprint reproduces the backend digests byte-for-byte', () {
-      final a = _checkoutBodyA();
-      expect(_mirrorCheckoutFingerprint(a), _vecCheckoutA);
+  group(
+    'known-answer vectors — the Dart mirror IS the backend algorithm (@ $_backendCommit)',
+    () {
+      test(
+        'checkoutFingerprint reproduces the backend digests byte-for-byte',
+        () {
+          final a = _checkoutBodyA();
+          expect(_mirrorCheckoutFingerprint(a), _vecCheckoutA);
 
-      // The single-item cart with paymentMode, vs the same cart without
-      // the field entirely (backend normalizes absent → 'DIRECT').
-      final b = {
-        'items': [
-          {'productId': 'p1', 'quantity': 3}
-        ],
-        'paymentMode': 'DIRECT',
-      };
-      expect(_mirrorCheckoutFingerprint(b), _vecCheckoutB);
-      expect(_mirrorCheckoutFingerprint({..._deepCopy(b)}..remove('paymentMode')),
-          _vecCheckoutB,
-          reason: 'absent paymentMode must hash identically to DIRECT');
+          // The single-item cart with paymentMode, vs the same cart without
+          // the field entirely (backend normalizes absent → 'DIRECT').
+          final b = {
+            'items': [
+              {'productId': 'p1', 'quantity': 3},
+            ],
+            'paymentMode': 'DIRECT',
+          };
+          expect(_mirrorCheckoutFingerprint(b), _vecCheckoutB);
+          expect(
+            _mirrorCheckoutFingerprint(
+              {..._deepCopy(b)}..remove('paymentMode'),
+            ),
+            _vecCheckoutB,
+            reason: 'absent paymentMode must hash identically to DIRECT',
+          );
 
-      // Item order is MATERIAL on the backend (array order preserved).
-      final reorder = {
-        'items': [
-          {'productId': 'p1', 'quantity': 3},
-          {'productId': 'p0', 'quantity': 1},
-        ],
-        'paymentMode': 'DIRECT',
-      };
-      final ordered = {
-        'items': [
-          {'productId': 'p0', 'quantity': 1},
-          {'productId': 'p1', 'quantity': 3},
-        ],
-        'paymentMode': 'DIRECT',
-      };
-      expect(_mirrorCheckoutFingerprint(reorder), _vecCheckoutBReorder);
-      expect(_mirrorCheckoutFingerprint(ordered), _vecCheckoutBOrdered);
-      expect(reorder['items'], isNot(equals(ordered['items'])),
-          reason: 'sanity: the two bodies really differ');
-    });
+          // Item order is MATERIAL on the backend (array order preserved).
+          final reorder = {
+            'items': [
+              {'productId': 'p1', 'quantity': 3},
+              {'productId': 'p0', 'quantity': 1},
+            ],
+            'paymentMode': 'DIRECT',
+          };
+          final ordered = {
+            'items': [
+              {'productId': 'p0', 'quantity': 1},
+              {'productId': 'p1', 'quantity': 3},
+            ],
+            'paymentMode': 'DIRECT',
+          };
+          expect(_mirrorCheckoutFingerprint(reorder), _vecCheckoutBReorder);
+          expect(_mirrorCheckoutFingerprint(ordered), _vecCheckoutBOrdered);
+          expect(
+            reorder['items'],
+            isNot(equals(ordered['items'])),
+            reason: 'sanity: the two bodies really differ',
+          );
+        },
+      );
 
-    test('orderFingerprint reproduces the backend digest', () {
-      expect(
-          _mirrorOrderFingerprint(
-              {'productId': 'p1', 'quantity': 2, 'customerNotes': 'x'}),
-          _vecOrderA);
-    });
-  });
+      test('orderFingerprint reproduces the backend digest', () {
+        expect(
+          _mirrorOrderFingerprint({
+            'productId': 'p1',
+            'quantity': 2,
+            'customerNotes': 'x',
+          }),
+          _vecOrderA,
+        );
+      });
+    },
+  );
 
-  group('equivalence-class parity — client-fingerprint-equal ⇒ backend-fingerprint-equal', () {
-    test('the identity carrier never participates in EITHER fingerprint', () {
-      {
-        // Same economic body, different durable key: both fingerprints must
-        // ignore the key — this is the exclusion that makes a same-key
-        // retry byte-clean on both sides of the contract.
-        final base = _checkoutBodyA();
+  group(
+    'equivalence-class parity — client-fingerprint-equal ⇒ backend-fingerprint-equal',
+    () {
+      test('the identity carrier never participates in EITHER fingerprint', () {
+        {
+          // Same economic body, different durable key: both fingerprints must
+          // ignore the key — this is the exclusion that makes a same-key
+          // retry byte-clean on both sides of the contract.
+          final base = _checkoutBodyA();
+          final keyChanged = _deepCopy(base);
+          keyChanged['idempotencyKey'] = 'COMPLETELY-DIFFERENT-KEY';
+
+          expect(
+            DurableOperationRegistry.fingerprintOf(base),
+            DurableOperationRegistry.fingerprintOf(keyChanged),
+            reason: 'the client fingerprint must ignore the durable key',
+          );
+          expect(
+            _mirrorCheckoutFingerprint(base),
+            _mirrorCheckoutFingerprint(keyChanged),
+            reason: 'and so must the backend fingerprint',
+          );
+        }
+      });
+
+      test(
+        'every backend-covered field is client-covered too (no backend-finer divergence)',
+        () {
+          final mutations = <String, void Function(Map<String, dynamic>)>{
+            'item productId': (b) =>
+                (b['items'] as List)[0]['productId'] = 'pX',
+            'item quantity': (b) => (b['items'] as List)[0]['quantity'] = 99,
+            'item notes': (b) => (b['items'] as List)[0]['notes'] = 'changed',
+            'item variants': (b) =>
+                (b['items'] as List)[1]['variants'] = {'Size': 'Small'},
+            'item added': (b) =>
+                (b['items'] as List).add({'productId': 'p9', 'quantity': 1}),
+            'item order': (b) => (b['items'] as List).insert(
+              0,
+              (b['items'] as List).removeAt(1),
+            ),
+            'customerNotes': (b) => b['customerNotes'] = 'changed',
+            'deliveryNotes': (b) => b['deliveryNotes'] = 'changed',
+            'paymentMode': (b) => b['paymentMode'] = 'ESCROW',
+          };
+
+          for (final entry in mutations.entries) {
+            final base = _checkoutBodyA();
+            final mutated = _deepCopy(base);
+            entry.value(mutated);
+
+            expect(
+              DurableOperationRegistry.fingerprintOf(base),
+              isNot(equals(DurableOperationRegistry.fingerprintOf(mutated))),
+              reason:
+                  '${entry.key}: the CLIENT must see this as materially '
+                  'different (it determines key reuse)',
+            );
+            expect(
+              _mirrorCheckoutFingerprint(base),
+              isNot(equals(_mirrorCheckoutFingerprint(mutated))),
+              reason:
+                  '${entry.key}: and the BACKEND projection covers it (it '
+                  'determines exact-replay vs 409)',
+            );
+          }
+        },
+      );
+
+      test(
+        'documented client-stricter divergences are safe-direction only',
+        () {
+          final base = _checkoutBodyA();
+
+          // paymentMode cosmetic case: the backend normalizes it away; the
+          // client treats the raw value as material. Client-stricter is SAFE:
+          // the changed retry mints a NEW durable key, so it can never
+          // collide with the old instance as a 409.
+          final modeLower = _deepCopy(base);
+          modeLower['paymentMode'] = 'direct';
+          expect(
+            DurableOperationRegistry.fingerprintOf(base),
+            isNot(equals(DurableOperationRegistry.fingerprintOf(modeLower))),
+            reason: 'client fingerprint is raw (finer)',
+          );
+          expect(
+            _mirrorCheckoutFingerprint(base),
+            _mirrorCheckoutFingerprint(modeLower),
+            reason:
+                'backend fingerprint normalizes case (coarser) — the safe '
+                'divergence direction',
+          );
+        },
+      );
+
+      test('the single-item /order body shares the same parity', () {
+        final base = {
+          'productId': 'p1',
+          'quantity': 2,
+          'customerNotes': 'x',
+          'deliveryNotes': null,
+          'idempotencyKey': 'v1:biz-001:user-1:abc',
+        };
         final keyChanged = _deepCopy(base);
-        keyChanged['idempotencyKey'] = 'COMPLETELY-DIFFERENT-KEY';
-
+        keyChanged['idempotencyKey'] = 'OTHER-KEY';
         expect(
           DurableOperationRegistry.fingerprintOf(base),
           DurableOperationRegistry.fingerprintOf(keyChanged),
-          reason: 'the client fingerprint must ignore the durable key',
         );
         expect(
-          _mirrorCheckoutFingerprint(base),
-          _mirrorCheckoutFingerprint(keyChanged),
-          reason: 'and so must the backend fingerprint',
+          _mirrorOrderFingerprint(base),
+          _mirrorOrderFingerprint(keyChanged),
         );
-      }
-    });
 
-    test('every backend-covered field is client-covered too (no backend-finer divergence)', () {
-      final mutations = <String, void Function(Map<String, dynamic>)>{
-        'item productId': (b) => (b['items'] as List)[0]['productId'] = 'pX',
-        'item quantity': (b) => (b['items'] as List)[0]['quantity'] = 99,
-        'item notes': (b) => (b['items'] as List)[0]['notes'] = 'changed',
-        'item variants': (b) => (b['items'] as List)[1]['variants'] = {'Size': 'Small'},
-        'item added': (b) => (b['items'] as List).add({
-              'productId': 'p9',
-              'quantity': 1,
-            }),
-        'item order': (b) => (b['items'] as List).insert(
-            0, (b['items'] as List).removeAt(1)),
-        'customerNotes': (b) => b['customerNotes'] = 'changed',
-        'deliveryNotes': (b) => b['deliveryNotes'] = 'changed',
-        'paymentMode': (b) => b['paymentMode'] = 'ESCROW',
-      };
-
-      for (final entry in mutations.entries) {
-        final base = _checkoutBodyA();
-        final mutated = _deepCopy(base);
-        entry.value(mutated);
-
-        expect(
-          DurableOperationRegistry.fingerprintOf(base),
-          isNot(equals(DurableOperationRegistry.fingerprintOf(mutated))),
-          reason: '${entry.key}: the CLIENT must see this as materially '
-              'different (it determines key reuse)',
-        );
-        expect(
-          _mirrorCheckoutFingerprint(base),
-          isNot(equals(_mirrorCheckoutFingerprint(mutated))),
-          reason: '${entry.key}: and the BACKEND projection covers it (it '
-              'determines exact-replay vs 409)',
-        );
-      }
-    });
-
-    test('documented client-stricter divergences are safe-direction only', () {
-      final base = _checkoutBodyA();
-
-      // paymentMode cosmetic case: the backend normalizes it away; the
-      // client treats the raw value as material. Client-stricter is SAFE:
-      // the changed retry mints a NEW durable key, so it can never
-      // collide with the old instance as a 409.
-      final modeLower = _deepCopy(base);
-      modeLower['paymentMode'] = 'direct';
-      expect(
-        DurableOperationRegistry.fingerprintOf(base),
-        isNot(equals(DurableOperationRegistry.fingerprintOf(modeLower))),
-        reason: 'client fingerprint is raw (finer)',
-      );
-      expect(
-        _mirrorCheckoutFingerprint(base),
-        _mirrorCheckoutFingerprint(modeLower),
-        reason: 'backend fingerprint normalizes case (coarser) — the safe '
-            'divergence direction',
-      );
-    });
-
-    test('the single-item /order body shares the same parity', () {
-      final base = {
-        'productId': 'p1',
-        'quantity': 2,
-        'customerNotes': 'x',
-        'deliveryNotes': null,
-        'idempotencyKey': 'v1:biz-001:user-1:abc',
-      };
-      final keyChanged = _deepCopy(base);
-      keyChanged['idempotencyKey'] = 'OTHER-KEY';
-      expect(DurableOperationRegistry.fingerprintOf(base),
-          DurableOperationRegistry.fingerprintOf(keyChanged));
-      expect(_mirrorOrderFingerprint(base), _mirrorOrderFingerprint(keyChanged));
-
-      for (final mutation in <void Function(Map<String, dynamic>)>[
-        (b) => b['productId'] = 'pX',
-        (b) => b['quantity'] = 5,
-        (b) => b['customerNotes'] = 'changed',
-        (b) => b['deliveryNotes'] = 'changed',
-      ]) {
-        final mutated = _deepCopy(base);
-        mutation(mutated);
-        expect(
+        for (final mutation in <void Function(Map<String, dynamic>)>[
+          (b) => b['productId'] = 'pX',
+          (b) => b['quantity'] = 5,
+          (b) => b['customerNotes'] = 'changed',
+          (b) => b['deliveryNotes'] = 'changed',
+        ]) {
+          final mutated = _deepCopy(base);
+          mutation(mutated);
+          expect(
             DurableOperationRegistry.fingerprintOf(base),
             isNot(equals(DurableOperationRegistry.fingerprintOf(mutated))),
-            reason: 'client must see every orderFingerprint-covered field');
-        expect(_mirrorOrderFingerprint(base),
-            isNot(equals(_mirrorOrderFingerprint(mutated))));
-      }
-    });
-  });
+            reason: 'client must see every orderFingerprint-covered field',
+          );
+          expect(
+            _mirrorOrderFingerprint(base),
+            isNot(equals(_mirrorOrderFingerprint(mutated))),
+          );
+        }
+      });
+    },
+  );
 }

@@ -28,6 +28,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/theme/balance_card_brand.dart';
 
 /// Session-only vertical accent override. `null` = no vertical active —
 /// the shell resolves the user's saved identity instead.
@@ -112,5 +113,8 @@ final resolvedAzamanColorsProvider = Provider<AzamanColors>((ref) {
   final theme = ref.watch(themeProvider);
   final vertical = ref.watch(verticalAccentProvider);
   final base = ThemeProvider.getColors(theme.currentTheme);
-  return base.withAccent(vertical ?? theme.accent);
+  final base2 = base.withBrand(brandAccentFor(theme.cardVariant, base.isDark));
+  // A vertical's session borrow wins while it is active; the applied card's
+  // identity returns the moment the vertical closes.
+  return vertical == null ? base2 : base2.withAccent(vertical);
 });

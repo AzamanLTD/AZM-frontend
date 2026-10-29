@@ -19,22 +19,27 @@ import 'package:azaman/services/api_client.dart';
 
 // ── Providers ───────────────────────────────────────────────────────────────
 
-final yieldStrategiesProvider = FutureProvider<List<YieldStrategy>>((ref) async {
+final yieldStrategiesProvider = FutureProvider<List<YieldStrategy>>((
+  ref,
+) async {
   final res = await apiClient.get('/vaults/yield/strategies');
   if (res.statusCode != 200) return [];
   final body = jsonDecode(res.body) as Map<String, dynamic>;
   final list = body['strategies'] as List<dynamic>? ?? [];
-  return list.map((e) => YieldStrategy.fromJson(e as Map<String, dynamic>)).toList();
+  return list
+      .map((e) => YieldStrategy.fromJson(e as Map<String, dynamic>))
+      .toList();
 });
 
-final vaultYieldEarningsProvider = FutureProvider.family<VaultYieldInfo, String>((ref, vaultId) async {
-  final res = await apiClient.get('/vaults/$vaultId/yield/earnings');
-  if (res.statusCode != 200) {
-    return VaultYieldInfo(enabled: false);
-  }
-  final body = jsonDecode(res.body) as Map<String, dynamic>;
-  return VaultYieldInfo.fromJson(body['yield'] as Map<String, dynamic>);
-});
+final vaultYieldEarningsProvider =
+    FutureProvider.family<VaultYieldInfo, String>((ref, vaultId) async {
+      final res = await apiClient.get('/vaults/$vaultId/yield/earnings');
+      if (res.statusCode != 200) {
+        return VaultYieldInfo(enabled: false);
+      }
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return VaultYieldInfo.fromJson(body['yield'] as Map<String, dynamic>);
+    });
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
@@ -62,16 +67,18 @@ class YieldStrategy {
   });
 
   factory YieldStrategy.fromJson(Map<String, dynamic> j) => YieldStrategy(
-        name: j['name'] as String,
-        displayName: j['displayName'] as String,
-        protocol: j['protocol'] as String,
-        apr: (j['apr'] as num).toDouble(),
-        riskLevel: j['riskLevel'] as String,
-        minAmountUsdc: (j['minAmountUsdc'] as num).toDouble(),
-        maxAmountUsdc: j['maxAmountUsdc'] != null ? (j['maxAmountUsdc'] as num).toDouble() : null,
-        description: j['description'] as String?,
-        logoUrl: j['logoUrl'] as String?,
-      );
+    name: j['name'] as String,
+    displayName: j['displayName'] as String,
+    protocol: j['protocol'] as String,
+    apr: (j['apr'] as num).toDouble(),
+    riskLevel: j['riskLevel'] as String,
+    minAmountUsdc: (j['minAmountUsdc'] as num).toDouble(),
+    maxAmountUsdc: j['maxAmountUsdc'] != null
+        ? (j['maxAmountUsdc'] as num).toDouble()
+        : null,
+    description: j['description'] as String?,
+    logoUrl: j['logoUrl'] as String?,
+  );
 }
 
 class VaultYieldInfo {
@@ -98,16 +105,18 @@ class VaultYieldInfo {
   });
 
   factory VaultYieldInfo.fromJson(Map<String, dynamic> j) => VaultYieldInfo(
-        enabled: j['enabled'] as bool? ?? false,
-        strategy: j['strategy'] as String?,
-        apr: (j['apr'] as num?)?.toDouble() ?? 0,
-        earnedUsdc: (j['earnedUsdc'] as num?)?.toDouble() ?? 0,
-        projectedUsdc: (j['projectedUsdc'] as num?)?.toDouble() ?? 0,
-        dailyEarnedUsdc: (j['dailyEarnedUsdc'] as num?)?.toDouble() ?? 0,
-        autoCompound: j['autoCompound'] as bool? ?? true,
-        lastCompoundAt: j['lastCompoundAt'] != null ? DateTime.tryParse(j['lastCompoundAt']) : null,
-        daysToMaturity: (j['daysToMaturity'] as num?)?.toInt() ?? 0,
-      );
+    enabled: j['enabled'] as bool? ?? false,
+    strategy: j['strategy'] as String?,
+    apr: (j['apr'] as num?)?.toDouble() ?? 0,
+    earnedUsdc: (j['earnedUsdc'] as num?)?.toDouble() ?? 0,
+    projectedUsdc: (j['projectedUsdc'] as num?)?.toDouble() ?? 0,
+    dailyEarnedUsdc: (j['dailyEarnedUsdc'] as num?)?.toDouble() ?? 0,
+    autoCompound: j['autoCompound'] as bool? ?? true,
+    lastCompoundAt: j['lastCompoundAt'] != null
+        ? DateTime.tryParse(j['lastCompoundAt'])
+        : null,
+    daysToMaturity: (j['daysToMaturity'] as num?)?.toInt() ?? 0,
+  );
 }
 
 // ── Screen ──────────────────────────────────────────────────────────────────
@@ -125,9 +134,14 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
   bool _busy = false;
   String? _selectedStrategy;
 
-  Vault? get _vault => widget.vault ?? ref.read(vaultsProvider).whenOrNull(
-        data: (list) => list.where((v) => v.id == widget.vaultId).firstOrNull,
-      );
+  Vault? get _vault =>
+      widget.vault ??
+      ref
+          .read(vaultsProvider)
+          .whenOrNull(
+            data: (list) =>
+                list.where((v) => v.id == widget.vaultId).firstOrNull,
+          );
 
   @override
   Widget build(BuildContext context) {
@@ -135,15 +149,26 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
     final strategies = ref.watch(yieldStrategiesProvider);
 
     // If vault not passed directly, try to load it from the vaults list
-    final vault = widget.vault ?? ref.watch(vaultsProvider).whenOrNull(
-          data: (list) => list.where((v) => v.id == widget.vaultId).firstOrNull,
-        );
+    final vault =
+        widget.vault ??
+        ref
+            .watch(vaultsProvider)
+            .whenOrNull(
+              data: (list) =>
+                  list.where((v) => v.id == widget.vaultId).firstOrNull,
+            );
     if (vault == null) {
       return Scaffold(
         backgroundColor: colors.background,
         appBar: AppBar(
           backgroundColor: colors.card,
-          title: Text('DeFi Yield', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
+          title: Text(
+            'DeFi Yield',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           iconTheme: IconThemeData(color: colors.textPrimary),
           elevation: 0,
         ),
@@ -157,7 +182,13 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.card,
-        title: Text('DeFi Yield', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
+        title: Text(
+          'DeFi Yield',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         iconTheme: IconThemeData(color: colors.textPrimary),
         elevation: 0,
       ),
@@ -171,26 +202,43 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
 
           // ── Earnings breakdown ──
           if (vault.yieldEnabled) ...[
-            _EarningsBreakdown(yieldInfo: yieldInfo, vault: vault, colors: colors),
+            _EarningsBreakdown(
+              yieldInfo: yieldInfo,
+              vault: vault,
+              colors: colors,
+            ),
             const SizedBox(height: 16),
           ],
 
           // ── Strategy picker ──
           if (!vault.yieldEnabled) ...[
-            Text('Choose a yield strategy',
-                style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(
+              'Choose a yield strategy',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 12),
             strategies.when(
               data: (list) => Column(
-                children: list.map((s) => _StrategyCard(
-                  strategy: s,
-                  selected: _selectedStrategy == s.name,
-                  onTap: () => setState(() => _selectedStrategy = s.name),
-                  colors: colors,
-                )).toList(),
+                children: list
+                    .map(
+                      (s) => _StrategyCard(
+                        strategy: s,
+                        selected: _selectedStrategy == s.name,
+                        onTap: () => setState(() => _selectedStrategy = s.name),
+                        colors: colors,
+                      ),
+                    )
+                    .toList(),
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => Text('Failed to load strategies', style: TextStyle(color: colors.danger)),
+              error: (_, __) => Text(
+                'Failed to load strategies',
+                style: TextStyle(color: colors.danger),
+              ),
             ),
             if (_selectedStrategy != null) ...[
               const SizedBox(height: 24),
@@ -242,14 +290,24 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('How DeFi Yield Works',
-                    style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
+                Text(
+                  'How DeFi Yield Works',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Your vault balance is supplied to the chosen DeFi protocol, which lends it to borrowers. '
                   'Interest earned is auto-compounded back into your vault daily. '
                   'You can withdraw at any time by breaking the vault (standard penalty applies).',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.5),
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
                 ),
               ],
             ),
@@ -274,13 +332,20 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
       ref.invalidate(vaultDetailProvider(_vault!.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Yield enabled!', style: TextStyle(color: Colors.white)),
-              backgroundColor: colors.success),
+          SnackBar(
+            content: const Text(
+              'Yield enabled!',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: colors.success,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -296,13 +361,20 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
       ref.invalidate(vaultDetailProvider(_vault!.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Yield disabled', style: TextStyle(color: Colors.white)),
-              backgroundColor: colors.danger),
+          SnackBar(
+            content: const Text(
+              'Yield disabled',
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: colors.danger,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -312,7 +384,10 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
   Future<void> _compoundNow(AzamanColors colors) async {
     setState(() => _busy = true);
     try {
-      final res = await apiClient.post('/vaults/${_vault!.id}/yield/compound', {});
+      final res = await apiClient.post(
+        '/vaults/${_vault!.id}/yield/compound',
+        {},
+      );
       if (res.statusCode != 200) {
         final msg = jsonDecode(res.body)['message'] ?? 'Compounding failed';
         throw Exception(msg);
@@ -325,15 +400,21 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(earned > 0 ? 'Compounded \$${earned.toStringAsFixed(2)}!' : 'No yield to compound yet',
-                style: const TextStyle(color: Colors.white)),
+            content: Text(
+              earned > 0
+                  ? 'Compounded \$${earned.toStringAsFixed(2)}!'
+                  : 'No yield to compound yet',
+              style: const TextStyle(color: Colors.white),
+            ),
             backgroundColor: earned > 0 ? colors.success : colors.card,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -349,7 +430,9 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
       ref.invalidate(vaultDetailProvider(_vault!.id));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -364,7 +447,11 @@ class _YieldStatusCard extends StatelessWidget {
   final AsyncValue<VaultYieldInfo> yieldInfo;
   final AzamanColors colors;
 
-  const _YieldStatusCard({required this.vault, required this.yieldInfo, required this.colors});
+  const _YieldStatusCard({
+    required this.vault,
+    required this.yieldInfo,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -382,32 +469,56 @@ class _YieldStatusCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: enabled ? Colors.green.shade300 : colors.divider),
+        border: Border.all(
+          color: enabled ? Colors.green.shade300 : colors.divider,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(enabled ? Icons.flash_on : Icons.flash_off,
-                  color: enabled ? Colors.amber : colors.textSecondary, size: 28),
+              Icon(
+                enabled ? Icons.flash_on : Icons.flash_off,
+                color: enabled ? Colors.amber : colors.textSecondary,
+                size: 28,
+              ),
               const SizedBox(width: 8),
-              Text(enabled ? 'Yield Active' : 'Yield Not Enabled',
-                  style: TextStyle(
-                    color: enabled ? Colors.white : colors.textPrimary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  )),
+              Text(
+                enabled ? 'Yield Active' : 'Yield Not Enabled',
+                style: TextStyle(
+                  color: enabled ? Colors.white : colors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
           if (enabled) ...[
             const SizedBox(height: 16),
             Row(
               children: [
-                Expanded(child: _Stat(label: 'APR', value: '$aprPct%', color: Colors.white70),
+                Expanded(
+                  child: _Stat(
+                    label: 'APR',
+                    value: '$aprPct%',
+                    color: Colors.white70,
+                  ),
                 ),
-                Expanded(child: _Stat(label: 'Earned', value: '\$${vault.yieldEarnedUsdc.toStringAsFixed(2)}', color: Colors.white70)),
-                Expanded(child: _Stat(label: 'Strategy', value: vault.yieldStrategy ?? '—', color: Colors.white70)),
+                Expanded(
+                  child: _Stat(
+                    label: 'Earned',
+                    value: '\$${vault.yieldEarnedUsdc.toStringAsFixed(2)}',
+                    color: Colors.white70,
+                  ),
+                ),
+                Expanded(
+                  child: _Stat(
+                    label: 'Strategy',
+                    value: vault.yieldStrategy ?? '—',
+                    color: Colors.white70,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -416,13 +527,19 @@ class _YieldStatusCard extends StatelessWidget {
                 'Daily: \$${info.dailyEarnedUsdc.toStringAsFixed(4)} · Projected: \$${info.projectedUsdc.toStringAsFixed(2)}',
                 style: const TextStyle(color: Colors.white60, fontSize: 12),
               ),
-              loading: () => const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+              loading: () => const SizedBox(
+                height: 16,
+                width: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
               error: (_, __) => const SizedBox(),
             ),
           ] else ...[
             const SizedBox(height: 8),
-            Text('Enable yield to earn interest on your vault balance.',
-                style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+            Text(
+              'Enable yield to earn interest on your vault balance.',
+              style: TextStyle(color: colors.textSecondary, fontSize: 14),
+            ),
           ],
         ],
       ),
@@ -435,7 +552,11 @@ class _EarningsBreakdown extends StatelessWidget {
   final Vault vault;
   final AzamanColors colors;
 
-  const _EarningsBreakdown({required this.yieldInfo, required this.vault, required this.colors});
+  const _EarningsBreakdown({
+    required this.yieldInfo,
+    required this.vault,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -450,21 +571,60 @@ class _EarningsBreakdown extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Yield Breakdown', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
+            Text(
+              'Yield Breakdown',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
             const SizedBox(height: 12),
-            _Row(colors: colors, label: 'Total earned', value: '\$${info.earnedUsdc.toStringAsFixed(4)}'),
-            _Row(colors: colors, label: 'Daily earnings', value: '\$${info.dailyEarnedUsdc.toStringAsFixed(6)}'),
-            _Row(colors: colors, label: 'Projected to maturity', value: '\$${info.projectedUsdc.toStringAsFixed(2)}'),
-            _Row(colors: colors, label: 'Days to maturity', value: '${info.daysToMaturity}'),
+            _Row(
+              colors: colors,
+              label: 'Total earned',
+              value: '\$${info.earnedUsdc.toStringAsFixed(4)}',
+            ),
+            _Row(
+              colors: colors,
+              label: 'Daily earnings',
+              value: '\$${info.dailyEarnedUsdc.toStringAsFixed(6)}',
+            ),
+            _Row(
+              colors: colors,
+              label: 'Projected to maturity',
+              value: '\$${info.projectedUsdc.toStringAsFixed(2)}',
+            ),
+            _Row(
+              colors: colors,
+              label: 'Days to maturity',
+              value: '${info.daysToMaturity}',
+            ),
             if (info.lastCompoundAt != null)
-              _Row(colors: colors, label: 'Last compound', value: info.lastCompoundAt!.toLocal().toString().substring(0, 16)),
+              _Row(
+                colors: colors,
+                label: 'Last compound',
+                value: info.lastCompoundAt!.toLocal().toString().substring(
+                  0,
+                  16,
+                ),
+              ),
             const Divider(),
-            _Row(colors: colors, label: 'Auto-compound', value: info.autoCompound ? 'ON' : 'OFF',
-                valueColor: info.autoCompound ? colors.success : colors.textSecondary),
+            _Row(
+              colors: colors,
+              label: 'Auto-compound',
+              value: info.autoCompound ? 'ON' : 'OFF',
+              valueColor: info.autoCompound
+                  ? colors.success
+                  : colors.textSecondary,
+            ),
           ],
         ),
       ),
-      loading: () => const SizedBox(height: 80, child: Center(child: CircularProgressIndicator())),
+      loading: () => const SizedBox(
+        height: 80,
+        child: Center(child: CircularProgressIndicator()),
+      ),
       error: (_, __) => const SizedBox(),
     );
   }
@@ -476,15 +636,20 @@ class _StrategyCard extends StatelessWidget {
   final VoidCallback onTap;
   final AzamanColors colors;
 
-  const _StrategyCard({required this.strategy, required this.selected, required this.onTap, required this.colors});
+  const _StrategyCard({
+    required this.strategy,
+    required this.selected,
+    required this.onTap,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
     final riskColor = strategy.riskLevel == 'LOW'
         ? Colors.green
         : strategy.riskLevel == 'MEDIUM'
-            ? Colors.orange
-            : Colors.red;
+        ? Colors.orange
+        : Colors.red;
 
     return GestureDetector(
       onTap: onTap,
@@ -506,35 +671,65 @@ class _StrategyCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(strategy.displayName,
-                      style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
+                  child: Text(
+                    strategy.displayName,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: riskColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(strategy.riskLevel,
-                      style: TextStyle(color: riskColor, fontSize: 11, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    strategy.riskLevel,
+                    style: TextStyle(
+                      color: riskColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                Text('${(strategy.apr * 100).toStringAsFixed(2)}% APR',
-                    style: TextStyle(color: colors.accent, fontWeight: FontWeight.w800, fontSize: 18)),
+                Text(
+                  '${(strategy.apr * 100).toStringAsFixed(2)}% APR',
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 18,
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Text('Min \$${strategy.minAmountUsdc.toStringAsFixed(0)}',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                Text(
+                  'Min \$${strategy.minAmountUsdc.toStringAsFixed(0)}',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                ),
               ],
             ),
             if (strategy.description != null) ...[
               const SizedBox(height: 8),
-              Text(strategy.description!,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              Text(
+                strategy.description!,
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ],
         ),
@@ -549,7 +744,12 @@ class _ToggleRow extends StatelessWidget {
   final AzamanColors colors;
   final VoidCallback onTap;
 
-  const _ToggleRow({required this.label, required this.value, required this.colors, required this.onTap});
+  const _ToggleRow({
+    required this.label,
+    required this.value,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -564,7 +764,13 @@ class _ToggleRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Text(label, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const Spacer(),
             Switch(value: value, onChanged: (_) => onTap()),
           ],
@@ -598,14 +804,20 @@ class _ActionButtons extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: busy ? null : onTap,
         icon: busy
-            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
             : Icon(icon, size: 20),
         label: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
         style: ElevatedButton.styleFrom(
           backgroundColor: danger ? colors.danger : colors.accent,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );
@@ -625,7 +837,14 @@ class _Stat extends StatelessWidget {
       children: [
         Text(label, style: TextStyle(color: color, fontSize: 11)),
         const SizedBox(height: 2),
-        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14)),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+        ),
       ],
     );
   }
@@ -636,7 +855,12 @@ class _Row extends StatelessWidget {
   final String value;
   final Color? valueColor;
   final AzamanColors colors;
-  const _Row({required this.label, required this.value, this.valueColor, required this.colors});
+  const _Row({
+    required this.label,
+    required this.value,
+    this.valueColor,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -645,8 +869,18 @@ class _Row extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 14)),
-          Text(value, style: TextStyle(color: valueColor, fontWeight: FontWeight.w600, fontSize: 14)),
+          Text(
+            label,
+            style: TextStyle(color: colors.textSecondary, fontSize: 14),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
         ],
       ),
     );

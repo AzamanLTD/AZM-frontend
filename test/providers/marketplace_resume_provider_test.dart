@@ -18,11 +18,15 @@ void main() {
 
   ProviderContainer make({CartState? cart, DateTime Function()? clock}) {
     SharedPreferences.setMockInitialValues({});
-    final c = ProviderContainer(overrides: [
-      discoveryClockProvider.overrideWithValue(clock ?? () => now),
-      worldMemoryProvider.overrideWith((_) => WorldMemoryNotifier(clock: clock ?? () => now)),
-      if (cart != null) cartProvider.overrideWith((_) => _SeededCart(cart)),
-    ]);
+    final c = ProviderContainer(
+      overrides: [
+        discoveryClockProvider.overrideWithValue(clock ?? () => now),
+        worldMemoryProvider.overrideWith(
+          (_) => WorldMemoryNotifier(clock: clock ?? () => now),
+        ),
+        if (cart != null) cartProvider.overrideWith((_) => _SeededCart(cart)),
+      ],
+    );
     addTearDown(c.dispose);
     return c;
   }
@@ -54,7 +58,9 @@ void main() {
     final c = make(
       cart: const CartState(
         isCheckingOut: true,
-        items: [CartItem(productId: 'p1', name: 'X', unitPrice: 1, quantity: 1)],
+        items: [
+          CartItem(productId: 'p1', name: 'X', unitPrice: 1, quantity: 1),
+        ],
       ),
     );
     expect(c.read(marketplaceResumeProvider), isNull);

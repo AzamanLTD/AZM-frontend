@@ -20,7 +20,8 @@ import 'package:azaman/widgets/susu/susu_wheel.dart';
 class SusuPositionPicker extends ConsumerStatefulWidget {
   final int totalPositions;
   final int? selectedPosition;
-  final List<Map<String, dynamic>> members; // [{position, username, avatarUrl, paid}]
+  final List<Map<String, dynamic>>
+  members; // [{position, username, avatarUrl, paid}]
   final ValueChanged<int> onPositionSelected;
 
   const SusuPositionPicker({
@@ -44,7 +45,10 @@ class _SusuPositionPickerState extends ConsumerState<SusuPositionPicker> {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: Text('Choose Your Position', style: TextStyle(color: colors.textPrimary)),
+        title: Text(
+          'Choose Your Position',
+          style: TextStyle(color: colors.textPrimary),
+        ),
         leading: IconButton(
           icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
@@ -84,18 +88,26 @@ class _SusuPositionPickerState extends ConsumerState<SusuPositionPicker> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Current Members',
-                      style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    'Current Members',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
-              ...widget.members.map((m) => _MemberRow(
-                position: m['position'] as int,
-                username: m['username']?.toString() ?? 'Unknown',
-                avatarUrl: m['avatarUrl']?.toString(),
-                paid: m['paid'] == true,
-                colors: colors,
-              ).animate().fadeIn().slideX(begin: -0.05)),
+              ...widget.members.map(
+                (m) => _MemberRow(
+                  position: m['position'] as int,
+                  username: m['username']?.toString() ?? 'Unknown',
+                  avatarUrl: m['avatarUrl']?.toString(),
+                  paid: m['paid'] == true,
+                  colors: colors,
+                ).animate().fadeIn().slideX(begin: -0.05),
+              ),
             ],
           ],
         ),
@@ -107,9 +119,19 @@ class _SusuPositionPickerState extends ConsumerState<SusuPositionPicker> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        ),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: ref.read(themeProvider).colors.textTertiary, fontSize: 12)),
+        Text(
+          label,
+          style: TextStyle(
+            color: ref.read(themeProvider).colors.textTertiary,
+            fontSize: 12,
+          ),
+        ),
       ],
     );
   }
@@ -125,8 +147,11 @@ class _MemberRow extends StatelessWidget {
   final AzamanColors colors;
 
   const _MemberRow({
-    required this.position, required this.username, this.avatarUrl,
-    required this.paid, required this.colors,
+    required this.position,
+    required this.username,
+    this.avatarUrl,
+    required this.paid,
+    required this.colors,
   });
 
   @override
@@ -137,13 +162,29 @@ class _MemberRow extends StatelessWidget {
         backgroundColor: colors.softSurface,
         backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
         child: avatarUrl == null
-            ? Text(username[0].toUpperCase(), style: TextStyle(color: colors.accent))
+            ? Text(
+                username[0].toUpperCase(),
+                style: TextStyle(color: colors.accent),
+              )
             : null,
       ),
-      title: Text(username, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w500)),
-      subtitle: Text('Position #$position', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+      title: Text(
+        username,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      subtitle: Text(
+        'Position #$position',
+        style: TextStyle(color: colors.textTertiary, fontSize: 12),
+      ),
       trailing: paid
-          ? Icon(HugeIconsSolid.checkmarkBadge02, color: colors.success, size: 24)
+          ? Icon(
+              HugeIconsSolid.checkmarkBadge02,
+              color: colors.success,
+              size: 24,
+            )
           : Icon(HugeIconsSolid.time02, color: colors.textTertiary, size: 22),
     );
   }

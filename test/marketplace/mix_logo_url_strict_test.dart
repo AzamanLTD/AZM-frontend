@@ -9,34 +9,31 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   // Minimal valid discovery row builder — only the fields under test vary.
   Map<String, dynamic> row({dynamic businessLogoUrl}) => <String, dynamic>{
-        'id': 'item-1',
-        'businessId': 'biz-1',
-        'bizId': 'BIZ-1',
-        'businessName': 'Accra Home Goods',
-        'businessCategory': 'RETAIL',
-        'businessLogoUrl': businessLogoUrl,
-        'item': {
-          'name': 'Ceramic bowl',
-          'images': <String>['https://cdn.example.com/bowl.jpg'],
-        },
-        'pricing': {
-          'currency': 'GHS',
-          'amount': '45.00',
-        },
-      };
+    'id': 'item-1',
+    'businessId': 'biz-1',
+    'bizId': 'BIZ-1',
+    'businessName': 'Accra Home Goods',
+    'businessCategory': 'RETAIL',
+    'businessLogoUrl': businessLogoUrl,
+    'item': {
+      'name': 'Ceramic bowl',
+      'images': <String>['https://cdn.example.com/bowl.jpg'],
+    },
+    'pricing': {'currency': 'GHS', 'amount': '45.00'},
+  };
 
   group('MixOffer.fromDiscoveryDto businessLogoUrl strict parse', () {
     test('accepts a valid https URL', () {
-      final offer = MixOffer.fromDiscoveryDto(row(
-        businessLogoUrl: 'https://cdn.example.com/logo.png',
-      ));
+      final offer = MixOffer.fromDiscoveryDto(
+        row(businessLogoUrl: 'https://cdn.example.com/logo.png'),
+      );
       expect(offer.businessLogoUrl, 'https://cdn.example.com/logo.png');
     });
 
     test('accepts a valid http URL', () {
-      final offer = MixOffer.fromDiscoveryDto(row(
-        businessLogoUrl: 'http://cdn.example.com/logo.png',
-      ));
+      final offer = MixOffer.fromDiscoveryDto(
+        row(businessLogoUrl: 'http://cdn.example.com/logo.png'),
+      );
       expect(offer.businessLogoUrl, 'http://cdn.example.com/logo.png');
     });
 
@@ -56,7 +53,9 @@ void main() {
         isNull,
       );
       expect(
-        MixOffer.fromDiscoveryDto(row(businessLogoUrl: <dynamic>[1])).businessLogoUrl,
+        MixOffer.fromDiscoveryDto(
+          row(businessLogoUrl: <dynamic>[1]),
+        ).businessLogoUrl,
         isNull,
       );
     });
@@ -109,16 +108,15 @@ void main() {
       );
       final noKey = row();
       noKey.remove('businessLogoUrl');
-      expect(
-        MixOffer.fromDiscoveryDto(noKey).businessLogoUrl,
-        isNull,
-      );
+      expect(MixOffer.fromDiscoveryDto(noKey).businessLogoUrl, isNull);
     });
 
     test('logo never leaks into the item image slot', () {
-      final offer = MixOffer.fromDiscoveryDto(row(
-        businessLogoUrl: 42, // rejected type
-      ));
+      final offer = MixOffer.fromDiscoveryDto(
+        row(
+          businessLogoUrl: 42, // rejected type
+        ),
+      );
       expect(offer.businessLogoUrl, isNull);
       expect(offer.imageUrls.single, 'https://cdn.example.com/bowl.jpg');
       expect(offer.primaryImage, 'https://cdn.example.com/bowl.jpg');

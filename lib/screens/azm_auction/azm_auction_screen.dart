@@ -23,7 +23,6 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class AzmAuctionScreen extends ConsumerStatefulWidget {
   const AzmAuctionScreen({super.key});
 
@@ -59,7 +58,9 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
     if (state == null) return;
     final remaining = state.windowEnd.difference(DateTime.now());
     if (mounted) {
-      setState(() => _remaining = remaining.isNegative ? Duration.zero : remaining);
+      setState(
+        () => _remaining = remaining.isNegative ? Duration.zero : remaining,
+      );
     }
   }
 
@@ -79,7 +80,8 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
           setState(() {
             _myAds = list;
             _loadingAds = false;
-            if (list.isNotEmpty) _selectedAdId = (list.first['id'] as num).toInt();
+            if (list.isNotEmpty)
+              _selectedAdId = (list.first['id'] as num).toInt();
           });
         }
       } else {
@@ -94,7 +96,9 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
     final amt = double.tryParse(_amount.text.trim());
     if (amt == null || amt <= 0 || _selectedAdId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick an ad and enter a positive AZM bid.')),
+        const SnackBar(
+          content: Text('Pick an ad and enter a positive AZM bid.'),
+        ),
       );
       return;
     }
@@ -112,7 +116,9 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -124,11 +130,15 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
     try {
       await ref.read(auctionActionsProvider).withdrawBid();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bid withdrawn.')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Bid withdrawn.')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -157,9 +167,14 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('AZM Auction',
-            style: TextStyle(
-                color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Text(
+          'AZM Auction',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: AzPullToRefresh(
         onRefresh: () async {
@@ -173,22 +188,36 @@ class _AzmAuctionScreenState extends ConsumerState<AzmAuctionScreen> {
             auctionAsync.when(
               loading: () => Column(
                 children: [
-                  SkeletonBlock(height: 160, width: double.infinity, borderRadius: BorderRadius.circular(16)),
+                  SkeletonBlock(
+                    height: 160,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   const SizedBox(height: 12),
-                  SkeletonBlock(height: 48, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+                  SkeletonBlock(
+                    height: 48,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ],
               ),
               error: (e, _) => Text(e.toString()),
               data: (state) {
                 if (state == null) {
-                  return Text('No active auction', style: TextStyle(color: colors.textTertiary));
+                  return Text(
+                    'No active auction',
+                    style: TextStyle(color: colors.textTertiary),
+                  );
                 }
                 return _Hero(
-                  remaining: _fmtRemaining(_remaining),
-                  participants: state.participantCount,
-                  status: state.status,
-                  colors: colors,
-                ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0);
+                      remaining: _fmtRemaining(_remaining),
+                      participants: state.participantCount,
+                      status: state.status,
+                      colors: colors,
+                    )
+                    .animate()
+                    .fadeIn(duration: 320.ms)
+                    .slideY(begin: 0.05, end: 0);
               },
             ),
             const SizedBox(height: 18),
@@ -280,20 +309,33 @@ class _Hero extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.auto_awesome, color: Color(0xFF9D8FFF), size: 18),
+                  const Icon(
+                    Icons.auto_awesome,
+                    color: Color(0xFF9D8FFF),
+                    size: 18,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     'AZM Auction',
                     style: TextStyle(
-                        color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w800),
+                      color: colors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.success.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: colors.success.withValues(alpha: 0.30), width: 0.7),
+                      border: Border.all(
+                        color: colors.success.withValues(alpha: 0.30),
+                        width: 0.7,
+                      ),
                     ),
                     child: Text(
                       status,
@@ -318,19 +360,29 @@ class _Hero extends StatelessWidget {
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-              Text('Until next settlement',
-                  style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+              Text(
+                'Until next settlement',
+                style: TextStyle(color: colors.textTertiary, fontSize: 11),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(Icons.group_outlined, color: colors.textTertiary, size: 14),
+                  Icon(
+                    Icons.group_outlined,
+                    color: colors.textTertiary,
+                    size: 14,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '$participants vendors bidding',
                     style: TextStyle(color: colors.textSecondary, fontSize: 11),
                   ),
                   const Spacer(),
-                  Icon(Icons.local_fire_department_outlined, color: colors.warning, size: 14),
+                  Icon(
+                    Icons.local_fire_department_outlined,
+                    color: colors.warning,
+                    size: 14,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'Top 3 burn AZM, get 24h boost',
@@ -351,7 +403,11 @@ class _MyBidCard extends StatelessWidget {
   final AzamanColors colors;
   final VoidCallback? onWithdraw;
 
-  const _MyBidCard({required this.bid, required this.colors, required this.onWithdraw});
+  const _MyBidCard({
+    required this.bid,
+    required this.colors,
+    required this.onWithdraw,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -367,7 +423,10 @@ class _MyBidCard extends StatelessWidget {
           children: [
             Icon(Icons.gavel, color: colors.textTertiary, size: 16),
             const SizedBox(width: 8),
-            Text('No active bid', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+            Text(
+              'No active bid',
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
           ],
         ),
       );
@@ -440,9 +499,17 @@ class _BidForm extends StatelessWidget {
     if (loadingAds) {
       return Column(
         children: [
-          SkeletonBlock(height: 48, width: double.infinity, borderRadius: BorderRadius.circular(12)),
+          SkeletonBlock(
+            height: 48,
+            width: double.infinity,
+            borderRadius: BorderRadius.circular(12),
+          ),
           const SizedBox(height: 8),
-          SkeletonBlock(height: 40, width: double.infinity, borderRadius: BorderRadius.circular(10)),
+          SkeletonBlock(
+            height: 40,
+            width: double.infinity,
+            borderRadius: BorderRadius.circular(10),
+          ),
         ],
       );
     }
@@ -475,12 +542,20 @@ class _BidForm extends StatelessWidget {
               value: selectedAdId,
               isExpanded: true,
               dropdownColor: colors.card,
-              style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
               items: myAds
-                  .map((a) => DropdownMenuItem<int>(
-                        value: (a['id'] as num).toInt(),
-                        child: Text('Ad #${a['id']} · ${a['paymentMethod'] ?? 'P2P'}'),
-                      ))
+                  .map(
+                    (a) => DropdownMenuItem<int>(
+                      value: (a['id'] as num).toInt(),
+                      child: Text(
+                        'Ad #${a['id']} · ${a['paymentMethod'] ?? 'P2P'}',
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: (v) => v != null ? onAdSelected(v) : null,
             ),
@@ -498,12 +573,19 @@ class _BidForm extends StatelessWidget {
             controller: amount,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: TextStyle(
-                color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
             decoration: InputDecoration(
               border: InputBorder.none,
               hintText: 'Bid (AZM)',
               hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14),
-              prefixIcon: Icon(Icons.bolt_outlined, color: colors.accentSecondary, size: 18),
+              prefixIcon: Icon(
+                Icons.bolt_outlined,
+                color: colors.accentSecondary,
+                size: 18,
+              ),
             ),
           ),
         ),
@@ -514,12 +596,17 @@ class _BidForm extends StatelessWidget {
             backgroundColor: colors.accent,
             foregroundColor: colors.isDark ? Colors.black : Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             elevation: 0,
           ),
           child: Text(
             busy ? 'Locking…' : 'Lock Bid',
-            style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.4),
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
           ),
         ),
       ],
@@ -557,7 +644,10 @@ class _PromotedStrip extends ConsumerWidget {
               .map(
                 (a) => Container(
                   margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.card,
                     borderRadius: BorderRadius.circular(10),
@@ -565,8 +655,11 @@ class _PromotedStrip extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.local_fire_department_outlined,
-                          color: colors.warning, size: 14),
+                      Icon(
+                        Icons.local_fire_department_outlined,
+                        color: colors.warning,
+                        size: 14,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Ad #${a.id}',
@@ -579,7 +672,10 @@ class _PromotedStrip extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Text(
                         a.paymentMethod,
-                        style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),

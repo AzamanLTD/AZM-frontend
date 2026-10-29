@@ -57,12 +57,18 @@ Future<void> _loadFonts() async {
   await _loadFace('Inter', 'assets/fonts/Inter-Variable.ttf');
   // Package icons resolve under the package-qualified family key —
   // the bare family name leaves tofu squares in the captures.
-  await _loadFace('packages/hugeicons_pro/HugeIconsSolid',
-      'test/goldens/fonts/hugeicons-solid.ttf');
-  await _loadFace('packages/hugeicons_pro/HugeIconsStroke',
-      'test/goldens/fonts/hugeicons-stroke.ttf');
   await _loadFace(
-      'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+    'packages/hugeicons_pro/HugeIconsSolid',
+    'test/goldens/fonts/hugeicons-solid.ttf',
+  );
+  await _loadFace(
+    'packages/hugeicons_pro/HugeIconsStroke',
+    'test/goldens/fonts/hugeicons-stroke.ttf',
+  );
+  await _loadFace(
+    'MaterialIcons',
+    'test/goldens/fonts/MaterialIcons-Regular.otf',
+  );
   _fontsLoaded = true;
 }
 
@@ -136,9 +142,7 @@ Future<void> _pumpHome(
                   data: MediaQueryData(size: surface),
                   child: child!,
                 ),
-                home: Scaffold(
-                  body: AzamanHomePage(onOpenSettings: () {}),
-                ),
+                home: Scaffold(body: AzamanHomePage(onOpenSettings: () {})),
               ),
             ),
           );
@@ -165,24 +169,32 @@ Future<Uint8List> _capture(
 }) async {
   late Uint8List rgba;
   await tester.runAsync(() async {
-    final boundary =
-        tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(_rootKey),
+    );
     final image = await boundary.toImage(pixelRatio: 2.0);
     final png = (await image.toByteData(format: ImageByteFormat.png))!;
-    final dir = Directory('.screenshots/home_header')..createSync(recursive: true);
+    final dir = Directory('.screenshots/home_header')
+      ..createSync(recursive: true);
     await File('${dir.path}/$name.png').writeAsBytes(png.buffer.asUint8List());
-    rgba = (await image.toByteData(format: ImageByteFormat.rawRgba))!
-        .buffer
-        .asUint8List();
+    rgba = (await image.toByteData(
+      format: ImageByteFormat.rawRgba,
+    ))!.buffer.asUint8List();
   });
   // Every pixel opaque: the capture must never composite over a clear
   // buffer.
   for (var i = 3; i < rgba.length; i += 4) {
-    expect(rgba[i], 255,
-        reason: '$name: capture must be fully opaque (pixel ${(i - 3) ~/ 4})');
+    expect(
+      rgba[i],
+      255,
+      reason: '$name: capture must be fully opaque (pixel ${(i - 3) ~/ 4})',
+    );
   }
-  expect(rgba.length, imgW * 2 * imgH * 2 * 4,
-      reason: '$name: unexpected raster dimensions');
+  expect(
+    rgba.length,
+    imgW * 2 * imgH * 2 * 4,
+    reason: '$name: unexpected raster dimensions',
+  );
   return rgba;
 }
 
@@ -202,7 +214,8 @@ double _bandDelta(
   for (var y = yFrom * 2; y < yTo * 2; y++) {
     for (var x = 24; x < px - 24; x++) {
       final i = (y * px + x) * 4;
-      sum += ((a[i] - b[i]).abs() +
+      sum +=
+          ((a[i] - b[i]).abs() +
               (a[i + 1] - b[i + 1]).abs() +
               (a[i + 2] - b[i + 2]).abs()) /
           3;
@@ -216,9 +229,9 @@ void main() {
   for (final theme in AzamanTheme.values) {
     for (final w in _widths) {
       final themeName = theme.name;
-      testWidgets(
-          'captures the header surface at ${w.round()}dp $themeName',
-          (tester) async {
+      testWidgets('captures the header surface at ${w.round()}dp $themeName', (
+        tester,
+      ) async {
         await _pumpHome(tester, theme: theme, width: w);
 
         // 1. At rest: the band is transparent — nothing frosted.
@@ -232,13 +245,14 @@ void main() {
 
         // 2. Scrolled: the band frosts over the moving content.
         final scrollable = find.byType(Scrollable).first;
-        final position =
-            tester.state<ScrollableState>(scrollable).position;
+        final position = tester.state<ScrollableState>(scrollable).position;
         position.jumpTo(position.maxScrollExtent.clamp(0, 420));
         await tester.pump(const Duration(milliseconds: 100));
-        expect(find.byKey(const ValueKey('home-header-surface')),
-            findsOneWidget,
-            reason: 'scrolled, the frost surface must be mounted');
+        expect(
+          find.byKey(const ValueKey('home-header-surface')),
+          findsOneWidget,
+          reason: 'scrolled, the frost surface must be mounted',
+        );
         final frosted = await _capture(
           tester,
           'header_frosted_${w.round()}_$themeName',
@@ -269,12 +283,14 @@ void main() {
         // visibly differ between rest and scroll in both themes.
         // (The strip avoids the notch: 8..40 logical px, within the
         // band's controls region.)
-        final delta =
-            _bandDelta(top, frosted, w, yFrom: 8, yTo: 40);
-        expect(delta, greaterThan(2.0),
-            reason:
-                '$themeName ${w.round()}dp: the frosted band must differ '
-                'visibly from the resting band (mean channel delta $delta)');
+        final delta = _bandDelta(top, frosted, w, yFrom: 8, yTo: 40);
+        expect(
+          delta,
+          greaterThan(2.0),
+          reason:
+              '$themeName ${w.round()}dp: the frosted band must differ '
+              'visibly from the resting band (mean channel delta $delta)',
+        );
       });
     }
   }

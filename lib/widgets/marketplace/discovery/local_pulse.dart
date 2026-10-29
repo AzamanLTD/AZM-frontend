@@ -19,19 +19,28 @@ class LocalPulseModel {
   bool get isEmpty => (openNow ?? 0) == 0 && (nearby ?? 0) == 0;
 }
 
-LocalPulseModel buildLocalPulse(DiscoverySnapshot s, Set<DiscoverySignal> supported) {
+LocalPulseModel buildLocalPulse(
+  DiscoverySnapshot s,
+  Set<DiscoverySignal> supported,
+) {
   final open = supported.contains(DiscoverySignal.openNow)
       ? s.catalog.where((b) => b.openStateAt(s.now) == OpenState.open).length
       : null;
-  final near = (supported.contains(DiscoverySignal.nearby) && s.distanceKmByBusinessId != null)
-      ? s.catalog.where((b) => (s.distanceOf(b) ?? double.infinity) <= 2.0).length
+  final near =
+      (supported.contains(DiscoverySignal.nearby) &&
+          s.distanceKmByBusinessId != null)
+      ? s.catalog
+            .where((b) => (s.distanceOf(b) ?? double.infinity) <= 2.0)
+            .length
       : null;
   return LocalPulseModel(openNow: open, nearby: near);
 }
 
 final localPulseProvider = Provider<LocalPulseModel>((ref) {
   final s = ref.watch(discoverySnapshotProvider);
-  final supported = ref.watch(marketplaceDiscoveryGatewayProvider).supportedSignals;
+  final supported = ref
+      .watch(marketplaceDiscoveryGatewayProvider)
+      .supportedSignals;
   return buildLocalPulse(s, supported);
 });
 
@@ -51,26 +60,48 @@ class LocalPulse extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if ((model.openNow ?? 0) > 0)
-            _line(colors, '${model.openNow} places open now', colors.success,
-                () => onFilter(UtilityFilter.openNow)),
+            _line(
+              colors,
+              '${model.openNow} places open now',
+              colors.success,
+              () => onFilter(UtilityFilter.openNow),
+            ),
           if ((model.nearby ?? 0) > 0)
-            _line(colors, '${model.nearby} within 2 km', colors.accent,
-                () => onFilter(UtilityFilter.nearMe)),
+            _line(
+              colors,
+              '${model.nearby} within 2 km',
+              colors.accent,
+              () => onFilter(UtilityFilter.nearMe),
+            ),
         ],
       ),
     );
   }
 
-  Widget _line(AzamanColors colors, String text, Color dot, VoidCallback onTap) {
+  Widget _line(
+    AzamanColors colors,
+    String text,
+    Color dot,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: AzSpace.xs),
-        child: Row(children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
-          const SizedBox(width: AzSpace.sm),
-          Text(text, style: AzText.bodyS.copyWith(color: colors.textSecondary)),
-        ]),
+        child: Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: AzSpace.sm),
+            Text(
+              text,
+              style: AzText.bodyS.copyWith(color: colors.textSecondary),
+            ),
+          ],
+        ),
       ),
     );
   }

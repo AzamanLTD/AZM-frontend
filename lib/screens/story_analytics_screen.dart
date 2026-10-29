@@ -57,12 +57,21 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final result = await _fetchBusinessAnalytics(widget.businessId);
-      setState(() { _data = result['data'] as Map<String, dynamic>?; _loading = false; });
+      setState(() {
+        _data = result['data'] as Map<String, dynamic>?;
+        _loading = false;
+      });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -74,14 +83,21 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: Text('Story Analytics', style: TextStyle(color: colors.textPrimary, fontSize: 16)),
+        title: Text(
+          'Story Analytics',
+          style: TextStyle(color: colors.textPrimary, fontSize: 16),
+        ),
         leading: IconButton(
           icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: Icon(HugeIconsSolid.arrowReloadHorizontal, color: colors.accent, size: 20),
+            icon: Icon(
+              HugeIconsSolid.arrowReloadHorizontal,
+              color: colors.accent,
+              size: 20,
+            ),
             onPressed: _load,
           ),
         ],
@@ -89,8 +105,13 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
       body: _loading
           ? Center(child: CircularProgressIndicator(color: colors.accent))
           : _error != null
-              ? Center(child: Text('Error: $_error', style: TextStyle(color: colors.danger)))
-              : _buildContent(colors),
+          ? Center(
+              child: Text(
+                'Error: $_error',
+                style: TextStyle(color: colors.danger),
+              ),
+            )
+          : _buildContent(colors),
     );
   }
 
@@ -109,21 +130,42 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
           const SizedBox(height: 20),
 
           // ── Per-story breakdown ────────────────────────────────────────────
-          Text('Per-Story Breakdown', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(
+            'Per-Story Breakdown',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 12),
           if (stories.isEmpty)
-            Center(child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text('No story data yet. Post a story to see analytics.',
-                  style: TextStyle(color: colors.textTertiary), textAlign: TextAlign.center),
-            ))
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  'No story data yet. Post a story to see analytics.',
+                  style: TextStyle(color: colors.textTertiary),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
           else
-            ...stories.map((s) => _buildStoryCard(s as Map<String, dynamic>, colors)),
+            ...stories.map(
+              (s) => _buildStoryCard(s as Map<String, dynamic>, colors),
+            ),
 
           // ── Individual story analytics ──────────────────────────────────────
           if (stories.isNotEmpty) ...[
             const SizedBox(height: 20),
-            Text('Top Viewers', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(
+              'Top Viewers',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 12),
             ..._buildTopViewers(stories, colors),
           ],
@@ -134,12 +176,42 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
 
   Widget _buildSummaryGrid(AzamanColors colors, Map<String, dynamic> totals) {
     final stats = [
-      {'label': 'Total Views', 'value': totals['totalViews'] ?? 0, 'icon': HugeIconsSolid.search01, 'color': colors.accent},
-      {'label': 'Unique Viewers', 'value': totals['totalUniqueViewers'] ?? 0, 'icon': HugeIconsSolid.userGroup, 'color': const Color(0xFF9C59FF)},
-      {'label': 'Reactions', 'value': totals['totalReactions'] ?? 0, 'icon': HugeIconsSolid.gift, 'color': const Color(0xFFEF4444)},
-      {'label': 'Replies', 'value': totals['totalReplies'] ?? 0, 'icon': HugeIconsSolid.message01, 'color': const Color(0xFF3B97F7)},
-      {'label': 'Shares', 'value': totals['totalShares'] ?? 0, 'icon': HugeIconsSolid.sent, 'color': const Color(0xFF10B981)},
-      {'label': 'Profile Clicks', 'value': totals['totalProfileClicks'] ?? 0, 'icon': HugeIconsSolid.touchInteraction01, 'color': const Color(0xFFFFD700)},
+      {
+        'label': 'Total Views',
+        'value': totals['totalViews'] ?? 0,
+        'icon': HugeIconsSolid.search01,
+        'color': colors.accent,
+      },
+      {
+        'label': 'Unique Viewers',
+        'value': totals['totalUniqueViewers'] ?? 0,
+        'icon': HugeIconsSolid.userGroup,
+        'color': const Color(0xFF9C59FF),
+      },
+      {
+        'label': 'Reactions',
+        'value': totals['totalReactions'] ?? 0,
+        'icon': HugeIconsSolid.gift,
+        'color': const Color(0xFFEF4444),
+      },
+      {
+        'label': 'Replies',
+        'value': totals['totalReplies'] ?? 0,
+        'icon': HugeIconsSolid.message01,
+        'color': const Color(0xFF3B97F7),
+      },
+      {
+        'label': 'Shares',
+        'value': totals['totalShares'] ?? 0,
+        'icon': HugeIconsSolid.sent,
+        'color': const Color(0xFF10B981),
+      },
+      {
+        'label': 'Profile Clicks',
+        'value': totals['totalProfileClicks'] ?? 0,
+        'icon': HugeIconsSolid.touchInteraction01,
+        'color': const Color(0xFFFFD700),
+      },
     ];
 
     return GridView.builder(
@@ -155,28 +227,42 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
       itemBuilder: (_, i) {
         final s = stats[i];
         return PremiumGlassContainer(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(s['icon'] as IconData, color: s['color'] as Color, size: 24),
-                const SizedBox(height: 8),
-                Text(
-                  '${s['value']}',
-                  style: TextStyle(color: colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      s['icon'] as IconData,
+                      color: s['color'] as Color,
+                      size: 24,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${s['value']}',
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      s['label'] as String,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 10,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  s['label'] as String,
-                  style: TextStyle(color: colors.textTertiary, fontSize: 10),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-        ).animate().fadeIn(delay: 100.ms * i).scale(begin: const Offset(0.95, 0.95));
+              ),
+            )
+            .animate()
+            .fadeIn(delay: 100.ms * i)
+            .scale(begin: const Offset(0.95, 0.95));
       },
     );
   }
@@ -198,13 +284,19 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
           // Thumbnail
           ClipRRect(
             borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16), bottomLeft: Radius.circular(16),
+              topLeft: Radius.circular(16),
+              bottomLeft: Radius.circular(16),
             ),
             child: SizedBox(
-              width: 72, height: 72,
+              width: 72,
+              height: 72,
               child: mediaUrl != null
-                  ? AzamanNetworkImage(imageUrl: mediaUrl, fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(color: colors.softSurface))
+                  ? AzamanNetworkImage(
+                      imageUrl: mediaUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) =>
+                          Container(color: colors.softSurface),
+                    )
                   : Container(color: colors.softSurface),
             ),
           ),
@@ -216,18 +308,42 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (caption != null && caption.isNotEmpty)
-                    Text(caption, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      caption,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _miniStat(colors, HugeIconsSolid.search01, story['viewCount'] ?? 0),
+                      _miniStat(
+                        colors,
+                        HugeIconsSolid.search01,
+                        story['viewCount'] ?? 0,
+                      ),
                       const SizedBox(width: 12),
-                      _miniStat(colors, HugeIconsSolid.userGroup, story['uniqueViewerCount'] ?? 0),
+                      _miniStat(
+                        colors,
+                        HugeIconsSolid.userGroup,
+                        story['uniqueViewerCount'] ?? 0,
+                      ),
                       const SizedBox(width: 12),
-                      _miniStat(colors, HugeIconsSolid.gift, story['reactionCount'] ?? 0),
+                      _miniStat(
+                        colors,
+                        HugeIconsSolid.gift,
+                        story['reactionCount'] ?? 0,
+                      ),
                       const SizedBox(width: 12),
-                      _miniStat(colors, HugeIconsSolid.message01, story['replyCount'] ?? 0),
+                      _miniStat(
+                        colors,
+                        HugeIconsSolid.message01,
+                        story['replyCount'] ?? 0,
+                      ),
                     ],
                   ),
                 ],
@@ -245,7 +361,14 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
       children: [
         Icon(icon, size: 14, color: colors.textTertiary),
         const SizedBox(width: 4),
-        Text('$count', style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w500)),
+        Text(
+          '$count',
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ],
     );
   }
@@ -261,31 +384,51 @@ class _StoryAnalyticsScreenState extends ConsumerState<StoryAnalyticsScreen> {
         if (viewerMap.containsKey(id)) {
           viewerMap[id]!['count'] = (viewerMap[id]!['count'] ?? 0) + 1;
         } else {
-          viewerMap[id] = {'username': viewer['username'], 'avatar': viewer['avatar'], 'count': 1};
+          viewerMap[id] = {
+            'username': viewer['username'],
+            'avatar': viewer['avatar'],
+            'count': 1,
+          };
         }
       }
     }
     final sorted = viewerMap.values.toList()
       ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
 
-    return sorted.take(10).map((v) => ListTile(
-      leading: CircleAvatar(
-        radius: 20,
-        backgroundColor: colors.softSurface,
-        backgroundImage: v['avatar'] != null ? NetworkImage(v['avatar']) : null,
-        child: v['avatar'] == null
-            ? Text((v['username'] as String?)?[0].toUpperCase() ?? '?',
-                style: TextStyle(color: colors.accent))
-            : null,
-      ),
-      title: Text(v['username']?.toString() ?? 'Unknown',
-          style: TextStyle(color: colors.textPrimary, fontSize: 14)),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(color: colors.softSurface, borderRadius: BorderRadius.circular(12)),
-        child: Text('${v['count']} views',
-            style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-      ),
-    )).toList();
+    return sorted
+        .take(10)
+        .map(
+          (v) => ListTile(
+            leading: CircleAvatar(
+              radius: 20,
+              backgroundColor: colors.softSurface,
+              backgroundImage: v['avatar'] != null
+                  ? NetworkImage(v['avatar'])
+                  : null,
+              child: v['avatar'] == null
+                  ? Text(
+                      (v['username'] as String?)?[0].toUpperCase() ?? '?',
+                      style: TextStyle(color: colors.accent),
+                    )
+                  : null,
+            ),
+            title: Text(
+              v['username']?.toString() ?? 'Unknown',
+              style: TextStyle(color: colors.textPrimary, fontSize: 14),
+            ),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: colors.softSurface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '${v['count']} views',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
+            ),
+          ),
+        )
+        .toList();
   }
 }

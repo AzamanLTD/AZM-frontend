@@ -92,7 +92,9 @@ class MixOfferCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final price = offer.price;
-    final priceText = price.isKnown ? AzMoney.ghsExact(price.amountExact) : null;
+    final priceText = price.isKnown
+        ? AzMoney.ghsExact(price.amountExact)
+        : null;
 
     return ScaleTap(
       onTap: () => onOpenStore(offer),
@@ -157,8 +159,7 @@ class MixOfferCard extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(AzSpace.xs, 2, AzSpace.xs, 3),
               child: Container(
                 key: const ValueKey('mix_offer_panel'),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: colors.softSurface,
                   borderRadius: BorderRadius.circular(AzRadius.md),
@@ -173,7 +174,10 @@ class MixOfferCard extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AzText.title.copyWith(
-                          color: colors.textPrimary, fontSize: 12.5, height: 1.25),
+                        color: colors.textPrimary,
+                        fontSize: 12.5,
+                        height: 1.25,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     // Price — see the grammar in the file header. The
@@ -191,7 +195,9 @@ class MixOfferCard extends ConsumerWidget {
                         key: const ValueKey('mix_price_unavailable'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AzText.bodyS.copyWith(color: colors.textTertiary),
+                        style: AzText.bodyS.copyWith(
+                          color: colors.textTertiary,
+                        ),
                       ),
                     const SizedBox(height: 2),
                     // Offering business — never omitted: the Mix
@@ -215,69 +221,76 @@ class MixOfferCard extends ConsumerWidget {
 
   /// The compact store identity row: genuine logo (or glyph) + name.
   Widget _storeRow(AzamanColors colors) => Row(
-        key: const ValueKey('mix_offer_store_row'),
-        children: [
-          SizedBox(
-            width: kMixStoreLogoSize,
-            height: kMixStoreLogoSize,
-            child: ClipOval(
-              // No logo URL → the glyph directly (AzamanNetworkImage's
-              // null-URL path would render its generic image glyph, not
-              // the storefront identity). A URL that FAILS to load falls
-              // back to the same glyph via errorWidget.
-              child: offer.businessLogoUrl == null
-                  ? _logoFallback(colors)
-                  : AzamanNetworkImage(
-                      key: const ValueKey('mix_store_logo'),
-                      imageUrl: offer.businessLogoUrl,
-                      cacheManager: cacheManager,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => _logoFallback(colors),
-                      errorWidget: (_, __, ___) => _logoFallback(colors),
-                    ),
-            ),
+    key: const ValueKey('mix_offer_store_row'),
+    children: [
+      SizedBox(
+        width: kMixStoreLogoSize,
+        height: kMixStoreLogoSize,
+        child: ClipOval(
+          // No logo URL → the glyph directly (AzamanNetworkImage's
+          // null-URL path would render its generic image glyph, not
+          // the storefront identity). A URL that FAILS to load falls
+          // back to the same glyph via errorWidget.
+          child: offer.businessLogoUrl == null
+              ? _logoFallback(colors)
+              : AzamanNetworkImage(
+                  key: const ValueKey('mix_store_logo'),
+                  imageUrl: offer.businessLogoUrl,
+                  cacheManager: cacheManager,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => _logoFallback(colors),
+                  errorWidget: (_, __, ___) => _logoFallback(colors),
+                ),
+        ),
+      ),
+      const SizedBox(width: AzSpace.xs),
+      Expanded(
+        child: Text(
+          offer.businessName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AzText.bodyS.copyWith(
+            color: colors.textSecondary,
+            fontSize: 11,
           ),
-          const SizedBox(width: AzSpace.xs),
-          Expanded(
-            child: Text(
-              offer.businessName,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  AzText.bodyS.copyWith(color: colors.textSecondary, fontSize: 11),
-            ),
-          ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 
   /// A quiet server-reported chip. Overlaid on the product image, so it
   /// needs its own solid surface in both themes.
   Widget _chip(AzamanColors colors, String label) => Container(
-        key: ValueKey('mix_chip_$label'),
-        margin: const EdgeInsets.only(bottom: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(AzRadius.xs),
-          border: Border.all(color: colors.divider, width: 0.5),
-        ),
-        child: Text(
-          label,
-          style:
-              AzText.caption.copyWith(color: colors.textTertiary, fontSize: 9),
-        ),
-      );
+    key: ValueKey('mix_chip_$label'),
+    margin: const EdgeInsets.only(bottom: 3),
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+    decoration: BoxDecoration(
+      color: colors.card,
+      borderRadius: BorderRadius.circular(AzRadius.xs),
+      border: Border.all(color: colors.divider, width: 0.5),
+    ),
+    child: Text(
+      label,
+      style: AzText.caption.copyWith(color: colors.textTertiary, fontSize: 9),
+    ),
+  );
 
   Widget _imageFallback(colors) => Container(
-        color: colors.softSurface,
-        child: Icon(Icons.inventory_2_outlined,
-            size: 26, color: colors.textTertiary),
-      );
+    color: colors.softSurface,
+    child: Icon(
+      Icons.inventory_2_outlined,
+      size: 26,
+      color: colors.textTertiary,
+    ),
+  );
 
   Widget _logoFallback(AzamanColors colors) => Container(
-        key: const ValueKey('mix_store_logo_fallback'),
-        color: colors.card,
-        child: Icon(Icons.storefront_outlined,
-            size: 10, color: colors.textTertiary),
-      );
+    key: const ValueKey('mix_store_logo_fallback'),
+    color: colors.card,
+    child: Icon(
+      Icons.storefront_outlined,
+      size: 10,
+      color: colors.textTertiary,
+    ),
+  );
 }

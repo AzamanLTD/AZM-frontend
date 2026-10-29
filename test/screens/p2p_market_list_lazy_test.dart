@@ -36,8 +36,9 @@ Future<void> _loadFonts() async {
   Future<void> load(String family, String asset) async {
     final bytes = await File(asset).readAsBytes();
     final loader = FontLoader(family)
-      ..addFont(Future<ByteData>.value(
-          ByteData.view(Uint8List.fromList(bytes).buffer)));
+      ..addFont(
+        Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+      );
     await loader.load();
   }
 
@@ -49,61 +50,67 @@ Future<void> _loadFonts() async {
 }
 
 AdListing _ad(int i) => AdListing(
-      id: 'ad-$i',
-      vendorUsername: 'vendor$i',
-      vendorId: 'v$i',
-      adType: 'SELL', // Buy tab keeps SELL ads
-      pricePerUSD: 15 + (i % 5) * 0.1,
-      minLimit: 10,
-      maxLimit: 500,
-      availableUsdc: 1000,
-      paymentMethod: 'ZELLE',
-      queueFull: false,
-      queueDepth: 0,
-      completedTrades: 12,
-      completionRate: 0.97,
-      aiScore: 0.9,
-      isOnline: true,
-    );
+  id: 'ad-$i',
+  vendorUsername: 'vendor$i',
+  vendorId: 'v$i',
+  adType: 'SELL', // Buy tab keeps SELL ads
+  pricePerUSD: 15 + (i % 5) * 0.1,
+  minLimit: 10,
+  maxLimit: 500,
+  availableUsdc: 1000,
+  paymentMethod: 'ZELLE',
+  queueFull: false,
+  queueDepth: 0,
+  completedTrades: 12,
+  completionRate: 0.97,
+  aiScore: 0.9,
+  isOnline: true,
+);
 
 void main() {
   testWidgets(
-      'final pass §8 — the ad list is a LAZY sliver: only viewport-visible '
-      'ads are built, never an eager Column of all cards', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await tester.runAsync(_loadFonts);
-    await tester.binding.setSurfaceSize(_surfaceSize);
+    'final pass §8 — the ad list is a LAZY sliver: only viewport-visible '
+    'ads are built, never an eager Column of all cards',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.runAsync(_loadFonts);
+      await tester.binding.setSurfaceSize(_surfaceSize);
 
-    final ads = List.generate(50, _ad);
+      final ads = List.generate(50, _ad);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          // Fixed ad data: 50 ads. If the list were eager, ALL 50 cards
-          // would exist in one frame.
-          filteredAdsProvider.overrideWithValue(AsyncValue.data(ads)),
-        ],
-        child: MaterialApp(
-          theme: ThemeProvider.getThemeData(AzamanTheme.dark),
-          home: const P2PMarketListScreen(),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            // Fixed ad data: 50 ads. If the list were eager, ALL 50 cards
+            // would exist in one frame.
+            filteredAdsProvider.overrideWithValue(AsyncValue.data(ads)),
+          ],
+          child: MaterialApp(
+            theme: ThemeProvider.getThemeData(AzamanTheme.dark),
+            home: const P2PMarketListScreen(),
+          ),
         ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
-    final builtCards = find.byType(VendorAdCard);
-    final built = builtCards.evaluate().length;
+      final builtCards = find.byType(VendorAdCard);
+      final built = builtCards.evaluate().length;
 
-    // Lazy contract: a 400x900 viewport shows only a handful of the 50
-    // ads. Anything close to the full list is an eager build.
-    expect(built, lessThan(50),
-        reason: 'all ${built} ad cards were built on the first frame — the '
-            'ad list is still an eagerly-built Column, not a lazy sliver');
-    expect(built, greaterThan(0), reason: 'no ads rendered at all');
+      // Lazy contract: a 400x900 viewport shows only a handful of the 50
+      // ads. Anything close to the full list is an eager build.
+      expect(
+        built,
+        lessThan(50),
+        reason:
+            'all ${built} ad cards were built on the first frame — the '
+            'ad list is still an eagerly-built Column, not a lazy sliver',
+      );
+      expect(built, greaterThan(0), reason: 'no ads rendered at all');
 
-    // Structural: the scroll must contain a real SliverList (lazy),
-    // not only SliverToBoxAdapter adapters.
-    expect(find.byType(SliverList), findsOneWidget);
-  });
+      // Structural: the scroll must contain a real SliverList (lazy),
+      // not only SliverToBoxAdapter adapters.
+      expect(find.byType(SliverList), findsOneWidget);
+    },
+  );
 }

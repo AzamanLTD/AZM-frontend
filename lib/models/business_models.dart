@@ -18,7 +18,6 @@
 
 import 'package:flutter/material.dart';
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared parse helpers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -151,38 +150,43 @@ class BusinessCategories {
   /// OTHER is kept as a hidden fallback for fromWire() only.
   static const List<BusinessCategory> values = [
     BusinessCategory(
-        wire: 'LOGISTICS',
-        label: 'Transit',
-        icon: Icons.directions_bus,
-        color: Color(0xFF4F8EF7),
-        isPrimary: true,
-        subtitle: 'Book seats on scheduled trips'),
+      wire: 'LOGISTICS',
+      label: 'Transit',
+      icon: Icons.directions_bus,
+      color: Color(0xFF4F8EF7),
+      isPrimary: true,
+      subtitle: 'Book seats on scheduled trips',
+    ),
     BusinessCategory(
-        wire: 'FOOD_BEVERAGE',
-        label: 'Restaurants',
-        icon: Icons.restaurant_outlined,
-        color: Color(0xFFF59E0B),
-        isPrimary: true,
-        subtitle: 'Reserve tables & order meals'),
+      wire: 'FOOD_BEVERAGE',
+      label: 'Restaurants',
+      icon: Icons.restaurant_outlined,
+      color: Color(0xFFF59E0B),
+      isPrimary: true,
+      subtitle: 'Reserve tables & order meals',
+    ),
     BusinessCategory(
-        wire: 'HOSPITALITY',
-        label: 'Hotels',
-        icon: Icons.hotel_outlined,
-        color: Color(0xFFA78BFA),
-        isPrimary: true,
-        subtitle: 'Book rooms & check availability'),
+      wire: 'HOSPITALITY',
+      label: 'Hotels',
+      icon: Icons.hotel_outlined,
+      color: Color(0xFFA78BFA),
+      isPrimary: true,
+      subtitle: 'Book rooms & check availability',
+    ),
     BusinessCategory(
-        wire: 'RETAIL',
-        label: 'Retail',
-        icon: Icons.shopping_bag_outlined,
-        color: Color(0xFF00D97E),
-        isPrimary: true),
+      wire: 'RETAIL',
+      label: 'Retail',
+      icon: Icons.shopping_bag_outlined,
+      color: Color(0xFF00D97E),
+      isPrimary: true,
+    ),
     // Hidden fallback — not shown in UI but fromWire needs it.
     BusinessCategory(
-        wire: 'OTHER',
-        label: 'Other',
-        icon: Icons.category_outlined,
-        color: Color(0xFF7B7B9A)),
+      wire: 'OTHER',
+      label: 'Other',
+      icon: Icons.category_outlined,
+      color: Color(0xFF7B7B9A),
+    ),
   ];
 
   /// Only the primary categories (for hero section on marketplace home).
@@ -201,7 +205,7 @@ class BusinessCategories {
     if (wire == null || wire.isEmpty) return all;
     return values.firstWhere(
       (c) => c.wire == wire,
-      orElse: () => values.last  // OTHER fallback
+      orElse: () => values.last, // OTHER fallback
     );
   }
 
@@ -537,7 +541,8 @@ class BusinessProfile {
   final String? description;
   final String? website;
   final String? logoUrl;
-  final String? coverImageUrl; // Banner shown at top of StorefrontScreen AND marketplace accordion drop-down
+  final String?
+  coverImageUrl; // Banner shown at top of StorefrontScreen AND marketplace accordion drop-down
   final String? contactEmail;
   final String? phoneNumber;
   final String? address;
@@ -550,6 +555,7 @@ class BusinessProfile {
   final int userId;
   final double totalVolume;
   final double averageRating;
+
   /// Backend record creation time — sent by /business/search
   /// (raw Prisma row, no select prune). Grounds the discovery
   /// list's honest "Newest" ordering.
@@ -580,12 +586,14 @@ class BusinessProfile {
   final BusinessStoryState? storyState;
 
   List<String> get showcaseUrls {
-    if (businessMeta == null || !businessMeta!.containsKey('showcaseUrls')) return [];
+    if (businessMeta == null || !businessMeta!.containsKey('showcaseUrls'))
+      return [];
     return List<String>.from(businessMeta!['showcaseUrls']);
   }
 
   PenaltyPolicyModel? get penaltyPolicy {
-    if (businessMeta == null || !businessMeta!.containsKey('penaltyPolicy')) return null;
+    if (businessMeta == null || !businessMeta!.containsKey('penaltyPolicy'))
+      return null;
     return PenaltyPolicyModel.fromJson(businessMeta!['penaltyPolicy']);
   }
 
@@ -598,6 +606,7 @@ class BusinessProfile {
     if (value == null) return null;
     return Color(0xFF000000 | value);
   }
+
   final String username;
   final String? userProfilePictureUrl;
   // Marketplace Premium Upgrade (2026-06-21): the public getBusinessByBizId /
@@ -664,6 +673,7 @@ class BusinessProfile {
         .where((w) => w.isNotEmpty && w != category && seen.add(w))
         .toList(growable: false);
   }
+
   bool get isKybVerified => kybStatus.toUpperCase() == 'VERIFIED';
 
   factory BusinessProfile.fromJson(Map<String, dynamic> json) {
@@ -713,7 +723,8 @@ class BusinessProfile {
       adAccentColor: json['adAccentColor'] as String?,
       storyState: json['storyState'] is Map<String, dynamic>
           ? BusinessStoryState.fromJson(
-              json['storyState'] as Map<String, dynamic>)
+              json['storyState'] as Map<String, dynamic>,
+            )
           : null,
       username: (user['username'] ?? '').toString(),
       userProfilePictureUrl: user['profilePictureUrl']?.toString(),
@@ -1447,15 +1458,18 @@ class DailyRevenue {
   final String label;
   final double revenue;
 
-  const DailyRevenue({required this.date, required this.label, required this.revenue});
+  const DailyRevenue({
+    required this.date,
+    required this.label,
+    required this.revenue,
+  });
 
   factory DailyRevenue.fromJson(Map<String, dynamic> json) => DailyRevenue(
-        date: (json['date'] ?? '').toString(),
-        label: (json['label'] ?? '').toString(),
-        revenue: _toDouble(json['revenue']),
-      );
+    date: (json['date'] ?? '').toString(),
+    label: (json['label'] ?? '').toString(),
+    revenue: _toDouble(json['revenue']),
+  );
 }
-
 
 class DineInTabModel {
   final String id;
@@ -1464,13 +1478,23 @@ class DineInTabModel {
   final List<DineInTabItemModel> items;
   final double totalUsdc;
 
-  DineInTabModel({required this.id, required this.businessName, required this.status,
-    required this.items, required this.totalUsdc});
+  DineInTabModel({
+    required this.id,
+    required this.businessName,
+    required this.status,
+    required this.items,
+    required this.totalUsdc,
+  });
 
   factory DineInTabModel.fromJson(Map<String, dynamic> j) => DineInTabModel(
-    id: j['id'], businessName: j['businessName'] ?? '',
+    id: j['id'],
+    businessName: j['businessName'] ?? '',
     status: j['status'] ?? 'OPEN',
-    items: (j['items'] as List?)?.map((i) => DineInTabItemModel.fromJson(i)).toList() ?? [],
+    items:
+        (j['items'] as List?)
+            ?.map((i) => DineInTabItemModel.fromJson(i))
+            .toList() ??
+        [],
     totalUsdc: (j['totalUsdc'] as num?)?.toDouble() ?? 0.0,
   );
 }
@@ -1481,14 +1505,20 @@ class DineInTabItemModel {
   final double unitPriceUsdc;
   final double totalUsdc;
 
-  DineInTabItemModel({required this.name, required this.quantity,
-    required this.unitPriceUsdc, required this.totalUsdc});
+  DineInTabItemModel({
+    required this.name,
+    required this.quantity,
+    required this.unitPriceUsdc,
+    required this.totalUsdc,
+  });
 
-  factory DineInTabItemModel.fromJson(Map<String, dynamic> j) => DineInTabItemModel(
-    name: j['name'] ?? '', quantity: j['quantity'] ?? 1,
-    unitPriceUsdc: (j['unitPriceUsdc'] as num?)?.toDouble() ?? 0.0,
-    totalUsdc: (j['totalUsdc'] as num?)?.toDouble() ?? 0.0,
-  );
+  factory DineInTabItemModel.fromJson(Map<String, dynamic> j) =>
+      DineInTabItemModel(
+        name: j['name'] ?? '',
+        quantity: j['quantity'] ?? 1,
+        unitPriceUsdc: (j['unitPriceUsdc'] as num?)?.toDouble() ?? 0.0,
+        totalUsdc: (j['totalUsdc'] as num?)?.toDouble() ?? 0.0,
+      );
 }
 
 class PenaltyPolicyModel {
@@ -1496,14 +1526,18 @@ class PenaltyPolicyModel {
   final int gracePeriodMins;
   final bool businessSideNoShowEnabled;
 
-  PenaltyPolicyModel({required this.penaltyPct, required this.gracePeriodMins,
-    required this.businessSideNoShowEnabled});
+  PenaltyPolicyModel({
+    required this.penaltyPct,
+    required this.gracePeriodMins,
+    required this.businessSideNoShowEnabled,
+  });
 
-  factory PenaltyPolicyModel.fromJson(Map<String, dynamic> j) => PenaltyPolicyModel(
-    penaltyPct: (j['penaltyPct'] as num?)?.toDouble() ?? 0.0,
-    gracePeriodMins: j['gracePeriodMins'] ?? 30,
-    businessSideNoShowEnabled: j['businessSideNoShowEnabled'] ?? false,
-  );
+  factory PenaltyPolicyModel.fromJson(Map<String, dynamic> j) =>
+      PenaltyPolicyModel(
+        penaltyPct: (j['penaltyPct'] as num?)?.toDouble() ?? 0.0,
+        gracePeriodMins: j['gracePeriodMins'] ?? 30,
+        businessSideNoShowEnabled: j['businessSideNoShowEnabled'] ?? false,
+      );
 }
 
 class BusinessAdPostModel {
@@ -1513,14 +1547,22 @@ class BusinessAdPostModel {
   final String? imageUrl;
   final DateTime createdAt;
 
-  BusinessAdPostModel({required this.id, required this.template,
-    required this.caption, required this.imageUrl, required this.createdAt});
+  BusinessAdPostModel({
+    required this.id,
+    required this.template,
+    required this.caption,
+    required this.imageUrl,
+    required this.createdAt,
+  });
 
-  factory BusinessAdPostModel.fromJson(Map<String, dynamic> j) => BusinessAdPostModel(
-    id: j['id'], template: j['template'] ?? 'PROMO',
-    caption: j['caption'], imageUrl: j['imageUrl'],
-    createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
-  );
+  factory BusinessAdPostModel.fromJson(Map<String, dynamic> j) =>
+      BusinessAdPostModel(
+        id: j['id'],
+        template: j['template'] ?? 'PROMO',
+        caption: j['caption'],
+        imageUrl: j['imageUrl'],
+        createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
+      );
 }
 
 // =============================================================================
@@ -1530,20 +1572,15 @@ class BusinessAdPostModel {
 // Reference: Square Loyalty, Starbucks Rewards, Punchh
 // =============================================================================
 
-enum LoyaltyType {
-  stampCard,
-  pointsPerVisit,
-  tierDiscount,
-  cashback,
-}
+enum LoyaltyType { stampCard, pointsPerVisit, tierDiscount, cashback }
 
 class BusinessLoyaltyProgram {
   final String id;
   final String businessProfileId;
   final LoyaltyType type;
-  final int stampsRequired;       // e.g., 10 stamps = 1 free coffee
+  final int stampsRequired; // e.g., 10 stamps = 1 free coffee
   final String rewardDescription; // "Free coffee" / "20% off"
-  final int validityDays;         // Stamps expire after N days
+  final int validityDays; // Stamps expire after N days
   final bool isActive;
 
   const BusinessLoyaltyProgram({
@@ -1634,7 +1671,10 @@ class UserLoyaltyCard {
     this.history = const [],
   });
 
-  int get stampsRemaining => (stampsRequired - stampsCollected).clamp(0, stampsRequired);
-  double get progress => stampsRequired > 0 ? (stampsCollected / stampsRequired).clamp(0.0, 1.0) : 0.0;
+  int get stampsRemaining =>
+      (stampsRequired - stampsCollected).clamp(0, stampsRequired);
+  double get progress => stampsRequired > 0
+      ? (stampsCollected / stampsRequired).clamp(0.0, 1.0)
+      : 0.0;
   bool get isComplete => stampsCollected >= stampsRequired;
 }

@@ -218,23 +218,23 @@ class HomeSummary {
   );
 
   HomeSummary copyWith({bool? loading}) => HomeSummary(
-        rates: rates,
-        activeTrades: activeTrades,
-        activeTradesCount: activeTradesCount,
-        pendingWithdrawals: pendingWithdrawals,
-        pendingWithdrawalsCount: pendingWithdrawalsCount,
-        recentTransactions: recentTransactions,
-        friendRequests: friendRequests,
-        friendRequestsCount: friendRequestsCount,
-        unreadNotifications: unreadNotifications,
-        ratesError: ratesError,
-        tradesError: tradesError,
-        withdrawalsError: withdrawalsError,
-        transactionsError: transactionsError,
-        friendsError: friendsError,
-        notificationsError: notificationsError,
-        loading: loading ?? this.loading,
-      );
+    rates: rates,
+    activeTrades: activeTrades,
+    activeTradesCount: activeTradesCount,
+    pendingWithdrawals: pendingWithdrawals,
+    pendingWithdrawalsCount: pendingWithdrawalsCount,
+    recentTransactions: recentTransactions,
+    friendRequests: friendRequests,
+    friendRequestsCount: friendRequestsCount,
+    unreadNotifications: unreadNotifications,
+    ratesError: ratesError,
+    tradesError: tradesError,
+    withdrawalsError: withdrawalsError,
+    transactionsError: transactionsError,
+    friendsError: friendsError,
+    notificationsError: notificationsError,
+    loading: loading ?? this.loading,
+  );
 }
 
 // ── Service ────────────────────────────────────────────────────────────────
@@ -246,12 +246,7 @@ class HomeSummary {
 /// Phase H review pass: was previously listing `AWAITING_RELEASE` (not in
 /// the enum) and missing `PENDING` (the freshest status — invisible until
 /// the trade transitioned).
-const _activeStatuses = {
-  'PENDING',
-  'PENDING_PAYMENT',
-  'PAID',
-  'DISPUTED',
-};
+const _activeStatuses = {'PENDING', 'PENDING_PAYMENT', 'PAID', 'DISPUTED'};
 
 class HomeSummaryService {
   /// Fetch all five sections in parallel. Per-section failures degrade
@@ -303,7 +298,8 @@ class HomeSummaryService {
       final settlement = data['settlementCurrency']?.toString() ?? '';
       final display = data['displayCurrency']?.toString() ?? '';
       final retail = _asDouble(data['liveRetailRate']);
-      final canonical = pair.toUpperCase() == 'USDC/GHS' &&
+      final canonical =
+          pair.toUpperCase() == 'USDC/GHS' &&
           settlement.toUpperCase() == 'USDC' &&
           display.toUpperCase() == 'GHS' &&
           retail > 0;
@@ -338,13 +334,15 @@ class HomeSummaryService {
       final list = (raw['history'] as List?) ?? const [];
       final active = list
           .whereType<Map<String, dynamic>>()
-          .where((t) => _activeStatuses
-              .contains(t['status']?.toString().toUpperCase()))
+          .where(
+            (t) =>
+                _activeStatuses.contains(t['status']?.toString().toUpperCase()),
+          )
           .toList();
 
       final mapped = active.map((t) {
-        final iAmVendor = currentUserId != null &&
-            t['vendorId']?.toString() == currentUserId;
+        final iAmVendor =
+            currentUserId != null && t['vendorId']?.toString() == currentUserId;
         // Phase H review pass: the Prisma `Trade` model has no
         // `amountGhs` / `amountUsdc` columns. The actual fields are
         // `amountFiat` (with `currency` for the unit, defaulting to 'GHS')
@@ -381,27 +379,31 @@ class HomeSummaryService {
               .toList();
 
       final pending = list
-          .where((w) =>
-              (w['status']?.toString().toUpperCase() ?? '') == 'PENDING')
-          .map((w) => WithdrawalSummary(
-                id: w['id']?.toString() ?? '',
-                status: w['status']?.toString() ?? 'UNKNOWN',
-                amount: _asDouble(w['amount']),
-                // Phase H review pass: the Prisma `Withdrawal` model has
-                // no `currency` column. Use `payoutMethod` (defaults to
-                // 'BINANCE_ID' on rows that pre-date the network split)
-                // and the optional `network` for display.
-                payoutMethod: w['payoutMethod']?.toString() ?? 'UNKNOWN',
-                network: w['network']?.toString(),
-                createdAt: _asDate(w['createdAt']),
-              ))
+          .where(
+            (w) => (w['status']?.toString().toUpperCase() ?? '') == 'PENDING',
+          )
+          .map(
+            (w) => WithdrawalSummary(
+              id: w['id']?.toString() ?? '',
+              status: w['status']?.toString() ?? 'UNKNOWN',
+              amount: _asDouble(w['amount']),
+              // Phase H review pass: the Prisma `Withdrawal` model has
+              // no `currency` column. Use `payoutMethod` (defaults to
+              // 'BINANCE_ID' on rows that pre-date the network split)
+              // and the optional `network` for display.
+              payoutMethod: w['payoutMethod']?.toString() ?? 'UNKNOWN',
+              network: w['network']?.toString(),
+              createdAt: _asDate(w['createdAt']),
+            ),
+          )
           .toList();
 
-      final recent = list
-          .map(_txFromJson)
-          .toList()
-        ..sort((a, b) => (b.createdAt ?? DateTime(0))
-            .compareTo(a.createdAt ?? DateTime(0)));
+      final recent = list.map(_txFromJson).toList()
+        ..sort(
+          (a, b) => (b.createdAt ?? DateTime(0)).compareTo(
+            a.createdAt ?? DateTime(0),
+          ),
+        );
 
       return _Section(
         withdrawals: pending.take(3).toList(growable: false),
@@ -414,24 +416,41 @@ class HomeSummaryService {
   }
 
   static const _creditHints = {
-    'DEPOSIT', 'CREDIT', 'RECEIVE', 'RECEIVED', 'REFUND', 'TOPUP', 'TOP_UP',
-    'FUND', 'INCOMING', 'REWARD', 'CASHBACK', 'RELEASE',
+    'DEPOSIT',
+    'CREDIT',
+    'RECEIVE',
+    'RECEIVED',
+    'REFUND',
+    'TOPUP',
+    'TOP_UP',
+    'FUND',
+    'INCOMING',
+    'REWARD',
+    'CASHBACK',
+    'RELEASE',
   };
   static const _debitHints = {
-    'WITHDRAW', 'WITHDRAWAL', 'DEBIT', 'SEND', 'SENT', 'PAYOUT', 'FEE',
-    'PURCHASE', 'OUTGOING', 'TRANSFER_OUT', 'SPEND',
+    'WITHDRAW',
+    'WITHDRAWAL',
+    'DEBIT',
+    'SEND',
+    'SENT',
+    'PAYOUT',
+    'FEE',
+    'PURCHASE',
+    'OUTGOING',
+    'TRANSFER_OUT',
+    'SPEND',
   };
 
   TransactionSummary _txFromJson(Map<String, dynamic> w) {
-    final type = (w['type'] ??
-            w['transactionType'] ??
-            w['category'] ??
-            w['kind'] ??
-            '')
+    final type =
+        (w['type'] ?? w['transactionType'] ?? w['category'] ?? w['kind'] ?? '')
+            .toString()
+            .toUpperCase();
+    final direction = (w['direction'] ?? w['flow'] ?? '')
         .toString()
         .toUpperCase();
-    final direction =
-        (w['direction'] ?? w['flow'] ?? '').toString().toUpperCase();
     final method = (w['payoutMethod'] ?? w['network'] ?? '')
         .toString()
         .replaceAll('_', ' ')
@@ -462,10 +481,7 @@ class HomeSummaryService {
       title = isCredit ? 'Money in' : 'Money out';
     }
 
-    final ref = w['reference'] ??
-        w['tradeId'] ??
-        w['relatedId'] ??
-        w['susuId'];
+    final ref = w['reference'] ?? w['tradeId'] ?? w['relatedId'] ?? w['susuId'];
     return TransactionSummary(
       id: w['id']?.toString() ?? '',
       title: title,
@@ -487,20 +503,17 @@ class HomeSummaryService {
         return const _Section(error: 'Requests unavailable.');
       }
       final list = (raw['requests'] as List?) ?? const [];
-      final mapped = list
-          .whereType<Map<String, dynamic>>()
-          .map((r) {
-            final requester =
-                r['requester'] is Map<String, dynamic> ? r['requester'] : null;
-            return FriendRequestSummary(
-              id: r['id']?.toString() ?? '',
-              requesterUsername:
-                  requester?['username']?.toString() ?? 'unknown',
-              requesterAvatarUrl: requester?['profilePictureUrl']?.toString(),
-              createdAt: _asDate(r['createdAt']),
-            );
-          })
-          .toList();
+      final mapped = list.whereType<Map<String, dynamic>>().map((r) {
+        final requester = r['requester'] is Map<String, dynamic>
+            ? r['requester']
+            : null;
+        return FriendRequestSummary(
+          id: r['id']?.toString() ?? '',
+          requesterUsername: requester?['username']?.toString() ?? 'unknown',
+          requesterAvatarUrl: requester?['profilePictureUrl']?.toString(),
+          createdAt: _asDate(r['createdAt']),
+        );
+      }).toList();
 
       // The endpoint also returns a definitive `total` — prefer it for the
       // counter when present; fall back to the in-page length.

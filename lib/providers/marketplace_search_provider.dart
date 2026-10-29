@@ -52,17 +52,15 @@ class MarketplaceSearchState {
     Object? storeBizId = _unset,
     List<String>? recent,
     List<String>? suggestions,
-  }) =>
-      MarketplaceSearchState(
-        text: text ?? this.text,
-        focused: focused ?? this.focused,
-        scope: scope ?? this.scope,
-        worldWire: worldWire == _unset ? this.worldWire : worldWire as String?,
-        storeBizId:
-            storeBizId == _unset ? this.storeBizId : storeBizId as String?,
-        recent: recent ?? this.recent,
-        suggestions: suggestions ?? this.suggestions,
-      );
+  }) => MarketplaceSearchState(
+    text: text ?? this.text,
+    focused: focused ?? this.focused,
+    scope: scope ?? this.scope,
+    worldWire: worldWire == _unset ? this.worldWire : worldWire as String?,
+    storeBizId: storeBizId == _unset ? this.storeBizId : storeBizId as String?,
+    recent: recent ?? this.recent,
+    suggestions: suggestions ?? this.suggestions,
+  );
 
   static const Object _unset = Object();
 }
@@ -80,7 +78,9 @@ class MarketplaceSearchNotifier extends StateNotifier<MarketplaceSearchState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (!mounted) return;
-      state = state.copyWith(recent: prefs.getStringList(kRecentKey) ?? const []);
+      state = state.copyWith(
+        recent: prefs.getStringList(kRecentKey) ?? const [],
+      );
     } catch (_) {
       // Preferences unavailable (tests without mocks, platform failure):
       // recents simply stay empty. Search still works.
@@ -89,8 +89,11 @@ class MarketplaceSearchNotifier extends StateNotifier<MarketplaceSearchState> {
 
   /// Changing scope clears the text — a query typed for one world does not
   /// leak into another.
-  void setScope(MarketplaceSearchScope scope,
-      {String? worldWire, String? storeBizId}) {
+  void setScope(
+    MarketplaceSearchScope scope, {
+    String? worldWire,
+    String? storeBizId,
+  }) {
     state = state.copyWith(
       scope: scope,
       worldWire: worldWire,
@@ -124,7 +127,10 @@ class MarketplaceSearchNotifier extends StateNotifier<MarketplaceSearchState> {
     // must never silently switch to the newer scope.
     final committedScope = state.scope;
     final committedWorldWire = state.worldWire;
-    final recent = [q, ...state.recent.where((r) => r != q)].take(kMaxRecent).toList();
+    final recent = [
+      q,
+      ...state.recent.where((r) => r != q),
+    ].take(kMaxRecent).toList();
     state = state.copyWith(recent: recent, focused: false);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -166,5 +172,5 @@ class MarketplaceSearchNotifier extends StateNotifier<MarketplaceSearchState> {
 
 final marketplaceSearchProvider =
     StateNotifierProvider<MarketplaceSearchNotifier, MarketplaceSearchState>(
-  (ref) => MarketplaceSearchNotifier(ref),
-);
+      (ref) => MarketplaceSearchNotifier(ref),
+    );

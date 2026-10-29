@@ -32,10 +32,7 @@ void main() {
 
     test('uses the secondary token when calculating onSecondary', () {
       final scheme = StorefrontThemeResolver.colorScheme(
-        ThemeTokenSet(
-          accent: '#FFFFFF',
-          accentHover: '#000000',
-        ),
+        ThemeTokenSet(accent: '#FFFFFF', accentHover: '#000000'),
       );
 
       expect(scheme.secondary, const Color(0xFF000000));
@@ -60,8 +57,12 @@ void main() {
         ),
       );
 
-      final smallPadding = small.elevatedButtonTheme.style!.padding!.resolve({})!;
-      final largePadding = large.elevatedButtonTheme.style!.padding!.resolve({})!;
+      final smallPadding = small.elevatedButtonTheme.style!.padding!.resolve(
+        {},
+      )!;
+      final largePadding = large.elevatedButtonTheme.style!.padding!.resolve(
+        {},
+      )!;
 
       // spacingScale 0.01 clamps to 0.5 → per-side 24*0.5=12 / 12*0.5=6.
       // .horizontal returns left+right, .vertical returns top+bottom.

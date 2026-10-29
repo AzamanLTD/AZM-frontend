@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+
+import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -186,7 +188,12 @@ class AzAccentFamily {
 
 class ThemeProvider with ChangeNotifier {
   AzamanTheme _currentTheme = AzamanTheme.light;
-  AzAccent _accent = AzAccent.gold;
+
+  /// THE BRAND IDENTITY. The applied balance card decides the app's accent;
+  /// there is no independent accent choice any more. Persisted under its own
+  /// key ([kBalanceCardVariantPrefKey]) so it can never be confused with the
+  /// retired [kLegacyAccentPrefKey].
+  BalanceCardVariant _cardVariant = BalanceCardVariant.blue;
   bool _isLoaded = false;
 
   /// Set in [dispose]. Async work started in the constructor (SharedPreferences
@@ -195,7 +202,13 @@ class ThemeProvider with ChangeNotifier {
   bool _isDisposed = false;
 
   AzamanTheme get currentTheme => _currentTheme;
-  AzAccent get accent => _accent;
+
+  /// The applied balance card, which is also the app's brand identity.
+  BalanceCardVariant get cardVariant => _cardVariant;
+
+  /// The brand accent set currently in force for this brightness.
+  BrandAccent get brandAccent =>
+      brandAccentFor(_cardVariant, _currentTheme == AzamanTheme.dark);
   bool get isLoaded => _isLoaded;
 
   /// Backwards-compat shim — older call sites read `resolvedTheme` to
@@ -235,34 +248,37 @@ class ThemeProvider with ChangeNotifier {
       // Present but out of range (corrupt value): fall back to the default.
       _currentTheme = AzamanTheme.dark;
     }
-    // TASK-025: load the persisted accent identity (azaman_accent).
-    // Invalid/missing/out-of-range values must safely fall back to gold —
-    // the picker's default identity.
-    final savedAccentIndex = prefs.getInt('azaman_accent');
-    if (savedAccentIndex != null &&
-        savedAccentIndex >= 0 &&
-        savedAccentIndex < AzAccent.values.length) {
-      _accent = AzAccent.values[savedAccentIndex];
-    } else {
-      _accent = AzAccent.gold;
+    // THE BRAND IDENTITY: the applied balance card. A missing value means a
+    // fresh install (or a pre-card install) and defaults to BLUE.
+    _cardVariant = balanceCardVariantFromStorage(
+      prefs.getString(kBalanceCardVariantPrefKey),
+    );
+
+    // MIGRATION: the retired independent accent preference can no longer
+    // influence anything. It is removed on load so a stale gold/teal/indigo/
+    // rose choice can never override the card identity later, and the
+    // light/dark preference above is untouched.
+    if (prefs.containsKey(kLegacyAccentPrefKey)) {
+      await prefs.remove(kLegacyAccentPrefKey);
     }
     _isLoaded = true;
     if (_isDisposed) return;
     notifyListeners();
   }
 
-  /// TASK-025: choose the accent identity (gold / teal / indigo / rose).
+  /// Apply a balance card. This is the ONE commit point for the brand
+  /// identity: the card face and the app accent change together, atomically,
+  /// and only here (a selector preview never calls this).
   ///
-  /// Local-only persistence — the accent is NOT backend-synced: the theme
-  /// sync already covers cross-device feel, and an accent flip must never
-  /// wait on (or fail because of) a network round-trip. Opening a vertical
-  /// never touches this value either; vertical borrows are session-only.
-  Future<void> setAccent(AzAccent accent) async {
-    _accent = accent;
+  /// Local-only persistence, exactly like the theme: a card change must never
+  /// wait on, or fail because of, a network round-trip.
+  Future<void> setCardVariant(BalanceCardVariant variant) async {
+    if (_cardVariant == variant) return;
+    _cardVariant = variant;
     if (_isDisposed) return;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('azaman_accent', accent.index);
+    await prefs.setString(kBalanceCardVariantPrefKey, variant.storageValue);
   }
 
   @override
@@ -363,8 +379,8 @@ class ThemeProvider with ChangeNotifier {
   // the user's selected identity. The STATIC getThemeData(theme) /
   // getColors(theme) remain the historical baseline so existing callers and
   // the TASK-004 permanent guard keep their exact visuals.
-  ThemeData get themeData => getThemeData(_currentTheme, accent: _accent);
-  AzamanColors get colors => getColors(_currentTheme).withAccent(_accent);
+  ThemeData get themeData => getThemeData(_currentTheme, variant: _cardVariant);
+  AzamanColors get colors => getColors(_currentTheme).withBrand(brandAccent);
 
   // ============================================================
   // THEME DEFINITIONS
@@ -375,10 +391,20 @@ class ThemeProvider with ChangeNotifier {
   /// `test/theme/theme_provider_test.dart` and all static callers keep their
   /// exact current visuals. Passing an explicit [accent] resolves it through
   /// the accent family. The INSTANCE getters always pass the user's accent.
-  static ThemeData getThemeData(AzamanTheme theme, {AzAccent? accent}) {
-    final c = accent == null
-        ? getColors(theme)
-        : getColors(theme).withAccent(accent);
+  static ThemeData getThemeData(
+    AzamanTheme theme, {
+    BalanceCardVariant? variant,
+    AzAccent? accentOverride,
+  }) {
+    var c = getColors(theme);
+    if (variant != null) {
+      c = c.withBrand(brandAccentFor(variant, c.isDark));
+    }
+    // A Marketplace vertical may BORROW the accent for its own session; that
+    // is a temporary presentation override, never a stored identity.
+    if (accentOverride != null) {
+      c = c.withAccent(accentOverride);
+    }
     // Derived once and threaded through both ThemeData and its ColorScheme so
     // the two can never disagree about which mode the palette is in.
     final brightness = brightnessOf(c);
@@ -472,8 +498,9 @@ class ThemeProvider with ChangeNotifier {
           return c.textTertiary;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected))
+          if (states.contains(WidgetState.selected)) {
             return c.accent.withValues(alpha: 0.3);
+          }
           return c.divider;
         }),
       ),
@@ -789,6 +816,35 @@ class AzamanColors {
   /// field (surfaces, semantic colours, text ladder, borders) is carried
   /// over unchanged. Only `accent`, `accentSecondary`, `accentSurface` and
   /// `glow` change — exactly the fields an identity owns.
+  /// The brand identity applied to this surface ladder: only the accent
+  /// fields move, exactly as [withAccent] does. Used for the card-driven
+  /// identity, where the accent is COMPUTED from the applied card rather
+  /// than looked up from the retired user-picked accent family.
+  AzamanColors withBrand(BrandAccent brand) {
+    return AzamanColors(
+      isDark: isDark,
+      name: name,
+      icon: icon,
+      background: background,
+      surface: surface,
+      card: card,
+      softSurface: softSurface,
+      divider: divider,
+      accent: brand.accent,
+      accentSecondary: brand.secondary,
+      accentSurface: brand.accent.withValues(alpha: 0.10),
+      success: success,
+      danger: danger,
+      warning: warning,
+      textPrimary: textPrimary,
+      textSecondary: textSecondary,
+      textTertiary: textTertiary,
+      glow: brand.accent,
+      scaffoldBackground: scaffoldBackground,
+      border: border,
+    );
+  }
+
   AzamanColors withAccent(AzAccent accent) {
     final family =
         AzAccentFamily.all[accent] ?? AzAccentFamily.all[AzAccent.gold]!;

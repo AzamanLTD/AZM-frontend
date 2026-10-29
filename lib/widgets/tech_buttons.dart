@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-
 class TechButtons {
   // THE PRIMARY ACTION BUTTON (Buy/Sell)
   static Widget primary({
@@ -54,7 +53,10 @@ class TechButtons {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(text, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          Text(
+            text,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
           const Icon(Icons.arrow_downward, color: Colors.white70, size: 14),
         ],
       ),

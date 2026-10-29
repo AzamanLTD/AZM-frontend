@@ -13,7 +13,9 @@ enum TrustLevel { verified, kybPending, none }
 
 TrustLevel trustLevelOf(BusinessProfile business) => business.isVerified
     ? TrustLevel.verified
-    : (business.kybStatus == 'PENDING' ? TrustLevel.kybPending : TrustLevel.none);
+    : (business.kybStatus == 'PENDING'
+          ? TrustLevel.kybPending
+          : TrustLevel.none);
 
 class TrustMark extends ConsumerWidget {
   final BusinessProfile business;
@@ -26,13 +28,20 @@ class TrustMark extends ConsumerWidget {
     if (level == TrustLevel.none) return const SizedBox.shrink();
     final colors = ref.watch(themeProvider).colors;
     final verified = level == TrustLevel.verified;
-    final icon = verified ? HugeIconsSolid.checkmarkBadge01 : HugeIconsSolid.clock01;
+    final icon = verified
+        ? HugeIconsSolid.checkmarkBadge01
+        : HugeIconsSolid.clock01;
     final label = verified ? 'Verified' : 'Verification pending';
     final color = verified ? colors.accent : colors.textTertiary;
     return Semantics(
       label: '$label business',
       child: compact
-          ? Icon(icon, key: ValueKey('trust_mark_${level.name}'), size: 16, color: color)
+          ? Icon(
+              icon,
+              key: ValueKey('trust_mark_${level.name}'),
+              size: 16,
+              color: color,
+            )
           : Row(
               key: ValueKey('trust_mark_${level.name}'),
               mainAxisSize: MainAxisSize.min,

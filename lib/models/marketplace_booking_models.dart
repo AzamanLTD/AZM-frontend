@@ -16,7 +16,8 @@
 
 DateTime _toDate(dynamic v) {
   if (v == null) return DateTime.fromMillisecondsSinceEpoch(0);
-  return DateTime.tryParse(v.toString()) ?? DateTime.fromMillisecondsSinceEpoch(0);
+  return DateTime.tryParse(v.toString()) ??
+      DateTime.fromMillisecondsSinceEpoch(0);
 }
 
 double _toDouble(dynamic v) {
@@ -84,7 +85,10 @@ class TransitTrip {
   });
 
   String get vehicleLabel {
-    final parts = [vehicleMake, vehicleModel].where((p) => p != null && p.isNotEmpty);
+    final parts = [
+      vehicleMake,
+      vehicleModel,
+    ].where((p) => p != null && p.isNotEmpty);
     return parts.isNotEmpty ? parts.join(' ') : (vehicleType ?? 'Vehicle');
   }
 
@@ -92,10 +96,14 @@ class TransitTrip {
 
   static TripStatus _parseStatus(String? s) {
     switch (s) {
-      case 'DEPARTED': return TripStatus.departed;
-      case 'COMPLETED': return TripStatus.completed;
-      case 'CANCELLED': return TripStatus.cancelled;
-      default: return TripStatus.scheduled;
+      case 'DEPARTED':
+        return TripStatus.departed;
+      case 'COMPLETED':
+        return TripStatus.completed;
+      case 'CANCELLED':
+        return TripStatus.cancelled;
+      default:
+        return TripStatus.scheduled;
     }
   }
 
@@ -131,7 +139,9 @@ class TransitTrip {
 // ── TRANSIT SEAT ─────────────────────────────────────────────────────────────
 
 enum SeatStatus { available, occupied, blocked }
+
 enum SeatType { window, aisle, extra }
+
 enum SeatTier { economy, standard, vip }
 
 class TransitSeat {
@@ -155,25 +165,34 @@ class TransitSeat {
 
   static SeatType _parseType(String? s) {
     switch (s?.toUpperCase()) {
-      case 'WINDOW': return SeatType.window;
-      case 'AISLE': return SeatType.aisle;
-      default: return SeatType.extra;
+      case 'WINDOW':
+        return SeatType.window;
+      case 'AISLE':
+        return SeatType.aisle;
+      default:
+        return SeatType.extra;
     }
   }
 
   static SeatTier _parseTier(String? s) {
     switch (s?.toUpperCase()) {
-      case 'VIP': return SeatTier.vip;
-      case 'STANDARD': return SeatTier.standard;
-      default: return SeatTier.economy;
+      case 'VIP':
+        return SeatTier.vip;
+      case 'STANDARD':
+        return SeatTier.standard;
+      default:
+        return SeatTier.economy;
     }
   }
 
   static SeatStatus _parseStatus(String? s) {
     switch (s?.toUpperCase()) {
-      case 'OCCUPIED': return SeatStatus.occupied;
-      case 'BLOCKED': return SeatStatus.blocked;
-      default: return SeatStatus.available;
+      case 'OCCUPIED':
+        return SeatStatus.occupied;
+      case 'BLOCKED':
+        return SeatStatus.blocked;
+      default:
+        return SeatStatus.available;
     }
   }
 
@@ -216,12 +235,16 @@ class SeatAvailability {
     final tierFaresJson = json['tierFares'] as Map? ?? {};
     return SeatAvailability(
       tripId: json['tripId'] as String? ?? '',
-      seats: seatsList.map((s) => TransitSeat.fromJson(s as Map<String, dynamic>)).toList(),
+      seats: seatsList
+          .map((s) => TransitSeat.fromJson(s as Map<String, dynamic>))
+          .toList(),
       availableCount: _toInt(json['availableCount']),
       totalSeats: _toInt(json['totalSeats']),
       tripStatus: json['tripStatus'] as String? ?? 'SCHEDULED',
       fareUsdc: _toDouble(json['fareUsdc']),
-      tierFares: tierFaresJson.map((k, v) => MapEntry(k.toString(), _toDouble(v))),
+      tierFares: tierFaresJson.map(
+        (k, v) => MapEntry(k.toString(), _toDouble(v)),
+      ),
     );
   }
 }
@@ -289,13 +312,17 @@ class CheckInResult {
     final business = reservation?['businessProfile'] as Map<String, dynamic>?;
     return CheckInResult(
       success: json['success'] == true,
-      customerAzamanId: json['customerAzamanId']?.toString() ?? customer?['azamanId']?.toString(),
+      customerAzamanId:
+          json['customerAzamanId']?.toString() ??
+          customer?['azamanId']?.toString(),
       customerUsername: customer?['username']?.toString(),
       customerProfilePictureUrl: customer?['profilePictureUrl']?.toString(),
       businessName: business?['businessName']?.toString(),
       reservationRef: reservation?['reservationRef'] as String? ?? '',
       status: reservation?['status'] as String? ?? '',
-      checkedInAt: reservation?['checkedInAt'] != null ? _toDate(reservation!['checkedInAt']) : null,
+      checkedInAt: reservation?['checkedInAt'] != null
+          ? _toDate(reservation!['checkedInAt'])
+          : null,
     );
   }
 }
@@ -325,7 +352,9 @@ class AzamanIdSearchResult {
       username: customer['username']?.toString() ?? 'Unknown',
       azamanId: customer['azamanId']?.toString() ?? '',
       profilePictureUrl: customer['profilePictureUrl']?.toString(),
-      reservations: reservationsList.map((r) => SearchReservation.fromJson(r as Map<String, dynamic>)).toList(),
+      reservations: reservationsList
+          .map((r) => SearchReservation.fromJson(r as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
@@ -381,7 +410,8 @@ class BookSeatResult {
       success: json['success'] == true,
       bookingId: booking['id'] as String? ?? '',
       bookingRef: booking['bookingRef'] as String? ?? '',
-      seatIds: (json['seatIds'] as List?)?.map((s) => s.toString()).toList() ?? [],
+      seatIds:
+          (json['seatIds'] as List?)?.map((s) => s.toString()).toList() ?? [],
       totalFare: _toDouble(json['totalFare']),
       status: booking['status'] as String? ?? 'PENDING',
     );
@@ -428,5 +458,3 @@ class BusinessStory {
     );
   }
 }
-
-

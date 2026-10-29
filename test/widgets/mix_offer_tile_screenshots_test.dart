@@ -79,46 +79,68 @@ class _EvidenceCacheManager implements BaseCacheManager {
   }
 
   @override
-  Future<pfile.File> getSingleFile(String url,
-          {String? key, Map<String, String>? headers}) async =>
-      files[url]!;
+  Future<pfile.File> getSingleFile(
+    String url, {
+    String? key,
+    Map<String, String>? headers,
+  }) async => files[url]!;
 
   @override
-  Future<FileInfo> downloadFile(String url,
-      {String? key, Map<String, String>? authHeaders, bool force = false}) {
+  Future<FileInfo> downloadFile(
+    String url, {
+    String? key,
+    Map<String, String>? authHeaders,
+    bool force = false,
+  }) {
     throw UnimplementedError('evidence manager serves cache files only');
   }
 
   @override
-  Future<FileInfo?> getFileFromCache(String key, {bool ignoreMemCache = false}) async => null;
+  Future<FileInfo?> getFileFromCache(
+    String key, {
+    bool ignoreMemCache = false,
+  }) async => null;
 
   @override
   Future<FileInfo?> getFileFromMemory(String key) async => null;
 
   @override
-  Future<pfile.File> putFile(String url, Uint8List fileBytes,
-      {String? key,
-      String? eTag,
-      Duration maxAge = const Duration(days: 30),
-      String fileExtension = 'file'}) {
+  Future<pfile.File> putFile(
+    String url,
+    Uint8List fileBytes, {
+    String? key,
+    String? eTag,
+    Duration maxAge = const Duration(days: 30),
+    String fileExtension = 'file',
+  }) {
     throw UnimplementedError('evidence manager is read-only');
   }
 
   @override
-  Future<pfile.File> putFileStream(String url, Stream<List<int>> source,
-      {String? key,
-      String? eTag,
-      Duration maxAge = const Duration(days: 30),
-      String fileExtension = 'file'}) {
+  Future<pfile.File> putFileStream(
+    String url,
+    Stream<List<int>> source, {
+    String? key,
+    String? eTag,
+    Duration maxAge = const Duration(days: 30),
+    String fileExtension = 'file',
+  }) {
     throw UnimplementedError('evidence manager is read-only');
   }
 
   @override
-  Stream<FileInfo> getFile(String url,
-      {String? key, Map<String, String>? headers}) async* {
+  Stream<FileInfo> getFile(
+    String url, {
+    String? key,
+    Map<String, String>? headers,
+  }) async* {
     final f = await getSingleFile(url);
-    yield FileInfo(f, FileSource.Cache,
-        DateTime.now().add(const Duration(days: 1)), url);
+    yield FileInfo(
+      f,
+      FileSource.Cache,
+      DateTime.now().add(const Duration(days: 1)),
+      url,
+    );
   }
 
   @override
@@ -140,8 +162,9 @@ Future<void> _loadFonts() async {
       Future<ByteData>.value(ByteData.view(Uint8List.fromList(inter).buffer)),
     );
   await interLoader.load();
-  final regular =
-      await File('assets/fonts/ComicNeue-Regular.ttf').readAsBytes();
+  final regular = await File(
+    'assets/fonts/ComicNeue-Regular.ttf',
+  ).readAsBytes();
   final bold = await File('assets/fonts/ComicNeue-Bold.ttf').readAsBytes();
   final comicLoader = FontLoader('ComicNeue')
     ..addFont(
@@ -171,8 +194,9 @@ Future<ThemeProvider> _seedTheme(AzamanTheme theme) async {
 Future<void> _capture(WidgetTester tester, String name) async {
   var ok = false;
   await tester.runAsync(() async {
-    final boundary =
-        tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(_rootKey),
+    );
     final image = await boundary.toImage(pixelRatio: 2.0);
     final data = (await image.toByteData(format: ImageByteFormat.png))!;
     Directory('.screenshots').createSync(recursive: true);
@@ -183,53 +207,58 @@ Future<void> _capture(WidgetTester tester, String name) async {
 }
 
 MixOffer _fullPayloadOffer() => const MixOffer(
-      productId: 'p-live',
-      businessId: 'bp-1',
-      bizId: 'BIZ-1',
-      businessName: "Auntie Adjoa's Kitchen",
-      businessCategory: 'FOOD_BEVERAGE',
-      businessLogoUrl: _logoUrl,
-      name: 'Jollof Rice',
-      imageUrls: [_productUrl],
-      price: MixOfferPrice.fixedGhs('25.00'),
-      isAvailable: true,
-      capabilities: MixOfferCapabilities(payableIn: ['USDC']),
-    );
+  productId: 'p-live',
+  businessId: 'bp-1',
+  bizId: 'BIZ-1',
+  businessName: "Auntie Adjoa's Kitchen",
+  businessCategory: 'FOOD_BEVERAGE',
+  businessLogoUrl: _logoUrl,
+  name: 'Jollof Rice',
+  imageUrls: [_productUrl],
+  price: MixOfferPrice.fixedGhs('25.00'),
+  isAvailable: true,
+  capabilities: MixOfferCapabilities(payableIn: ['USDC']),
+);
 
 MixOffer _missingLogoOffer() => const MixOffer(
-      productId: 'p-kenkey',
-      businessId: 'bp-2',
-      bizId: 'BIZ-2',
-      businessName: 'Osu Kenkey Bar',
-      businessCategory: 'FOOD_BEVERAGE',
-      name: 'Banku & Tilapia',
-      imageUrls: [_product2Url],
-      price: MixOfferPrice.fixedGhs('48.50'),
-      capabilities: MixOfferCapabilities(payableIn: ['USDC']),
-    );
+  productId: 'p-kenkey',
+  businessId: 'bp-2',
+  bizId: 'BIZ-2',
+  businessName: 'Osu Kenkey Bar',
+  businessCategory: 'FOOD_BEVERAGE',
+  name: 'Banku & Tilapia',
+  imageUrls: [_product2Url],
+  price: MixOfferPrice.fixedGhs('48.50'),
+  capabilities: MixOfferCapabilities(payableIn: ['USDC']),
+);
 
 MixOffer _imageErrorOffer() => const MixOffer(
-      productId: 'p-dead',
-      businessId: 'bp-3',
-      bizId: 'BIZ-3',
-      businessName: 'Makola Fabrics',
-      businessCategory: 'RETAIL_GOODS',
-      businessLogoUrl: _deadUrl,
-      name: 'Kente Cloth (2 yards)',
-      imageUrls: [_deadUrl],
-      price: MixOfferPrice.fixedGhs('120.00'),
-      isAvailable: false,
-      capabilities: MixOfferCapabilities(payableIn: ['USDC']),
-    );
+  productId: 'p-dead',
+  businessId: 'bp-3',
+  bizId: 'BIZ-3',
+  businessName: 'Makola Fabrics',
+  businessCategory: 'RETAIL_GOODS',
+  businessLogoUrl: _deadUrl,
+  name: 'Kente Cloth (2 yards)',
+  imageUrls: [_deadUrl],
+  price: MixOfferPrice.fixedGhs('120.00'),
+  isAvailable: false,
+  capabilities: MixOfferCapabilities(payableIn: ['USDC']),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final cacheManager = _EvidenceCacheManager({
-    _productUrl: const LocalFileSystem().file('test/fixtures/mix_evidence/product.png'),
-    _product2Url:
-        const LocalFileSystem().file('test/fixtures/mix_evidence/product2.png'),
-    _logoUrl: const LocalFileSystem().file('test/fixtures/mix_evidence/logo.png'),
+    _productUrl: const LocalFileSystem().file(
+      'test/fixtures/mix_evidence/product.png',
+    ),
+    _product2Url: const LocalFileSystem().file(
+      'test/fixtures/mix_evidence/product2.png',
+    ),
+    _logoUrl: const LocalFileSystem().file(
+      'test/fixtures/mix_evidence/logo.png',
+    ),
   });
 
   for (final width in [320.0, 360.0, 390.0]) {
@@ -237,8 +266,9 @@ void main() {
       final mode = theme == AzamanTheme.dark ? 'dark' : 'light';
       final name = 'mix_tiles_${width.toInt()}_$mode';
 
-      testWidgets('gallery tile preview ${width.toInt()}dp — $mode',
-          (tester) async {
+      testWidgets('gallery tile preview ${width.toInt()}dp — $mode', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(width, 780);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
@@ -259,8 +289,12 @@ void main() {
                 body: RepaintBoundary(
                   key: _rootKey,
                   child: ListView(
-                    padding:
-                        const EdgeInsets.fromLTRB(AzSpace.lg, AzSpace.md, AzSpace.lg, 0),
+                    padding: const EdgeInsets.fromLTRB(
+                      AzSpace.lg,
+                      AzSpace.md,
+                      AzSpace.lg,
+                      0,
+                    ),
                     children: [
                       // Pair row 1 — the feed's real composition:
                       // [real logo tile | missing-logo tile]
@@ -308,8 +342,9 @@ void main() {
                                 name: 'Custom Smock',
                                 imageUrls: [_productUrl],
                                 price: MixOfferPrice.unknown(),
-                                capabilities:
-                                    MixOfferCapabilities(payableIn: []),
+                                capabilities: MixOfferCapabilities(
+                                  payableIn: [],
+                                ),
                               ),
                               onOpenStore: opened.add,
                               cacheManager: cacheManager,
@@ -341,33 +376,50 @@ void main() {
         var settled = false;
         for (var i = 0; i < 25 && !settled; i++) {
           await tester.runAsync(
-              () => Future<void>.delayed(const Duration(milliseconds: 80)));
+            () => Future<void>.delayed(const Duration(milliseconds: 80)),
+          );
           await tester.pump(const Duration(milliseconds: 120));
-          settled = find
+          settled =
+              find
                       .byKey(const ValueKey('mix_store_logo_fallback'))
                       .evaluate()
                       .length ==
                   3 &&
               // Tile 1: BOTH rasters (product + logo — two RawImages).
               tester
-                      .widgetList<RawImage>(find.descendant(
-                          of: tiles.at(0), matching: find.byType(RawImage)))
+                      .widgetList<RawImage>(
+                        find.descendant(
+                          of: tiles.at(0),
+                          matching: find.byType(RawImage),
+                        ),
+                      )
                       .length >=
                   2 &&
               // Tile 2: its product raster (logo is the glyph here).
               tester
-                      .widgetList<RawImage>(find.descendant(
-                          of: tiles.at(1), matching: find.byType(RawImage)))
-                      .isNotEmpty &&
+                  .widgetList<RawImage>(
+                    find.descendant(
+                      of: tiles.at(1),
+                      matching: find.byType(RawImage),
+                    ),
+                  )
+                  .isNotEmpty &&
               // Tile 4: its product raster (no logo, dead-image tile 3
               // has none at all).
               tester
-                      .widgetList<RawImage>(find.descendant(
-                          of: tiles.at(3), matching: find.byType(RawImage)))
-                      .isNotEmpty;
+                  .widgetList<RawImage>(
+                    find.descendant(
+                      of: tiles.at(3),
+                      matching: find.byType(RawImage),
+                    ),
+                  )
+                  .isNotEmpty;
         }
-        expect(settled, isTrue,
-            reason: 'all real images decoded and mounted their rasters');
+        expect(
+          settled,
+          isTrue,
+          reason: 'all real images decoded and mounted their rasters',
+        );
         // Finish any in-flight fade-in (MotionTokens.control is 180ms):
         // the raster mounts at fade START, but the capture must show it
         // fully painted. Pump well past the longest fade the card runs.
@@ -382,32 +434,49 @@ void main() {
         final firstPair = tester
             .getRect(tiles.at(0))
             .translate(0, tester.getRect(tiles.at(1)).top);
-        expect(firstPair.width,
-            closeTo((width - 2 * AzSpace.lg - AzSpace.sm) / 2, 1),
-            reason: 'each tile is a responsive half-feed cell');
+        expect(
+          firstPair.width,
+          closeTo((width - 2 * AzSpace.lg - AzSpace.sm) / 2, 1),
+          reason: 'each tile is a responsive half-feed cell',
+        );
         // The WHOLE tile honors the gallery geometry contract — an upper
         // bound (≤ 1.5, 2:3) AND the square-image floor (≥ 1.0), measured
         // per capture at the reference width.
         final a = tester.getRect(tiles.at(0)).size;
         final ratio = a.height / a.width;
-        expect(ratio, greaterThanOrEqualTo(1.0),
-            reason: 'the square image anchors the ratio floor');
-        expect(ratio, lessThanOrEqualTo(1.5),
-            reason: 'the whole tile is near-square (measured $ratio '
-                'at tile width ${a.width})');
+        expect(
+          ratio,
+          greaterThanOrEqualTo(1.0),
+          reason: 'the square image anchors the ratio floor',
+        );
+        expect(
+          ratio,
+          lessThanOrEqualTo(1.5),
+          reason:
+              'the whole tile is near-square (measured $ratio '
+              'at tile width ${a.width})',
+        );
 
         // The product image is a square filling the tile width.
         final imageA = tester.getSize(
-            find.descendant(of: tiles.at(0), matching: find.byType(CachedNetworkImage)).first);
+          find
+              .descendant(
+                of: tiles.at(0),
+                matching: find.byType(CachedNetworkImage),
+              )
+              .first,
+        );
         expect(imageA.height, closeTo(imageA.width, 1));
 
         // Real bytes actually decoded and mounted — the raster is there,
         // not a placeholder skeleton.
         expect(
-            find.descendant(of: tiles.at(0), matching: find.byType(RawImage)),
-            findsAtLeastNWidgets(2),
-            reason: 'tile 1 renders decoded fixture bytes: product raster '
-                'plus the real-logo raster');
+          find.descendant(of: tiles.at(0), matching: find.byType(RawImage)),
+          findsAtLeastNWidgets(2),
+          reason:
+              'tile 1 renders decoded fixture bytes: product raster '
+              'plus the real-logo raster',
+        );
 
         // The distinct lower panel sits below it.
         expect(find.byKey(const ValueKey('mix_offer_panel')), findsNWidgets(4));
@@ -426,21 +495,30 @@ void main() {
 
         // REAL logo state: the logo slot is an image, not a glyph.
         final realLogo = find.descendant(
-            of: find.byKey(const ValueKey('mix_store_logo')),
-            matching: find.byType(CachedNetworkImage));
+          of: find.byKey(const ValueKey('mix_store_logo')),
+          matching: find.byType(CachedNetworkImage),
+        );
         // CachedNetworkImage nests an inner instance — assert presence,
         // not count.
-        expect(realLogo, findsAtLeastNWidgets(1),
-            reason: 'the genuine logo URL is mounted for byte rendering');
+        expect(
+          realLogo,
+          findsAtLeastNWidgets(1),
+          reason: 'the genuine logo URL is mounted for byte rendering',
+        );
 
         // MISSING + FAILED logo states: exactly three glyph fallbacks —
         // the missing-logo tile, the dead-URL tile, and the fourth tile
         // (no logo URL). Tile 1's REAL logo left the placeholder state.
-        expect(find.byKey(const ValueKey('mix_store_logo_fallback')),
-            findsNWidgets(3));
+        expect(
+          find.byKey(const ValueKey('mix_store_logo_fallback')),
+          findsNWidgets(3),
+        );
 
         // Availability only when the payload said so.
-        expect(find.byKey(const ValueKey('mix_chip_Unavailable')), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('mix_chip_Unavailable')),
+          findsOneWidget,
+        );
 
         await _capture(tester, name);
       });

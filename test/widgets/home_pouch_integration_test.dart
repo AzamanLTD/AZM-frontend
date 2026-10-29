@@ -167,14 +167,20 @@ void main() {
 
       expect(find.byType(WalletCardDeck), findsOneWidget);
       expect(_deckState(tester), WalletDeckState.tucked);
-      expect(find.byType(AzmCardDetailsPanel), findsNothing,
-          reason: 'the details panel only mounts after the PIN gate');
+      expect(
+        find.byType(AzmCardDetailsPanel),
+        findsNothing,
+        reason: 'the details panel only mounts after the PIN gate',
+      );
 
       // The eye is retired everywhere: neither the widget nor its old
       // semantics control may appear on the real page.
       expect(find.bySemanticsLabel('Toggle balance visibility'), findsNothing);
-      expect(find.text('••••••••'), findsNothing,
-          reason: 'no mask dots — privacy is the physical pouch');
+      expect(
+        find.text('••••••••'),
+        findsNothing,
+        reason: 'no mask dots — privacy is the physical pouch',
+      );
       handle.dispose();
     },
   );
@@ -206,14 +212,16 @@ void main() {
       // covered-content privacy contract) even though the widget stays
       // in the tree with its state.
       final semantics = tester.ensureSemantics();
-      tester.state<WalletCardDeckState>(
-        find.byType(WalletCardDeck),
-      ).tuck();
+      tester.state<WalletCardDeckState>(find.byType(WalletCardDeck)).tuck();
       await _settle(tester);
       expect(_deckState(tester), WalletDeckState.tucked);
-      expect(find.bySemanticsLabel('Available'), findsNothing,
-          reason: 'the tucked pouch must cover the breakdown face too — '
-              'privacy is physical, so a flipped card cannot leak');
+      expect(
+        find.bySemanticsLabel('Available'),
+        findsNothing,
+        reason:
+            'the tucked pouch must cover the breakdown face too — '
+            'privacy is physical, so a flipped card cannot leak',
+      );
       semantics.dispose();
     },
   );
@@ -236,10 +244,16 @@ void main() {
       await _settle(tester);
 
       expect(find.byType(CardPinGateSheet), findsNothing);
-      expect(find.byType(AzmCardDetailsPanel), findsOneWidget,
-          reason: 'a verified PIN mounts the sensitive details panel');
-      expect(find.textContaining('SAMPLE'), findsWidgets,
-          reason: 'the panel renders the demo programme data');
+      expect(
+        find.byType(AzmCardDetailsPanel),
+        findsOneWidget,
+        reason: 'a verified PIN mounts the sensitive details panel',
+      );
+      expect(
+        find.textContaining('SAMPLE'),
+        findsWidgets,
+        reason: 'the panel renders the demo programme data',
+      );
     },
   );
 
@@ -259,8 +273,11 @@ void main() {
       await tester.tapAt(const Offset(200, 20));
       await _settle(tester);
 
-      expect(_deckState(tester), WalletDeckState.tucked,
-          reason: 'a cancelled gate must return the deck to the pouch');
+      expect(
+        _deckState(tester),
+        WalletDeckState.tucked,
+        reason: 'a cancelled gate must return the deck to the pouch',
+      );
       expect(find.byType(AzmCardDetailsPanel), findsNothing);
     },
   );
@@ -279,9 +296,7 @@ void main() {
 
       // The app loses focus while the gate is STILL pending: the deck
       // re-tucks and the in-flight attempt is invalidated.
-      tester
-          .binding
-          .handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await _settle(tester);
       expect(_deckState(tester), WalletDeckState.tucked);
 
@@ -289,13 +304,9 @@ void main() {
       // framework's lifecycle state machine rejects a direct jump).
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
       await tester.pump();
-      tester
-          .binding
-          .handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
       await tester.pump();
-      tester
-          .binding
-          .handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await _settle(tester);
 
       // The sheet is still up; the user now completes the STALE gate
@@ -307,11 +318,18 @@ void main() {
       // ...but the deck must stay tucked and the details panel must
       // never mount: a successful PIN can only unlock the deck state
       // it was entered for.
-      expect(_deckState(tester), WalletDeckState.tucked,
-          reason: 'the stale gate cannot re-open the deck');
-      expect(find.byType(AzmCardDetailsPanel), findsNothing,
-          reason: 'a PIN resolved after a re-lock must not unlock '
-              'details');
+      expect(
+        _deckState(tester),
+        WalletDeckState.tucked,
+        reason: 'the stale gate cannot re-open the deck',
+      );
+      expect(
+        find.byType(AzmCardDetailsPanel),
+        findsNothing,
+        reason:
+            'a PIN resolved after a re-lock must not unlock '
+            'details',
+      );
     },
   );
 
@@ -334,15 +352,24 @@ void main() {
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await _settle(tester);
 
-      expect(_deckState(tester), WalletDeckState.tucked,
-          reason: 'backgrounding must tuck the deck');
-      expect(find.byType(AzmCardDetailsPanel), findsNothing,
-          reason: 'backgrounding must drop unlocked card details');
+      expect(
+        _deckState(tester),
+        WalletDeckState.tucked,
+        reason: 'backgrounding must tuck the deck',
+      );
+      expect(
+        find.byType(AzmCardDetailsPanel),
+        findsNothing,
+        reason: 'backgrounding must drop unlocked card details',
+      );
 
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await _settle(tester);
-      expect(_deckState(tester), WalletDeckState.tucked,
-          reason: 'resuming does NOT re-open anything');
+      expect(
+        _deckState(tester),
+        WalletDeckState.tucked,
+        reason: 'resuming does NOT re-open anything',
+      );
     },
   );
 }

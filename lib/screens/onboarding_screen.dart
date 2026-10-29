@@ -1,29 +1,37 @@
 // =============================================================================
-// AZAMAN — Interactive Onboarding Screen (V2)
+// AZAMAN — AUTHENTICATED ACCOUNT SETUP
 //
-// Enhanced multi-step onboarding with:
-//   • Animated feature showcase pages (3 intro slides)
-//   • Interactive feature cards that respond to tap
-//   • Personalized setup step: pick your primary use case
-//   • Animated progress bar with smooth transitions
-//   • Parallax hero images with glow effects
-//   • Final "Get Started" with ripple effect
+// This is NOT the tour. The public tour (lib/screens/intro/) introduces Azaman
+// to someone who has never seen it, before login. This screen runs once the
+// account exists and asks the one thing the server actually needs at this
+// stage: what the person is mainly here to do.
 //
-// Flow: 3 intro pages → setup page → complete onboarding → deposit prompt
-// Reference: Robinhood onboarding, Cash App first-run, Revolut signup flow
+// It replaced a four-page feature showcase that replayed the tour's promise
+// after registration, with artwork from assets/images/1-3.webp and claims the
+// product cannot support ("Ghana's Fastest P2P Platform", "Zero gas fees",
+// "no fraud, no chargebacks"). A first-use journey cannot borrow credibility
+// from a better tour elsewhere; the claims are gone with the pages.
+//
+// Contract preserved exactly as it was:
+//   POST /users/onboarding/complete { primaryUseCase }
+//   • success  → primary-phone verification (AzRoutes.verifyPhone);
+//   • failure  → stay here, say so, offer retry. A failed completion call is
+//                never treated as a completed setup.
+//   • 'Later' posts the same call with a null use case, which is what the old
+//     Skip button did: the field is useful, not a gate.
+//
+// Not here, deliberately: no deposit prompt, no KYC at first login, no
+// permissions. Phone verification follows on its own screen, and contacts and
+// location are offered there as separate optional choices.
 // =============================================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart' show GoRouterHelper;
 
 import 'package:azaman/router/route_registry.dart';
-import 'package:go_router/go_router.dart' show GoRouterHelper;
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/deposit_screen.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/widgets/nav_transitions.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -33,502 +41,265 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 }
 
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
-  bool _isCompleting = false;
   String? _selectedUseCase;
+  bool _isCompleting = false;
 
-  static const _kTotalPages = 4; // 3 intro + 1 setup
-
-  static const List<_OnboardingPageData> _pages = [
-    _OnboardingPageData(
-      icon: Icons.bolt_outlined,
-      imagePath: "assets/images/1.webp",
-      title: "Ghana's Fastest P2P Platform",
-      subtitle: "Buy and sell USDC instantly via MTN MoMo, Telecel or AirtelTigo. "
-        "No bank account needed — just your phone number.",
-      features: ['Instant MoMo settlement', 'Zero gas fees', '24/7 marketplace'],
+  static const List<_UseCase> _useCases = <_UseCase>[
+    _UseCase(
+      icon: Icons.swap_horiz,
+      label: 'P2P trading',
+      desc: 'Buy and sell USDC',
     ),
-    _OnboardingPageData(
-      icon: Icons.shield_outlined,
-      imagePath: "assets/images/2.webp",
-      title: "Every Trade is Escrow-Protected",
-      subtitle: "Funds are locked in smart escrow until both parties confirm. "
-        "No fraud, no chargebacks — just safe, instant settlement.",
-      features: ['Smart escrow locking', 'Dispute resolution', 'Anti-fraud protection'],
+    _UseCase(
+      icon: Icons.savings_outlined,
+      label: 'Susu savings',
+      desc: 'Save with a circle',
     ),
-    _OnboardingPageData(
-      icon: Icons.group_outlined,
-      imagePath: "assets/images/3.webp",
-      title: "Grow With Your Community",
-      subtitle: "Join a Susu circle with friends and family. "
-        "Contribute together, collect in turns — the traditional way, "
-        "powered by modern fintech.",
-      features: ['Susu savings circles', 'Community trust scores', 'Shared vaults'],
+    _UseCase(
+      icon: Icons.send_outlined,
+      label: 'Remittances',
+      desc: 'Send money home',
+    ),
+    _UseCase(
+      icon: Icons.storefront_outlined,
+      label: 'Business',
+      desc: 'Take payments',
     ),
   ];
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _completeOnboarding() async {
+  Future<void> _completeOnboarding({String? useCase}) async {
     if (_isCompleting) return;
     setState(() => _isCompleting = true);
 
     try {
-      await apiClient.post('/users/onboarding/complete', {
-        'primaryUseCase': _selectedUseCase,
+      // The injected client, not the global singleton: same request, but the
+      // completion contract is reachable from a test without a live server.
+      await ref.read(apiClientProvider).post('/users/onboarding/complete', {
+        'primaryUseCase': useCase,
       });
       if (!mounted) return;
-      _navigateToMain();
+      _goToPhoneStep();
     } catch (_) {
-      if (mounted) _navigateToMain();
-    }
-  }
-
-  void _navigateToMain() {
-    // ONE NAVIGATION AUTHORITY: the shell is the router-owned '/home'
-    // page; go() replaces the whole declarative stack, so onboarding
-    // cannot be reached by back.
-    context.go(AzRoutes.shell);
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (context.mounted) {
-        pushWithVerticalTransition(context, const DepositScreen(initialTab: DepositTab.fiat));
-      }
-    });
-  }
-
-  void _nextPage() {
-    if (_currentPage < _kTotalPages - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOutCubic,
+      // A failed completion call is NOT a completed setup. Telling the person
+      // they are set up when the server never heard about it is the defect
+      // this branch exists to remove.
+      if (!mounted) return;
+      setState(() => _isCompleting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Could not save your setup. Check your connection.',
+          ),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _completeOnboarding(useCase: useCase),
+          ),
+        ),
       );
-    } else {
-      _completeOnboarding();
     }
   }
 
-  void _skip() {
-    _completeOnboarding();
-  }
+  /// After setup the next real step is the phone number, not a deposit form.
+  void _goToPhoneStep() => context.go(AzRoutes.verifyPhone);
 
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: colors.background,
       body: SafeArea(
-        child: Column(
-          children: [
-            // ── Top bar: progress bar + skip ──
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - 56,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(3),
-                      child: LinearProgressIndicator(
-                        value: (_currentPage + 1) / _kTotalPages,
-                        backgroundColor: colors.divider,
-                        valueColor: AlwaysStoppedAnimation(colors.accent),
-                        minHeight: 3,
-                      ),
+                  Text(
+                    'Set up your account',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.4,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  if (_currentPage < _kTotalPages - 1)
-                    TextButton(
-                      onPressed: _skip,
+                  const SizedBox(height: 10),
+                  Text(
+                    'What will you mostly use Azaman for? This decides what we '
+                    'show you first. You can change it later.',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 15,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  for (final useCase in _useCases) ...[
+                    _UseCaseTile(
+                      useCase: useCase,
+                      colors: colors,
+                      selected: _selectedUseCase == useCase.label,
+                      onTap: _isCompleting
+                          ? null
+                          : () => setState(
+                              () => _selectedUseCase = useCase.label,
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _isCompleting || _selectedUseCase == null
+                          ? null
+                          : () =>
+                                _completeOnboarding(useCase: _selectedUseCase),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.accent,
+                        foregroundColor: colors.isDark
+                            ? Colors.black
+                            : Colors.white,
+                        disabledBackgroundColor: colors.accent.withValues(
+                          alpha: 0.3,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _isCompleting
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  colors.isDark ? Colors.black : Colors.white,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              'Continue',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: _isCompleting
+                          ? null
+                          : () => _completeOnboarding(),
                       child: Text(
-                        'Skip',
+                        'Decide later',
                         style: TextStyle(
                           color: colors.textTertiary,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    )
-                  else
-                    const SizedBox(width: 48),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: Text(
+                      'Next: confirm your phone number.',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
-
-            // ── Page content ──
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: _kTotalPages,
-                onPageChanged: (index) => setState(() => _currentPage = index),
-                physics: const BouncingScrollPhysics(),
-                itemBuilder: (context, index) {
-                  if (index < 3) {
-                    return _OnboardingPage(
-                      data: _pages[index],
-                      colors: colors,
-                      isActive: index == _currentPage,
-                    );
-                  }
-                  return _SetupPage(
-                    colors: colors,
-                    selectedUseCase: _selectedUseCase,
-                    onSelect: (v) => setState(() => _selectedUseCase = v),
-                  );
-                },
-              ),
-            ),
-
-            // ── Page indicator dots ──
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _kTotalPages,
-                  (index) => _DotIndicator(
-                    isActive: index == _currentPage,
-                    colors: colors,
-                  ),
-                ),
-              ),
-            ),
-
-            // ── Bottom action button ──
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isCompleting || (_currentPage == _kTotalPages - 1 && _selectedUseCase == null)
-                      ? null
-                      : _nextPage,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.accent,
-                    foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                    disabledBackgroundColor: colors.accent.withValues(alpha: 0.3),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isCompleting
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              colors.isDark ? Colors.black : Colors.white,
-                            ),
-                          ),
-                        )
-                      : Text(
-                          _currentPage == _kTotalPages - 1
-                              ? 'Get Started'
-                              : 'Continue',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-// =============================================================================
-// PAGE DATA MODEL
-// =============================================================================
-class _OnboardingPageData {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String? imagePath;
-  final List<String> features;
-
-  const _OnboardingPageData({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    this.imagePath,
-    this.features = const [],
-  });
-}
-
-// =============================================================================
-// SINGLE ONBOARDING PAGE — hero image with glow + title + subtitle + features
-// =============================================================================
-class _OnboardingPage extends StatelessWidget {
-  final _OnboardingPageData data;
-  final AzamanColors colors;
-  final bool isActive;
-
-  const _OnboardingPage({
-    required this.data,
+class _UseCaseTile extends StatelessWidget {
+  const _UseCaseTile({
+    required this.useCase,
     required this.colors,
-    required this.isActive,
+    required this.selected,
+    required this.onTap,
   });
+
+  final _UseCase useCase;
+  final AzamanColors colors;
+  final bool selected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // ── Hero image or icon with glow ──
-          Expanded(
-            child: data.imagePath != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Image.asset(
-                    data.imagePath!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                  ),
-                )
-              : Center(
-                  child: Container(
-                    width: 120, height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.accent.withValues(alpha: 0.08),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.glow.withValues(alpha: 0.2),
-                          blurRadius: 40,
-                          spreadRadius: 4,
-                        ),
-                        BoxShadow(
-                          color: colors.glow.withValues(alpha: 0.1),
-                          blurRadius: 80,
-                          spreadRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: Icon(data.icon, size: 52, color: colors.accent),
-                  ),
-                ),
-          ),
-          const SizedBox(height: 36),
-
-          // ── Title ──
-          if (isActive)
-            Text(
-              data.title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-                height: 1.2,
-              ),
-            ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.1)
-          else
-            Text(
-              data.title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 26,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-                height: 1.2,
-              ),
-            ),
-          const SizedBox(height: 14),
-
-          // ── Subtitle ──
-          Text(
-            data.subtitle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: 15,
-              fontWeight: FontWeight.w400,
-              height: 1.5,
-              letterSpacing: 0.1,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: selected
+                ? colors.accent.withValues(alpha: 0.10)
+                : colors.softSurface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: selected ? colors.accent : colors.divider,
+              width: selected ? 1.6 : 1,
             ),
           ),
-          const SizedBox(height: 24),
-
-          // ── Feature chips ──
-          if (data.features.isNotEmpty)
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: data.features.map((f) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: colors.accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: colors.accent.withValues(alpha: 0.15)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+          child: Row(
+            children: [
+              Icon(
+                useCase.icon,
+                size: 22,
+                color: selected ? colors.accent : colors.textSecondary,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.check_circle, size: 14, color: colors.accent),
-                    const SizedBox(width: 5),
                     Text(
-                      f,
+                      useCase.label,
                       style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        color: colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      useCase.desc,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 12.5,
                       ),
                     ),
                   ],
                 ),
-              )).toList(),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// SETUP PAGE — pick your primary use case
-// =============================================================================
-class _SetupPage extends StatelessWidget {
-  final AzamanColors colors;
-  final String? selectedUseCase;
-  final ValueChanged<String> onSelect;
-
-  const _SetupPage({
-    required this.colors,
-    required this.selectedUseCase,
-    required this.onSelect,
-  });
-
-  static const _useCases = [
-    _UseCase(icon: Icons.swap_horiz, label: 'P2P Trading', desc: 'Buy & sell USDC'),
-    _UseCase(icon: Icons.savings, label: 'Susu Savings', desc: 'Join savings circles'),
-    _UseCase(icon: Icons.send, label: 'Remittances', desc: 'Send money home'),
-    _UseCase(icon: Icons.storefront, label: 'Business', desc: 'Accept payments'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.waving_hand, size: 48, color: colors.accent)
-              .animate().fadeIn(duration: 400.ms),
-          const SizedBox(height: 16),
-          Text(
-            'What brings you here?',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-            ),
-          ).animate().fadeIn(delay: 100.ms),
-          const SizedBox(height: 8),
-          Text(
-            'We\'ll personalize your experience',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: 14,
-            ),
-          ).animate().fadeIn(delay: 200.ms),
-          const SizedBox(height: 36),
-          ..._useCases.map((uc) {
-            final isSelected = selectedUseCase == uc.label;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: GestureDetector(
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  onSelect(uc.label);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? colors.accent.withValues(alpha: 0.1)
-                        : colors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isSelected
-                          ? colors.accent.withValues(alpha: 0.4)
-                          : colors.divider,
-                      width: isSelected ? 1.5 : 1,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? colors.accent.withValues(alpha: 0.15)
-                              : colors.divider,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          uc.icon,
-                          color: isSelected ? colors.accent : colors.textSecondary,
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              uc.label,
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              uc.desc,
-                              style: TextStyle(
-                                color: colors.textTertiary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: isSelected
-                            ? Icon(Icons.check_circle, key: const ValueKey('check'), color: colors.accent, size: 24)
-                            : Icon(Icons.circle_outlined, key: const ValueKey('empty'), color: colors.divider, size: 24),
-                      ),
-                    ],
-                  ),
-                ),
               ),
-            ).animate().fadeIn(delay: Duration(milliseconds: 300 + _useCases.indexOf(uc) * 80));
-          }),
-        ],
+              if (selected)
+                Icon(Icons.check_circle, size: 20, color: colors.accent),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -540,38 +311,4 @@ class _UseCase {
   final String desc;
 
   const _UseCase({required this.icon, required this.label, required this.desc});
-}
-
-// =============================================================================
-// DOT INDICATOR — animated active/inactive state
-// =============================================================================
-class _DotIndicator extends StatelessWidget {
-  final bool isActive;
-  final AzamanColors colors;
-
-  const _DotIndicator({required this.isActive, required this.colors});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      width: isActive ? 24 : 8,
-      height: 8,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        color: isActive ? colors.accent : colors.textTertiary.withValues(alpha: 0.3),
-        boxShadow: isActive
-            ? [
-                BoxShadow(
-                  color: colors.glow.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                ),
-              ]
-            : null,
-      ),
-    );
-  }
 }

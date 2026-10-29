@@ -23,12 +23,14 @@ class BusinessCheckInScreen extends ConsumerStatefulWidget {
   const BusinessCheckInScreen({super.key});
 
   @override
-  ConsumerState<BusinessCheckInScreen> createState() => _BusinessCheckInScreenState();
+  ConsumerState<BusinessCheckInScreen> createState() =>
+      _BusinessCheckInScreenState();
 }
 
 enum _CheckInMode { scanner, search }
 
-class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> with SingleTickerProviderStateMixin {
+class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen>
+    with SingleTickerProviderStateMixin {
   _CheckInMode _mode = _CheckInMode.scanner;
   final _azamanIdController = TextEditingController();
   final _scannerController = MobileScannerController(
@@ -41,7 +43,10 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
   @override
   void initState() {
     super.initState();
-    _scanCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
+    _scanCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -60,15 +65,18 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: Text('Check-In Customer', style: TextStyle(color: colors.textPrimary)),
+        title: Text(
+          'Check-In Customer',
+          style: TextStyle(color: colors.textPrimary),
+        ),
         backgroundColor: colors.surface,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
       body: checkInState.result != null
           ? _buildSuccessView(checkInState.result!, colors)
           : checkInState.searchResult != null
-              ? _buildSearchResults(checkInState.searchResult!, colors)
-              : _buildMainView(colors, checkInState),
+          ? _buildSearchResults(checkInState.searchResult!, colors)
+          : _buildMainView(colors, checkInState),
     );
   }
 
@@ -77,10 +85,8 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
   Widget _buildMainView(dynamic colors, CheckInActionState checkInState) {
     return Column(
       children: [
-
         // Loading indicator
-        if (checkInState.isLoading)
-          const LinearProgressIndicator(),
+        if (checkInState.isLoading) const LinearProgressIndicator(),
 
         // Error message
         if (checkInState.error != null)
@@ -92,8 +98,10 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
               color: colors.danger.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(checkInState.error!,
-                style: TextStyle(color: colors.danger, fontSize: 13)),
+            child: Text(
+              checkInState.error!,
+              style: TextStyle(color: colors.danger, fontSize: 13),
+            ),
           ),
 
         // Mode content
@@ -116,40 +124,78 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
         final scanLineY = (screenHeight / 2 - 120) + (_scanCtrl.value * 240);
         return Stack(
           children: [
-            MobileScanner(
-              controller: _scannerController,
-              onDetect: _onDetect,
-            ),
+            MobileScanner(controller: _scannerController, onDetect: _onDetect),
             // Dark overlay with transparent center frame
             ColorFiltered(
-              colorFilter: ColorFilter.mode(Colors.black.withValues(alpha: 0.5), BlendMode.srcOver),
-              child: Center(child: Container(width: 240, height: 240,
-                decoration: BoxDecoration(border: Border.all(color: colors.accent, width: 2), borderRadius: BorderRadius.circular(20)))),
+              colorFilter: ColorFilter.mode(
+                Colors.black.withValues(alpha: 0.5),
+                BlendMode.srcOver,
+              ),
+              child: Center(
+                child: Container(
+                  width: 240,
+                  height: 240,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.accent, width: 2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                ),
+              ),
             ),
             // Animated scan line
             Positioned(
-              left: MediaQuery.of(context).size.width / 2 - 120, right: MediaQuery.of(context).size.width / 2 - 120,
+              left: MediaQuery.of(context).size.width / 2 - 120,
+              right: MediaQuery.of(context).size.width / 2 - 120,
               top: scanLineY,
-              child: Container(height: 2, decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [Colors.transparent, colors.accent, Colors.transparent]),
-                boxShadow: [BoxShadow(color: colors.accent.withValues(alpha: 0.5), blurRadius: 8)])),
+              child: Container(
+                height: 2,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      colors.accent,
+                      Colors.transparent,
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.accent.withValues(alpha: 0.5),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              ),
             ),
             // Corner brackets
             ..._buildCornerBrackets(colors, context),
             // Mode toggle pill at bottom
-            Positioned(bottom: 32, left: 0, right: 0, child: Center(
-              child: PremiumGlassContainer(
-                blur: 16, opacity: 0.1, borderRadius: 24,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), enableShadow: false,
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  _modeButton('Scan', _CheckInMode.scanner, colors),
-                  _modeButton('Search', _CheckInMode.search, colors),
-                ]),
+            Positioned(
+              bottom: 32,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: PremiumGlassContainer(
+                  blur: 16,
+                  opacity: 0.1,
+                  borderRadius: 24,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  enableShadow: false,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _modeButton('Scan', _CheckInMode.scanner, colors),
+                      _modeButton('Search', _CheckInMode.search, colors),
+                    ],
+                  ),
+                ),
               ),
-            )),
+            ),
           ],
         );
-      }
+      },
     );
   }
 
@@ -159,16 +205,48 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
     final cx = MediaQuery.of(context).size.width / 2;
     final cy = MediaQuery.of(context).size.height / 2;
     const w2 = 120.0;
-    
+
     return [
-      Positioned(left: cx - w2, top: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
-      Positioned(left: cx - w2, top: cy - w2, child: Container(width: t, height: s, color: colors.accent)),
-      Positioned(right: cx - w2, top: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
-      Positioned(right: cx - w2, top: cy - w2, child: Container(width: t, height: s, color: colors.accent)),
-      Positioned(left: cx - w2, bottom: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
-      Positioned(left: cx - w2, bottom: cy - w2, child: Container(width: t, height: s, color: colors.accent)),
-      Positioned(right: cx - w2, bottom: cy - w2, child: Container(width: s, height: t, color: colors.accent)),
-      Positioned(right: cx - w2, bottom: cy - w2, child: Container(width: t, height: s, color: colors.accent)),
+      Positioned(
+        left: cx - w2,
+        top: cy - w2,
+        child: Container(width: s, height: t, color: colors.accent),
+      ),
+      Positioned(
+        left: cx - w2,
+        top: cy - w2,
+        child: Container(width: t, height: s, color: colors.accent),
+      ),
+      Positioned(
+        right: cx - w2,
+        top: cy - w2,
+        child: Container(width: s, height: t, color: colors.accent),
+      ),
+      Positioned(
+        right: cx - w2,
+        top: cy - w2,
+        child: Container(width: t, height: s, color: colors.accent),
+      ),
+      Positioned(
+        left: cx - w2,
+        bottom: cy - w2,
+        child: Container(width: s, height: t, color: colors.accent),
+      ),
+      Positioned(
+        left: cx - w2,
+        bottom: cy - w2,
+        child: Container(width: t, height: s, color: colors.accent),
+      ),
+      Positioned(
+        right: cx - w2,
+        bottom: cy - w2,
+        child: Container(width: s, height: t, color: colors.accent),
+      ),
+      Positioned(
+        right: cx - w2,
+        bottom: cy - w2,
+        child: Container(width: t, height: s, color: colors.accent),
+      ),
     ];
   }
 
@@ -183,10 +261,15 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
           color: active ? colors.accent : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(label, style: TextStyle(
-          color: active ? (colors.isDark ? Colors.black : Colors.white) : colors.textPrimary,
-          fontWeight: active ? FontWeight.bold : FontWeight.normal,
-        )),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active
+                ? (colors.isDark ? Colors.black : Colors.white)
+                : colors.textPrimary,
+            fontWeight: active ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }
@@ -213,11 +296,15 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
       token = rawValue;
     }
 
-    ref.read(checkInActionProvider.notifier).verifyToken(token).then((_) {
-      _isProcessing = false;
-    }).catchError((_) {
-      _isProcessing = false;
-    });
+    ref
+        .read(checkInActionProvider.notifier)
+        .verifyToken(token)
+        .then((_) {
+          _isProcessing = false;
+        })
+        .catchError((_) {
+          _isProcessing = false;
+        });
   }
 
   // ── SEARCH ──────────────────────────────────────────────────────────────────
@@ -228,11 +315,19 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Manual Check-In',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+          Text(
+            'Manual Check-In',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: colors.textPrimary,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('Enter the customer\'s AZM-ID to find their reservation.',
-              style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+          Text(
+            'Enter the customer\'s AZM-ID to find their reservation.',
+            style: TextStyle(color: colors.textSecondary, fontSize: 13),
+          ),
           const SizedBox(height: 24),
           TextField(
             controller: _azamanIdController,
@@ -241,8 +336,12 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
               hintText: 'e.g. AZM-ABC123',
               prefixIcon: const Icon(Icons.badge),
               border: const OutlineInputBorder(),
-              enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: colors.divider)),
-              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: colors.accent, width: 2)),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: colors.divider),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: colors.accent, width: 2),
+              ),
             ),
             onSubmitted: (_) => _doSearch(),
           ),
@@ -284,7 +383,11 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
                     ? NetworkImage(result.profilePictureUrl!)
                     : null,
                 child: result.profilePictureUrl == null
-                    ? Text(result.username.isNotEmpty ? result.username[0].toUpperCase() : '?')
+                    ? Text(
+                        result.username.isNotEmpty
+                            ? result.username[0].toUpperCase()
+                            : '?',
+                      )
                     : null,
               ),
               const SizedBox(width: 12),
@@ -292,10 +395,20 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(result.username,
-                        style: TextStyle(fontWeight: FontWeight.bold, color: colors.textPrimary)),
-                    Text(result.azamanId,
-                        style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                    Text(
+                      result.username,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      result.azamanId,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -307,9 +420,11 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
         Expanded(
           child: result.reservations.isEmpty
               ? Center(
-                  child: Text('No active reservations for this customer at your business',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.textSecondary)),
+                  child: Text(
+                    'No active reservations for this customer at your business',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.textSecondary),
+                  ),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -320,14 +435,24 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
                       color: colors.surface,
                       child: ListTile(
                         leading: const Icon(Icons.event_available),
-                        title: Text(res.reservationRef,
-                            style: TextStyle(fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                        title: Text(
+                          res.reservationRef,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
+                        ),
                         subtitle: Text(
                           '${_formatDate(res.startDatetime)} \u00b7 \$${res.amountUsdc.toStringAsFixed(2)}',
-                          style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 12,
+                          ),
                         ),
                         trailing: FilledButton(
-                          onPressed: () => ref.read(checkInActionProvider.notifier).directCheckIn(res.id),
+                          onPressed: () => ref
+                              .read(checkInActionProvider.notifier)
+                              .directCheckIn(res.id),
                           child: const Text('Check In'),
                         ),
                       ),
@@ -359,41 +484,65 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen> w
           children: [
             // Checkmark animation
             Container(
-              width: 80, height: 80,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 color: colors.success,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.check, color: colors.isDark ? Colors.black : Colors.white, size: 48),
+              child: Icon(
+                Icons.check,
+                color: colors.isDark ? Colors.black : Colors.white,
+                size: 48,
+              ),
             ),
             const SizedBox(height: 24),
 
-            Text('Checked In!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+            Text(
+              'Checked In!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: colors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
 
             // Customer name
             if (result.customerUsername != null)
-              Text(result.customerUsername!,
-                  style: TextStyle(fontSize: 18, color: colors.textPrimary)),
+              Text(
+                result.customerUsername!,
+                style: TextStyle(fontSize: 18, color: colors.textPrimary),
+              ),
             const SizedBox(height: 4),
 
             // AZM-ID
             if (result.customerAzamanId != null)
-              Text(result.customerAzamanId!,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+              Text(
+                result.customerAzamanId!,
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
+              ),
             const SizedBox(height: 16),
 
             // Reservation ref
             if (result.reservationRef.isNotEmpty)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: colors.accent.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('Ref: ${result.reservationRef}',
-                    style: TextStyle(color: colors.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'Ref: ${result.reservationRef}',
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             const SizedBox(height: 32),
 
@@ -440,19 +589,27 @@ class _ModeTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isActive ? colors.accent.withValues(alpha: 0.1) : Colors.transparent,
+          color: isActive
+              ? colors.accent.withValues(alpha: 0.1)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           children: [
-            Icon(icon, color: isActive ? colors.accent : colors.textSecondary, size: 24),
+            Icon(
+              icon,
+              color: isActive ? colors.accent : colors.textSecondary,
+              size: 24,
+            ),
             const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(
-                  color: isActive ? colors.accent : colors.textSecondary,
-                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: 12,
-                )),
+            Text(
+              label,
+              style: TextStyle(
+                color: isActive ? colors.accent : colors.textSecondary,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                fontSize: 12,
+              ),
+            ),
           ],
         ),
       ),

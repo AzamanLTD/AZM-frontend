@@ -99,30 +99,35 @@ enum _SendStage { compose, review, sending, done, failed, unknown }
 /// Test seam type for the composer's money action. Production code never
 /// sets it: the screen then commits through FriendService.sendFunds.
 @visibleForTesting
-typedef PeerSendOverride = Future<Map<String, dynamic>> Function(
-    String friendshipId, double amount, String? reference, String token);
+typedef PeerSendOverride =
+    Future<Map<String, dynamic>> Function(
+      String friendshipId,
+      double amount,
+      String? reference,
+      String token,
+    );
 
 class SendMoneyScreen extends ConsumerStatefulWidget {
-  const SendMoneyScreen(
-      {super.key,
-      this.initialRecipient,
-      this.discovery,
-      this.sendOverride,
-      this.fxRateOverride,
-      this.restoredDraft})
-      : seededFriend = null;
+  const SendMoneyScreen({
+    super.key,
+    this.initialRecipient,
+    this.discovery,
+    this.sendOverride,
+    this.fxRateOverride,
+    this.restoredDraft,
+  }) : seededFriend = null;
 
   /// Chat entry: the shared composer pre-seeded with the conversation's
   /// own recipient.
-  const SendMoneyScreen.toFriend(
-      {super.key,
-      required SendRecipient recipient,
-      this.discovery,
-      this.sendOverride,
-      this.fxRateOverride})
-      : seededFriend = recipient,
-        initialRecipient = null,
-        restoredDraft = null;
+  const SendMoneyScreen.toFriend({
+    super.key,
+    required SendRecipient recipient,
+    this.discovery,
+    this.sendOverride,
+    this.fxRateOverride,
+  }) : seededFriend = recipient,
+       initialRecipient = null,
+       restoredDraft = null;
 
   /// "Send Again" seed from an activity record — carries an explicit AZM
   /// ID, which the composer resolves through the live identity contract.
@@ -208,8 +213,9 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   // Quick amounts per entry unit — a '10' pill is NEVER ambiguous: the
   // label carries the unit, and GHS pills are cedi-scale, not USDC digits.
-  List<double> get _quickAmounts =>
-      _entryIndex == 0 ? const [20.0, 50.0, 100.0, 200.0] : const [5.0, 10.0, 20.0, 50.0];
+  List<double> get _quickAmounts => _entryIndex == 0
+      ? const [20.0, 50.0, 100.0, 200.0]
+      : const [5.0, 10.0, 20.0, 50.0];
 
   @override
   void initState() {
@@ -254,8 +260,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     _draftSeedAzamanId = null;
     final myAzamanId = ref.read(authProvider).user?.azamanId;
     final discovery = widget.discovery ?? RecipientDiscoveryService();
-    final outcome =
-        await discovery.lookupByAzamanId(azamanId, myAzamanId: myAzamanId);
+    final outcome = await discovery.lookupByAzamanId(
+      azamanId,
+      myAzamanId: myAzamanId,
+    );
     if (!mounted) return;
     if (outcome.status == AzmLookupStatus.found) {
       setState(() => _recipient = outcome.recipient);
@@ -273,11 +281,12 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     if (seed == null || _seedLookupDone) return;
     _seedLookupDone = true;
     final myAzamanId = ref.read(authProvider).user?.azamanId;
-    final discovery =
-        widget.discovery ?? RecipientDiscoveryService();
+    final discovery = widget.discovery ?? RecipientDiscoveryService();
     setState(() => _seedLookingUp = true);
-    final outcome =
-        await discovery.lookupByAzamanId(seed.azamanId, myAzamanId: myAzamanId);
+    final outcome = await discovery.lookupByAzamanId(
+      seed.azamanId,
+      myAzamanId: myAzamanId,
+    );
     if (!mounted) return;
     setState(() => _seedLookingUp = false);
     switch (outcome.status) {
@@ -287,18 +296,23 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       case AzmLookupStatus.self:
         // The activity record was for a transfer to... this account.
         // Honest state, no recipient.
-        setState(() => _error = "That AZM ID is yours — you can't send to yourself.");
+        setState(
+          () => _error = "That AZM ID is yours — you can't send to yourself.",
+        );
         break;
       case AzmLookupStatus.notFound:
-        setState(() => _error =
-            'That AZM ID no longer resolves to an active account.');
+        setState(
+          () => _error = 'That AZM ID no longer resolves to an active account.',
+        );
         break;
       case AzmLookupStatus.malformed:
         setState(() => _error = 'That AZM ID is not valid.');
         break;
       case AzmLookupStatus.network:
-        setState(() => _error =
-            'Could not confirm that AZM ID. Check your connection.');
+        setState(
+          () =>
+              _error = 'Could not confirm that AZM ID. Check your connection.',
+        );
         break;
     }
   }
@@ -371,7 +385,11 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     if (amount == null) return null;
     if (rate == null) return null;
     return CurrencyMath.convert(
-        amount: amount, from: _entryUnit, to: next, ghsPerUsdc: rate);
+      amount: amount,
+      from: _entryUnit,
+      to: next,
+      ghsPerUsdc: rate,
+    );
   }
 
   void _onEntryUnitChanged(int newIndex) {
@@ -389,11 +407,13 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     if (converted == null) {
       // Fail closed: the switch is REFUSED — digits are never relabelled,
       // never silently zeroed, never converted at a fabricated rate.
-      setState(() => _error = rate == null
-          ? 'Exchange rate unavailable — the amount stays in '
-              '${_entryUnit.symbol}. Enter it in ${next.symbol} if needed.'
-          : 'That amount converts to less than the smallest ${next.symbol} '
-              'unit — enter a larger amount.');
+      setState(
+        () => _error = rate == null
+            ? 'Exchange rate unavailable — the amount stays in '
+                  '${_entryUnit.symbol}. Enter it in ${next.symbol} if needed.'
+            : 'That amount converts to less than the smallest ${next.symbol} '
+                  'unit — enter a larger amount.',
+      );
       return;
     }
     AzamanHaptics.toggle();
@@ -452,10 +472,12 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     // zero conversion, no silent use of a display-only rate.
     final wire = _wireAmount(amount: amount, rate: rate);
     if (wire == null) {
-      setState(() => _error = _entryUnit == CurrencyCatalog.ghs
-          ? 'Exchange rate unavailable — enter the amount in USDC instead, '
-              'or try again in a moment.'
-          : 'Enter an amount greater than zero to continue.');
+      setState(
+        () => _error = _entryUnit == CurrencyCatalog.ghs
+            ? 'Exchange rate unavailable — enter the amount in USDC instead, '
+                  'or try again in a moment.'
+            : 'Enter an amount greater than zero to continue.',
+      );
       return;
     }
 
@@ -506,7 +528,8 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   /// only layer.
   Future<void> _commit() async {
     final recipient = _recipient;
-    final amount = _frozenUsdc; // the EXACT reviewed wire amount — never recomputed
+    final amount =
+        _frozenUsdc; // the EXACT reviewed wire amount — never recomputed
     if (_stage == _SendStage.sending) return;
     if (recipient == null || !recipient.canReceive || amount == null) return;
 
@@ -525,7 +548,8 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
           _frozenRate = null;
           _frozenUsdc = null;
           _frozenEntry = null;
-          _error = 'The exchange rate changed since you reviewed the '
+          _error =
+              'The exchange rate changed since you reviewed the '
               'amount. Review the new amount before sending.';
         });
         _rearmRetrySlider();
@@ -543,8 +567,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
     final token = ref.read(authProvider).user?.token;
     if (token == null || token.isEmpty) {
-      setState(() =>
-          _error = 'Your session needs to be refreshed. Re-open Send to continue.');
+      setState(
+        () => _error =
+            'Your session needs to be refreshed. Re-open Send to continue.',
+      );
       _rearmRetrySlider();
       return;
     }
@@ -560,8 +586,12 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     try {
       final commit = widget.sendOverride;
       if (commit != null) {
-        await commit(recipient.friendshipId!, amount,
-            reference.isEmpty ? null : reference, token);
+        await commit(
+          recipient.friendshipId!,
+          amount,
+          reference.isEmpty ? null : reference,
+          token,
+        );
       } else {
         // The canonical durable rail — protected by require2FA and the
         // idempotency middleware, with the FinancialOperation lifecycle
@@ -615,8 +645,9 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         _onAmbiguousOutcome();
         return;
       }
-      final msgMatch =
-          RegExp(r'"message"\s*:\s*"([^"]+)"').firstMatch(raw)?.group(1);
+      final msgMatch = RegExp(
+        r'"message"\s*:\s*"([^"]+)"',
+      ).firstMatch(raw)?.group(1);
       if (msgMatch != null) {
         setState(() {
           _stage = _SendStage.failed;
@@ -776,12 +807,16 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                   child: switch (_stage) {
                     _SendStage.done => _buildDone(colors),
                     _SendStage.compose => LayoutBuilder(
-                        builder: (context, constraints) {
-                          final compact = constraints.maxHeight < 620;
-                          return _buildCompose(
-                              colors, compact, balance, myAzamanId);
-                        },
-                      ),
+                      builder: (context, constraints) {
+                        final compact = constraints.maxHeight < 620;
+                        return _buildCompose(
+                          colors,
+                          compact,
+                          balance,
+                          myAzamanId,
+                        );
+                      },
+                    ),
                     _ => _buildReview(colors),
                   },
                 ),
@@ -808,12 +843,11 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
           _recipientChosenByUser);
 
   Map<String, dynamic> _captureDraft() => {
-        'amountRaw': _amountRaw,
-        'entryIndex': _entryIndex,
-        'reference': _referenceController.text.trim(),
-        if (_recipient?.azamanId != null)
-          'recipientAzamanId': _recipient!.azamanId,
-      };
+    'amountRaw': _amountRaw,
+    'entryIndex': _entryIndex,
+    'reference': _referenceController.text.trim(),
+    if (_recipient?.azamanId != null) 'recipientAzamanId': _recipient!.azamanId,
+  };
 
   /// §C.1 — the guarded close. Empty compose closes silently; a meaningful
   /// one offers Keep for 5 minutes / Discard / Stay through the SHARED
@@ -857,12 +891,15 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       builder: (ctx) => AlertDialog(
         key: const ValueKey('send-unknown-leave-dialog'),
         backgroundColor: colors.card,
-        title: Text('This transfer is still pending',
-            key: const ValueKey('send-unknown-dialog-title'),
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          'This transfer is still pending',
+          key: const ValueKey('send-unknown-dialog-title'),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         content: Text(
           'We could not confirm the result yet. Retrying re-runs the exact '
           'same transfer and never double-sends it. Leaving now keeps it '
@@ -874,16 +911,24 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
           TextButton(
             key: const ValueKey('send-unknown-dialog-retry'),
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Retry transfer',
-                style: TextStyle(
-                    color: colors.accent, fontWeight: FontWeight.w700)),
+            child: Text(
+              'Retry transfer',
+              style: TextStyle(
+                color: colors.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           TextButton(
             key: const ValueKey('send-unknown-dialog-leave'),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Leave pending',
-                style: TextStyle(
-                    color: colors.textTertiary, fontWeight: FontWeight.w600)),
+            child: Text(
+              'Leave pending',
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -903,7 +948,11 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   // ── Compose stage: the Add Cash grammar ─────────────────────────────────
 
   Widget _buildCompose(
-      AzamanColors colors, bool compact, double balance, String myAzamanId) {
+    AzamanColors colors,
+    bool compact,
+    double balance,
+    String myAzamanId,
+  ) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final recipient = _recipient;
     // The chip is a DISPLAY surface: it follows the user's global display
@@ -919,11 +968,12 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
           child: _BalanceChip(
-              colors: colors,
-              balance: balance,
-              myAzamanId: myAzamanId,
-              ghsFirst: pref == DisplayCurrency.ghs,
-              rate: chipRate),
+            colors: colors,
+            balance: balance,
+            myAzamanId: myAzamanId,
+            ghsFirst: pref == DisplayCurrency.ghs,
+            rate: chipRate,
+          ),
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -988,44 +1038,49 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
                 // Live paired equivalent — updates while typing, at the
                 // current valid rate. Compose-only: Review freezes.
-                Builder(builder: (_) {
-                  final amount = _amountValue;
-                  if (amount == null) return const SizedBox.shrink();
-                  final rate = _liveRate();
-                  final other = _entryUnit == CurrencyCatalog.ghs
-                      ? CurrencyCatalog.usdc
-                      : CurrencyCatalog.ghs;
-                  final converted = CurrencyMath.convert(
+                Builder(
+                  builder: (_) {
+                    final amount = _amountValue;
+                    if (amount == null) return const SizedBox.shrink();
+                    final rate = _liveRate();
+                    final other = _entryUnit == CurrencyCatalog.ghs
+                        ? CurrencyCatalog.usdc
+                        : CurrencyCatalog.ghs;
+                    final converted = CurrencyMath.convert(
                       amount: amount,
                       from: _entryUnit,
                       to: other,
-                      ghsPerUsdc: rate ?? 0);
-                  if (converted == null) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4, left: 4),
-                      child: Text(
-                        '${other.code} equivalent unavailable — rate not loaded yet',
-                        key: const ValueKey('send-amount-equivalent'),
-                        style: TextStyle(
+                      ghsPerUsdc: rate ?? 0,
+                    );
+                    if (converted == null) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4, left: 4),
+                        child: Text(
+                          '${other.code} equivalent unavailable — rate not loaded yet',
+                          key: const ValueKey('send-amount-equivalent'),
+                          style: TextStyle(
                             color: colors.textTertiary,
                             fontSize: 12,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    );
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 2, left: 4),
-                    child: Text(
-                      '≈ ${other == CurrencyCatalog.ghs ? AzMoney.ghs(converted) : AzMoney.usdc(converted)}'
-                      '${other == CurrencyCatalog.ghs ? '' : ' — the reviewed transfer is in USDC'}',
-                      key: const ValueKey('send-amount-equivalent'),
-                      style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 2, left: 4),
+                      child: Text(
+                        '≈ ${other == CurrencyCatalog.ghs ? AzMoney.ghs(converted) : AzMoney.usdc(converted)}'
+                        '${other == CurrencyCatalog.ghs ? '' : ' — the reviewed transfer is in USDC'}',
+                        key: const ValueKey('send-amount-equivalent'),
+                        style: TextStyle(
                           color: colors.textSecondary,
                           fontSize: 12.5,
-                          fontWeight: FontWeight.w600),
-                    ),
-                  );
-                }),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 12),
 
                 // Quick amounts — denominated in the wheel's selected unit.
@@ -1128,10 +1183,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     final ctaLabel = sending
         ? 'Sending…'
         : failed
-            ? 'Retry transfer'
-            : unknown
-                ? 'Retry transfer'
-                : 'Send ${amount.toStringAsFixed(2)} USDC';
+        ? 'Retry transfer'
+        : unknown
+        ? 'Retry transfer'
+        : 'Send ${amount.toStringAsFixed(2)} USDC';
 
     return Column(
       children: [
@@ -1153,31 +1208,38 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('TO',
-                          style: TextStyle(
-                              color: colors.textTertiary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.6)),
+                      Text(
+                        'TO',
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
                           _Avatar(
-                              colors: colors,
-                              url: recipient.avatarUrl,
-                              name: recipient.name),
+                            colors: colors,
+                            url: recipient.avatarUrl,
+                            name: recipient.name,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(recipient.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        color: colors.textPrimary,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700)),
+                                Text(
+                                  recipient.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
                                 if (recipient.hasUsername)
                                   Text(
@@ -1186,15 +1248,19 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                        color: colors.textSecondary,
-                                        fontSize: 13),
+                                      color: colors.textSecondary,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 if (recipient.azamanId != null) ...[
                                   const SizedBox(height: 2),
-                                  Text(recipient.azamanId!,
-                                      style: TextStyle(
-                                          color: colors.textTertiary,
-                                          fontSize: 12)),
+                                  Text(
+                                    recipient.azamanId!,
+                                    style: TextStyle(
+                                      color: colors.textTertiary,
+                                      fontSize: 12,
+                                    ),
+                                  ),
                                 ],
                               ],
                             ),
@@ -1214,69 +1280,74 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                       // transfers) is identified explicitly second.
                       if (entryUnit == CurrencyCatalog.ghs) ...[
                         _ReviewRow(
-                            colors: colors,
-                            label: 'Amount',
-                            value: AzMoney.ghs(entryAmount),
-                            valueKey:
-                                const ValueKey('send-review-entry-amount'),
-                            emphasized: true),
+                          colors: colors,
+                          label: 'Amount',
+                          value: AzMoney.ghs(entryAmount),
+                          valueKey: const ValueKey('send-review-entry-amount'),
+                          emphasized: true,
+                        ),
                         const SizedBox(height: 12),
                         _ReviewRow(
-                            colors: colors,
-                            label: 'You send (USDC)',
-                            value: '${amount.toStringAsFixed(2)} USDC',
-                            valueKey:
-                                const ValueKey('send-review-amount'),
-                            emphasized: true),
+                          colors: colors,
+                          label: 'You send (USDC)',
+                          value: '${amount.toStringAsFixed(2)} USDC',
+                          valueKey: const ValueKey('send-review-amount'),
+                          emphasized: true,
+                        ),
                         const SizedBox(height: 12),
                         _ReviewRow(
-                            colors: colors,
-                            // §2: honest labelling — this is the rate the
-                            // USDC amount was DERIVED at, not a guaranteed
-                            // provider execution quote.
-                            label: 'Rate used to derive the USDC amount',
-                            value:
-                                '1 USDC = ${AzMoney.ghs(_frozenRate ?? 0)}',
-                            valueKey:
-                                const ValueKey('send-review-rate')),
+                          colors: colors,
+                          // §2: honest labelling — this is the rate the
+                          // USDC amount was DERIVED at, not a guaranteed
+                          // provider execution quote.
+                          label: 'Rate used to derive the USDC amount',
+                          value: '1 USDC = ${AzMoney.ghs(_frozenRate ?? 0)}',
+                          valueKey: const ValueKey('send-review-rate'),
+                        ),
                         const SizedBox(height: 12),
                       ] else ...[
                         _ReviewRow(
-                            colors: colors,
-                            label: 'Amount',
-                            value: '${amount.toStringAsFixed(2)} USDC',
-                            valueKey:
-                                const ValueKey('send-review-amount'),
-                            emphasized: true),
+                          colors: colors,
+                          label: 'Amount',
+                          value: '${amount.toStringAsFixed(2)} USDC',
+                          valueKey: const ValueKey('send-review-amount'),
+                          emphasized: true,
+                        ),
                         const SizedBox(height: 12),
                         _ReviewRow(
-                            colors: colors,
-                            // Direct USDC entry: the GHS equivalent is a
-                            // DISPLAY value — it is never presented as a
-                            // separate GHS settlement. Unavailable rate →
-                            // the equivalent is named unavailable, never a
-                            // false GH₵ 0.00.
-                            label: 'GHS equivalent',
-                            value: (_frozenRate != null &&
-                                    CurrencyMath.isUsableRate(_frozenRate!))
-                                ? AzMoney.ghs(CurrencyMath.convert(
-                                    amount: amount,
-                                    from: CurrencyCatalog.usdc,
-                                    to: CurrencyCatalog.ghs,
-                                    ghsPerUsdc: _frozenRate!) ?? 0)
-                                : 'Unavailable — rate not loaded',
-                            valueKey: const ValueKey(
-                                'send-review-ghs-equivalent')),
+                          colors: colors,
+                          // Direct USDC entry: the GHS equivalent is a
+                          // DISPLAY value — it is never presented as a
+                          // separate GHS settlement. Unavailable rate →
+                          // the equivalent is named unavailable, never a
+                          // false GH₵ 0.00.
+                          label: 'GHS equivalent',
+                          value:
+                              (_frozenRate != null &&
+                                  CurrencyMath.isUsableRate(_frozenRate!))
+                              ? AzMoney.ghs(
+                                  CurrencyMath.convert(
+                                        amount: amount,
+                                        from: CurrencyCatalog.usdc,
+                                        to: CurrencyCatalog.ghs,
+                                        ghsPerUsdc: _frozenRate!,
+                                      ) ??
+                                      0,
+                                )
+                              : 'Unavailable — rate not loaded',
+                          valueKey: const ValueKey(
+                            'send-review-ghs-equivalent',
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         if (_frozenRate != null &&
                             CurrencyMath.isUsableRate(_frozenRate!))
                           _ReviewRow(
-                              colors: colors,
-                              label: 'Rate used for the equivalent',
-                              value:
-                                  '1 USDC = ${AzMoney.ghs(_frozenRate!)}',
-                              valueKey:
-                                  const ValueKey('send-review-rate')),
+                            colors: colors,
+                            label: 'Rate used for the equivalent',
+                            value: '1 USDC = ${AzMoney.ghs(_frozenRate!)}',
+                            valueKey: const ValueKey('send-review-rate'),
+                          ),
                       ],
                       const SizedBox(height: 12),
                       // Fee truth: the backend rail records feeUsdc: 0 for
@@ -1286,7 +1357,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                       if (reference.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         _ReviewRow(
-                            colors: colors, label: 'Reference', value: reference),
+                          colors: colors,
+                          label: 'Reference',
+                          value: reference,
+                        ),
                       ],
                     ],
                   ),
@@ -1307,8 +1381,9 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                       filled: true,
                       fillColor: colors.card,
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none),
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
@@ -1336,13 +1411,16 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                 if (!sending && !unknown)
                   ScaleTap(
                     onTap: _backToCompose,
-                    child: Text('Edit amount or recipient',
-                        key: const ValueKey('send-review-edit'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: colors.accent,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
+                    child: Text(
+                      'Edit amount or recipient',
+                      key: const ValueKey('send-review-edit'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: colors.accent,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
               ],
             ),
@@ -1395,14 +1473,19 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       secondaryAmountText: wasGhs
           ? '${(amount ?? 0).toStringAsFixed(2)} USDC'
           : (_frozenRate != null && CurrencyMath.isUsableRate(_frozenRate!)
-              ? AzMoney.ghs(CurrencyMath.convert(
-                  amount: amount ?? 0,
-                  from: CurrencyCatalog.usdc,
-                  to: CurrencyCatalog.ghs,
-                  ghsPerUsdc: _frozenRate!) ?? 0)
-              : 'GHS equivalent unavailable — rate not loaded'),
-      secondaryAmountLabel:
-          wasGhs ? 'Transferred on the wire as' : 'Equivalent in cedis (display only — the transfer settled in USDC)',
+                ? AzMoney.ghs(
+                    CurrencyMath.convert(
+                          amount: amount ?? 0,
+                          from: CurrencyCatalog.usdc,
+                          to: CurrencyCatalog.ghs,
+                          ghsPerUsdc: _frozenRate!,
+                        ) ??
+                        0,
+                  )
+                : 'GHS equivalent unavailable — rate not loaded'),
+      secondaryAmountLabel: wasGhs
+          ? 'Transferred on the wire as'
+          : 'Equivalent in cedis (display only — the transfer settled in USDC)',
       recipientName: recipient?.name ?? '',
       // RAW canonical username (unprefixed) — the panel's AtHandle
       // formatter adds the glyph at most once, or nothing when there is
@@ -1420,7 +1503,13 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 // ── Shared sub-widgets ────────────────────────────────────────────────────
 
 class _BalanceChip extends StatelessWidget {
-  const _BalanceChip({required this.colors, required this.balance, required this.myAzamanId, required this.ghsFirst, required this.rate});
+  const _BalanceChip({
+    required this.colors,
+    required this.balance,
+    required this.myAzamanId,
+    required this.ghsFirst,
+    required this.rate,
+  });
   final AzamanColors colors;
   final double balance;
   final String myAzamanId;
@@ -1443,11 +1532,11 @@ class _BalanceChip extends StatelessWidget {
     final ledgerText = '${balance.toStringAsFixed(2)} USDC';
     final available = ghsFirst
         ? (ghsText == null
-            ? 'Available: $ledgerText'
-            : 'Available: $ghsText · $ledgerText')
+              ? 'Available: $ledgerText'
+              : 'Available: $ghsText · $ledgerText')
         : (ghsText == null
-            ? 'Available: $ledgerText'
-            : 'Available: $ledgerText · $ghsText');
+              ? 'Available: $ledgerText'
+              : 'Available: $ledgerText · $ghsText');
     return Container(
       key: const ValueKey('send-balance-chip'),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1455,38 +1544,49 @@ class _BalanceChip extends StatelessWidget {
         color: colors.accentSurface,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(children: [
-        Icon(Icons.wallet_outlined, size: 16, color: colors.accent),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            available,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+      child: Row(
+        children: [
+          Icon(Icons.wallet_outlined, size: 16, color: colors.accent),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              available,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
                 color: colors.accent,
                 fontSize: 13,
-                fontWeight: FontWeight.w700),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-        ),
-        if (myAzamanId.isNotEmpty)
-          Flexible(
-            child: Text('Your ID: $myAzamanId',
+          if (myAzamanId.isNotEmpty)
+            Flexible(
+              child: Text(
+                'Your ID: $myAzamanId',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-          ),
-      ]),
+                  color: colors.textTertiary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
 class _QuickAmountPill extends StatelessWidget {
-  const _QuickAmountPill(
-      {required this.colors, required this.amount, required this.unit, required this.selected, required this.onTap});
+  const _QuickAmountPill({
+    required this.colors,
+    required this.amount,
+    required this.unit,
+    required this.selected,
+    required this.onTap,
+  });
   final AzamanColors colors;
   final double amount;
   final AzCurrency unit;
@@ -1510,14 +1610,16 @@ class _QuickAmountPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: face,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: selected ? colors.accent : colors.divider),
+          border: Border.all(color: selected ? colors.accent : colors.divider),
         ),
-        child: Text(label,
-            style: TextStyle(
-                color: textColor,
-                fontSize: 13,
-                fontWeight: FontWeight.w700)),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -1543,29 +1645,41 @@ class _RecipientField extends StatelessWidget {
     final r = recipient;
     if (r == null) {
       final body = lookingUp
-          ? Row(children: [
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 10),
-              Text('Resolving AZM ID…',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-            ])
-          : Row(children: [
-              Icon(Icons.person_add_outlined,
-                  size: 20, color: colors.textTertiary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text('Choose recipient',
+          ? Row(
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  'Resolving AZM ID…',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Icon(
+                  Icons.person_add_outlined,
+                  size: 20,
+                  color: colors.textTertiary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Choose recipient',
                     style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600)),
-              ),
-              Icon(Icons.chevron_right, size: 20, color: colors.textTertiary),
-            ]);
+                      color: colors.textTertiary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 20, color: colors.textTertiary),
+              ],
+            );
       return ScaleTap(
         key: const ValueKey('send-recipient-field'),
         onTap: onChoose,
@@ -1573,8 +1687,7 @@ class _RecipientField extends StatelessWidget {
           button: true,
           label: 'Choose recipient',
           child: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             decoration: BoxDecoration(
               color: colors.card,
               borderRadius: BorderRadius.circular(14),
@@ -1593,8 +1706,7 @@ class _RecipientField extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-            color: r.canReceive ? colors.accent : colors.danger),
+        border: Border.all(color: r.canReceive ? colors.accent : colors.danger),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1607,13 +1719,16 @@ class _RecipientField extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(r.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700)),
+                    Text(
+                      r.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       // PR #165 review finding 4: honest identity line. A
@@ -1624,7 +1739,9 @@ class _RecipientField extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          color: colors.textSecondary, fontSize: 12),
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -1650,12 +1767,17 @@ class _RecipientField extends StatelessWidget {
                 onTap: onChoose,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
-                  child: Text('Change',
-                      style: TextStyle(
-                          color: colors.accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700)),
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  child: Text(
+                    'Change',
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 4),
@@ -1664,12 +1786,17 @@ class _RecipientField extends StatelessWidget {
                 onTap: onClear,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
-                  child: Text('Clear',
-                      style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  child: Text(
+                    'Clear',
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1693,11 +1820,14 @@ class _FriendChip extends StatelessWidget {
         color: colors.accentSurface,
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text('Friend',
-          style: TextStyle(
-              color: colors.accent,
-              fontSize: 11,
-              fontWeight: FontWeight.w700)),
+      child: Text(
+        'Friend',
+        style: TextStyle(
+          color: colors.accent,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -1715,9 +1845,14 @@ class _NotConnectedChip extends StatelessWidget {
         color: colors.danger.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text('Not connected',
-          style: TextStyle(
-              color: colors.danger, fontSize: 11, fontWeight: FontWeight.w700)),
+      child: Text(
+        'Not connected',
+        style: TextStyle(
+          color: colors.danger,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 }
@@ -1736,11 +1871,14 @@ class _Avatar extends StatelessWidget {
       backgroundColor: colors.accentSurface,
       backgroundImage: url != null ? NetworkImage(url!) : null,
       child: url == null
-          ? Text(initial,
+          ? Text(
+              initial,
               style: TextStyle(
-                  color: colors.accent,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700))
+                color: colors.accent,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            )
           : null,
     );
     // The avatar INITIAL is presentation-only — it is never a recipient
@@ -1750,7 +1888,13 @@ class _Avatar extends StatelessWidget {
 }
 
 class _ReviewRow extends StatelessWidget {
-  const _ReviewRow({required this.colors, required this.label, required this.value, this.valueKey, this.emphasized = false});
+  const _ReviewRow({
+    required this.colors,
+    required this.label,
+    required this.value,
+    this.valueKey,
+    this.emphasized = false,
+  });
   final AzamanColors colors;
   final String label;
   final String value;
@@ -1766,21 +1910,27 @@ class _ReviewRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
-        Text(label,
-            style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const Spacer(),
         Flexible(
-          child: Text(value,
-              key: valueKey,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: emphasized ? 16.5 : 15,
-                  fontWeight: emphasized ? FontWeight.w800 : FontWeight.w700)),
+          child: Text(
+            value,
+            key: valueKey,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: emphasized ? 16.5 : 15,
+              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w700,
+            ),
+          ),
         ),
       ],
     );
@@ -1803,18 +1953,20 @@ class _UnknownBanner extends StatelessWidget {
         color: colors.danger.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(children: [
-        Icon(Icons.help_outline, size: 18, color: colors.danger),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            'We couldn\'t confirm the transfer — it may have gone through. '
-            'Check your balance and history before retrying; a retry never '
-            'double-sends the same transfer.',
-            style: TextStyle(color: colors.textSecondary, fontSize: 12),
+      child: Row(
+        children: [
+          Icon(Icons.help_outline, size: 18, color: colors.danger),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'We couldn\'t confirm the transfer — it may have gone through. '
+              'Check your balance and history before retrying; a retry never '
+              'double-sends the same transfer.',
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
           ),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -1832,20 +1984,26 @@ class _SendingBanner extends StatelessWidget {
         color: colors.card,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(children: [
-        const SizedBox(
+      child: Row(
+        children: [
+          const SizedBox(
             width: 18,
             height: 18,
-            child: CircularProgressIndicator(strokeWidth: 2)),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text('Sending… keep this screen open.',
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Sending… keep this screen open.',
               style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
-        ),
-      ]),
+                color: colors.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1941,8 +2099,7 @@ class _SendHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final frozen =
-        stage == _SendStage.sending || stage == _SendStage.unknown;
+    final frozen = stage == _SendStage.sending || stage == _SendStage.unknown;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
       child: Row(

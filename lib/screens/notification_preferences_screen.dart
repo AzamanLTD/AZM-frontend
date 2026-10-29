@@ -20,10 +20,12 @@ import 'package:azaman/utils/azaman_haptics.dart';
 class NotificationPreferencesScreen extends ConsumerStatefulWidget {
   const NotificationPreferencesScreen({super.key});
   @override
-  ConsumerState<NotificationPreferencesScreen> createState() => _NotificationPreferencesScreenState();
+  ConsumerState<NotificationPreferencesScreen> createState() =>
+      _NotificationPreferencesScreenState();
 }
 
-class _NotificationPreferencesScreenState extends ConsumerState<NotificationPreferencesScreen> {
+class _NotificationPreferencesScreenState
+    extends ConsumerState<NotificationPreferencesScreen> {
   bool _loading = true;
   bool _saving = false;
 
@@ -60,13 +62,17 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
   };
 
   final _categoryInfo = {
-    'money':   ('Money & Transactions', HugeIconsSolid.moneyReceiveFlow01, 'color'),
-    'social':  ('Social & Stories', HugeIconsSolid.userGroup, 'color'),
-    'chat':    ('Messages', HugeIconsSolid.message01, 'color'),
-    'security':('Security Alerts', HugeIconsSolid.lockKey, 'color'),
-    'system':  ('System Updates', HugeIconsSolid.shield01, 'color'),
-    'vendor':  ('Vendor & Marketplace', HugeIconsSolid.store01, 'color'),
-    'admin':   ('Admin & Account', HugeIconsSolid.userCircle, 'color'),
+    'money': (
+      'Money & Transactions',
+      HugeIconsSolid.moneyReceiveFlow01,
+      'color',
+    ),
+    'social': ('Social & Stories', HugeIconsSolid.userGroup, 'color'),
+    'chat': ('Messages', HugeIconsSolid.message01, 'color'),
+    'security': ('Security Alerts', HugeIconsSolid.lockKey, 'color'),
+    'system': ('System Updates', HugeIconsSolid.shield01, 'color'),
+    'vendor': ('Vendor & Marketplace', HugeIconsSolid.store01, 'color'),
+    'admin': ('Admin & Account', HugeIconsSolid.userCircle, 'color'),
   };
 
   @override
@@ -77,7 +83,9 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
 
   Future<void> _loadPreferences() async {
     try {
-      final res = await ref.read(apiClientProvider).get('/users/me/notification-preferences');
+      final res = await ref
+          .read(apiClientProvider)
+          .get('/users/me/notification-preferences');
       final body = jsonDecode(res.body) as Map<String, dynamic>;
       final data = body['data'] as Map<String, dynamic>? ?? {};
       setState(() {
@@ -87,11 +95,17 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
         _quietHoursEnabled = data['quietHoursEnabled'] as bool? ?? false;
         if (data['quietStart'] != null) {
           final parts = (data['quietStart'] as String).split(':');
-          _quietStart = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+          _quietStart = TimeOfDay(
+            hour: int.parse(parts[0]),
+            minute: int.parse(parts[1]),
+          );
         }
         if (data['quietEnd'] != null) {
           final parts = (data['quietEnd'] as String).split(':');
-          _quietEnd = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+          _quietEnd = TimeOfDay(
+            hour: int.parse(parts[0]),
+            minute: int.parse(parts[1]),
+          );
         }
         final cats = data['categories'] as Map<String, dynamic>? ?? {};
         cats.forEach((key, value) {
@@ -121,22 +135,27 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
         'inAppEnabled': _inAppEnabled,
         'emailEnabled': _emailEnabled,
         'quietHoursEnabled': _quietHoursEnabled,
-        'quietStart': '${_quietStart.hour.toString().padLeft(2, '0')}:${_quietStart.minute.toString().padLeft(2, '0')}',
-        'quietEnd': '${_quietEnd.hour.toString().padLeft(2, '0')}:${_quietEnd.minute.toString().padLeft(2, '0')}',
+        'quietStart':
+            '${_quietStart.hour.toString().padLeft(2, '0')}:${_quietStart.minute.toString().padLeft(2, '0')}',
+        'quietEnd':
+            '${_quietEnd.hour.toString().padLeft(2, '0')}:${_quietEnd.minute.toString().padLeft(2, '0')}',
         'categories': _categoryToggles,
         'bypassQuiet': _bypassQuiet,
       });
       if (mounted) {
         AzamanHaptics.commit();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Notification preferences saved'), duration: Duration(seconds: 1)),
+          const SnackBar(
+            content: Text('Notification preferences saved'),
+            duration: Duration(seconds: 1),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
       }
     }
     setState(() => _saving = false);
@@ -155,16 +174,42 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: Text('Notification Preferences', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+        title: Text(
+          'Notification Preferences',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: colors.textSecondary),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           if (_saving)
-            Padding(padding: const EdgeInsets.all(14), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent)))
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colors.accent,
+                ),
+              ),
+            )
           else
-            TextButton(onPressed: _save, child: Text('Save', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w700))),
+            TextButton(
+              onPressed: _save,
+              child: Text(
+                'Save',
+                style: TextStyle(
+                  color: colors.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
         ],
       ),
       body: ListView(
@@ -201,31 +246,77 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
 
           // ── Quiet Hours ────────────────────────────────────────────
           _sectionHeader('Quiet Hours', colors),
-          _card(colors, child: Column(
-            children: [
-              SwitchListTile(
-                value: _quietHoursEnabled,
-                onChanged: (v) => setState(() => _quietHoursEnabled = v),
-                title: Text('Enable Quiet Hours', style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600)),
-                subtitle: Text('Mute non-critical notifications during set hours', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
-                activeThumbColor: colors.accent,
-              ),
-              if (_quietHoursEnabled) ...[
-                ListTile(
-                  leading: Icon(Icons.nightlight_round, color: colors.accent, size: 20),
-                  title: Text('Start', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
-                  trailing: Text(_formatTime(_quietStart), style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15)),
-                  onTap: () => _pickTime(true),
+          _card(
+            colors,
+            child: Column(
+              children: [
+                SwitchListTile(
+                  value: _quietHoursEnabled,
+                  onChanged: (v) => setState(() => _quietHoursEnabled = v),
+                  title: Text(
+                    'Enable Quiet Hours',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Mute non-critical notifications during set hours',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                  ),
+                  activeThumbColor: colors.accent,
                 ),
-                ListTile(
-                  leading: Icon(Icons.wb_sunny_outlined, color: colors.accent, size: 20),
-                  title: Text('End', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
-                  trailing: Text(_formatTime(_quietEnd), style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 15)),
-                  onTap: () => _pickTime(false),
-                ),
+                if (_quietHoursEnabled) ...[
+                  ListTile(
+                    leading: Icon(
+                      Icons.nightlight_round,
+                      color: colors.accent,
+                      size: 20,
+                    ),
+                    title: Text(
+                      'Start',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    trailing: Text(
+                      _formatTime(_quietStart),
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    onTap: () => _pickTime(true),
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.wb_sunny_outlined,
+                      color: colors.accent,
+                      size: 20,
+                    ),
+                    title: Text(
+                      'End',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    trailing: Text(
+                      _formatTime(_quietEnd),
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                    onTap: () => _pickTime(false),
+                  ),
+                ],
               ],
-            ],
-          )),
+            ),
+          ),
 
           const SizedBox(height: 24),
 
@@ -236,8 +327,10 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
           if (_quietHoursEnabled) ...[
             const SizedBox(height: 24),
             _sectionHeader('Bypass Quiet Hours', colors),
-            Text('These categories will always notify, even during quiet hours',
-              style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+            Text(
+              'These categories will always notify, even during quiet hours',
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
             const SizedBox(height: 8),
             ..._bypassQuiet.keys.map((cat) => _bypassTile(cat, colors)),
           ],
@@ -251,7 +344,15 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
   Widget _sectionHeader(String title, AzamanColors colors) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Text(title, style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+      child: Text(
+        title,
+        style: TextStyle(
+          color: colors.accent,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
+      ),
     ).animate().fadeIn(duration: 200.ms);
   }
 
@@ -270,57 +371,100 @@ class _NotificationPreferencesScreenState extends ConsumerState<NotificationPref
     );
   }
 
-  Widget _toggleTile(String title, String subtitle, IconData icon, AzamanColors colors, bool value, ValueChanged<bool> onChanged) {
-    return _card(colors, child: SwitchListTile(
-      value: value,
-      onChanged: onChanged,
-      title: Text(title, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
-      subtitle: Text(subtitle, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
-      secondary: Icon(icon, color: colors.accent, size: 22),
-      activeThumbColor: colors.accent,
-    ));
+  Widget _toggleTile(
+    String title,
+    String subtitle,
+    IconData icon,
+    AzamanColors colors,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
+    return _card(
+      colors,
+      child: SwitchListTile(
+        value: value,
+        onChanged: onChanged,
+        title: Text(
+          title,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: colors.textTertiary, fontSize: 12),
+        ),
+        secondary: Icon(icon, color: colors.accent, size: 22),
+        activeThumbColor: colors.accent,
+      ),
+    );
   }
 
   Widget _categoryTile(String cat, AzamanColors colors) {
     final info = _categoryInfo[cat]!;
-    return _card(colors, child: SwitchListTile(
-      value: _categoryToggles[cat]!,
-      onChanged: (v) => setState(() => _categoryToggles[cat] = v),
-      title: Row(
-        children: [
-          Icon(info.$2, color: colors.accent, size: 22),
-          const SizedBox(width: 12),
-          Flexible(
-            child: Text(info.$1,
+    return _card(
+      colors,
+      child: SwitchListTile(
+        value: _categoryToggles[cat]!,
+        onChanged: (v) => setState(() => _categoryToggles[cat] = v),
+        title: Row(
+          children: [
+            Icon(info.$2, color: colors.accent, size: 22),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                info.$1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w600, fontSize: 14)),
-          ),
-        ],
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        activeThumbColor: colors.accent,
       ),
-      activeThumbColor: colors.accent,
-    ));
+    );
   }
 
   Widget _bypassTile(String cat, AzamanColors colors) {
     final info = _categoryInfo[cat]!;
     final isLocked = cat == 'security'; // always bypasses
-    return _card(colors, child: SwitchListTile(
-      value: _bypassQuiet[cat]!,
-      onChanged: isLocked ? null : (v) => setState(() => _bypassQuiet[cat] = v),
-      title: Row(
-        children: [
-          Icon(isLocked ? HugeIconsSolid.lockKey : info.$2, color: colors.accent, size: 20),
-          const SizedBox(width: 12),
-          Flexible(child: Text(info.$1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: isLocked ? colors.textTertiary : colors.textPrimary,
-                fontWeight: FontWeight.w600, fontSize: 14,
-              ))),
-        ],
+    return _card(
+      colors,
+      child: SwitchListTile(
+        value: _bypassQuiet[cat]!,
+        onChanged: isLocked
+            ? null
+            : (v) => setState(() => _bypassQuiet[cat] = v),
+        title: Row(
+          children: [
+            Icon(
+              isLocked ? HugeIconsSolid.lockKey : info.$2,
+              color: colors.accent,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                info.$1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: isLocked ? colors.textTertiary : colors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        activeThumbColor: colors.accent,
       ),
-      activeThumbColor: colors.accent,
-    ));
+    );
   }
 
   Future<void> _pickTime(bool isStart) async {

@@ -17,7 +17,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -80,7 +79,9 @@ class P2PMarketSummaryBar extends ConsumerWidget {
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.softSurface,
                       borderRadius: BorderRadius.circular(20),
@@ -136,11 +137,13 @@ class P2PMarketSummaryBar extends ConsumerWidget {
                             BarChartRodData(
                               toY: e.value.value,
                               color: colors.accent.withValues(
-                                  alpha: 0.7 +
-                                      0.3 * (1 - e.key / topMethods.length)),
+                                alpha:
+                                    0.7 + 0.3 * (1 - e.key / topMethods.length),
+                              ),
                               width: 22,
                               borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(5)),
+                                top: Radius.circular(5),
+                              ),
                               backDrawRodData: BackgroundBarChartRodData(
                                 show: true,
                                 toY: maxVal * 1.25,
@@ -152,11 +155,14 @@ class P2PMarketSummaryBar extends ConsumerWidget {
                       }).toList(),
                       titlesData: FlTitlesData(
                         topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                         rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                         leftTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                         bottomTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
@@ -166,8 +172,9 @@ class P2PMarketSummaryBar extends ConsumerWidget {
                                 return const SizedBox.shrink();
                               }
                               final m = topMethods[i].key;
-                              final label =
-                                  m.length > 7 ? m.substring(0, 7) : m;
+                              final label = m.length > 7
+                                  ? m.substring(0, 7)
+                                  : m;
                               return Padding(
                                 padding: const EdgeInsets.only(top: 4),
                                 child: Text(
@@ -192,12 +199,13 @@ class P2PMarketSummaryBar extends ConsumerWidget {
                           AzamanHaptics.toggle();
                           // Apply as single-method filter (toggle)
                           final current = ref.read(p2pFiltersProvider);
-                          final already =
-                              current.paymentMethods.contains(method);
-                          ref.read(p2pFiltersProvider.notifier).state =
-                              current.copyWith(
-                            paymentMethods: already ? {} : {method},
+                          final already = current.paymentMethods.contains(
+                            method,
                           );
+                          ref.read(p2pFiltersProvider.notifier).state = current
+                              .copyWith(
+                                paymentMethods: already ? {} : {method},
+                              );
                         },
                         touchTooltipData: BarTouchTooltipData(
                           getTooltipItem: (_, __, rod, ___) => BarTooltipItem(

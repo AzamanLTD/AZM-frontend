@@ -199,6 +199,7 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
     _ticker.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
@@ -214,7 +215,9 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
         ),
         alignment: Alignment.center,
         child: Text(
-          widget.isLoading ? 'Vault status loading…' : 'No escrow on this ticket',
+          widget.isLoading
+              ? 'Vault status loading…'
+              : 'No escrow on this ticket',
           style: AzText.caption.copyWith(color: colors.textTertiary),
         ),
       );
@@ -244,17 +247,22 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
               final w = constraints.maxWidth;
               if (w <= 0) return const SizedBox.shrink();
               final vaultLeft = w / 2 - _kVaultWidth / 2;
-              final destX = dest == EscrowSealDestination.vendor ? w - 36 : 36.0;
-              final slideT = Curves.easeInOut
-                  .transform(((t - 0.30) / 0.45).clamp(0.0, 1.0).toDouble());
+              final destX = dest == EscrowSealDestination.vendor
+                  ? w - 36
+                  : 36.0;
+              final slideT = Curves.easeInOut.transform(
+                ((t - 0.30) / 0.45).clamp(0.0, 1.0).toDouble(),
+              );
               final vaultCx = w / 2;
-              const coinRestY = _kVaultTop + _kVaultHeight - _kCoinRestFromBottom;
+              const coinRestY =
+                  _kVaultTop + _kVaultHeight - _kCoinRestFromBottom;
               final coinCx = vaultCx + (destX - vaultCx) * slideT;
               final coinCy = coinRestY + (_kNodeCentreY - coinRestY) * slideT;
               final vaultOpacity =
                   (1.0 - (t / 0.45).clamp(0.0, 1.0).toDouble());
-              final coinOpacity =
-                  t <= 0.30 ? 1.0 : (1.0 - (t - 0.30) / 0.70).clamp(0.0, 1.0);
+              final coinOpacity = t <= 0.30
+                  ? 1.0
+                  : (1.0 - (t - 0.30) / 0.70).clamp(0.0, 1.0);
 
               return Stack(
                 children: [
@@ -320,7 +328,8 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                                     Text(
                                       'ESCROW',
                                       style: AzText.eyebrow.copyWith(
-                                          color: colors.textTertiary),
+                                        color: colors.textTertiary,
+                                      ),
                                     ),
                                     const SizedBox(height: 2),
                                     // Rail slots are too narrow for a
@@ -330,19 +339,21 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                                     // honest choice; the expanded panel
                                     // carries the labelled estimate.
                                     NativeAmountText(
-                                      key: const ValueKey(
-                                          'escrow-rail-amount'),
+                                      key: const ValueKey('escrow-rail-amount'),
                                       amountUsdc: escrow.amountUsdc,
                                       forceNative: true,
                                       showEquivalent: false,
                                       style: AzText.money(
-                                          colors.textPrimary, size: 19),
+                                        colors.textPrimary,
+                                        size: 19,
+                                      ),
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       escrowCountdownLabel(escrow, now),
                                       style: AzText.caption.copyWith(
-                                          color: colors.textSecondary),
+                                        color: colors.textSecondary,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -354,11 +365,14 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                                   child: IgnorePointer(
                                     child: CustomPaint(
                                       key: const ValueKey(
-                                          'escrow-countdown-ring'),
+                                        'escrow-countdown-ring',
+                                      ),
                                       size: const Size(22, 22),
                                       painter: _CountdownRingPainter(
-                                        fraction:
-                                            escrowRingFraction(escrow, now),
+                                        fraction: escrowRingFraction(
+                                          escrow,
+                                          now,
+                                        ),
                                         ring: colors.accent,
                                         track: colors.divider,
                                       ),
@@ -382,20 +396,21 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                           color: colors.success.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(AzRadius.md),
                           border: Border.all(
-                              color: colors.success.withValues(alpha: 0.35)),
+                            color: colors.success.withValues(alpha: 0.35),
+                          ),
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
                               escrow.status.label.toUpperCase(),
-                              style: AzText.eyebrow
-                                  .copyWith(color: colors.success),
+                              style: AzText.eyebrow.copyWith(
+                                color: colors.success,
+                              ),
                             ),
                             const SizedBox(height: 4),
                             NativeAmountText(
-                              key: const ValueKey(
-                                  'escrow-rail-post-amount'),
+                              key: const ValueKey('escrow-rail-post-amount'),
                               amountUsdc: escrow.amountUsdc,
                               forceNative: true,
                               showEquivalent: false,
@@ -429,8 +444,12 @@ class _EscrowVaultRailState extends ConsumerState<EscrowVaultRail>
                           key: const ValueKey('escrow-seal-rim'),
                           painter: _SealPainter(
                             t: t,
-                            rect: Rect.fromLTWH(vaultLeft, _kVaultTop,
-                                _kVaultWidth, _kVaultHeight),
+                            rect: Rect.fromLTWH(
+                              vaultLeft,
+                              _kVaultTop,
+                              _kVaultWidth,
+                              _kVaultHeight,
+                            ),
                             rim: colors.accent,
                             terminal: terminal,
                           ),
@@ -478,29 +497,38 @@ class _FlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final slideT = Curves.easeInOut
-        .transform(((t - 0.30) / 0.45).clamp(0.0, 1.0).toDouble());
+    final slideT = Curves.easeInOut.transform(
+      ((t - 0.30) / 0.45).clamp(0.0, 1.0).toDouble(),
+    );
     final flow = Color.lerp(divider, accent, terminal ? slideT * 0.8 : 0.0)!;
     final paint = Paint()
       ..color = flow
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    _dash(canvas, const Offset(36 + _kNodeDot / 2 + 4, _kNodeCentreY),
-        Offset(vaultLeft, _kNodeCentreY), paint);
-    _dash(canvas, Offset(vaultRight, _kNodeCentreY),
-        Offset(width - 36 - _kNodeDot / 2 - 4, _kNodeCentreY), paint);
+    _dash(
+      canvas,
+      const Offset(36 + _kNodeDot / 2 + 4, _kNodeCentreY),
+      Offset(vaultLeft, _kNodeCentreY),
+      paint,
+    );
+    _dash(
+      canvas,
+      Offset(vaultRight, _kNodeCentreY),
+      Offset(width - 36 - _kNodeDot / 2 - 4, _kNodeCentreY),
+      paint,
+    );
 
     if (terminal) {
-      final landingT =
-          ((t - 0.70) / 0.30).clamp(0.0, 1.0).toDouble();
+      final landingT = ((t - 0.70) / 0.30).clamp(0.0, 1.0).toDouble();
       if (landingT > 0) {
         final landingE = Curves.easeOutBack.transform(landingT);
         canvas.drawCircle(
           Offset(destX, destY),
           12 + 8 * landingE,
           Paint()
-            ..color = accent
-                .withValues(alpha: (0.30 * (1 - landingT)).clamp(0.0, 1.0))
+            ..color = accent.withValues(
+              alpha: (0.30 * (1 - landingT)).clamp(0.0, 1.0),
+            )
             ..style = PaintingStyle.fill,
         );
       }
@@ -560,8 +588,12 @@ class _SealPainter extends CustomPainter {
         ? (0.9 * (1.0 - dissolveT)).clamp(0.0, 1.0).toDouble()
         : 0.9;
     final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-          rect.deflate(1.5), const Radius.circular(AzRadius.md)));
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          rect.deflate(1.5),
+          const Radius.circular(AzRadius.md),
+        ),
+      );
     paintGoo(
       canvas,
       bounds: rect.inflate(24),
@@ -574,7 +606,10 @@ class _SealPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SealPainter old) =>
-      old.t != t || old.rect != rect || old.rim != rim || old.terminal != terminal;
+      old.t != t ||
+      old.rect != rect ||
+      old.rim != rim ||
+      old.terminal != terminal;
 }
 
 /// 22px countdown badge: divider track + accent arc sweeping the window.
@@ -680,7 +715,8 @@ class _CoinStack extends StatelessWidget {
       children: [
         for (var i = 0; i < 3; i++)
           Positioned(
-            left: _kCoinBoxW / 2 -
+            left:
+                _kCoinBoxW / 2 -
                 (14 - i * 1.5) / 2 +
                 (((seed >> (i * 4)) % 7) - 3).toDouble(),
             top: i * 3.0,

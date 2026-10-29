@@ -598,8 +598,7 @@ class WalletCardDeckState extends State<WalletCardDeck>
                         children: [
                           Positioned.fill(
                             child: _TuckedBalanceHitTarget(
-                              onTap: () =>
-                                  select(WalletDeckState.balanceOut),
+                              onTap: () => select(WalletDeckState.balanceOut),
                             ),
                           ),
                           Positioned(
@@ -613,8 +612,7 @@ class WalletCardDeckState extends State<WalletCardDeck>
                             child: LargeTextDeckButton(
                               // The AMBIENT text scale — this deck sits
                               // above the card's 1.25x clamp.
-                              ambientScaler:
-                                  MediaQuery.textScalerOf(context),
+                              ambientScaler: MediaQuery.textScalerOf(context),
                             ),
                           ),
                         ],

@@ -173,21 +173,22 @@ Future<void> _settle(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-
 Rect _heroRect(WidgetTester tester) =>
     tester.getRect(find.byKey(const Key('market-identity-hero')));
 
 Rect _panelRect(WidgetTester tester) =>
     tester.getRect(find.byKey(const Key('market-info-panel')));
 
-double _panelOpacity(WidgetTester tester) => tester.widget<Opacity>(
-  find
-      .ancestor(
-        of: find.byKey(const Key('market-info-panel')),
-        matching: find.byType(Opacity),
-      )
-      .first,
-).opacity;
+double _panelOpacity(WidgetTester tester) => tester
+    .widget<Opacity>(
+      find
+          .ancestor(
+            of: find.byKey(const Key('market-info-panel')),
+            matching: find.byType(Opacity),
+          )
+          .first,
+    )
+    .opacity;
 
 Future<void> _pullToInfo(WidgetTester tester) async {
   await tester.drag(
@@ -197,7 +198,6 @@ Future<void> _pullToInfo(WidgetTester tester) async {
   );
   await tester.pumpAndSettle(const Duration(milliseconds: 50));
 }
-
 
 void main() {
   testWidgets(
@@ -716,7 +716,6 @@ void main() {
   // hidden on arrival, and be revealed only by the user.
   // =========================================================================
 
-
   testWidgets(
     'PART B: information sits strictly below the identity hero at the info snap',
     (tester) async {
@@ -727,10 +726,10 @@ void main() {
 
       final hero = _heroRect(tester);
       final panel = _panelRect(tester);
-      final band =
-          tester.getRect(find.byKey(const Key('market-banner-band')));
-      final content =
-          tester.getRect(find.byKey(const Key('market-content-area')));
+      final band = tester.getRect(find.byKey(const Key('market-banner-band')));
+      final content = tester.getRect(
+        find.byKey(const Key('market-content-area')),
+      );
 
       // The content area begins exactly at the banner band's bottom edge —
       // a real two-region hierarchy, not a floating overlay.
@@ -774,7 +773,8 @@ void main() {
             expect(
               decoration.color,
               isNull,
-              reason: 'panel $type must not paint a card background: '
+              reason:
+                  'panel $type must not paint a card background: '
                   '$decoration',
             );
           }

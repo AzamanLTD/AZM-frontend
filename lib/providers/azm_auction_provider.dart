@@ -69,15 +69,19 @@ class PromotedAd {
   final String paymentMethod;
   final DateTime? boostExpiresAt;
 
-  PromotedAd({required this.id, required this.paymentMethod, this.boostExpiresAt});
+  PromotedAd({
+    required this.id,
+    required this.paymentMethod,
+    this.boostExpiresAt,
+  });
 
   factory PromotedAd.fromJson(Map<String, dynamic> j) => PromotedAd(
-        id: (j['id'] as num).toInt(),
-        paymentMethod: j['paymentMethod'] ?? '',
-        boostExpiresAt: j['boostExpiresAt'] != null
-            ? DateTime.tryParse(j['boostExpiresAt'])
-            : null,
-      );
+    id: (j['id'] as num).toInt(),
+    paymentMethod: j['paymentMethod'] ?? '',
+    boostExpiresAt: j['boostExpiresAt'] != null
+        ? DateTime.tryParse(j['boostExpiresAt'])
+        : null,
+  );
 }
 
 // ── Providers ─────────────────────────────────────────────────────────────
@@ -135,4 +139,6 @@ class AuctionActions {
   }
 }
 
-final auctionActionsProvider = Provider<AuctionActions>((ref) => AuctionActions(ref));
+final auctionActionsProvider = Provider<AuctionActions>(
+  (ref) => AuctionActions(ref),
+);

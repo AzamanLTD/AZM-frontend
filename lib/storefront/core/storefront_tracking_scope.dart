@@ -21,7 +21,8 @@ class StorefrontTrackingScope extends InheritedWidget {
 
   /// Get the tracking businessProfileId from the nearest ancestor scope.
   static String? of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<StorefrontTrackingScope>();
+    final scope = context
+        .dependOnInheritedWidgetOfExactType<StorefrontTrackingScope>();
     return scope?.businessProfileId;
   }
 

@@ -68,7 +68,8 @@ class CurrencyWheelToggle extends ConsumerStatefulWidget {
   final String semanticLabelPrefix;
 
   @override
-  ConsumerState<CurrencyWheelToggle> createState() => _CurrencyWheelToggleState();
+  ConsumerState<CurrencyWheelToggle> createState() =>
+      _CurrencyWheelToggleState();
 }
 
 class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
@@ -127,12 +128,14 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: MotionTokens.control, // 180ms, collapses to 0 on reduced motion
-    )..addListener(() {
-        if (mounted) setState(() {});
-      });
+    _controller =
+        AnimationController(
+          vsync: this,
+          duration:
+              MotionTokens.control, // 180ms, collapses to 0 on reduced motion
+        )..addListener(() {
+          if (mounted) setState(() {});
+        });
     _animTo = widget.selectedIndex;
     _animFrom = widget.selectedIndex;
   }
@@ -167,7 +170,9 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     });
     if (haptic) AzamanHaptics.toggle();
     final duration = MotionTokens.accessibleDuration(
-        context, MotionTokens.control);
+      context,
+      MotionTokens.control,
+    );
     _controller.duration = duration;
     _controller.forward(from: 0);
     widget.onChanged(_animTo);
@@ -176,7 +181,10 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
 
   void _announce(int index) {
     final c = widget.options[index];
-    SemanticsService.announce('${c.label} (${c.code}) selected', TextDirection.ltr); // ignore: deprecated_member_use
+    SemanticsService.announce(
+      '${c.label} (${c.code}) selected',
+      TextDirection.ltr,
+    ); // ignore: deprecated_member_use
   }
 
   void _onDragEnd(DragEndDetails details) {
@@ -187,14 +195,17 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     // denominations. (Vertical mirrors horizontal: rolling against the
     // reading direction — up — advances; either way the gesture must be
     // DELIBERATE, and a cancelled gesture resets to 0 without a change.)
-    final decisive =
-        delta.abs() >= _dragThreshold || velocity.abs() >= 200;
+    final decisive = delta.abs() >= _dragThreshold || velocity.abs() >= 200;
     if (!decisive) {
       setState(() => _drag = 0);
       return;
     }
-    _rollTo((delta < 0 ? _animTo + 1 : _animTo - 1)
-        .clamp(0, widget.options.length - 1));
+    _rollTo(
+      (delta < 0 ? _animTo + 1 : _animTo - 1).clamp(
+        0,
+        widget.options.length - 1,
+      ),
+    );
   }
 
   void _openPicker() {
@@ -223,7 +234,9 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
                 else
                   const SizedBox(width: 18),
                 const SizedBox(width: 10),
-                Text('${widget.options[i].symbol} — ${widget.options[i].label}'),
+                Text(
+                  '${widget.options[i].symbol} — ${widget.options[i].label}',
+                ),
               ],
             ),
           ),
@@ -238,8 +251,8 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final selected = widget.options[widget.selectedIndex.clamp(
-        0, widget.options.length - 1)];
+    final selected = widget
+        .options[widget.selectedIndex.clamp(0, widget.options.length - 1)];
 
     final pitch = _pitch;
     final rollT = Curves.easeOutCubic.transform(_controller.value);
@@ -294,8 +307,7 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
           // topLeft positions it identically to center.
           alignment: Alignment.topLeft,
           child: Transform.translate(
-            offset:
-                vertical ? Offset(0, offset) : Offset(offset, 0),
+            offset: vertical ? Offset(0, offset) : Offset(offset, 0),
             child: vertical
                 ? Column(
                     // Adjacent chips: the pitch IS the chip extent, so
@@ -329,10 +341,18 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
     // fading edges. Computed from the geometry constants, not eyeballed.
     final edgeFade = _peek / _slotTotal;
     final shaderColors = vertical
-        ? const [Color(0x00000000), Color(0xFF000000),
-            Color(0xFF000000), Color(0x00000000)]
-        : const [Color(0x00000000), Color(0xFF000000),
-            Color(0xFF000000), Color(0x00000000)];
+        ? const [
+            Color(0x00000000),
+            Color(0xFF000000),
+            Color(0xFF000000),
+            Color(0x00000000),
+          ]
+        : const [
+            Color(0x00000000),
+            Color(0xFF000000),
+            Color(0xFF000000),
+            Color(0x00000000),
+          ];
     final fader = ShaderMask(
       shaderCallback: (bounds) => LinearGradient(
         begin: vertical ? Alignment.topCenter : Alignment.centerLeft,
@@ -352,30 +372,35 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
       value: selected.code,
       hint: widget.options.length > 1
           ? 'Swipe, tap to open the picker, or use increase and decrease '
-              'actions to change the currency'
+                'actions to change the currency'
           : 'Fixed at ${selected.label}',
       increasedValue: widget.options.length > 1
-          ? widget.options[(widget.selectedIndex + 1) % widget.options.length]
-              .code
+          ? widget
+                .options[(widget.selectedIndex + 1) % widget.options.length]
+                .code
           : null,
       decreasedValue: widget.options.length > 1
-          ? widget.options[(widget.selectedIndex - 1)
-                  .clamp(0, widget.options.length - 1)]
-              .code
+          ? widget
+                .options[(widget.selectedIndex - 1).clamp(
+                  0,
+                  widget.options.length - 1,
+                )]
+                .code
           : null,
       onIncrease: widget.enabled && widget.options.length > 1
           ? () => _rollTo(
-              (widget.selectedIndex + 1).clamp(0, widget.options.length - 1))
+              (widget.selectedIndex + 1).clamp(0, widget.options.length - 1),
+            )
           : null,
       onDecrease: widget.enabled && widget.options.length > 1
-          ? () => _rollTo((widget.selectedIndex - 1)
-              .clamp(0, widget.options.length - 1))
+          ? () => _rollTo(
+              (widget.selectedIndex - 1).clamp(0, widget.options.length - 1),
+            )
           : null,
       onTap: widget.enabled && widget.options.length > 1 ? _openPicker : null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap:
-            widget.enabled && widget.options.length > 1 ? _openPicker : null,
+        onTap: widget.enabled && widget.options.length > 1 ? _openPicker : null,
         // Only the roll axis is draggable: on Send (vertical) the wheel
         // claims vertical gestures within its own bounds and CANCELS
         // cleanly if the surrounding scrollable wins the arena — a

@@ -5,7 +5,6 @@ import 'package:azaman/providers/vendor_analytics_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 // =============================================================================
 // AZAMAN — VENDOR ANALYTICS SCREEN (Phase Q16-FE)
 //
@@ -61,9 +60,7 @@ class _VendorAnalyticsScreenState extends ConsumerState<VendorAnalyticsScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             // ── Period Selector ──────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: _PeriodSelector(colors: colors),
-            ),
+            SliverToBoxAdapter(child: _PeriodSelector(colors: colors)),
 
             // ── Content ─────────────────────────────────────────────────
             if (analytics.isLoading && !analytics.hasFetched)
@@ -78,14 +75,10 @@ class _VendorAnalyticsScreenState extends ConsumerState<VendorAnalyticsScreen> {
               )
             else ...[
               // Summary cards
-              SliverToBoxAdapter(
-                child: _SummaryCardsRow(colors: colors),
-              ),
+              SliverToBoxAdapter(child: _SummaryCardsRow(colors: colors)),
 
               // Volume chart
-              SliverToBoxAdapter(
-                child: _VolumeChart(colors: colors),
-              ),
+              SliverToBoxAdapter(child: _VolumeChart(colors: colors)),
 
               // Method breakdown header
               SliverToBoxAdapter(
@@ -103,14 +96,10 @@ class _VendorAnalyticsScreenState extends ConsumerState<VendorAnalyticsScreen> {
               ),
 
               // Method breakdown list
-              SliverToBoxAdapter(
-                child: _MethodBreakdownList(colors: colors),
-              ),
+              SliverToBoxAdapter(child: _MethodBreakdownList(colors: colors)),
 
               // Bottom padding
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 40),
-              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 40)),
             ],
           ],
         ),
@@ -144,9 +133,8 @@ class _PeriodSelector extends ConsumerWidget {
           final isActive = period == activePeriod;
           return Expanded(
             child: GestureDetector(
-              onTap: () => ref
-                  .read(vendorAnalyticsProvider)
-                  .switchPeriod(period),
+              onTap: () =>
+                  ref.read(vendorAnalyticsProvider).switchPeriod(period),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -245,8 +233,8 @@ class _SummaryCardsRow extends ConsumerWidget {
                   valueColor: summary.disputeRate > 5
                       ? colors.danger
                       : summary.disputeRate > 2
-                          ? colors.warning
-                          : colors.success,
+                      ? colors.warning
+                      : colors.success,
                 ),
               ),
             ],
@@ -388,17 +376,17 @@ class _VolumeChart extends ConsumerWidget {
                   show: true,
                   drawVerticalLine: false,
                   horizontalInterval: maxVolume / 4,
-                  getDrawingHorizontalLine: (value) => FlLine(
-                    color: colors.divider,
-                    strokeWidth: 0.5,
-                  ),
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: colors.divider, strokeWidth: 0.5),
                 ),
                 titlesData: FlTitlesData(
                   show: true,
                   topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false)),
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   leftTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
@@ -593,8 +581,9 @@ class _MethodBreakdownList extends ConsumerWidget {
                           value: barWidth,
                           minHeight: 6,
                           backgroundColor: colors.divider,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(colors.accent),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            colors.accent,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -627,9 +616,11 @@ class _MethodBreakdownList extends ConsumerWidget {
     // Convert SCREAMING_CASE to Title Case
     return method
         .split('_')
-        .map((w) => w.isNotEmpty
-            ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
-            : '')
+        .map(
+          (w) => w.isNotEmpty
+              ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
+              : '',
+        )
         .join(' ');
   }
 }

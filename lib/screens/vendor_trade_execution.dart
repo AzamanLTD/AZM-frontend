@@ -25,14 +25,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/utils/idempotency_key.dart';
 
-
 class VendorTradeExecution extends ConsumerStatefulWidget {
   final Map<String, dynamic> tradeData;
 
   const VendorTradeExecution({super.key, required this.tradeData});
 
   @override
-  ConsumerState<VendorTradeExecution> createState() => _VendorTradeExecutionState();
+  ConsumerState<VendorTradeExecution> createState() =>
+      _VendorTradeExecutionState();
 }
 
 class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
@@ -88,7 +88,8 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     // FIX (Bug 2): Resolve tradeId from EITHER 'tradeId' or 'id' key.
     // The notification screen passes the full backend trade object which uses
     // 'id', while the vendor_dashboard socket handler uses 'tradeId'.
-    final rawId = (widget.tradeData['tradeId'] ?? widget.tradeData['id'] ?? '').toString();
+    final rawId = (widget.tradeData['tradeId'] ?? widget.tradeData['id'] ?? '')
+        .toString();
     _cleanTradeId = rawId.replaceAll('#', '');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -182,7 +183,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             "text": "Buyer has marked the trade as PAID.",
             "type": "text",
             "time": "Just now",
-            "status": "read"
+            "status": "read",
           });
         });
       }
@@ -192,7 +193,8 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
   void _onNewMessage(dynamic data) {
     debugPrint('💬 [vendor_exec] new_trade_message: ${data.toString()}');
     if (mounted) {
-      if (data['id'] != null && _messages.any((m) => m['id'] == data['id'])) return;
+      if (data['id'] != null && _messages.any((m) => m['id'] == data['id']))
+        return;
       setState(() {
         _messages.add({
           "id": data['id'],
@@ -204,12 +206,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           "imagePath": data['imagePath'],
           "mediaUrl": data['mediaUrl'],
           "createdAt": data['createdAt'] ?? data['time'],
-          "status": "read"
+          "status": "read",
         });
       });
       if (data['sender'] == 'user' || data['sender'] == 'buyer') {
-        _cachedSocket.emit('mark_messages_read',
-            {'tradeId': _cleanTradeId, 'readerId': 'vendor'});
+        _cachedSocket.emit('mark_messages_read', {
+          'tradeId': _cleanTradeId,
+          'readerId': 'vendor',
+        });
       }
     }
   }
@@ -237,17 +241,15 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           "text": "This trade has been DISPUTED. An admin will review shortly.",
           "type": "text",
           "time": "Just now",
-          "status": "read"
+          "status": "read",
         });
       }
       if (data['status'] == 'COMPLETED') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => TradeSummaryScreen(
-              tradeData: widget.tradeData,
-              isVendor: true,
-            ),
+            builder: (context) =>
+                TradeSummaryScreen(tradeData: widget.tradeData, isVendor: true),
           ),
         );
       }
@@ -277,10 +279,11 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
         _isDisputed = true;
         _messages.add({
           "sender": "system",
-          "text": "A dispute has been opened on this trade. All actions are frozen until an admin resolves it.",
+          "text":
+              "A dispute has been opened on this trade. All actions are frozen until an admin resolves it.",
           "type": "text",
           "time": "Just now",
-          "status": "read"
+          "status": "read",
         });
       });
     }
@@ -323,12 +326,12 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           // Backfill the typed fields here, so by the time the vendor
           // taps "Release crypto" the sheet has real numbers.
           if (data['amountFiat'] != null) {
-            widget.tradeData['amountFiat'] =
-                (data['amountFiat'] as num).toDouble();
+            widget.tradeData['amountFiat'] = (data['amountFiat'] as num)
+                .toDouble();
           }
           if (data['amountCrypto'] != null) {
-            widget.tradeData['amountCrypto'] =
-                (data['amountCrypto'] as num).toDouble();
+            widget.tradeData['amountCrypto'] = (data['amountCrypto'] as num)
+                .toDouble();
           }
           if (data['crypto'] != null) {
             widget.tradeData['crypto'] = data['crypto'].toString();
@@ -337,26 +340,30 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             widget.tradeData['currency'] = data['currency'].toString();
           }
           if (data['paymentMethod'] != null) {
-            widget.tradeData['paymentMethod'] =
-                data['paymentMethod'].toString();
+            widget.tradeData['paymentMethod'] = data['paymentMethod']
+                .toString();
           }
 
           setState(() {
-            _isAccepted = data['status'] != 'NEW' && data['status'] != 'PENDING';
+            _isAccepted =
+                data['status'] != 'NEW' && data['status'] != 'PENDING';
             if (data['status'] == 'PAID') _paymentReceived = true;
             if (data['status'] == 'DISPUTED') {
               _isDisputed = true;
               _paymentReceived = true;
             }
 
-            if (data['proofUrl'] != null && data['proofUrl'].toString().isNotEmpty) {
+            if (data['proofUrl'] != null &&
+                data['proofUrl'].toString().isNotEmpty) {
               _paymentProofUrl = data['proofUrl'].toString().startsWith('http')
                   ? data['proofUrl']
                   : '${AppConfig.baseUrl}${data['proofUrl']}';
             }
 
-            if (data['vendorPaymentDetails'] != null && data['vendorPaymentDetails'] is Map) {
-              _vendorTerms = data['vendorPaymentDetails']['note']?.toString() ?? "";
+            if (data['vendorPaymentDetails'] != null &&
+                data['vendorPaymentDetails'] is Map) {
+              _vendorTerms =
+                  data['vendorPaymentDetails']['note']?.toString() ?? "";
             }
 
             if (data['messages'] != null && data['messages'] is List) {
@@ -364,7 +371,8 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
 
               for (var msg in data['messages']) {
                 String senderRole;
-                final int senderId = int.tryParse(msg['senderId']?.toString() ?? '0') ?? 0;
+                final int senderId =
+                    int.tryParse(msg['senderId']?.toString() ?? '0') ?? 0;
 
                 if (senderId == int.tryParse(currentUserId.toString())) {
                   senderRole = 'vendor';
@@ -382,7 +390,7 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                   "imagePath": msg['imagePath'],
                   "time": _formatTime(msg['createdAt']),
                   "createdAt": msg['createdAt'],
-                  "status": "read"
+                  "status": "read",
                 });
               }
             }
@@ -427,7 +435,11 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             Align(
               alignment: Alignment.topRight,
               child: IconButton(
-                icon: Icon(Icons.cancel_outlined, color: colors.textPrimary, size: 30),
+                icon: Icon(
+                  Icons.cancel_outlined,
+                  color: colors.textPrimary,
+                  size: 30,
+                ),
                 onPressed: () => Navigator.pop(ctx),
               ),
             ),
@@ -437,12 +449,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
               maxScale: 4,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: AzamanNetworkImage(imageUrl: 
-                  _paymentProofUrl!,
+                child: AzamanNetworkImage(
+                  imageUrl: _paymentProofUrl!,
                   fit: BoxFit.contain,
                   errorWidget: (context, error, stackTrace) {
                     return Container(
-                      height: 300, width: double.infinity, color: colors.card,
+                      height: 300,
+                      width: double.infinity,
+                      color: colors.card,
                       child: Center(
                         child: Text(
                           "Error loading receipt image.\nPlease ask user to send in chat.",
@@ -468,15 +482,21 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     try {
       // r42: completing a P2P trade releases the escrow — one key per
       // logical release action, reused across retries of that release.
-      final response = await apiClient.postFinancial('/p2p/complete', {"tradeId": _cleanTradeId},
-          operationType: _releaseAction(), ref: _releaseRef);
+      final response = await apiClient.postFinancial(
+        '/p2p/complete',
+        {"tradeId": _cleanTradeId},
+        operationType: _releaseAction(),
+        ref: _releaseRef,
+      );
 
       if (response.statusCode == 200) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Text("Assets Released! User credited with AZM."),
-            backgroundColor: colors.success,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text("Assets Released! User credited with AZM."),
+              backgroundColor: colors.success,
+            ),
+          );
 
           // Phase H3 — was: Navigator.pop (popping the AlertDialog) +
           // pushReplacement (replacing VendorTradeExecution). The sheet is
@@ -496,10 +516,12 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       } else {
         final resData = jsonDecode(response.body);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(resData['message'] ?? "Error releasing"),
-            backgroundColor: colors.danger,
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(resData['message'] ?? "Error releasing"),
+              backgroundColor: colors.danger,
+            ),
+          );
           // Phase H3 — was: Navigator.pop. Removed: the sheet is already
           // closed, popping again would bounce the vendor off the trade
           // screen on a transient backend hiccup, losing chat context.
@@ -509,10 +531,12 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Network Error: $e"),
-          backgroundColor: colors.danger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Network Error: $e"),
+            backgroundColor: colors.danger,
+          ),
+        );
         // Phase H3 — same fix as the 4xx branch above.
       }
     } finally {
@@ -542,42 +566,80 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.access_time, color: Color(0xFFFFB800), size: 22),
+                  const Icon(
+                    Icons.access_time,
+                    color: Color(0xFFFFB800),
+                    size: 22,
+                  ),
                   const SizedBox(width: 10),
-                  Text('Extend Trade Time', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Extend Trade Time',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
-              Text('Add extra minutes to the timer (max 120). The user will be notified.', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+              Text(
+                'Add extra minutes to the timer (max 120). The user will be notified.',
+                style: TextStyle(color: colors.textSecondary, fontSize: 12),
+              ),
               const SizedBox(height: 16),
               TextField(
                 controller: controller,
                 keyboardType: TextInputType.number,
-                style: TextStyle(color: colors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
                 decoration: InputDecoration(
                   hintText: '15',
                   suffixText: 'minutes',
                   suffixStyle: TextStyle(color: colors.textSecondary),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.divider)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: colors.divider)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.divider),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: colors.divider),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
               // Quick options
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [15, 30, 60, 120].map((m) => GestureDetector(
-                  onTap: () => controller.text = m.toString(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: colors.divider),
-                    ),
-                    child: Text('$m min', style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
-                  ),
-                )).toList(),
+                children: [15, 30, 60, 120]
+                    .map(
+                      (m) => GestureDetector(
+                        onTap: () => controller.text = m.toString(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: colors.surface,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: colors.divider),
+                          ),
+                          child: Text(
+                            '$m min',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -587,7 +649,12 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                     final mins = int.tryParse(controller.text);
                     if (mins == null || mins <= 0 || mins > 120) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Enter a value between 1 and 120 minutes'), backgroundColor: Colors.red),
+                        const SnackBar(
+                          content: Text(
+                            'Enter a value between 1 and 120 minutes',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
                       );
                       return;
                     }
@@ -600,13 +667,19 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                       });
                       if (response.statusCode == 200 && mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('✓ Time extended by $mins min'), backgroundColor: const Color(0xFF02C076)),
+                          SnackBar(
+                            content: Text('✓ Time extended by $mins min'),
+                            backgroundColor: const Color(0xFF02C076),
+                          ),
                         );
                       }
                     } catch (e) {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+                          SnackBar(
+                            content: Text('Failed: $e'),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                       }
                     }
@@ -615,9 +688,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                     backgroundColor: const Color(0xFFFFB800),
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
-                  child: const Text('Extend Time', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Extend Time',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -633,15 +711,22 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     try {
       // r42: trade acceptance is a protected financial mutation — one key
       // per logical acceptance, reused across retries of it.
-      final response = await apiClient.postFinancial('/trades/accept', {'tradeId': _cleanTradeId},
-          operationType: _acceptAction(), ref: _acceptRef);
+      final response = await apiClient.postFinancial(
+        '/trades/accept',
+        {'tradeId': _cleanTradeId},
+        operationType: _acceptAction(),
+        ref: _acceptRef,
+      );
       if (response.statusCode == 200) {
         setState(() => _isAccepted = true);
         // Refetch the trade to get the new expiresAt set by the backend
         await _fetchLiveTradeDetails();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: const Text('Trade accepted — timer started'), backgroundColor: ref.read(themeProvider).colors.success),
+            SnackBar(
+              content: const Text('Trade accepted — timer started'),
+              backgroundColor: ref.read(themeProvider).colors.success,
+            ),
           );
         }
       } else {
@@ -666,11 +751,21 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Decline Trade', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Text(
+          'Decline Trade',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Please provide a reason for declining:', style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+            Text(
+              'Please provide a reason for declining:',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: reasonController,
@@ -679,15 +774,35 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
               decoration: InputDecoration(
                 hintText: 'Reason...',
                 hintStyle: TextStyle(color: colors.textTertiary),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: colors.divider)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: colors.divider),
+                ),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: TextStyle(color: colors.textSecondary))),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Decline', style: TextStyle(color: colors.danger, fontWeight: FontWeight.bold))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: colors.textSecondary),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Decline',
+              style: TextStyle(
+                color: colors.danger,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -697,7 +812,9 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     try {
       final response = await apiClient.post('/trades/decline', {
         'tradeId': _cleanTradeId,
-        'reason': reasonController.text.trim().isNotEmpty ? reasonController.text.trim() : 'Vendor declined the trade.',
+        'reason': reasonController.text.trim().isNotEmpty
+            ? reasonController.text.trim()
+            : 'Vendor declined the trade.',
       });
       if (response.statusCode == 200) {
         if (mounted) Navigator.pop(context);
@@ -718,21 +835,30 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     final colors = ref.read(themeProvider).colors;
 
     if (_isDisputed) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text("Trade is under dispute. Actions are frozen."),
-        backgroundColor: colors.danger,
-        behavior: SnackBarBehavior.floating,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Trade is under dispute. Actions are frozen."),
+          backgroundColor: colors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
     if (!_hasViewedProof) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("You must view the payment proof before releasing assets.",
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
-        backgroundColor: colors.danger,
-        behavior: SnackBarBehavior.floating,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "You must view the payment proof before releasing assets.",
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: colors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       HapticFeedback.vibrate();
       return;
     }
@@ -827,7 +953,8 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
   }
 
   void _showRippleMerge(int addedMinutes) {
-    final RenderBox? pillBox = _pillKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? pillBox =
+        _pillKey.currentContext?.findRenderObject() as RenderBox?;
     if (pillBox == null || !pillBox.attached) return;
     final Offset pillPos = pillBox.localToGlobal(Offset.zero);
     final Size pillSize = pillBox.size;
@@ -864,12 +991,16 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: colors.card,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -877,8 +1008,12 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
               children: [
                 Center(
                   child: Container(
-                    width: 40, height: 4,
-                    decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2)),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: colors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -886,8 +1021,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                   children: [
                     Icon(Icons.error_outline, color: colors.danger, size: 28),
                     const SizedBox(width: 12),
-                    Text("Open a Dispute",
-                        style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Text(
+                      "Open a Dispute",
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -901,8 +1042,12 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                   maxLines: 4,
                   style: TextStyle(color: colors.textPrimary),
                   decoration: InputDecoration(
-                    hintText: "e.g. Buyer claims payment but I haven't received it...",
-                    hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
+                    hintText:
+                        "e.g. Buyer claims payment but I haven't received it...",
+                    hintStyle: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 13,
+                    ),
                     filled: true,
                     fillColor: colors.background,
                     border: OutlineInputBorder(
@@ -918,45 +1063,69 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.danger,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       elevation: 0,
                     ),
                     onPressed: () async {
                       final reason = reasonController.text.trim();
                       if (reason.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: const Text("Please provide a reason for the dispute."),
-                          backgroundColor: colors.warning,
-                          behavior: SnackBarBehavior.floating,
-                        ));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                              "Please provide a reason for the dispute.",
+                            ),
+                            backgroundColor: colors.warning,
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
                         return;
                       }
 
                       Navigator.pop(ctx);
 
                       // FIX: Use pre-cached auth/trade — no ref.read() here.
-                      final success = await trade.disputeTrade(_cleanTradeId, reason, token);
+                      final success = await trade.disputeTrade(
+                        _cleanTradeId,
+                        reason,
+                        token,
+                      );
 
                       if (mounted) {
                         if (success) {
                           HapticFeedback.heavyImpact();
                           setState(() => _isDisputed = true);
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: const Text("Dispute filed. An admin will review shortly."),
-                            backgroundColor: colors.warning,
-                            behavior: SnackBarBehavior.floating,
-                          ));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                "Dispute filed. An admin will review shortly.",
+                              ),
+                              backgroundColor: colors.warning,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: const Text("Failed to file dispute. Try again."),
-                            backgroundColor: colors.danger,
-                            behavior: SnackBarBehavior.floating,
-                          ));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text(
+                                "Failed to file dispute. Try again.",
+                              ),
+                              backgroundColor: colors.danger,
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
                         }
                       }
                     },
-                    child: Text("Submit Dispute",
-                        style: TextStyle(color: colors.isDark ? Colors.black : Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      "Submit Dispute",
+                      style: TextStyle(
+                        color: colors.isDark ? Colors.black : Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -979,8 +1148,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: Text(_isChatOpen ? "Chat with Buyer" : "Order in Progress",
-            style: TextStyle(fontSize: 14, color: colors.textPrimary, fontWeight: FontWeight.bold)),
+        title: Text(
+          _isChatOpen ? "Chat with Buyer" : "Order in Progress",
+          style: TextStyle(
+            fontSize: 14,
+            color: colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colors.textPrimary),
@@ -1026,20 +1201,22 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                 child: _isChatOpen
                     ? _buildChatInterface(trade, colors)
                     : _isDisputed
-                        ? _buildDisputedInterface(colors, trade)
-                        : SingleChildScrollView(
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              children: [
-                                _buildTradeDetails(colors),
-                                const SizedBox(height: 20),
-                                if (_isAccepted) _buildPaymentVerificationSection(colors),
-                              ],
-                            ),
-                          ),
+                    ? _buildDisputedInterface(colors, trade)
+                    : SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          children: [
+                            _buildTradeDetails(colors),
+                            const SizedBox(height: 20),
+                            if (_isAccepted)
+                              _buildPaymentVerificationSection(colors),
+                          ],
+                        ),
+                      ),
               ),
-              if (!_isChatOpen && !_isDisputed) _buildActionBottomBar(trade, colors),
+              if (!_isChatOpen && !_isDisputed)
+                _buildActionBottomBar(trade, colors),
             ],
           ),
           if (!_isDisputed)
@@ -1064,7 +1241,12 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: colors.danger.withValues(alpha: 0.15),
-        border: Border(bottom: BorderSide(color: colors.danger.withValues(alpha: 0.4), width: 1)),
+        border: Border(
+          bottom: BorderSide(
+            color: colors.danger.withValues(alpha: 0.4),
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -1073,7 +1255,11 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           Expanded(
             child: Text(
               "Trade Locked. An Admin is reviewing this dispute.",
-              style: TextStyle(color: colors.danger, fontSize: 12, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: colors.danger,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -1094,11 +1280,21 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                 color: colors.danger.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.shield_outlined, color: colors.danger, size: 60),
+              child: Icon(
+                Icons.shield_outlined,
+                color: colors.danger,
+                size: 60,
+              ),
             ),
             const SizedBox(height: 24),
-            Text("Dispute Active",
-                style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(
+              "Dispute Active",
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 10),
             Text(
               "All actions are frozen. An administrator is reviewing this trade and the full chat history.",
@@ -1112,11 +1308,19 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: colors.accent),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 onPressed: () => setState(() => _isChatOpen = true),
                 icon: Icon(Icons.chat_bubble_outline, color: colors.accent),
-                label: Text("Open Chat", style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold)),
+                label: Text(
+                  "Open Chat",
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
@@ -1136,7 +1340,9 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: colors.accent.withValues(alpha: 0.1),
-            border: Border(bottom: BorderSide(color: colors.accent.withValues(alpha: 0.3))),
+            border: Border(
+              bottom: BorderSide(color: colors.accent.withValues(alpha: 0.3)),
+            ),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1147,9 +1353,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("YOUR TERMS OF TRADE",
-                        style: TextStyle(
-                            color: colors.accent, fontSize: 10, fontWeight: FontWeight.bold)),
+                    Text(
+                      "YOUR TERMS OF TRADE",
+                      style: TextStyle(
+                        color: colors.accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       _vendorTerms.isNotEmpty
@@ -1200,7 +1411,8 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                         if (m['tempId'] == tempId) {
                           m['id'] = savedMsg?['id'];
                           m['status'] = 'sent';
-                          m['createdAt'] = savedMsg?['createdAt'] ?? m['createdAt'];
+                          m['createdAt'] =
+                              savedMsg?['createdAt'] ?? m['createdAt'];
                         }
                       }
                     });
@@ -1265,7 +1477,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: colors.card,
-        border: Border(bottom: BorderSide(color: (_isDisputed ? colors.danger : colors.accent).withValues(alpha: 0.1), width: 1)),
+        border: Border(
+          bottom: BorderSide(
+            color: (_isDisputed ? colors.danger : colors.accent).withValues(
+              alpha: 0.1,
+            ),
+            width: 1,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1312,7 +1531,9 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          color: colors.card, borderRadius: BorderRadius.circular(12)),
+        color: colors.card,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: Column(
         children: [
           _rowDetail(
@@ -1369,8 +1590,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("USER PAID TO:",
-            style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.bold)),
+        Text(
+          "USER PAID TO:",
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(15),
@@ -1381,10 +1608,18 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           ),
           child: Row(
             children: [
-              Icon(Icons.account_balance_wallet_outlined, color: colors.textTertiary),
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                color: colors.textTertiary,
+              ),
               const SizedBox(width: 12),
-              Text(widget.tradeData['paymentMethod'] ?? "Zelle / PayPal",
-                  style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
+              Text(
+                widget.tradeData['paymentMethod'] ?? "Zelle / PayPal",
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ),
@@ -1395,19 +1630,32 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
             height: 50,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: _hasViewedProof ? colors.success : colors.accent, width: 2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                side: BorderSide(
+                  color: _hasViewedProof ? colors.success : colors.accent,
+                  width: 2,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               onPressed: _showProofImage,
-              icon: Icon(_hasViewedProof ? Icons.check_circle_outline : Icons.image_outlined,
-                  color: _hasViewedProof ? colors.success : colors.accent),
+              icon: Icon(
+                _hasViewedProof
+                    ? Icons.check_circle_outline
+                    : Icons.image_outlined,
+                color: _hasViewedProof ? colors.success : colors.accent,
+              ),
               label: Text(
-                _hasViewedProof ? "PAYMENT PROOF VERIFIED" : "VIEW PAYMENT PROOF",
+                _hasViewedProof
+                    ? "PAYMENT PROOF VERIFIED"
+                    : "VIEW PAYMENT PROOF",
                 style: TextStyle(
-                    color: _hasViewedProof ? colors.success : colors.accent, fontWeight: FontWeight.bold),
+                  color: _hasViewedProof ? colors.success : colors.accent,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-          )
+          ),
         ] else if (_paymentReceived && _paymentProofUrl == null) ...[
           const SizedBox(height: 20),
           Container(
@@ -1428,24 +1676,35 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                 ),
               ],
             ),
-          )
-        ]
+          ),
+        ],
       ],
     );
   }
 
-  Widget _rowDetail(String label, String value, AzamanColors colors, {bool isBold = false}) {
+  Widget _rowDetail(
+    String label,
+    String value,
+    AzamanColors colors, {
+    bool isBold = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 13)),
-          Text(value,
-              style: TextStyle(
-                  color: colors.textPrimary,
-                  fontWeight: isBold ? FontWeight.w900 : FontWeight.normal,
-                  fontSize: isBold ? 18 : 13)),
+          Text(
+            label,
+            style: TextStyle(color: colors.textTertiary, fontSize: 13),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: isBold ? FontWeight.w900 : FontWeight.normal,
+              fontSize: isBold ? 18 : 13,
+            ),
+          ),
         ],
       ),
     );
@@ -1456,30 +1715,41 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: colors.background,
-        border: Border(top: BorderSide(color: colors.divider.withValues(alpha: 0.3))),
+        border: Border(
+          top: BorderSide(color: colors.divider.withValues(alpha: 0.3)),
+        ),
       ),
       child: Row(
         children: [
           if (!_isAccepted) ...[
-            Expanded(child: _actionBtn("Decline", colors.card, colors.textPrimary, () {
-              _declineTrade();
-            })),
+            Expanded(
+              child: _actionBtn("Decline", colors.card, colors.textPrimary, () {
+                _declineTrade();
+              }),
+            ),
             const SizedBox(width: 15),
             Expanded(
-              child: _actionBtn("Accept Trade", colors.accent, colors.isDark ? Colors.black : Colors.white, () {
-                _acceptTrade();
-              }),
+              child: _actionBtn(
+                "Accept Trade",
+                colors.accent,
+                colors.isDark ? Colors.black : Colors.white,
+                () {
+                  _acceptTrade();
+                },
+              ),
             ),
           ] else ...[
             Expanded(
               child: _actionBtn(
                 "I HAVE RECEIVED PAYMENT",
                 _hasViewedProof ? colors.accent : colors.divider,
-                _hasViewedProof ? (colors.isDark ? Colors.black : Colors.white) : colors.textTertiary,
+                _hasViewedProof
+                    ? (colors.isDark ? Colors.black : Colors.white)
+                    : colors.textTertiary,
                 _handleReleaseCrypto,
               ),
             ),
-          ]
+          ],
         ],
       ),
     );
@@ -1495,7 +1765,14 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         onPressed: onTap,
-        child: Text(label, style: TextStyle(color: text, fontWeight: FontWeight.bold, letterSpacing: 1)),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: text,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
       ),
     );
   }
@@ -1562,17 +1839,29 @@ class _VendorRippleMergeState extends ConsumerState<_VendorRippleMerge>
       duration: const Duration(milliseconds: 1200),
     );
 
-    _position = Tween<Offset>(
-      begin: Offset(widget.startX, widget.startY),
-      end: Offset(widget.endX, widget.endY),
-    ).animate(CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.7, curve: Curves.easeInOut)));
+    _position =
+        Tween<Offset>(
+          begin: Offset(widget.startX, widget.startY),
+          end: Offset(widget.endX, widget.endY),
+        ).animate(
+          CurvedAnimation(
+            parent: _controller,
+            curve: const Interval(0.0, 0.7, curve: Curves.easeInOut),
+          ),
+        );
 
     _scale = Tween<double>(begin: 1.0, end: 0.6).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.7, curve: Curves.easeInOut)),
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.7, curve: Curves.easeInOut),
+      ),
     );
 
     _rippleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.7, 1.0, curve: Curves.easeOut)),
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.7, 1.0, curve: Curves.easeOut),
+      ),
     );
 
     _controller.addStatusListener((status) {
@@ -1605,11 +1894,19 @@ class _VendorRippleMergeState extends ConsumerState<_VendorRippleMerge>
               child: Transform.scale(
                 scale: _scale.value,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.success.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: colors.success.withValues(alpha: 0.4), blurRadius: 12)],
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.success.withValues(alpha: 0.4),
+                        blurRadius: 12,
+                      ),
+                    ],
                   ),
                   child: Text(
                     '+${widget.addedMinutes}m',
@@ -1656,7 +1953,6 @@ class _VendorRippleMergeState extends ConsumerState<_VendorRippleMerge>
   }
 }
 
-
 // ============================================================
 // PHASE H3 — Slide-to-confirm release sheet
 // ============================================================
@@ -1699,7 +1995,8 @@ class _ReleaseCryptoSheet extends ConsumerWidget {
     // amount into the `amount` key and drops the typed splits. Read the
     // V2 typed fields first (notification path), fall back to `amount`
     // (dashboard path) so the most common entry never shows zeros.
-    final fiat = (tradeData['amountFiat'] as num?)?.toDouble() ??
+    final fiat =
+        (tradeData['amountFiat'] as num?)?.toDouble() ??
         double.tryParse(tradeData['amount']?.toString() ?? '') ??
         0.0;
     final crypto = (tradeData['amountCrypto'] as num?)?.toDouble() ?? 0.0;
@@ -1756,7 +2053,11 @@ class _ReleaseCryptoSheet extends ConsumerWidget {
               const SizedBox(height: 8),
               Text(
                 'You are about to release crypto from escrow to the buyer. This cannot be undone.',
-                style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4),
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -1805,7 +2106,9 @@ class _ReleaseCryptoSheet extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: colors.warning.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.warning.withValues(alpha: 0.2)),
+                  border: Border.all(
+                    color: colors.warning.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1815,7 +2118,11 @@ class _ReleaseCryptoSheet extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         'Confirm only if the funds have actually arrived in your account. Do not release based on screenshots alone.',
-                        style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.35),
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
                       ),
                     ),
                   ],
@@ -1860,10 +2167,7 @@ class _SummaryRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(color: colors.textTertiary, fontSize: 12),
-        ),
+        Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
         Text(
           value,
           style: TextStyle(

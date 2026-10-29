@@ -30,8 +30,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart'
-    show RenderBox, RenderParagraph;
+import 'package:flutter/rendering.dart' show RenderBox, RenderParagraph;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -74,11 +73,17 @@ Future<void> _loadFonts() async {
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
   await _loadFace(
-      'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
-  await _loadFace('packages/hugeicons_pro/HugeIconsSolid',
-      'test/goldens/fonts/hugeicons-solid.ttf');
-  await _loadFace('packages/hugeicons_pro/HugeIconsStroke',
-      'test/goldens/fonts/hugeicons-stroke.ttf');
+    'MaterialIcons',
+    'test/goldens/fonts/MaterialIcons-Regular.otf',
+  );
+  await _loadFace(
+    'packages/hugeicons_pro/HugeIconsSolid',
+    'test/goldens/fonts/hugeicons-solid.ttf',
+  );
+  await _loadFace(
+    'packages/hugeicons_pro/HugeIconsStroke',
+    'test/goldens/fonts/hugeicons-stroke.ttf',
+  );
   await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
   _fontsLoaded = true;
 }
@@ -107,23 +112,23 @@ class _FakeSusuListNotifier extends SusuListNotifier {
 }
 
 SusuSummary _activeSusu(DateTime runAt) => SusuSummary(
-      id: 's1',
-      name: 'Circle Susu',
-      status: SusuStatus.active,
-      contributionUsdc: 10,
-      frequency: SusuFrequency.weekly,
-      totalCycles: 10,
-      nextCycle: SusuCycleSummary(
-        id: 'c4',
-        cycleNumber: 4,
-        scheduledRunAt: runAt,
-        payoutUserId: 2,
-        isMe: false,
-      ),
-      myCycleSlot: 4,
-      myStatus: SusuMemberStatus.active,
-      myRole: 'MEMBER',
-    );
+  id: 's1',
+  name: 'Circle Susu',
+  status: SusuStatus.active,
+  contributionUsdc: 10,
+  frequency: SusuFrequency.weekly,
+  totalCycles: 10,
+  nextCycle: SusuCycleSummary(
+    id: 'c4',
+    cycleNumber: 4,
+    scheduledRunAt: runAt,
+    payoutUserId: 2,
+    isMe: false,
+  ),
+  myCycleSlot: 4,
+  myStatus: SusuMemberStatus.active,
+  myRole: 'MEMBER',
+);
 
 const _cartIntent = ResumeIntent(
   kind: ResumeKind.cart,
@@ -139,56 +144,47 @@ const _cartIntent = ResumeIntent(
 /// adapter and NEVER derive GHS from USDC. `rate <= 0` maps to the
 /// payload's UNAVAILABLE rate status — the honest-unavailable state.
 Map<String, dynamic> _nativeGhsValuation(double ghs, double rate) => {
-      'pair': 'USDC/GHS',
-      'nativeGhsAvailable': {
-        'exact': ghs.toStringAsFixed(8),
-        'value': ghs,
-      },
-      'availableUsdc': {
-        'exact': '100.00000000',
-        'value': 100,
-      },
-      'usdcEquivalent': rate > 0
-          ? {
-              'exact': (ghs / rate).toStringAsFixed(8),
-              'value': ghs / rate,
-            }
-          : null,
-      'availableGhsValue': rate > 0
-          ? {
-              'exact': (ghs + 100 * rate).toStringAsFixed(8),
-              'value': ghs + 100 * rate,
-            }
-          : null,
-      'rateStatus': rate > 0 ? 'CURRENT' : 'UNAVAILABLE',
-      'valuationStatus': rate > 0 ? 'CURRENT' : 'PARTIAL_FX_UNAVAILABLE',
-      'currentRate': rate > 0
-          ? {
-              'rate': rate,
-              'rateExact': rate.toStringAsFixed(8),
-              'isFresh': true,
-              'pair': 'USDC/GHS',
-              'source': 'KOTANI',
-              'observedAt': '2026-10-26T10:00:00Z',
-            }
-          : null,
-      'savedRate': null,
-      'displayRate': rate > 0 ? {'basis': 'CURRENT', 'rate': rate} : null,
-      'usdcTransactionGateOpen': false,
-      'usdcTransactionGateReason': 'FRESH_CANONICAL_RATE',
-      'locked': {
-        'escrowUsdc': {'exact': '0E-8', 'value': 0},
-        'disputesUsdc': {'exact': '0E-8', 'value': 0},
-        'vaultsUsdc': {'exact': '0E-8', 'value': 0},
-        'savingsGhs': {'exact': '0E-8', 'value': 0},
-        'committedSusuUsdc': {'exact': '0E-8', 'value': 0},
-        'vendorUnallocatedUsdc': {'exact': '0E-8', 'value': 0},
-      },
-      'nonCash': {
-        'azmPoints': {'exact': '0E-8', 'value': 0},
-      },
-      'evaluatedAt': '2026-10-26T10:00:05Z',
-    };
+  'pair': 'USDC/GHS',
+  'nativeGhsAvailable': {'exact': ghs.toStringAsFixed(8), 'value': ghs},
+  'availableUsdc': {'exact': '100.00000000', 'value': 100},
+  'usdcEquivalent': rate > 0
+      ? {'exact': (ghs / rate).toStringAsFixed(8), 'value': ghs / rate}
+      : null,
+  'availableGhsValue': rate > 0
+      ? {
+          'exact': (ghs + 100 * rate).toStringAsFixed(8),
+          'value': ghs + 100 * rate,
+        }
+      : null,
+  'rateStatus': rate > 0 ? 'CURRENT' : 'UNAVAILABLE',
+  'valuationStatus': rate > 0 ? 'CURRENT' : 'PARTIAL_FX_UNAVAILABLE',
+  'currentRate': rate > 0
+      ? {
+          'rate': rate,
+          'rateExact': rate.toStringAsFixed(8),
+          'isFresh': true,
+          'pair': 'USDC/GHS',
+          'source': 'KOTANI',
+          'observedAt': '2026-10-26T10:00:00Z',
+        }
+      : null,
+  'savedRate': null,
+  'displayRate': rate > 0 ? {'basis': 'CURRENT', 'rate': rate} : null,
+  'usdcTransactionGateOpen': false,
+  'usdcTransactionGateReason': 'FRESH_CANONICAL_RATE',
+  'locked': {
+    'escrowUsdc': {'exact': '0E-8', 'value': 0},
+    'disputesUsdc': {'exact': '0E-8', 'value': 0},
+    'vaultsUsdc': {'exact': '0E-8', 'value': 0},
+    'savingsGhs': {'exact': '0E-8', 'value': 0},
+    'committedSusuUsdc': {'exact': '0E-8', 'value': 0},
+    'vendorUnallocatedUsdc': {'exact': '0E-8', 'value': 0},
+  },
+  'nonCash': {
+    'azmPoints': {'exact': '0E-8', 'value': 0},
+  },
+  'evaluatedAt': '2026-10-26T10:00:05Z',
+};
 
 /// The new balance-card seam: the valuation adapter reads the pinned
 /// [fxRateProvider] snapshot, not the legacy oracle double. `rate <= 0`
@@ -305,23 +301,22 @@ Future<ProviderContainer> _pumpHome(
 // INSIDE instead.
 RenderParagraph _paragraphOf(WidgetTester tester, Key key) {
   return tester.renderObject<RenderParagraph>(
-    find.descendant(
-      of: find.byKey(key),
-      matching: find.byType(RichText),
-    ),
+    find.descendant(of: find.byKey(key), matching: find.byType(RichText)),
   );
 }
 
 double _sheetAmountHeight(WidgetTester tester) {
-  return _paragraphOf(tester, const ValueKey('deck-sheet-balance-amount'))
-      .size
-      .height;
+  return _paragraphOf(
+    tester,
+    const ValueKey('deck-sheet-balance-amount'),
+  ).size.height;
 }
 
 double _sheetUnitHeight(WidgetTester tester) {
-  return _paragraphOf(tester, const ValueKey('deck-sheet-balance-unit'))
-      .size
-      .height;
+  return _paragraphOf(
+    tester,
+    const ValueKey('deck-sheet-balance-unit'),
+  ).size.height;
 }
 
 Future<void> _openSheet(WidgetTester tester) async {
@@ -338,21 +333,23 @@ Future<void> _openSheet(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('the expand affordance sits on the balance card at 1.0x',
-      (tester) async {
+  testWidgets('the expand affordance sits on the balance card at 1.0x', (
+    tester,
+  ) async {
     await _pumpHome(tester);
     expect(
-        find.byKey(const ValueKey('deck-large-text-hit-region')),
-        findsOneWidget);
+      find.byKey(const ValueKey('deck-large-text-hit-region')),
+      findsOneWidget,
+    );
   });
-
 
   testWidgets('the expand affordance is still present at 2.0x system text '
       '(a low-vision user must be able to find it)', (tester) async {
     await _pumpHome(tester, textScale: 2.0);
     expect(
-        find.byKey(const ValueKey('deck-large-text-hit-region')),
-        findsOneWidget);
+      find.byKey(const ValueKey('deck-large-text-hit-region')),
+      findsOneWidget,
+    );
   });
 
   // ── THE HIT-TARGET CONTRACT (review requirement) ─────────────────
@@ -375,8 +372,10 @@ void main() {
     // The region is the shared LargeTextDeckButton overlay: transparent,
     // nothing painted, but it owns a real button semantics node so a
     // screen reader gets the same 48dp target a sighted user taps.
-    expect(find.bySemanticsLabel('View deck details in large text'),
-        findsOneWidget);
+    expect(
+      find.bySemanticsLabel('View deck details in large text'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('THE HIT-TARGET CONTRACT: the region still measures 48x48dp '
@@ -392,9 +391,7 @@ void main() {
     // The region's global rect must lie INSIDE the card face (the
     // rounded clip would otherwise kill hit tests at the edges).
     // The card's render object is its rounded-clip face.
-    final face = tester.renderObject<RenderBox>(
-      find.byType(HomeBalanceCard),
-    );
+    final face = tester.renderObject<RenderBox>(find.byType(HomeBalanceCard));
     final faceRect = Rect.fromPoints(
       face.localToGlobal(Offset.zero),
       face.localToGlobal(Offset(face.size.width, face.size.height)),
@@ -403,10 +400,16 @@ void main() {
       region.localToGlobal(Offset.zero),
       region.localToGlobal(Offset(region.size.width, region.size.height)),
     );
-    expect(faceRect.contains(regionRect.topLeft), isTrue,
-        reason: 'the hit region must not escape the card face');
-    expect(faceRect.contains(regionRect.bottomRight), isTrue,
-        reason: 'the hit region must not escape the card face');
+    expect(
+      faceRect.contains(regionRect.topLeft),
+      isTrue,
+      reason: 'the hit region must not escape the card face',
+    );
+    expect(
+      faceRect.contains(regionRect.bottomRight),
+      isTrue,
+      reason: 'the hit region must not escape the card face',
+    );
   });
 
   testWidgets('THE HIT-TARGET CONTRACT: the SEMANTIC node measures 48x48dp '
@@ -415,16 +418,20 @@ void main() {
     await _pumpHome(tester);
 
     // Resolve the node the way a screen reader reaches it: by label.
-    final labelFinder =
-        find.bySemanticsLabel('View deck details in large text');
+    final labelFinder = find.bySemanticsLabel(
+      'View deck details in large text',
+    );
     expect(labelFinder, findsOneWidget);
     final node = tester.getSemantics(labelFinder);
     // The semantic target rides the 48px overlay region — a screen
     // reader user gets the same large target, not a 24px one.
     expect(node.rect.width, greaterThanOrEqualTo(48.0));
     expect(node.rect.height, greaterThanOrEqualTo(48.0));
-    expect(node.flagsCollection.isButton, isTrue,
-        reason: 'the affordance must be announced as a button');
+    expect(
+      node.flagsCollection.isButton,
+      isTrue,
+      reason: 'the affordance must be announced as a button',
+    );
     expect(
       find.bySemanticsLabel('View deck details in large text'),
       findsOneWidget,
@@ -434,8 +441,9 @@ void main() {
   });
 
   testWidgets('THE HIT-TARGET CONTRACT: a tap at the REGION CORNER — far '
-      'outside the 24px glyph — opens the sheet without flipping',
-      (tester) async {
+      'outside the 24px glyph — opens the sheet without flipping', (
+    tester,
+  ) async {
     await _pumpHome(tester);
 
     // Tap the region's BOTTOM-LEFT corner: ~6px left of the glyph slot
@@ -449,23 +457,19 @@ void main() {
     // 48x48 target (inset 4px from the region's own bottom edge so the
     // point is unambiguously live). The old 24px target missed this tap
     // entirely and the card would flip instead.
-    final farPoint = region.localToGlobal(
-      const Offset(2, 44),
-    );
+    final farPoint = region.localToGlobal(const Offset(2, 44));
     await tester.tapAt(farPoint);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
     // The sheet opened…
-    expect(
-      find.byKey(const ValueKey('deck-sheet-heading')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('deck-sheet-heading')), findsOneWidget);
     // …and the card did NOT flip to its back face.
     expect(find.byKey(const ValueKey('balance-fx-headline')), findsOneWidget);
     expect(
-        find.byKey(const ValueKey('balance-pair-back-surface')),
-        findsNothing);
+      find.byKey(const ValueKey('balance-pair-back-surface')),
+      findsNothing,
+    );
   });
 
   testWidgets('tapping the affordance opens the deck detail sheet WITHOUT '
@@ -474,17 +478,15 @@ void main() {
     await _openSheet(tester);
 
     // The sheet is open…
-    expect(
-      find.byKey(const ValueKey('deck-sheet-heading')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('deck-sheet-heading')), findsOneWidget);
     // …and the card did NOT flip: the FRONT face's GHS headline is still
     // mounted and the sheet (not the section-paged back face) owns the
     // stage.
     expect(find.byKey(const ValueKey('balance-fx-headline')), findsOneWidget);
     expect(
-        find.byKey(const ValueKey('balance-pair-back-surface')),
-        findsNothing);
+      find.byKey(const ValueKey('balance-pair-back-surface')),
+      findsNothing,
+    );
   });
 
   testWidgets('THE REVIEW REQUIREMENT: the amount visibly enlarges at 2.0x '
@@ -556,17 +558,16 @@ void main() {
     expect(find.text('FX rate unavailable'), findsWidgets);
   });
 
-  testWidgets('with a usable rate the sheet shows the conversion line',
-      (tester) async {
+  testWidgets('with a usable rate the sheet shows the conversion line', (
+    tester,
+  ) async {
     await _pumpHome(tester, rate: 12.03);
     await _openSheet(tester);
 
     // Scoped to the sheet's keyed line: the card face renders its own
     // '1 USDC = GH₵' line as well, so a global find would be ambiguous.
     expect(
-      tester
-          .widget<Text>(find.byKey(const ValueKey('deck-sheet-rate')))
-          .data,
+      tester.widget<Text>(find.byKey(const ValueKey('deck-sheet-rate'))).data,
       contains('1 USDC = GH₵'),
     );
     expect(
@@ -575,8 +576,9 @@ void main() {
     );
   });
 
-  testWidgets('an unresolved balance never fabricates a figure in the sheet',
-      (tester) async {
+  testWidgets('an unresolved balance never fabricates a figure in the sheet', (
+    tester,
+  ) async {
     await _pumpHome(tester, readiness: BalanceReadiness.unresolved);
     await _openSheet(tester);
 
@@ -626,8 +628,9 @@ void main() {
       '48x48dp and stops at the pouch surface', (tester) async {
     await _pumpHome(tester, extractBalance: false);
 
-    final deckState = tester
-        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
+    final deckState = tester.state<WalletCardDeckState>(
+      find.byType(WalletCardDeck),
+    );
     expect(deckState.state, WalletDeckState.tucked);
 
     final zone = tester.renderObject<RenderBox>(
@@ -650,37 +653,37 @@ void main() {
   });
 
   testWidgets('THE TUCKED CONTRACT: tapping the affordance while tucked '
-      'opens the large-text sheet WITHOUT extracting the card',
-      (tester) async {
+      'opens the large-text sheet WITHOUT extracting the card', (tester) async {
     await _pumpHome(tester, extractBalance: false);
 
-    final deckState = tester
-        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
+    final deckState = tester.state<WalletCardDeckState>(
+      find.byType(WalletCardDeck),
+    );
     expect(deckState.state, WalletDeckState.tucked);
 
-    await tester
-        .tap(find.byKey(const ValueKey('deck-large-text-hit-region-tucked')));
+    await tester.tap(
+      find.byKey(const ValueKey('deck-large-text-hit-region-tucked')),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
     // The sheet opened — the user's INTENTIONAL disclosure of the
     // figures — and nothing else moved.
-    expect(
-      find.byKey(const ValueKey('deck-sheet-heading')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('deck-sheet-heading')), findsOneWidget);
     // The card was NOT silently extracted.
     expect(deckState.state, WalletDeckState.tucked);
     // And it never flipped.
     expect(
-        find.byKey(const ValueKey('balance-pair-back-surface')),
-        findsNothing);
+      find.byKey(const ValueKey('balance-pair-back-surface')),
+      findsNothing,
+    );
   });
 
   testWidgets('THE TUCKED CONTRACT: a far-corner tap on the tucked zone — '
-      'outside the glyph slot — opens the sheet without extracting',
-      (tester) async {
+      'outside the glyph slot — opens the sheet without extracting', (
+    tester,
+  ) async {
     await _pumpHome(tester, extractBalance: false);
 
     final zone = tester.renderObject<RenderBox>(
@@ -696,16 +699,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
-    final deckState = tester
-        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
-    expect(
-      find.byKey(const ValueKey('deck-sheet-heading')),
-      findsOneWidget,
+    final deckState = tester.state<WalletCardDeckState>(
+      find.byType(WalletCardDeck),
     );
+    expect(find.byKey(const ValueKey('deck-sheet-heading')), findsOneWidget);
     expect(deckState.state, WalletDeckState.tucked);
     expect(
-        find.byKey(const ValueKey('balance-pair-back-surface')),
-        findsNothing);
+      find.byKey(const ValueKey('balance-pair-back-surface')),
+      findsNothing,
+    );
   });
 
   testWidgets('THE TUCKED CONTRACT: a header tap OUTSIDE the affordance '
@@ -716,24 +718,20 @@ void main() {
       find.byKey(const ValueKey('wallet-tucked-balance-header')),
     );
     // Well left of the 48px affordance zone, mid-band.
-    final tapPoint = band.localToGlobal(
-      Offset(24, band.size.height / 2),
-    );
+    final tapPoint = band.localToGlobal(Offset(24, band.size.height / 2));
 
     await tester.tapAt(tapPoint);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 100));
 
-    final deckState = tester
-        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
+    final deckState = tester.state<WalletCardDeckState>(
+      find.byType(WalletCardDeck),
+    );
     expect(deckState.state, WalletDeckState.balanceOut);
     // And no sheet: extraction is extraction, the affordance is the
     // affordance — the two never silently substitute.
-    expect(
-      find.byKey(const ValueKey('deck-sheet-heading')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('deck-sheet-heading')), findsNothing);
   });
 
   testWidgets('THE TUCKED CONTRACT: taps below the zone — the pouch mouth — '
@@ -754,25 +752,25 @@ void main() {
     await tester.pump(const Duration(milliseconds: 350));
     await tester.pump(const Duration(milliseconds: 350));
 
-    final deckState = tester
-        .state<WalletCardDeckState>(find.byType(WalletCardDeck));
-    expect(deckState.state, WalletDeckState.tucked);
-    expect(
-      find.byKey(const ValueKey('deck-sheet-heading')),
-      findsNothing,
+    final deckState = tester.state<WalletCardDeckState>(
+      find.byType(WalletCardDeck),
     );
+    expect(deckState.state, WalletDeckState.tucked);
+    expect(find.byKey(const ValueKey('deck-sheet-heading')), findsNothing);
   });
 
   testWidgets('THE TUCKED CONTRACT: the affordance keeps its semantics node '
-      'while tucked — and the concealed card keeps its privacy',
-      (tester) async {
+      'while tucked — and the concealed card keeps its privacy', (
+    tester,
+  ) async {
     await _pumpHome(tester, extractBalance: false);
     final semanticsHandle = tester.ensureSemantics();
 
     // The affordance is reachable by screen readers in the tucked
     // state, at the same large rect.
-    final labelFinder =
-        find.bySemanticsLabel('View deck details in large text');
+    final labelFinder = find.bySemanticsLabel(
+      'View deck details in large text',
+    );
     expect(labelFinder, findsOneWidget);
     final node = tester.getSemantics(labelFinder);
     expect(node.rect.width, greaterThanOrEqualTo(48.0));

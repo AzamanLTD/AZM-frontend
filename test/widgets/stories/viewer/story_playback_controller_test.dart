@@ -12,22 +12,22 @@ class _TestVSync implements TickerProvider {
 }
 
 StoryItem _item(String id, {int duration = 5}) => StoryItem(
-      id: id,
-      mediaUrl: 'https://cdn.example.com/$id.jpg',
-      mediaType: 'IMAGE',
-      durationSeconds: duration,
-      boosted: false,
-      seen: false,
-      createdAt: DateTime(2026, 10, 1),
-    );
+  id: id,
+  mediaUrl: 'https://cdn.example.com/$id.jpg',
+  mediaType: 'IMAGE',
+  durationSeconds: duration,
+  boosted: false,
+  seen: false,
+  createdAt: DateTime(2026, 10, 1),
+);
 
 StoryGroup _group(int count) => StoryGroup(
-      authorId: 7,
-      authorUsername: 'ama',
-      hasUnseen: true,
-      isBoosted: false,
-      stories: List.generate(count, (i) => _item('s$i')),
-    );
+  authorId: 7,
+  authorUsername: 'ama',
+  hasUnseen: true,
+  isBoosted: false,
+  stories: List.generate(count, (i) => _item('s$i')),
+);
 
 void main() {
   final vsync = _TestVSync();
@@ -50,16 +50,23 @@ void main() {
   }
 
   test('durationFor clamps to 1..60 seconds', () {
-    expect(StoryPlaybackController.durationFor(_item('a', duration: 0)),
-        const Duration(seconds: 1));
-    expect(StoryPlaybackController.durationFor(_item('a', duration: 999)),
-        const Duration(seconds: 60));
-    expect(StoryPlaybackController.durationFor(_item('a', duration: 5)),
-        const Duration(seconds: 5));
+    expect(
+      StoryPlaybackController.durationFor(_item('a', duration: 0)),
+      const Duration(seconds: 1),
+    );
+    expect(
+      StoryPlaybackController.durationFor(_item('a', duration: 999)),
+      const Duration(seconds: 60),
+    );
+    expect(
+      StoryPlaybackController.durationFor(_item('a', duration: 5)),
+      const Duration(seconds: 5),
+    );
   });
 
-  testWidgets('advances one item per completed progress, in order',
-      (tester) async {
+  testWidgets('advances one item per completed progress, in order', (
+    tester,
+  ) async {
     final controller = start(_group(3));
     expect(controller.index, 0);
     // Tickers started outside a frame baseline at their first tick, and the
@@ -75,8 +82,9 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('group complete fires only after the last item finishes',
-      (tester) async {
+  testWidgets('group complete fires only after the last item finishes', (
+    tester,
+  ) async {
     var completions = 0;
     final controller = start(_group(2), onComplete: () => completions++);
     await tester.pump(const Duration(milliseconds: 16));
@@ -91,8 +99,9 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('previous() rewinds within the group, then rewinds past it',
-      (tester) async {
+  testWidgets('previous() rewinds within the group, then rewinds past it', (
+    tester,
+  ) async {
     var rewinds = 0;
     final controller = start(_group(2), onRewind: () => rewinds++);
     await tester.pump(const Duration(milliseconds: 16));

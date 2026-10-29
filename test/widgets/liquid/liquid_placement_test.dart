@@ -3,7 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:azaman/widgets/liquid/liquid_placement.dart';
 
 const _small = Size(320, 640); // smallest phone we support
-final _safe = LiquidSafeArea(screen: _small, padding: const EdgeInsets.only(top: 24, bottom: 16));
+final _safe = LiquidSafeArea(
+  screen: _small,
+  padding: const EdgeInsets.only(top: 24, bottom: 16),
+);
 
 // A "+" pinned bottom-left, like the chat composer.
 final _leftAnchor = const Rect.fromLTWH(14, 560, 44, 44);
@@ -20,7 +23,11 @@ void expectInside(Rect r, LiquidSafeArea s, {String? because}) {
 void main() {
   group('solvePanel', () {
     test('grows right from a left anchor and stays on screen at 320 dp', () {
-      final p = solvePanel(anchor: _leftAnchor, panel: const Size(200, 240), safe: _safe);
+      final p = solvePanel(
+        anchor: _leftAnchor,
+        panel: const Size(200, 240),
+        safe: _safe,
+      );
       expectInside(p.rect, _safe);
       expect(p.above, isTrue);
       expect(p.rect.left, greaterThanOrEqualTo(_safe.left));
@@ -28,19 +35,34 @@ void main() {
 
     test('flips below when there is no room above', () {
       final top = const Rect.fromLTWH(14, 40, 44, 44);
-      final p = solvePanel(anchor: top, panel: const Size(200, 400), safe: _safe);
+      final p = solvePanel(
+        anchor: top,
+        panel: const Size(200, 400),
+        safe: _safe,
+      );
       expect(p.above, isFalse);
       expectInside(p.rect, _safe);
     });
 
     test('clamps a panel wider than the screen', () {
-      final p = solvePanel(anchor: _leftAnchor, panel: const Size(900, 240), safe: _safe);
+      final p = solvePanel(
+        anchor: _leftAnchor,
+        panel: const Size(900, 240),
+        safe: _safe,
+      );
       expectInside(p.rect, _safe);
     });
 
     test('followerOffset reproduces the solved rect', () {
-      final p = solvePanel(anchor: _leftAnchor, panel: const Size(200, 240), safe: _safe);
-      expect(_leftAnchor.topLeft + p.followerOffset(_leftAnchor), p.rect.topLeft);
+      final p = solvePanel(
+        anchor: _leftAnchor,
+        panel: const Size(200, 240),
+        safe: _safe,
+      );
+      expect(
+        _leftAnchor.topLeft + p.followerOffset(_leftAnchor),
+        p.rect.topLeft,
+      );
     });
   });
 
@@ -49,7 +71,11 @@ void main() {
         List.generate(6, (i) => Size((110 + i * 14) * scale, 44));
 
     test('all six pills stay inside the safe area at 1.0x', () {
-      final slots = solveArc(anchor: _pillAnchor, sizes: sizes(1.0), safe: _safe);
+      final slots = solveArc(
+        anchor: _pillAnchor,
+        sizes: sizes(1.0),
+        safe: _safe,
+      );
       expect(slots.length, 6);
       for (final s in slots) {
         expectInside(s.rect, _safe, because: 'slot ${s.index}');
@@ -57,25 +83,45 @@ void main() {
     });
 
     test('and at 1.3x text scale on a 320 dp phone', () {
-      final slots = solveArc(anchor: _pillAnchor, sizes: sizes(1.3), safe: _safe);
+      final slots = solveArc(
+        anchor: _pillAnchor,
+        sizes: sizes(1.3),
+        safe: _safe,
+      );
       for (final s in slots) {
         expectInside(s.rect, _safe, because: 'slot ${s.index} @1.3x');
       }
     });
 
     test('no pill overlaps the trigger at 1.0x', () {
-      final slots = solveArc(anchor: _pillAnchor, sizes: sizes(1.0), safe: _safe);
+      final slots = solveArc(
+        anchor: _pillAnchor,
+        sizes: sizes(1.0),
+        safe: _safe,
+      );
       for (var i = 0; i < slots.length; i++) {
-        expect(slots[i].rect.overlaps(_pillAnchor), isFalse, reason: 'slot $i over trigger');
+        expect(
+          slots[i].rect.overlaps(_pillAnchor),
+          isFalse,
+          reason: 'slot $i over trigger',
+        );
       }
     });
 
     test('neighbouring pills do not overlap at 1.0x', () {
-      final slots = solveArc(anchor: _pillAnchor, sizes: sizes(1.0), safe: _safe);
+      final slots = solveArc(
+        anchor: _pillAnchor,
+        sizes: sizes(1.0),
+        safe: _safe,
+      );
       for (var i = 0; i < slots.length; i++) {
         for (var j = i + 1; j < slots.length; j++) {
           if ((i - j).abs() == 1) {
-            expect(slots[i].rect.overlaps(slots[j].rect.deflate(1)), isFalse, reason: 'adjacent $i vs $j');
+            expect(
+              slots[i].rect.overlaps(slots[j].rect.deflate(1)),
+              isFalse,
+              reason: 'adjacent $i vs $j',
+            );
           }
         }
       }

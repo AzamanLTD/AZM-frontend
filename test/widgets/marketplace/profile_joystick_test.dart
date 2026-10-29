@@ -64,10 +64,7 @@ void _invokeCustom(WidgetTester tester, Key key, String label) {
 }
 
 void _invokeTap(WidgetTester tester, Key key) {
-  _ownerOf(tester).performAction(
-    _nodeFor(tester, key).id,
-    SemanticsAction.tap,
-  );
+  _ownerOf(tester).performAction(_nodeFor(tester, key).id, SemanticsAction.tap);
 }
 
 /// Walks the whole semantics tree collecting every node's data.
@@ -160,8 +157,11 @@ Future<void> _tapAvatar(WidgetTester tester) async {
 Future<TestGesture> _press(WidgetTester tester) =>
     tester.startGesture(tester.getCenter(find.byKey(_avatarKey)));
 
-Future<void> _pumpMove(WidgetTester tester, TestGesture gesture,
-    Offset by) async {
+Future<void> _pumpMove(
+  WidgetTester tester,
+  TestGesture gesture,
+  Offset by,
+) async {
   await gesture.moveBy(by);
   await tester.pump();
 }
@@ -265,13 +265,22 @@ void main() {
       // The dragged direction is highlighted: its icon colour differs
       // from a non-selected satellite's (accent vs neutral ink).
       final menuIcon = tester.widget<Icon>(
-        find.descendant(of: find.byKey(sat('menu')), matching: find.byType(Icon)),
+        find.descendant(
+          of: find.byKey(sat('menu')),
+          matching: find.byType(Icon),
+        ),
       );
       final storyIcon = tester.widget<Icon>(
-        find.descendant(of: find.byKey(sat('story')), matching: find.byType(Icon)),
+        find.descendant(
+          of: find.byKey(sat('story')),
+          matching: find.byType(Icon),
+        ),
       );
-      expect(menuIcon.color, isNot(storyIcon.color),
-          reason: 'the selected satellite is visually highlighted');
+      expect(
+        menuIcon.color,
+        isNot(storyIcon.color),
+        reason: 'the selected satellite is visually highlighted',
+      );
 
       await gesture.up();
       await tester.pumpAndSettle();
@@ -303,7 +312,11 @@ void main() {
 
       final gesture = await _press(tester);
       await _pumpMove(tester, gesture, const Offset(0, -26)); // select menu…
-      await _pumpMove(tester, gesture, const Offset(0, 26)); // …then return to dead
+      await _pumpMove(
+        tester,
+        gesture,
+        const Offset(0, 26),
+      ); // …then return to dead
       await gesture.up();
       await tester.pumpAndSettle();
 
@@ -334,8 +347,9 @@ void main() {
 
   group('outcome 3 — long press (regression 8)', () {
     testWidgets('press-and-hold opens the full action menu ONLY: no dial, '
-        'no direction, and the SAME pointer\'s release fires nothing',
-        (tester) async {
+        'no direction, and the SAME pointer\'s release fires nothing', (
+      tester,
+    ) async {
       final spies = _Spies();
       await tester.pumpWidget(_host(_joystick(spies)));
 
@@ -406,8 +420,9 @@ void main() {
     });
 
     testWidgets('persistent dial: the unavailable satellite is present, '
-        'visibly dimmed, and tapping it neither fires NOR closes',
-        (tester) async {
+        'visibly dimmed, and tapping it neither fires NOR closes', (
+      tester,
+    ) async {
       final spies = _Spies();
       await tester.pumpWidget(_host(_joystick(spies, storyAvailable: false)));
 
@@ -420,10 +435,11 @@ void main() {
       // The dimming wrapper is layered under LiquidReveal's own
       // reveal Opacity — pin it BY VALUE, order-independent.
       List<double> opacitiesOf(Finder finder) => [
-            for (final w in find
+        for (final w
+            in find
                 .descendant(of: finder, matching: find.byType(Opacity))
                 .evaluate())
-              (w.widget as Opacity).opacity,
+          (w.widget as Opacity).opacity,
       ];
       expect(
         opacitiesOf(storyPositioned).contains(0.45),
@@ -456,8 +472,9 @@ void main() {
   });
 
   group('show-less + no double invoke (regression 10)', () {
-    testWidgets('a left drag fires show-less exactly ONCE per activation',
-        (tester) async {
+    testWidgets('a left drag fires show-less exactly ONCE per activation', (
+      tester,
+    ) async {
       final spies = _Spies();
       await tester.pumpWidget(_host(_joystick(spies)));
 
@@ -477,7 +494,11 @@ void main() {
 
       final gesture = await _press(tester);
       await _pumpMove(tester, gesture, const Offset(-26, 0));
-      await _pumpMove(tester, gesture, const Offset(0, -26)); // diagonal flip denied
+      await _pumpMove(
+        tester,
+        gesture,
+        const Offset(0, -26),
+      ); // diagonal flip denied
       await _pumpMove(tester, gesture, const Offset(-8, 8)); // tremor back
       await gesture.up();
       await tester.pumpAndSettle();
@@ -518,8 +539,9 @@ void main() {
       ),
     );
 
-    testWidgets('a drag that begins on the avatar NEVER scrolls the list',
-        (tester) async {
+    testWidgets('a drag that begins on the avatar NEVER scrolls the list', (
+      tester,
+    ) async {
       final spies = _Spies();
       final controller = ScrollController();
       await tester.pumpWidget(scrollHost(spies, controller));
@@ -548,8 +570,9 @@ void main() {
       expect(spies.total, 0);
     });
 
-    testWidgets('a drag that begins OUTSIDE the avatar scrolls normally',
-        (tester) async {
+    testWidgets('a drag that begins OUTSIDE the avatar scrolls normally', (
+      tester,
+    ) async {
       final spies = _Spies();
       final controller = ScrollController();
       await tester.pumpWidget(scrollHost(spies, controller));
@@ -596,10 +619,16 @@ void main() {
           final rect = tester.getRect(find.byKey(sat(name)));
           expect(rect.width, 44.0, reason: '$name hit target width');
           expect(rect.height, 44.0, reason: '$name hit target height');
-          expect(rect.left, greaterThanOrEqualTo(0.0),
-              reason: '$name never off the left edge');
-          expect(rect.right, lessThanOrEqualTo(screen.width),
-              reason: '$name never off the right edge');
+          expect(
+            rect.left,
+            greaterThanOrEqualTo(0.0),
+            reason: '$name never off the left edge',
+          );
+          expect(
+            rect.right,
+            lessThanOrEqualTo(screen.width),
+            reason: '$name never off the right edge',
+          );
           expect(rect.top, greaterThanOrEqualTo(0.0));
           expect(rect.bottom, lessThanOrEqualTo(screen.height));
         }
@@ -627,9 +656,7 @@ void main() {
     testWidgets('with disableAnimations the dial is instantly readable and '
         'closes instantly with no pending animation', (tester) async {
       final spies = _Spies();
-      await tester.pumpWidget(
-        _host(_joystick(spies), disableAnimations: true),
-      );
+      await tester.pumpWidget(_host(_joystick(spies), disableAnimations: true));
 
       await _tapAvatar(tester); // reduced: open is instant
       expect(find.byKey(dialKey), findsOneWidget);
@@ -654,8 +681,11 @@ void main() {
       expect(_exposes(data, 'Menu'), isTrue);
       expect(_exposes(data, 'Save'), isTrue);
       expect(_exposes(data, 'Show less'), isTrue);
-      expect(_exposes(data, 'Story'), isFalse,
-          reason: 'unavailable directions are never advertised');
+      expect(
+        _exposes(data, 'Story'),
+        isFalse,
+        reason: 'unavailable directions are never advertised',
+      );
       expect(_exposes(data, 'Open full action menu'), isTrue);
 
       // The semantic activations drive the REAL delegates exactly once.
@@ -702,16 +732,23 @@ void main() {
       final story = nodeWith('Story (No active story)');
       expect(story, isNotNull);
       expect(story!.flagsCollection.isButton, isTrue);
-      expect(story.flagsCollection.isEnabled, Tristate.isFalse,
-          reason: 'disabled state is carried');
-      expect(story.flagsCollection.isEnabled, Tristate.isFalse,
-          reason: 'honestly disabled');
+      expect(
+        story.flagsCollection.isEnabled,
+        Tristate.isFalse,
+        reason: 'disabled state is carried',
+      );
+      expect(
+        story.flagsCollection.isEnabled,
+        Tristate.isFalse,
+        reason: 'honestly disabled',
+      );
       expect(menu.flagsCollection.isEnabled, Tristate.isTrue);
       semantics.dispose();
     });
 
-    testWidgets('the TRANSIENT dial adds NO duplicate screen-reader stops',
-        (tester) async {
+    testWidgets('the TRANSIENT dial adds NO duplicate screen-reader stops', (
+      tester,
+    ) async {
       final spies = _Spies();
       final semantics = tester.ensureSemantics();
       await tester.pumpWidget(_host(_joystick(spies)));
@@ -719,11 +756,14 @@ void main() {
       final gesture = await _press(tester);
       await _pumpMove(tester, gesture, const Offset(0, -26));
 
-      final labels = _allNodes(_ownerOf(tester).rootSemanticsNode!)
-          .map((n) => n.label)
-          .toSet();
-      expect(labels.contains('Menu'), isFalse,
-          reason: 'satellite labels exist only on the persistent dial');
+      final labels = _allNodes(
+        _ownerOf(tester).rootSemanticsNode!,
+      ).map((n) => n.label).toSet();
+      expect(
+        labels.contains('Menu'),
+        isFalse,
+        reason: 'satellite labels exist only on the persistent dial',
+      );
       await gesture.up();
       await tester.pumpAndSettle();
       semantics.dispose();

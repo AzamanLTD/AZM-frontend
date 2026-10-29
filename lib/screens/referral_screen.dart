@@ -17,7 +17,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 
-
 class ReferralScreen extends ConsumerStatefulWidget {
   const ReferralScreen({super.key});
 
@@ -41,15 +40,17 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
       final response = await apiClient.get('/users/profile');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final code = data["data"]?["influencerCode"]
-                  ?? data["user"]?["influencerCode"]
-                  ?? data["influencerCode"];
+        final code =
+            data["data"]?["influencerCode"] ??
+            data["user"]?["influencerCode"] ??
+            data["influencerCode"];
         if (mounted) {
           setState(() {
-          _referralCode = (code?.toString() ?? "").isNotEmpty
-            ? code.toString() : null;
-          _isLoading = false;
-        });
+            _referralCode = (code?.toString() ?? "").isNotEmpty
+                ? code.toString()
+                : null;
+            _isLoading = false;
+          });
         }
       } else {
         if (mounted) setState(() => _isLoading = false);
@@ -69,7 +70,14 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: Text('Referral Program', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: Text(
+          'Referral Program',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         iconTheme: IconThemeData(color: colors.textPrimary),
         elevation: 0,
       ),
@@ -85,18 +93,29 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [colors.accent.withValues(alpha: 0.15), colors.accentSecondary.withValues(alpha: 0.05)],
+                  colors: [
+                    colors.accent.withValues(alpha: 0.15),
+                    colors.accentSecondary.withValues(alpha: 0.05),
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: colors.accent.withValues(alpha: 0.3)),
               ),
               child: Column(
                 children: [
-                  Icon(Icons.card_giftcard_outlined, color: colors.accent, size: 40),
+                  Icon(
+                    Icons.card_giftcard_outlined,
+                    color: colors.accent,
+                    size: 40,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     'Earn 1% on Every Trade',
-                    style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -121,14 +140,22 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
               ),
               child: Column(
                 children: [
-                  Text('Your Referral Code', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+                  Text(
+                    'Your Referral Code',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                  ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.background,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: colors.accent.withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: colors.accent.withValues(alpha: 0.4),
+                      ),
                     ),
                     child: Text(
                       hasCode ? referralCode : 'No code yet',
@@ -146,17 +173,33 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: hasCode ? () {
-                            Clipboard.setData(ClipboardData(text: referralCode));
-                            HapticFeedback.mediumImpact();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: const Text('Code copied!'), backgroundColor: colors.success),
-                            );
-                          } : null,
-                          icon: Icon(Icons.copy_outlined, size: 16, color: colors.accent),
-                          label: Text('Copy', style: TextStyle(color: colors.accent)),
+                          onPressed: hasCode
+                              ? () {
+                                  Clipboard.setData(
+                                    ClipboardData(text: referralCode),
+                                  );
+                                  HapticFeedback.mediumImpact();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: const Text('Code copied!'),
+                                      backgroundColor: colors.success,
+                                    ),
+                                  );
+                                }
+                              : null,
+                          icon: Icon(
+                            Icons.copy_outlined,
+                            size: 16,
+                            color: colors.accent,
+                          ),
+                          label: Text(
+                            'Copy',
+                            style: TextStyle(color: colors.accent),
+                          ),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
+                            side: BorderSide(
+                              color: colors.accent.withValues(alpha: 0.4),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                         ),
@@ -164,19 +207,23 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: hasCode ? () {
-                            final shareText = hasCode
-                              ? "Join Azaman — Ghana's fastest P2P crypto app!\n"
-                                "Use my code: $referralCode\n"
-                                "https://azaman.app/invite/$referralCode"
-                              : "Join Azaman!";
-                            Share.share(shareText);
-                          } : null,
+                          onPressed: hasCode
+                              ? () {
+                                  final shareText = hasCode
+                                      ? "Join Azaman — Ghana's fastest P2P crypto app!\n"
+                                            "Use my code: $referralCode\n"
+                                            "https://azaman.app/invite/$referralCode"
+                                      : "Join Azaman!";
+                                  Share.share(shareText);
+                                }
+                              : null,
                           icon: const Icon(Icons.share_outlined, size: 16),
                           label: const Text('Share'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: colors.accent,
-                            foregroundColor: colors.isDark ? Colors.black : Colors.white,
+                            foregroundColor: colors.isDark
+                                ? Colors.black
+                                : Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                         ),
@@ -201,12 +248,31 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('How It Works', style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
+                  Text(
+                    'How It Works',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   _howItWorksStep(colors, '1', 'Share your code with friends'),
-                  _howItWorksStep(colors, '2', 'They sign up and enter your code'),
-                  _howItWorksStep(colors, '3', 'Every time they withdraw, you earn 1%'),
-                  _howItWorksStep(colors, '4', 'Earnings are credited instantly to your balance'),
+                  _howItWorksStep(
+                    colors,
+                    '2',
+                    'They sign up and enter your code',
+                  ),
+                  _howItWorksStep(
+                    colors,
+                    '3',
+                    'Every time they withdraw, you earn 1%',
+                  ),
+                  _howItWorksStep(
+                    colors,
+                    '4',
+                    'Earnings are credited instantly to your balance',
+                  ),
                 ],
               ),
             ),
@@ -222,17 +288,30 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
       child: Row(
         children: [
           Container(
-            width: 28, height: 28,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: colors.accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
-              child: Text(num, style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w800)),
+              child: Text(
+                num,
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(child: Text(text, style: TextStyle(color: colors.textSecondary, fontSize: 13))),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+          ),
         ],
       ),
     );

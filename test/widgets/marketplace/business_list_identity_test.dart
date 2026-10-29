@@ -35,9 +35,11 @@ import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/widgets/stories/viewer/story_viewer_screen.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart';
 
-http.Response _json(int status, Map<String, dynamic> body) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
+http.Response _json(int status, Map<String, dynamic> body) => http.Response(
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
 
 /// Fake backend for the panel's REAL contracts: /follows/* and the
 /// business stories route. Story payloads are injected per test.
@@ -47,8 +49,11 @@ class _RecordingClient extends ApiClient {
   bool bookmarked = false;
 
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     calls.add('GET $endpoint');
     // Canonical BusinessProfile.id drives the follow / show-less /
     // bookmark contracts; BIZ-1 remains a route parameter only.
@@ -69,7 +74,7 @@ class _RecordingClient extends ApiClient {
                   'businessName': 'Palm Court Kitchen',
                   'category': 'FOOD_BEVERAGE',
                   'savedAt': '2026-10-25T10:00:00.000Z',
-                }
+                },
               ]
             : [],
       });
@@ -81,10 +86,13 @@ class _RecordingClient extends ApiClient {
   }
 
   @override
-  Future<http.Response> post(String endpoint, Map<String, dynamic> body,
-      {Map<String, String>? headers,
-      bool requireAuth = true,
-      String? idempotencyKey}) async {
+  Future<http.Response> post(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+    String? idempotencyKey,
+  }) async {
     calls.add('POST $endpoint');
     if (endpoint == '/bookmarks') {
       bookmarked = true;
@@ -102,12 +110,19 @@ class _RecordingClient extends ApiClient {
   }
 
   @override
-  Future<http.Response> delete(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> delete(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     calls.add('DELETE $endpoint');
     if (endpoint == '/bookmarks/bp-1') {
       bookmarked = false;
-      return _json(200, {'success': true, 'state': 'NOT_BOOKMARKED', 'removed': true});
+      return _json(200, {
+        'success': true,
+        'state': 'NOT_BOOKMARKED',
+        'removed': true,
+      });
     }
     return _json(404, {'success': false});
   }
@@ -115,8 +130,11 @@ class _RecordingClient extends ApiClient {
 
 class _FailingStoriesClient extends _RecordingClient {
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     if (endpoint == '/marketplace/business/BIZ-1/stories') {
       throw Exception('network down');
     }
@@ -125,50 +143,47 @@ class _FailingStoriesClient extends _RecordingClient {
 }
 
 BusinessProduct _product(String name) => BusinessProduct(
-      id: name.toLowerCase().replaceAll(' ', '-'),
-      businessProfileId: 'bp-1',
-      name: name,
-      slug: name.toLowerCase().replaceAll(' ', '-'),
-      priceUsdc: 12,
-      totalRevenue: 0,
-      imageUrls: const [],
-      isActive: true,
-      totalOrders: 5,
-    );
+  id: name.toLowerCase().replaceAll(' ', '-'),
+  businessProfileId: 'bp-1',
+  name: name,
+  slug: name.toLowerCase().replaceAll(' ', '-'),
+  priceUsdc: 12,
+  totalRevenue: 0,
+  imageUrls: const [],
+  isActive: true,
+  totalOrders: 5,
+);
 
 BusinessProfile _business({
   String category = 'FOOD_BEVERAGE',
   List<String> offeredCategories = const [],
   bool isVerified = true,
   String? description = 'Jollof and grilled tilapia, Legon',
-}) =>
-    BusinessProfile(
-      offeredCategories: offeredCategories,
-      id: 'bp-1',
-      bizId: 'BIZ-1',
-      businessName: 'Palm Court Kitchen',
-      category: category,
-      description: description,
-      isVerified: isVerified,
-      isSuspended: false,
-      kybStatus: 'VERIFIED',
-      totalEscrows: 4,
-      completedEscrows: 4,
-      userId: 1,
-      totalVolume: 100,
-      averageRating: 4.7,
-      username: 'palm-court',
-      reviewCount: 12,
-      products: [_product('Jollof Plate')],
-    );
+}) => BusinessProfile(
+  offeredCategories: offeredCategories,
+  id: 'bp-1',
+  bizId: 'BIZ-1',
+  businessName: 'Palm Court Kitchen',
+  category: category,
+  description: description,
+  isVerified: isVerified,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 4,
+  completedEscrows: 4,
+  userId: 1,
+  totalVolume: 100,
+  averageRating: 4.7,
+  username: 'palm-court',
+  reviewCount: 12,
+  products: [_product('Jollof Plate')],
+);
 
-Map<String, dynamic> _storyJson({
-  required String id,
-  required bool expired,
-}) {
+Map<String, dynamic> _storyJson({required String id, required bool expired}) {
   final now = DateTime.now();
-  final expires = expired ? now.subtract(const Duration(hours: 1)) : now.add(
-      const Duration(hours: 20));
+  final expires = expired
+      ? now.subtract(const Duration(hours: 1))
+      : now.add(const Duration(hours: 20));
   return {
     'id': id,
     'userId': '7',
@@ -182,19 +197,19 @@ Map<String, dynamic> _storyJson({
 }
 
 GoRouter _router(Widget home) => GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (c, s) => Scaffold(body: home),
-        ),
-        GoRoute(
-          path: '/business/:bizId',
-          builder: (c, s) => Scaffold(
-              body: Text('biz-${s.pathParameters['bizId']}')),
-        ),
-      ],
-    );
+  initialLocation: '/',
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (c, s) => Scaffold(body: home),
+    ),
+    GoRoute(
+      path: '/business/:bizId',
+      builder: (c, s) =>
+          Scaffold(body: Text('biz-${s.pathParameters['bizId']}')),
+    ),
+  ],
+);
 
 Future<void> _pumpCard(
   WidgetTester tester,
@@ -224,7 +239,8 @@ Future<void> _pumpCard(
 /// tap belongs to the persistent liquid dial.
 Future<void> _holdForPanel(WidgetTester tester) async {
   final gesture = await tester.startGesture(
-      tester.getCenter(find.byKey(const ValueKey('business-avatar-BIZ-1'))));
+    tester.getCenter(find.byKey(const ValueKey('business-avatar-BIZ-1'))),
+  );
   await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
   await gesture.up();
   await tester.pumpAndSettle();
@@ -239,8 +255,11 @@ void main() {
       await _pumpCard(tester, _business(isVerified: true));
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.verified_rounded), findsNothing,
-          reason: 'verified lives on the business surfaces, never the list');
+      expect(
+        find.byIcon(Icons.verified_rounded),
+        findsNothing,
+        reason: 'verified lives on the business surfaces, never the list',
+      );
       expect(find.byIcon(Icons.verified_outlined), findsNothing);
     });
 
@@ -248,8 +267,11 @@ void main() {
         'subtitle; the grounded inventory line does', (tester) async {
       await _pumpCard(tester, _business());
 
-      expect(find.text('Jollof and grilled tilapia, Legon'), findsNothing,
-          reason: 'the description is not the list subtitle (G1)');
+      expect(
+        find.text('Jollof and grilled tilapia, Legon'),
+        findsNothing,
+        reason: 'the description is not the list subtitle (G1)',
+      );
       // Grounded fallback for FOOD_BEVERAGE with 1 product.
       expect(find.text('1 item on the menu'), findsOneWidget);
     });
@@ -263,8 +285,11 @@ void main() {
       expect(find.text('Open'), findsNothing);
       expect(find.text('Closed'), findsNothing);
       expect(find.text('Closing soon'), findsNothing);
-      expect(find.textContaining('km'), findsNothing,
-          reason: 'no distance is invented when none is supplied');
+      expect(
+        find.textContaining('km'),
+        findsNothing,
+        reason: 'no distance is invented when none is supplied',
+      );
     });
   });
 
@@ -280,13 +305,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(BusinessCategories.offeringIconFor('FOOD_BEVERAGE')),
-          findsOneWidget,
-          reason: 'the chip renders the CENTRAL map glyph');
       expect(
-          find.byIcon(BusinessCategories.offeringIconFor('HOSPITALITY')),
-          findsNWidgets(2),
-          reason: 'primary renders in badge + placeholder only');
+        find.byIcon(BusinessCategories.offeringIconFor('FOOD_BEVERAGE')),
+        findsOneWidget,
+        reason: 'the chip renders the CENTRAL map glyph',
+      );
+      expect(
+        find.byIcon(BusinessCategories.offeringIconFor('HOSPITALITY')),
+        findsNWidgets(2),
+        reason: 'primary renders in badge + placeholder only',
+      );
     });
 
     testWidgets('an unknown future wire value still renders the OTHER '
@@ -297,8 +325,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(BusinessCategories.offeringIconFor('NANO_TECH')),
-          findsOneWidget);
+      expect(
+        find.byIcon(BusinessCategories.offeringIconFor('NANO_TECH')),
+        findsOneWidget,
+      );
     });
   });
 
@@ -308,26 +338,31 @@ void main() {
       await _pumpCard(tester, _business());
       await tester.pumpAndSettle();
       expect(
-          find.byKey(const ValueKey('business-avatar-bookmark-BIZ-1')),
-          findsNothing,
-          reason: 'unsaved businesses show no indicator');
+        find.byKey(const ValueKey('business-avatar-bookmark-BIZ-1')),
+        findsNothing,
+        reason: 'unsaved businesses show no indicator',
+      );
 
       // Save through the REAL panel path, then reopen the card.
       await _holdForPanel(tester);
       await tester.pumpAndSettle();
-      await tester.tap(
-          find.byKey(const ValueKey('business-action-bookmark')));
+      await tester.tap(find.byKey(const ValueKey('business-action-bookmark')));
       await tester.pump(const Duration(milliseconds: 120));
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
 
-      final indicator =
-          find.byKey(const ValueKey('business-avatar-bookmark-BIZ-1'));
-      expect(indicator, findsOneWidget,
-          reason: 'the provider state drives the indicator');
+      final indicator = find.byKey(
+        const ValueKey('business-avatar-bookmark-BIZ-1'),
+      );
+      expect(
+        indicator,
+        findsOneWidget,
+        reason: 'the provider state drives the indicator',
+      );
 
-      final avatar =
-          tester.getRect(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      final avatar = tester.getRect(
+        find.byKey(const ValueKey('business-avatar-BIZ-1')),
+      );
       final ind = tester.getRect(indicator);
       // Top-right band of the profile picture.
       expect(ind.top <= avatar.top + 2, isTrue);
@@ -337,10 +372,12 @@ void main() {
 
       // It is NOT on the card body.
       expect(
-          find.descendant(
-              of: find.byKey(const ValueKey('business-card-body-BIZ-1')),
-              matching: indicator),
-          findsNothing);
+        find.descendant(
+          of: find.byKey(const ValueKey('business-card-body-BIZ-1')),
+          matching: indicator,
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('reopening the action panel shows the accurate saved '
@@ -349,11 +386,13 @@ void main() {
 
       await _holdForPanel(tester);
       await tester.pumpAndSettle();
-      await tester.tap(
-          find.byKey(const ValueKey('business-action-bookmark')));
+      await tester.tap(find.byKey(const ValueKey('business-action-bookmark')));
       await tester.pump(const Duration(milliseconds: 120));
-      expect(find.text('Remove bookmark'), findsOneWidget,
-          reason: 'the row reflects the just-toggled real state');
+      expect(
+        find.text('Remove bookmark'),
+        findsOneWidget,
+        reason: 'the row reflects the just-toggled real state',
+      );
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
 
@@ -381,13 +420,16 @@ void main() {
       await _holdForPanel(tester);
       await tester.pumpAndSettle();
 
-      expect(client.calls, contains(
-          'GET /marketplace/business/BIZ-1/stories'),
-          reason: 'the panel verified the REAL stories contract');
       expect(
-          find.byKey(const ValueKey('business-action-watch-story')),
-          findsOneWidget,
-          reason: 'exactly one live story → the row renders');
+        client.calls,
+        contains('GET /marketplace/business/BIZ-1/stories'),
+        reason: 'the panel verified the REAL stories contract',
+      );
+      expect(
+        find.byKey(const ValueKey('business-action-watch-story')),
+        findsOneWidget,
+        reason: 'exactly one live story → the row renders',
+      );
     });
 
     testWidgets('expired-only stories render NO Watch-story row (honest '
@@ -402,8 +444,10 @@ void main() {
       await _holdForPanel(tester);
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('business-action-watch-story')),
-          findsNothing);
+      expect(
+        find.byKey(const ValueKey('business-action-watch-story')),
+        findsNothing,
+      );
       expect(find.text('Watch story'), findsNothing);
     });
 
@@ -414,19 +458,28 @@ void main() {
       await _holdForPanel(tester);
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('business-action-watch-story')),
-          findsNothing);
+      expect(
+        find.byKey(const ValueKey('business-action-watch-story')),
+        findsNothing,
+      );
       // The rest of the panel still works.
-      expect(find.byKey(const ValueKey('business-action-follow')),
-          findsOneWidget);
-      expect(find.byKey(const ValueKey('business-action-bookmark')),
-          findsOneWidget);
-      expect(find.byKey(const ValueKey('business-action-review')),
-          findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('business-action-follow')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('business-action-bookmark')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('business-action-review')),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('no invented counts render anywhere in the panel',
-        (tester) async {
+    testWidgets('no invented counts render anywhere in the panel', (
+      tester,
+    ) async {
       final client = _RecordingClient()
         ..storiesBody = {
           'success': true,
@@ -457,19 +510,29 @@ void main() {
       await _holdForPanel(tester);
       await tester.pumpAndSettle();
       await tester.tap(
-          find.byKey(const ValueKey('business-action-watch-story')));
+        find.byKey(const ValueKey('business-action-watch-story')),
+      );
       // The viewer plays on a real timer — pumpAndSettle would advance
       // playback to completion and auto-dismiss the single-story group,
       // so pump fixed frames instead (route transition, then content).
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
 
-      expect(find.byType(StoryViewerScreen), findsOneWidget,
-          reason: 'the REAL story viewer route is on top');
-      expect(find.text('biz-BIZ-1'), findsNothing,
-          reason: 'the viewer opened — not the profile fallback');
-      expect(find.text('Fresh jollof tonight'), findsWidgets,
-          reason: 'the REAL fetched caption renders in the viewer');
+      expect(
+        find.byType(StoryViewerScreen),
+        findsOneWidget,
+        reason: 'the REAL story viewer route is on top',
+      );
+      expect(
+        find.text('biz-BIZ-1'),
+        findsNothing,
+        reason: 'the viewer opened — not the profile fallback',
+      );
+      expect(
+        find.text('Fresh jollof tonight'),
+        findsWidgets,
+        reason: 'the REAL fetched caption renders in the viewer',
+      );
     });
   });
 }

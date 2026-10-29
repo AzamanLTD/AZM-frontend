@@ -34,7 +34,6 @@ import 'package:azaman/services/rate_alert_service.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 import 'package:azaman/widgets/rate_alert_sheet.dart';
 
-
 // ── In-memory rate history (Phase G + Phase H review pass) ─────────────────
 //
 // Backend has no historical-rate endpoint today, so we keep a short rolling
@@ -55,8 +54,9 @@ class RateObservation {
   const RateObservation(this.at, this.rate);
 }
 
-final rateHistoryProvider =
-    StateProvider<List<RateObservation>>((ref) => const []);
+final rateHistoryProvider = StateProvider<List<RateObservation>>(
+  (ref) => const [],
+);
 
 // ── The section ────────────────────────────────────────────────────────────
 
@@ -292,10 +292,7 @@ class _CurrencyBadge extends StatelessWidget {
             shape: BoxShape.circle,
             color: colors.divider.withValues(alpha: 0.3),
           ),
-          child: Text(
-            flag,
-            style: const TextStyle(fontSize: 16),
-          ),
+          child: Text(flag, style: const TextStyle(fontSize: 16)),
         ),
         const SizedBox(width: 8),
         Text(
@@ -365,7 +362,6 @@ class _Sparkline extends StatelessWidget {
   }
 }
 
-
 // ── Phase Q12: Rate Alert Row (button + active alert chips) ────────────────
 
 class _RateAlertRow extends ConsumerWidget {
@@ -384,7 +380,8 @@ class _RateAlertRow extends ConsumerWidget {
       children: [
         // "Set Alert" button
         GestureDetector(
-          onTap: () => RateAlertSheet.show(context, ref, currentRate: currentRate),
+          onTap: () =>
+              RateAlertSheet.show(context, ref, currentRate: currentRate),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
             decoration: BoxDecoration(
@@ -395,8 +392,11 @@ class _RateAlertRow extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.notifications_outlined,
-                    size: 17, color: colors.textPrimary),
+                Icon(
+                  Icons.notifications_outlined,
+                  size: 17,
+                  color: colors.textPrimary,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Set Rate Alert',
@@ -410,7 +410,9 @@ class _RateAlertRow extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
@@ -437,14 +439,15 @@ class _RateAlertRow extends ConsumerWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              ...activeAlerts.take(3).map((alert) => _AlertChip(
-                    alert: alert,
-                    colors: colors,
-                  )),
+              ...activeAlerts
+                  .take(3)
+                  .map((alert) => _AlertChip(alert: alert, colors: colors)),
               if (activeAlerts.length > 3)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.card,
                     borderRadius: BorderRadius.circular(8),

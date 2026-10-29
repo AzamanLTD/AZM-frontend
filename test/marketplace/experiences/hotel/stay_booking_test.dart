@@ -16,19 +16,18 @@ HotelRoom _room(
   int? floor,
   bool available = true,
   double price = 80,
-}) =>
-    HotelRoom(
-      id: 'room-$number',
-      businessProfileId: 'hotel-1',
-      roomNumber: number,
-      roomType: 'DELUXE',
-      capacity: 2,
-      status: available ? 'AVAILABLE' : 'BOOKED',
-      basePriceUsdc: price,
-      amenities: const ['Wi-Fi'],
-      imageUrls: const [],
-      floor: floor,
-    );
+}) => HotelRoom(
+  id: 'room-$number',
+  businessProfileId: 'hotel-1',
+  roomNumber: number,
+  roomType: 'DELUXE',
+  capacity: 2,
+  status: available ? 'AVAILABLE' : 'BOOKED',
+  basePriceUsdc: price,
+  amenities: const ['Wi-Fi'],
+  imageUrls: const [],
+  floor: floor,
+);
 
 void main() {
   group('hotelBandsFromRooms', () {
@@ -77,8 +76,9 @@ void main() {
     });
   });
 
-  testWidgets('StayDateRibbon one-night extension fires exactly one tick',
-      (tester) async {
+  testWidgets('StayDateRibbon one-night extension fires exactly one tick', (
+    tester,
+  ) async {
     final ranges = <DateTimeRange>[];
     var thresholds = 0;
     await tester.pumpWidget(
@@ -110,8 +110,9 @@ void main() {
     expect(thresholds, 1);
   });
 
-  testWidgets('StayDateRibbon drag extends the stay and ticks per night',
-      (tester) async {
+  testWidgets('StayDateRibbon drag extends the stay and ticks per night', (
+    tester,
+  ) async {
     final ranges = <DateTimeRange>[];
     var thresholds = 0;
     await tester.pumpWidget(
@@ -184,8 +185,7 @@ void main() {
     expect(ranges.first.end, DateTime(2026, 9, 29));
   });
 
-  testWidgets('StayDateRibbon renders an externally-set range',
-      (tester) async {
+  testWidgets('StayDateRibbon renders an externally-set range', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -208,8 +208,9 @@ void main() {
     expect(find.text('Oct 30 → Nov 2 · 3 nights'), findsOneWidget);
   });
 
-  testWidgets('StaySummaryBar shows the live total and gates Reserve',
-      (tester) async {
+  testWidgets('StaySummaryBar shows the live total and gates Reserve', (
+    tester,
+  ) async {
     var reserved = 0;
     final room = _room('203', floor: 2, price: 850);
     await tester.pumpWidget(
@@ -218,7 +219,7 @@ void main() {
           body: const SizedBox(),
           bottomNavigationBar: StaySummaryBar(
             room: room,
-            checkIn: DateTime(2026, 9,25),
+            checkIn: DateTime(2026, 9, 25),
             checkOut: DateTime(2026, 9, 28),
             nights: 3,
             isBooking: false,
@@ -236,8 +237,7 @@ void main() {
     expect(reserved, 1);
   });
 
-  testWidgets('StaySummaryBar disables Reserve without a room',
-      (tester) async {
+  testWidgets('StaySummaryBar disables Reserve without a room', (tester) async {
     var reserved = 0;
     await tester.pumpWidget(
       MaterialApp(
@@ -262,8 +262,9 @@ void main() {
     expect(reserved, 0);
   });
 
-  testWidgets('BuildingCrossSection pages floors and gates room taps',
-      (tester) async {
+  testWidgets('BuildingCrossSection pages floors and gates room taps', (
+    tester,
+  ) async {
     HotelRoom? tapped;
     final floors = <int?>[];
     await tester.pumpWidget(
@@ -291,8 +292,7 @@ void main() {
     await tester.tap(find.text('101'));
     expect(tapped?.id, 'room-101');
 
-    await tester.drag(
-        find.byType(BuildingCrossSection), const Offset(0, -220));
+    await tester.drag(find.byType(BuildingCrossSection), const Offset(0, -220));
     await tester.pumpAndSettle();
 
     expect(floors, [2]);
@@ -306,8 +306,9 @@ void main() {
     expect(tapped?.id, 'room-202');
   });
 
-  testWidgets('HotelArrivalSheet plays the arrival and shows the stay facts',
-      (tester) async {
+  testWidgets('HotelArrivalSheet plays the arrival and shows the stay facts', (
+    tester,
+  ) async {
     final room = _room('203', floor: 2, price: 850);
     await tester.pumpWidget(
       ProviderScope(
@@ -344,8 +345,9 @@ void main() {
   // position sits inside the slot (below the YOUR STAYS label), and the two
   // positions differ. A regression to in-place materialisation fails all
   // three legs: the mid-flight rect would already be inside the slot.
-  testWidgets('key card flies from the doorway into the YOUR STAYS slot',
-      (tester) async {
+  testWidgets('key card flies from the doorway into the YOUR STAYS slot', (
+    tester,
+  ) async {
     final room = _room('203', floor: 2, price: 850);
     await tester.pumpWidget(
       ProviderScope(
@@ -382,9 +384,13 @@ void main() {
 
     // Still airborne: up at the doorway, above the slot destination and
     // above the slot label entirely — not at rest inside the slot.
-    expect(midRect.top, lessThan(labelRect.top),
-        reason: 'mid-flight the card must still be up at the doorway, '
-            'above the stays slot label');
+    expect(
+      midRect.top,
+      lessThan(labelRect.top),
+      reason:
+          'mid-flight the card must still be up at the doorway, '
+          'above the stays slot label',
+    );
 
     await tester.pumpAndSettle();
 
@@ -392,12 +398,18 @@ void main() {
     final settledLabelRect = tester.getRect(slotLabel);
 
     // The card actually moved during the animation.
-    expect(finalRect.top, greaterThan(midRect.top),
-        reason: 'the card must travel downward during the card animation');
+    expect(
+      finalRect.top,
+      greaterThan(midRect.top),
+      reason: 'the card must travel downward during the card animation',
+    );
     // The final position is INSIDE the YOUR STAYS destination: below the
     // slot label, resting in the slot.
-    expect(finalRect.top, greaterThan(settledLabelRect.bottom),
-        reason: 'the settled card must rest inside the stays slot');
+    expect(
+      finalRect.top,
+      greaterThan(settledLabelRect.bottom),
+      reason: 'the settled card must rest inside the stays slot',
+    );
   });
 
   // Corrigendum §3A regression: a rendered cell's visual position and the
@@ -407,65 +419,67 @@ void main() {
   // drift apart. Mutating `_cellPitch` away from the rendered sequence fails
   // the reveal leg; removing the gap or the margin fails the pitch leg.
   testWidgets(
-      'rendered cell pitch stays aligned with hit-test and reveal geometry',
-      (tester) async {
-    final ranges = <DateTimeRange>[];
-    final firstDay = DateTime(2026, 9, 25);
+    'rendered cell pitch stays aligned with hit-test and reveal geometry',
+    (tester) async {
+      final ranges = <DateTimeRange>[];
+      final firstDay = DateTime(2026, 9, 25);
 
-    Widget hosted(DateTime? checkIn, DateTime? checkOut) => MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 400,
-              child: StayDateRibbon(
-                firstDay: firstDay,
-                checkIn: checkIn,
-                checkOut: checkOut,
-                nightlyRate: 100,
-                onRangeChanged: ranges.add,
-                colors: _colors,
-              ),
+      Widget hosted(DateTime? checkIn, DateTime? checkOut) => MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 400,
+            child: StayDateRibbon(
+              firstDay: firstDay,
+              checkIn: checkIn,
+              checkOut: checkOut,
+              nightlyRate: 100,
+              onRangeChanged: ranges.add,
+              colors: _colors,
             ),
           ),
-        );
+        ),
+      );
 
-    await tester.pumpWidget(hosted(null, null));
+      await tester.pumpWidget(hosted(null, null));
 
-    // 1. Measure the rendered pitch from two on-screen cells. The visible
-    //    cell is 56dp wide; the tokenized gap must make the rendered pitch
-    //    strictly wider than the cell itself.
-    final cell0 = tester.getRect(find.text('25'));
-    final cell3 = tester.getRect(find.text('28'));
-    final pitch = (cell3.center.dx - cell0.center.dx) / 3;
-    expect(pitch, greaterThan(56));
+      // 1. Measure the rendered pitch from two on-screen cells. The visible
+      //    cell is 56dp wide; the tokenized gap must make the rendered pitch
+      //    strictly wider than the cell itself.
+      final cell0 = tester.getRect(find.text('25'));
+      final cell3 = tester.getRect(find.text('28'));
+      final pitch = (cell3.center.dx - cell0.center.dx) / 3;
+      expect(pitch, greaterThan(56));
 
-    // 2. Hit-test alignment: tapping the visual centre of a rendered cell
-    //    selects exactly that day, across several cells — not just cell 0.
-    for (final entry in {'0': '25', '3': '28', '5': '30'}.entries) {
-      final index = int.parse(entry.key);
-      final rect = tester.getRect(find.text(entry.value));
+      // 2. Hit-test alignment: tapping the visual centre of a rendered cell
+      //    selects exactly that day, across several cells — not just cell 0.
+      for (final entry in {'0': '25', '3': '28', '5': '30'}.entries) {
+        final index = int.parse(entry.key);
+        final rect = tester.getRect(find.text(entry.value));
+        ranges.clear();
+        await tester.tapAt(rect.center);
+        await tester.pump();
+        expect(ranges, hasLength(1));
+        expect(ranges.first.start, ribbonDateAt(firstDay, index));
+        expect(ranges.first.end, ribbonDateAt(firstDay, index + 1));
+      }
+
+      // 3. Reveal alignment: an externally-set range far ahead (day 40 = Nov 4)
+      //    scrolls the ribbon; the revealed cell's visual centre must still
+      //    hit-test to its own day. This is the leg that breaks if reveal math
+      //    uses a different pitch than the rendered cells.
       ranges.clear();
-      await tester.tapAt(rect.center);
+      await tester.pumpWidget(
+        hosted(DateTime(2026, 11, 4), DateTime(2026, 11, 7)),
+      );
+      await tester.pump();
+
+      final revealed = tester.getRect(find.text('4')); // Nov 4's day cell
+      expect(revealed.right, lessThanOrEqualTo(400));
+      await tester.tapAt(revealed.center);
       await tester.pump();
       expect(ranges, hasLength(1));
-      expect(ranges.first.start, ribbonDateAt(firstDay, index));
-      expect(
-          ranges.first.end, ribbonDateAt(firstDay, index + 1));
-    }
-
-    // 3. Reveal alignment: an externally-set range far ahead (day 40 = Nov 4)
-    //    scrolls the ribbon; the revealed cell's visual centre must still
-    //    hit-test to its own day. This is the leg that breaks if reveal math
-    //    uses a different pitch than the rendered cells.
-    ranges.clear();
-    await tester.pumpWidget(hosted(DateTime(2026, 11, 4), DateTime(2026, 11, 7)));
-    await tester.pump();
-
-    final revealed = tester.getRect(find.text('4')); // Nov 4's day cell
-    expect(revealed.right, lessThanOrEqualTo(400));
-    await tester.tapAt(revealed.center);
-    await tester.pump();
-    expect(ranges, hasLength(1));
-    expect(ranges.first.start, DateTime(2026, 11, 4));
-    expect(ranges.first.end, DateTime(2026, 11, 5));
-  });
+      expect(ranges.first.start, DateTime(2026, 11, 4));
+      expect(ranges.first.end, DateTime(2026, 11, 5));
+    },
+  );
 }

@@ -52,27 +52,34 @@ class EscrowService {
     // fingerprint; otherwise begin a GENUINELY NEW instance — the old
     // record is never silently replaced, it stays recoverable.
     final ref = _flowRefs.putIfAbsent(
-        operationType, () => FinancialOperationRef());
+      operationType,
+      () => FinancialOperationRef(),
+    );
     final account = await _client.operationAccount(failClosed: true);
     final retryId = ref.operationId;
     DurableOperation op;
     if (retryId != null) {
       try {
-        op = await DurableOperationRegistry.retry(retryId,
-            account: account, request: request);
+        op = await DurableOperationRegistry.retry(
+          retryId,
+          account: account,
+          request: request,
+        );
       } on DurableOperationException {
         op = await DurableOperationRegistry.begin(
-            account: account,
-            type: operationType,
-            endpoint: endpoint,
-            request: request);
-      }
-    } else {
-      op = await DurableOperationRegistry.begin(
           account: account,
           type: operationType,
           endpoint: endpoint,
-          request: request);
+          request: request,
+        );
+      }
+    } else {
+      op = await DurableOperationRegistry.begin(
+        account: account,
+        type: operationType,
+        endpoint: endpoint,
+        request: request,
+      );
     }
     ref.operationId = op.operationId;
     try {
@@ -89,7 +96,8 @@ class EscrowService {
       // commit; a retired instance would let the user's retry mint a NEW
       // key and execute the fund/dispute/release a SECOND time.
       final code = e.statusCode;
-      final definitivePreEconomic4xx = code >= 400 &&
+      final definitivePreEconomic4xx =
+          code >= 400 &&
           code < 500 &&
           code != 401 &&
           code != 409 &&
@@ -105,7 +113,8 @@ class EscrowService {
       // fund/dispute may have committed — so the instance is RETAINED
       // unless the status is a definitive pre-economic 4xx.
       final code = e.statusCode;
-      final definitivePreEconomic4xx = code >= 400 &&
+      final definitivePreEconomic4xx =
+          code >= 400 &&
           code < 500 &&
           code != 401 &&
           code != 409 &&
@@ -142,29 +151,30 @@ class EscrowService {
   /// r42: funding is a money-moving mutation — one Idempotency-Key per
   /// logical fund action, reused across deliberate retries.
   Future<SmartEscrow> fundEscrow(String escrowId) => _withDurableKey(
-      operationType: 'escrow.fund.$escrowId',
-      endpoint: '/escrow/fund',
-      request: {'escrowId': escrowId},
-      call: (key) => _mutate('/escrow/fund', {'escrowId': escrowId},
-          idempotencyKey: key));
+    operationType: 'escrow.fund.$escrowId',
+    endpoint: '/escrow/fund',
+    request: {'escrowId': escrowId},
+    call: (key) =>
+        _mutate('/escrow/fund', {'escrowId': escrowId}, idempotencyKey: key),
+  );
 
   /// POST /escrow/satisfy {escrowId} — returns whether the escrow is now fully
   /// settled (both parties satisfied) plus the latest escrow snapshot.
-  Future<({bool settled, SmartEscrow escrow})> markSatisfied(
-          String escrowId) =>
+  Future<({bool settled, SmartEscrow escrow})> markSatisfied(String escrowId) =>
       _withDurableKey(
-          operationType: 'escrow.satisfy.$escrowId',
-          endpoint: '/escrow/satisfy',
-          request: {'escrowId': escrowId},
-          call: (key) async {
-        // r42: satisfaction commits the release — same key-lifecycle rule.
-        final res = await _client.post('/escrow/satisfy',
-            {'escrowId': escrowId},
-            idempotencyKey: key);
-        final body = jsonDecode(res.body);
-        final escrow = _unwrap(body, res.statusCode);
-        return (settled: body['settled'] == true, escrow: escrow);
-      });
+        operationType: 'escrow.satisfy.$escrowId',
+        endpoint: '/escrow/satisfy',
+        request: {'escrowId': escrowId},
+        call: (key) async {
+          // r42: satisfaction commits the release — same key-lifecycle rule.
+          final res = await _client.post('/escrow/satisfy', {
+            'escrowId': escrowId,
+          }, idempotencyKey: key);
+          final body = jsonDecode(res.body);
+          final escrow = _unwrap(body, res.statusCode);
+          return (settled: body['settled'] == true, escrow: escrow);
+        },
+      );
 
   /// POST /escrow/dispute {escrowId, reason, evidenceUrls?}
   Future<SmartEscrow> raiseDispute({
@@ -183,12 +193,13 @@ class EscrowService {
       if (evidenceUrls.isNotEmpty) 'evidenceUrls': evidenceUrls,
     };
     return _withDurableKey(
-        operationType: 'escrow.dispute.$escrowId',
-        endpoint: '/escrow/dispute',
-        request: request,
-        call: (key) {
-      return _mutate('/escrow/dispute', request, idempotencyKey: key);
-    });
+      operationType: 'escrow.dispute.$escrowId',
+      endpoint: '/escrow/dispute',
+      request: request,
+      call: (key) {
+        return _mutate('/escrow/dispute', request, idempotencyKey: key);
+      },
+    );
   }
 
   /// POST /escrow/update-terms {escrowId, deliveryTerms}
@@ -199,25 +210,28 @@ class EscrowService {
       });
 
   /// POST /escrow/cancel {escrowId}
-  Future<void> cancelEscrow(String escrowId) =>
-      _withDurableKey(
-          operationType: 'escrow.cancel.$escrowId',
-          endpoint: '/escrow/cancel',
-          request: {'escrowId': escrowId},
-          call: (key) async {
-        // r42: cancellation releases funds — same key-lifecycle rule.
-        final res = await _client.post(
-            '/escrow/cancel', {'escrowId': escrowId},
-            idempotencyKey: key);
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          _throwFrom(res.body, res.statusCode, 'Cancel failed');
-        }
-      });
+  Future<void> cancelEscrow(String escrowId) => _withDurableKey(
+    operationType: 'escrow.cancel.$escrowId',
+    endpoint: '/escrow/cancel',
+    request: {'escrowId': escrowId},
+    call: (key) async {
+      // r42: cancellation releases funds — same key-lifecycle rule.
+      final res = await _client.post('/escrow/cancel', {
+        'escrowId': escrowId,
+      }, idempotencyKey: key);
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        _throwFrom(res.body, res.statusCode, 'Cancel failed');
+      }
+    },
+  );
 
   // ── Internal ───────────────────────────────────────────────────────────────
 
-  Future<SmartEscrow> _mutate(String path, Map<String, dynamic> body,
-      {String? idempotencyKey}) async {
+  Future<SmartEscrow> _mutate(
+    String path,
+    Map<String, dynamic> body, {
+    String? idempotencyKey,
+  }) async {
     // r42: [idempotencyKey] is set for money-moving mutations on routes
     // the backend protects with the shared idempotency authority; purely
     // editorial routes (update-terms) stay keyless.

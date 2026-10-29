@@ -50,9 +50,10 @@ class _ScaleTapState extends State<ScaleTap>
       vsync: this,
       duration: widget.duration ?? MotionTokens.fast,
     );
-    _scale = Tween<double>(begin: 1.0, end: widget.scaleDown).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: widget.scaleDown,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
   }
 
   @override
@@ -93,10 +94,7 @@ class _ScaleTapState extends State<ScaleTap>
       child: AnimatedBuilder(
         animation: _scale,
         builder: (context, child) {
-          return Transform.scale(
-            scale: _scale.value,
-            child: child,
-          );
+          return Transform.scale(scale: _scale.value, child: child);
         },
         child: widget.child,
       ),

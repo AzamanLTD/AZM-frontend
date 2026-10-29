@@ -8,47 +8,47 @@ import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
 import 'package:azaman/widgets/seat_selector/bus_seat_selector.dart';
 
 TransitTrip _trip() => TransitTrip(
-      id: 'trip-1',
-      businessProfileId: 'business-1',
-      vehicleId: 'vehicle-1',
-      routeName: 'Accra - Kumasi',
-      origin: 'Accra',
-      destination: 'Kumasi',
-      departureAt: DateTime(2026, 9, 1, 8),
-      arrivalAt: DateTime(2026, 9, 1, 11),
-      fareUsdc: 18,
-      availableSeats: 2,
-      status: TripStatus.scheduled,
-      vehicleType: 'Coach',
-    );
+  id: 'trip-1',
+  businessProfileId: 'business-1',
+  vehicleId: 'vehicle-1',
+  routeName: 'Accra - Kumasi',
+  origin: 'Accra',
+  destination: 'Kumasi',
+  departureAt: DateTime(2026, 9, 1, 8),
+  arrivalAt: DateTime(2026, 9, 1, 11),
+  fareUsdc: 18,
+  availableSeats: 2,
+  status: TripStatus.scheduled,
+  vehicleType: 'Coach',
+);
 
 SeatAvailability _availability() => const SeatAvailability(
-      tripId: 'trip-1',
-      seats: [
-        TransitSeat(
-          seatId: 'A1',
-          row: 1,
-          col: 1,
-          type: SeatType.window,
-          status: SeatStatus.available,
-          tier: SeatTier.standard,
-          fare: 18,
-        ),
-        TransitSeat(
-          seatId: 'B1',
-          row: 1,
-          col: 2,
-          type: SeatType.aisle,
-          status: SeatStatus.occupied,
-          tier: SeatTier.standard,
-          fare: 18,
-        ),
-      ],
-      availableCount: 1,
-      totalSeats: 2,
-      tripStatus: 'SCHEDULED',
-      fareUsdc: 18,
-    );
+  tripId: 'trip-1',
+  seats: [
+    TransitSeat(
+      seatId: 'A1',
+      row: 1,
+      col: 1,
+      type: SeatType.window,
+      status: SeatStatus.available,
+      tier: SeatTier.standard,
+      fare: 18,
+    ),
+    TransitSeat(
+      seatId: 'B1',
+      row: 1,
+      col: 2,
+      type: SeatType.aisle,
+      status: SeatStatus.occupied,
+      tier: SeatTier.standard,
+      fare: 18,
+    ),
+  ],
+  availableCount: 1,
+  totalSeats: 2,
+  tripStatus: 'SCHEDULED',
+  fareUsdc: 18,
+);
 
 Future<void> _pump(
   WidgetTester tester, {
@@ -71,13 +71,15 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('uses the canonical seat selector and bridges selection state',
-      (tester) async {
+  testWidgets('uses the canonical seat selector and bridges selection state', (
+    tester,
+  ) async {
     final container = ProviderContainer(
       overrides: [
         tripDetailProvider('trip-1').overrideWith((ref) async => _trip()),
-        seatAvailabilityProvider('trip-1')
-            .overrideWith((ref) async => _availability()),
+        seatAvailabilityProvider(
+          'trip-1',
+        ).overrideWith((ref) async => _availability()),
       ],
     );
     addTearDown(container.dispose);
@@ -96,13 +98,15 @@ void main() {
     expect(container.read(selectedSeatsProvider), contains('A1'));
   });
 
-  testWidgets('clears stale selection when a fresh trip screen mounts',
-      (tester) async {
+  testWidgets('clears stale selection when a fresh trip screen mounts', (
+    tester,
+  ) async {
     final container = ProviderContainer(
       overrides: [
         tripDetailProvider('trip-1').overrideWith((ref) async => _trip()),
-        seatAvailabilityProvider('trip-1')
-            .overrideWith((ref) async => _availability()),
+        seatAvailabilityProvider(
+          'trip-1',
+        ).overrideWith((ref) async => _availability()),
       ],
     );
     addTearDown(container.dispose);
@@ -114,8 +118,9 @@ void main() {
     expect(container.read(selectedSeatsProvider), isEmpty);
   });
 
-  testWidgets('renders the screen retry state when seat availability fails',
-      (tester) async {
+  testWidgets('renders the screen retry state when seat availability fails', (
+    tester,
+  ) async {
     final container = ProviderContainer(
       overrides: [
         seatAvailabilityProvider('trip-error').overrideWith(

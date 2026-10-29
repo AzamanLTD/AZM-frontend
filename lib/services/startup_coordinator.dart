@@ -5,10 +5,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:azaman/services/push_notification_service.dart';
 
 typedef FirebaseInitializer = Future<bool> Function();
-typedef PushInitializer = Future<bool> Function({
-  required void Function(Map<String, dynamic> data) onNotificationTap,
-  required void Function(RemoteMessage message) onForegroundMessage,
-});
+typedef PushInitializer =
+    Future<bool> Function({
+      required void Function(Map<String, dynamic> data) onNotificationTap,
+      required void Function(RemoteMessage message) onForegroundMessage,
+    });
 
 /// Coordinates non-critical application hydration after the first frame.
 ///
@@ -21,17 +22,17 @@ class StartupCoordinator {
   StartupCoordinator._({
     FirebaseInitializer? firebaseInitializer,
     PushInitializer? pushInitializer,
-  })  : _firebaseInitializer = firebaseInitializer ?? _initializeFirebase,
-        _pushInitializer = pushInitializer ?? _initializePush;
+  }) : _firebaseInitializer = firebaseInitializer ?? _initializeFirebase,
+       _pushInitializer = pushInitializer ?? _initializePush;
 
   @visibleForTesting
   StartupCoordinator.test({
     FirebaseInitializer? firebaseInitializer,
     PushInitializer? pushInitializer,
   }) : this._(
-          firebaseInitializer: firebaseInitializer,
-          pushInitializer: pushInitializer,
-        );
+         firebaseInitializer: firebaseInitializer,
+         pushInitializer: pushInitializer,
+       );
 
   static final StartupCoordinator instance = StartupCoordinator._();
 

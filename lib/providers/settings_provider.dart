@@ -14,7 +14,13 @@ class HQShortcut {
   bool enabled;
   int order;
 
-  HQShortcut({required this.id, required this.label, required this.icon, this.enabled = true, this.order = 0});
+  HQShortcut({
+    required this.id,
+    required this.label,
+    required this.icon,
+    this.enabled = true,
+    this.order = 0,
+  });
 }
 
 class SettingsProvider with ChangeNotifier {
@@ -33,15 +39,55 @@ class SettingsProvider with ChangeNotifier {
   bool _vendorTagEnabled = false;
 
   final List<HQShortcut> _shortcuts = [
-    HQShortcut(id: 'deposit', label: 'Deposit', icon: Icons.account_balance_wallet_outlined, order: 0),
-    HQShortcut(id: 'withdraw', label: 'Withdraw', icon: Icons.send_outlined, order: 1),
+    HQShortcut(
+      id: 'deposit',
+      label: 'Deposit',
+      icon: Icons.account_balance_wallet_outlined,
+      order: 0,
+    ),
+    HQShortcut(
+      id: 'withdraw',
+      label: 'Withdraw',
+      icon: Icons.send_outlined,
+      order: 1,
+    ),
     HQShortcut(id: 'history', label: 'History', icon: Icons.history, order: 2),
-    HQShortcut(id: 'stats', label: 'Stats', icon: Icons.analytics_outlined, order: 3),
-    HQShortcut(id: 'p2p', label: 'P2P Trading', icon: Icons.swap_horiz, order: 4),
-    HQShortcut(id: 'savings', label: 'Savings', icon: Icons.savings_outlined, order: 5),
-    HQShortcut(id: 'support', label: 'Support', icon: Icons.headset_mic_outlined, order: 6),
-    HQShortcut(id: 'ads', label: 'Ad Manager', icon: Icons.campaign_outlined, order: 7),
-    HQShortcut(id: 'settings', label: 'Settings', icon: Icons.settings_outlined, order: 8),
+    HQShortcut(
+      id: 'stats',
+      label: 'Stats',
+      icon: Icons.analytics_outlined,
+      order: 3,
+    ),
+    HQShortcut(
+      id: 'p2p',
+      label: 'P2P Trading',
+      icon: Icons.swap_horiz,
+      order: 4,
+    ),
+    HQShortcut(
+      id: 'savings',
+      label: 'Savings',
+      icon: Icons.savings_outlined,
+      order: 5,
+    ),
+    HQShortcut(
+      id: 'support',
+      label: 'Support',
+      icon: Icons.headset_mic_outlined,
+      order: 6,
+    ),
+    HQShortcut(
+      id: 'ads',
+      label: 'Ad Manager',
+      icon: Icons.campaign_outlined,
+      order: 7,
+    ),
+    HQShortcut(
+      id: 'settings',
+      label: 'Settings',
+      icon: Icons.settings_outlined,
+      order: 8,
+    ),
   ];
 
   bool _isLoaded = false;
@@ -52,7 +98,8 @@ class SettingsProvider with ChangeNotifier {
   bool get vendorTagEnabled => _vendorTagEnabled;
   String get appLanguage => _appLanguage;
   List<HQShortcut> get shortcuts => _shortcuts;
-  List<HQShortcut> get enabledShortcuts => _shortcuts.where((s) => s.enabled).toList();
+  List<HQShortcut> get enabledShortcuts =>
+      _shortcuts.where((s) => s.enabled).toList();
   bool get isLoaded => _isLoaded;
 
   SettingsProvider() {
@@ -69,7 +116,8 @@ class SettingsProvider with ChangeNotifier {
     _vendorTagEnabled = prefs.getBool('vendor_tag_enabled') ?? false;
 
     for (var shortcut in _shortcuts) {
-      shortcut.enabled = prefs.getBool('shortcut_${shortcut.id}') ?? shortcut.enabled;
+      shortcut.enabled =
+          prefs.getBool('shortcut_${shortcut.id}') ?? shortcut.enabled;
     }
 
     _isLoaded = true;
@@ -140,11 +188,9 @@ class SettingsProvider with ChangeNotifier {
 
   Future<void> _syncShortcutsToBackend() async {
     try {
-      final shortcuts = _shortcuts.map((s) => {
-        'id': s.id,
-        'enabled': s.enabled,
-        'order': s.order,
-      }).toList();
+      final shortcuts = _shortcuts
+          .map((s) => {'id': s.id, 'enabled': s.enabled, 'order': s.order})
+          .toList();
 
       await apiClient.put('/users/preferences/shortcuts', {
         'shortcuts': shortcuts,
@@ -181,7 +227,8 @@ class SettingsProvider with ChangeNotifier {
           await prefs.setBool('chat_notifications', _chatNotifications);
           changed = true;
         }
-        if (preferences['language'] is String && (preferences['language'] as String).isNotEmpty) {
+        if (preferences['language'] is String &&
+            (preferences['language'] as String).isNotEmpty) {
           _appLanguage = preferences['language'];
           await prefs.setString('app_language', _appLanguage);
           changed = true;

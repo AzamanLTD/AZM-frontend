@@ -20,10 +20,13 @@ import 'package:azaman/widgets/az_avatar.dart';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-final closeFriendsProvider = StateNotifierProvider.autoDispose
-    <CloseFriendsNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  return CloseFriendsNotifier()..load();
-});
+final closeFriendsProvider =
+    StateNotifierProvider.autoDispose<
+      CloseFriendsNotifier,
+      AsyncValue<List<Map<String, dynamic>>>
+    >((ref) {
+      return CloseFriendsNotifier()..load();
+    });
 
 class CloseFriendsNotifier
     extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
@@ -56,7 +59,9 @@ class CloseFriendsNotifier
     try {
       await apiClient.delete('/stories/close-friends/$friendId');
       state.whenData((list) {
-        state = AsyncValue.data(list.where((f) => f['id'] != friendId).toList());
+        state = AsyncValue.data(
+          list.where((f) => f['id'] != friendId).toList(),
+        );
       });
     } catch (_) {}
   }
@@ -113,7 +118,10 @@ class _CloseFriendsScreenState extends ConsumerState<CloseFriendsScreen> {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: Text('Close Friends', style: TextStyle(color: colors.textPrimary)),
+        title: Text(
+          'Close Friends',
+          style: TextStyle(color: colors.textPrimary),
+        ),
         leading: IconButton(
           icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
@@ -130,14 +138,21 @@ class _CloseFriendsScreenState extends ConsumerState<CloseFriendsScreen> {
               decoration: InputDecoration(
                 hintText: 'Search for friends to add...',
                 hintStyle: TextStyle(color: colors.textTertiary),
-                prefixIcon: Icon(HugeIconsSolid.search01, color: colors.textTertiary, size: 20),
+                prefixIcon: Icon(
+                  HugeIconsSolid.search01,
+                  color: colors.textTertiary,
+                  size: 20,
+                ),
                 filled: true,
                 fillColor: colors.softSurface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               style: TextStyle(color: colors.textPrimary),
             ),
@@ -148,9 +163,15 @@ class _CloseFriendsScreenState extends ConsumerState<CloseFriendsScreen> {
             child: _searchCtrl.text.trim().isNotEmpty
                 ? _buildSearchResults(colors)
                 : friends.when(
-                    loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
-                    error: (_, __) => Center(child: Text('Failed to load',
-                        style: TextStyle(color: colors.textSecondary))),
+                    loading: () => Center(
+                      child: CircularProgressIndicator(color: colors.accent),
+                    ),
+                    error: (_, __) => Center(
+                      child: Text(
+                        'Failed to load',
+                        style: TextStyle(color: colors.textSecondary),
+                      ),
+                    ),
                     data: (list) => _buildFriendsList(list, colors),
                   ),
           ),
@@ -159,19 +180,31 @@ class _CloseFriendsScreenState extends ConsumerState<CloseFriendsScreen> {
     );
   }
 
-  Widget _buildFriendsList(List<Map<String, dynamic>> friends, AzamanColors colors) {
+  Widget _buildFriendsList(
+    List<Map<String, dynamic>> friends,
+    AzamanColors colors,
+  ) {
     if (friends.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(HugeIconsSolid.userGroup, size: 48, color: colors.textTertiary),
+            Icon(
+              HugeIconsSolid.userGroup,
+              size: 48,
+              color: colors.textTertiary,
+            ),
             const SizedBox(height: 12),
-            Text('No close friends yet', style: TextStyle(color: colors.textSecondary, fontSize: 16)),
+            Text(
+              'No close friends yet',
+              style: TextStyle(color: colors.textSecondary, fontSize: 16),
+            ),
             const SizedBox(height: 4),
-            Text('Search above to add friends to your private story audience',
-                style: TextStyle(color: colors.textTertiary, fontSize: 13),
-                textAlign: TextAlign.center),
+            Text(
+              'Search above to add friends to your private story audience',
+              style: TextStyle(color: colors.textTertiary, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
           ],
         ).animate().fadeIn(),
       );
@@ -186,7 +219,9 @@ class _CloseFriendsScreenState extends ConsumerState<CloseFriendsScreen> {
           name: friend['username']?.toString() ?? 'Unknown',
           avatarUrl: friend['profilePictureUrl']?.toString(),
           colors: colors,
-          onRemove: () => ref.read(closeFriendsProvider.notifier).removeFriend(friend['id']),
+          onRemove: () => ref
+              .read(closeFriendsProvider.notifier)
+              .removeFriend(friend['id']),
         ).animate().fadeIn(delay: 50.ms * i);
       },
     );
@@ -197,7 +232,9 @@ class _CloseFriendsScreenState extends ConsumerState<CloseFriendsScreen> {
       return Center(child: CircularProgressIndicator(color: colors.accent));
     }
     if (_searchResults.isEmpty) {
-      return Center(child: Text('No results', style: TextStyle(color: colors.textTertiary)));
+      return Center(
+        child: Text('No results', style: TextStyle(color: colors.textTertiary)),
+      );
     }
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -227,18 +264,23 @@ class _FriendTile extends StatelessWidget {
   final VoidCallback onRemove;
 
   const _FriendTile({
-    required this.name, this.avatarUrl, required this.colors, required this.onRemove,
+    required this.name,
+    this.avatarUrl,
+    required this.colors,
+    required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: AzAvatar(
-        circular: true,
-        imageUrl: avatarUrl,
-        name: name,
+      leading: AzAvatar(circular: true, imageUrl: avatarUrl, name: name),
+      title: Text(
+        name,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      title: Text(name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w500)),
       trailing: IconButton(
         icon: Icon(HugeIconsSolid.cancel01, color: colors.danger, size: 22),
         onPressed: onRemove,
@@ -254,25 +296,37 @@ class _SearchResultTile extends StatelessWidget {
   final VoidCallback onAdd;
 
   const _SearchResultTile({
-    required this.name, this.avatarUrl, required this.colors, required this.onAdd,
+    required this.name,
+    this.avatarUrl,
+    required this.colors,
+    required this.onAdd,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: AzAvatar(
-        circular: true,
-        imageUrl: avatarUrl,
-        name: name,
+      leading: AzAvatar(circular: true, imageUrl: avatarUrl, name: name),
+      title: Text(
+        name,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontWeight: FontWeight.w500,
+        ),
       ),
-      title: Text(name, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w500)),
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: colors.accent,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Text('Add', style: TextStyle(color: colors.surface, fontSize: 13, fontWeight: FontWeight.w600)),
+        child: Text(
+          'Add',
+          style: TextStyle(
+            color: colors.surface,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
       onTap: onAdd,
     );

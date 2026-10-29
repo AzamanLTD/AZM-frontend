@@ -39,7 +39,10 @@ class StayStepIndicator extends ConsumerWidget {
             ),
           AnimatedContainer(
             duration: duration,
-            padding: const EdgeInsets.symmetric(horizontal: AzSpace.sm, vertical: AzSpace.xxs),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AzSpace.sm,
+              vertical: AzSpace.xxs,
+            ),
             decoration: BoxDecoration(
               color: i == idx ? colors.accentSurface : Colors.transparent,
               borderRadius: BorderRadius.circular(999),

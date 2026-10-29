@@ -36,7 +36,9 @@ class _FakeStorefrontService extends StorefrontService {
   final Map<String, dynamic> productsPayload;
 
   @override
-  Future<StorefrontRenderResponse?> renderStorefront(String businessProfileId) async {
+  Future<StorefrontRenderResponse?> renderStorefront(
+    String businessProfileId,
+  ) async {
     return StorefrontRenderResponse.fromJson(<String, dynamic>{
       'business': {'name': 'Test Shop', 'category': 'RETAIL'},
       'theme': <String, dynamic>{},
@@ -45,35 +47,43 @@ class _FakeStorefrontService extends StorefrontService {
   }
 
   @override
-  Future<Map<String, dynamic>> getStorefrontProducts(String businessProfileId) async {
+  Future<Map<String, dynamic>> getStorefrontProducts(
+    String businessProfileId,
+  ) async {
     return productsPayload;
   }
 }
 
 Map<String, dynamic> _product({String? priceGhs}) => {
-      'id': 'p1',
-      'name': 'Jollof Plate',
-      'description': 'Fresh and hot',
-      'priceUsdc': 4.2,
-      'priceGhs': priceGhs,
-      'imageUrls': <String>[],
-      'tags': <String>[],
-      'preparationMins': 15,
-    };
+  'id': 'p1',
+  'name': 'Jollof Plate',
+  'description': 'Fresh and hot',
+  'priceUsdc': 4.2,
+  'priceGhs': priceGhs,
+  'imageUrls': <String>[],
+  'tags': <String>[],
+  'preparationMins': 15,
+};
 
 Map<String, dynamic> _productsPayload(Map<String, dynamic> product) => {
-      'business': {'id': 'bp-1', 'name': 'Test Shop', 'category': 'RETAIL'},
-      'hasStorefront': true,
-      'products': [product],
-    };
+  'business': {'id': 'bp-1', 'name': 'Test Shop', 'category': 'RETAIL'},
+  'hasStorefront': true,
+  'products': [product],
+};
 
-Future<void> _pumpStorefront(WidgetTester tester, Map<String, dynamic> product) async {
+Future<void> _pumpStorefront(
+  WidgetTester tester,
+  Map<String, dynamic> product,
+) async {
   final fake = _FakeStorefrontService(_productsPayload(product));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [storefrontServiceProvider.overrideWithValue(fake)],
       child: const MaterialApp(
-        home: StorefrontScreen(businessProfileId: 'bp-1', businessName: 'Test Shop'),
+        home: StorefrontScreen(
+          businessProfileId: 'bp-1',
+          businessName: 'Test Shop',
+        ),
       ),
     ),
   );
@@ -84,7 +94,10 @@ Future<void> _pumpStorefront(WidgetTester tester, Map<String, dynamic> product) 
   // screen's scroll view until it is built and visible.
   for (var i = 0; i < 10; i++) {
     if (tester.any(find.text('Jollof Plate'))) break;
-    await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -300));
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, -300),
+    );
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
@@ -96,11 +109,19 @@ void main() {
     (tester) async {
       await _pumpStorefront(tester, _product(priceGhs: '25.50'));
 
-      expect(find.text('GH₵25.50'), findsOneWidget, reason: 'exact server 2dp string verbatim');
+      expect(
+        find.text('GH₵25.50'),
+        findsOneWidget,
+        reason: 'exact server 2dp string verbatim',
+      );
       expect(find.text('Price unavailable'), findsNothing);
       // The payable priceUsdc (4.2) never renders as the listing price.
       expect(find.text('\$4.20'), findsNothing);
-      expect(find.text('4.20 USDC'), findsNothing, reason: 'browse listing is GHS-only');
+      expect(
+        find.text('4.20 USDC'),
+        findsNothing,
+        reason: 'browse listing is GHS-only',
+      );
     },
   );
 
@@ -138,7 +159,11 @@ void main() {
       // Payable rail truth: explicit denomination everywhere the order
       // amount appears — never a bare '$'. The exact payable string renders
       // on the header row AND the Total value.
-      expect(find.text('4.20 USDC'), findsNWidgets(2), reason: 'header + total payable amounts');
+      expect(
+        find.text('4.20 USDC'),
+        findsNWidgets(2),
+        reason: 'header + total payable amounts',
+      );
       expect(find.textContaining('\$'), findsNothing);
       // The GHS listing price: a SEPARATE labelled fact, never an
       // equivalence or conversion of the payable amount.
@@ -168,7 +193,11 @@ void main() {
       await tester.pump();
 
       expect(find.textContaining('4.20 USDC'), findsWidgets);
-      expect(find.textContaining('GH₵'), findsNothing, reason: 'absent listing price is never invented');
+      expect(
+        find.textContaining('GH₵'),
+        findsNothing,
+        reason: 'absent listing price is never invented',
+      );
       expect(find.textContaining('\$'), findsNothing);
     },
   );
@@ -179,7 +208,9 @@ void main() {
     (tester) async {
       final showCart = ValueNotifier<bool>(false);
       addTearDown(showCart.dispose);
-      final fake = _FakeStorefrontService(_productsPayload(_product(priceGhs: '25.50')));
+      final fake = _FakeStorefrontService(
+        _productsPayload(_product(priceGhs: '25.50')),
+      );
 
       // ONE scope across the whole journey: the cart the Add button fills
       // is the same cart the checkout confirmation reads.
@@ -191,7 +222,10 @@ void main() {
             builder: (context, cart, _) => MaterialApp(
               home: cart
                   ? const CartScreen()
-                  : const StorefrontScreen(businessProfileId: 'bp-1', businessName: 'Test Shop'),
+                  : const StorefrontScreen(
+                      businessProfileId: 'bp-1',
+                      businessName: 'Test Shop',
+                    ),
             ),
           ),
         ),
@@ -203,7 +237,10 @@ void main() {
       // The journey starts at the listing: authoritative GHS, not USDC.
       for (var i = 0; i < 10; i++) {
         if (tester.any(find.text('GH₵25.50'))) break;
-        await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -300));
+        await tester.drag(
+          find.byType(CustomScrollView).first,
+          const Offset(0, -300),
+        );
         await tester.pump(const Duration(milliseconds: 100));
       }
       expect(find.text('GH₵25.50'), findsOneWidget);
@@ -214,7 +251,10 @@ void main() {
         final rect = tester.getRect(find.text('Add'));
         final size = tester.view.physicalSize / tester.view.devicePixelRatio;
         if (rect.bottom < size.height && rect.top > 0) break;
-        await tester.drag(find.byType(CustomScrollView).first, const Offset(0, -200));
+        await tester.drag(
+          find.byType(CustomScrollView).first,
+          const Offset(0, -200),
+        );
         await tester.pump(const Duration(milliseconds: 100));
       }
       await tester.tap(find.text('Add'));

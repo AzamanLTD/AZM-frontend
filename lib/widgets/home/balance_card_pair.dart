@@ -18,12 +18,14 @@
 //     influence this footprint: both are laid out inside tight, identical
 //     constraints, so the card's layout size never changes across a flip and
 //     nothing around it reflows.
-//   • ONE outer material and edge language — a single HolographicSurface
-//     (the app's graphite/hologram family: base + ceiling light + metallic
-//     perimeter via PremiumCardRim, radius 20) that both faces live inside.
-//     The back face is the SAME family, slightly more subdued (lower
-//     intensity) — never a second inset card, a second border or a second
-//     rim. Internal dividers separate information rows only.
+//   • ONE PAINTED CARD, ONE EDGE. Both faces are drawn by the SAME card code
+//     (AzamanCardSurface/AzamanCardPainter in azaman_card_face.dart): one
+//     silhouette, one gradient construction, one contour rhythm, one chip, one
+//     hairline edge. The back face is the same card one tone deeper with the
+//     contour work muted: never a second inset card, border or rim. Internal
+//     dividers separate information rows only.
+//   • ONE BRAND IDENTITY. The applied BalanceCardVariant paints BOTH faces, so
+//     the reverse always belongs to the card on the front.
 //   • ONE 3D flip — the whole frame (material, rim, content) rotates
 //     together; nothing stays stationary while the card turns. The back is
 //     pre-rotated so its text is upright. A deliberate tap (< 8px travel,
@@ -46,15 +48,16 @@
 // and its `data.valuation` mapper activates the moment the field does.
 // =============================================================================
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
 import 'package:azaman/providers/theme_provider.dart' show AzamanColors;
+import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:azaman/theme/motion_tokens.dart';
-import 'package:azaman/widgets/holographic_surface.dart';
-import 'package:azaman/widgets/premium_card_rim.dart';
+import 'package:azaman/widgets/home/azaman_card_face.dart';
 import 'package:azaman/widgets/home/balance_card_breakdown.dart';
 import 'package:azaman/widgets/home/balance_card_fx.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -65,6 +68,11 @@ import 'package:azaman/utils/azaman_haptics.dart';
 /// 165px reduction) — the flip must not change it, and neither may any data
 /// state: the frame's footprint is identical whether the balance, the rate
 /// or both are loading, unavailable or populated.
+/// The press-and-hold threshold for opening the wallet card selector. The
+/// platform's own long-press constant, so the card feels like the rest of the
+/// OS rather than an invented timing.
+const Duration kCardHoldDuration = Duration(milliseconds: 480);
+
 class BalanceCardGeometry {
   const BalanceCardGeometry._();
 
@@ -73,16 +81,49 @@ class BalanceCardGeometry {
 }
 
 /// The paired physical card: shared frame, one flip, two faces.
+/// The on-card colour ladder for a variant: the theme's own semantics with
+/// every ink value replaced by the applied card's tones, so the faces stay
+/// palette-agnostic and read a normal [AzamanColors].
+///
+/// Public because the public tour draws the same card (the wallet slide's
+/// hero) and must obey the same ladder as Home — otherwise the tour's card
+/// would be a look-alike with off-palette ink.
+AzamanColors balanceCardInk(BalanceCardVariant variant, AzamanColors colors) {
+  final p = kCardPalettes[variant]!;
+  return colors.copyWith(
+    card: p.mid,
+    textPrimary: p.inkPrimary,
+    textSecondary: p.inkSecondary,
+    textTertiary: p.inkTertiary,
+    divider: p.inkDivider,
+    accent: p.inkAccent,
+    accentSecondary: p.inkAccent,
+    accentSurface: p.inkAccent.withValues(alpha: 0.16),
+    glow: p.inkAccent,
+    border: p.inkDivider,
+  );
+}
+
 class BalanceCardPair extends StatefulWidget {
   const BalanceCardPair({
     super.key,
     required this.valuation,
     required this.colors,
+    this.variant = BalanceCardVariant.blue,
     this.flipGuard,
+    this.onCardLongPress,
   });
 
   final BalanceCardValuation valuation;
   final AzamanColors colors;
+
+  /// The applied balance-card identity. Both faces are painted from this one
+  /// variant, so the reverse always belongs to the card the user chose.
+  final BalanceCardVariant variant;
+
+  /// A deliberate press-and-hold on the card asks the host to open the wallet
+  /// card selector. Null keeps the card long-press-free (tests, sheets).
+  final VoidCallback? onCardLongPress;
 
   /// The shared nested-gesture guard. When the HOST mounts card-level
   /// affordances (the Home deck's large-text overlay), it owns the guard
@@ -109,6 +150,12 @@ class _BalanceCardPairState extends State<BalanceCardPair>
       widget.flipGuard ?? ValueNotifier<bool>(false);
   bool _ownsGuard = false;
 
+  /// PRESS-AND-HOLD. A timer armed on pointer-down and disarmed on travel or
+  /// release. When it fires the selector opens and the SAME gesture is
+  /// consumed: the release must not also flip the card underneath.
+  Timer? _holdTimer;
+  bool _holdFired = false;
+
   @override
   void initState() {
     super.initState();
@@ -119,6 +166,7 @@ class _BalanceCardPairState extends State<BalanceCardPair>
 
   @override
   void dispose() {
+    _holdTimer?.cancel();
     if (_ownsGuard) _flipGuard.dispose();
     _ctrl.dispose();
     super.dispose();
@@ -138,6 +186,21 @@ class _BalanceCardPairState extends State<BalanceCardPair>
       _ctrl.forward();
     }
     setState(() => _isBack = !_isBack);
+  }
+
+  /// The colour ladder the faces draw with. Kept as a field accessor so the
+  /// faces below read exactly as before.
+  AzamanColors get _ink => balanceCardInk(widget.variant, widget.colors);
+
+  /// Fired by the hold timer: the card lifts away from the wallet and the
+  /// host opens the selector. The gesture is consumed so the release cannot
+  /// flip the card.
+  void _onHold() {
+    _holdTimer = null;
+    if (!mounted) return;
+    _holdFired = true;
+    AzamanHaptics.threshold();
+    widget.onCardLongPress?.call();
   }
 
   @override
@@ -177,17 +240,42 @@ class _BalanceCardPairState extends State<BalanceCardPair>
           // A deeper affordance Listener fires before this one, so the mark
           // is already set if the press began on a nested control.
           downOnAffordance = _flipGuard.value;
+          _holdFired = false;
+          _holdTimer?.cancel();
+          if (widget.onCardLongPress != null && !(downOnAffordance ?? false)) {
+            _holdTimer = Timer(kCardHoldDuration, _onHold);
+          }
+        },
+        onPointerMove: (e) {
+          // Any real travel is a drag (the back face's scroll, a sheet) and
+          // never a hold; disarming on the way keeps the two gestures
+          // mutually exclusive without a competing recogniser.
+          if (downAt != null && (e.position - downAt!).distance >= 8) {
+            _holdTimer?.cancel();
+            _holdTimer = null;
+          }
         },
         onPointerCancel: (e) {
+          _holdTimer?.cancel();
+          _holdTimer = null;
           downAt = null;
           downOnAffordance = null;
           _flipGuard.value = false;
         },
         onPointerUp: (e) {
+          _holdTimer?.cancel();
+          _holdTimer = null;
           final guarded = downOnAffordance ?? false;
+          final held = _holdFired;
           downOnAffordance = null;
           _flipGuard.value = false;
-          if (guarded) return;
+          if (guarded || held) {
+            // The hold already did its job: the release is consumed, it must
+            // NOT flip the card as well.
+            downAt = null;
+            _holdFired = false;
+            return;
+          }
           if (downAt == null) return;
           final dist = (e.position - downAt!).distance;
           downAt = null;
@@ -216,56 +304,40 @@ class _BalanceCardPairState extends State<BalanceCardPair>
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // ── THE ONE MATERIAL ────────────────────────────────
-                      // Both faces live inside the same HolographicSurface —
-                      // the app's graphite/hologram family. The back is the
-                      // same family, subdued (lower intensity): a matte
-                      // reverse side, never a second card.
+                      // ── THE ONE PAINTED CARD ────────────────────────
+                      // Both faces are drawn from the SAME code: one painter,
+                      // one geometry contract, one palette family. The reverse
+                      // is the same card one tone deeper, never a second card
+                      // and never a second rim.
                       if (showBack)
                         Transform(
                           alignment: Alignment.center,
                           transform: Matrix4.identity()..rotateX(math.pi),
-                          child: HolographicSurface(
+                          child: AzamanCardSurface(
                             key: const ValueKey('balance-pair-back-surface'),
-                            base: widget.colors.card,
-                            tint: widget.colors.textSecondary,
-                            intensity: 0.6,
-                            sheenPeak: 0.10,
-                            showSheen: false,
-                            showReactiveParticles: false,
-                            interactive: false,
-                            borderRadius: BalanceCardGeometry.radius,
+                            variant: widget.variant,
+                            isBack: true,
+                            radius: BalanceCardGeometry.radius,
+                            childInsetOverride: EdgeInsets.zero,
                             child: BalanceCardBreakdown(
                               valuation: widget.valuation,
-                              colors: widget.colors,
+                              colors: _ink,
                               flipGuard: _flipGuard,
                               onFlipBackRequested: _toggle,
                             ),
                           ),
                         )
                       else
-                        HolographicSurface(
+                        AzamanCardSurface(
                           key: const ValueKey('balance-pair-front-surface'),
-                          base: widget.colors.card,
-                          tint: widget.colors.textSecondary,
-                          showSheen: false,
-                          showReactiveParticles: false,
-                          interactive: false,
-                          borderRadius: BalanceCardGeometry.radius,
+                          variant: widget.variant,
+                          radius: BalanceCardGeometry.radius,
                           child: BalanceCardFx(
                             valuation: widget.valuation,
-                            colors: widget.colors,
+                            colors: _ink,
                             flipGuard: _flipGuard,
                           ),
                         ),
-                      // ── THE ONE EDGE ─────────────────────────────────────
-                      // The rim is INSIDE the flip transform: the perimeter
-                      // travels with the card, exactly like the live card.
-                      const Positioned.fill(
-                        child: PremiumCardRim(
-                          radius: BalanceCardGeometry.radius,
-                        ),
-                      ),
                     ],
                   ),
                 ),

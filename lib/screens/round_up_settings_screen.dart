@@ -23,7 +23,8 @@ class RoundUpSettingsScreen extends ConsumerStatefulWidget {
   const RoundUpSettingsScreen({super.key});
 
   @override
-  ConsumerState<RoundUpSettingsScreen> createState() => _RoundUpSettingsScreenState();
+  ConsumerState<RoundUpSettingsScreen> createState() =>
+      _RoundUpSettingsScreenState();
 }
 
 class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
@@ -50,10 +51,26 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
 
   void _generateExamples() {
     _examples = [
-      RoundUpExample(description: 'Sent to friend', amount: 4.30, roundUp: RoundUpService.computeRoundUp(4.30)),
-      RoundUpExample(description: 'Susu contribution', amount: 12.50, roundUp: RoundUpService.computeRoundUp(12.50)),
-      RoundUpExample(description: 'Business payment', amount: 8.75, roundUp: RoundUpService.computeRoundUp(8.75)),
-      RoundUpExample(description: 'Transfer', amount: 15.20, roundUp: RoundUpService.computeRoundUp(15.20)),
+      RoundUpExample(
+        description: 'Sent to friend',
+        amount: 4.30,
+        roundUp: RoundUpService.computeRoundUp(4.30),
+      ),
+      RoundUpExample(
+        description: 'Susu contribution',
+        amount: 12.50,
+        roundUp: RoundUpService.computeRoundUp(12.50),
+      ),
+      RoundUpExample(
+        description: 'Business payment',
+        amount: 8.75,
+        roundUp: RoundUpService.computeRoundUp(8.75),
+      ),
+      RoundUpExample(
+        description: 'Transfer',
+        amount: 15.20,
+        roundUp: RoundUpService.computeRoundUp(15.20),
+      ),
     ];
   }
 
@@ -67,12 +84,20 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
         backgroundColor: colors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01, size: 20, color: colors.textPrimary),
+          icon: Icon(
+            HugeIconsSolid.arrowLeft01,
+            size: 20,
+            color: colors.textPrimary,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Round-Up Savings',
-          style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: _isLoading
@@ -121,13 +146,17 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: colors.accent.withValues(alpha: 0.2), width: 0.5),
+        border: Border.all(
+          color: colors.accent.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
       ),
       child: Column(
         children: [
           // Piggy bank icon
           Container(
-            width: 72, height: 72,
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
               color: colors.accent.withValues(alpha: 0.15),
               shape: BoxShape.circle,
@@ -141,18 +170,30 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
           const SizedBox(height: 16),
           Text(
             'Total Round-Up Savings',
-            style: TextStyle(color: colors.textTertiary, fontSize: 13, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             '\$${_totalSaved.toStringAsFixed(2)}',
-            style: TextStyle(color: colors.textPrimary, fontSize: 36, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 8),
           if (_enabled)
             Text(
               '🟢 Active — saving on every transaction',
-              style: TextStyle(color: colors.success, fontSize: 12, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: colors.success,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             )
           else
             Text(
@@ -175,9 +216,12 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: _enabled ? colors.accent.withValues(alpha: 0.12) : colors.softSurface,
+              color: _enabled
+                  ? colors.accent.withValues(alpha: 0.12)
+                  : colors.softSurface,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -193,7 +237,11 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
               children: [
                 Text(
                   'Round-Up Savings',
-                  style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -222,12 +270,14 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
       const _HowStep(
         icon: HugeIconsSolid.moneySendSquare,
         title: 'Spend as usual',
-        description: 'Send money, pay for things, contribute to Susu — all normally.',
+        description:
+            'Send money, pay for things, contribute to Susu — all normally.',
       ),
       const _HowStep(
         icon: HugeIconsSolid.exchange01,
         title: 'We round up',
-        description: 'Each transaction rounds up to the nearest dollar automatically.',
+        description:
+            'Each transaction rounds up to the nearest dollar automatically.',
       ),
       const _HowStep(
         icon: HugeIconsSolid.piggyBank,
@@ -248,7 +298,11 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
         children: [
           Text(
             'How it works',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 16),
           ...steps.asMap().entries.map((entry) {
@@ -259,7 +313,8 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
                 Row(
                   children: [
                     Container(
-                      width: 36, height: 36,
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
                         color: colors.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
@@ -273,12 +328,19 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
                         children: [
                           Text(
                             step.title,
-                            style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             step.description,
-                            style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                            style: TextStyle(
+                              color: colors.textTertiary,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -289,7 +351,8 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(left: 17, top: 8, bottom: 8),
                     child: Container(
-                      width: 1.5, height: 16,
+                      width: 1.5,
+                      height: 16,
                       color: colors.divider,
                     ),
                   ),
@@ -314,35 +377,56 @@ class _RoundUpSettingsScreenState extends ConsumerState<RoundUpSettingsScreen> {
         children: [
           Text(
             'Example Round-Ups',
-            style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 16),
-          ..._examples.map((ex) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                Icon(HugeIconsSolid.exchange01, size: 16, color: colors.textTertiary),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    ex.description,
-                    style: TextStyle(color: colors.textSecondary, fontSize: 13),
+          ..._examples.map(
+            (ex) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    HugeIconsSolid.exchange01,
+                    size: 16,
+                    color: colors.textTertiary,
                   ),
-                ),
-                Text(
-                  '\$${ex.amount.toStringAsFixed(2)}',
-                  style: TextStyle(color: colors.textTertiary, fontSize: 13),
-                ),
-                const SizedBox(width: 8),
-                Icon(HugeIconsSolid.arrowRight01, size: 14, color: colors.textTertiary),
-                const SizedBox(width: 8),
-                Text(
-                  '+\$${ex.roundUp.toStringAsFixed(2)}',
-                  style: TextStyle(color: colors.success, fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      ex.description,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '\$${ex.amount.toStringAsFixed(2)}',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 13),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    HugeIconsSolid.arrowRight01,
+                    size: 14,
+                    color: colors.textTertiary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '+\$${ex.roundUp.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: colors.success,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )),
+          ),
         ],
       ),
     ).animate().fadeIn(delay: 300.ms, duration: 300.ms);
@@ -356,7 +440,11 @@ class RoundUpExample {
   final double amount;
   final double roundUp;
 
-  const RoundUpExample({required this.description, required this.amount, required this.roundUp});
+  const RoundUpExample({
+    required this.description,
+    required this.amount,
+    required this.roundUp,
+  });
 }
 
 class _HowStep {
@@ -364,5 +452,9 @@ class _HowStep {
   final String title;
   final String description;
 
-  const _HowStep({required this.icon, required this.title, required this.description});
+  const _HowStep({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
 }

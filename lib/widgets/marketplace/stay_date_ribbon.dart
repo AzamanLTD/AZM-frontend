@@ -98,11 +98,27 @@ class _StayDateRibbonState extends State<StayDateRibbon> {
   static const double _cellPitch = _cellWidth + AzSpace.xs;
 
   static const List<String> _weekdays = [
-    'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
   ];
   static const List<String> _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   late final ScrollController _scroll;
@@ -192,28 +208,36 @@ class _StayDateRibbonState extends State<StayDateRibbon> {
     final cell = _cellAt(details.localPosition.dx);
     AzamanHaptics.selection();
     if (widget.checkIn == null || widget.checkOut != null) {
-      widget.onRangeChanged(DateTimeRange(
-        start: ribbonDateAt(widget.firstDay, cell),
-        end: ribbonDateAt(widget.firstDay, cell + 1),
-      ));
+      widget.onRangeChanged(
+        DateTimeRange(
+          start: ribbonDateAt(widget.firstDay, cell),
+          end: ribbonDateAt(widget.firstDay, cell + 1),
+        ),
+      );
       return;
     }
     final startIdx = _indexForDay(widget.checkIn!);
     if (cell > startIdx) {
-      widget.onRangeChanged(DateTimeRange(
-        start: widget.checkIn!,
-        end: ribbonDateAt(widget.firstDay, cell + 1),
-      ));
+      widget.onRangeChanged(
+        DateTimeRange(
+          start: widget.checkIn!,
+          end: ribbonDateAt(widget.firstDay, cell + 1),
+        ),
+      );
     } else if (cell < startIdx) {
-      widget.onRangeChanged(DateTimeRange(
-        start: ribbonDateAt(widget.firstDay, cell),
-        end: ribbonDateAt(widget.firstDay, cell + 1),
-      ));
+      widget.onRangeChanged(
+        DateTimeRange(
+          start: ribbonDateAt(widget.firstDay, cell),
+          end: ribbonDateAt(widget.firstDay, cell + 1),
+        ),
+      );
     } else {
-      widget.onRangeChanged(DateTimeRange(
-        start: widget.checkIn!,
-        end: ribbonDateAt(widget.firstDay, startIdx + 1),
-      ));
+      widget.onRangeChanged(
+        DateTimeRange(
+          start: widget.checkIn!,
+          end: ribbonDateAt(widget.firstDay, startIdx + 1),
+        ),
+      );
     }
   }
 
@@ -221,17 +245,20 @@ class _StayDateRibbonState extends State<StayDateRibbon> {
     final start = _dragStart;
     if (start == null) return;
     final end = _dragEnd ?? start + 1;
-    widget.onRangeChanged(DateTimeRange(
-      start: ribbonDateAt(widget.firstDay, start),
-      end: ribbonDateAt(widget.firstDay, end < start ? start + 1 : end),
-    ));
+    widget.onRangeChanged(
+      DateTimeRange(
+        start: ribbonDateAt(widget.firstDay, start),
+        end: ribbonDateAt(widget.firstDay, end < start ? start + 1 : end),
+      ),
+    );
   }
 
   void _reveal(int index) {
     if (!_scroll.hasClients) return;
     final max = _scroll.position.maxScrollExtent;
-    final target =
-        (index * _cellPitch - _cellPitch * 2).clamp(0.0, max).toDouble();
+    final target = (index * _cellPitch - _cellPitch * 2)
+        .clamp(0.0, max)
+        .toDouble();
     _scroll.jumpTo(target);
   }
 
@@ -241,22 +268,25 @@ class _StayDateRibbonState extends State<StayDateRibbon> {
     final day = ribbonDateAt(widget.firstDay, index);
     final startIdx = _startIndex;
     final endIdx = _endIndex;
-    final inSpan = startIdx != null &&
+    final inSpan =
+        startIdx != null &&
         endIdx != null &&
         index >= startIdx &&
         index < endIdx;
     final isCheckIn = index == startIdx;
-    final weekend = day.weekday == DateTime.friday ||
-        day.weekday == DateTime.saturday;
-    final rate =
-        weekend ? (widget.weekendRate ?? widget.nightlyRate) : widget.nightlyRate;
+    final weekend =
+        day.weekday == DateTime.friday || day.weekday == DateTime.saturday;
+    final rate = weekend
+        ? (widget.weekendRate ?? widget.nightlyRate)
+        : widget.nightlyRate;
     final maxRate = widget.nightlyRate != null && widget.weekendRate != null
         ? (widget.nightlyRate! > widget.weekendRate!
-            ? widget.nightlyRate!
-            : widget.weekendRate!)
+              ? widget.nightlyRate!
+              : widget.weekendRate!)
         : (widget.nightlyRate ?? 0);
-    final barHeight =
-        rate == null || maxRate <= 0 ? 4.0 : 6.0 + 22.0 * (rate / maxRate);
+    final barHeight = rate == null || maxRate <= 0
+        ? 4.0
+        : 6.0 + 22.0 * (rate / maxRate);
     final radius = BorderRadius.horizontal(
       left: Radius.circular(isCheckIn ? AzRadius.md : 0),
       right: Radius.circular(index == (endIdx ?? 0) - 1 ? AzRadius.md : 0),
@@ -276,9 +306,7 @@ class _StayDateRibbonState extends State<StayDateRibbon> {
           Text(
             day.day == 1 ? _months[day.month - 1] : _weekdays[day.weekday - 1],
             style: AzText.caption.copyWith(
-              color: inSpan
-                  ? widget.colors.accent
-                  : widget.colors.textTertiary,
+              color: inSpan ? widget.colors.accent : widget.colors.textTertiary,
             ),
           ),
           const SizedBox(height: AzSpace.xs),
@@ -310,12 +338,13 @@ class _StayDateRibbonState extends State<StayDateRibbon> {
   Widget build(BuildContext context) {
     final startIdx = _startIndex;
     final endIdx = _endIndex;
-    final nights =
-        startIdx == null || endIdx == null ? 0 : ribbonNights(startIdx, endIdx);
+    final nights = startIdx == null || endIdx == null
+        ? 0
+        : ribbonNights(startIdx, endIdx);
     final summary = startIdx == null || endIdx == null
         ? 'Drag to choose your dates'
         : '${_formatDay(widget.checkIn!)} → ${_formatDay(widget.checkOut!)} · '
-            '$nights night${nights == 1 ? '' : 's'}';
+              '$nights night${nights == 1 ? '' : 's'}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

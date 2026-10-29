@@ -64,9 +64,7 @@ class _QuietFocusRegion {
 /// for it, so a focal swipe that is still crossing the recognizer's
 /// slop can never flash the pills raised before its own focus claim.
 class QuietDepthController extends ChangeNotifier {
-  QuietDepthController({
-    this.idleDelay = const Duration(milliseconds: 2700),
-  });
+  QuietDepthController({this.idleDelay = const Duration(milliseconds: 2700)});
 
   /// How long the controls stay raised after entry / a wake before they
   /// settle into the quiet state.
@@ -88,8 +86,7 @@ class QuietDepthController extends ChangeNotifier {
       _focusRegions.isNotEmpty ? QuietDepthState.recessed : _depth;
 
   /// The id of the most recently entered focal region, if any.
-  String? get focusId =>
-      _focusRegions.isEmpty ? null : _focusRegions.keys.last;
+  String? get focusId => _focusRegions.isEmpty ? null : _focusRegions.keys.last;
 
   /// True while the user is inside at least one designated focal region.
   bool get isFocused => _focusRegions.isNotEmpty;
@@ -266,8 +263,7 @@ class QuietDepthFocalSurface extends StatefulWidget {
   final Widget child;
 
   @override
-  State<QuietDepthFocalSurface> createState() =>
-      _QuietDepthFocalSurfaceState();
+  State<QuietDepthFocalSurface> createState() => _QuietDepthFocalSurfaceState();
 }
 
 class _QuietDepthFocalSurfaceState extends State<QuietDepthFocalSurface> {
@@ -296,15 +292,11 @@ class _QuietDepthFocalSurfaceState extends State<QuietDepthFocalSurface> {
 
 /// The [InheritedWidget] that exposes the controller down the subtree.
 class _QuietDepthInherited extends InheritedNotifier<QuietDepthController> {
-  const _QuietDepthInherited({
-    required super.notifier,
-    required super.child,
-  });
+  const _QuietDepthInherited({required super.notifier, required super.child});
 
-  static QuietDepthController? maybeOf(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<_QuietDepthInherited>()
-          ?.notifier;
+  static QuietDepthController? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_QuietDepthInherited>()
+      ?.notifier;
 }
 
 /// Wraps a region subtree with the quiet-depth system. One scope per
@@ -326,8 +318,7 @@ class QuietDepthScope extends StatefulWidget {
   static QuietDepthController? maybeOf(BuildContext context) =>
       _QuietDepthInherited.maybeOf(context);
 
-  static QuietDepthController of(BuildContext context) =>
-      maybeOf(context)!;
+  static QuietDepthController of(BuildContext context) => maybeOf(context)!;
 
   @override
   State<QuietDepthScope> createState() => _QuietDepthScopeState();
@@ -357,9 +348,7 @@ class _QuietDepthScopeState extends State<QuietDepthScope> {
         // Translucent: every child recogniser still wins its own gestures;
         // the scope only OBSERVES pointer-downs for the outside-tap rule.
         behavior: HitTestBehavior.translucent,
-        onPointerDown: (d) => _controller.handlePointerDown(
-          d.position,
-        ),
+        onPointerDown: (d) => _controller.handlePointerDown(d.position),
         child: widget.child,
       ),
     );
@@ -423,8 +412,7 @@ class _QuietDepthRegionState extends State<QuietDepthRegion> {
   @override
   void didUpdateWidget(QuietDepthRegion old) {
     super.didUpdateWidget(old);
-    if (old.active != widget.active ||
-        old.regionId != widget.regionId) {
+    if (old.active != widget.active || old.regionId != widget.regionId) {
       _unregister();
       _register();
     }

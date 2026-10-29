@@ -22,9 +22,7 @@ void main() {
     });
 
     test('defaults to false when field is missing', () {
-      final info = StorefrontBusinessInfo.fromJson({
-        'name': 'Example Store',
-      });
+      final info = StorefrontBusinessInfo.fromJson({'name': 'Example Store'});
 
       expect(info.escrowProtectionAvailable, isFalse);
     });

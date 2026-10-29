@@ -20,11 +20,7 @@ class ImageLightbox extends StatefulWidget {
   final List<String> urls;
   final int initialIndex;
 
-  const ImageLightbox({
-    super.key,
-    required this.urls,
-    this.initialIndex = 0,
-  });
+  const ImageLightbox({super.key, required this.urls, this.initialIndex = 0});
 
   /// Show the lightbox as a full-screen route.
   static Future<void> show(
@@ -110,8 +106,11 @@ class _ImageLightboxState extends State<ImageLightbox> {
                         child: CircularProgressIndicator(color: Colors.white54),
                       ),
                       errorWidget: (_, __, ___) => const Center(
-                        child: Icon(Icons.broken_image,
-                            color: Colors.white54, size: 48),
+                        child: Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                          size: 48,
+                        ),
                       ),
                     ),
                   ),

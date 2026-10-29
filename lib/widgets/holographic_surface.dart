@@ -155,10 +155,7 @@ class _HolographicSurfaceState extends State<HolographicSurface>
     // owns a perpetual ambient controller. The field is a STATIC resting
     // arrangement that deforms around the pointer and settles back through
     // the surface's existing spring — no idle animation, no second ticker.
-    _rest = AnimationController(
-      vsync: this,
-      duration: MotionTokens.emphasized,
-    )
+    _rest = AnimationController(vsync: this, duration: MotionTokens.emphasized)
       ..addListener(() {
         // _sheenOffset reads the controller's current progress; rebuild each
         // frame so the return-to-rest is actually visible after pointer-up.
@@ -225,10 +222,7 @@ class _HolographicSurfaceState extends State<HolographicSurface>
     if (!_rest.isAnimating) return (_dx, _dy);
     final t = _rest.value;
     final eased = kHouseSpring.transform(t);
-    return (
-      _restFromDx * (1.0 - eased),
-      _restFromDy * (1.0 - eased),
-    );
+    return (_restFromDx * (1.0 - eased), _restFromDy * (1.0 - eased));
   }
 
   @override
@@ -270,11 +264,17 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: <Color>[
-                        Color.lerp(widget.base, Colors.white,
-                            isDark ? 0.08 : 0.14)!,
+                        Color.lerp(
+                          widget.base,
+                          Colors.white,
+                          isDark ? 0.08 : 0.14,
+                        )!,
                         widget.base,
-                        Color.lerp(widget.base, Colors.black,
-                            isDark ? 0.22 : 0.06)!,
+                        Color.lerp(
+                          widget.base,
+                          Colors.black,
+                          isDark ? 0.22 : 0.06,
+                        )!,
                       ],
                       stops: const <double>[0.0, 0.52, 1.0],
                     ),
@@ -298,7 +298,8 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                           radius: 1.15,
                           colors: <Color>[
                             Colors.white.withValues(
-                                alpha: (isDark ? 0.10 : 0.35) * intensity),
+                              alpha: (isDark ? 0.10 : 0.35) * intensity,
+                            ),
                             Colors.white.withValues(alpha: 0.0),
                           ],
                           stops: const <double>[0.0, 1.0],
@@ -353,7 +354,8 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                         phase: const AlwaysStoppedAnimation(0.0),
                         dx: dx,
                         dy: dy,
-                        colors: widget.particleColors ??
+                        colors:
+                            widget.particleColors ??
                             <Color>[widget.tint.withValues(alpha: 0.8)],
                         intensity: intensity,
                         isDark: isDark,
@@ -381,15 +383,20 @@ class _HolographicSurfaceState extends State<HolographicSurface>
                           end: Alignment.bottomRight,
                           colors: <Color>[
                             widget.tint.withValues(
-                                alpha: 0.00 * intensity * tintGate),
+                              alpha: 0.00 * intensity * tintGate,
+                            ),
                             widget.tint.withValues(
-                                alpha: 0.09 * intensity * tintGate),
+                              alpha: 0.09 * intensity * tintGate,
+                            ),
                             widget.tint.withValues(
-                                alpha: 0.04 * intensity * tintGate),
+                              alpha: 0.04 * intensity * tintGate,
+                            ),
                             widget.tint.withValues(
-                                alpha: 0.13 * intensity * tintGate),
+                              alpha: 0.13 * intensity * tintGate,
+                            ),
                             widget.tint.withValues(
-                                alpha: 0.02 * intensity * tintGate),
+                              alpha: 0.02 * intensity * tintGate,
+                            ),
                           ],
                           stops: const <double>[0.0, 0.26, 0.50, 0.72, 1.0],
                         ),
@@ -542,11 +549,13 @@ class _HolographicSurfaceState extends State<HolographicSurface>
         // from reading as "blank white boxes floating on white". Dark mode
         // already separates by luminance and keeps the unmodified recipe.
         final shadows = <BoxShadow>[
-          if (widget.enableShadow) ...AzElevation.level3(isDark, color: widget.shadowColor),
+          if (widget.enableShadow)
+            ...AzElevation.level3(isDark, color: widget.shadowColor),
           if (widget.enableShadow && !isDark)
             BoxShadow(
-              color: (widget.shadowColor ?? const Color(0xFF000000))
-                  .withValues(alpha: 0.06),
+              color: (widget.shadowColor ?? const Color(0xFF000000)).withValues(
+                alpha: 0.06,
+              ),
               blurRadius: 2,
               offset: const Offset(0, 1),
             ),
@@ -631,8 +640,15 @@ const Color kParticleSoftViolet = Color(0xFF9D8BFF);
 /// translucent radial gradient that drifts on integer harmonics of the
 /// same shared loop (seamless at the wrap, like the particles).
 class AtmosphereField {
-  const AtmosphereField(this.x, this.y, this.radius, this.colorIndex,
-      this.fx, this.fy, this.phase);
+  const AtmosphereField(
+    this.x,
+    this.y,
+    this.radius,
+    this.colorIndex,
+    this.fx,
+    this.fy,
+    this.phase,
+  );
 
   final double x;
   final double y;
@@ -730,8 +746,7 @@ class ReactiveParticlePainter extends CustomPainter {
         math.sin(a * spec.fx + spec.phase * 2 * math.pi) * size.width * 0.011;
     final driftY =
         math.cos(a * spec.fy + spec.phase * 2 * math.pi) * size.height * 0.011;
-    return Offset(spec.x * size.width + driftX,
-        spec.y * size.height + driftY);
+    return Offset(spec.x * size.width + driftX, spec.y * size.height + driftY);
   }
 
   /// The LOW-FREQUENCY shared field sway — the "one soft medium" cue. One
@@ -781,17 +796,13 @@ class ReactiveParticlePainter extends CustomPainter {
 
     // Reconstruct the normalised pointer from the surface's existing offset:
     // the surface stores _dx = (nx − 0.5) × 0.9, so this is exact.
-    final pointer = Offset(
-      (0.5 + dx / 0.9) * w,
-      (0.5 + dy / 0.9) * h,
-    );
+    final pointer = Offset((0.5 + dx / 0.9) * w, (0.5 + dy / 0.9) * h);
     final interactionRadius = math.max(60.0, math.min(w, h) * 0.5);
 
     // Interaction "heat" — how alive the touch is right now. dx/dy fold the
     // settle animation, so the halo blooms under the finger and fades out
     // naturally while the field settles; at rest it is exactly 0.
-    final heat =
-        math.sqrt(dx * dx + dy * dy) / 0.32;
+    final heat = math.sqrt(dx * dx + dy * dy) / 0.32;
 
     // The ambient breathing phase (0…1 over the ~9s loop, pinned at 0 under
     // reduced motion, so the resting arrangement itself is deterministic).
@@ -818,10 +829,12 @@ class ReactiveParticlePainter extends CustomPainter {
       for (final f in atmosphereFields) {
         if (f.colorIndex >= colors.length) continue;
         final a = t * 2 * math.pi;
-        final cx = f.x * w +
+        final cx =
+            f.x * w +
             math.sin(a * f.fx + f.phase * 2 * math.pi) * w * 0.02 +
             sway.dx * 0.8;
-        final cy = f.y * h +
+        final cy =
+            f.y * h +
             math.cos(a * f.fy + f.phase * 2 * math.pi) * h * 0.02 +
             sway.dy * 0.8;
         final fr = f.radius * math.min(w, h);

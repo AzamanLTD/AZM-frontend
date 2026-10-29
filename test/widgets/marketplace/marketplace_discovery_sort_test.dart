@@ -21,7 +21,7 @@ import 'package:azaman/services/business_service.dart';
 /// Seeds results directly into the search state — no network.
 class _SeededSearchNotifier extends BusinessSearchNotifier {
   _SeededSearchNotifier(List<BusinessProfile> results)
-      : super(BusinessService()) {
+    : super(BusinessService()) {
     state = state.copyWith(results: results);
   }
 
@@ -40,30 +40,33 @@ BusinessProfile _biz(
   DateTime created, {
   double rating = 0,
   int escrows = 0,
-}) =>
-    BusinessProfile(
-      id: id,
-      bizId: id,
-      businessName: name,
-      category: 'RETAIL',
-      isVerified: true,
-      isSuspended: false,
-      kybStatus: 'VERIFIED',
-      totalEscrows: escrows,
-      completedEscrows: escrows,
-      userId: 1,
-      totalVolume: 0,
-      averageRating: rating,
-      username: 'biz-$id',
-      createdAt: created,
-    );
+}) => BusinessProfile(
+  id: id,
+  bizId: id,
+  businessName: name,
+  category: 'RETAIL',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: escrows,
+  completedEscrows: escrows,
+  userId: 1,
+  totalVolume: 0,
+  averageRating: rating,
+  username: 'biz-$id',
+  createdAt: created,
+);
 
-Future<void> _pumpHome(WidgetTester tester, List<BusinessProfile> results) async {
+Future<void> _pumpHome(
+  WidgetTester tester,
+  List<BusinessProfile> results,
+) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        businessSearchProvider.overrideWith((ref) =>
-            _SeededSearchNotifier(results)),
+        businessSearchProvider.overrideWith(
+          (ref) => _SeededSearchNotifier(results),
+        ),
       ],
       child: const MaterialApp(
         home: MediaQuery(
@@ -77,13 +80,19 @@ Future<void> _pumpHome(WidgetTester tester, List<BusinessProfile> results) async
 }
 
 void main() {
-  testWidgets('default feed order is Newest — not rating, not escrows',
-      (tester) async {
+  testWidgets('default feed order is Newest — not rating, not escrows', (
+    tester,
+  ) async {
     // 'Legendary' has the HIGHEST rating and most escrows; it is also the
     // OLDEST record. An honest Newest feed must rank it LAST.
     await _pumpHome(tester, [
-      _biz('legend', 'Legendary Store',
-          DateTime(2025, 1, 1), rating: 5.0, escrows: 999),
+      _biz(
+        'legend',
+        'Legendary Store',
+        DateTime(2025, 1, 1),
+        rating: 5.0,
+        escrows: 999,
+      ),
       _biz('fresh', 'Fresh Arrival', DateTime(2026, 10, 18), rating: 1.0),
       _biz('mid', 'Middle Biz', DateTime(2026, 6, 1), rating: 3.0),
     ]);
@@ -103,8 +112,9 @@ void main() {
     ]);
   });
 
-  testWidgets('createdAt comes from the backend payload (fromJson)',
-      (tester) async {
+  testWidgets('createdAt comes from the backend payload (fromJson)', (
+    tester,
+  ) async {
     final json = {
       'id': 'bp-x',
       'bizId': 'BIZ-X',
@@ -125,8 +135,7 @@ void main() {
     expect(biz.createdOrEpoch, DateTime.parse('2026-10-19T10:00:00.000Z'));
   });
 
-  testWidgets('discovery cards show no star-rating widgets',
-      (tester) async {
+  testWidgets('discovery cards show no star-rating widgets', (tester) async {
     await _pumpHome(tester, [
       _biz('legend', 'Legendary Store', DateTime(2025, 1, 1), rating: 4.8),
     ]);

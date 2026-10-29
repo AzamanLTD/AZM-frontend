@@ -222,9 +222,7 @@ class _FeaturedProductsSectionState
             ? colors.textPrimary
             : colors.textTertiary.withValues(alpha: 0.4),
         side: BorderSide(color: colors.divider, width: 0.5),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

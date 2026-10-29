@@ -31,9 +31,15 @@ class BusinessReviewsSection extends StatelessWidget {
           children: [
             Icon(Icons.reviews_outlined, size: 40, color: colors.textTertiary),
             const SizedBox(height: 8),
-            Text('No reviews yet', style: TextStyle(color: colors.textSecondary, fontSize: 14)),
+            Text(
+              'No reviews yet',
+              style: TextStyle(color: colors.textSecondary, fontSize: 14),
+            ),
             const SizedBox(height: 4),
-            Text('Be the first to leave a review!', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+            Text(
+              'Be the first to leave a review!',
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
           ],
         ),
       );
@@ -46,14 +52,32 @@ class BusinessReviewsSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
-              Text(avg.toStringAsFixed(1),
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              Text(
+                avg.toStringAsFixed(1),
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: colors.textPrimary,
+                ),
+              ),
               const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: List.generate(5, (i) => Icon(i < avg.round() ? Icons.star : Icons.star_border, size: 14, color: Colors.amber))),
-                  Text('$count reviews', style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+                  Row(
+                    children: List.generate(
+                      5,
+                      (i) => Icon(
+                        i < avg.round() ? Icons.star : Icons.star_border,
+                        size: 14,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$count reviews',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                  ),
                 ],
               ),
               const Spacer(),
@@ -87,7 +111,10 @@ class BusinessReviewsSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Row(
               children: [
-                Text('$star', style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+                Text(
+                  '$star',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                ),
                 const SizedBox(width: 4),
                 const Icon(Icons.star, size: 12, color: Colors.amber),
                 const SizedBox(width: 8),
@@ -103,7 +130,10 @@ class BusinessReviewsSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text('$count', style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+                Text(
+                  '$count',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                ),
               ],
             ),
           );
@@ -123,31 +153,78 @@ class BusinessReviewsSection extends StatelessWidget {
               CircleAvatar(
                 radius: 14,
                 backgroundColor: colors.accent.withValues(alpha: 0.1),
-                child: Text(r.reviewerUsername.isNotEmpty ? r.reviewerUsername[0].toUpperCase() : '?',
-                    style: TextStyle(fontSize: 11, color: colors.accent, fontWeight: FontWeight.bold)),
+                child: Text(
+                  r.reviewerUsername.isNotEmpty
+                      ? r.reviewerUsername[0].toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colors.accent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(r.reviewerUsername, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Row(children: List.generate(5, (i) => Icon(i < r.rating ? Icons.star : Icons.star_border, size: 12, color: Colors.amber))),
+                    Text(
+                      r.reviewerUsername,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Row(
+                      children: List.generate(
+                        5,
+                        (i) => Icon(
+                          i < r.rating ? Icons.star : Icons.star_border,
+                          size: 12,
+                          color: Colors.amber,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Text(_formatDate(r.createdAt), style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+              Text(
+                _formatDate(r.createdAt),
+                style: TextStyle(color: colors.textTertiary, fontSize: 10),
+              ),
             ],
           ),
           const SizedBox(height: 6),
-          Text(r.comment ?? '', style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4)),
+          Text(
+            r.comment ?? '',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 13,
+              height: 1.4,
+            ),
+          ),
         ],
       ),
     );
   }
 
   String _formatDate(DateTime d) {
-    final months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }
 }

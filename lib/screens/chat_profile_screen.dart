@@ -45,7 +45,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class ChatProfileScreen extends ConsumerStatefulWidget {
   final String friendshipId;
   final String fallbackUsername;
@@ -70,9 +69,7 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(chatProfileProvider(widget.friendshipId).notifier).primeAll();
-      ref
-          .read(ticketDashboardProvider(widget.friendshipId).notifier)
-          .refresh();
+      ref.read(ticketDashboardProvider(widget.friendshipId).notifier).refresh();
     });
   }
 
@@ -106,122 +103,132 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
       body: state.profileLoading && profile == null
           ? Center(child: CircularProgressIndicator(color: colors.accent))
           : (profile == null
-              ? _ErrorRetry(
-                  error: state.error ?? 'Could not load profile.',
-                  onRetry: () => ref
-                      .read(chatProfileProvider(widget.friendshipId).notifier)
-                      .primeAll(),
-                  colors: colors,
-                )
-              : Column(
-                  children: [
-                    _IdentityTier(
-                      profile: profile,
-                      fallbackUsername: widget.fallbackUsername,
-                      colors: colors,
-                      onEditNickname: () => _editNickname(profile),
-                      onShowTrustBreakdown: () => _showTrustBreakdown(profile),
-                    ),
-                    Container(
-                      margin: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: colors.card,
-                        borderRadius: BorderRadius.circular(12),
+                ? _ErrorRetry(
+                    error: state.error ?? 'Could not load profile.',
+                    onRetry: () => ref
+                        .read(chatProfileProvider(widget.friendshipId).notifier)
+                        .primeAll(),
+                    colors: colors,
+                  )
+                : Column(
+                    children: [
+                      _IdentityTier(
+                        profile: profile,
+                        fallbackUsername: widget.fallbackUsername,
+                        colors: colors,
+                        onEditNickname: () => _editNickname(profile),
+                        onShowTrustBreakdown: () =>
+                            _showTrustBreakdown(profile),
                       ),
-                      child: TabBar(
-                        controller: _tabController,
-                        isScrollable: true,
-                        tabAlignment: TabAlignment.center,
-                        indicator: BoxDecoration(
-                          color: colors.accent,
-                          borderRadius: BorderRadius.circular(10),
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        labelColor:
-                            colors.isDark ? Colors.black : Colors.white,
-                        unselectedLabelColor: colors.textSecondary,
-                        labelStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.4,
-                        ),
-                        unselectedLabelStyle: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        dividerColor: Colors.transparent,
-                        splashFactory: NoSplash.splashFactory,
-                        overlayColor:
-                            WidgetStateProperty.all(Colors.transparent),
-                        onTap: (_) => AzamanHaptics.toggle(),
-                        tabs: [
-                          const Tab(height: 32, text: 'Media'),
-                          const Tab(height: 32, text: 'Docs & Links'),
-                          // Phase UI-POLISH (2026-05-26): show counts
-                          // on Tickets + Receipts tabs so users can
-                          // see how much history exists in each at a
-                          // glance.
-                          _CountedTab(
-                            label: 'Tickets',
-                            count: ref
-                                    .watch(ticketDashboardProvider(
-                                        widget.friendshipId))
-                                    .openTickets
-                                    .length +
-                                ref
-                                    .watch(ticketDashboardProvider(
-                                        widget.friendshipId))
-                                    .closedTickets
-                                    .length +
-                                ref
-                                    .watch(ticketDashboardProvider(
-                                        widget.friendshipId))
-                                    .cancelledTickets
-                                    .length,
+                        child: TabBar(
+                          controller: _tabController,
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.center,
+                          indicator: BoxDecoration(
+                            color: colors.accent,
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          _CountedTab(
-                            label: 'Receipts',
-                            count: state.receiptItems.length,
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          labelColor: colors.isDark
+                              ? Colors.black
+                              : Colors.white,
+                          unselectedLabelColor: colors.textSecondary,
+                          labelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4,
                           ),
-                        ],
+                          unselectedLabelStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          dividerColor: Colors.transparent,
+                          splashFactory: NoSplash.splashFactory,
+                          overlayColor: WidgetStateProperty.all(
+                            Colors.transparent,
+                          ),
+                          onTap: (_) => AzamanHaptics.toggle(),
+                          tabs: [
+                            const Tab(height: 32, text: 'Media'),
+                            const Tab(height: 32, text: 'Docs & Links'),
+                            // Phase UI-POLISH (2026-05-26): show counts
+                            // on Tickets + Receipts tabs so users can
+                            // see how much history exists in each at a
+                            // glance.
+                            _CountedTab(
+                              label: 'Tickets',
+                              count:
+                                  ref
+                                      .watch(
+                                        ticketDashboardProvider(
+                                          widget.friendshipId,
+                                        ),
+                                      )
+                                      .openTickets
+                                      .length +
+                                  ref
+                                      .watch(
+                                        ticketDashboardProvider(
+                                          widget.friendshipId,
+                                        ),
+                                      )
+                                      .closedTickets
+                                      .length +
+                                  ref
+                                      .watch(
+                                        ticketDashboardProvider(
+                                          widget.friendshipId,
+                                        ),
+                                      )
+                                      .cancelledTickets
+                                      .length,
+                            ),
+                            _CountedTab(
+                              label: 'Receipts',
+                              count: state.receiptItems.length,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _MediaTab(
-                            friendshipId: widget.friendshipId,
-                          ),
-                          _DocsLinksTab(
-                            friendshipId: widget.friendshipId,
-                          ),
-                          _TicketsTab(
-                            friendshipId: widget.friendshipId,
-                            friendUsername: profile.friend.username,
-                          ),
-                          _ReceiptsTab(
-                            friendshipId: widget.friendshipId,
-                          ),
-                        ],
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            _MediaTab(friendshipId: widget.friendshipId),
+                            _DocsLinksTab(friendshipId: widget.friendshipId),
+                            _TicketsTab(
+                              friendshipId: widget.friendshipId,
+                              friendUsername: profile.friend.username,
+                            ),
+                            _ReceiptsTab(friendshipId: widget.friendshipId),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                )),
+                    ],
+                  )),
     );
   }
 
   Future<void> _editNickname(ChatProfileResponse profile) async {
     final colors = ref.read(themeProvider).colors;
-    final controller =
-        TextEditingController(text: profile.myNicknameForFriend ?? '');
+    final controller = TextEditingController(
+      text: profile.myNicknameForFriend ?? '',
+    );
     final result = await showDialog<String?>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.surface,
-        title: Text('Set nickname',
-            style: TextStyle(color: colors.textPrimary)),
+        title: Text(
+          'Set nickname',
+          style: TextStyle(color: colors.textPrimary),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,13 +246,14 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
               style: TextStyle(color: colors.textPrimary, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'e.g. "Mom" / "Trade buddy"',
-                hintStyle:
-                    TextStyle(color: colors.textTertiary, fontSize: 13),
+                hintStyle: TextStyle(color: colors.textTertiary, fontSize: 13),
                 filled: true,
                 fillColor: colors.card,
                 counterText: '',
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none,
@@ -261,22 +269,23 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, null),
-            child: Text('Cancel',
-                style: TextStyle(color: colors.textTertiary)),
+            child: Text('Cancel', style: TextStyle(color: colors.textTertiary)),
           ),
           if (profile.myNicknameForFriend != null &&
               profile.myNicknameForFriend!.isNotEmpty)
             TextButton(
               onPressed: () => Navigator.pop(ctx, '__CLEAR__'),
-              child: Text('Clear',
-                  style: TextStyle(color: colors.danger)),
+              child: Text('Clear', style: TextStyle(color: colors.danger)),
             ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, controller.text),
-            child: Text('Save',
-                style: TextStyle(
-                    color: colors.accent,
-                    fontWeight: FontWeight.w800)),
+            child: Text(
+              'Save',
+              style: TextStyle(
+                color: colors.accent,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -298,7 +307,8 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
     showTrustBreakdownSheet(
       context,
       username: f.username,
-      breakdown: f.completedTransactionsBreakdown ??
+      breakdown:
+          f.completedTransactionsBreakdown ??
           TrustBreakdown(
             // Defensive fallback — older BE without the breakdown field
             // still gets a sensible split: every completed P2P trade we
@@ -334,8 +344,9 @@ class _IdentityTier extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final username =
-        profile.friend.username.isNotEmpty ? profile.friend.username : fallbackUsername;
+    final username = profile.friend.username.isNotEmpty
+        ? profile.friend.username
+        : fallbackUsername;
     final nickname = profile.myNicknameForFriend;
 
     return PremiumGlassContainer(
@@ -394,15 +405,21 @@ class _IdentityTier extends StatelessWidget {
                             padding: const EdgeInsets.only(left: 6),
                             child: Tooltip(
                               message: 'Verified vendor',
-                              child: Icon(Icons.check_circle_outline,
-                                  color: colors.accent, size: 18),
+                              child: Icon(
+                                Icons.check_circle_outline,
+                                color: colors.accent,
+                                size: 18,
+                              ),
                             ),
                           )
                         else if (profile.friend.kycStatus == 'VERIFIED')
                           const Padding(
                             padding: EdgeInsets.only(left: 6),
-                            child: Icon(Icons.check_circle_outline,
-                                color: Color(0xFF22C55E), size: 18),
+                            child: Icon(
+                              Icons.check_circle_outline,
+                              color: Color(0xFF22C55E),
+                              size: 18,
+                            ),
                           ),
                       ],
                     ),
@@ -421,15 +438,16 @@ class _IdentityTier extends StatelessWidget {
                     Text(
                       'Friends since ${_formatDate(profile.friendSince)}',
                       style: TextStyle(
-                          color: colors.textTertiary, fontSize: 11),
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: onEditNickname,
-                icon: Icon(Icons.edit_outlined,
-                    color: colors.accent, size: 20),
+                icon: Icon(Icons.edit_outlined, color: colors.accent, size: 20),
                 tooltip: 'Edit nickname',
               ),
             ],
@@ -483,8 +501,18 @@ class _IdentityTier extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[dt.month - 1]} ${dt.year}';
   }
@@ -536,18 +564,15 @@ class _StatPill extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.4),
+                    color: colors.textTertiary,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
                 ),
               ),
               if (onTap != null)
-                Icon(
-                  Icons.arrow_forward,
-                  color: iconColor,
-                  size: 14,
-                ),
+                Icon(Icons.arrow_forward, color: iconColor, size: 14),
             ],
           ),
           const SizedBox(height: 4),
@@ -637,8 +662,10 @@ class _MediaTile extends StatelessWidget {
       onTap: () async {
         if (url == null) return;
         HapticFeedback.lightImpact();
-        await launchUrl(Uri.parse(_resolve(url)),
-            mode: LaunchMode.externalApplication);
+        await launchUrl(
+          Uri.parse(_resolve(url)),
+          mode: LaunchMode.externalApplication,
+        );
       },
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -646,14 +673,17 @@ class _MediaTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (item.type == 'IMAGE' && url != null)
-              AzamanNetworkImage(imageUrl: 
-                _resolve(url),
+              AzamanNetworkImage(
+                imageUrl: _resolve(url),
                 fit: BoxFit.cover,
                 errorWidget: (_, __, ___) => Container(
                   color: colors.card,
                   alignment: Alignment.center,
-                  child: Icon(Icons.image_outlined,
-                      color: colors.textTertiary, size: 22),
+                  child: Icon(
+                    Icons.image_outlined,
+                    color: colors.textTertiary,
+                    size: 22,
+                  ),
                 ),
               )
             else
@@ -676,8 +706,11 @@ class _MediaTile extends StatelessWidget {
                     color: Colors.black.withValues(alpha: 0.55),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.play_circle_outline,
-                      color: Colors.white, size: 18),
+                  child: const Icon(
+                    Icons.play_circle_outline,
+                    color: Colors.white,
+                    size: 18,
+                  ),
                 ),
               ),
             if (item.source == 'TICKET')
@@ -686,7 +719,9 @@ class _MediaTile extends StatelessWidget {
                 left: 4,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 4, vertical: 2),
+                    horizontal: 4,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.accent.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(4),
@@ -786,8 +821,7 @@ class _DocLinkRow extends StatelessWidget {
                   color: colors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child:
-                    Icon(Icons.link, color: colors.accent, size: 18),
+                child: Icon(Icons.link, color: colors.accent, size: 18),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -800,9 +834,10 @@ class _DocLinkRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700),
+                        color: colors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     if (siteName != null && siteName.isNotEmpty)
                       Padding(
@@ -812,14 +847,15 @@ class _DocLinkRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              color: colors.textTertiary, fontSize: 11),
+                            color: colors.textTertiary,
+                            fontSize: 11,
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
-              Icon(Icons.share_outlined,
-                  color: colors.textTertiary, size: 16),
+              Icon(Icons.share_outlined, color: colors.textTertiary, size: 16),
             ],
           ),
         ),
@@ -847,8 +883,11 @@ class _DocLinkRow extends StatelessWidget {
                 color: colors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(_iconForMime(item.mediaMimeType),
-                  color: colors.warning, size: 18),
+              child: Icon(
+                _iconForMime(item.mediaMimeType),
+                color: colors.warning,
+                size: 18,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -861,9 +900,10 @@ class _DocLinkRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700),
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   if (item.mediaSize != null)
                     Padding(
@@ -871,14 +911,15 @@ class _DocLinkRow extends StatelessWidget {
                       child: Text(
                         _formatBytes(item.mediaSize!),
                         style: TextStyle(
-                            color: colors.textTertiary, fontSize: 11),
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
-            Icon(Icons.download_outlined,
-                color: colors.textTertiary, size: 16),
+            Icon(Icons.download_outlined, color: colors.textTertiary, size: 16),
           ],
         ),
       ),
@@ -886,15 +927,17 @@ class _DocLinkRow extends StatelessWidget {
   }
 
   Future<void> _openDocument(
-      BuildContext context, VaultItem item, AzamanColors colors) async {
+    BuildContext context,
+    VaultItem item,
+    AzamanColors colors,
+  ) async {
     final url = item.mediaUrl;
     if (url == null) return;
     final apiBase = AppConfig.apiUrl;
     final origin = apiBase.endsWith('/api')
         ? apiBase.substring(0, apiBase.length - 4)
         : apiBase;
-    final resolved =
-        url.startsWith('http') ? url : '$origin$url';
+    final resolved = url.startsWith('http') ? url : '$origin$url';
     try {
       final res = await http.get(Uri.parse(resolved));
       if (res.statusCode != 200) {
@@ -907,9 +950,9 @@ class _DocLinkRow extends StatelessWidget {
       await OpenFilex.open(file.path);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not open: $e')));
       }
     }
   }
@@ -947,10 +990,7 @@ class _DocLinkRow extends StatelessWidget {
 class _TicketsTab extends ConsumerWidget {
   final String friendshipId;
   final String friendUsername;
-  const _TicketsTab({
-    required this.friendshipId,
-    required this.friendUsername,
-  });
+  const _TicketsTab({required this.friendshipId, required this.friendUsername});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -985,7 +1025,11 @@ class _TicketsTab extends ConsumerWidget {
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, i) {
           final t = all[i];
-          return _TicketRow(ticket: t, colors: colors, friendUsername: friendUsername);
+          return _TicketRow(
+            ticket: t,
+            colors: colors,
+            friendUsername: friendUsername,
+          );
         },
       ),
     );
@@ -1004,9 +1048,12 @@ class _TicketRow extends StatelessWidget {
 
   Color get _statusColor {
     switch (ticket.status) {
-      case TicketStatus.open: return colors.success;
-      case TicketStatus.closed: return colors.textTertiary;
-      case TicketStatus.cancelled: return colors.danger;
+      case TicketStatus.open:
+        return colors.success;
+      case TicketStatus.closed:
+        return colors.textTertiary;
+      case TicketStatus.cancelled:
+        return colors.danger;
     }
   }
 
@@ -1014,8 +1061,13 @@ class _TicketRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: () => pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: ticket.id,
-            friendUsername: friendUsername,)),
+      onTap: () => pushWithVerticalTransition(
+        context,
+        TicketWorkspaceScreen(
+          ticketId: ticket.id,
+          friendUsername: friendUsername,
+        ),
+      ),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1032,8 +1084,11 @@ class _TicketRow extends StatelessWidget {
                 color: colors.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(Icons.confirmation_number_outlined,
-                  color: colors.accent, size: 18),
+              child: Icon(
+                Icons.confirmation_number_outlined,
+                color: colors.accent,
+                size: 18,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1049,14 +1104,17 @@ class _TicketRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800),
+                            color: colors.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: _statusColor.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(4),
@@ -1076,14 +1134,12 @@ class _TicketRow extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     '${ticket.type.label} · ${ticket.targetAmount.toStringAsFixed(2)} ${ticket.targetCurrency}',
-                    style: TextStyle(
-                        color: colors.textSecondary, fontSize: 11),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 11),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward,
-                color: colors.textTertiary, size: 18),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
           ],
         ),
       ),
@@ -1116,15 +1172,18 @@ class _ReceiptsTabState extends ConsumerState<_ReceiptsTab> {
       }
       final dir = await getTemporaryDirectory();
       final file = File(
-          '${dir.path}/azaman-transfer-receipt-${r.id.substring(0, r.id.length < 8 ? r.id.length : 8)}.pdf');
+        '${dir.path}/azaman-transfer-receipt-${r.id.substring(0, r.id.length < 8 ? r.id.length : 8)}.pdf',
+      );
       await file.writeAsBytes(res.bodyBytes);
       await OpenFilex.open(file.path);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Download failed: $e'),
-          backgroundColor: colors.danger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download failed: $e'),
+            backgroundColor: colors.danger,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _downloading.remove(r.id));
@@ -1135,8 +1194,9 @@ class _ReceiptsTabState extends ConsumerState<_ReceiptsTab> {
   Widget build(BuildContext context) {
     final state = ref.watch(chatProfileProvider(widget.friendshipId));
     final colors = ref.watch(themeProvider).colors;
-    final notifier =
-        ref.read(chatProfileProvider(widget.friendshipId).notifier);
+    final notifier = ref.read(
+      chatProfileProvider(widget.friendshipId).notifier,
+    );
 
     if (state.receiptsLoading && state.receiptItems.isEmpty) {
       return Center(child: CircularProgressIndicator(color: colors.accent));
@@ -1145,7 +1205,8 @@ class _ReceiptsTabState extends ConsumerState<_ReceiptsTab> {
       return _EmptyVault(
         icon: Icons.receipt_long_outlined,
         label: 'No P2P transfers between you yet.',
-        sublabel: 'Casual money transfers (with a tracking reason) appear here as immutable receipts.',
+        sublabel:
+            'Casual money transfers (with a tracking reason) appear here as immutable receipts.',
         colors: colors,
         onRefresh: notifier.refreshReceipts,
       );
@@ -1157,8 +1218,7 @@ class _ReceiptsTabState extends ConsumerState<_ReceiptsTab> {
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         // +1 for the optional "Load more" footer when more pages exist.
-        itemCount:
-            state.receiptItems.length + (state.receiptsHasMore ? 1 : 0),
+        itemCount: state.receiptItems.length + (state.receiptsHasMore ? 1 : 0),
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (_, i) {
           if (i >= state.receiptItems.length) {
@@ -1195,12 +1255,18 @@ class _ReceiptRow extends StatelessWidget {
 
   Color get _statusColor {
     switch (receipt.status) {
-      case 'COMPLETED': return colors.success;
-      case 'PENDING':   return colors.warning;
-      case 'DECLINED':  return colors.danger;
-      case 'FAILED':    return colors.danger;
-      case 'INSUFFICIENT_FUNDS': return colors.danger;
-      default:          return colors.textTertiary;
+      case 'COMPLETED':
+        return colors.success;
+      case 'PENDING':
+        return colors.warning;
+      case 'DECLINED':
+        return colors.danger;
+      case 'FAILED':
+        return colors.danger;
+      case 'INSUFFICIENT_FUNDS':
+        return colors.danger;
+      default:
+        return colors.textTertiary;
     }
   }
 
@@ -1220,7 +1286,9 @@ class _ReceiptRow extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: (isSent ? colors.warning : colors.success).withValues(alpha: 0.12),
+              color: (isSent ? colors.warning : colors.success).withValues(
+                alpha: 0.12,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
@@ -1251,7 +1319,9 @@ class _ReceiptRow extends StatelessWidget {
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: _statusColor.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(4),
@@ -1276,7 +1346,9 @@ class _ReceiptRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          color: colors.textSecondary, fontSize: 11),
+                        color: colors.textSecondary,
+                        fontSize: 11,
+                      ),
                     ),
                   ),
                 Padding(
@@ -1297,10 +1369,15 @@ class _ReceiptRow extends StatelessWidget {
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: colors.accent),
+                        strokeWidth: 2,
+                        color: colors.accent,
+                      ),
                     )
-                  : Icon(Icons.download_outlined,
-                      color: colors.accent, size: 18),
+                  : Icon(
+                      Icons.download_outlined,
+                      color: colors.accent,
+                      size: 18,
+                    ),
               tooltip: 'Download receipt PDF',
             ),
         ],
@@ -1343,7 +1420,8 @@ class _EmptyVault extends StatelessWidget {
       backgroundColor: colors.card,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(
-            parent: ClampingScrollPhysics()),
+          parent: ClampingScrollPhysics(),
+        ),
         padding: const EdgeInsets.all(40),
         children: [
           const SizedBox(height: 60),
@@ -1390,17 +1468,21 @@ class _ErrorRetry extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline,
-                color: colors.danger, size: 36),
+            Icon(Icons.error_outline, color: colors.danger, size: 36),
             const SizedBox(height: 10),
-            Text('Could not load profile',
-                style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w800)),
+            Text(
+              'Could not load profile',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             const SizedBox(height: 4),
-            Text(error,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textTertiary, fontSize: 11),
+            ),
             const SizedBox(height: 12),
             OutlinedButton(
               onPressed: onRetry,
@@ -1415,7 +1497,6 @@ class _ErrorRetry extends StatelessWidget {
     );
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom tab widget that renders a label + a small count chip when count>0.
@@ -1459,7 +1540,6 @@ class _CountedTab extends StatelessWidget {
   }
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Load-more footer for the Receipts vault tab (Phase UI-POLISH).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1483,7 +1563,8 @@ class _LoadMoreButton extends StatelessWidget {
           side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)),
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
         child: isLoading
             ? SizedBox(

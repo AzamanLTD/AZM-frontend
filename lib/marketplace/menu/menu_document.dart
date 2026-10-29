@@ -84,22 +84,26 @@ class MenuDocument {
     final out = <MenuChapter>[];
     for (final c in chapters) {
       final kept = c.items
-          .where((i) => matchesStoreQuery(
-                query,
-                name: i.product.name,
-                description: i.product.description,
-                tags: i.tags,
-              ))
+          .where(
+            (i) => matchesStoreQuery(
+              query,
+              name: i.product.name,
+              description: i.product.description,
+              tags: i.tags,
+            ),
+          )
           .toList(growable: false);
       if (kept.isNotEmpty) {
-        out.add(MenuChapter(
-          id: c.id,
-          title: c.title,
-          description: c.description,
-          imageUrl: c.imageUrl,
-          availabilityLabel: c.availabilityLabel,
-          items: kept,
-        ));
+        out.add(
+          MenuChapter(
+            id: c.id,
+            title: c.title,
+            description: c.description,
+            imageUrl: c.imageUrl,
+            availabilityLabel: c.availabilityLabel,
+            items: kept,
+          ),
+        );
       }
     }
     return MenuDocument(out);
@@ -119,15 +123,17 @@ class MenuDocument {
       ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
 
     MenuItemView view(BusinessProduct p, bool sectionOpen) => MenuItemView(
-          product: p,
-          dish: dishesById[p.id],
-          availableNow: p.isActive && sectionOpen,
-        );
+      product: p,
+      dish: dishesById[p.id],
+      availableNow: p.isActive && sectionOpen,
+    );
 
     bool sectionOpen(CatalogSection s) {
       if (s.availableFrom == null || s.availableTo == null) return true;
-      final state =
-          BusinessHours.stateOfRange('${s.availableFrom}-${s.availableTo}', now);
+      final state = BusinessHours.stateOfRange(
+        '${s.availableFrom}-${s.availableTo}',
+        now,
+      );
       // Unknown (malformed window) never hides food; only a parsed "closed"
       // marks items unavailable.
       return state != OpenState.closed;
@@ -154,7 +160,9 @@ class MenuDocument {
           description: null,
           imageUrl: null,
           availabilityLabel: null,
-          items: uncategorised.map((p) => view(p, true)).toList(growable: false),
+          items: uncategorised
+              .map((p) => view(p, true))
+              .toList(growable: false),
         ),
     ];
     return MenuDocument(chapters);
@@ -216,5 +224,5 @@ class MenuViewModeNotifier extends StateNotifier<MenuViewMode> {
 
 final menuViewModeProvider =
     StateNotifierProvider<MenuViewModeNotifier, MenuViewMode>(
-  (_) => MenuViewModeNotifier(),
-);
+      (_) => MenuViewModeNotifier(),
+    );

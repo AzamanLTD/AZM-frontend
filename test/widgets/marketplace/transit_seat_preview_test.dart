@@ -10,8 +10,9 @@ import 'package:azaman/widgets/marketplace/transit_seat_preview.dart';
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
 void main() {
-  testWidgets('shows journey-specific transit context above the seat map',
-      (tester) async {
+  testWidgets('shows journey-specific transit context above the seat map', (
+    tester,
+  ) async {
     final trip = TransitTrip(
       id: 'trip-1',
       businessProfileId: 'business-internal-1',
@@ -43,10 +44,12 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          transitTripsProvider('business-internal-1')
-              .overrideWith((ref) async => [trip]),
-          seatAvailabilityProvider('trip-1')
-              .overrideWith((ref) async => availability),
+          transitTripsProvider(
+            'business-internal-1',
+          ).overrideWith((ref) async => [trip]),
+          seatAvailabilityProvider(
+            'trip-1',
+          ).overrideWith((ref) async => availability),
         ],
         child: MaterialApp(
           home: Scaffold(

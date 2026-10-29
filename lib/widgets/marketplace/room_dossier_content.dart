@@ -73,14 +73,18 @@ class RoomDossierContent extends StatelessWidget {
           ),
         ],
         const SizedBox(height: AzSpace.md),
-        Text('ROOM SPEC',
-            style: AzText.eyebrow.copyWith(color: colors.textTertiary)),
+        Text(
+          'ROOM SPEC',
+          style: AzText.eyebrow.copyWith(color: colors.textTertiary),
+        ),
         const SizedBox(height: AzSpace.sm),
         _specGrid(),
         if (room.amenities.isNotEmpty) ...[
           const SizedBox(height: AzSpace.md),
-          Text('AMENITIES',
-              style: AzText.eyebrow.copyWith(color: colors.textTertiary)),
+          Text(
+            'AMENITIES',
+            style: AzText.eyebrow.copyWith(color: colors.textTertiary),
+          ),
           const SizedBox(height: AzSpace.sm),
           _amenityGrid(),
         ],
@@ -204,7 +208,8 @@ class _PlanHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ordered = [...floorMates]..sort((a, b) {
+    final ordered = [...floorMates]
+      ..sort((a, b) {
         final na = int.tryParse(a.roomNumber) ?? 0;
         final nb = int.tryParse(b.roomNumber) ?? 0;
         return na.compareTo(nb);
@@ -216,8 +221,10 @@ class _PlanHero extends StatelessWidget {
           children: [
             Icon(Icons.map_outlined, size: 15, color: colors.textTertiary),
             const SizedBox(width: AzSpace.xs),
-            Text('FLOOR PLAN',
-                style: AzText.eyebrow.copyWith(color: colors.textTertiary)),
+            Text(
+              'FLOOR PLAN',
+              style: AzText.eyebrow.copyWith(color: colors.textTertiary),
+            ),
             const Spacer(),
             Text(
               room.floor == null ? 'Ground level' : 'Floor ${room.floor}',
@@ -278,8 +285,8 @@ class _PlanFootprint extends StatelessWidget {
         color: focused
             ? colors.accent.withValues(alpha: 0.14)
             : bookable
-                ? colors.surface
-                : colors.card.withValues(alpha: 0.5),
+            ? colors.surface
+            : colors.card.withValues(alpha: 0.5),
         borderRadius: AzRadius.brSm,
         border: Border.all(
           color: focused
@@ -304,9 +311,7 @@ class _PlanFootprint extends StatelessWidget {
             ),
           ),
           Text(
-            bookable
-                ? '\$${room.basePriceUsdc.toStringAsFixed(0)}'
-                : '—',
+            bookable ? '\$${room.basePriceUsdc.toStringAsFixed(0)}' : '—',
             style: AzText.caption.copyWith(
               color: colors.textTertiary,
               fontSize: 8,
@@ -365,7 +370,8 @@ class _ParallaxGalleryState extends State<_ParallaxGallery> {
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, _) {
-              final page = _controller.hasClients &&
+              final page =
+                  _controller.hasClients &&
                       _controller.position.hasContentDimensions
                   ? _controller.page ?? 0.0
                   : 0.0;
@@ -400,7 +406,9 @@ class _ParallaxGalleryState extends State<_ParallaxGallery> {
                         bottom: AzSpace.md,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: AzSpace.sm, vertical: AzSpace.xs),
+                            horizontal: AzSpace.sm,
+                            vertical: AzSpace.xs,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.55),
                             borderRadius: AzRadius.brPill,
@@ -408,8 +416,7 @@ class _ParallaxGalleryState extends State<_ParallaxGallery> {
                           child: Text(
                             'Room ${widget.roomNumber} · '
                             '${index + 1}/${widget.images.length}',
-                            style: AzText.caption
-                                .copyWith(color: Colors.white),
+                            style: AzText.caption.copyWith(color: Colors.white),
                           ),
                         ),
                       ),

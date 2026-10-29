@@ -109,21 +109,23 @@ class _ShellSwipeDetectorState extends State<ShellSwipeDetector> {
       // are never blocked, they merely win the arena first.
       gestures: {
         HorizontalDragGestureRecognizer:
-            GestureRecognizerFactoryWithHandlers<HorizontalDragGestureRecognizer>(
-          () => HorizontalDragGestureRecognizer(
-            debugOwner: this,
-            supportedDevices: const {
-              PointerDeviceKind.touch,
-              PointerDeviceKind.stylus,
-              PointerDeviceKind.invertedStylus,
-              PointerDeviceKind.trackpad,
-            },
-          ),
-          (HorizontalDragGestureRecognizer recognizer) => recognizer
-            ..onStart = _onSwipeStart
-            ..onUpdate = _onSwipeUpdate
-            ..onEnd = _onSwipeEnd,
-        ),
+            GestureRecognizerFactoryWithHandlers<
+              HorizontalDragGestureRecognizer
+            >(
+              () => HorizontalDragGestureRecognizer(
+                debugOwner: this,
+                supportedDevices: const {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.stylus,
+                  PointerDeviceKind.invertedStylus,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              (HorizontalDragGestureRecognizer recognizer) => recognizer
+                ..onStart = _onSwipeStart
+                ..onUpdate = _onSwipeUpdate
+                ..onEnd = _onSwipeEnd,
+            ),
       },
       child: widget.child,
     );

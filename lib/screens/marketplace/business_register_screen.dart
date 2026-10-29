@@ -90,7 +90,7 @@ class _BusinessRegisterScreenState
     _emailCtrl.dispose();
     _phoneCtrl.dispose();
     _addressCtrl.dispose();
-    
+
     _vehicleTypeCtrl.dispose();
     _vehiclePlateCtrl.dispose();
     _routeInfoCtrl.dispose();
@@ -105,8 +105,10 @@ class _BusinessRegisterScreenState
 
   Future<void> _pickLogo() async {
     final picker = ImagePicker();
-    final picked =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
     if (picked == null) return;
     setState(() {
       _logoFile = File(picked.path);
@@ -125,10 +127,12 @@ class _BusinessRegisterScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _uploadingLogo = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Logo upload failed: $e'),
-        backgroundColor: ref.read(themeProvider).colors.danger,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Logo upload failed: $e'),
+          backgroundColor: ref.read(themeProvider).colors.danger,
+        ),
+      );
     }
   }
 
@@ -156,20 +160,24 @@ class _BusinessRegisterScreenState
       if (!mounted) return;
       ref.read(myBusinessProvider.notifier).setProfile(profile);
       AzamanHaptics.commit();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Business registered! BIZ ID: ${profile.bizId}'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Business registered! BIZ ID: ${profile.bizId}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       // NEW-A: canonical business profile route replaces the widget
       // instantiation — same pushReplacement contract, now deep-linkable.
       context.pushReplacement(AzRoutes.businessProfile(profile.bizId));
     } catch (e) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('Registration failed: $e'),
-        backgroundColor: ref.read(themeProvider).colors.danger,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Registration failed: $e'),
+          backgroundColor: ref.read(themeProvider).colors.danger,
+        ),
+      );
     }
   }
 
@@ -197,11 +205,14 @@ class _BusinessRegisterScreenState
         backgroundColor: colors.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        title: Text('Register Business',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          'Register Business',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: Form(
         key: _formKey,
@@ -210,29 +221,51 @@ class _BusinessRegisterScreenState
           children: [
             Center(child: _logoPicker(colors)),
             const SizedBox(height: 20),
-            _field(colors, _nameCtrl, 'Business name', required: true,
-                validator: (v) {
-              final t = (v ?? '').trim();
-              if (t.length < 2) return 'At least 2 characters';
-              if (t.length > 100) return 'Max 100 characters';
-              return null;
-            }),
+            _field(
+              colors,
+              _nameCtrl,
+              'Business name',
+              required: true,
+              validator: (v) {
+                final t = (v ?? '').trim();
+                if (t.length < 2) return 'At least 2 characters';
+                if (t.length > 100) return 'Max 100 characters';
+                return null;
+              },
+            ),
             const SizedBox(height: 12),
             _categorySelector(colors),
             const SizedBox(height: 12),
             _typeSpecificFields(colors),
             const SizedBox(height: 12),
-            _field(colors, _descCtrl, 'Description (optional)',
-                maxLines: 3, maxLength: 500),
+            _field(
+              colors,
+              _descCtrl,
+              'Description (optional)',
+              maxLines: 3,
+              maxLength: 500,
+            ),
             const SizedBox(height: 12),
-            _field(colors, _websiteCtrl, 'Website (optional)',
-                keyboardType: TextInputType.url),
+            _field(
+              colors,
+              _websiteCtrl,
+              'Website (optional)',
+              keyboardType: TextInputType.url,
+            ),
             const SizedBox(height: 12),
-            _field(colors, _emailCtrl, 'Contact email (optional)',
-                keyboardType: TextInputType.emailAddress),
+            _field(
+              colors,
+              _emailCtrl,
+              'Contact email (optional)',
+              keyboardType: TextInputType.emailAddress,
+            ),
             const SizedBox(height: 12),
-            _field(colors, _phoneCtrl, 'Phone number (optional)',
-                keyboardType: TextInputType.phone),
+            _field(
+              colors,
+              _phoneCtrl,
+              'Phone number (optional)',
+              keyboardType: TextInputType.phone,
+            ),
             const SizedBox(height: 12),
             _field(colors, _addressCtrl, 'Address (optional)'),
             const SizedBox(height: 12),
@@ -257,11 +290,17 @@ class _BusinessRegisterScreenState
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: colors.isDark ? Colors.black : Colors.white),
+                          strokeWidth: 2,
+                          color: colors.isDark ? Colors.black : Colors.white,
+                        ),
                       )
-                    : const Text('Create Business',
+                    : const Text(
+                        'Create Business',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800)),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
               ),
             ),
             const SizedBox(height: 24),
@@ -299,19 +338,33 @@ class _BusinessRegisterScreenState
                 color: colors.accentSurface,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.desktop_windows_outlined, size: 17, color: colors.accent),
+              child: Icon(
+                Icons.desktop_windows_outlined,
+                size: 17,
+                color: colors.accent,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Prefer a bigger screen?',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                  Text(
+                    'Prefer a bigger screen?',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text('Manage KYB docs, invoices & catalog from the web dashboard',
-                      style: TextStyle(fontSize: 11.5, color: colors.textTertiary)),
+                  Text(
+                    'Manage KYB docs, invoices & catalog from the web dashboard',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: colors.textTertiary,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -333,26 +386,32 @@ class _BusinessRegisterScreenState
           shape: BoxShape.circle,
           border: Border.all(color: colors.divider),
           image: _logoFile != null
-              ? DecorationImage(
-                  image: FileImage(_logoFile!), fit: BoxFit.cover)
+              ? DecorationImage(image: FileImage(_logoFile!), fit: BoxFit.cover)
               : null,
         ),
         alignment: Alignment.center,
         child: _uploadingLogo
             ? const CircularProgressIndicator(strokeWidth: 2)
             : (_logoFile == null
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.camera_alt_outlined,
-                          color: colors.textTertiary, size: 24),
-                      const SizedBox(height: 4),
-                      Text('Logo',
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.camera_alt_outlined,
+                          color: colors.textTertiary,
+                          size: 24,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Logo',
                           style: TextStyle(
-                              color: colors.textTertiary, fontSize: 11)),
-                    ],
-                  )
-                : null),
+                            color: colors.textTertiary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    )
+                  : null),
       ),
     );
   }
@@ -361,11 +420,14 @@ class _BusinessRegisterScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Business Type',
-            style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 14,
-                fontWeight: FontWeight.w600)),
+        Text(
+          'Business Type',
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         const SizedBox(height: 10),
         // Primary categories — large cards
         Wrap(
@@ -377,7 +439,10 @@ class _BusinessRegisterScreenState
               onTap: () => setState(() => _category = cat.wire),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: selected
                       ? cat.color.withValues(alpha: 0.12)
@@ -393,17 +458,20 @@ class _BusinessRegisterScreenState
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(cat.icon,
-                        size: 20,
-                        color: selected ? cat.color : colors.textSecondary),
+                    Icon(
+                      cat.icon,
+                      size: 20,
+                      color: selected ? cat.color : colors.textSecondary,
+                    ),
                     const SizedBox(width: 8),
-                    Text(cat.label,
-                        style: TextStyle(
-                            color: selected
-                                ? cat.color
-                                : colors.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700)),
+                    Text(
+                      cat.label,
+                      style: TextStyle(
+                        color: selected ? cat.color : colors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -413,24 +481,33 @@ class _BusinessRegisterScreenState
         const SizedBox(height: 10),
         // Secondary categories — compact dropdown
         DropdownButtonFormField<String>(
-          initialValue: BusinessCategories.secondary.any((c) => c.wire == _category)
+          initialValue:
+              BusinessCategories.secondary.any((c) => c.wire == _category)
               ? _category
               : null,
           isExpanded: true,
           dropdownColor: colors.card,
-          hint: Text('Or select another category',
-              style: TextStyle(color: colors.textTertiary, fontSize: 13)),
+          hint: Text(
+            'Or select another category',
+            style: TextStyle(color: colors.textTertiary, fontSize: 13),
+          ),
           decoration: _decoration(colors, 'Other Categories'),
           items: BusinessCategories.secondary
-              .map((c) => DropdownMenuItem(
-                    value: c.wire,
-                    child: Row(children: [
+              .map(
+                (c) => DropdownMenuItem(
+                  value: c.wire,
+                  child: Row(
+                    children: [
                       Icon(c.icon, size: 18, color: c.color),
                       const SizedBox(width: 8),
-                      Text(c.label,
-                          style: TextStyle(color: colors.textPrimary)),
-                    ]),
-                  ))
+                      Text(
+                        c.label,
+                        style: TextStyle(color: colors.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+              )
               .toList(),
           onChanged: (v) {
             if (v != null) setState(() => _category = v);
@@ -441,7 +518,6 @@ class _BusinessRegisterScreenState
   }
 
   Widget _typeSpecificFields(AzamanColors colors) {
-
     // TRANSIT — vehicle & route info
     if (_category == 'LOGISTICS') {
       return Column(
@@ -451,8 +527,12 @@ class _BusinessRegisterScreenState
           const SizedBox(height: 12),
           _field(colors, _vehiclePlateCtrl, 'Vehicle Plate (optional)'),
           const SizedBox(height: 12),
-          _field(colors, _routeInfoCtrl, 'Primary Route (e.g. Accra - Kumasi)',
-              maxLines: 2),
+          _field(
+            colors,
+            _routeInfoCtrl,
+            'Primary Route (e.g. Accra - Kumasi)',
+            maxLines: 2,
+          ),
         ],
       );
     }
@@ -462,10 +542,18 @@ class _BusinessRegisterScreenState
       return Column(
         children: [
           const SizedBox(height: 12),
-          _field(colors, _cuisineTypeCtrl, 'Cuisine Type (e.g. Ghanaian, Continental)'),
+          _field(
+            colors,
+            _cuisineTypeCtrl,
+            'Cuisine Type (e.g. Ghanaian, Continental)',
+          ),
           const SizedBox(height: 12),
-          _field(colors, _diningStyleCtrl, 'Dining Style (e.g. Fine Dining, Casual)',
-              maxLines: 2),
+          _field(
+            colors,
+            _diningStyleCtrl,
+            'Dining Style (e.g. Fine Dining, Casual)',
+            maxLines: 2,
+          ),
           const SizedBox(height: 12),
           _field(colors, _openingHoursCtrl, 'Opening Hours (e.g. 8AM - 10PM)'),
         ],
@@ -477,11 +565,19 @@ class _BusinessRegisterScreenState
       return Column(
         children: [
           const SizedBox(height: 12),
-          _field(colors, _roomTypesCtrl, 'Room Types (e.g. Single, Double, Suite)',
-              maxLines: 2),
+          _field(
+            colors,
+            _roomTypesCtrl,
+            'Room Types (e.g. Single, Double, Suite)',
+            maxLines: 2,
+          ),
           const SizedBox(height: 12),
-          _field(colors, _amenitiesCtrl, 'Amenities (e.g. WiFi, Pool, AC)',
-              maxLines: 2),
+          _field(
+            colors,
+            _amenitiesCtrl,
+            'Amenities (e.g. WiFi, Pool, AC)',
+            maxLines: 2,
+          ),
           const SizedBox(height: 12),
           _field(colors, _checkInTimeCtrl, 'Check-in Time (e.g. 2PM)'),
         ],
@@ -499,11 +595,15 @@ class _BusinessRegisterScreenState
       dropdownColor: colors.card,
       decoration: _decoration(colors, 'Country'),
       items: _kCountries.entries
-          .map((e) => DropdownMenuItem(
-                value: e.key,
-                child: Text('${e.value} (${e.key})',
-                    style: TextStyle(color: colors.textPrimary)),
-              ))
+          .map(
+            (e) => DropdownMenuItem(
+              value: e.key,
+              child: Text(
+                '${e.value} (${e.key})',
+                style: TextStyle(color: colors.textPrimary),
+              ),
+            ),
+          )
           .toList(),
       onChanged: (v) {
         if (v != null) setState(() => _country = v);
@@ -528,7 +628,8 @@ class _BusinessRegisterScreenState
       keyboardType: keyboardType,
       style: TextStyle(color: colors.textPrimary),
       decoration: _decoration(colors, label).copyWith(counterText: ''),
-      validator: validator ??
+      validator:
+          validator ??
           (required
               ? (v) => (v ?? '').trim().isEmpty ? 'Required' : null
               : null),

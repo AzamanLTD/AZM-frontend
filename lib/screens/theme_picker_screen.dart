@@ -21,6 +21,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 class ThemePickerScreen extends ConsumerWidget {
@@ -31,7 +32,7 @@ class ThemePickerScreen extends ConsumerWidget {
     final notifier = ref.watch(themeProvider);
     final activeColors = notifier.colors;
     final selected = notifier.currentTheme;
-    final selectedAccent = notifier.accent;
+    final selectedCard = notifier.cardVariant;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -65,7 +66,7 @@ class ThemePickerScreen extends ConsumerWidget {
             colors: activeColors,
             label:
                 '${activeColors.isDark ? 'Dark' : 'Light'} · '
-                '${selectedAccent.label}',
+                '${selectedCard.label} card',
           ),
           const SizedBox(height: 16),
 
@@ -75,7 +76,10 @@ class ThemePickerScreen extends ConsumerWidget {
             // Truthful preview: each appearance card shows the user's
             // CURRENT accent applied to that theme, not the historical
             // gold/teal identity, so what you see is what you'd get.
-            final c = ThemeProvider.getColors(t).withAccent(selectedAccent);
+            // Truthful preview: the card's brand accent applied to that
+            // appearance, computed exactly as the live shell computes it.
+            final base = ThemeProvider.getColors(t);
+            final c = base.withBrand(brandAccentFor(selectedCard, base.isDark));
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child:
@@ -95,18 +99,19 @@ class ThemePickerScreen extends ConsumerWidget {
             );
           }),
 
-          _GroupHeader('Accent', colors: activeColors),
-          _AccentPalette(colors: activeColors),
+          _GroupHeader('Brand', colors: activeColors),
+          _CardIdentitySummary(colors: activeColors, variant: selectedCard),
 
           const SizedBox(height: 16),
-          _GroupHeader('Accent in context', colors: activeColors),
+          _GroupHeader('Brand in context', colors: activeColors),
           _AccentContextPreview(colors: activeColors),
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              'This is how ${selectedAccent.label} looks on your current '
-              'surfaces right now. Every choice above applies instantly and '
+              'Your brand follows the ${selectedCard.label} balance card. '
+              'Press and hold the card on Home to switch it, and the whole '
+              'app changes with it. Appearance above applies instantly and '
               'is remembered across restarts.',
               style: TextStyle(
                 color: activeColors.textTertiary,
@@ -174,15 +179,23 @@ class _ActiveSummary extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          Text(
-            label,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w800,
+          // FLEXIBLE: the label now names BOTH the appearance and the card
+          // identity ("Dark · Green card"), which is wider than the old
+          // accent name. It must ellipsize rather than overflow the pill at
+          // 320dp or at large text scales.
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           Icon(Icons.circle, color: colors.accent, size: 8, fill: 1.0),
         ],
       ),
@@ -190,120 +203,62 @@ class _ActiveSummary extends StatelessWidget {
   }
 }
 
-/// The full accent palette. Every swatch carries a LABEL and a semantic
-/// selected state — identity is never communicated by colour alone.
-class _AccentPalette extends ConsumerWidget {
+/// The brand identity summary. There is NO accent picker any more: the
+/// applied balance card owns the accent, so this states the current identity
+/// and points at the one place it can be changed (the card itself).
+class _CardIdentitySummary extends StatelessWidget {
   final AzamanColors colors;
+  final BalanceCardVariant variant;
 
-  const _AccentPalette({required this.colors});
+  const _CardIdentitySummary({required this.colors, required this.variant});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final current = ref.watch(themeProvider.select((t) => t.accent));
-
+  Widget build(BuildContext context) {
     return Container(
+      key: const ValueKey('themes_card_identity'),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.divider, width: 0.6),
       ),
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 18,
+      child: Row(
         children: [
-          for (final a in AzAccent.values)
-            _AccentSwatch(
-              accent: a,
-              isSelected: current == a,
-              colors: colors,
-              onTap: () {
-                ref.read(themeProvider).setAccent(a);
-                AzamanHaptics.selection();
-              },
+          Container(
+            width: 34,
+            height: 22,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: [
+                  kCardPalettes[variant]!.bright,
+                  kCardPalettes[variant]!.mid,
+                  kCardPalettes[variant]!.deep,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(6),
             ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '${variant.label} card · your app accent',
+              key: const ValueKey('themes_card_identity_label'),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Icon(Icons.touch_app, color: colors.textTertiary, size: 16),
         ],
       ),
     );
   }
 }
 
-class _AccentSwatch extends StatelessWidget {
-  final AzAccent accent;
-  final bool isSelected;
-  final AzamanColors colors;
-  final VoidCallback onTap;
-
-  const _AccentSwatch({
-    required this.accent,
-    required this.isSelected,
-    required this.colors,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final swatch = AzAccentFamily.all[accent]!.accentFor(colors.isDark);
-    return Semantics(
-      label:
-          'Accent ${accent.label}'
-          '${isSelected ? ', selected' : ''}',
-      selected: isSelected,
-      button: true,
-      child: GestureDetector(
-        key: ValueKey('accent_swatch_${accent.name}'),
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          width: 56,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [swatch, swatch.darken10()],
-                  ),
-                  border: Border.all(
-                    color: isSelected ? colors.textPrimary : colors.border,
-                    width: isSelected ? 2.5 : 0.5,
-                  ),
-                ),
-                child: isSelected
-                    ? Icon(
-                        Icons.check,
-                        color: AzAccentFamily.all[accent]!.onAccentFor(
-                          colors.isDark,
-                        ),
-                        size: 18,
-                      )
-                    : null,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                accent.label,
-                style: TextStyle(
-                  color: isSelected ? colors.textPrimary : colors.textTertiary,
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// A miniature of the real app: card surface, icon, headline + body text,
-/// filled button and an outline chip — rendered with the ACTIVE colours so
-/// the user previews the identity on actual surfaces, not an abstract swatch.
 class _AccentContextPreview extends StatelessWidget {
   final AzamanColors colors;
 
@@ -649,14 +604,4 @@ class _ThemePreviewCard extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Colour helper ─────────────────────────────────────────────────────────
-//
-// A modest luminance-preserving shade for the swatch gradient so the disc
-// reads as a lit sphere, not a flat sticker. Kept local: it is presentation
-// sugar for one gradient stop.
-extension _SwatchShade on Color {
-  Color darken10() =>
-      withValues(alpha: a, red: r * 0.82, green: g * 0.82, blue: b * 0.82);
 }

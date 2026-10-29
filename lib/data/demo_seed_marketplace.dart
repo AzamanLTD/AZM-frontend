@@ -23,7 +23,8 @@ import 'dart:math' as math;
 
 // Verified media assets (Base44 public CDN). Reused deterministically —
 // one asset pool per category, no random generators.
-const String _mp = 'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/';
+const String _mp =
+    'https://media.base44.com/images/public/6a4b8369bec68a34ddf0f3cf/';
 
 class DemoMedia {
   DemoMedia._();
@@ -102,24 +103,31 @@ class DemoMarketplaceSeed {
   /// [DemoEndpointNotSeededException] for anything else — no fake data for
   /// IDs the demo world never seeded.
   static const List<String> seededBusinessIds = <String>[
-    restaurantBizId, restaurant2BizId,
-    hotelBizId, hotel2BizId,
-    transitBizId, transit2BizId,
-    retailBizId, retail2BizId,
+    restaurantBizId,
+    restaurant2BizId,
+    hotelBizId,
+    hotel2BizId,
+    transitBizId,
+    transit2BizId,
+    retailBizId,
+    retail2BizId,
   ];
   static const List<String> seededTripIds = <String>[
-    'trip-001', 'trip-002', 'trip-003', 'trip-004',
+    'trip-001',
+    'trip-002',
+    'trip-003',
+    'trip-004',
   ];
   static const List<String> seededInvoiceIds = <String>[
-    'inv-restaurant-001', 'inv-restaurant-002',
+    'inv-restaurant-001',
+    'inv-restaurant-002',
   ];
   static const List<String> seededReservationRefs = <String>['AZM-RES-001'];
   static const List<String> seededDineInTabIds = <String>['tab-demo-001'];
   static const String seededTrustScoreAzamanId = _demoAzamanId;
 
   static bool isSeededId(String id, List<String> seeded) =>
-      seeded.contains(id.trim().toUpperCase()) ||
-      seeded.contains(id);
+      seeded.contains(id.trim().toUpperCase()) || seeded.contains(id);
 
   /// The canonical Marketplace GET endpoints the app's customer journey
   /// actually calls. Every entry must be explicitly covered by
@@ -159,15 +167,15 @@ class DemoMarketplaceSeed {
 
   /// All eight seeded businesses, canonical order (portal order).
   static List<Map<String, dynamic>> allBusinesses() => [
-        _restaurantBusiness(),
-        _restaurant2Business(),
-        _hotelBusiness(),
-        _hotel2Business(),
-        _transitBusiness(),
-        _transit2Business(),
-        _retailBusiness(),
-        _retail2Business(),
-      ];
+    _restaurantBusiness(),
+    _restaurant2Business(),
+    _hotelBusiness(),
+    _hotel2Business(),
+    _transitBusiness(),
+    _transit2Business(),
+    _retailBusiness(),
+    _retail2Business(),
+  ];
 
   /// Deterministic demo search. Supports query text, category (wire value,
   /// with the launcher's REAL_ESTATE→HOSPITALITY alias), verified filter and
@@ -181,8 +189,12 @@ class DemoMarketplaceSeed {
     int limit = 20,
     String? cursor,
   }) {
-    final filtered = _filterBusinesses(allBusinesses(),
-        q: q, category: category, verified: verified);
+    final filtered = _filterBusinesses(
+      allBusinesses(),
+      q: q,
+      category: category,
+      verified: verified,
+    );
     return _pageOf(filtered, limit, cursor, 'businesses');
   }
 
@@ -213,9 +225,7 @@ class DemoMarketplaceSeed {
     int limit = 20,
     int page = 0,
   }) {
-    final byProfile = {
-      for (final b in allBusinesses()) b['id'].toString(): b,
-    };
+    final byProfile = {for (final b in allBusinesses()) b['id'].toString(): b};
     final canMeasure = lat != null && lng != null;
     final locations = allBusinesses()
         .expand((b) => (b['locations'] as List).cast<Map<String, dynamic>>())
@@ -237,13 +247,13 @@ class DemoMarketplaceSeed {
           final requestLng = lng;
           final double? distanceKm =
               canMeasure && requestLat != null && requestLng != null
-                  ? _haversineKm(
-                      requestLat,
-                      requestLng,
-                      _num(loc['latitude']),
-                      _num(loc['longitude']),
-                    )
-                  : null;
+              ? _haversineKm(
+                  requestLat,
+                  requestLng,
+                  _num(loc['latitude']),
+                  _num(loc['longitude']),
+                )
+              : null;
           return {
             ...loc,
             if (distanceKm != null) 'distanceKm': distanceKm,
@@ -271,10 +281,7 @@ class DemoMarketplaceSeed {
     final pageNum = page < 0 ? 0 : page;
     final start = pageNum * take;
     final end = (start + take).clamp(0, locations.length);
-    final slice = locations.sublist(
-      start.clamp(0, locations.length),
-      end,
-    );
+    final slice = locations.sublist(start.clamp(0, locations.length), end);
     final hasMore = end < locations.length;
     return {
       'locations': slice,
@@ -314,54 +321,52 @@ class DemoMarketplaceSeed {
     int? preparationMins,
     String? deliveryTerms,
     String? estimatedDelivery,
-  }) =>
-      {
-        'id': productId,
-        'businessId': businessId,
-        'bizId': bizId,
-        'businessName': businessName,
-        'businessCategory': businessCategory,
-        'businessLogoUrl': businessLogoUrl,
-        'item': {
-          'name': name,
-          'description': description,
-          'images': images,
-          'tags': tags,
-        },
-        'pricing': {
-          'currency': 'GHS',
-          'displayCurrency': 'GHS',
-          'amount': ghsAmount,
-        },
-        'availability': {
-          'isAvailable': true,
-          'sectionWindowOpen': true,
-          if (preparationMins != null) 'preparationMins': preparationMins,
-          if (deliveryTerms != null) 'deliveryTerms': deliveryTerms,
-          if (estimatedDelivery != null)
-            'estimatedDelivery': estimatedDelivery,
-        },
-        // Structured location: the label is the established display DTO;
-        // city/region carry the seeded metadata that drives the city and
-        // region filters (never a text search over the label).
-        'location': {
-          'label': locationLabel,
-          'city': city,
-          'region': region,
-          'country': 'Ghana',
-        },
-        'section': {'taxonomy': taxonomy},
-        'action': 'ENQUIRE',
-        'capabilities': {
-          'orderable': orderable,
-          'bookable': bookable,
-          'deliverable': deliverable,
-          'dineIn': dineIn,
-          // payability is USDC-only today — same honest limit as the
-          // real gateway's supportedCapabilities contract.
-          'payableIn': ['USDC'],
-        },
-      };
+  }) => {
+    'id': productId,
+    'businessId': businessId,
+    'bizId': bizId,
+    'businessName': businessName,
+    'businessCategory': businessCategory,
+    'businessLogoUrl': businessLogoUrl,
+    'item': {
+      'name': name,
+      'description': description,
+      'images': images,
+      'tags': tags,
+    },
+    'pricing': {
+      'currency': 'GHS',
+      'displayCurrency': 'GHS',
+      'amount': ghsAmount,
+    },
+    'availability': {
+      'isAvailable': true,
+      'sectionWindowOpen': true,
+      if (preparationMins != null) 'preparationMins': preparationMins,
+      if (deliveryTerms != null) 'deliveryTerms': deliveryTerms,
+      if (estimatedDelivery != null) 'estimatedDelivery': estimatedDelivery,
+    },
+    // Structured location: the label is the established display DTO;
+    // city/region carry the seeded metadata that drives the city and
+    // region filters (never a text search over the label).
+    'location': {
+      'label': locationLabel,
+      'city': city,
+      'region': region,
+      'country': 'Ghana',
+    },
+    'section': {'taxonomy': taxonomy},
+    'action': 'ENQUIRE',
+    'capabilities': {
+      'orderable': orderable,
+      'bookable': bookable,
+      'deliverable': deliverable,
+      'dineIn': dineIn,
+      // payability is USDC-only today — same honest limit as the
+      // real gateway's supportedCapabilities contract.
+      'payableIn': ['USDC'],
+    },
+  };
 
   /// The full deterministic discovery catalog: FIXED order, stable IDs,
   /// offers from all four seeded categories. EVERY row is DERIVED from the
@@ -370,81 +375,81 @@ class DemoMarketplaceSeed {
   /// from its source item, and its displayed identity is coherent with
   /// that source by construction.
   static List<Map<String, dynamic>> _discoveryCatalog() => [
-        // ── FOOD_BEVERAGE — real seeded menu dishes ─────────────────────
-        _menuDishOffer(
-          bizId: restaurantBizId,
-          dishId: 'dish-jollof',
-          ghsAmount: '45.00',
-          deliverable: true,
-          dineIn: true,
-          preparationMins: 15,
-          deliveryTerms: 'within 5km',
-          estimatedDelivery: '35 min',
-        ),
-        _menuDishOffer(
-          bizId: restaurantBizId,
-          dishId: 'drink-sobo',
-          ghsAmount: '12.00',
-          deliverable: true,
-          dineIn: true,
-          preparationMins: 5,
-        ),
-        _menuDishOffer(
-          bizId: restaurantBizId,
-          dishId: 'dessert-bofrot',
-          ghsAmount: '18.00',
-          deliverable: true,
-          dineIn: true,
-          preparationMins: 8,
-        ),
-        _menuDishOffer(
-          bizId: restaurant2BizId,
-          dishId: 'dish2-suya',
-          ghsAmount: '38.00',
-          deliverable: true,
-          dineIn: true,
-          preparationMins: 12,
-          deliveryTerms: 'within 8km',
-          estimatedDelivery: '40 min',
-        ),
-        // ── HOSPITALITY — real seeded hotel rooms ──────────────────────
-        _roomOffer(bizId: hotelBizId, roomNumber: 101, ghsAmount: '350.00'),
-        _roomOffer(bizId: hotel2BizId, roomNumber: 201, ghsAmount: '610.00'),
-        // ── LOGISTICS — real seeded transit tickets ────────────────────
-        _ticketOffer(
-          bizId: transitBizId,
-          ticketId: 'prod-transit-001-std',
-          ghsAmount: '90.00',
-        ),
-        _ticketOffer(
-          bizId: transit2BizId,
-          ticketId: 'prod-transit-002-vip',
-          ghsAmount: '120.00',
-        ),
-        // ── RETAIL — real seeded retail products ────────────────────────
-        _retailOffer(
-          bizId: retailBizId,
-          productId: 'prod-tshirt',
-          ghsAmount: '180.00',
-          deliverable: true,
-        ),
-        _retailOffer(
-          bizId: retailBizId,
-          productId: 'prod-throw-pillow',
-          ghsAmount: '65.00',
-          deliverable: true,
-        ),
-        _retailOffer(
-          bizId: retail2BizId,
-          productId: 'prod-adinkra-cloth',
-          ghsAmount: '95.00',
-        ),
-        _retailOffer(
-          bizId: retail2BizId,
-          productId: 'prod-ahesi-ceramic',
-          ghsAmount: '110.00',
-        ),
-      ];
+    // ── FOOD_BEVERAGE — real seeded menu dishes ─────────────────────
+    _menuDishOffer(
+      bizId: restaurantBizId,
+      dishId: 'dish-jollof',
+      ghsAmount: '45.00',
+      deliverable: true,
+      dineIn: true,
+      preparationMins: 15,
+      deliveryTerms: 'within 5km',
+      estimatedDelivery: '35 min',
+    ),
+    _menuDishOffer(
+      bizId: restaurantBizId,
+      dishId: 'drink-sobo',
+      ghsAmount: '12.00',
+      deliverable: true,
+      dineIn: true,
+      preparationMins: 5,
+    ),
+    _menuDishOffer(
+      bizId: restaurantBizId,
+      dishId: 'dessert-bofrot',
+      ghsAmount: '18.00',
+      deliverable: true,
+      dineIn: true,
+      preparationMins: 8,
+    ),
+    _menuDishOffer(
+      bizId: restaurant2BizId,
+      dishId: 'dish2-suya',
+      ghsAmount: '38.00',
+      deliverable: true,
+      dineIn: true,
+      preparationMins: 12,
+      deliveryTerms: 'within 8km',
+      estimatedDelivery: '40 min',
+    ),
+    // ── HOSPITALITY — real seeded hotel rooms ──────────────────────
+    _roomOffer(bizId: hotelBizId, roomNumber: 101, ghsAmount: '350.00'),
+    _roomOffer(bizId: hotel2BizId, roomNumber: 201, ghsAmount: '610.00'),
+    // ── LOGISTICS — real seeded transit tickets ────────────────────
+    _ticketOffer(
+      bizId: transitBizId,
+      ticketId: 'prod-transit-001-std',
+      ghsAmount: '90.00',
+    ),
+    _ticketOffer(
+      bizId: transit2BizId,
+      ticketId: 'prod-transit-002-vip',
+      ghsAmount: '120.00',
+    ),
+    // ── RETAIL — real seeded retail products ────────────────────────
+    _retailOffer(
+      bizId: retailBizId,
+      productId: 'prod-tshirt',
+      ghsAmount: '180.00',
+      deliverable: true,
+    ),
+    _retailOffer(
+      bizId: retailBizId,
+      productId: 'prod-throw-pillow',
+      ghsAmount: '65.00',
+      deliverable: true,
+    ),
+    _retailOffer(
+      bizId: retail2BizId,
+      productId: 'prod-adinkra-cloth',
+      ghsAmount: '95.00',
+    ),
+    _retailOffer(
+      bizId: retail2BizId,
+      productId: 'prod-ahesi-ceramic',
+      ghsAmount: '110.00',
+    ),
+  ];
 
   /// The seeded menu section → canonical taxonomy mapping. Wire-exact
   /// with [MixTaxonomy.canonical]: a section without a mapping is a seed
@@ -474,7 +479,8 @@ class DemoMarketplaceSeed {
     final locations = business['locations'] as List;
     if (locations.isEmpty) {
       throw StateError(
-          'discovery seed: ${business['id']} has no seeded location');
+        'discovery seed: ${business['id']} has no seeded location',
+      );
     }
     return locations.first as Map<String, dynamic>;
   }
@@ -508,13 +514,17 @@ class DemoMarketplaceSeed {
       if (dish != null) break;
     }
     if (dish == null) {
-      throw StateError('discovery seed: $dishId is not a seeded menu item '
-          'of $bizId');
+      throw StateError(
+        'discovery seed: $dishId is not a seeded menu item '
+        'of $bizId',
+      );
     }
     final taxonomy = _menuSectionTaxonomy[sectionName!];
     if (taxonomy == null) {
-      throw StateError('discovery seed: menu section "$sectionName" has no '
-          'canonical taxonomy — do not invent IDs');
+      throw StateError(
+        'discovery seed: menu section "$sectionName" has no '
+        'canonical taxonomy — do not invent IDs',
+      );
     }
     final business = _seededBusiness(bizId);
     final location = _seededLocation(business);
@@ -557,8 +567,10 @@ class DemoMarketplaceSeed {
         .where((r) => r['id'] == 'room-$profileId-$roomNumber')
         .toList(growable: false);
     if (room.isEmpty) {
-      throw StateError('discovery seed: room $roomNumber is not a seeded '
-          'room of $profileId');
+      throw StateError(
+        'discovery seed: room $roomNumber is not a seeded '
+        'room of $profileId',
+      );
     }
     final source = room.first;
     final location = _seededLocation(business);
@@ -595,10 +607,13 @@ class DemoMarketplaceSeed {
     bool deliverable = false,
   }) {
     final business = _seededBusiness(bizId);
-    final product = getProductById(productId)['product'] as Map<String, dynamic>;
+    final product =
+        getProductById(productId)['product'] as Map<String, dynamic>;
     if (product['businessProfileId'] != business['id']) {
-      throw StateError('discovery seed: $productId is not owned by '
-          '${business['id']}');
+      throw StateError(
+        'discovery seed: $productId is not owned by '
+        '${business['id']}',
+      );
     }
     final location = _seededLocation(business);
     return _offer(
@@ -628,14 +643,13 @@ class DemoMarketplaceSeed {
     required String bizId,
     required String ticketId,
     required String ghsAmount,
-  }) =>
-      _catalogProductOffer(
-        bizId: bizId,
-        productId: ticketId,
-        ghsAmount: ghsAmount,
-        taxonomy: 'RIDES',
-        bookable: true,
-      );
+  }) => _catalogProductOffer(
+    bizId: bizId,
+    productId: ticketId,
+    ghsAmount: ghsAmount,
+    taxonomy: 'RIDES',
+    bookable: true,
+  );
 
   /// A discovery offer for a real seeded retail product (RETAIL_ITEMS).
   static Map<String, dynamic> _retailOffer({
@@ -643,15 +657,14 @@ class DemoMarketplaceSeed {
     required String productId,
     required String ghsAmount,
     bool deliverable = false,
-  }) =>
-      _catalogProductOffer(
-        bizId: bizId,
-        productId: productId,
-        ghsAmount: ghsAmount,
-        taxonomy: 'RETAIL_ITEMS',
-        orderable: true,
-        deliverable: deliverable,
-      );
+  }) => _catalogProductOffer(
+    bizId: bizId,
+    productId: productId,
+    ghsAmount: ghsAmount,
+    taxonomy: 'RETAIL_ITEMS',
+    orderable: true,
+    deliverable: deliverable,
+  );
 
   /// Deterministic GET /discovery/items over the seeded catalog.
   /// Supports category, q, repeatable taxonomy chips, city/region,
@@ -673,7 +686,9 @@ class DemoMarketplaceSeed {
       final m = RegExp(r'^off-(\d+)$').firstMatch(cursor.trim());
       if (m == null) {
         throw DemoEndpointNotSeededException(
-            'GET', '/discovery/items (bad cursor: "$cursor")');
+          'GET',
+          '/discovery/items (bad cursor: "$cursor")',
+        );
       }
       offset = int.parse(m.group(1)!);
     }
@@ -688,51 +703,57 @@ class DemoMarketplaceSeed {
     for (final chip in wantedTaxonomies) {
       if (!canonicalIds.contains(chip)) {
         throw DemoEndpointNotSeededException(
-            'GET', '/discovery/items (unknown taxonomy: "$chip")');
+          'GET',
+          '/discovery/items (unknown taxonomy: "$chip")',
+        );
       }
     }
     final needle = q?.trim().toLowerCase();
 
-    final filtered = _discoveryCatalog().where((row) {
-      if (category != null && category.trim().isNotEmpty) {
-        final cat = category.trim().toUpperCase();
-        final rowCat = row['businessCategory'].toString();
-        if (rowCat != cat && !(cat == 'HOSPITALITY' && rowCat == 'REAL_ESTATE')) {
-          return false;
-        }
-      }
-      if (wantedTaxonomies.isNotEmpty &&
-          !wantedTaxonomies
-              .contains(row['section']['taxonomy'].toString())) {
-        return false;
-      }
-      // City and region filter on the seeded STRUCTURED metadata, never a
-      // text search over the display label: an offer whose real location
-      // is Accra must match city=Accra even when its label reads
-      // "Spintex Road".
-      if (city != null && city.trim().isNotEmpty) {
-        if (row['location']['city'].toString().trim().toLowerCase() !=
-            city.trim().toLowerCase()) {
-          return false;
-        }
-      }
-      if (region != null && region.trim().isNotEmpty) {
-        if (row['location']['region'].toString().trim().toLowerCase() !=
-            region.trim().toLowerCase()) {
-          return false;
-        }
-      }
-      if (needle != null && needle.isNotEmpty) {
-        final haystack = [
-          row['businessName'].toString(),
-          row['item']['name'].toString(),
-          row['item']['description'].toString(),
-          (row['item']['tags'] as List).join(' '),
-        ].join(' ').toLowerCase();
-        if (!haystack.contains(needle)) return false;
-      }
-      return true;
-    }).toList(growable: false);
+    final filtered = _discoveryCatalog()
+        .where((row) {
+          if (category != null && category.trim().isNotEmpty) {
+            final cat = category.trim().toUpperCase();
+            final rowCat = row['businessCategory'].toString();
+            if (rowCat != cat &&
+                !(cat == 'HOSPITALITY' && rowCat == 'REAL_ESTATE')) {
+              return false;
+            }
+          }
+          if (wantedTaxonomies.isNotEmpty &&
+              !wantedTaxonomies.contains(
+                row['section']['taxonomy'].toString(),
+              )) {
+            return false;
+          }
+          // City and region filter on the seeded STRUCTURED metadata, never a
+          // text search over the display label: an offer whose real location
+          // is Accra must match city=Accra even when its label reads
+          // "Spintex Road".
+          if (city != null && city.trim().isNotEmpty) {
+            if (row['location']['city'].toString().trim().toLowerCase() !=
+                city.trim().toLowerCase()) {
+              return false;
+            }
+          }
+          if (region != null && region.trim().isNotEmpty) {
+            if (row['location']['region'].toString().trim().toLowerCase() !=
+                region.trim().toLowerCase()) {
+              return false;
+            }
+          }
+          if (needle != null && needle.isNotEmpty) {
+            final haystack = [
+              row['businessName'].toString(),
+              row['item']['name'].toString(),
+              row['item']['description'].toString(),
+              (row['item']['tags'] as List).join(' '),
+            ].join(' ').toLowerCase();
+            if (!haystack.contains(needle)) return false;
+          }
+          return true;
+        })
+        .toList(growable: false);
 
     final effectiveLimit = (limit ?? discoveryDefaultLimit).clamp(1, 50);
     final page = filtered.skip(offset).take(effectiveLimit).toList();
@@ -740,13 +761,18 @@ class DemoMarketplaceSeed {
     return {
       'success': true,
       'items': page,
-      'nextCursor':
-          nextOffset < filtered.length ? 'off-$nextOffset' : null,
+      'nextCursor': nextOffset < filtered.length ? 'off-$nextOffset' : null,
     };
   }
+
   /// Real haversine, rounded the way the production endpoint rounds it
   /// (0.1 km precision).
-  static double _haversineKm(double lat1, double lng1, double lat2, double lng2) {
+  static double _haversineKm(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
     const r = 6371.0;
     final dLat = _rad(lat2 - lat1);
     final dLng = _rad(lng2 - lng1);
@@ -771,11 +797,13 @@ class DemoMarketplaceSeed {
     String? category,
     bool? verified,
   }) {
-    return businesses.where((b) {
-      if (!_categoryMatches(b, category)) return false;
-      if (verified == true && b['isVerified'] != true) return false;
-      return _queryMatches(b, q);
-    }).toList(growable: false);
+    return businesses
+        .where((b) {
+          if (!_categoryMatches(b, category)) return false;
+          if (verified == true && b['isVerified'] != true) return false;
+          return _queryMatches(b, q);
+        })
+        .toList(growable: false);
   }
 
   static bool _categoryMatches(Map<String, dynamic> b, String? category) {
@@ -844,28 +872,160 @@ class DemoMarketplaceSeed {
     if (bizId == restaurantBizId) {
       return {
         'sections': [
-          {'id': 'sec-starters', 'name': 'Starters', 'description': 'Small plates to share', 'products': [
-            _dish('dish-kelewele', 'Kelewele', 'Spicy fried plantain cubes with ginger and pepper', 4.50, ['spicy','veg'], DemoMedia.rThird, restaurantBizId),
-            _dish('dish-jollof', 'Jollof Rice', 'Smoky one-pot rice in tomato-pepper sauce', 12.00, ['veg'], DemoMedia.rCover, restaurantBizId),
-            _dish('dish-suya', 'Beef Suya', 'Grilled spiced beef skewers with yaji rub', 8.50, ['spicy'], DemoMedia.rAlt, restaurantBizId),
-            _dish('dish-salad', 'Avocado Salad', 'Fresh avocado, tomato, red onion, lime dressing', 6.00, ['veg'], DemoMedia.rThird, restaurantBizId),
-          ]},
-          {'id': 'sec-mains', 'name': 'Main Courses', 'description': 'Hearty Ghanaian classics', 'products': [
-            _dish('dish-waakye', 'Waakye & Stew', 'Rice & beans with spaghetti, egg, shito, and fried plantain', 14.50, [], DemoMedia.rCover, restaurantBizId),
-            _dish('dish-banku', 'Banku & Tilapia', 'Grilled tilapia with fermented corn dough', 18.00, [], DemoMedia.rAlt, restaurantBizId),
-            _dish('dish-fufu', 'Fufu & Light Soup', 'Pounded cassava with goat light soup', 16.00, ['spicy'], DemoMedia.rThird, restaurantBizId),
-            _dish('dish-redred', 'Red Red', 'Bean stew with fried plantain', 10.00, ['veg'], DemoMedia.rCover, restaurantBizId),
-            _dish('dish-omotuo', 'Omo Tuo & Groundnut Soup', 'Rice balls in rich peanut soup with chicken', 15.00, [], DemoMedia.rAlt, restaurantBizId),
-          ]},
-          {'id': 'sec-drinks', 'name': 'Beverages', 'description': 'Fresh & chilled', 'products': [
-            _dish('drink-sobo', 'Sobolo', 'Hibiscus iced tea with ginger', 3.00, ['veg'], DemoMedia.rThird, restaurantBizId),
-            _dish('drink-palm', 'Palm Wine', 'Freshly tapped from the Eastern Region', 4.00, [], DemoMedia.rCover, restaurantBizId),
-            _dish('drink-asana', 'Asana', 'Corn drink with fermented milk', 3.50, ['veg'], DemoMedia.rAlt, restaurantBizId),
-          ]},
-          {'id': 'sec-desserts', 'name': 'Desserts', 'description': 'Sweet endings', 'products': [
-            _dish('dessert-kele', 'Kelewele Sundae', 'Vanilla ice cream with caramelised plantain', 7.00, ['veg'], DemoMedia.rThird, restaurantBizId),
-            _dish('dessert-bofrot', 'Bofrot Trio', 'Three puff puffs with chocolate dip', 5.00, ['veg'], DemoMedia.rCover, restaurantBizId),
-          ]},
+          {
+            'id': 'sec-starters',
+            'name': 'Starters',
+            'description': 'Small plates to share',
+            'products': [
+              _dish(
+                'dish-kelewele',
+                'Kelewele',
+                'Spicy fried plantain cubes with ginger and pepper',
+                4.50,
+                ['spicy', 'veg'],
+                DemoMedia.rThird,
+                restaurantBizId,
+              ),
+              _dish(
+                'dish-jollof',
+                'Jollof Rice',
+                'Smoky one-pot rice in tomato-pepper sauce',
+                12.00,
+                ['veg'],
+                DemoMedia.rCover,
+                restaurantBizId,
+              ),
+              _dish(
+                'dish-suya',
+                'Beef Suya',
+                'Grilled spiced beef skewers with yaji rub',
+                8.50,
+                ['spicy'],
+                DemoMedia.rAlt,
+                restaurantBizId,
+              ),
+              _dish(
+                'dish-salad',
+                'Avocado Salad',
+                'Fresh avocado, tomato, red onion, lime dressing',
+                6.00,
+                ['veg'],
+                DemoMedia.rThird,
+                restaurantBizId,
+              ),
+            ],
+          },
+          {
+            'id': 'sec-mains',
+            'name': 'Main Courses',
+            'description': 'Hearty Ghanaian classics',
+            'products': [
+              _dish(
+                'dish-waakye',
+                'Waakye & Stew',
+                'Rice & beans with spaghetti, egg, shito, and fried plantain',
+                14.50,
+                [],
+                DemoMedia.rCover,
+                restaurantBizId,
+              ),
+              _dish(
+                'dish-banku',
+                'Banku & Tilapia',
+                'Grilled tilapia with fermented corn dough',
+                18.00,
+                [],
+                DemoMedia.rAlt,
+                restaurantBizId,
+              ),
+              _dish(
+                'dish-fufu',
+                'Fufu & Light Soup',
+                'Pounded cassava with goat light soup',
+                16.00,
+                ['spicy'],
+                DemoMedia.rThird,
+                restaurantBizId,
+              ),
+              _dish(
+                'dish-redred',
+                'Red Red',
+                'Bean stew with fried plantain',
+                10.00,
+                ['veg'],
+                DemoMedia.rCover,
+                restaurantBizId,
+              ),
+              _dish(
+                'dish-omotuo',
+                'Omo Tuo & Groundnut Soup',
+                'Rice balls in rich peanut soup with chicken',
+                15.00,
+                [],
+                DemoMedia.rAlt,
+                restaurantBizId,
+              ),
+            ],
+          },
+          {
+            'id': 'sec-drinks',
+            'name': 'Beverages',
+            'description': 'Fresh & chilled',
+            'products': [
+              _dish(
+                'drink-sobo',
+                'Sobolo',
+                'Hibiscus iced tea with ginger',
+                3.00,
+                ['veg'],
+                DemoMedia.rThird,
+                restaurantBizId,
+              ),
+              _dish(
+                'drink-palm',
+                'Palm Wine',
+                'Freshly tapped from the Eastern Region',
+                4.00,
+                [],
+                DemoMedia.rCover,
+                restaurantBizId,
+              ),
+              _dish(
+                'drink-asana',
+                'Asana',
+                'Corn drink with fermented milk',
+                3.50,
+                ['veg'],
+                DemoMedia.rAlt,
+                restaurantBizId,
+              ),
+            ],
+          },
+          {
+            'id': 'sec-desserts',
+            'name': 'Desserts',
+            'description': 'Sweet endings',
+            'products': [
+              _dish(
+                'dessert-kele',
+                'Kelewele Sundae',
+                'Vanilla ice cream with caramelised plantain',
+                7.00,
+                ['veg'],
+                DemoMedia.rThird,
+                restaurantBizId,
+              ),
+              _dish(
+                'dessert-bofrot',
+                'Bofrot Trio',
+                'Three puff puffs with chocolate dip',
+                5.00,
+                ['veg'],
+                DemoMedia.rCover,
+                restaurantBizId,
+              ),
+            ],
+          },
         ],
         'uncategorisedProducts': [],
       };
@@ -873,17 +1033,72 @@ class DemoMarketplaceSeed {
     if (bizId == restaurant2BizId) {
       return {
         'sections': [
-          {'id': 'sec-2-light', 'name': 'Light Bites', 'description': 'Street-food favourites', 'products': [
-            _dish('dish2-kelewele', 'Kelewele Bowl', 'Double-spice plantain with groundnuts', 5.00, ['spicy','veg'], DemoMedia.rCover, restaurant2BizId),
-            _dish('dish2-koshari', 'Koshari', 'Rice, lentils and pasta in tomato sauce', 9.00, ['veg'], DemoMedia.rAlt, restaurant2BizId),
-          ]},
-          {'id': 'sec-2-grill', 'name': 'From the Grill', 'description': 'Charcoal-grilled to order', 'products': [
-            _dish('dish2-suya', 'Chicken Suya', 'Yaji-rubbed grilled chicken thighs', 11.00, ['spicy'], DemoMedia.rThird, restaurant2BizId),
-            _dish('dish2-tilapia', 'Whole Tilapia', 'Stuffed with shito and served with banku', 22.00, [], DemoMedia.rCover, restaurant2BizId),
-          ]},
-          {'id': 'sec-2-drinks', 'name': 'Beverages', 'description': 'Cold and fresh', 'products': [
-            _dish('drink2-lamugin', 'Lamugin', 'Spiced ginger juice over ice', 3.50, ['veg'], DemoMedia.rAlt, restaurant2BizId),
-          ]},
+          {
+            'id': 'sec-2-light',
+            'name': 'Light Bites',
+            'description': 'Street-food favourites',
+            'products': [
+              _dish(
+                'dish2-kelewele',
+                'Kelewele Bowl',
+                'Double-spice plantain with groundnuts',
+                5.00,
+                ['spicy', 'veg'],
+                DemoMedia.rCover,
+                restaurant2BizId,
+              ),
+              _dish(
+                'dish2-koshari',
+                'Koshari',
+                'Rice, lentils and pasta in tomato sauce',
+                9.00,
+                ['veg'],
+                DemoMedia.rAlt,
+                restaurant2BizId,
+              ),
+            ],
+          },
+          {
+            'id': 'sec-2-grill',
+            'name': 'From the Grill',
+            'description': 'Charcoal-grilled to order',
+            'products': [
+              _dish(
+                'dish2-suya',
+                'Chicken Suya',
+                'Yaji-rubbed grilled chicken thighs',
+                11.00,
+                ['spicy'],
+                DemoMedia.rThird,
+                restaurant2BizId,
+              ),
+              _dish(
+                'dish2-tilapia',
+                'Whole Tilapia',
+                'Stuffed with shito and served with banku',
+                22.00,
+                [],
+                DemoMedia.rCover,
+                restaurant2BizId,
+              ),
+            ],
+          },
+          {
+            'id': 'sec-2-drinks',
+            'name': 'Beverages',
+            'description': 'Cold and fresh',
+            'products': [
+              _dish(
+                'drink2-lamugin',
+                'Lamugin',
+                'Spiced ginger juice over ice',
+                3.50,
+                ['veg'],
+                DemoMedia.rAlt,
+                restaurant2BizId,
+              ),
+            ],
+          },
         ],
         'uncategorisedProducts': [],
       };
@@ -895,52 +1110,90 @@ class DemoMarketplaceSeed {
 
   static Map<String, dynamic> getMyInvoices() => {
     'invoices': [_unpaidInvoice(), _paidInvoice()],
-    'hasMore': false, 'nextCursor': null,
+    'hasMore': false,
+    'nextCursor': null,
   };
 
   static Map<String, dynamic> getInvoice(String invoiceId) {
     if (!isSeededId(invoiceId, seededInvoiceIds)) {
-      throw DemoEndpointNotSeededException('GET', '/business/invoices/$invoiceId');
+      throw DemoEndpointNotSeededException(
+        'GET',
+        '/business/invoices/$invoiceId',
+      );
     }
-    return {'invoice': invoiceId == 'inv-restaurant-001' ? _unpaidInvoice() : _paidInvoice()};
+    return {
+      'invoice': invoiceId == 'inv-restaurant-001'
+          ? _unpaidInvoice()
+          : _paidInvoice(),
+    };
   }
 
   static Map<String, dynamic> getMyOrders() => {
     'orders': [
-      {'id': 'ord-001', 'businessProfileId': 'restaurant-001', 'orderRef': 'AZM-ORD-101',
-       'title': "Chef Abby's takeaway", 'customerId': 1, 'productId': 'dish-jollof',
-       'status': 'COMPLETED', 'amountUsdc': 12.00, 'description': 'Jollof Rice × 1',
-       'createdAt': _daysAgo(2)},
-      {'id': 'ord-002', 'businessProfileId': 'retail-001', 'orderRef': 'AZM-ORD-102',
-       'title': 'Mr. Price cotton tee', 'customerId': 1, 'productId': 'prod-tshirt',
-       'status': 'IN_ESCROW', 'amountUsdc': 8.00, 'description': 'Cotton Crew Tee × 1',
-       'createdAt': _hoursAgo(6)},
+      {
+        'id': 'ord-001',
+        'businessProfileId': 'restaurant-001',
+        'orderRef': 'AZM-ORD-101',
+        'title': "Chef Abby's takeaway",
+        'customerId': 1,
+        'productId': 'dish-jollof',
+        'status': 'COMPLETED',
+        'amountUsdc': 12.00,
+        'description': 'Jollof Rice × 1',
+        'createdAt': _daysAgo(2),
+      },
+      {
+        'id': 'ord-002',
+        'businessProfileId': 'retail-001',
+        'orderRef': 'AZM-ORD-102',
+        'title': 'Mr. Price cotton tee',
+        'customerId': 1,
+        'productId': 'prod-tshirt',
+        'status': 'IN_ESCROW',
+        'amountUsdc': 8.00,
+        'description': 'Cotton Crew Tee × 1',
+        'createdAt': _hoursAgo(6),
+      },
     ],
-    'hasMore': false, 'nextCursor': null,
+    'hasMore': false,
+    'nextCursor': null,
   };
 
   /// Demo user owns no business — the truthful stats are zeros.
   static Map<String, dynamic> getOwnerStats() => {
     'stats': {
-      'totalOrders': 0, 'completedOrders': 0, 'pendingOrders': 0,
-      'disputedOrders': 0, 'cancelledOrders': 0, 'totalRevenue': 0.0,
-      'avgOrderValue': 0.0, 'recentOrders': [],
+      'totalOrders': 0,
+      'completedOrders': 0,
+      'pendingOrders': 0,
+      'disputedOrders': 0,
+      'cancelledOrders': 0,
+      'totalRevenue': 0.0,
+      'avgOrderValue': 0.0,
+      'recentOrders': [],
     },
   };
 
   /// Demo user owns no business — an empty notification feed is the
   /// truthful, explicit decision here (not a fake fallback).
   static Map<String, dynamic> getOwnerNotifications() => {
-    'notifications': [], 'hasMore': false, 'nextCursor': null, 'unreadCount': 0,
+    'notifications': [],
+    'hasMore': false,
+    'nextCursor': null,
+    'unreadCount': 0,
   };
 
   /// Demo user owns no business — KYB is unstarted.
-  static Map<String, dynamic> getKybStatus() =>
-    {'kybStatus': 'UNVERIFIED', 'documents': []};
+  static Map<String, dynamic> getKybStatus() => {
+    'kybStatus': 'UNVERIFIED',
+    'documents': [],
+  };
 
   /// Owner-scoped global product list — demo user owns none.
-  static Map<String, dynamic> getMyProducts() =>
-    {'products': [], 'hasMore': false, 'nextCursor': null};
+  static Map<String, dynamic> getMyProducts() => {
+    'products': [],
+    'hasMore': false,
+    'nextCursor': null,
+  };
 
   /// Public single-product lookup across the seeded catalogue.
   static Map<String, dynamic> getProductById(String productId) {
@@ -957,7 +1210,10 @@ class DemoMarketplaceSeed {
         .where((p) => p['id'] == productId)
         .toList(growable: false);
     if (match.isEmpty) {
-      throw DemoEndpointNotSeededException('GET', '/business/products/$productId');
+      throw DemoEndpointNotSeededException(
+        'GET',
+        '/business/products/$productId',
+      );
     }
     return {'product': match.first};
   }
@@ -968,80 +1224,163 @@ class DemoMarketplaceSeed {
     return {
       'success': true,
       'trips': [
-        {'id': 'trip-001', 'businessProfileId': 'transit-001', 'vehicleId': 'veh-001',
-         'routeName': 'Accra to Kumasi Express', 'origin': 'Accra', 'destination': 'Kumasi',
-         'departureAt': _hoursFromNow(3), 'arrivalAt': _hoursFromNow(6),
-         'fareUsdc': 15.00, 'availableSeats': 22, 'status': 'SCHEDULED',
-         'vehicle': {'type': 'COACH', 'make': 'Mercedes-Benz', 'model': 'Sprinter 450',
-           'imageUrl': DemoMedia.tCover,
-           'driverName': 'Kwabena Owusu', 'driverPhotoUrl': DemoMedia.tLogo,
-           'plateNumber': 'GT 4521-24',
-           'coDriverName': 'Akosua Mensah', 'coDriverPhotoUrl': DemoMedia.tAlt},
-         '_count': {'bookings': 12}},
-        {'id': 'trip-002', 'businessProfileId': 'transit-001', 'vehicleId': 'veh-002',
-         'routeName': 'Accra to Cape Coast Run', 'origin': 'Accra', 'destination': 'Cape Coast',
-         'departureAt': _hoursFromNow(5), 'arrivalAt': _hoursFromNow(7),
-         'fareUsdc': 10.00, 'availableSeats': 28, 'status': 'SCHEDULED',
-         'vehicle': {'type': 'MINIVAN', 'make': 'Toyota', 'model': 'HiAce',
-           'imageUrl': DemoMedia.tAlt,
-           'driverName': 'Yaw Mensah', 'driverPhotoUrl': DemoMedia.tLogo,
-           'plateNumber': 'GR 8892-25'},
-         '_count': {'bookings': 6}},
-        {'id': 'trip-003', 'businessProfileId': 'transit-002', 'vehicleId': 'veh-101',
-         'routeName': 'Accra to Ho Scenic', 'origin': 'Accra', 'destination': 'Ho',
-         'departureAt': _hoursFromNow(4), 'arrivalAt': _hoursFromNow(7),
-         'fareUsdc': 12.00, 'availableSeats': 16, 'status': 'SCHEDULED',
-         'vehicle': {'type': 'MINIBUS', 'make': 'Nissan', 'model': 'Urvan',
-           'imageUrl': DemoMedia.tThird,
-           'driverName': 'Kofi Boateng', 'driverPhotoUrl': DemoMedia.tLogo,
-           'plateNumber': 'GR 3320-24'},
-         '_count': {'bookings': 9}},
-        {'id': 'trip-004', 'businessProfileId': 'transit-002', 'vehicleId': 'veh-102',
-         'routeName': 'Kumasi to Tamale Overnight', 'origin': 'Kumasi', 'destination': 'Tamale',
-         'departureAt': _hoursFromNow(9), 'arrivalAt': _hoursFromNow(17),
-         'fareUsdc': 20.00, 'availableSeats': 24, 'status': 'SCHEDULED',
-         'vehicle': {'type': 'COACH', 'make': 'Yutong', 'model': 'ZK6122',
-           'imageUrl': DemoMedia.tCover,
-           'driverName': 'Fuseini Iddrisu', 'driverPhotoUrl': DemoMedia.tAlt,
-           'plateNumber': 'AS 1109-23'},
-         '_count': {'bookings': 15}},
+        {
+          'id': 'trip-001',
+          'businessProfileId': 'transit-001',
+          'vehicleId': 'veh-001',
+          'routeName': 'Accra to Kumasi Express',
+          'origin': 'Accra',
+          'destination': 'Kumasi',
+          'departureAt': _hoursFromNow(3),
+          'arrivalAt': _hoursFromNow(6),
+          'fareUsdc': 15.00,
+          'availableSeats': 22,
+          'status': 'SCHEDULED',
+          'vehicle': {
+            'type': 'COACH',
+            'make': 'Mercedes-Benz',
+            'model': 'Sprinter 450',
+            'imageUrl': DemoMedia.tCover,
+            'driverName': 'Kwabena Owusu',
+            'driverPhotoUrl': DemoMedia.tLogo,
+            'plateNumber': 'GT 4521-24',
+            'coDriverName': 'Akosua Mensah',
+            'coDriverPhotoUrl': DemoMedia.tAlt,
+          },
+          '_count': {'bookings': 12},
+        },
+        {
+          'id': 'trip-002',
+          'businessProfileId': 'transit-001',
+          'vehicleId': 'veh-002',
+          'routeName': 'Accra to Cape Coast Run',
+          'origin': 'Accra',
+          'destination': 'Cape Coast',
+          'departureAt': _hoursFromNow(5),
+          'arrivalAt': _hoursFromNow(7),
+          'fareUsdc': 10.00,
+          'availableSeats': 28,
+          'status': 'SCHEDULED',
+          'vehicle': {
+            'type': 'MINIVAN',
+            'make': 'Toyota',
+            'model': 'HiAce',
+            'imageUrl': DemoMedia.tAlt,
+            'driverName': 'Yaw Mensah',
+            'driverPhotoUrl': DemoMedia.tLogo,
+            'plateNumber': 'GR 8892-25',
+          },
+          '_count': {'bookings': 6},
+        },
+        {
+          'id': 'trip-003',
+          'businessProfileId': 'transit-002',
+          'vehicleId': 'veh-101',
+          'routeName': 'Accra to Ho Scenic',
+          'origin': 'Accra',
+          'destination': 'Ho',
+          'departureAt': _hoursFromNow(4),
+          'arrivalAt': _hoursFromNow(7),
+          'fareUsdc': 12.00,
+          'availableSeats': 16,
+          'status': 'SCHEDULED',
+          'vehicle': {
+            'type': 'MINIBUS',
+            'make': 'Nissan',
+            'model': 'Urvan',
+            'imageUrl': DemoMedia.tThird,
+            'driverName': 'Kofi Boateng',
+            'driverPhotoUrl': DemoMedia.tLogo,
+            'plateNumber': 'GR 3320-24',
+          },
+          '_count': {'bookings': 9},
+        },
+        {
+          'id': 'trip-004',
+          'businessProfileId': 'transit-002',
+          'vehicleId': 'veh-102',
+          'routeName': 'Kumasi to Tamale Overnight',
+          'origin': 'Kumasi',
+          'destination': 'Tamale',
+          'departureAt': _hoursFromNow(9),
+          'arrivalAt': _hoursFromNow(17),
+          'fareUsdc': 20.00,
+          'availableSeats': 24,
+          'status': 'SCHEDULED',
+          'vehicle': {
+            'type': 'COACH',
+            'make': 'Yutong',
+            'model': 'ZK6122',
+            'imageUrl': DemoMedia.tCover,
+            'driverName': 'Fuseini Iddrisu',
+            'driverPhotoUrl': DemoMedia.tAlt,
+            'plateNumber': 'AS 1109-23',
+          },
+          '_count': {'bookings': 15},
+        },
       ],
     };
   }
 
   static Map<String, dynamic> getTripSeats(String tripId) {
     if (!isSeededId(tripId, seededTripIds)) {
-      throw DemoEndpointNotSeededException('GET', '/marketplace/transit/trips/$tripId/seats');
+      throw DemoEndpointNotSeededException(
+        'GET',
+        '/marketplace/transit/trips/$tripId/seats',
+      );
     }
     final seats = <Map<String, dynamic>>[];
-    final occupied = {'1A','2B','3D','5A','7C','10B','10D'};
+    final occupied = {'1A', '2B', '3D', '5A', '7C', '10B', '10D'};
     for (var row = 1; row <= 10; row++) {
       for (var col = 0; col < 4; col++) {
         final seatLetter = String.fromCharCode(65 + col);
         final seatId = '$row$seatLetter';
         final isWindow = col == 0 || col == 3;
-        var tier = 'ECONOMY'; var fare = 15.0;
-        if (row <= 2) { tier = 'VIP'; fare = 25.0; }
-        else if (row <= 5) { tier = 'STANDARD'; fare = 18.0; }
-        seats.add({'seatId': seatId, 'row': row, 'col': col + 1,
+        var tier = 'ECONOMY';
+        var fare = 15.0;
+        if (row <= 2) {
+          tier = 'VIP';
+          fare = 25.0;
+        } else if (row <= 5) {
+          tier = 'STANDARD';
+          fare = 18.0;
+        }
+        seats.add({
+          'seatId': seatId,
+          'row': row,
+          'col': col + 1,
           'type': isWindow ? 'WINDOW' : 'AISLE',
           'status': occupied.contains(seatId) ? 'OCCUPIED' : 'AVAILABLE',
-          'tier': tier, 'fare': fare});
+          'tier': tier,
+          'fare': fare,
+        });
       }
     }
-    return {'success': true, 'tripId': tripId, 'seats': seats,
+    return {
+      'success': true,
+      'tripId': tripId,
+      'seats': seats,
       'availableCount': seats.where((s) => s['status'] == 'AVAILABLE').length,
-      'totalSeats': seats.length, 'tripStatus': 'SCHEDULED', 'fareUsdc': 15.0,
-      'tierFares': {'VIP': 25.0, 'STANDARD': 18.0, 'ECONOMY': 15.0}};
+      'totalSeats': seats.length,
+      'tripStatus': 'SCHEDULED',
+      'fareUsdc': 15.0,
+      'tierFares': {'VIP': 25.0, 'STANDARD': 18.0, 'ECONOMY': 15.0},
+    };
   }
 
   static Map<String, dynamic> getTrustScore(String azamanId) {
     if (azamanId.trim() != seededTrustScoreAzamanId) {
-      throw DemoEndpointNotSeededException('GET', '/marketplace/trust-score/$azamanId');
+      throw DemoEndpointNotSeededException(
+        'GET',
+        '/marketplace/trust-score/$azamanId',
+      );
     }
     return {
-      'trustLevel': 'GOOD', 'noShowRate': 0.02,
-      'totalBookings': 14, 'noShowCount': 0, 'completedBookings': 14,
+      'trustLevel': 'GOOD',
+      'noShowRate': 0.02,
+      'totalBookings': 14,
+      'noShowCount': 0,
+      'completedBookings': 14,
     };
   }
 
@@ -1049,23 +1388,50 @@ class DemoMarketplaceSeed {
   /// tab on the seeded restaurant so the endpoint is explicitly covered.
   static Map<String, dynamic> getDineInTab(String tabId) {
     if (!isSeededId(tabId, seededDineInTabIds)) {
-      throw DemoEndpointNotSeededException('GET', '/marketplace/business/dine-in/$tabId');
+      throw DemoEndpointNotSeededException(
+        'GET',
+        '/marketplace/business/dine-in/$tabId',
+      );
     }
-    return {'data': {
-      'id': tabId,
-      'status': 'OPEN',
-      'openedAt': _hoursAgo(1),
-      'subtotalUsdc': 15.00, 'taxTotalUsdc': 0.75, 'tipUsdc': 0.0,
-      'grandTotalUsdc': 15.75,
-      'businessProfile': {'id': 'restaurant-001', 'bizId': restaurantBizId,
-        'businessName': "Chef Abby's", 'logoUrl': DemoMedia.rLogo},
-      'table': {'id': 'tbl-005', 'label': 'Table 12', 'locationId': 'loc-rest-001'},
-      'items': [
-        {'id': 'di-1', 'name': 'Jollof Rice', 'unitPrice': 12.00, 'quantity': 1,
-         'lineTotal': 12.00, 'addedAt': _hoursAgo(1)},
-        {'id': 'di-2', 'name': 'Sobolo', 'unitPrice': 3.00, 'quantity': 1,
-         'lineTotal': 3.00, 'addedAt': _minutesAgo(50)},
-      ]},
+    return {
+      'data': {
+        'id': tabId,
+        'status': 'OPEN',
+        'openedAt': _hoursAgo(1),
+        'subtotalUsdc': 15.00,
+        'taxTotalUsdc': 0.75,
+        'tipUsdc': 0.0,
+        'grandTotalUsdc': 15.75,
+        'businessProfile': {
+          'id': 'restaurant-001',
+          'bizId': restaurantBizId,
+          'businessName': "Chef Abby's",
+          'logoUrl': DemoMedia.rLogo,
+        },
+        'table': {
+          'id': 'tbl-005',
+          'label': 'Table 12',
+          'locationId': 'loc-rest-001',
+        },
+        'items': [
+          {
+            'id': 'di-1',
+            'name': 'Jollof Rice',
+            'unitPrice': 12.00,
+            'quantity': 1,
+            'lineTotal': 12.00,
+            'addedAt': _hoursAgo(1),
+          },
+          {
+            'id': 'di-2',
+            'name': 'Sobolo',
+            'unitPrice': 3.00,
+            'quantity': 1,
+            'lineTotal': 3.00,
+            'addedAt': _minutesAgo(50),
+          },
+        ],
+      },
     };
   }
 
@@ -1091,41 +1457,97 @@ class DemoMarketplaceSeed {
     final profileId = entry[1];
     return {
       'reviews': [
-        {'id': 'rev-$bizId-1', 'businessProfileId': profileId, 'reviewerId': 11,
-         'rating': 5, 'comment': 'Great experience — fast service and exactly as described.',
-         'sourceType': 'ORDER', 'createdAt': _daysAgo(5),
-         'reviewer': {'id': 11, 'username': 'ama_k'},
-         'reviewerUsername': 'ama_k'},
-        {'id': 'rev-$bizId-2', 'businessProfileId': profileId, 'reviewerId': 12,
-         'rating': 4, 'comment': 'Good value. Will come back.',
-         'sourceType': 'ORDER', 'createdAt': _daysAgo(12),
-         'reviewer': {'id': 12, 'username': 'yaw_o'},
-         'reviewerUsername': 'yaw_o'},
+        {
+          'id': 'rev-$bizId-1',
+          'businessProfileId': profileId,
+          'reviewerId': 11,
+          'rating': 5,
+          'comment':
+              'Great experience — fast service and exactly as described.',
+          'sourceType': 'ORDER',
+          'createdAt': _daysAgo(5),
+          'reviewer': {'id': 11, 'username': 'ama_k'},
+          'reviewerUsername': 'ama_k',
+        },
+        {
+          'id': 'rev-$bizId-2',
+          'businessProfileId': profileId,
+          'reviewerId': 12,
+          'rating': 4,
+          'comment': 'Good value. Will come back.',
+          'sourceType': 'ORDER',
+          'createdAt': _daysAgo(12),
+          'reviewer': {'id': 12, 'username': 'yaw_o'},
+          'reviewerUsername': 'yaw_o',
+        },
       ],
-      'hasMore': false, 'nextCursor': null,
+      'hasMore': false,
+      'nextCursor': null,
     };
   }
 
   // ── Products / rooms ─────────────────────────────────────────────────
 
   static Map<String, dynamic> getProducts(String bizId) {
-    if (bizId == hotelBizId || bizId == 'hotel-001') return {'products': _hotelRooms('hotel-001')};
-    if (bizId == hotel2BizId || bizId == 'hotel-002') return {'products': _hotelRooms('hotel-002')};
-    if (bizId == transitBizId || bizId == 'transit-001') return {'products': _transitProducts('transit-001')};
-    if (bizId == transit2BizId || bizId == 'transit-002') return {'products': _transitProducts('transit-002')};
-    if (bizId == retailBizId || bizId == 'retail-001') return {'products': _retailProducts('retail-001')};
-    if (bizId == retail2BizId || bizId == 'retail-002') return {'products': _retailProducts('retail-002')};
+    if (bizId == hotelBizId || bizId == 'hotel-001')
+      return {'products': _hotelRooms('hotel-001')};
+    if (bizId == hotel2BizId || bizId == 'hotel-002')
+      return {'products': _hotelRooms('hotel-002')};
+    if (bizId == transitBizId || bizId == 'transit-001')
+      return {'products': _transitProducts('transit-001')};
+    if (bizId == transit2BizId || bizId == 'transit-002')
+      return {'products': _transitProducts('transit-002')};
+    if (bizId == retailBizId || bizId == 'retail-001')
+      return {'products': _retailProducts('retail-001')};
+    if (bizId == retail2BizId || bizId == 'retail-002')
+      return {'products': _retailProducts('retail-002')};
     if (bizId == restaurantBizId) {
-      return {'products': [
-      _dish('dish-waakye', 'Waakye & Stew', 'Rice & beans with spaghetti, egg, shito', 14.50, [], DemoMedia.rCover, restaurantBizId),
-      _dish('dish-jollof', 'Jollof Rice', 'Smoky one-pot rice', 12.00, ['veg'], DemoMedia.rAlt, restaurantBizId),
-      ]};
+      return {
+        'products': [
+          _dish(
+            'dish-waakye',
+            'Waakye & Stew',
+            'Rice & beans with spaghetti, egg, shito',
+            14.50,
+            [],
+            DemoMedia.rCover,
+            restaurantBizId,
+          ),
+          _dish(
+            'dish-jollof',
+            'Jollof Rice',
+            'Smoky one-pot rice',
+            12.00,
+            ['veg'],
+            DemoMedia.rAlt,
+            restaurantBizId,
+          ),
+        ],
+      };
     }
     if (bizId == restaurant2BizId) {
-      return {'products': [
-      _dish('dish2-suya', 'Chicken Suya', 'Yaji-rubbed grilled chicken thighs', 11.00, ['spicy'], DemoMedia.rThird, restaurant2BizId),
-      _dish('dish2-koshari', 'Koshari', 'Rice, lentils and pasta in tomato sauce', 9.00, ['veg'], DemoMedia.rCover, restaurant2BizId),
-      ]};
+      return {
+        'products': [
+          _dish(
+            'dish2-suya',
+            'Chicken Suya',
+            'Yaji-rubbed grilled chicken thighs',
+            11.00,
+            ['spicy'],
+            DemoMedia.rThird,
+            restaurant2BizId,
+          ),
+          _dish(
+            'dish2-koshari',
+            'Koshari',
+            'Rice, lentils and pasta in tomato sauce',
+            9.00,
+            ['veg'],
+            DemoMedia.rCover,
+            restaurant2BizId,
+          ),
+        ],
+      };
     }
     throw DemoEndpointNotSeededException('GET', '/business/$bizId/products');
   }
@@ -1139,7 +1561,8 @@ class DemoMarketplaceSeed {
     }
     return {
       'locations': List<Map<String, dynamic>>.from(
-        (match.first['locations'] as List).whereType<Map<String, dynamic>>()),
+        (match.first['locations'] as List).whereType<Map<String, dynamic>>(),
+      ),
     };
   }
 
@@ -1147,7 +1570,13 @@ class DemoMarketplaceSeed {
     final byBizId = {
       restaurantBizId: [DemoMedia.rCover, DemoMedia.rAlt, DemoMedia.rThird],
       restaurant2BizId: [DemoMedia.rAlt, DemoMedia.rCover],
-      hotelBizId: [DemoMedia.hCover, DemoMedia.hAlt, DemoMedia.hThird, DemoMedia.hAlt, DemoMedia.hCover],
+      hotelBizId: [
+        DemoMedia.hCover,
+        DemoMedia.hAlt,
+        DemoMedia.hThird,
+        DemoMedia.hAlt,
+        DemoMedia.hCover,
+      ],
       hotel2BizId: [DemoMedia.hThird, DemoMedia.hCover, DemoMedia.hAlt],
       transitBizId: [DemoMedia.tCover, DemoMedia.tAlt],
       transit2BizId: [DemoMedia.tThird, DemoMedia.tCover],
@@ -1164,214 +1593,423 @@ class DemoMarketplaceSeed {
   // ── Business definitions ──────────────────────────────────────────────
 
   static Map<String, dynamic> _restaurantBusiness() => {
-    'id': 'restaurant-001', 'bizId': restaurantBizId, 'businessName': "Chef Abby's",
-    'category': 'FOOD_BEVERAGE', 'description': 'Authentic Ghanaian cuisine in the heart of Accra. From jollof to waakye, every plate tells a story.',
-    'website': 'https://chefabbys.gh', 'logoUrl': DemoMedia.rLogo,
+    'id': 'restaurant-001',
+    'bizId': restaurantBizId,
+    'businessName': "Chef Abby's",
+    'category': 'FOOD_BEVERAGE',
+    'description':
+        'Authentic Ghanaian cuisine in the heart of Accra. From jollof to waakye, every plate tells a story.',
+    'website': 'https://chefabbys.gh',
+    'logoUrl': DemoMedia.rLogo,
     'coverImageUrl': DemoMedia.rCover,
-    'phoneNumber': '+233 24 123 4567', 'address': 'Oxford Street, Osu, Accra', 'country': 'Ghana',
-    'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
-    'totalEscrows': 340, 'completedEscrows': 335, 'userId': 201,
-    'totalVolume': 125000.00, 'averageRating': 4.7, 'reviewCount': 234,
-    'subcategory': 'Restaurant', 'priceRange': 2,
-    'amenities': ['WiFi','Dine-in','Takeaway','Delivery','Parking'],
-    'cuisineTypes': ['Ghanaian','African','Continental'],
+    'phoneNumber': '+233 24 123 4567',
+    'address': 'Oxford Street, Osu, Accra',
+    'country': 'Ghana',
+    'isVerified': true,
+    'isSuspended': false,
+    'kybStatus': 'VERIFIED',
+    'totalEscrows': 340,
+    'completedEscrows': 335,
+    'userId': 201,
+    'totalVolume': 125000.00,
+    'averageRating': 4.7,
+    'reviewCount': 234,
+    'subcategory': 'Restaurant',
+    'priceRange': 2,
+    'amenities': ['WiFi', 'Dine-in', 'Takeaway', 'Delivery', 'Parking'],
+    'cuisineTypes': ['Ghanaian', 'African', 'Continental'],
     'adAccentColor': '#FF6B35',
     'user': {'id': 201, 'username': 'chef_abbys', 'profilePictureUrl': null},
-    'products': [], 'locations': [_restaurantLocation()],
+    'products': [],
+    'locations': [_restaurantLocation()],
   };
 
   static Map<String, dynamic> _restaurant2Business() {
-    return {'id': 'restaurant-002', 'bizId': restaurant2BizId, 'businessName': "Mama Titi's Kitchen",
-      'category': 'FOOD_BEVERAGE', 'description': 'Spintex road grill house. Charcoal suya, fresh tilapia and cold lamugin until late.',
-      'website': 'https://mamatitis.gh', 'logoUrl': DemoMedia.rAlt,
+    return {
+      'id': 'restaurant-002',
+      'bizId': restaurant2BizId,
+      'businessName': "Mama Titi's Kitchen",
+      'category': 'FOOD_BEVERAGE',
+      'description':
+          'Spintex road grill house. Charcoal suya, fresh tilapia and cold lamugin until late.',
+      'website': 'https://mamatitis.gh',
+      'logoUrl': DemoMedia.rAlt,
       'coverImageUrl': DemoMedia.rThird,
-      'phoneNumber': '+233 27 445 8890', 'address': 'Spintex Road, Accra', 'country': 'Ghana',
-      'isVerified': false, 'isSuspended': false, 'kybStatus': 'PENDING',
-      'totalEscrows': 46, 'completedEscrows': 44, 'userId': 211,
-      'totalVolume': 9200.00, 'averageRating': 4.3, 'reviewCount': 61,
-      'subcategory': 'Grill House', 'priceRange': 1,
-      'amenities': ['Takeaway','Outdoor Seating','Late Night'],
-      'cuisineTypes': ['Ghanaian','Barbecue'],
+      'phoneNumber': '+233 27 445 8890',
+      'address': 'Spintex Road, Accra',
+      'country': 'Ghana',
+      'isVerified': false,
+      'isSuspended': false,
+      'kybStatus': 'PENDING',
+      'totalEscrows': 46,
+      'completedEscrows': 44,
+      'userId': 211,
+      'totalVolume': 9200.00,
+      'averageRating': 4.3,
+      'reviewCount': 61,
+      'subcategory': 'Grill House',
+      'priceRange': 1,
+      'amenities': ['Takeaway', 'Outdoor Seating', 'Late Night'],
+      'cuisineTypes': ['Ghanaian', 'Barbecue'],
       'adAccentColor': '#F59E0B',
       'user': {'id': 211, 'username': 'mama_titi', 'profilePictureUrl': null},
-      'products': [], 'locations': [_restaurant2Location()],
+      'products': [],
+      'locations': [_restaurant2Location()],
     };
   }
 
   static Map<String, dynamic> _hotelBusiness() {
-    return {'id': 'hotel-001', 'bizId': hotelBizId, 'businessName': 'The Gallery',
-      'category': 'HOSPITALITY', 'description': 'Boutique apartments in East Legon. Fully furnished studios and 1-bedroom suites with 24/7 concierge.',
-      'website': 'https://thegallery.gh', 'logoUrl': DemoMedia.hLogo,
+    return {
+      'id': 'hotel-001',
+      'bizId': hotelBizId,
+      'businessName': 'The Gallery',
+      'category': 'HOSPITALITY',
+      'description':
+          'Boutique apartments in East Legon. Fully furnished studios and 1-bedroom suites with 24/7 concierge.',
+      'website': 'https://thegallery.gh',
+      'logoUrl': DemoMedia.hLogo,
       'coverImageUrl': DemoMedia.hCover,
-      'phoneNumber': '+233 26 987 6543', 'address': 'East Legon, Greater Accra', 'country': 'Ghana',
-      'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
-      'totalEscrows': 180, 'completedEscrows': 175, 'userId': 202,
-      'totalVolume': 85000.00, 'averageRating': 4.8, 'reviewCount': 156,
-      'subcategory': 'Apartments', 'priceRange': 3,
-      'amenities': ['Pool','Gym','Spa','WiFi','Restaurant','Bar','Parking','Concierge'],
-      'cuisineTypes': [], 'adAccentColor': '#1A8FE3',
+      'phoneNumber': '+233 26 987 6543',
+      'address': 'East Legon, Greater Accra',
+      'country': 'Ghana',
+      'isVerified': true,
+      'isSuspended': false,
+      'kybStatus': 'VERIFIED',
+      'totalEscrows': 180,
+      'completedEscrows': 175,
+      'userId': 202,
+      'totalVolume': 85000.00,
+      'averageRating': 4.8,
+      'reviewCount': 156,
+      'subcategory': 'Apartments',
+      'priceRange': 3,
+      'amenities': [
+        'Pool',
+        'Gym',
+        'Spa',
+        'WiFi',
+        'Restaurant',
+        'Bar',
+        'Parking',
+        'Concierge',
+      ],
+      'cuisineTypes': [],
+      'adAccentColor': '#1A8FE3',
       'user': {'id': 202, 'username': 'the_gallery', 'profilePictureUrl': null},
-      'products': _hotelRooms('hotel-001'), 'locations': [_hotelLocation()],
-      'businessMeta': {'showcaseUrls': [DemoMedia.hCover, DemoMedia.hAlt, DemoMedia.hThird, DemoMedia.hAlt, DemoMedia.hCover]},
+      'products': _hotelRooms('hotel-001'),
+      'locations': [_hotelLocation()],
+      'businessMeta': {
+        'showcaseUrls': [
+          DemoMedia.hCover,
+          DemoMedia.hAlt,
+          DemoMedia.hThird,
+          DemoMedia.hAlt,
+          DemoMedia.hCover,
+        ],
+      },
     };
   }
 
   static Map<String, dynamic> _hotel2Business() {
-    return {'id': 'hotel-002', 'bizId': hotel2BizId, 'businessName': 'Coastline Suites',
-      'category': 'HOSPITALITY', 'description': 'Sea-view suites on Cape Coast beach road. Sunrise balconies, breakfast included, weekly rates for remote workers.',
-      'website': 'https://coastlinesuites.gh', 'logoUrl': DemoMedia.hAlt,
+    return {
+      'id': 'hotel-002',
+      'bizId': hotel2BizId,
+      'businessName': 'Coastline Suites',
+      'category': 'HOSPITALITY',
+      'description':
+          'Sea-view suites on Cape Coast beach road. Sunrise balconies, breakfast included, weekly rates for remote workers.',
+      'website': 'https://coastlinesuites.gh',
+      'logoUrl': DemoMedia.hAlt,
       'coverImageUrl': DemoMedia.hThird,
-      'phoneNumber': '+233 31 202 3311', 'address': 'Beach Road, Cape Coast', 'country': 'Ghana',
-      'isVerified': false, 'isSuspended': false, 'kybStatus': 'PENDING',
-      'totalEscrows': 58, 'completedEscrows': 56, 'userId': 212,
-      'totalVolume': 21800.00, 'averageRating': 4.6, 'reviewCount': 72,
-      'subcategory': 'Beach Hotel', 'priceRange': 2,
-      'amenities': ['Sea View','Breakfast','WiFi','Airport Shuttle'],
-      'cuisineTypes': [], 'adAccentColor': '#A78BFA',
-      'user': {'id': 212, 'username': 'coastline_suites', 'profilePictureUrl': null},
-      'products': _hotelRooms('hotel-002'), 'locations': [_hotel2Location()],
-      'businessMeta': {'showcaseUrls': [DemoMedia.hThird, DemoMedia.hCover, DemoMedia.hAlt]},
+      'phoneNumber': '+233 31 202 3311',
+      'address': 'Beach Road, Cape Coast',
+      'country': 'Ghana',
+      'isVerified': false,
+      'isSuspended': false,
+      'kybStatus': 'PENDING',
+      'totalEscrows': 58,
+      'completedEscrows': 56,
+      'userId': 212,
+      'totalVolume': 21800.00,
+      'averageRating': 4.6,
+      'reviewCount': 72,
+      'subcategory': 'Beach Hotel',
+      'priceRange': 2,
+      'amenities': ['Sea View', 'Breakfast', 'WiFi', 'Airport Shuttle'],
+      'cuisineTypes': [],
+      'adAccentColor': '#A78BFA',
+      'user': {
+        'id': 212,
+        'username': 'coastline_suites',
+        'profilePictureUrl': null,
+      },
+      'products': _hotelRooms('hotel-002'),
+      'locations': [_hotel2Location()],
+      'businessMeta': {
+        'showcaseUrls': [DemoMedia.hThird, DemoMedia.hCover, DemoMedia.hAlt],
+      },
     };
   }
 
   static Map<String, dynamic> _transitBusiness() {
-    return {'id': 'transit-001', 'bizId': transitBizId, 'businessName': 'Advenr',
-      'category': 'LOGISTICS', 'description': 'Premium intercity travel. Modern fleet, professional drivers, on-time departures, comfortable seats.',
-      'website': 'https://advenr.gh', 'logoUrl': DemoMedia.tLogo,
+    return {
+      'id': 'transit-001',
+      'bizId': transitBizId,
+      'businessName': 'Advenr',
+      'category': 'LOGISTICS',
+      'description':
+          'Premium intercity travel. Modern fleet, professional drivers, on-time departures, comfortable seats.',
+      'website': 'https://advenr.gh',
+      'logoUrl': DemoMedia.tLogo,
       'coverImageUrl': DemoMedia.tCover,
-      'phoneNumber': '+233 20 555 0199', 'address': 'Circle Station, Accra', 'country': 'Ghana',
-      'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
-      'totalEscrows': 520, 'completedEscrows': 515, 'userId': 203,
-      'totalVolume': 78000.00, 'averageRating': 4.5, 'reviewCount': 410,
-      'subcategory': 'Intercity Bus', 'priceRange': 1,
-      'amenities': ['AC','WiFi','USB Charging','Refreshments'],
-      'cuisineTypes': [], 'adAccentColor': '#10B981',
+      'phoneNumber': '+233 20 555 0199',
+      'address': 'Circle Station, Accra',
+      'country': 'Ghana',
+      'isVerified': true,
+      'isSuspended': false,
+      'kybStatus': 'VERIFIED',
+      'totalEscrows': 520,
+      'completedEscrows': 515,
+      'userId': 203,
+      'totalVolume': 78000.00,
+      'averageRating': 4.5,
+      'reviewCount': 410,
+      'subcategory': 'Intercity Bus',
+      'priceRange': 1,
+      'amenities': ['AC', 'WiFi', 'USB Charging', 'Refreshments'],
+      'cuisineTypes': [],
+      'adAccentColor': '#10B981',
       'user': {'id': 203, 'username': 'advenr', 'profilePictureUrl': null},
-      'products': _transitProducts('transit-001'), 'locations': [_transitLocation()],
+      'products': _transitProducts('transit-001'),
+      'locations': [_transitLocation()],
     };
   }
 
   static Map<String, dynamic> _transit2Business() {
-    return {'id': 'transit-002', 'bizId': transit2BizId, 'businessName': 'Volta Lines',
-      'category': 'LOGISTICS', 'description': 'Scenic and overnight routes through the Volta corridor. Comfortable reclining seats, live trip tracking.',
-      'website': 'https://voltalines.gh', 'logoUrl': DemoMedia.tAlt,
+    return {
+      'id': 'transit-002',
+      'bizId': transit2BizId,
+      'businessName': 'Volta Lines',
+      'category': 'LOGISTICS',
+      'description':
+          'Scenic and overnight routes through the Volta corridor. Comfortable reclining seats, live trip tracking.',
+      'website': 'https://voltalines.gh',
+      'logoUrl': DemoMedia.tAlt,
       'coverImageUrl': DemoMedia.tThird,
-      'phoneNumber': '+233 36 210 4477', 'address': 'Ho Main Station, Ho', 'country': 'Ghana',
-      'isVerified': false, 'isSuspended': false, 'kybStatus': 'PENDING',
-      'totalEscrows': 210, 'completedEscrows': 205, 'userId': 213,
-      'totalVolume': 34000.00, 'averageRating': 4.2, 'reviewCount': 188,
-      'subcategory': 'Regional Coach', 'priceRange': 1,
-      'amenities': ['AC','USB Charging','Live Tracking','Blanket'],
-      'cuisineTypes': [], 'adAccentColor': '#4F8EF7',
+      'phoneNumber': '+233 36 210 4477',
+      'address': 'Ho Main Station, Ho',
+      'country': 'Ghana',
+      'isVerified': false,
+      'isSuspended': false,
+      'kybStatus': 'PENDING',
+      'totalEscrows': 210,
+      'completedEscrows': 205,
+      'userId': 213,
+      'totalVolume': 34000.00,
+      'averageRating': 4.2,
+      'reviewCount': 188,
+      'subcategory': 'Regional Coach',
+      'priceRange': 1,
+      'amenities': ['AC', 'USB Charging', 'Live Tracking', 'Blanket'],
+      'cuisineTypes': [],
+      'adAccentColor': '#4F8EF7',
       'user': {'id': 213, 'username': 'volta_lines', 'profilePictureUrl': null},
-      'products': _transitProducts('transit-002'), 'locations': [_transit2Location()],
+      'products': _transitProducts('transit-002'),
+      'locations': [_transit2Location()],
     };
   }
 
   static Map<String, dynamic> _retailBusiness() {
-    return {'id': 'retail-001', 'bizId': retailBizId, 'businessName': 'Mr. Price',
-      'category': 'RETAIL', 'description': 'Fashion, homeware & lifestyle at everyday prices',
-      'logoUrl': DemoMedia.rtLogo, 'coverImageUrl': DemoMedia.rtCover,
-      'isVerified': true, 'isSuspended': false, 'kybStatus': 'VERIFIED',
-      'totalEscrows': 320, 'completedEscrows': 315, 'userId': 205,
-      'totalVolume': 45000.00, 'averageRating': 4.4, 'reviewCount': 210,
-      'subcategory': 'Fashion Retail', 'priceRange': 1,
-      'amenities': ['Changing Rooms','Click & Collect','Returns'],
-      'cuisineTypes': [], 'adAccentColor': '#00D97E',
+    return {
+      'id': 'retail-001',
+      'bizId': retailBizId,
+      'businessName': 'Mr. Price',
+      'category': 'RETAIL',
+      'description': 'Fashion, homeware & lifestyle at everyday prices',
+      'logoUrl': DemoMedia.rtLogo,
+      'coverImageUrl': DemoMedia.rtCover,
+      'isVerified': true,
+      'isSuspended': false,
+      'kybStatus': 'VERIFIED',
+      'totalEscrows': 320,
+      'completedEscrows': 315,
+      'userId': 205,
+      'totalVolume': 45000.00,
+      'averageRating': 4.4,
+      'reviewCount': 210,
+      'subcategory': 'Fashion Retail',
+      'priceRange': 1,
+      'amenities': ['Changing Rooms', 'Click & Collect', 'Returns'],
+      'cuisineTypes': [],
+      'adAccentColor': '#00D97E',
       'user': {'id': 205, 'username': 'mr_price', 'profilePictureUrl': null},
-      'products': _retailProducts('retail-001'), 'locations': [_retailLocation()],
+      'products': _retailProducts('retail-001'),
+      'locations': [_retailLocation()],
     };
   }
 
   static Map<String, dynamic> _retail2Business() {
-    return {'id': 'retail-002', 'bizId': retail2BizId, 'businessName': 'Accra Home Goods',
-      'category': 'RETAIL', 'description': 'Locally made homeware — woven baskets, ceramics and ashanti cloth for your space.',
-      'logoUrl': DemoMedia.rtAlt, 'coverImageUrl': DemoMedia.rtThird,
-      'isVerified': false, 'isSuspended': false, 'kybStatus': 'PENDING',
-      'totalEscrows': 74, 'completedEscrows': 71, 'userId': 214,
-      'totalVolume': 11200.00, 'averageRating': 4.1, 'reviewCount': 39,
-      'subcategory': 'Homeware', 'priceRange': 2,
-      'amenities': ['Click & Collect','Delivery'],
-      'cuisineTypes': [], 'adAccentColor': '#00D97E',
+    return {
+      'id': 'retail-002',
+      'bizId': retail2BizId,
+      'businessName': 'Accra Home Goods',
+      'category': 'RETAIL',
+      'description':
+          'Locally made homeware — woven baskets, ceramics and ashanti cloth for your space.',
+      'logoUrl': DemoMedia.rtAlt,
+      'coverImageUrl': DemoMedia.rtThird,
+      'isVerified': false,
+      'isSuspended': false,
+      'kybStatus': 'PENDING',
+      'totalEscrows': 74,
+      'completedEscrows': 71,
+      'userId': 214,
+      'totalVolume': 11200.00,
+      'averageRating': 4.1,
+      'reviewCount': 39,
+      'subcategory': 'Homeware',
+      'priceRange': 2,
+      'amenities': ['Click & Collect', 'Delivery'],
+      'cuisineTypes': [],
+      'adAccentColor': '#00D97E',
       'user': {'id': 214, 'username': 'accra_home', 'profilePictureUrl': null},
-      'products': _retailProducts('retail-002'), 'locations': [_retail2Location()],
+      'products': _retailProducts('retail-002'),
+      'locations': [_retail2Location()],
     };
   }
 
   // ── Locations ─────────────────────────────────────────────────────────
 
   static Map<String, dynamic> _restaurantLocation() => {
-    'id': 'loc-rest-001', 'businessProfileId': 'restaurant-001',
-    'label': "Chef Abby's - Osu", 'address': 'Oxford Street, Osu, Accra',
-    'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
-    'latitude': 5.5550, 'longitude': -0.1800,
-    'isPrimary': true, 'isActive': true,
+    'id': 'loc-rest-001',
+    'businessProfileId': 'restaurant-001',
+    'label': "Chef Abby's - Osu",
+    'address': 'Oxford Street, Osu, Accra',
+    'city': 'Accra',
+    'region': 'Greater Accra',
+    'country': 'Ghana',
+    'latitude': 5.5550,
+    'longitude': -0.1800,
+    'isPrimary': true,
+    'isActive': true,
     'galleryUrls': [DemoMedia.rCover, DemoMedia.rAlt, DemoMedia.rCover],
   };
 
   static Map<String, dynamic> _restaurant2Location() {
-    return {'id': 'loc-rest-002', 'businessProfileId': 'restaurant-002',
-      'label': "Mama Titi's - Spintex", 'address': 'Spintex Road, Accra',
-      'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
-      'latitude': 5.6220, 'longitude': -0.1180,
-      'isPrimary': true, 'isActive': true,
+    return {
+      'id': 'loc-rest-002',
+      'businessProfileId': 'restaurant-002',
+      'label': "Mama Titi's - Spintex",
+      'address': 'Spintex Road, Accra',
+      'city': 'Accra',
+      'region': 'Greater Accra',
+      'country': 'Ghana',
+      'latitude': 5.6220,
+      'longitude': -0.1180,
+      'isPrimary': true,
+      'isActive': true,
       'galleryUrls': [DemoMedia.rThird, DemoMedia.rCover],
     };
   }
 
   static Map<String, dynamic> _hotelLocation() => {
-    'id': 'loc-hotel-001', 'businessProfileId': 'hotel-001',
-    'label': 'The Gallery - East Legon', 'address': 'East Legon, Greater Accra',
-    'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
-    'latitude': 5.6400, 'longitude': -0.1680,
-    'isPrimary': true, 'isActive': true,
-    'galleryUrls': [DemoMedia.hCover, DemoMedia.hAlt, DemoMedia.hThird, DemoMedia.hAlt, DemoMedia.hCover],
+    'id': 'loc-hotel-001',
+    'businessProfileId': 'hotel-001',
+    'label': 'The Gallery - East Legon',
+    'address': 'East Legon, Greater Accra',
+    'city': 'Accra',
+    'region': 'Greater Accra',
+    'country': 'Ghana',
+    'latitude': 5.6400,
+    'longitude': -0.1680,
+    'isPrimary': true,
+    'isActive': true,
+    'galleryUrls': [
+      DemoMedia.hCover,
+      DemoMedia.hAlt,
+      DemoMedia.hThird,
+      DemoMedia.hAlt,
+      DemoMedia.hCover,
+    ],
   };
 
   static Map<String, dynamic> _hotel2Location() {
-    return {'id': 'loc-hotel-002', 'businessProfileId': 'hotel-002',
-      'label': 'Coastline Suites - Cape Coast', 'address': 'Beach Road, Cape Coast',
-      'city': 'Cape Coast', 'region': 'Central', 'country': 'Ghana',
-      'latitude': 5.1050, 'longitude': -1.2460,
-      'isPrimary': true, 'isActive': true,
+    return {
+      'id': 'loc-hotel-002',
+      'businessProfileId': 'hotel-002',
+      'label': 'Coastline Suites - Cape Coast',
+      'address': 'Beach Road, Cape Coast',
+      'city': 'Cape Coast',
+      'region': 'Central',
+      'country': 'Ghana',
+      'latitude': 5.1050,
+      'longitude': -1.2460,
+      'isPrimary': true,
+      'isActive': true,
       'galleryUrls': [DemoMedia.hThird, DemoMedia.hCover, DemoMedia.hAlt],
     };
   }
 
   static Map<String, dynamic> _transitLocation() => {
-    'id': 'loc-transit-001', 'businessProfileId': 'transit-001',
-    'label': 'Advenr - Circle Station', 'address': 'Circle Station, Accra',
-    'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
-    'latitude': 5.5700, 'longitude': -0.2050,
-    'isPrimary': true, 'isActive': true,
+    'id': 'loc-transit-001',
+    'businessProfileId': 'transit-001',
+    'label': 'Advenr - Circle Station',
+    'address': 'Circle Station, Accra',
+    'city': 'Accra',
+    'region': 'Greater Accra',
+    'country': 'Ghana',
+    'latitude': 5.5700,
+    'longitude': -0.2050,
+    'isPrimary': true,
+    'isActive': true,
     'galleryUrls': [DemoMedia.tCover, DemoMedia.tAlt],
   };
 
   static Map<String, dynamic> _transit2Location() {
-    return {'id': 'loc-transit-002', 'businessProfileId': 'transit-002',
-      'label': 'Volta Lines - Ho Main Station', 'address': 'Ho Main Station, Ho',
-      'city': 'Ho', 'region': 'Volta', 'country': 'Ghana',
-      'latitude': 6.6060, 'longitude': 0.4710,
-      'isPrimary': true, 'isActive': true,
+    return {
+      'id': 'loc-transit-002',
+      'businessProfileId': 'transit-002',
+      'label': 'Volta Lines - Ho Main Station',
+      'address': 'Ho Main Station, Ho',
+      'city': 'Ho',
+      'region': 'Volta',
+      'country': 'Ghana',
+      'latitude': 6.6060,
+      'longitude': 0.4710,
+      'isPrimary': true,
+      'isActive': true,
       'galleryUrls': [DemoMedia.tThird, DemoMedia.tCover],
     };
   }
 
   static Map<String, dynamic> _retailLocation() => {
-    'id': 'loc-retail-001', 'businessProfileId': 'retail-001',
-    'label': 'Mr. Price - Accra Mall', 'address': 'Accra Mall, Tetteh Quarshie, Accra',
-    'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
-    'latitude': 5.6300, 'longitude': -0.1730,
-    'isPrimary': true, 'isActive': true,
+    'id': 'loc-retail-001',
+    'businessProfileId': 'retail-001',
+    'label': 'Mr. Price - Accra Mall',
+    'address': 'Accra Mall, Tetteh Quarshie, Accra',
+    'city': 'Accra',
+    'region': 'Greater Accra',
+    'country': 'Ghana',
+    'latitude': 5.6300,
+    'longitude': -0.1730,
+    'isPrimary': true,
+    'isActive': true,
     'galleryUrls': [DemoMedia.rtAlt, DemoMedia.rtCover],
   };
 
   static Map<String, dynamic> _retail2Location() {
-    return {'id': 'loc-retail-002', 'businessProfileId': 'retail-002',
-      'label': 'Accra Home Goods - Osu', 'address': 'Cantonments Road, Osu, Accra',
-      'city': 'Accra', 'region': 'Greater Accra', 'country': 'Ghana',
-      'latitude': 5.5620, 'longitude': -0.1810,
-      'isPrimary': true, 'isActive': true,
+    return {
+      'id': 'loc-retail-002',
+      'businessProfileId': 'retail-002',
+      'label': 'Accra Home Goods - Osu',
+      'address': 'Cantonments Road, Osu, Accra',
+      'city': 'Accra',
+      'region': 'Greater Accra',
+      'country': 'Ghana',
+      'latitude': 5.5620,
+      'longitude': -0.1810,
+      'isPrimary': true,
+      'isActive': true,
       'galleryUrls': [DemoMedia.rtCover, DemoMedia.rtAlt],
     };
   }
@@ -1383,20 +2021,36 @@ class DemoMarketplaceSeed {
     for (var f = 1; f <= 4; f++) {
       for (var r = 1; r <= 6; r++) {
         final roomNumber = f * 100 + r;
-        String roomType; double price;
-        if (r <= 2) { roomType = 'Deluxe Suite'; price = 180.00; }
-        else if (r <= 4) { roomType = 'Standard Room'; price = 95.00; }
-        else { roomType = 'Economy Room'; price = 55.00; }
+        String roomType;
+        double price;
+        if (r <= 2) {
+          roomType = 'Deluxe Suite';
+          price = 180.00;
+        } else if (r <= 4) {
+          roomType = 'Standard Room';
+          price = 95.00;
+        } else {
+          roomType = 'Economy Room';
+          price = 55.00;
+        }
         // Deterministic per-floor media from the verified hotel pool.
         final image = f % 3 == 1
             ? DemoMedia.hCover
             : (f % 3 == 2 ? DemoMedia.hAlt : DemoMedia.hThird);
-        rooms.add({'id': 'room-$profileId-$roomNumber', 'businessProfileId': profileId,
-          'name': 'Room $roomNumber', 'slug': 'room-$roomNumber',
-          'description': '$roomType on Floor $f', 'priceUsdc': price, 'totalRevenue': 0,
+        rooms.add({
+          'id': 'room-$profileId-$roomNumber',
+          'businessProfileId': profileId,
+          'name': 'Room $roomNumber',
+          'slug': 'room-$roomNumber',
+          'description': '$roomType on Floor $f',
+          'priceUsdc': price,
+          'totalRevenue': 0,
           'imageUrls': [image, DemoMedia.hThird],
-          'isActive': true, 'totalOrders': 0,
-          'tags': [roomType, 'Floor $f'], 'category': roomType});
+          'isActive': true,
+          'totalOrders': 0,
+          'tags': [roomType, 'Floor $f'],
+          'category': roomType,
+        });
       }
     }
     return rooms;
@@ -1405,59 +2059,240 @@ class DemoMarketplaceSeed {
   // ── Transit Products ──────────────────────────────────────────────────
 
   static List<Map<String, dynamic>> _transitProducts(String profileId) => [
-    {'id': 'prod-$profileId-eco', 'businessProfileId': profileId, 'name': 'Economy Ticket', 'slug': 'economy-ticket-$profileId', 'description': 'Standard seat with AC and USB charging', 'priceUsdc': 15.00, 'totalRevenue': 12000, 'imageUrls': [DemoMedia.tThird], 'isActive': true, 'totalOrders': 800, 'tags': ['Economy']},
-    {'id': 'prod-$profileId-std', 'businessProfileId': profileId, 'name': 'Standard Ticket', 'slug': 'standard-ticket-$profileId', 'description': 'Wider seat, priority boarding, refreshments', 'priceUsdc': 18.00, 'totalRevenue': 8000, 'imageUrls': [DemoMedia.tThird], 'isActive': true, 'totalOrders': 440, 'tags': ['Standard']},
-    {'id': 'prod-$profileId-vip', 'businessProfileId': profileId, 'name': 'VIP Ticket', 'slug': 'vip-ticket-$profileId', 'description': 'Lie-flat seat, privacy curtain, meal included', 'priceUsdc': 25.00, 'totalRevenue': 5000, 'imageUrls': [DemoMedia.tAlt], 'isActive': true, 'totalOrders': 200, 'tags': ['VIP']},
+    {
+      'id': 'prod-$profileId-eco',
+      'businessProfileId': profileId,
+      'name': 'Economy Ticket',
+      'slug': 'economy-ticket-$profileId',
+      'description': 'Standard seat with AC and USB charging',
+      'priceUsdc': 15.00,
+      'totalRevenue': 12000,
+      'imageUrls': [DemoMedia.tThird],
+      'isActive': true,
+      'totalOrders': 800,
+      'tags': ['Economy'],
+    },
+    {
+      'id': 'prod-$profileId-std',
+      'businessProfileId': profileId,
+      'name': 'Standard Ticket',
+      'slug': 'standard-ticket-$profileId',
+      'description': 'Wider seat, priority boarding, refreshments',
+      'priceUsdc': 18.00,
+      'totalRevenue': 8000,
+      'imageUrls': [DemoMedia.tThird],
+      'isActive': true,
+      'totalOrders': 440,
+      'tags': ['Standard'],
+    },
+    {
+      'id': 'prod-$profileId-vip',
+      'businessProfileId': profileId,
+      'name': 'VIP Ticket',
+      'slug': 'vip-ticket-$profileId',
+      'description': 'Lie-flat seat, privacy curtain, meal included',
+      'priceUsdc': 25.00,
+      'totalRevenue': 5000,
+      'imageUrls': [DemoMedia.tAlt],
+      'isActive': true,
+      'totalOrders': 200,
+      'tags': ['VIP'],
+    },
   ];
 
   // ── Retail Products ───────────────────────────────────────────────────
 
   static List<Map<String, dynamic>> _retailProducts(String profileId) => [
-    {'id': 'prod-tshirt', 'businessProfileId': 'retail-001', 'name': 'Cotton Crew Tee', 'slug': 'cotton-crew-tee', 'description': 'Soft 100% cotton t-shirt in classic colours', 'priceUsdc': 8.00, 'totalRevenue': 2400, 'imageUrls': [DemoMedia.rtCover], 'isActive': true, 'totalOrders': 300, 'tags': ['Tops', 'Unisex']},
-    {'id': 'prod-throw-pillow', 'businessProfileId': 'retail-001', 'name': 'Bolgatti Woven Basket', 'slug': 'bolgatti-basket', 'description': 'Hand-woven market basket from Bolgatanga', 'priceUsdc': 22.00, 'totalRevenue': 1800, 'imageUrls': [DemoMedia.rtThird], 'isActive': true, 'totalOrders': 140, 'tags': ['Homeware']},
-    {'id': 'prod-ahesi-ceramic', 'businessProfileId': 'retail-002', 'name': 'Ahesi Ceramic Bowl Set', 'slug': 'ahesi-bowl-set', 'description': 'Four stoneware bowls, glazed in terracotta', 'priceUsdc': 34.00, 'totalRevenue': 2100, 'imageUrls': [DemoMedia.rtAlt], 'isActive': true, 'totalOrders': 95, 'tags': ['Homeware', 'Ceramics']},
-    {'id': 'prod-adinkra-cloth', 'businessProfileId': 'retail-002', 'name': 'Adinkra Table Cloth', 'slug': 'adinkra-table-cloth', 'description': 'Hand-stamped cotton table cloth, 180×120cm', 'priceUsdc': 45.00, 'totalRevenue': 3200, 'imageUrls': [DemoMedia.rtCover], 'isActive': true, 'totalOrders': 61, 'tags': ['Homeware', 'Textiles']},
+    {
+      'id': 'prod-tshirt',
+      'businessProfileId': 'retail-001',
+      'name': 'Cotton Crew Tee',
+      'slug': 'cotton-crew-tee',
+      'description': 'Soft 100% cotton t-shirt in classic colours',
+      'priceUsdc': 8.00,
+      'totalRevenue': 2400,
+      'imageUrls': [DemoMedia.rtCover],
+      'isActive': true,
+      'totalOrders': 300,
+      'tags': ['Tops', 'Unisex'],
+    },
+    {
+      'id': 'prod-throw-pillow',
+      'businessProfileId': 'retail-001',
+      'name': 'Bolgatti Woven Basket',
+      'slug': 'bolgatti-basket',
+      'description': 'Hand-woven market basket from Bolgatanga',
+      'priceUsdc': 22.00,
+      'totalRevenue': 1800,
+      'imageUrls': [DemoMedia.rtThird],
+      'isActive': true,
+      'totalOrders': 140,
+      'tags': ['Homeware'],
+    },
+    {
+      'id': 'prod-ahesi-ceramic',
+      'businessProfileId': 'retail-002',
+      'name': 'Ahesi Ceramic Bowl Set',
+      'slug': 'ahesi-bowl-set',
+      'description': 'Four stoneware bowls, glazed in terracotta',
+      'priceUsdc': 34.00,
+      'totalRevenue': 2100,
+      'imageUrls': [DemoMedia.rtAlt],
+      'isActive': true,
+      'totalOrders': 95,
+      'tags': ['Homeware', 'Ceramics'],
+    },
+    {
+      'id': 'prod-adinkra-cloth',
+      'businessProfileId': 'retail-002',
+      'name': 'Adinkra Table Cloth',
+      'slug': 'adinkra-table-cloth',
+      'description': 'Hand-stamped cotton table cloth, 180×120cm',
+      'priceUsdc': 45.00,
+      'totalRevenue': 3200,
+      'imageUrls': [DemoMedia.rtCover],
+      'isActive': true,
+      'totalOrders': 61,
+      'tags': ['Homeware', 'Textiles'],
+    },
   ].where((p) => p['businessProfileId'] == profileId).toList();
 
   // ── Invoices ───────────────────────────────────────────────────────────
 
   static Map<String, dynamic> _unpaidInvoice() => {
-    'id': 'inv-restaurant-001', 'businessProfileId': 'restaurant-001',
-    'invoiceRef': 'AZM-INV-2025-104', 'locationId': 'loc-rest-001', 'tableId': 'tbl-005',
-    'customerId': 1, 'status': 'SENT',
-    'subtotalUsdc': 26.00, 'taxTotalUsdc': 1.30, 'tipUsdc': 2.00, 'billTotalUsdc': 29.30,
-    'feeUsdc': 0, 'customerCoveredFee': false, 'customerPaidUsdc': 0,
-    'sentAt': _hoursAgo(1), 'paidAt': null, 'voidedAt': null, 'createdAt': _hoursAgo(2),
+    'id': 'inv-restaurant-001',
+    'businessProfileId': 'restaurant-001',
+    'invoiceRef': 'AZM-INV-2025-104',
+    'locationId': 'loc-rest-001',
+    'tableId': 'tbl-005',
+    'customerId': 1,
+    'status': 'SENT',
+    'subtotalUsdc': 26.00,
+    'taxTotalUsdc': 1.30,
+    'tipUsdc': 2.00,
+    'billTotalUsdc': 29.30,
+    'feeUsdc': 0,
+    'customerCoveredFee': false,
+    'customerPaidUsdc': 0,
+    'sentAt': _hoursAgo(1),
+    'paidAt': null,
+    'voidedAt': null,
+    'createdAt': _hoursAgo(2),
     'lineItems': [
-      {'id': 'li-1', 'description': 'Kelewele', 'quantity': 1, 'unitPrice': 4.50, 'lineTotal': 4.50},
-      {'id': 'li-2', 'description': 'Jollof Rice', 'quantity': 1, 'unitPrice': 12.00, 'lineTotal': 12.00},
-      {'id': 'li-3', 'description': 'Sobolo', 'quantity': 1, 'unitPrice': 3.00, 'lineTotal': 3.00},
-      {'id': 'li-4', 'description': 'Banku & Tilapia', 'quantity': 1, 'unitPrice': 6.50, 'lineTotal': 6.50},
+      {
+        'id': 'li-1',
+        'description': 'Kelewele',
+        'quantity': 1,
+        'unitPrice': 4.50,
+        'lineTotal': 4.50,
+      },
+      {
+        'id': 'li-2',
+        'description': 'Jollof Rice',
+        'quantity': 1,
+        'unitPrice': 12.00,
+        'lineTotal': 12.00,
+      },
+      {
+        'id': 'li-3',
+        'description': 'Sobolo',
+        'quantity': 1,
+        'unitPrice': 3.00,
+        'lineTotal': 3.00,
+      },
+      {
+        'id': 'li-4',
+        'description': 'Banku & Tilapia',
+        'quantity': 1,
+        'unitPrice': 6.50,
+        'lineTotal': 6.50,
+      },
     ],
-    'taxLines': [{'id': 'tax-1', 'name': 'VAT (5%)', 'type': 'PERCENTAGE', 'value': 5, 'computedAmount': 1.30}],
-    'businessProfile': {'id': 'restaurant-001', 'businessName': "Chef Abby's", 'logoUrl': DemoMedia.rLogo},
-    'location': {'label': "Chef Abby's - Osu", 'address': 'Oxford Street, Osu, Accra'},
+    'taxLines': [
+      {
+        'id': 'tax-1',
+        'name': 'VAT (5%)',
+        'type': 'PERCENTAGE',
+        'value': 5,
+        'computedAmount': 1.30,
+      },
+    ],
+    'businessProfile': {
+      'id': 'restaurant-001',
+      'businessName': "Chef Abby's",
+      'logoUrl': DemoMedia.rLogo,
+    },
+    'location': {
+      'label': "Chef Abby's - Osu",
+      'address': 'Oxford Street, Osu, Accra',
+    },
     'table': {'label': 'Table 12'},
   };
 
   static Map<String, dynamic> _paidInvoice() {
     return {
-    'id': 'inv-restaurant-002', 'businessProfileId': 'restaurant-001',
-    'invoiceRef': 'AZM-INV-2025-099', 'locationId': 'loc-rest-001', 'tableId': 'tbl-005',
-    'customerId': 1, 'status': 'PAID',
-    'subtotalUsdc': 31.00, 'taxTotalUsdc': 1.55, 'tipUsdc': 3.00, 'billTotalUsdc': 35.55,
-    'feeUsdc': 0, 'customerCoveredFee': false, 'customerPaidUsdc': 35.55,
-    'sentAt': _daysAgo(3), 'paidAt': _daysAgo(3), 'voidedAt': null, 'createdAt': _daysAgo(4),
-    'lineItems': [
-      {'id': 'li-1', 'description': 'Banku & Tilapia', 'quantity': 1, 'unitPrice': 18.00, 'lineTotal': 18.00},
-      {'id': 'li-2', 'description': 'Red Red', 'quantity': 1, 'unitPrice': 10.00, 'lineTotal': 10.00},
-      {'id': 'li-3', 'description': 'Palm Wine', 'quantity': 1, 'unitPrice': 3.00, 'lineTotal': 3.00},
-    ],
-    'taxLines': [{'id': 'tax-1', 'name': 'VAT (5%)', 'type': 'PERCENTAGE', 'value': 5, 'computedAmount': 1.55}],
-    'businessProfile': {'id': 'restaurant-001', 'businessName': "Chef Abby's", 'logoUrl': DemoMedia.rLogo},
-    'location': {'label': "Chef Abby's - Osu", 'address': 'Oxford Street, Osu, Accra'},
-    'table': {'label': 'Table 12'},
-  };}
+      'id': 'inv-restaurant-002',
+      'businessProfileId': 'restaurant-001',
+      'invoiceRef': 'AZM-INV-2025-099',
+      'locationId': 'loc-rest-001',
+      'tableId': 'tbl-005',
+      'customerId': 1,
+      'status': 'PAID',
+      'subtotalUsdc': 31.00,
+      'taxTotalUsdc': 1.55,
+      'tipUsdc': 3.00,
+      'billTotalUsdc': 35.55,
+      'feeUsdc': 0,
+      'customerCoveredFee': false,
+      'customerPaidUsdc': 35.55,
+      'sentAt': _daysAgo(3),
+      'paidAt': _daysAgo(3),
+      'voidedAt': null,
+      'createdAt': _daysAgo(4),
+      'lineItems': [
+        {
+          'id': 'li-1',
+          'description': 'Banku & Tilapia',
+          'quantity': 1,
+          'unitPrice': 18.00,
+          'lineTotal': 18.00,
+        },
+        {
+          'id': 'li-2',
+          'description': 'Red Red',
+          'quantity': 1,
+          'unitPrice': 10.00,
+          'lineTotal': 10.00,
+        },
+        {
+          'id': 'li-3',
+          'description': 'Palm Wine',
+          'quantity': 1,
+          'unitPrice': 3.00,
+          'lineTotal': 3.00,
+        },
+      ],
+      'taxLines': [
+        {
+          'id': 'tax-1',
+          'name': 'VAT (5%)',
+          'type': 'PERCENTAGE',
+          'value': 5,
+          'computedAmount': 1.55,
+        },
+      ],
+      'businessProfile': {
+        'id': 'restaurant-001',
+        'businessName': "Chef Abby's",
+        'logoUrl': DemoMedia.rLogo,
+      },
+      'location': {
+        'label': "Chef Abby's - Osu",
+        'address': 'Oxford Street, Osu, Accra',
+      },
+      'table': {'label': 'Table 12'},
+    };
+  }
 
   // ── Following list (marketplace story rail) ────────────────────────────
 
@@ -1690,37 +2525,60 @@ class DemoMarketplaceSeed {
     final biz = businesses[bizId];
     if (biz == null) {
       throw DemoEndpointNotSeededException(
-          'GET', '/marketplace/business/$bizId/stories');
+        'GET',
+        '/marketplace/business/$bizId/stories',
+      );
     }
 
     return {
       'success': true,
       'stories': (biz['stories'] as List)
-          .map<Map<String, dynamic>>((raw) => {
-                ...raw as Map<String, dynamic>,
-                'userId': 1,
-                'businessProfileId': bizId,
-                'expiresAt': _hoursFromNow(24),
-                'user': {
-                  'username': biz['name'],
-                  'profilePictureUrl': biz['logo'],
-                },
-              })
+          .map<Map<String, dynamic>>(
+            (raw) => {
+              ...raw as Map<String, dynamic>,
+              'userId': 1,
+              'businessProfileId': bizId,
+              'expiresAt': _hoursFromNow(24),
+              'user': {
+                'username': biz['name'],
+                'profilePictureUrl': biz['logo'],
+              },
+            },
+          )
           .toList(),
     };
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────
 
-  static Map<String, dynamic> _dish(String id, String name, String description, double price, List<String> tags, String image, [String? bizId]) => {
-    'id': id, 'businessProfileId': bizId ?? 'restaurant-001', 'name': name, 'slug': id,
-    'description': description, 'priceUsdc': price, 'totalRevenue': 0,
+  static Map<String, dynamic> _dish(
+    String id,
+    String name,
+    String description,
+    double price,
+    List<String> tags,
+    String image, [
+    String? bizId,
+  ]) => {
+    'id': id,
+    'businessProfileId': bizId ?? 'restaurant-001',
+    'name': name,
+    'slug': id,
+    'description': description,
+    'priceUsdc': price,
+    'totalRevenue': 0,
     'imageUrls': [image],
-    'isActive': true, 'totalOrders': 0, 'tags': tags,
+    'isActive': true,
+    'totalOrders': 0,
+    'tags': tags,
   };
 
-  static String _hoursAgo(int h) => DateTime.now().subtract(Duration(hours: h)).toUtc().toIso8601String();
-  static String _daysAgo(int d) => DateTime.now().subtract(Duration(days: d)).toUtc().toIso8601String();
-  static String _hoursFromNow(int h) => DateTime.now().add(Duration(hours: h)).toUtc().toIso8601String();
-  static String _minutesAgo(int m) => DateTime.now().subtract(Duration(minutes: m)).toUtc().toIso8601String();
+  static String _hoursAgo(int h) =>
+      DateTime.now().subtract(Duration(hours: h)).toUtc().toIso8601String();
+  static String _daysAgo(int d) =>
+      DateTime.now().subtract(Duration(days: d)).toUtc().toIso8601String();
+  static String _hoursFromNow(int h) =>
+      DateTime.now().add(Duration(hours: h)).toUtc().toIso8601String();
+  static String _minutesAgo(int m) =>
+      DateTime.now().subtract(Duration(minutes: m)).toUtc().toIso8601String();
 }

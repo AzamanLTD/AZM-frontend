@@ -314,13 +314,14 @@ class _ContextualNavBandState extends ConsumerState<ContextualNavBand> {
       ),
     );
   }
-
 }
 
 /// A square icon action inside the contextual bar (56×62 — the pill's full
 /// height, comfortably above the 48px minimum target).
 class _BandIconAction extends StatelessWidget {
-  const _BandIconAction({super.key, required this.icon,
+  const _BandIconAction({
+    super.key,
+    required this.icon,
     required this.semanticLabel,
     required this.onTap,
     required this.iconColor,

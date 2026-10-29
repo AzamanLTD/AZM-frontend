@@ -3,7 +3,9 @@ import 'dart:io';
 
 void main() {
   test('dine-in tab screen has lifecycle-safe authoritative refresh', () {
-    final source = File('lib/screens/marketplace/dinein_tab_screen.dart').readAsStringSync();
+    final source = File(
+      'lib/screens/marketplace/dinein_tab_screen.dart',
+    ).readAsStringSync();
 
     expect(source, contains("with WidgetsBindingObserver"));
     expect(source, contains("Timer.periodic(const Duration(seconds: 10)"));

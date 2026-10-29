@@ -41,10 +41,9 @@ void main() {
   });
 
   test('the user gate wins over everything', () async {
-    AzSensory.apply(const SensoryPreferences(
-      soundEnabled: false,
-      soundSuccessOnly: false,
-    ));
+    AzSensory.apply(
+      const SensoryPreferences(soundEnabled: false, soundSuccessOnly: false),
+    );
     await AzSound.success();
     await AzSound.coin();
     await AzSound.tick();
@@ -52,10 +51,9 @@ void main() {
   });
 
   test('success-only mode silences garnish but keeps real events', () async {
-    AzSensory.apply(const SensoryPreferences(
-      soundEnabled: true,
-      soundSuccessOnly: true,
-    ));
+    AzSensory.apply(
+      const SensoryPreferences(soundEnabled: true, soundSuccessOnly: true),
+    );
     await AzSound.tick();
     await AzSound.whoosh();
     expect(recorder.played, isEmpty, reason: 'tick/whoosh are garnish');
@@ -63,27 +61,31 @@ void main() {
     await AzSound.success();
     await AzSound.coin();
     await AzSound.rip();
-    expect(recorder.played,
-        [AzSoundId.success, AzSoundId.coin, AzSoundId.rip]);
+    expect(recorder.played, [AzSoundId.success, AzSoundId.coin, AzSoundId.rip]);
   });
 
-  test('full sound mode plays everything, including an essential tick', () async {
-    AzSensory.apply(const SensoryPreferences(
-      soundEnabled: true,
-      soundSuccessOnly: false,
-    ));
-    await AzSound.tick();
-    await AzSound.whoosh();
-    AzSound.resetDebounceForTest();
-    await AzSound.tick(essential: true);
-    expect(recorder.played, [AzSoundId.tick, AzSoundId.whoosh, AzSoundId.tick]);
-  });
+  test(
+    'full sound mode plays everything, including an essential tick',
+    () async {
+      AzSensory.apply(
+        const SensoryPreferences(soundEnabled: true, soundSuccessOnly: false),
+      );
+      await AzSound.tick();
+      await AzSound.whoosh();
+      AzSound.resetDebounceForTest();
+      await AzSound.tick(essential: true);
+      expect(recorder.played, [
+        AzSoundId.tick,
+        AzSoundId.whoosh,
+        AzSoundId.tick,
+      ]);
+    },
+  );
 
   test('a repeat inside minRepeatGap is dropped (no double-tick)', () async {
-    AzSensory.apply(const SensoryPreferences(
-      soundEnabled: true,
-      soundSuccessOnly: false,
-    ));
+    AzSensory.apply(
+      const SensoryPreferences(soundEnabled: true, soundSuccessOnly: false),
+    );
     await AzSound.tick();
     await AzSound.tick(); // immediate second call — must be swallowed
     expect(recorder.played, [AzSoundId.tick]);
@@ -94,10 +96,9 @@ void main() {
   });
 
   test('different ids never block each other', () async {
-    AzSensory.apply(const SensoryPreferences(
-      soundEnabled: true,
-      soundSuccessOnly: false,
-    ));
+    AzSensory.apply(
+      const SensoryPreferences(soundEnabled: true, soundSuccessOnly: false),
+    );
     await AzSound.tick();
     await AzSound.whoosh();
     expect(recorder.played, [AzSoundId.tick, AzSoundId.whoosh]);
@@ -105,15 +106,24 @@ void main() {
 
   test('system backend maps all five ids to a real system sound', () {
     for (final id in AzSoundId.values) {
-      expect(SystemSoundBackend.systemTypeFor(id), isNotNull,
-          reason: '$id must resolve to click or alert');
+      expect(
+        SystemSoundBackend.systemTypeFor(id),
+        isNotNull,
+        reason: '$id must resolve to click or alert',
+      );
     }
-    expect(SystemSoundBackend.systemTypeFor(AzSoundId.tick),
-        SystemSoundType.click);
-    expect(SystemSoundBackend.systemTypeFor(AzSoundId.success),
-        SystemSoundType.alert);
-    expect(SystemSoundBackend.systemTypeFor(AzSoundId.coin),
-        SystemSoundType.alert);
+    expect(
+      SystemSoundBackend.systemTypeFor(AzSoundId.tick),
+      SystemSoundType.click,
+    );
+    expect(
+      SystemSoundBackend.systemTypeFor(AzSoundId.success),
+      SystemSoundType.alert,
+    );
+    expect(
+      SystemSoundBackend.systemTypeFor(AzSoundId.coin),
+      SystemSoundType.alert,
+    );
   });
 
   test('ensureReady preloads every id exactly once', () async {

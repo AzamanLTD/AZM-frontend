@@ -29,32 +29,32 @@ import 'package:azaman/services/api_client.dart';
 typedef BusinessPage = ({
   List<BusinessProfile> businesses,
   bool hasMore,
-  String? nextCursor
+  String? nextCursor,
 });
 typedef ProductPage = ({
   List<BusinessProduct> products,
   bool hasMore,
-  String? nextCursor
+  String? nextCursor,
 });
 typedef ReviewPage = ({
   List<BusinessReview> reviews,
   bool hasMore,
-  String? nextCursor
+  String? nextCursor,
 });
 typedef InvoicePage = ({
   List<BusinessInvoice> invoices,
   bool hasMore,
-  String? nextCursor
+  String? nextCursor,
 });
 typedef OrderPage = ({
   List<BusinessOrder> orders,
   bool hasMore,
-  String? nextCursor
+  String? nextCursor,
 });
 typedef NearbyPage = ({
   List<BusinessLocation> locations,
   bool hasMore,
-  int? nextPage
+  int? nextPage,
 });
 
 class BusinessService {
@@ -77,9 +77,13 @@ class BusinessService {
   ///
   /// Returns the permanent Cloudinary secure_url.
   /// Throws on failure (via ApiClient._handleResponse / _ok).
-  Future<String> uploadBusinessImage(File file, {String folder = 'products'}) async {
-    final uri =
-        Uri.parse('${ApiClient.baseUrl}/business/upload/image?folder=$folder');
+  Future<String> uploadBusinessImage(
+    File file, {
+    String folder = 'products',
+  }) async {
+    final uri = Uri.parse(
+      '${ApiClient.baseUrl}/business/upload/image?folder=$folder',
+    );
     final request = http.MultipartRequest('POST', uri);
 
     // Determine mime type from extension
@@ -105,8 +109,10 @@ class BusinessService {
       ),
     );
 
-    final response =
-        await _client.multipart('/business/upload/image?folder=$folder', request);
+    final response = await _client.multipart(
+      '/business/upload/image?folder=$folder',
+      request,
+    );
     final body = _ok(response.body, response.statusCode, 'Image upload failed');
     return body['url'].toString();
   }
@@ -118,7 +124,8 @@ class BusinessService {
     final res = await _client.post('/business/register', data);
     final body = _ok(res.body, res.statusCode, 'Registration failed');
     return BusinessProfile.fromJson(
-        body['businessProfile'] as Map<String, dynamic>);
+      body['businessProfile'] as Map<String, dynamic>,
+    );
   }
 
   /// GET /business/me — null when the user has no business yet.
@@ -179,7 +186,8 @@ class BusinessService {
     final res = await _client.patch('/business/profile', body: updates);
     final body = _ok(res.body, res.statusCode, 'Update failed');
     return BusinessProfile.fromJson(
-        body['businessProfile'] as Map<String, dynamic>);
+      body['businessProfile'] as Map<String, dynamic>,
+    );
   }
 
   // ── PRODUCTS ─────────────────────────────────────────────────────────────
@@ -190,9 +198,14 @@ class BusinessService {
     int limit = 20,
     String? cursor,
   }) async {
-    final query = _qs({'limit': '$limit', if (cursor != null) 'cursor': cursor});
-    final res =
-        await _client.get('/business/$bizId/products$query', requireAuth: false);
+    final query = _qs({
+      'limit': '$limit',
+      if (cursor != null) 'cursor': cursor,
+    });
+    final res = await _client.get(
+      '/business/$bizId/products$query',
+      requireAuth: false,
+    );
     final body = _ok(res.body, res.statusCode, 'Products failed');
     return _productPage(body);
   }
@@ -200,8 +213,10 @@ class BusinessService {
   /// GET /business/products/:productId (public) — null on 404.
   Future<BusinessProduct?> getProductById(String productId) async {
     try {
-      final res =
-          await _client.get('/business/products/$productId', requireAuth: false);
+      final res = await _client.get(
+        '/business/products/$productId',
+        requireAuth: false,
+      );
       final body = jsonDecode(res.body);
       final p = body['product'];
       return p is Map<String, dynamic> ? BusinessProduct.fromJson(p) : null;
@@ -213,7 +228,10 @@ class BusinessService {
 
   /// GET /business/products (owner's own products).
   Future<ProductPage> getMyProducts({int limit = 20, String? cursor}) async {
-    final query = _qs({'limit': '$limit', if (cursor != null) 'cursor': cursor});
+    final query = _qs({
+      'limit': '$limit',
+      if (cursor != null) 'cursor': cursor,
+    });
     final res = await _client.get('/business/products$query');
     final body = _ok(res.body, res.statusCode, 'Products failed');
     return _productPage(body);
@@ -228,7 +246,9 @@ class BusinessService {
 
   /// PATCH /business/products/:id
   Future<BusinessProduct> updateProduct(
-      String id, Map<String, dynamic> data) async {
+    String id,
+    Map<String, dynamic> data,
+  ) async {
     final res = await _client.patch('/business/products/$id', body: data);
     final body = _ok(res.body, res.statusCode, 'Update product failed');
     return BusinessProduct.fromJson(body['product'] as Map<String, dynamic>);
@@ -263,8 +283,10 @@ class BusinessService {
       'limit': '$limit',
       'page': '$page',
     });
-    final res =
-        await _client.get('/business/search/nearby$query', requireAuth: false);
+    final res = await _client.get(
+      '/business/search/nearby$query',
+      requireAuth: false,
+    );
     final body = _ok(res.body, res.statusCode, 'Nearby search failed');
     final nextPageRaw = body['nextPage'];
     return (
@@ -273,15 +295,17 @@ class BusinessService {
       nextPage: nextPageRaw == null
           ? null
           : (nextPageRaw is int
-              ? nextPageRaw
-              : int.tryParse(nextPageRaw.toString())),
+                ? nextPageRaw
+                : int.tryParse(nextPageRaw.toString())),
     );
   }
 
   /// GET /business/:bizId/locations (public).
   Future<List<BusinessLocation>> getPublicLocations(String bizId) async {
-    final res =
-        await _client.get('/business/$bizId/locations', requireAuth: false);
+    final res = await _client.get(
+      '/business/$bizId/locations',
+      requireAuth: false,
+    );
     final body = _ok(res.body, res.statusCode, 'Locations failed');
     return _list(body['locations'], BusinessLocation.fromJson);
   }
@@ -294,9 +318,14 @@ class BusinessService {
     int limit = 20,
     String? cursor,
   }) async {
-    final query = _qs({'limit': '$limit', if (cursor != null) 'cursor': cursor});
-    final res =
-        await _client.get('/business/$bizId/reviews$query', requireAuth: false);
+    final query = _qs({
+      'limit': '$limit',
+      if (cursor != null) 'cursor': cursor,
+    });
+    final res = await _client.get(
+      '/business/$bizId/reviews$query',
+      requireAuth: false,
+    );
     final body = _ok(res.body, res.statusCode, 'Reviews failed');
     return (
       reviews: _list(body['reviews'], BusinessReview.fromJson),
@@ -362,7 +391,10 @@ class BusinessService {
 
   /// GET /business/my-orders
   Future<OrderPage> getMyOrders({int limit = 20, String? cursor}) async {
-    final query = _qs({'limit': '$limit', if (cursor != null) 'cursor': cursor});
+    final query = _qs({
+      'limit': '$limit',
+      if (cursor != null) 'cursor': cursor,
+    });
     final res = await _client.get('/business/my-orders$query');
     final body = _ok(res.body, res.statusCode, 'Orders failed');
     return (
@@ -407,13 +439,19 @@ class BusinessService {
 
   /// POST /business/notifications/read-all
   Future<void> markAllNotificationsRead() async {
-    final res = await _client.post('/business/notifications/read-all', const {});
+    final res = await _client.post(
+      '/business/notifications/read-all',
+      const {},
+    );
     _ok(res.body, res.statusCode, 'Mark-all failed');
   }
 
   /// POST /business/notifications/read/:id
   Future<void> markNotificationRead(String id) async {
-    final res = await _client.post('/business/notifications/read/$id', const {});
+    final res = await _client.post(
+      '/business/notifications/read/$id',
+      const {},
+    );
     _ok(res.body, res.statusCode, 'Mark-read failed');
   }
 
@@ -421,7 +459,7 @@ class BusinessService {
 
   /// GET /business/kyb/status
   Future<({String kybStatus, List<Map<String, dynamic>> documents})>
-      getKybStatus() async {
+  getKybStatus() async {
     final res = await _client.get('/business/kyb/status');
     final body = _ok(res.body, res.statusCode, 'KYB status failed');
     return (
@@ -433,10 +471,10 @@ class BusinessService {
   }
 
   /// POST /business/kyb/submit { documents: [{documentType, documentUrl}] }
-  Future<void> submitKybDocuments(
-      List<Map<String, dynamic>> documents) async {
-    final res =
-        await _client.post('/business/kyb/submit', {'documents': documents});
+  Future<void> submitKybDocuments(List<Map<String, dynamic>> documents) async {
+    final res = await _client.post('/business/kyb/submit', {
+      'documents': documents,
+    });
     _ok(res.body, res.statusCode, 'KYB submit failed');
   }
 
@@ -447,24 +485,25 @@ class BusinessService {
     final res = await _client.get('/business/orders/stats');
     final body = _ok(res.body, res.statusCode, 'Stats failed');
     final stats = body['stats'];
-    return BusinessStats.fromJson(
-        stats is Map<String, dynamic> ? stats : body);
+    return BusinessStats.fromJson(stats is Map<String, dynamic> ? stats : body);
   }
 
   // ── Internal helpers ───────────────────────────────────────────────────────
 
   ProductPage _productPage(Map<String, dynamic> body) => (
-        products: _list(body['products'], BusinessProduct.fromJson),
-        hasMore: body['hasMore'] == true,
-        nextCursor: body['nextCursor']?.toString(),
-      );
+    products: _list(body['products'], BusinessProduct.fromJson),
+    hasMore: body['hasMore'] == true,
+    nextCursor: body['nextCursor']?.toString(),
+  );
 
   /// Build a `?a=b&c=d` query string from a map (URL-encoded). Empty → ''.
   String _qs(Map<String, String> params) {
     if (params.isEmpty) return '';
     final q = params.entries
-        .map((e) =>
-            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map(
+          (e) =>
+              '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+        )
         .join('&');
     return '?$q';
   }
@@ -485,13 +524,15 @@ class BusinessService {
       decoded = null;
     }
     if (statusCode < 200 || statusCode >= 300) {
-      final message = (decoded is Map ? decoded['message']?.toString() : null) ??
-          fallback;
+      final message =
+          (decoded is Map ? decoded['message']?.toString() : null) ?? fallback;
       throw BusinessServiceException(statusCode: statusCode, message: message);
     }
     if (decoded is! Map<String, dynamic>) {
       throw BusinessServiceException(
-          statusCode: statusCode, message: 'Malformed response');
+        statusCode: statusCode,
+        message: 'Malformed response',
+      );
     }
     return decoded;
   }
@@ -510,5 +551,6 @@ class BusinessServiceException implements Exception {
 }
 
 /// Riverpod handle for the marketplace service.
-final businessServiceProvider =
-    Provider<BusinessService>((ref) => BusinessService());
+final businessServiceProvider = Provider<BusinessService>(
+  (ref) => BusinessService(),
+);

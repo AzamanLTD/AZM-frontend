@@ -20,21 +20,30 @@ import 'package:azaman/screens/marketplace/market_storefront_shell.dart';
 import 'package:azaman/services/server_social_proof_service.dart';
 
 BusinessProfile _business() => BusinessProfile(
-      id: 'bp-1', bizId: 'BIZ-1', businessName: 'Makola Fresh Market',
-      category: 'FOOD_BEVERAGE', description: 'Fresh produce',
-      isVerified: true, isSuspended: false, kybStatus: 'VERIFIED',
-      totalEscrows: 4, completedEscrows: 4, userId: 1, totalVolume: 100,
-      averageRating: 4.7, username: 'makola', reviewCount: 12,
-      products: const [],
-    );
+  id: 'bp-1',
+  bizId: 'BIZ-1',
+  businessName: 'Makola Fresh Market',
+  category: 'FOOD_BEVERAGE',
+  description: 'Fresh produce',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 4,
+  completedEscrows: 4,
+  userId: 1,
+  totalVolume: 100,
+  averageRating: 4.7,
+  username: 'makola',
+  reviewCount: 12,
+  products: const [],
+);
 
 Future<void> _pump(WidgetTester tester, ServerSocialProof? proof) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         if (proof != null)
-          serverSocialProofProvider('bp-1')
-              .overrideWith((ref) async => proof),
+          serverSocialProofProvider('bp-1').overrideWith((ref) async => proof),
       ],
       child: MaterialApp(
         home: MarketStorefrontShell(
@@ -61,8 +70,9 @@ Future<void> _pump(WidgetTester tester, ServerSocialProof? proof) async {
 }
 
 void main() {
-  testWidgets('real proof renders one honest line under the identity',
-      (tester) async {
+  testWidgets('real proof renders one honest line under the identity', (
+    tester,
+  ) async {
     await _pump(
       tester,
       const ServerSocialProof(
@@ -77,8 +87,9 @@ void main() {
     );
   });
 
-  testWidgets('error/unavailable renders NOTHING — never "0 friends"',
-      (tester) async {
+  testWidgets('error/unavailable renders NOTHING — never "0 friends"', (
+    tester,
+  ) async {
     // No override: the real provider runs, has no backend in the test
     // environment, and must fail into honest absence.
     await _pump(tester, null);

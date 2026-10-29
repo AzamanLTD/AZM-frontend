@@ -65,7 +65,8 @@ class SavingsOverviewNotifier extends AsyncNotifier<SavingsOverview> {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final data = body['data'];
       return SavingsOverview(
-          data is Map ? Map<String, dynamic>.from(data) : const {});
+        data is Map ? Map<String, dynamic>.from(data) : const {},
+      );
     }
     throw Exception('Failed to load savings overview');
   }
@@ -89,4 +90,5 @@ class SavingsOverviewNotifier extends AsyncNotifier<SavingsOverview> {
 
 final savingsOverviewProvider =
     AsyncNotifierProvider<SavingsOverviewNotifier, SavingsOverview>(
-        SavingsOverviewNotifier.new);
+      SavingsOverviewNotifier.new,
+    );

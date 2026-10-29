@@ -55,7 +55,9 @@ void main() {
   test('rejects malformed recovery envelopes without throwing', () {
     expect(parseRecoveredClosedTab(const <String, dynamic>{}, 'tab-1'), isNull);
     expect(
-      parseRecoveredClosedTab(const <String, dynamic>{'tab': 'not-an-object'}, 'tab-1'),
+      parseRecoveredClosedTab(const <String, dynamic>{
+        'tab': 'not-an-object',
+      }, 'tab-1'),
       isNull,
     );
   });

@@ -39,8 +39,7 @@ GoRouter _router({double? fxRateOverride}) {
     routes: [
       GoRoute(
         path: '/',
-        builder: (context, state) =>
-            const Scaffold(body: SizedBox.shrink()),
+        builder: (context, state) => const Scaffold(body: SizedBox.shrink()),
       ),
       GoRoute(
         path: AzRoutes.cardTransfer,
@@ -129,8 +128,8 @@ Future<void> _tapKey(WidgetTester tester, String label) async {
   await tester.pump();
 }
 
-CardTransferEntranceState _entrance(WidgetTester tester) => tester.state(
-    find.byType(CardTransferEntrance));
+CardTransferEntranceState _entrance(WidgetTester tester) =>
+    tester.state(find.byType(CardTransferEntrance));
 
 void main() {
   setUpAll(() {
@@ -146,14 +145,20 @@ void main() {
 
       // MID-ENTRANCE on the first frames: the pair is rising out of the
       // wallet and has NOT yet settled.
-      expect(_entrance(tester).isPlaying, isTrue,
-          reason: 'the entrance plays on route entry');
+      expect(
+        _entrance(tester).isPlaying,
+        isTrue,
+        reason: 'the entrance plays on route entry',
+      );
       expect(_entrance(tester).progress, lessThan(1.0));
 
       await tester.pump(const Duration(milliseconds: 500));
       expect(_entrance(tester).isPlaying, isFalse);
-      expect(_entrance(tester).progress, 1.0,
-          reason: 'the pair has settled at its end state');
+      expect(
+        _entrance(tester).progress,
+        1.0,
+        reason: 'the pair has settled at its end state',
+      );
     });
 
     testWidgets('never replays on tab changes or rebuilds', (tester) async {
@@ -165,8 +170,11 @@ void main() {
       await tester.tap(find.text('From Visa'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(_entrance(tester).isPlaying, isFalse,
-          reason: 'a tab change is not a route entry');
+      expect(
+        _entrance(tester).isPlaying,
+        isFalse,
+        reason: 'a tab change is not a route entry',
+      );
       expect(_entrance(tester).progress, 1.0);
 
       // And back again — still settled, never replayed.
@@ -177,35 +185,47 @@ void main() {
       expect(_entrance(tester).progress, 1.0);
     });
 
-    testWidgets('reduced motion lands on the end state with no motion',
-        (tester) async {
+    testWidgets('reduced motion lands on the end state with no motion', (
+      tester,
+    ) async {
       await _pump(tester, reduceMotion: true, settleEntrance: false);
 
       final entrance = _entrance(tester);
-      expect(entrance.progress, 1.0,
-          reason: 'reduced motion: the pair is fully arrived immediately');
+      expect(
+        entrance.progress,
+        1.0,
+        reason: 'reduced motion: the pair is fully arrived immediately',
+      );
       expect(entrance.isPlaying, isFalse);
       await tester.pump(const Duration(milliseconds: 100));
-      expect(_entrance(tester).progress, 1.0,
-          reason: 'and nothing continues to move after the first frame');
+      expect(
+        _entrance(tester).progress,
+        1.0,
+        reason: 'and nothing continues to move after the first frame',
+      );
     });
   });
 
   // ── 2. CURRENCY PREVIEW TRUTH ────────────────────────────────────────────
 
   group('the currency preview', () {
-    testWidgets('GHS-first default entry with an honest rail preview',
-        (tester) async {
+    testWidgets('GHS-first default entry with an honest rail preview', (
+      tester,
+    ) async {
       await _pump(tester, fxRateOverride: 15.38);
 
       // The wheel's compact face renders the cedi glyph; the picker
       // carries the full GHS option.
-      expect(find.text('GH₵'), findsWidgets,
-          reason: 'the wheel carries the Ghana-cedi entry option');
+      expect(
+        find.text('GH₵'),
+        findsWidgets,
+        reason: 'the wheel carries the Ghana-cedi entry option',
+      );
       expect(
         tester
             .widget<CurrencyWheelToggle>(
-                find.byKey(const ValueKey('card-transfer-currency-wheel')))
+              find.byKey(const ValueKey('card-transfer-currency-wheel')),
+            )
             .selectedIndex,
         0,
         reason: 'GHS is the default entry denomination',
@@ -217,20 +237,23 @@ void main() {
       expect(
         find.textContaining('≈ 0.33\u00A0USDC · rail denomination — preview'),
         findsOneWidget,
-        reason: 'the equivalent names the USDC rail and is labelled a '
+        reason:
+            'the equivalent names the USDC rail and is labelled a '
             'preview — it never claims the cedi figure settles',
       );
     });
 
-    testWidgets('a wheel switch converts the digits at the pinned rate',
-        (tester) async {
+    testWidgets('a wheel switch converts the digits at the pinned rate', (
+      tester,
+    ) async {
       await _pump(tester, fxRateOverride: 15.38);
       await _tapKey(tester, '5');
       expect(find.text('5 GH₵'), findsOneWidget);
 
       // Drive the REAL picker gesture path a user takes.
-      await tester
-          .tap(find.byKey(const ValueKey('card-transfer-currency-wheel')));
+      await tester.tap(
+        find.byKey(const ValueKey('card-transfer-currency-wheel')),
+      );
       // Fixed pumps: the perpetual flow lane never settles, by design.
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
@@ -259,22 +282,30 @@ void main() {
       await _tapKey(tester, '5');
 
       expect(find.text('5 GH₵'), findsOneWidget);
-      expect(find.text('USDC rail equivalent unavailable'), findsOneWidget,
-          reason: 'an unusable rate must never become a silent zero or a '
-              'fabricated figure');
+      expect(
+        find.text('USDC rail equivalent unavailable'),
+        findsOneWidget,
+        reason:
+            'an unusable rate must never become a silent zero or a '
+            'fabricated figure',
+      );
 
       // The fail-closed switch: with no rate, a GHS→USDC switch of a
       // NON-EMPTY amount is REFUSED — the digits are never relabelled.
-      await tester
-          .tap(find.byKey(const ValueKey('card-transfer-currency-wheel')));
+      await tester.tap(
+        find.byKey(const ValueKey('card-transfer-currency-wheel')),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('USDC — USD Coin'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('5 GH₵'), findsOneWidget,
-          reason: 'fail-closed: the entry keeps its denomination');
+      expect(
+        find.text('5 GH₵'),
+        findsOneWidget,
+        reason: 'fail-closed: the entry keeps its denomination',
+      );
       expect(
         find.byKey(const ValueKey('card-transfer-entry-error')),
         findsOneWidget,
@@ -282,15 +313,15 @@ void main() {
       );
     });
 
-    testWidgets('the review pairing restates the rail truth and freezes it',
-        (tester) async {
+    testWidgets('the review pairing restates the rail truth and freezes it', (
+      tester,
+    ) async {
       await _pump(tester, fxRateOverride: 15.38);
       await _tapKey(tester, '1');
       await _tapKey(tester, '2');
       await _tapKey(tester, '.');
       await _tapKey(tester, '5');
-      await tester
-          .tap(find.byKey(const ValueKey('card-transfer-review-cta')));
+      await tester.tap(find.byKey(const ValueKey('card-transfer-review-cta')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -298,23 +329,27 @@ void main() {
       // frozen at review-open and labelled a preview.
       expect(find.text('12.5 GH₵'), findsOneWidget);
       expect(find.text('Rail amount (preview)'), findsOneWidget);
-      expect(find.textContaining('≈ 0.81\u00A0USDC — preview'), findsOneWidget,
-          reason: '12.5 GH₵ / 15.38 → 0.81 USDC, frozen at review-open');
+      expect(
+        find.textContaining('≈ 0.81\u00A0USDC — preview'),
+        findsOneWidget,
+        reason: '12.5 GH₵ / 15.38 → 0.81 USDC, frozen at review-open',
+      );
 
       // Back to the amount: the freeze clears.
-      await tester
-          .tap(find.byKey(const ValueKey('card-transfer-back-to-amount')));
+      await tester.tap(
+        find.byKey(const ValueKey('card-transfer-back-to-amount')),
+      );
       await tester.pump();
       expect(
-          find.byKey(const ValueKey('card-transfer-review-title')),
-          findsNothing);
+        find.byKey(const ValueKey('card-transfer-review-title')),
+        findsNothing,
+      );
     });
 
     testWidgets('no surface ever claims a GHS settlement', (tester) async {
       await _pump(tester, fxRateOverride: 15.38);
       await _tapKey(tester, '5');
-      await tester
-          .tap(find.byKey(const ValueKey('card-transfer-review-cta')));
+      await tester.tap(find.byKey(const ValueKey('card-transfer-review-cta')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -329,21 +364,28 @@ void main() {
   // ── 3. CLEARANCE ──────────────────────────────────────────────────────────
 
   group('clearance and responsive integrity', () {
-    testWidgets('the keypad and the review CTA sit above the bottom edge',
-        (tester) async {
+    testWidgets('the keypad and the review CTA sit above the bottom edge', (
+      tester,
+    ) async {
       await _pump(tester, surface: const Size(360, 640));
 
       final keypad = tester.getRect(find.byType(AmountKeypad));
-      expect(keypad.bottom, lessThanOrEqualTo(640),
-          reason: 'the keypad must remain fully usable above the edge');
+      expect(
+        keypad.bottom,
+        lessThanOrEqualTo(640),
+        reason: 'the keypad must remain fully usable above the edge',
+      );
       final cta = tester.getRect(
-          find.byKey(const ValueKey('card-transfer-review-cta')));
-      expect(cta.bottom, lessThanOrEqualTo(640),
-          reason: 'the primary action must remain fully usable');
+        find.byKey(const ValueKey('card-transfer-review-cta')),
+      );
+      expect(
+        cta.bottom,
+        lessThanOrEqualTo(640),
+        reason: 'the primary action must remain fully usable',
+      );
     });
 
-    testWidgets('a large bottom inset keeps the keypad usable',
-        (tester) async {
+    testWidgets('a large bottom inset keeps the keypad usable', (tester) async {
       // A floating band / IME-grade inset (240px) must not bury the
       // keypad or the CTA below the fold.
       await _pump(
@@ -359,7 +401,8 @@ void main() {
       final keypad = tester.getRect(find.byType(AmountKeypad));
       expect(keypad.bottom, lessThanOrEqualTo(800));
       final cta = tester.getRect(
-          find.byKey(const ValueKey('card-transfer-review-cta')));
+        find.byKey(const ValueKey('card-transfer-review-cta')),
+      );
       expect(cta.bottom, lessThanOrEqualTo(800));
       final stageScrollable = find.ancestor(
         of: find.descendant(
@@ -368,11 +411,16 @@ void main() {
         ),
         matching: find.byType(Scrollable),
       );
-      final stagePosition =
-          tester.state<ScrollableState>(stageScrollable).position;
-      expect(stagePosition.maxScrollExtent, greaterThan(0),
-          reason: 'the stage scrolls so the inset never buries the keypad '
-              'beyond reach');
+      final stagePosition = tester
+          .state<ScrollableState>(stageScrollable)
+          .position;
+      expect(
+        stagePosition.maxScrollExtent,
+        greaterThan(0),
+        reason:
+            'the stage scrolls so the inset never buries the keypad '
+            'beyond reach',
+      );
       expect(
         cta.bottom - stagePosition.maxScrollExtent,
         lessThanOrEqualTo(800),
@@ -380,24 +428,28 @@ void main() {
       );
     });
 
-    testWidgets('large text scales without any layout exception',
-        (tester) async {
+    testWidgets('large text scales without any layout exception', (
+      tester,
+    ) async {
       await _pump(tester, surface: const Size(360, 800), textScale: 1.3);
       expect(tester.takeException(), isNull);
       expect(find.byType(CompactBalancePreview), findsOneWidget);
       expect(find.byType(CompactVisaPreview), findsOneWidget);
     });
 
-    testWidgets('a short viewport scrolls the stage, never clips the tiles',
-        (tester) async {
+    testWidgets('a short viewport scrolls the stage, never clips the tiles', (
+      tester,
+    ) async {
       await _pump(tester, surface: const Size(320, 540));
       expect(tester.takeException(), isNull);
 
       // The tiles keep their full footprint at every viewport.
       final balance = tester.getRect(
-          find.byKey(const ValueKey('card-transfer-compact-balance')));
-      final visa = tester
-          .getRect(find.byKey(const ValueKey('card-transfer-compact-visa')));
+        find.byKey(const ValueKey('card-transfer-compact-balance')),
+      );
+      final visa = tester.getRect(
+        find.byKey(const ValueKey('card-transfer-compact-visa')),
+      );
       expect(balance.height, moreOrLessEquals(kCompactCardHeight, epsilon: 2));
       expect(visa.height, moreOrLessEquals(kCompactCardHeight, epsilon: 2));
     });
@@ -409,8 +461,7 @@ void main() {
     testWidgets('review never implies an executed transfer', (tester) async {
       await _pump(tester, fxRateOverride: 15.38);
       await _tapKey(tester, '5');
-      await tester
-          .tap(find.byKey(const ValueKey('card-transfer-review-cta')));
+      await tester.tap(find.byKey(const ValueKey('card-transfer-review-cta')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
@@ -420,9 +471,12 @@ void main() {
       expect(find.textContaining('sent to'), findsNothing);
       final submit = find.byKey(const ValueKey('card-transfer-submit'));
       expect(
-        tester.widget<Semantics>(
-          find.ancestor(of: submit, matching: find.byType(Semantics)).first,
-        ).properties.enabled,
+        tester
+            .widget<Semantics>(
+              find.ancestor(of: submit, matching: find.byType(Semantics)).first,
+            )
+            .properties
+            .enabled,
         isFalse,
         reason: 'submission stays structurally disabled on the demo rail',
       );

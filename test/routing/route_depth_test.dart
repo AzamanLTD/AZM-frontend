@@ -24,59 +24,59 @@ import 'package:go_router/go_router.dart';
 /// grammar, including the parameterized detail pairs that broke the
 /// old segment-counting model.
 GoRouter _buildRouter({String initialLocation = '/'}) => GoRouter(
-      initialLocation: initialLocation,
-      routes: [
-        GoRoute(
-          path: '/',
-          name: 'home',
-          builder: (context, state) => const Scaffold(body: Text('home')),
-        ),
-        GoRoute(
-          path: '/transactions',
-          name: 'transactions',
-          builder: (context, state) => const Scaffold(body: Text('tx')),
-        ),
-        GoRoute(
-          path: '/susu/:id',
-          name: 'susu-detail',
-          builder: (context, state) => const Scaffold(body: Text('susu')),
-        ),
-        GoRoute(
-          path: '/susu/:id/contract',
-          name: 'susu-contract',
-          builder: (context, state) => const Scaffold(body: Text('contract')),
-        ),
-        GoRoute(
-          path: '/trade/:tradeId',
-          name: 'trade',
-          builder: (context, state) => const Scaffold(body: Text('trade')),
-        ),
-        GoRoute(
-          path: '/dispute/:disputeId',
-          name: 'dispute',
-          builder: (context, state) => const Scaffold(body: Text('dispute')),
-        ),
-        GoRoute(
-          path: '/queue',
-          name: 'queue',
-          builder: (context, state) => const Scaffold(body: Text('queue')),
-        ),
-      ],
-    );
+  initialLocation: initialLocation,
+  routes: [
+    GoRoute(
+      path: '/',
+      name: 'home',
+      builder: (context, state) => const Scaffold(body: Text('home')),
+    ),
+    GoRoute(
+      path: '/transactions',
+      name: 'transactions',
+      builder: (context, state) => const Scaffold(body: Text('tx')),
+    ),
+    GoRoute(
+      path: '/susu/:id',
+      name: 'susu-detail',
+      builder: (context, state) => const Scaffold(body: Text('susu')),
+    ),
+    GoRoute(
+      path: '/susu/:id/contract',
+      name: 'susu-contract',
+      builder: (context, state) => const Scaffold(body: Text('contract')),
+    ),
+    GoRoute(
+      path: '/trade/:tradeId',
+      name: 'trade',
+      builder: (context, state) => const Scaffold(body: Text('trade')),
+    ),
+    GoRoute(
+      path: '/dispute/:disputeId',
+      name: 'dispute',
+      builder: (context, state) => const Scaffold(body: Text('dispute')),
+    ),
+    GoRoute(
+      path: '/queue',
+      name: 'queue',
+      builder: (context, state) => const Scaffold(body: Text('queue')),
+    ),
+  ],
+);
 
-Widget _host(GoRouter router, RouteDepthTracker tracker) =>
-    MaterialApp.router(
-      routerConfig: router,
-      builder: (context, child) => RouteDepthTrackerHost(
-        tracker: tracker,
-        child: child ?? const SizedBox.shrink(),
-      ),
-    );
+Widget _host(GoRouter router, RouteDepthTracker tracker) => MaterialApp.router(
+  routerConfig: router,
+  builder: (context, child) => RouteDepthTrackerHost(
+    tracker: tracker,
+    child: child ?? const SizedBox.shrink(),
+  ),
+);
 
 void main() {
   group('routePatternDepth — pattern grammar, not URL segments', () {
-    testWidgets('each contract location resolves its documented depth',
-        (tester) async {
+    testWidgets('each contract location resolves its documented depth', (
+      tester,
+    ) async {
       final router = _buildRouter();
       final tracker = RouteDepthTracker(router);
       addTearDown(tracker.dispose);
@@ -88,8 +88,11 @@ void main() {
       Future<void> at(String location, int expected) async {
         router.go(location);
         await tester.pumpAndSettle();
-        expect(effectiveDepth(router), expected,
-            reason: '$location should be depth $expected');
+        expect(
+          effectiveDepth(router),
+          expected,
+          reason: '$location should be depth $expected',
+        );
       }
 
       await at('/', 0);
@@ -115,15 +118,19 @@ void main() {
         '/queue': 1,
       };
       for (final route in router.configuration.routes.whereType<GoRoute>()) {
-        expect(routePatternDepth(route), patterns[route.path],
-            reason: "pattern '${route.path}' has wrong depth");
+        expect(
+          routePatternDepth(route),
+          patterns[route.path],
+          reason: "pattern '${route.path}' has wrong depth",
+        );
       }
     });
   });
 
   group('RouteDepthTracker — deep-linked parameterized detail', () {
-    testWidgets('cold start on /susu/123 reports depth 1, not 2',
-        (tester) async {
+    testWidgets('cold start on /susu/123 reports depth 1, not 2', (
+      tester,
+    ) async {
       final router = _buildRouter(initialLocation: '/susu/123');
       final tracker = RouteDepthTracker(router);
       addTearDown(tracker.dispose);
@@ -132,13 +139,17 @@ void main() {
       await tester.pumpWidget(_host(router, tracker));
       await tester.pumpAndSettle();
 
-      expect(tracker.depth, 1,
-          reason: 'deep-linked susu detail is one level below home');
+      expect(
+        tracker.depth,
+        1,
+        reason: 'deep-linked susu detail is one level below home',
+      );
       expect(tracker.routeNames, ['susu-detail']);
     });
 
-    testWidgets('cold start on /susu/123/contract reports depth 2',
-        (tester) async {
+    testWidgets('cold start on /susu/123/contract reports depth 2', (
+      tester,
+    ) async {
       final router = _buildRouter(initialLocation: '/susu/123/contract');
       final tracker = RouteDepthTracker(router);
       addTearDown(tracker.dispose);
@@ -179,8 +190,11 @@ void main() {
 
       router.push('/susu/123');
       await tester.pumpAndSettle();
-      expect(tracker.depth, 1,
-          reason: 'natural push of the susu detail is depth 1');
+      expect(
+        tracker.depth,
+        1,
+        reason: 'natural push of the susu detail is depth 1',
+      );
       expect(tracker.routeNames, ['home', 'susu-detail']);
 
       router.pop();
@@ -189,9 +203,9 @@ void main() {
       expect(tracker.routeNames, ['home']);
     });
 
-    testWidgets(
-        'depth follows the current route, not the stack length',
-        (tester) async {
+    testWidgets('depth follows the current route, not the stack length', (
+      tester,
+    ) async {
       final router = _buildRouter();
       final tracker = RouteDepthTracker(router);
       addTearDown(tracker.dispose);
@@ -208,8 +222,11 @@ void main() {
 
       router.push('/susu/123');
       await tester.pumpAndSettle();
-      expect(tracker.depth, 1,
-          reason: 'current route is /susu/:id → depth 1, stack has 3 pages');
+      expect(
+        tracker.depth,
+        1,
+        reason: 'current route is /susu/:id → depth 1, stack has 3 pages',
+      );
 
       router.pop();
       await tester.pumpAndSettle();
@@ -220,8 +237,9 @@ void main() {
       expect(tracker.depth, 0, reason: 'back home is depth 0');
     });
 
-    testWidgets('nested parameterized detail via natural push → 2',
-        (tester) async {
+    testWidgets('nested parameterized detail via natural push → 2', (
+      tester,
+    ) async {
       final router = _buildRouter();
       final tracker = RouteDepthTracker(router);
       addTearDown(tracker.dispose);
@@ -236,8 +254,11 @@ void main() {
 
       router.push('/susu/123/contract');
       await tester.pumpAndSettle();
-      expect(tracker.depth, 2,
-          reason: 'contract under a parameterized parent is depth 2');
+      expect(
+        tracker.depth,
+        2,
+        reason: 'contract under a parameterized parent is depth 2',
+      );
 
       router.pop();
       await tester.pumpAndSettle();
@@ -273,8 +294,11 @@ void main() {
 
       router.push('/queue?queueId=q1&position=2&adId=3');
       await tester.pumpAndSettle();
-      expect(tracker.depth, 1,
-          reason: 'the /queue pattern is depth 1; query is not structure');
+      expect(
+        tracker.depth,
+        1,
+        reason: 'the /queue pattern is depth 1; query is not structure',
+      );
     });
   });
 }

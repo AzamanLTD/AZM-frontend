@@ -38,13 +38,48 @@ class DiscoveryIntentItem {
 }
 
 const List<DiscoveryIntentItem> kDiscoveryIntents = [
-  DiscoveryIntentItem(intent: AzIntent.order, label: 'Eat', icon: HugeIconsSolid.restaurant01, worldWire: 'FOOD_BEVERAGE'),
-  DiscoveryIntentItem(intent: AzIntent.open, label: 'Shop', icon: HugeIconsSolid.shoppingBag01, worldWire: 'RETAIL'),
-  DiscoveryIntentItem(intent: AzIntent.book, label: 'Ride', icon: HugeIconsSolid.bus01, worldWire: 'LOGISTICS'),
-  DiscoveryIntentItem(intent: AzIntent.book, label: 'Stay', icon: HugeIconsSolid.hotel01, worldWire: 'HOSPITALITY'),
-  DiscoveryIntentItem(intent: AzIntent.discover, label: 'Nearby', icon: HugeIconsSolid.location01, signal: DiscoverySignal.nearby),
-  DiscoveryIntentItem(intent: AzIntent.save, label: 'My saves', icon: HugeIconsSolid.bookmark01, savesOnly: true),
-  DiscoveryIntentItem(intent: AzIntent.discover, label: 'Recent', icon: HugeIconsSolid.clock01, recentOnly: true),
+  DiscoveryIntentItem(
+    intent: AzIntent.order,
+    label: 'Eat',
+    icon: HugeIconsSolid.restaurant01,
+    worldWire: 'FOOD_BEVERAGE',
+  ),
+  DiscoveryIntentItem(
+    intent: AzIntent.open,
+    label: 'Shop',
+    icon: HugeIconsSolid.shoppingBag01,
+    worldWire: 'RETAIL',
+  ),
+  DiscoveryIntentItem(
+    intent: AzIntent.book,
+    label: 'Ride',
+    icon: HugeIconsSolid.bus01,
+    worldWire: 'LOGISTICS',
+  ),
+  DiscoveryIntentItem(
+    intent: AzIntent.book,
+    label: 'Stay',
+    icon: HugeIconsSolid.hotel01,
+    worldWire: 'HOSPITALITY',
+  ),
+  DiscoveryIntentItem(
+    intent: AzIntent.discover,
+    label: 'Nearby',
+    icon: HugeIconsSolid.location01,
+    signal: DiscoverySignal.nearby,
+  ),
+  DiscoveryIntentItem(
+    intent: AzIntent.save,
+    label: 'My saves',
+    icon: HugeIconsSolid.bookmark01,
+    savesOnly: true,
+  ),
+  DiscoveryIntentItem(
+    intent: AzIntent.discover,
+    label: 'Recent',
+    icon: HugeIconsSolid.clock01,
+    recentOnly: true,
+  ),
 ];
 
 /// Pure visibility rule — tested without widgets.
@@ -52,13 +87,12 @@ List<DiscoveryIntentItem> visibleIntents({
   required Set<DiscoverySignal> supported,
   required bool hasSaves,
   required bool hasRecent,
-}) =>
-    kDiscoveryIntents.where((i) {
-      if (i.signal != null && !supported.contains(i.signal)) return false;
-      if (i.savesOnly && !hasSaves) return false;
-      if (i.recentOnly && !hasRecent) return false;
-      return true;
-    }).toList();
+}) => kDiscoveryIntents.where((i) {
+  if (i.signal != null && !supported.contains(i.signal)) return false;
+  if (i.savesOnly && !hasSaves) return false;
+  if (i.recentOnly && !hasRecent) return false;
+  return true;
+}).toList();
 
 class IntentRail extends ConsumerWidget {
   final void Function(DiscoveryIntentItem item) onSelect;
@@ -67,12 +101,21 @@ class IntentRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final supported = ref.watch(marketplaceDiscoveryGatewayProvider).supportedSignals;
-    final hasSaves = ref.watch(savedBusinessesProvider.select((s) => s.isNotEmpty));
+    final supported = ref
+        .watch(marketplaceDiscoveryGatewayProvider)
+        .supportedSignals;
+    final hasSaves = ref.watch(
+      savedBusinessesProvider.select((s) => s.isNotEmpty),
+    );
     final now = ref.watch(discoveryClockProvider)();
     final hasRecent = ref.watch(
-        worldMemoryProvider.select((m) => m.values.any((w) => w.isFresh(now))));
-    final items = visibleIntents(supported: supported, hasSaves: hasSaves, hasRecent: hasRecent);
+      worldMemoryProvider.select((m) => m.values.any((w) => w.isFresh(now))),
+    );
+    final items = visibleIntents(
+      supported: supported,
+      hasSaves: hasSaves,
+      hasRecent: hasRecent,
+    );
     return SizedBox(
       height: 40,
       child: ListView.separated(
@@ -98,7 +141,11 @@ class _IntentChip extends StatelessWidget {
   final DiscoveryIntentItem item;
   final AzamanColors colors;
   final VoidCallback onTap;
-  const _IntentChip({required this.item, required this.colors, required this.onTap});
+  const _IntentChip({
+    required this.item,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +163,10 @@ class _IntentChip extends StatelessWidget {
           children: [
             Icon(item.icon, size: 16, color: colors.textPrimary),
             const SizedBox(width: 6),
-            Text(item.label, style: AzText.label.copyWith(color: colors.textPrimary)),
+            Text(
+              item.label,
+              style: AzText.label.copyWith(color: colors.textPrimary),
+            ),
           ],
         ),
       ),

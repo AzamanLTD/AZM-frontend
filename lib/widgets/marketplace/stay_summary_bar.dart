@@ -43,21 +43,29 @@ class StaySummaryBar extends StatelessWidget {
   });
 
   @override
- Widget build(BuildContext context) {
-    final canBook = room != null &&
+  Widget build(BuildContext context) {
+    final canBook =
+        room != null &&
         room!.isBookable &&
         checkIn != null &&
         checkOut != null &&
         nights > 0 &&
         !isBooking;
-    final total =
-        room == null ? 0.0 : stayTotalFor(room!.basePriceUsdc, nights);
+    final total = room == null
+        ? 0.0
+        : stayTotalFor(room!.basePriceUsdc, nights);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
-          AzSpace.lg, AzSpace.sm, AzSpace.lg, AzSpace.lg),
+        AzSpace.lg,
+        AzSpace.sm,
+        AzSpace.lg,
+        AzSpace.lg,
+      ),
       padding: const EdgeInsets.symmetric(
-          horizontal: AzSpace.lg, vertical: AzSpace.md),
+        horizontal: AzSpace.lg,
+        vertical: AzSpace.md,
+      ),
       decoration: BoxDecoration(
         color: colors.surface,
         borderRadius: AzRadius.brXxl,
@@ -83,8 +91,7 @@ class StaySummaryBar extends StatelessWidget {
                       : '${room!.displayType} · Room ${room!.roomNumber}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      AzText.bodyS.copyWith(color: colors.textSecondary),
+                  style: AzText.bodyS.copyWith(color: colors.textSecondary),
                 ),
                 const SizedBox(height: AzSpace.xxs),
                 Semantics(
@@ -99,7 +106,7 @@ class StaySummaryBar extends StatelessWidget {
                       nights == 0
                           ? '—'
                           : '\$${value.toStringAsFixed(2)} USDC · '
-                              '$nights night${nights == 1 ? '' : 's'}',
+                                '$nights night${nights == 1 ? '' : 's'}',
                       style: AzText.money(
                         colors.accent,
                         size: AzText.sizeTitleL,
@@ -128,7 +135,8 @@ class StaySummaryBar extends StatelessWidget {
                 disabledBackgroundColor: colors.softSurface,
                 disabledForegroundColor: colors.textTertiary,
                 shape: const RoundedRectangleBorder(
-                    borderRadius: AzRadius.brMd),
+                  borderRadius: AzRadius.brMd,
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
               ),
               child: isBooking
@@ -136,7 +144,9 @@ class StaySummaryBar extends StatelessWidget {
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Reserve', style: AzText.button),
             ),

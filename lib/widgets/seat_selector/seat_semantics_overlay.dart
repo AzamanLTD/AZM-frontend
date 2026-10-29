@@ -68,17 +68,11 @@ class SeatSemanticsOverlay extends StatelessWidget {
             label: label,
             button: slot.isTappable,
             enabled: slot.isTappable,
-            onTap: slot.isTappable
-                ? () => onSeatTap(slot.seatId!)
-                : null,
+            onTap: slot.isTappable ? () => onSeatTap(slot.seatId!) : null,
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onTap: slot.isTappable
-                  ? () => onSeatTap(slot.seatId!)
-                  : null,
-              child: Container(
-                color: Colors.transparent,
-              ),
+              onTap: slot.isTappable ? () => onSeatTap(slot.seatId!) : null,
+              child: Container(color: Colors.transparent),
             ),
           ),
         );

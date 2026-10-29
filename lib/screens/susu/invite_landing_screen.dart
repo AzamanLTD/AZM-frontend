@@ -26,7 +26,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
 
-
 class InviteLandingScreen extends ConsumerStatefulWidget {
   final String token;
   const InviteLandingScreen({super.key, required this.token});
@@ -45,7 +44,8 @@ class _InviteLandingScreenState extends ConsumerState<InviteLandingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-              'Sign in or create an account first, then re-open this invite link.'),
+            'Sign in or create an account first, then re-open this invite link.',
+          ),
         ),
       );
       // Pop back to splash/login. The token stays in the route so the
@@ -63,14 +63,14 @@ class _InviteLandingScreenState extends ConsumerState<InviteLandingScreen> {
       context.pushReplacement('/susu/$susuId');
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not accept invite: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not accept invite: $e')));
     } finally {
       if (mounted) setState(() => _redeeming = false);
     }
@@ -88,8 +88,7 @@ class _InviteLandingScreenState extends ConsumerState<InviteLandingScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -109,18 +108,13 @@ class _InviteLandingScreenState extends ConsumerState<InviteLandingScreen> {
       ),
       body: SafeArea(
         child: preview.when(
-          loading: () => Center(
-            child: CircularProgressIndicator(color: colors.warning),
-          ),
+          loading: () =>
+              Center(child: CircularProgressIndicator(color: colors.warning)),
           error: (e, _) {
             final msg = e.toString();
             final expired =
                 msg.contains('410') || msg.contains('INVITE_EXPIRED_OR_USED');
-            return _ErrorView(
-              error: e,
-              expired: expired,
-              colors: colors,
-            );
+            return _ErrorView(error: e, expired: expired, colors: colors);
           },
           data: (p) => _PreviewBody(
             preview: p,
@@ -167,16 +161,21 @@ class _PreviewBody extends StatelessWidget {
               ],
             ),
             borderRadius: BorderRadius.circular(18),
-            border:
-                Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
+            border: Border.all(
+              color: colors.warning.withValues(alpha: 0.30),
+              width: 0.8,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.account_balance_outlined,
-                      color: colors.warning, size: 18),
+                  Icon(
+                    Icons.account_balance_outlined,
+                    color: colors.warning,
+                    size: 18,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -243,25 +242,29 @@ class _PreviewBody extends StatelessWidget {
               _BulletRow(
                 colors: colors,
                 icon: Icons.shield_outlined,
-                text: 'You will need a verified ID (KYC) and proof of '
+                text:
+                    'You will need a verified ID (KYC) and proof of '
                     'residency before joining.',
               ),
               _BulletRow(
                 colors: colors,
                 icon: Icons.gavel,
-                text: 'A liability contract authorises automatic seizure '
+                text:
+                    'A liability contract authorises automatic seizure '
                     'of contributions on cycle days.',
               ),
               _BulletRow(
                 colors: colors,
                 icon: Icons.shield_outlined,
-                text: 'Your inviter loses AZM and trust rating if you '
+                text:
+                    'Your inviter loses AZM and trust rating if you '
                     'default — vouching is permanent.',
               ),
               _BulletRow(
                 colors: colors,
                 icon: Icons.access_time,
-                text: 'This invite expires '
+                text:
+                    'This invite expires '
                     '${exp.year}-${exp.month.toString().padLeft(2, '0')}-${exp.day.toString().padLeft(2, '0')} '
                     '${exp.hour.toString().padLeft(2, '0')}:${exp.minute.toString().padLeft(2, '0')}.',
               ),
@@ -278,15 +281,17 @@ class _PreviewBody extends StatelessWidget {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.black),
+                      strokeWidth: 2,
+                      color: Colors.black,
+                    ),
                   )
                 : const Icon(Icons.check_circle_outline, size: 16),
             label: Text(
               redeeming
                   ? 'Accepting…'
                   : isAuthed
-                      ? 'Accept invite'
-                      : 'Sign in to continue',
+                  ? 'Accept invite'
+                  : 'Sign in to continue',
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.3,
@@ -297,7 +302,8 @@ class _PreviewBody extends StatelessWidget {
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
               elevation: 0,
             ),
           ),
@@ -319,25 +325,25 @@ class _BulletRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: colors.warning, size: 14),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 11.5,
-                  height: 1.4,
-                ),
-              ),
+    padding: const EdgeInsets.only(top: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: colors.warning, size: 14),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 11.5,
+              height: 1.4,
             ),
-          ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _ErrorView extends StatelessWidget {
@@ -359,17 +365,13 @@ class _ErrorView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              expired
-                  ? Icons.access_time
-                  : Icons.error_outline,
+              expired ? Icons.access_time : Icons.error_outline,
               size: 48,
               color: expired ? colors.warning : colors.danger,
             ),
             const SizedBox(height: 12),
             Text(
-              expired
-                  ? 'Invite no longer valid'
-                  : 'Could not load invite',
+              expired ? 'Invite no longer valid' : 'Could not load invite',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: colors.textPrimary,
@@ -381,7 +383,7 @@ class _ErrorView extends StatelessWidget {
             Text(
               expired
                   ? 'This single-use link has expired or already been '
-                      'redeemed. Ask the inviter to send a new one.'
+                        'redeemed. Ask the inviter to send a new one.'
                   : error.toString(),
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.textTertiary, fontSize: 11),

@@ -162,7 +162,6 @@ class LeaderboardProvider with ChangeNotifier {
 // =============================================================================
 // RIVERPOD HANDLE
 // =============================================================================
-final leaderboardProvider =
-    ChangeNotifierProvider<LeaderboardProvider>((ref) {
+final leaderboardProvider = ChangeNotifierProvider<LeaderboardProvider>((ref) {
   return LeaderboardProvider();
 });

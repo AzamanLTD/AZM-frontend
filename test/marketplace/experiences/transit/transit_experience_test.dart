@@ -25,9 +25,9 @@ void main() {
 
   test('rejects empty seat selection', () async {
     final gateway = _Gateway();
-    final result = await TransitHoldController(gateway).hold(
-      TransitSeatSelection(trip: trip, seatIds: const []),
-    );
+    final result = await TransitHoldController(
+      gateway,
+    ).hold(TransitSeatSelection(trip: trip, seatIds: const []));
     expect(result, isA<TransitHoldFailure>());
     expect(gateway.received, isNull);
   });
@@ -42,9 +42,9 @@ void main() {
 
   test('passes valid seats to gateway', () async {
     final gateway = _Gateway();
-    final result = await TransitHoldController(gateway).hold(
-      TransitSeatSelection(trip: trip, seatIds: const ['1', '2']),
-    );
+    final result = await TransitHoldController(
+      gateway,
+    ).hold(TransitSeatSelection(trip: trip, seatIds: const ['1', '2']));
     expect(result, isA<TransitHoldSuccess>());
     expect(gateway.received?.seatIds, ['1', '2']);
   });

@@ -18,23 +18,34 @@ List<CatalogSection> normalizeRestaurantMenuSections({
   final grouped = <String, List<BusinessProduct>>{};
   for (final product in uncategorisedProducts) {
     final rawCategory = product.category?.trim();
-    final key = rawCategory == null || rawCategory.isEmpty ? 'MENU' : rawCategory.toUpperCase();
+    final key = rawCategory == null || rawCategory.isEmpty
+        ? 'MENU'
+        : rawCategory.toUpperCase();
     grouped.putIfAbsent(key, () => <BusinessProduct>[]).add(product);
   }
 
   var order = normalized.length + 1000;
   for (final entry in grouped.entries) {
     final products = entry.value;
-    normalized.add(CatalogSection(
-      id: 'catalog-fallback-${entry.key.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-')}',
-      businessProfileId: products.first.businessProfileId,
-      locationId: products.map((p) => p.locationId).firstWhere((id) => id != null && id.isNotEmpty, orElse: () => null),
-      name: entry.key == 'MENU' ? 'Menu' : _humanizeRestaurantCategory(entry.key),
-      description: null,
-      displayOrder: order++,
-      isActive: true,
-      products: products,
-    ));
+    normalized.add(
+      CatalogSection(
+        id: 'catalog-fallback-${entry.key.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-')}',
+        businessProfileId: products.first.businessProfileId,
+        locationId: products
+            .map((p) => p.locationId)
+            .firstWhere(
+              (id) => id != null && id.isNotEmpty,
+              orElse: () => null,
+            ),
+        name: entry.key == 'MENU'
+            ? 'Menu'
+            : _humanizeRestaurantCategory(entry.key),
+        description: null,
+        displayOrder: order++,
+        isActive: true,
+        products: products,
+      ),
+    );
   }
   return normalized;
 }
@@ -46,8 +57,11 @@ String _humanizeRestaurantCategory(String value) => value
     .map((part) => '${part[0].toUpperCase()}${part.substring(1)}')
     .join(' ');
 
-bool restaurantRequiresVisibleOptions(Iterable<RestaurantDish> dishes) => dishes.any(
-      (dish) => dish.variants.isNotEmpty || dish.optionGroups.any((group) => group.required),
+bool restaurantRequiresVisibleOptions(Iterable<RestaurantDish> dishes) =>
+    dishes.any(
+      (dish) =>
+          dish.variants.isNotEmpty ||
+          dish.optionGroups.any((group) => group.required),
     );
 
 class RestaurantMenuJourneyAdapter extends StatelessWidget {
@@ -56,7 +70,12 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
   final List<BusinessProduct> uncategorisedProducts;
   final Map<String, RestaurantDish> dishesById;
   final AzamanColors colors;
-  final void Function(BusinessProduct product, Map<String, String> selections, int quantity) onAddToTray;
+  final void Function(
+    BusinessProduct product,
+    Map<String, String> selections,
+    int quantity,
+  )
+  onAddToTray;
   final bool showGallery;
   final bool showSpecifications;
   final bool showOptions;
@@ -96,7 +115,9 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
   Widget build(BuildContext context) {
     final document = this.document;
     if (document != null) {
-      final dishes = document.items.map((i) => i.dish).whereType<RestaurantDish>();
+      final dishes = document.items
+          .map((i) => i.dish)
+          .whereType<RestaurantDish>();
       return RestaurantNativeMenuJourney.fromDocument(
         businessName: businessName,
         document: document,
@@ -114,21 +135,25 @@ class RestaurantMenuJourneyAdapter extends StatelessWidget {
       );
     }
     return RestaurantNativeMenuJourney(
-        businessName: businessName,
-        sections: normalizeRestaurantMenuSections(sections: sections, uncategorisedProducts: uncategorisedProducts),
-        uncategorisedProducts: const [],
-        dishesById: dishesById,
-        colors: colors,
-        onAddToTray: onAddToTray,
-        showGallery: showGallery,
-        showSpecifications: showSpecifications,
-        showOptions: showOptions || restaurantRequiresVisibleOptions(dishesById.values),
-        showQuantity: showQuantity,
-        dineInContext: dineInContext,
-        orderMode: orderMode,
-        onOrderModeChanged: onOrderModeChanged,
-        dineInAvailable: dineInAvailable,
-        detailPresentation: detailPresentation,
-      );
+      businessName: businessName,
+      sections: normalizeRestaurantMenuSections(
+        sections: sections,
+        uncategorisedProducts: uncategorisedProducts,
+      ),
+      uncategorisedProducts: const [],
+      dishesById: dishesById,
+      colors: colors,
+      onAddToTray: onAddToTray,
+      showGallery: showGallery,
+      showSpecifications: showSpecifications,
+      showOptions:
+          showOptions || restaurantRequiresVisibleOptions(dishesById.values),
+      showQuantity: showQuantity,
+      dineInContext: dineInContext,
+      orderMode: orderMode,
+      onOrderModeChanged: onOrderModeChanged,
+      dineInAvailable: dineInAvailable,
+      detailPresentation: detailPresentation,
+    );
   }
 }

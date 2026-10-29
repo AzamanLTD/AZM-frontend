@@ -221,8 +221,7 @@ class _WalletPill extends ConsumerWidget {
       // rim softens to ~55% OF that ink; the woken rim is the full
       // tertiary ink. (withValues replaces alpha — keep the base ink.)
       final ink = colors.textTertiary;
-      final rim =
-          recessed ? ink.withValues(alpha: ink.a * 0.55) : ink;
+      final rim = recessed ? ink.withValues(alpha: ink.a * 0.55) : ink;
       return DecoratedBox(
         key: ValueKey<bool>(recessed),
         decoration: BoxDecoration(

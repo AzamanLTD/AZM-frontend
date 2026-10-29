@@ -9,12 +9,12 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
-
 class KycVerificationScreen extends ConsumerStatefulWidget {
   const KycVerificationScreen({super.key});
 
   @override
-  ConsumerState<KycVerificationScreen> createState() => _KycVerificationScreenState();
+  ConsumerState<KycVerificationScreen> createState() =>
+      _KycVerificationScreenState();
 }
 
 class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
@@ -22,7 +22,11 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
   final TextEditingController _idNumberController = TextEditingController();
 
   String _selectedIdType = 'National ID';
-  final List<String> _idTypes = ['National ID', 'Passport', 'Driver\'s License'];
+  final List<String> _idTypes = [
+    'National ID',
+    'Passport',
+    'Driver\'s License',
+  ];
 
   File? _frontImage;
   File? _backImage;
@@ -75,16 +79,33 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
       context,
       builder: (ctx) => AzStaggeredColumn(
         children: [
-          Text("Select Image Source", style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+          Text(
+            "Select Image Source",
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
-                child: _sourceOption(colors, Icons.camera_alt_outlined, "Camera", () => Navigator.pop(ctx, ImageSource.camera)),
+                child: _sourceOption(
+                  colors,
+                  Icons.camera_alt_outlined,
+                  "Camera",
+                  () => Navigator.pop(ctx, ImageSource.camera),
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: _sourceOption(colors, Icons.image_outlined, "Gallery", () => Navigator.pop(ctx, ImageSource.gallery)),
+                child: _sourceOption(
+                  colors,
+                  Icons.image_outlined,
+                  "Gallery",
+                  () => Navigator.pop(ctx, ImageSource.gallery),
+                ),
               ),
             ],
           ),
@@ -94,7 +115,10 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
 
     if (source == null) return;
 
-    final XFile? pickedFile = await _picker.pickImage(source: source, imageQuality: 80);
+    final XFile? pickedFile = await _picker.pickImage(
+      source: source,
+      imageQuality: 80,
+    );
     if (pickedFile != null && mounted) {
       setState(() {
         if (isFront) {
@@ -106,7 +130,12 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
     }
   }
 
-  Widget _sourceOption(AzamanColors colors, IconData icon, String label, VoidCallback onTap) {
+  Widget _sourceOption(
+    AzamanColors colors,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -120,7 +149,14 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           children: [
             Icon(icon, color: colors.accent, size: 32),
             const SizedBox(height: 8),
-            Text(label, style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(
+              label,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
           ],
         ),
       ),
@@ -130,7 +166,8 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
   Future<void> _submitKyc() async {
     final colors = ref.read(themeProvider).colors;
 
-    if (_nameController.text.trim().isEmpty || _idNumberController.text.trim().isEmpty) {
+    if (_nameController.text.trim().isEmpty ||
+        _idNumberController.text.trim().isEmpty) {
       _showSnack("Please fill in all text fields.", colors.danger);
       return;
     }
@@ -150,9 +187,13 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
       request.fields['idType'] = _selectedIdType;
       request.fields['idNumber'] = _idNumberController.text.trim();
 
-      request.files.add(await http.MultipartFile.fromPath('idImages', _frontImage!.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('idImages', _frontImage!.path),
+      );
       if (_backImage != null) {
-        request.files.add(await http.MultipartFile.fromPath('idImages', _backImage!.path));
+        request.files.add(
+          await http.MultipartFile.fromPath('idImages', _backImage!.path),
+        );
       }
 
       final response = await _apiClient.multipart('/kyc/submit', request);
@@ -174,7 +215,11 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
   void _showSnack(String msg, Color bg) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(msg), backgroundColor: bg, behavior: SnackBarBehavior.floating),
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: bg,
+          behavior: SnackBarBehavior.floating,
+        ),
       );
     }
   }
@@ -195,7 +240,14 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
       appBar: AppBar(
         backgroundColor: colors.surface,
         elevation: 0,
-        title: Text("Identity Verification", style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Text(
+          "Identity Verification",
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
@@ -207,9 +259,23 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
 
   Widget _buildBody(AzamanColors colors) {
     // If already verified
-    if (_currentStatus == 'VERIFIED') return _buildStatusView(colors, "Verified", Icons.shield_outlined, colors.success, "Your identity has been verified. You have full Vendor access.");
+    if (_currentStatus == 'VERIFIED')
+      return _buildStatusView(
+        colors,
+        "Verified",
+        Icons.shield_outlined,
+        colors.success,
+        "Your identity has been verified. You have full Vendor access.",
+      );
     // If pending review
-    if (_currentStatus == 'PENDING' && !_isSuccess) return _buildStatusView(colors, "Under Review", Icons.hourglass_empty, colors.warning, "Your documents are being reviewed by our compliance team. You will be notified once approved.");
+    if (_currentStatus == 'PENDING' && !_isSuccess)
+      return _buildStatusView(
+        colors,
+        "Under Review",
+        Icons.hourglass_empty,
+        colors.warning,
+        "Your documents are being reviewed by our compliance team. You will be notified once approved.",
+      );
     // If just submitted
     if (_isSuccess) return _buildSuccessState(colors);
     // If rejected, allow resubmission
@@ -220,7 +286,13 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
     return _buildFormState(colors);
   }
 
-  Widget _buildStatusView(AzamanColors colors, String title, IconData icon, Color statusColor, String message) {
+  Widget _buildStatusView(
+    AzamanColors colors,
+    String title,
+    IconData icon,
+    Color statusColor,
+    String message,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(30),
@@ -229,13 +301,31 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
               child: Icon(icon, color: statusColor, size: 56),
             ),
             const SizedBox(height: 24),
-            Text(title, style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center, style: TextStyle(color: colors.textSecondary, fontSize: 14, height: 1.5)),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
             const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
@@ -244,11 +334,16 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.card,
                   foregroundColor: colors.textPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   elevation: 0,
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: const Text("RETURN", style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  "RETURN",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
@@ -257,7 +352,10 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
     );
   }
 
-  Widget _buildFormState(AzamanColors colors, {bool showRejectionBanner = false}) {
+  Widget _buildFormState(
+    AzamanColors colors, {
+    bool showRejectionBanner = false,
+  }) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(20),
@@ -277,11 +375,27 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
                   Icon(Icons.error_outline, color: colors.danger, size: 28),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text("Previous Submission Rejected", style: TextStyle(color: colors.danger, fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(height: 4),
-                      Text("Please resubmit with clearer documents.", style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                    ]),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Previous Submission Rejected",
+                          style: TextStyle(
+                            color: colors.danger,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Please resubmit with clearer documents.",
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -302,12 +416,27 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
                 Icon(Icons.lock_outline, color: colors.success, size: 30),
                 const SizedBox(width: 15),
                 Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text("Become a Verified Vendor", style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 4),
-                    Text("Verify your identity to unlock vendor privileges and higher trading limits.",
-                        style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-                  ]),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Become a Verified Vendor",
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Verify your identity to unlock vendor privileges and higher trading limits.",
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -315,24 +444,64 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           const SizedBox(height: 30),
 
           // Legal info section
-          Text("LEGAL INFORMATION", style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          Text(
+            "LEGAL INFORMATION",
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
           const SizedBox(height: 15),
-          _buildTextField(colors, "Full Legal Name", _nameController, Icons.person_outline),
+          _buildTextField(
+            colors,
+            "Full Legal Name",
+            _nameController,
+            Icons.person_outline,
+          ),
           const SizedBox(height: 15),
           _buildDropdownField(colors),
           const SizedBox(height: 15),
-          _buildTextField(colors, "ID Number", _idNumberController, Icons.badge_outlined),
+          _buildTextField(
+            colors,
+            "ID Number",
+            _idNumberController,
+            Icons.badge_outlined,
+          ),
 
           const SizedBox(height: 30),
 
           // Document upload section
-          Text("DOCUMENT UPLOAD", style: TextStyle(color: colors.textTertiary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          Text(
+            "DOCUMENT UPLOAD",
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
           const SizedBox(height: 15),
           Row(
             children: [
-              Expanded(child: _buildImageUploader(colors, "Front of ID", _frontImage, true)),
+              Expanded(
+                child: _buildImageUploader(
+                  colors,
+                  "Front of ID",
+                  _frontImage,
+                  true,
+                ),
+              ),
               const SizedBox(width: 15),
-              Expanded(child: _buildImageUploader(colors, "Back of ID", _backImage, false)),
+              Expanded(
+                child: _buildImageUploader(
+                  colors,
+                  "Back of ID",
+                  _backImage,
+                  false,
+                ),
+              ),
             ],
           ),
 
@@ -346,18 +515,37 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: colors.accent,
                 foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
                 elevation: 0,
               ),
               onPressed: _isLoading ? null : _submitKyc,
               child: _isLoading
-                  ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: colors.isDark ? Colors.black : Colors.white, strokeWidth: 2))
-                  : const Text("SUBMIT DOCUMENTS", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1, fontSize: 15)),
+                  ? SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: colors.isDark ? Colors.black : Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      "SUBMIT DOCUMENTS",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                        fontSize: 15,
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 16),
           Center(
-            child: Text("Your data is encrypted and stored securely.", style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+            child: Text(
+              "Your data is encrypted and stored securely.",
+              style: TextStyle(color: colors.textTertiary, fontSize: 11),
+            ),
           ),
           const SizedBox(height: 20),
         ],
@@ -365,7 +553,12 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
     );
   }
 
-  Widget _buildTextField(AzamanColors colors, String hint, TextEditingController controller, IconData icon) {
+  Widget _buildTextField(
+    AzamanColors colors,
+    String hint,
+    TextEditingController controller,
+    IconData icon,
+  ) {
     return TextField(
       controller: controller,
       style: TextStyle(color: colors.textPrimary),
@@ -375,8 +568,14 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
         prefixIcon: Icon(icon, color: colors.textTertiary),
         hintText: hint,
         hintStyle: TextStyle(color: colors.textTertiary),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5))),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
+        ),
       ),
     );
   }
@@ -384,7 +583,10 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
   Widget _buildDropdownField(AzamanColors colors) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15),
-      decoration: BoxDecoration(color: colors.card, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(14),
+      ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _selectedIdType,
@@ -395,11 +597,17 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           items: _idTypes.map((type) {
             return DropdownMenuItem<String>(
               value: type,
-              child: Row(children: [
-                Icon(Icons.credit_card_outlined, color: colors.textTertiary, size: 20),
-                const SizedBox(width: 10),
-                Text(type),
-              ]),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.credit_card_outlined,
+                    color: colors.textTertiary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(type),
+                ],
+              ),
             );
           }).toList(),
           onChanged: (val) {
@@ -410,7 +618,12 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
     );
   }
 
-  Widget _buildImageUploader(AzamanColors colors, String label, File? image, bool isFront) {
+  Widget _buildImageUploader(
+    AzamanColors colors,
+    String label,
+    File? image,
+    bool isFront,
+  ) {
     final bool hasImage = image != null;
     return GestureDetector(
       onTap: () => _pickImage(isFront),
@@ -432,16 +645,33 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
                   children: [
                     Image.file(image, fit: BoxFit.cover),
                     Container(color: colors.background.withValues(alpha: 0.3)),
-                    Center(child: Icon(Icons.check_circle_outline, color: colors.success, size: 35)),
+                    Center(
+                      child: Icon(
+                        Icons.check_circle_outline,
+                        color: colors.success,
+                        size: 35,
+                      ),
+                    ),
                   ],
                 ),
               )
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.camera_alt_outlined, color: colors.accent.withValues(alpha: 0.7), size: 30),
+                  Icon(
+                    Icons.camera_alt_outlined,
+                    color: colors.accent.withValues(alpha: 0.7),
+                    size: 30,
+                  ),
                   const SizedBox(height: 10),
-                  Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 12, fontWeight: FontWeight.bold)),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
       ),
@@ -457,16 +687,34 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: colors.success.withValues(alpha: 0.1), shape: BoxShape.circle),
-              child: Icon(Icons.how_to_reg_outlined, color: colors.success, size: 56),
+              decoration: BoxDecoration(
+                color: colors.success.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.how_to_reg_outlined,
+                color: colors.success,
+                size: 56,
+              ),
             ),
             const SizedBox(height: 24),
-            Text("Under Review", style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(
+              "Under Review",
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 12),
             Text(
               "Your documents have been submitted securely. Our compliance team will review them shortly. You will be notified once approved.",
               textAlign: TextAlign.center,
-              style: TextStyle(color: colors.textSecondary, fontSize: 14, height: 1.5),
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
             const SizedBox(height: 40),
             SizedBox(
@@ -476,11 +724,16 @@ class _KycVerificationScreenState extends ConsumerState<KycVerificationScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.card,
                   foregroundColor: colors.textPrimary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   elevation: 0,
                 ),
                 onPressed: () => Navigator.pop(context),
-                child: const Text("RETURN TO SETTINGS", style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  "RETURN TO SETTINGS",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],

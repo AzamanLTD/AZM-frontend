@@ -55,14 +55,19 @@ void main() {
     expect(detail['showQuantity'], isTrue);
   });
 
-  test('forces options visible when variants are required to select a valid line', () {
-    final result = effectiveRestaurantExperience(
-      experience: const {'detail': {'showOptions': false}},
-      dishes: const [dishWithVariant],
-    );
+  test(
+    'forces options visible when variants are required to select a valid line',
+    () {
+      final result = effectiveRestaurantExperience(
+        experience: const {
+          'detail': {'showOptions': false},
+        },
+        dishes: const [dishWithVariant],
+      );
 
-    expect((result!['detail'] as Map)['showOptions'], isTrue);
-  });
+      expect((result!['detail'] as Map)['showOptions'], isTrue);
+    },
+  );
 
   test('does not mutate the persisted blueprint map', () {
     final blueprint = <String, dynamic>{

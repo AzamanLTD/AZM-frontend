@@ -37,8 +37,12 @@ class MerchantCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final travel = AzMotion.of(context).travel;
-    final profile = MarketplaceExperienceCatalog.fromCategory(business.category);
-    final open = ref.watch(discoverySnapshotProvider.select((s) => business.openStateAt(s.now)));
+    final profile = MarketplaceExperienceCatalog.fromCategory(
+      business.category,
+    );
+    final open = ref.watch(
+      discoverySnapshotProvider.select((s) => business.openStateAt(s.now)),
+    );
     final saved = isBusinessSaved(ref, business);
 
     final relevance = [
@@ -69,8 +73,12 @@ class MerchantCard extends ConsumerWidget {
                   clipBehavior: Clip.none,
                   fit: StackFit.expand,
                   children: [
-                    if (business.coverImageUrl != null && business.coverImageUrl!.isNotEmpty)
-                      AzamanNetworkImage(imageUrl: business.coverImageUrl, fit: BoxFit.cover)
+                    if (business.coverImageUrl != null &&
+                        business.coverImageUrl!.isNotEmpty)
+                      AzamanNetworkImage(
+                        imageUrl: business.coverImageUrl,
+                        fit: BoxFit.cover,
+                      )
                     else
                       Container(color: colors.accent.withValues(alpha: .18)),
                     Positioned(
@@ -91,47 +99,71 @@ class MerchantCard extends ConsumerWidget {
               ),
               const SizedBox(height: AzSpace.xl),
               Padding(
-                padding: const EdgeInsets.fromLTRB(AzSpace.md, 0, AzSpace.md, AzSpace.md),
+                padding: const EdgeInsets.fromLTRB(
+                  AzSpace.md,
+                  0,
+                  AzSpace.md,
+                  AzSpace.md,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 2. why care — name + trust
-                    Row(children: [
-                      Expanded(
-                        child: Text(business.businessName,
-                            style: AzText.title.copyWith(color: colors.textPrimary),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            business.businessName,
+                            style: AzText.title.copyWith(
+                              color: colors.textPrimary,
+                            ),
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                      ),
-                      TrustMark(business: business),
-                    ]),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        TrustMark(business: business),
+                      ],
+                    ),
                     // 3. relevant now — only real signals
                     if (relevance.isNotEmpty)
-                      Text(relevance,
-                          key: ValueKey('merchant_card_relevance_${business.bizId}'),
-                          style: AzText.bodyS.copyWith(
-                              color: open == OpenState.open ? colors.success : colors.textSecondary)),
-                    const SizedBox(height: AzSpace.sm),
-                    // 4. what can I do — one primary intent from the vertical catalog
-                    Row(children: [
-                      Expanded(
-                        child: Text(profile.primaryActionLabel,
-                            style: AzText.label.copyWith(color: colors.accent)),
-                      ),
-                      // 5. save
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {
-                          AzamanHaptics.toggle();
-                          toggleBusinessSaved(context, ref, business);
-                        },
-                        child: Icon(
-                          saved ? HugeIconsSolid.bookmark02 : HugeIconsSolid.bookmark01,
-                          size: 18,
-                          color: saved ? colors.accent : colors.textTertiary,
+                      Text(
+                        relevance,
+                        key: ValueKey(
+                          'merchant_card_relevance_${business.bizId}',
+                        ),
+                        style: AzText.bodyS.copyWith(
+                          color: open == OpenState.open
+                              ? colors.success
+                              : colors.textSecondary,
                         ),
                       ),
-                    ]),
+                    const SizedBox(height: AzSpace.sm),
+                    // 4. what can I do — one primary intent from the vertical catalog
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            profile.primaryActionLabel,
+                            style: AzText.label.copyWith(color: colors.accent),
+                          ),
+                        ),
+                        // 5. save
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            AzamanHaptics.toggle();
+                            toggleBusinessSaved(context, ref, business);
+                          },
+                          child: Icon(
+                            saved
+                                ? HugeIconsSolid.bookmark02
+                                : HugeIconsSolid.bookmark01,
+                            size: 18,
+                            color: saved ? colors.accent : colors.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

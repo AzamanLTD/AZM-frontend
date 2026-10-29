@@ -69,7 +69,10 @@ class MyBusinessNotifier extends StateNotifier<MyBusinessState> {
       );
     } catch (e) {
       state = state.copyWith(
-          isLoading: false, hasLoaded: true, error: e.toString());
+        isLoading: false,
+        hasLoaded: true,
+        error: e.toString(),
+      );
     }
   }
 
@@ -81,8 +84,8 @@ class MyBusinessNotifier extends StateNotifier<MyBusinessState> {
 
 final myBusinessProvider =
     StateNotifierProvider<MyBusinessNotifier, MyBusinessState>(
-  (ref) => MyBusinessNotifier(BusinessService()),
-);
+      (ref) => MyBusinessNotifier(BusinessService()),
+    );
 
 /// Owner notification badge count (driven by socket + initial fetch).
 final bizUnreadCountProvider = StateProvider<int>((ref) => 0);
@@ -149,8 +152,9 @@ class BusinessSearchState {
       hasMore: hasMore ?? this.hasMore,
       nextCursor: clearCursor ? null : (nextCursor ?? this.nextCursor),
       error: clearError ? null : (error ?? this.error),
-      loadMoreError:
-          clearLoadMoreError ? null : (loadMoreError ?? this.loadMoreError),
+      loadMoreError: clearLoadMoreError
+          ? null
+          : (loadMoreError ?? this.loadMoreError),
       query: query ?? this.query,
       category: clearCategory ? null : (category ?? this.category),
       verified: clearVerified ? null : (verified ?? this.verified),
@@ -169,8 +173,12 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
   // current generation; a superseding search discards its page too.
   int _generation = 0;
 
-  Future<void> search(String query,
-      {String? category, bool? verified, String? subcategory}) async {
+  Future<void> search(
+    String query, {
+    String? category,
+    bool? verified,
+    String? subcategory,
+  }) async {
     final generation = ++_generation;
     state = BusinessSearchState(
       isLoading: true,
@@ -228,8 +236,7 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
       // untouched; only the inline tail retry becomes visible. Retrying
       // calls loadMore() again with the SAME nextCursor, so results are
       // never dropped or duplicated.
-      state = state.copyWith(
-          isLoadingMore: false, loadMoreError: e.toString());
+      state = state.copyWith(isLoadingMore: false, loadMoreError: e.toString());
     }
   }
 
@@ -238,8 +245,8 @@ class BusinessSearchNotifier extends StateNotifier<BusinessSearchState> {
 
 final businessSearchProvider =
     StateNotifierProvider<BusinessSearchNotifier, BusinessSearchState>(
-  (ref) => BusinessSearchNotifier(BusinessService()),
-);
+      (ref) => BusinessSearchNotifier(BusinessService()),
+    );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Nearby Search (offset pagination)
@@ -403,14 +410,15 @@ class NearbySearchNotifier extends StateNotifier<NearbySearchState> {
 
 final nearbySearchProvider =
     StateNotifierProvider<NearbySearchNotifier, NearbySearchState>(
-  (ref) => NearbySearchNotifier(BusinessService()),
-);
+      (ref) => NearbySearchNotifier(BusinessService()),
+    );
 
 // ── Featured businesses (§2.3 of Marketplace Enhancement Spec) ──────────────
 // Client-side sort: highest averageRating among currently loaded results.
 // Swap for a dedicated backend endpoint later without touching UI code.
-final featuredBusinessesProvider =
-    Provider.autoDispose<List<BusinessProfile>>((ref) {
+final featuredBusinessesProvider = Provider.autoDispose<List<BusinessProfile>>((
+  ref,
+) {
   final state = ref.watch(businessSearchProvider);
   final results = state.results;
   if (results.isEmpty) return [];
@@ -423,13 +431,17 @@ final featuredBusinessesProvider =
 // One-shot family providers (reviews + products by bizId)
 // ─────────────────────────────────────────────────────────────────────────────
 
-final businessReviewsProvider =
-    FutureProvider.family<ReviewPage, String>((ref, bizId) {
+final businessReviewsProvider = FutureProvider.family<ReviewPage, String>((
+  ref,
+  bizId,
+) {
   return BusinessService().getReviews(bizId);
 });
 
-final businessProductsProvider =
-    FutureProvider.family<ProductPage, String>((ref, bizId) {
+final businessProductsProvider = FutureProvider.family<ProductPage, String>((
+  ref,
+  bizId,
+) {
   return BusinessService().getBusinessProducts(bizId);
 });
 
@@ -527,8 +539,8 @@ class MyInvoicesNotifier extends StateNotifier<MyInvoicesState> {
 
 final myInvoicesProvider =
     StateNotifierProvider<MyInvoicesNotifier, MyInvoicesState>(
-  (ref) => MyInvoicesNotifier(BusinessService()),
-);
+      (ref) => MyInvoicesNotifier(BusinessService()),
+    );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // My Orders
@@ -614,7 +626,6 @@ class MyOrdersNotifier extends StateNotifier<MyOrdersState> {
   }
 }
 
-final myOrdersProvider =
-    StateNotifierProvider<MyOrdersNotifier, MyOrdersState>(
+final myOrdersProvider = StateNotifierProvider<MyOrdersNotifier, MyOrdersState>(
   (ref) => MyOrdersNotifier(BusinessService()),
 );

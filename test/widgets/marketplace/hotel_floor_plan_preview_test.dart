@@ -7,11 +7,8 @@ import 'package:azaman/widgets/marketplace/hotel_floor_plan_preview.dart';
 
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
-BusinessProduct _room(
-  String name, {
-  bool active = true,
-  double price = 80,
-}) => BusinessProduct(
+BusinessProduct _room(String name, {bool active = true, double price = 80}) =>
+    BusinessProduct(
       id: name.toLowerCase().replaceAll(' ', '-'),
       businessProfileId: 'hotel-1',
       name: name,
@@ -61,18 +58,16 @@ void main() {
     expect(selected, isNull);
   });
 
-  testWidgets('marks inactive rooms unavailable and prevents selection',
-      (tester) async {
+  testWidgets('marks inactive rooms unavailable and prevents selection', (
+    tester,
+  ) async {
     String? selected;
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: HotelFloorPlanPreview(
-            products: [
-              _room('Room 101'),
-              _room('Room 102', active: false),
-            ],
+            products: [_room('Room 101'), _room('Room 102', active: false)],
             selectedRoomId: null,
             onRoomSelected: (id) => selected = id,
             colors: _colors,

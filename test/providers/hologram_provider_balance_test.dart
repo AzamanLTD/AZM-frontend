@@ -3,38 +3,44 @@ import 'package:azaman/providers/hologram_provider.dart';
 
 void main() {
   group('BalanceData.fromJson', () {
-    test('parses numeric and decimal-string ledger fields without losing zeroes', () {
-      final balance = BalanceData.fromJson({
-        'availableBalance': '125.50',
-        'vendorUnallocatedBalance': 10,
-        'escrowLockedBalance': '0',
-        'disputeEscrowBalance': 4.25,
-        'azmBalance': '900.75',
-      });
+    test(
+      'parses numeric and decimal-string ledger fields without losing zeroes',
+      () {
+        final balance = BalanceData.fromJson({
+          'availableBalance': '125.50',
+          'vendorUnallocatedBalance': 10,
+          'escrowLockedBalance': '0',
+          'disputeEscrowBalance': 4.25,
+          'azmBalance': '900.75',
+        });
 
-      expect(balance.availableBalance, 125.50);
-      expect(balance.vendorUnallocatedBalance, 10);
-      expect(balance.escrowLockedBalance, 0);
-      expect(balance.disputeEscrowBalance, 4.25);
-      expect(balance.azmBalance, 900.75);
-      expect(balance.totalBalance, 135.50);
-      expect(balance.totalLocked, 4.25);
-    });
+        expect(balance.availableBalance, 125.50);
+        expect(balance.vendorUnallocatedBalance, 10);
+        expect(balance.escrowLockedBalance, 0);
+        expect(balance.disputeEscrowBalance, 4.25);
+        expect(balance.azmBalance, 900.75);
+        expect(balance.totalBalance, 135.50);
+        expect(balance.totalLocked, 4.25);
+      },
+    );
 
-    test('missing or malformed fields resolve to zero instead of inventing state', () {
-      final balance = BalanceData.fromJson({
-        'availableBalance': 'not-a-number',
-        'vendorUnallocatedBalance': null,
-        'escrowLockedBalance': false,
-        'disputeEscrowBalance': '3.5',
-      });
+    test(
+      'missing or malformed fields resolve to zero instead of inventing state',
+      () {
+        final balance = BalanceData.fromJson({
+          'availableBalance': 'not-a-number',
+          'vendorUnallocatedBalance': null,
+          'escrowLockedBalance': false,
+          'disputeEscrowBalance': '3.5',
+        });
 
-      expect(balance.availableBalance, 0);
-      expect(balance.vendorUnallocatedBalance, 0);
-      expect(balance.escrowLockedBalance, 0);
-      expect(balance.disputeEscrowBalance, 3.5);
-      expect(balance.azmBalance, 0);
-    });
+        expect(balance.availableBalance, 0);
+        expect(balance.vendorUnallocatedBalance, 0);
+        expect(balance.escrowLockedBalance, 0);
+        expect(balance.disputeEscrowBalance, 3.5);
+        expect(balance.azmBalance, 0);
+      },
+    );
   });
 
   group('parseOracleGhsRate', () {
@@ -56,13 +62,7 @@ void main() {
     });
 
     test('rejects legacy or metadata-free oracle shapes', () {
-      expect(
-        parseOracleGhsRate({
-          'liveUsdToGhs': 12.88,
-          'rate': 12.77,
-        }),
-        0,
-      );
+      expect(parseOracleGhsRate({'liveUsdToGhs': 12.88, 'rate': 12.77}), 0);
       expect(
         parseOracleGhsRate({
           'success': true,
@@ -77,21 +77,24 @@ void main() {
       );
     });
 
-    test('rejects invalid canonical retail rates without falling back to headline rate', () {
-      expect(
-        parseOracleGhsRate({
-          'success': true,
-          'data': {
-            'pair': 'USDC/GHS',
-            'settlementCurrency': 'USDC',
-            'displayCurrency': 'GHS',
-            'liveRetailRate': 'not-a-number',
-            'liveUsdToGhs': '13.21',
-          },
-        }),
-        0,
-      );
-    });
+    test(
+      'rejects invalid canonical retail rates without falling back to headline rate',
+      () {
+        expect(
+          parseOracleGhsRate({
+            'success': true,
+            'data': {
+              'pair': 'USDC/GHS',
+              'settlementCurrency': 'USDC',
+              'displayCurrency': 'GHS',
+              'liveRetailRate': 'not-a-number',
+              'liveUsdToGhs': '13.21',
+            },
+          }),
+          0,
+        );
+      },
+    );
 
     test('rejects missing or non-positive canonical retail rate', () {
       expect(
@@ -129,26 +132,35 @@ void main() {
         'disputeEscrowBalance': '0.00',
         'azmBalance': 0,
       });
-      expect(b, isNotNull,
-          reason: 'a valid server-confirmed zero is a confirmed balance');
+      expect(
+        b,
+        isNotNull,
+        reason: 'a valid server-confirmed zero is a confirmed balance',
+      );
       expect(b!.availableBalance, 0);
       expect(b.azmBalance, 0);
-      expect(b.valuationFieldPresent, isFalse,
-          reason: 'legacy responses carry no valuation key');
+      expect(
+        b.valuationFieldPresent,
+        isFalse,
+        reason: 'legacy responses carry no valuation key',
+      );
       expect(b.valuationRaw, isNull);
     });
 
-    test('numeric strings are accepted (Prisma Decimals serialize as strings)', () {
-      final b = BalanceData.tryParseValidPayload({
-        'availableBalance': '125.50',
-        'vendorUnallocatedBalance': '10',
-        'escrowLockedBalance': '0',
-        'disputeEscrowBalance': '4.25',
-        'azmBalance': '900.75',
-      });
-      expect(b!.availableBalance, 125.50);
-      expect(b.azmBalance, 900.75);
-    });
+    test(
+      'numeric strings are accepted (Prisma Decimals serialize as strings)',
+      () {
+        final b = BalanceData.tryParseValidPayload({
+          'availableBalance': '125.50',
+          'vendorUnallocatedBalance': '10',
+          'escrowLockedBalance': '0',
+          'disputeEscrowBalance': '4.25',
+          'azmBalance': '900.75',
+        });
+        expect(b!.availableBalance, 125.50);
+        expect(b.azmBalance, 900.75);
+      },
+    );
 
     test('ANY missing legacy field → the payload is INVALID (null)', () {
       for (final missing in [
@@ -166,9 +178,13 @@ void main() {
           'azmBalance': 5,
         };
         payload.remove(missing);
-        expect(BalanceData.tryParseValidPayload(payload), isNull,
-            reason: 'a payload without $missing must not be read as a '
-                'confirmed balance');
+        expect(
+          BalanceData.tryParseValidPayload(payload),
+          isNull,
+          reason:
+              'a payload without $missing must not be read as a '
+              'confirmed balance',
+        );
       }
     });
 
@@ -189,10 +205,14 @@ void main() {
           'azmBalance': 5,
         };
         payload[key] = 'not-a-number';
-        expect(BalanceData.tryParseValidPayload(payload), isNull,
-            reason: '$key malformed must fail the whole payload — the '
-                'lenient 0.0 of fromJson would display a fabricated '
-                'balance as though the server confirmed it');
+        expect(
+          BalanceData.tryParseValidPayload(payload),
+          isNull,
+          reason:
+              '$key malformed must fail the whole payload — the '
+              'lenient 0.0 of fromJson would display a fabricated '
+              'balance as though the server confirmed it',
+        );
       }
     });
 
@@ -264,9 +284,13 @@ void main() {
         'valuation': null,
       });
       expect(b!.valuationFieldPresent, isTrue);
-      expect(b.valuationRaw, isNull,
-          reason: 'explicit null means the backend SAYS the valuation is '
-              'unavailable — distinct from the field being absent');
+      expect(
+        b.valuationRaw,
+        isNull,
+        reason:
+            'explicit null means the backend SAYS the valuation is '
+            'unavailable — distinct from the field being absent',
+      );
     });
 
     test('valuation: a Map → carried raw for the typed strict parse', () {
@@ -298,9 +322,13 @@ void main() {
       });
       expect(b, isNotNull);
       expect(b!.valuationFieldPresent, isTrue);
-      expect(b.valuationRaw, isNull,
-          reason: 'a non-Map valuation is carried as explicit '
-              'unavailability');
+      expect(
+        b.valuationRaw,
+        isNull,
+        reason:
+            'a non-Map valuation is carried as explicit '
+            'unavailability',
+      );
     });
   });
 }

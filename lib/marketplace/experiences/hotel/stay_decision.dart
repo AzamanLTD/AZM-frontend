@@ -13,7 +13,12 @@ class StayDecision {
   final int guests;
   final String? roomId;
 
-  const StayDecision({this.checkIn, this.checkOut, this.guests = 1, this.roomId});
+  const StayDecision({
+    this.checkIn,
+    this.checkOut,
+    this.guests = 1,
+    this.roomId,
+  });
 
   int? get nights => (checkIn != null && checkOut != null)
       ? checkOut!.difference(checkIn!).inDays
@@ -37,13 +42,12 @@ class StayDecision {
     String? roomId,
     bool clearRoom = false,
     bool clearDates = false,
-  }) =>
-      StayDecision(
-        checkIn: clearDates ? null : (checkIn ?? this.checkIn),
-        checkOut: clearDates ? null : (checkOut ?? this.checkOut),
-        guests: guests ?? this.guests,
-        roomId: clearRoom ? null : (roomId ?? this.roomId),
-      );
+  }) => StayDecision(
+    checkIn: clearDates ? null : (checkIn ?? this.checkIn),
+    checkOut: clearDates ? null : (checkOut ?? this.checkOut),
+    guests: guests ?? this.guests,
+    roomId: clearRoom ? null : (roomId ?? this.roomId),
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -62,14 +66,12 @@ enum StayStep { dates, room, review, confirmed }
 
 extension StayStepLabel on StayStep {
   String get label => switch (this) {
-        StayStep.dates => 'Dates',
-        StayStep.room => 'Room',
-        StayStep.review => 'Review',
-        StayStep.confirmed => 'Confirmed',
-      };
+    StayStep.dates => 'Dates',
+    StayStep.room => 'Room',
+    StayStep.review => 'Review',
+    StayStep.confirmed => 'Confirmed',
+  };
 }
 
-final stayDecisionProvider =
-    StateProvider.autoDispose.family<StayDecision, String>(
-  (ref, bizId) => const StayDecision(),
-);
+final stayDecisionProvider = StateProvider.autoDispose
+    .family<StayDecision, String>((ref, bizId) => const StayDecision());

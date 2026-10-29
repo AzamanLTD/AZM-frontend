@@ -216,7 +216,8 @@ class _CallScreenState extends ConsumerState<CallScreen>
                         name: widget.peerName,
                         pulseAnimation: _pulseController,
                         ringAnimation: _ringController,
-                        isRinging: _callState == CallState.ringing ||
+                        isRinging:
+                            _callState == CallState.ringing ||
                             _callState == CallState.incoming,
                       ),
               ),
@@ -280,27 +281,28 @@ class _AvatarRings extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (isRinging) ...List.generate(3, (i) {
-            return AnimatedBuilder(
-              animation: ringAnimation,
-              builder: (context, child) {
-                final progress = (ringAnimation.value + i * 0.33) % 1.0;
-                final size = 120.0 + progress * 100;
-                final opacity = (1 - progress) * 0.4;
-                return Container(
-                  width: size,
-                  height: size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: opacity),
-                      width: 2,
+          if (isRinging)
+            ...List.generate(3, (i) {
+              return AnimatedBuilder(
+                animation: ringAnimation,
+                builder: (context, child) {
+                  final progress = (ringAnimation.value + i * 0.33) % 1.0;
+                  final size = 120.0 + progress * 100;
+                  final opacity = (1 - progress) * 0.4;
+                  return Container(
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: opacity),
+                        width: 2,
+                      ),
                     ),
-                  ),
-                );
-              },
-            );
-          }),
+                  );
+                },
+              );
+            }),
           AnimatedBuilder(
             animation: pulseAnimation,
             builder: (context, child) {
@@ -324,7 +326,12 @@ class _AvatarRings extends StatelessWidget {
                     ],
                   ),
                   child: avatar != null
-                      ? ClipOval(child: AzamanNetworkImage(imageUrl: avatar!, fit: BoxFit.cover))
+                      ? ClipOval(
+                          child: AzamanNetworkImage(
+                            imageUrl: avatar!,
+                            fit: BoxFit.cover,
+                          ),
+                        )
                       : Center(
                           child: Text(
                             name.isNotEmpty ? name[0].toUpperCase() : '?',
@@ -367,7 +374,9 @@ class _VideoCallView extends StatelessWidget {
                 objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
               );
             }
-            return const Center(child: CircularProgressIndicator(color: Colors.white));
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            );
           },
         ),
         // Local video PiP
@@ -384,8 +393,10 @@ class _VideoCallView extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: const Center(
-                child: Text('You',
-                    style: TextStyle(color: Colors.white54, fontSize: 14)),
+                child: Text(
+                  'You',
+                  style: TextStyle(color: Colors.white54, fontSize: 14),
+                ),
               ),
             ),
           ),
@@ -462,14 +473,18 @@ class _CallControls extends StatelessWidget {
         ),
         if (isVideoCall)
           _ControlButton(
-            icon: videoEnabled ? Icons.videocam_rounded : Icons.videocam_off_rounded,
+            icon: videoEnabled
+                ? Icons.videocam_rounded
+                : Icons.videocam_off_rounded,
             label: videoEnabled ? 'Video On' : 'Video Off',
             color: Colors.white,
             active: !videoEnabled,
             onPressed: onToggleVideo,
           ),
         _ControlButton(
-          icon: speakerEnabled ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+          icon: speakerEnabled
+              ? Icons.volume_up_rounded
+              : Icons.volume_off_rounded,
           label: 'Speaker',
           color: Colors.white,
           active: speakerEnabled,
@@ -518,14 +533,21 @@ class _ControlButton extends StatelessWidget {
             border: Border.all(color: Colors.white24, width: 1),
           ),
           child: IconButton(
-            icon: Icon(icon, color: active ? Colors.black : color, size: size * 0.45),
+            icon: Icon(
+              icon,
+              color: active ? Colors.black : color,
+              size: size * 0.45,
+            ),
             onPressed: onPressed,
           ),
         ),
         const SizedBox(height: 8),
         Text(
           label,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: 12,
+          ),
         ),
       ],
     );

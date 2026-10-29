@@ -39,11 +39,11 @@ extension AzIntentPresentation on AzIntent {
   /// Haptic that fires when the intent *commits* (not when it is offered).
   /// Routes through [AzamanHaptics] so the sensory preference is honoured.
   Future<void> commitHaptic() => switch (this) {
-        AzIntent.pay || AzIntent.order || AzIntent.book =>
-          AzamanHaptics.commit(),
-        AzIntent.save || AzIntent.react || AzIntent.mute =>
-          AzamanHaptics.selection(),
-        AzIntent.report || AzIntent.block => AzamanHaptics.warn(),
-        _ => AzamanHaptics.selection(),
-      };
+    AzIntent.pay || AzIntent.order || AzIntent.book => AzamanHaptics.commit(),
+    AzIntent.save ||
+    AzIntent.react ||
+    AzIntent.mute => AzamanHaptics.selection(),
+    AzIntent.report || AzIntent.block => AzamanHaptics.warn(),
+    _ => AzamanHaptics.selection(),
+  };
 }

@@ -16,7 +16,9 @@ void main() {
       );
     });
 
-    testWidgets('accessibleDuration respects disableAnimations', (tester) async {
+    testWidgets('accessibleDuration respects disableAnimations', (
+      tester,
+    ) async {
       Duration? enabledDuration;
       Duration? disabledDuration;
 
@@ -54,8 +56,9 @@ void main() {
       expect(disabledDuration, Duration.zero);
     });
 
-    testWidgets('ReducedMotion compatibility delegates to canonical helper',
-        (tester) async {
+    testWidgets('ReducedMotion compatibility delegates to canonical helper', (
+      tester,
+    ) async {
       Duration? result;
 
       await tester.pumpWidget(

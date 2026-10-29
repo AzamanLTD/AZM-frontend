@@ -51,38 +51,49 @@ void main() {
 
     expect(find.text('Order tray'), findsOneWidget);
     expect(find.text('Koko House'), findsOneWidget);
-    expect(find.text('8.00 USDC'), findsOneWidget,
-        reason: 'payable subtotal carries the explicit USDC denomination');
+    expect(
+      find.text('8.00 USDC'),
+      findsOneWidget,
+      reason: 'payable subtotal carries the explicit USDC denomination',
+    );
     expect(find.text('1'), findsOneWidget);
   });
 
-  testWidgets('adding another item updates count and subtotal with an animated state', (tester) async {
-    await tester.pumpWidget(buildSubject());
-    notifier.addItem(
-      businessProfileId: 'biz-1',
-      businessName: 'Koko House',
-      productId: 'dish-1',
-      name: 'Chicken & Rice',
-      unitPrice: 8,
-    );
-    await tester.pumpAndSettle(const Duration(milliseconds: 700));
+  testWidgets(
+    'adding another item updates count and subtotal with an animated state',
+    (tester) async {
+      await tester.pumpWidget(buildSubject());
+      notifier.addItem(
+        businessProfileId: 'biz-1',
+        businessName: 'Koko House',
+        productId: 'dish-1',
+        name: 'Chicken & Rice',
+        unitPrice: 8,
+      );
+      await tester.pumpAndSettle(const Duration(milliseconds: 700));
 
-    notifier.addItem(
-      businessProfileId: 'biz-1',
-      businessName: 'Koko House',
-      productId: 'dish-2',
-      name: 'Plantain',
-      unitPrice: 4,
-    );
-    await tester.pump(const Duration(milliseconds: 120));
+      notifier.addItem(
+        businessProfileId: 'biz-1',
+        businessName: 'Koko House',
+        productId: 'dish-2',
+        name: 'Plantain',
+        unitPrice: 4,
+      );
+      await tester.pump(const Duration(milliseconds: 120));
 
-    expect(find.text('2'), findsOneWidget);
-    expect(find.text('12.00 USDC'), findsOneWidget,
-        reason: 'payable subtotal carries the explicit USDC denomination');
-    expect(find.byType(ScaleTransition), findsWidgets);
-  });
+      expect(find.text('2'), findsOneWidget);
+      expect(
+        find.text('12.00 USDC'),
+        findsOneWidget,
+        reason: 'payable subtotal carries the explicit USDC denomination',
+      );
+      expect(find.byType(ScaleTransition), findsWidgets);
+    },
+  );
 
-  testWidgets('an empty cart remains mounted while its tray animates out', (tester) async {
+  testWidgets('an empty cart remains mounted while its tray animates out', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildSubject());
     notifier.addItem(
       businessProfileId: 'biz-1',

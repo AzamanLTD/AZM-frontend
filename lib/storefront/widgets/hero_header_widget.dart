@@ -7,7 +7,11 @@ class HeroHeaderWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const HeroHeaderWidget({super.key, required this.props, required this.business});
+  const HeroHeaderWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -35,16 +39,22 @@ class HeroHeaderWidget extends StatelessWidget {
               AzamanNetworkImage(
                 imageUrl: mediaUrl,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => Container(color: Theme.of(context).colorScheme.surface),
+                placeholder: (_, __) =>
+                    Container(color: Theme.of(context).colorScheme.surface),
                 errorWidget: (_, __, ___) => business.coverPhotoUrl != null
-                    ? AzamanNetworkImage(imageUrl: business.coverPhotoUrl!, fit: BoxFit.cover)
+                    ? AzamanNetworkImage(
+                        imageUrl: business.coverPhotoUrl!,
+                        fit: BoxFit.cover,
+                      )
                     : _gradientBackground(context),
               )
-            else if (business.coverPhotoUrl != null && business.coverPhotoUrl!.isNotEmpty)
+            else if (business.coverPhotoUrl != null &&
+                business.coverPhotoUrl!.isNotEmpty)
               AzamanNetworkImage(
                 imageUrl: business.coverPhotoUrl!,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => Container(color: Theme.of(context).colorScheme.surface),
+                placeholder: (_, __) =>
+                    Container(color: Theme.of(context).colorScheme.surface),
                 errorWidget: (_, __, ___) => _gradientBackground(context),
               )
             else
@@ -63,17 +73,32 @@ class HeroHeaderWidget extends StatelessWidget {
               ),
             ),
             Positioned(
-              left: 20, right: 20, bottom: 16,
+              left: 20,
+              right: 20,
+              bottom: 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (title.isNotEmpty)
-                    Text(title, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   if (subtitle != null && subtitle.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14)),
+                      child: Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 14,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -91,7 +116,10 @@ class HeroHeaderWidget extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [accent.withValues(alpha: 0.7), accent.withValues(alpha: 0.4)],
+          colors: [
+            accent.withValues(alpha: 0.7),
+            accent.withValues(alpha: 0.4),
+          ],
         ),
       ),
     );

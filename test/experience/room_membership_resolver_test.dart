@@ -11,8 +11,10 @@ void main() {
 
     test('parses well-formed ids', () {
       expect(AzRoomId.parse('friend:abc'), ('friend', 'abc'));
-      expect(AzRoomId.parse('group:uuid:with:colons'),
-          ('group', 'uuid:with:colons'));
+      expect(AzRoomId.parse('group:uuid:with:colons'), (
+        'group',
+        'uuid:with:colons',
+      ));
     });
 
     test('rejects malformed ids', () {
@@ -29,10 +31,10 @@ void main() {
       myUserId: 42,
       hasFriendship: (id) => const {'f-1', 'f-2'}.contains(id),
       groupMemberUserIds: (id) => switch (id) {
-            'g-mine' => const [1, 42, 7],
-            'g-other' => const [1, 7],
-            _ => null,
-          },
+        'g-mine' => const [1, 42, 7],
+        'g-other' => const [1, 7],
+        _ => null,
+      },
     );
 
     test('friend room present → true, absent → false', () {

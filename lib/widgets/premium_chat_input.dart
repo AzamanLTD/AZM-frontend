@@ -29,11 +29,14 @@ class PremiumChatInput extends ConsumerStatefulWidget {
     required String mediaUrl,
     required String mediaType,
     required String messageType,
-    String? mimeType, int? size, int? duration,
+    String? mimeType,
+    int? size,
+    int? duration,
     List<int>? waveformPeaks,
-    Map<String,dynamic>? linkPreview,
+    Map<String, dynamic>? linkPreview,
     String? caption,
-  }) onSendMedia;
+  })
+  onSendMedia;
   final void Function(bool isTyping) onTypingChanged;
   final TextEditingController? controller;
   final FocusNode? focusNode;
@@ -112,18 +115,29 @@ class _State extends ConsumerState<PremiumChatInput> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final file = await ImagePicker().pickImage(source: source, imageQuality: 80);
+    final file = await ImagePicker().pickImage(
+      source: source,
+      imageQuality: 80,
+    );
     if (file == null) return;
-    setState(() { _isUploading = true; _uploadProgress = 0; });
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0;
+    });
     try {
       final r = await ChatMediaService.instance.uploadImage(File(file.path));
       widget.onSendMedia(
-        mediaUrl: r.url, mediaType: 'image',
-        messageType: 'IMAGE', mimeType: r.mimeType, size: r.size);
+        mediaUrl: r.url,
+        mediaType: 'image',
+        messageType: 'IMAGE',
+        mimeType: r.mimeType,
+        size: r.size,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Upload failed. Try again.')));
+          const SnackBar(content: Text('Upload failed. Try again.')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -135,17 +149,24 @@ class _State extends ConsumerState<PremiumChatInput> {
     if (result == null || result.files.isEmpty) return;
     final path = result.files.first.path;
     if (path == null) return;
-    setState(() { _isUploading = true; _uploadProgress = 0; });
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0;
+    });
     try {
       final r = await ChatMediaService.instance.uploadDocument(File(path));
       widget.onSendMedia(
-        mediaUrl: r.url, mediaType: 'document',
-        messageType: 'DOCUMENT', mimeType: r.mimeType,
-        size: r.size);
+        mediaUrl: r.url,
+        mediaType: 'document',
+        messageType: 'DOCUMENT',
+        mimeType: r.mimeType,
+        size: r.size,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Upload failed. Try again.')));
+          const SnackBar(content: Text('Upload failed. Try again.')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -169,24 +190,47 @@ class _State extends ConsumerState<PremiumChatInput> {
               padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
               decoration: BoxDecoration(
                 color: c.accent.withValues(alpha: 0.08),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                border: Border(left: BorderSide(color: c.accent, width: 3))),
-              child: Row(children: [
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(widget.replyTo!.senderUsername ?? 'Message',
-                      style: TextStyle(color: c.accent,
-                        fontSize: 11, fontWeight: FontWeight.w700)),
-                    Text(widget.replyTo!.text, maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: c.textSecondary, fontSize: 11)),
-                  ],
-                )),
-                GestureDetector(
-                  onTap: widget.onClearReply,
-                  child: Icon(Icons.close_rounded, size: 18, color: c.textTertiary)),
-              ]),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
+                border: Border(left: BorderSide(color: c.accent, width: 3)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.replyTo!.senderUsername ?? 'Message',
+                          style: TextStyle(
+                            color: c.accent,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          widget.replyTo!.text,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: c.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: widget.onClearReply,
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 18,
+                      color: c.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         // ── Upload progress bar ──────────────────────────────────────────
@@ -195,7 +239,8 @@ class _State extends ConsumerState<PremiumChatInput> {
             value: _uploadProgress > 0 ? _uploadProgress : null,
             backgroundColor: c.divider,
             valueColor: AlwaysStoppedAnimation<Color>(c.accent),
-            minHeight: 2),
+            minHeight: 2,
+          ),
 
         // ── Floating pill bar ────────────────────────────────────────────
         // EXPERIENCE PASS §15 — the chat composer IS the contextual bottom
@@ -293,20 +338,28 @@ class _State extends ConsumerState<PremiumChatInput> {
                           style: TextStyle(color: c.textPrimary, fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Message',
-                            hintStyle: TextStyle(color: c.textTertiary, fontSize: 14),
+                            hintStyle: TextStyle(
+                              color: c.textTertiary,
+                              fontSize: 14,
+                            ),
                             filled: true,
                             fillColor: c.softSurface,
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 8),
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide.none),
+                              borderSide: BorderSide.none,
+                            ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide.none),
+                              borderSide: BorderSide.none,
+                            ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide.none),
+                              borderSide: BorderSide.none,
+                            ),
                           ),
                         ),
                       ),
@@ -317,45 +370,62 @@ class _State extends ConsumerState<PremiumChatInput> {
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 180),
                   transitionBuilder: (child, anim) =>
-                    ScaleTransition(scale: anim, child: child),
+                      ScaleTransition(scale: anim, child: child),
                   child: _hasText
-                    ? AzamanSendButton(
-                        key: const ValueKey('send'),
-                        accentColor: c.accent,
-                        outlineColor: c.isDark ? Colors.white : Colors.white,
-                        fillColor: c.isDark ? Colors.white : Colors.white,
-                        onSend: _handleSend,
-                        isDark: c.isDark,
-                      )
-                    : Padding(
-                        key: const ValueKey('mic'),
-                        padding: const EdgeInsets.only(right: 4),
-                        child: AudioRecorderButton(
-                          onRecordingStateChanged: (rec) {
-                            if (mounted) setState(() => _isRecording = rec);
-                          },
-                          onRecorded: (File file, int duration, List<int> peaks) async {
-                            setState(() => _isUploading = true);
-                            try {
-                              final r = await ChatMediaService.instance.uploadAudio(
-                                file, durationSeconds: duration, waveformPeaks: peaks);
-                              widget.onSendMedia(
-                                mediaUrl: r.url, mediaType: 'audio',
-                                messageType: 'AUDIO', mimeType: r.mimeType,
-                                duration: r.duration ?? duration,
-                                waveformPeaks: r.waveformPeaks ?? peaks);
-                            } catch (e) {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Voice upload failed.')));
-                              }
-                            } finally {
-                              if (mounted) setState(() => _isUploading = false);
-                            }
-                          },
+                      ? AzamanSendButton(
+                          key: const ValueKey('send'),
+                          accentColor: c.accent,
+                          outlineColor: c.isDark ? Colors.white : Colors.white,
+                          fillColor: c.isDark ? Colors.white : Colors.white,
+                          onSend: _handleSend,
+                          isDark: c.isDark,
+                        )
+                      : Padding(
+                          key: const ValueKey('mic'),
+                          padding: const EdgeInsets.only(right: 4),
+                          child: AudioRecorderButton(
+                            onRecordingStateChanged: (rec) {
+                              if (mounted) setState(() => _isRecording = rec);
+                            },
+                            onRecorded:
+                                (
+                                  File file,
+                                  int duration,
+                                  List<int> peaks,
+                                ) async {
+                                  setState(() => _isUploading = true);
+                                  try {
+                                    final r = await ChatMediaService.instance
+                                        .uploadAudio(
+                                          file,
+                                          durationSeconds: duration,
+                                          waveformPeaks: peaks,
+                                        );
+                                    widget.onSendMedia(
+                                      mediaUrl: r.url,
+                                      mediaType: 'audio',
+                                      messageType: 'AUDIO',
+                                      mimeType: r.mimeType,
+                                      duration: r.duration ?? duration,
+                                      waveformPeaks: r.waveformPeaks ?? peaks,
+                                    );
+                                  } catch (e) {
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Voice upload failed.'),
+                                        ),
+                                      );
+                                    }
+                                  } finally {
+                                    if (mounted)
+                                      setState(() => _isUploading = false);
+                                  }
+                                },
+                          ),
                         ),
-                      ),
                 ),
               ],
             ),

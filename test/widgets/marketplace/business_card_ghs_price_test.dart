@@ -62,7 +62,11 @@ BusinessProfile _profile(List<BusinessProduct> products) {
 Future<void> _pumpCard(WidgetTester tester, BusinessProfile profile) async {
   await tester.pumpWidget(
     ProviderScope(
-      child: MaterialApp(home: Scaffold(body: BusinessCard(business: profile, onTap: () {}))),
+      child: MaterialApp(
+        home: Scaffold(
+          body: BusinessCard(business: profile, onTap: () {}),
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -76,11 +80,14 @@ void main() {
       // Deliberately adversarial ordering: as TEXT, '100.00' < '49.50' < '9.00',
       // so a lexicographic sort would surface '100.00'. Only numeric
       // comparison yields the true cheapest: 9.00.
-      await _pumpCard(tester, _profile([
-        _product('p100', '100.00'),
-        _product('p49', '49.50'),
-        _product('p9', '9.00'),
-      ]));
+      await _pumpCard(
+        tester,
+        _profile([
+          _product('p100', '100.00'),
+          _product('p49', '49.50'),
+          _product('p9', '9.00'),
+        ]),
+      );
 
       expect(
         find.text('from GH₵9.00', findRichText: true),
@@ -92,32 +99,42 @@ void main() {
     },
   );
 
-  testWidgets('a confirmed GHS price is displayed exactly, server string verbatim', (tester) async {
-    await _pumpCard(tester, _profile([_product('p1', '49.50', priceUsdc: 123.45)]));
+  testWidgets(
+    'a confirmed GHS price is displayed exactly, server string verbatim',
+    (tester) async {
+      await _pumpCard(
+        tester,
+        _profile([_product('p1', '49.50', priceUsdc: 123.45)]),
+      );
 
-    expect(find.text('from GH₵49.50', findRichText: true), findsOneWidget);
-    // The legacy USDC figure never appears anywhere on the browse card.
-    expect(find.byType(RichText), findsWidgets);
-    final allText = tester
-        .widgetList<RichText>(find.byType(RichText))
-        .map((r) => r.text.toPlainText())
-        .join(' ');
-    expect(allText.contains('123.45'), isFalse);
-    expect(allText.contains('USDC'), isFalse);
-  });
+      expect(find.text('from GH₵49.50', findRichText: true), findsOneWidget);
+      // The legacy USDC figure never appears anywhere on the browse card.
+      expect(find.byType(RichText), findsWidgets);
+      final allText = tester
+          .widgetList<RichText>(find.byType(RichText))
+          .map((r) => r.text.toPlainText())
+          .join(' ');
+      expect(allText.contains('123.45'), isFalse);
+      expect(allText.contains('USDC'), isFalse);
+    },
+  );
 
   testWidgets(
     'no confirmed GHS price renders "Price unavailable" — never the priceUsdc fallback',
     (tester) async {
-      await _pumpCard(tester, _profile([
-        _product('p1', null, priceUsdc: 7.77),
-        _product('p2', null, priceUsdc: 12.34),
-      ]));
+      await _pumpCard(
+        tester,
+        _profile([
+          _product('p1', null, priceUsdc: 7.77),
+          _product('p2', null, priceUsdc: 12.34),
+        ]),
+      );
 
       expect(
         find.text('Price unavailable', findRichText: true),
         findsOneWidget,
-        reason: 'the anchor reports the missing GHS truth without a from-prefix '
+        reason:
+            'the anchor reports the missing GHS truth without a from-prefix '
             'and without any USDC substitute',
       );
       expect(
@@ -138,12 +155,15 @@ void main() {
   testWidgets(
     'a mixed catalogue anchors at the cheapest GHS-priced product; unpriced products never contribute',
     (tester) async {
-      await _pumpCard(tester, _profile([
-        _product('unpriced', null, priceUsdc: 0.01),
-        _product('mid', '49.50'),
-        _product('cheap', '9.00'),
-        _product('inactive', '1.00', isActive: false),
-      ]));
+      await _pumpCard(
+        tester,
+        _profile([
+          _product('unpriced', null, priceUsdc: 0.01),
+          _product('mid', '49.50'),
+          _product('cheap', '9.00'),
+          _product('inactive', '1.00', isActive: false),
+        ]),
+      );
 
       expect(find.text('from GH₵9.00', findRichText: true), findsOneWidget);
       // The inactive product's cheaper GHS figure must not win the anchor.

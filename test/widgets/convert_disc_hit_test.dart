@@ -85,16 +85,17 @@ Future<void> _pumpSubject(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets(
-      'the seam disc paints over both cards while its tap point stays '
+  testWidgets('the seam disc paints over both cards while its tap point stays '
       'inside the slot — honestly hit-testable', (tester) async {
     await _pumpSubject(tester);
 
     final disc = find.byKey(const Key('convert_direction_switch'));
-    final fromRect =
-        tester.getRect(find.byKey(const Key('convert_from_panel')));
-    final toTopLeft =
-        tester.getTopLeft(find.byKey(const Key('convert_to_panel')));
+    final fromRect = tester.getRect(
+      find.byKey(const Key('convert_from_panel')),
+    );
+    final toTopLeft = tester.getTopLeft(
+      find.byKey(const Key('convert_to_panel')),
+    );
 
     // The disc's ink band: a 44dp-tall band centred on the cards' seam.
     // The OverflowBox slot is the 16dp gap; the band paints over both
@@ -130,18 +131,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(
       tester
-          .widget<AnimatedRotation>(find.descendant(
-            of: find.byKey(const Key('convert_direction_switch')),
-            matching: find.byType(AnimatedRotation),
-          ))
+          .widget<AnimatedRotation>(
+            find.descendant(
+              of: find.byKey(const Key('convert_direction_switch')),
+              matching: find.byType(AnimatedRotation),
+            ),
+          )
           .turns,
       0.5,
       reason: 'a landed tap must have reversed the direction',
     );
   });
 
-  testWidgets(
-      'a tap reverses direction and clears the amount; a second tap '
+  testWidgets('a tap reverses direction and clears the amount; a second tap '
       'restores it', (tester) async {
     await _pumpSubject(tester);
 
@@ -152,11 +154,16 @@ void main() {
       '12.5',
     );
     await tester.pump();
-    expect(find.text('USDC'), findsWidgets,
-        reason: 'precondition: the unreversed From pill reads USDC');
+    expect(
+      find.text('USDC'),
+      findsWidgets,
+      reason: 'precondition: the unreversed From pill reads USDC',
+    );
 
     await tester.tap(
-        find.byKey(const Key('convert_direction_switch')), warnIfMissed: true);
+      find.byKey(const Key('convert_direction_switch')),
+      warnIfMissed: true,
+    );
     await tester.pumpAndSettle();
 
     // Direction reversed: the amount field was cleared by
@@ -171,23 +178,28 @@ void main() {
     expect(find.text('GHS'), findsWidgets);
 
     await tester.tap(
-        find.byKey(const Key('convert_direction_switch')), warnIfMissed: true);
+      find.byKey(const Key('convert_direction_switch')),
+      warnIfMissed: true,
+    );
     await tester.pumpAndSettle();
 
     // Back to the original direction.
     expect(
       tester
-          .widget<AnimatedRotation>(find.descendant(
-            of: find.byKey(const Key('convert_direction_switch')),
-            matching: find.byType(AnimatedRotation),
-          ))
+          .widget<AnimatedRotation>(
+            find.descendant(
+              of: find.byKey(const Key('convert_direction_switch')),
+              matching: find.byType(AnimatedRotation),
+            ),
+          )
           .turns,
       0.0,
     );
   });
 
-  testWidgets('the disc declares itself a button with the honest tooltip',
-      (tester) async {
+  testWidgets('the disc declares itself a button with the honest tooltip', (
+    tester,
+  ) async {
     await _pumpSubject(tester);
     final disc = find.byKey(const Key('convert_direction_switch'));
     final semantics = tester.widget<Semantics>(disc);

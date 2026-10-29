@@ -41,23 +41,25 @@ class AzSurfaceSpec {
 
   /// The single source of truth for how each kind is styled.
   static AzSurfaceSpec of(AzSurfaceKind kind) => switch (kind) {
-        // Flat, rim-less cards (UI Correction §7.1): radius only.
-        AzSurfaceKind.card => const AzSurfaceSpec(radius: AzRadius.lg),
-        AzSurfaceKind.noticeBoard => const AzSurfaceSpec(radius: AzRadius.md),
-        AzSurfaceKind.chip => const AzSurfaceSpec(radius: AzRadius.pill),
-        AzSurfaceKind.sheet => const AzSurfaceSpec(radius: AzRadius.xxl),
-        AzSurfaceKind.tray =>
-          const AzSurfaceSpec(radius: AzRadius.xl, hasShadow: true),
-        AzSurfaceKind.identity => const AzSurfaceSpec(radius: AzRadius.pill),
-        AzSurfaceKind.inlineSearch =>
-          const AzSurfaceSpec(radius: AzRadius.pill),
-        AzSurfaceKind.actionDock =>
-          const AzSurfaceSpec(radius: AzRadius.pill, hasBlur: true),
-        AzSurfaceKind.hero ||
-        AzSurfaceKind.contextRow ||
-        AzSurfaceKind.categoryRail ||
-        AzSurfaceKind.socialRail ||
-        AzSurfaceKind.statusRail =>
-          const AzSurfaceSpec(radius: AzRadius.lg),
-      };
+    // Flat, rim-less cards (UI Correction §7.1): radius only.
+    AzSurfaceKind.card => const AzSurfaceSpec(radius: AzRadius.lg),
+    AzSurfaceKind.noticeBoard => const AzSurfaceSpec(radius: AzRadius.md),
+    AzSurfaceKind.chip => const AzSurfaceSpec(radius: AzRadius.pill),
+    AzSurfaceKind.sheet => const AzSurfaceSpec(radius: AzRadius.xxl),
+    AzSurfaceKind.tray => const AzSurfaceSpec(
+      radius: AzRadius.xl,
+      hasShadow: true,
+    ),
+    AzSurfaceKind.identity => const AzSurfaceSpec(radius: AzRadius.pill),
+    AzSurfaceKind.inlineSearch => const AzSurfaceSpec(radius: AzRadius.pill),
+    AzSurfaceKind.actionDock => const AzSurfaceSpec(
+      radius: AzRadius.pill,
+      hasBlur: true,
+    ),
+    AzSurfaceKind.hero ||
+    AzSurfaceKind.contextRow ||
+    AzSurfaceKind.categoryRail ||
+    AzSurfaceKind.socialRail ||
+    AzSurfaceKind.statusRail => const AzSurfaceSpec(radius: AzRadius.lg),
+  };
 }
