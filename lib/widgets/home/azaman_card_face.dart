@@ -391,7 +391,12 @@ class AzamanCardSurface extends StatelessWidget {
           // The glyph's own height, and not a pixel more: on a 180px card every
           // extra pixel here comes straight out of the section below, and the
           // committed peek has to stay visible.
-          final brandBand = AzamanCardMetrics.glyphHeight(h);
+          // Floor to whole logical pixels. The metrics are ratios of the card
+          // height, so the band landed on a fraction, the section inherited a
+          // fractional box, and text layout rounded it up — a 0.23px overflow
+          // on the reverse. An integer band leaves the remainder to the
+          // section, where it is actually needed.
+          final brandBand = AzamanCardMetrics.glyphHeight(h).floorToDouble();
           final inset = isBack
               ? baseInset.copyWith(top: baseInset.top + brandBand)
               : baseInset;
