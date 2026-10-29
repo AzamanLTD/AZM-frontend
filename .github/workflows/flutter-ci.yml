@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       update_goldens:
-        description: 'Regenerate the native_amount goldens on this runner and upload them as an artifact (the runner image glyph rasterisation differs from dev machines — goldens must be regenerated ON CI, never locally)'
+        description: 'Regenerate the capture goldens on this runner and upload them as an artifact (the runner gradient/glyph rasterisation differs from dev machines — goldens must be regenerated ON CI, never locally)'
         required: false
         default: false
         type: boolean
@@ -54,16 +54,31 @@ jobs:
         if: ${{ !inputs.update_goldens }}
         run: flutter test --coverage
 
-      - name: Regenerate native_amount goldens on the runner
+      # Golden regeneration happens HERE and nowhere else. A gradient-filled
+      # card and a text-heavy screen rasterise measurably differently on a
+      # dev machine than on this runner: measured on front_saved_390_dark, the
+      # two renders correlate at 0.999 (identical picture) while averaging a
+      # 2% luminance shift, which is enough to fail the 2% pixel tolerance.
+      # Recording locally therefore produces goldens this runner can never
+      # match — so the runner records them and they are committed from its
+      # artifact.
+      - name: Regenerate capture goldens on the runner
         if: ${{ inputs.update_goldens }}
-        run: flutter test --update-goldens test/widgets/native_amount_captures_test.dart
+        run: |
+          flutter test --update-goldens \
+            test/widgets/native_amount_captures_test.dart \
+            test/widgets/card_transfer_captures_test.dart \
+            test/widgets/balance_card_fx_captures_test.dart
 
       - name: Upload regenerated goldens
         if: ${{ inputs.update_goldens }}
         uses: actions/upload-artifact@v4
         with:
-          name: native-amount-goldens
-          path: test/goldens/native_amount/
+          name: capture-goldens
+          path: |
+            test/goldens/native_amount/
+            test/goldens/card_transfer/
+            test/widgets/goldens/balance_card_pair/
 
       - name: Upload coverage
         if: always()
