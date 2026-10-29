@@ -172,3 +172,26 @@ but only with: real pixel comparison, an explicit documented budget, failure on
 structural differences, normal diff artifacts, no relative-path hacks, and
 dedicated tests proving a real visual regression still fails. It must never be
 a substitute for deterministic setup.
+
+
+## Updating a golden today (the only procedure)
+
+There is no CI step that records or uploads goldens, and no PR label that
+switches one on. `Flutter Quality` only ever compares the committed PNGs.
+
+1. Use the pinned Flutter in `.github/workflows/flutter-ci.yml` (currently
+   3.47.5). It renders byte-identically on a dev machine and on the runner;
+   this was verified by comparing the sha256 of a gradient-heavy capture
+   locally, in the CI artifact and in the CI-rendered `testImage`.
+2. Run `flutter test --update-goldens <the one capture suite>` for the suites
+   whose appearance intentionally changed.
+3. Open the produced PNGs and look at them. A passing run proves only that the
+   image matches itself.
+4. `git status test` must list exactly the files you expect. An empty list
+   means nothing was written, so there is nothing to commit.
+5. Commit the PNGs together with the code change that caused them.
+
+For any capture that interacts with the widget (a flip, a tap, a scroll), assert
+the resulting state before the capture. A silently missed `tester.tap` leaves
+the widget unchanged, and `--update-goldens` would then record the wrong frame
+as the new truth.
