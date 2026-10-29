@@ -156,5 +156,5 @@ class EscrowNotifier extends StateNotifier<EscrowState> {
 
 final escrowProvider =
     StateNotifierProvider.family<EscrowNotifier, EscrowState, String>(
-      (ref, ticketId) => EscrowNotifier(ticketId, EscrowService()),
-    );
+  (ref, ticketId) => EscrowNotifier(ticketId, EscrowService()),
+);

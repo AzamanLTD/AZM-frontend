@@ -62,5 +62,5 @@ class SavedBusinessesNotifier extends StateNotifier<Set<String>> {
 
 final savedBusinessesProvider =
     StateNotifierProvider<SavedBusinessesNotifier, Set<String>>(
-      (_) => SavedBusinessesNotifier(),
-    );
+  (_) => SavedBusinessesNotifier(),
+);

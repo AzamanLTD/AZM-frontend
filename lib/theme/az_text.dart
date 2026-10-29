@@ -232,14 +232,14 @@ abstract final class AzText {
 
   /// A small inline delta ("+GHâ‚µ 0.42") that pairs with a money figure.
   static TextStyle delta(Color color) => TextStyle(
-    fontSize: sizeBody,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 0.1,
-    height: 1.2,
-    color: color,
-    fontFamily: numericFamily,
-    fontFeatures: tabular,
-  );
+        fontSize: sizeBody,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.1,
+        height: 1.2,
+        color: color,
+        fontFamily: numericFamily,
+        fontFeatures: tabular,
+      );
 
   // â”€â”€ THEME WIRING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -250,27 +250,27 @@ abstract final class AzText {
   /// Returns a TextTheme with **null colours**. The caller is expected to run
   /// `.apply(bodyColor: ..., displayColor: ...)` â€” see TASK-004.
   static TextTheme theme() => const TextTheme(
-    // Display
-    displayLarge: hero,
-    displayMedium: display,
-    displaySmall: titleXl,
-    // Headline
-    headlineLarge: titleXl,
-    headlineMedium: titleL,
-    headlineSmall: title,
-    // Title
-    titleLarge: title,
-    titleMedium: bodyL,
-    titleSmall: body,
-    // Body
-    bodyLarge: bodyL,
-    bodyMedium: body,
-    bodySmall: bodyS,
-    // Label
-    labelLarge: button,
-    labelMedium: label,
-    labelSmall: caption,
-  );
+        // Display
+        displayLarge: hero,
+        displayMedium: display,
+        displaySmall: titleXl,
+        // Headline
+        headlineLarge: titleXl,
+        headlineMedium: titleL,
+        headlineSmall: title,
+        // Title
+        titleLarge: title,
+        titleMedium: bodyL,
+        titleSmall: body,
+        // Body
+        bodyLarge: bodyL,
+        bodyMedium: body,
+        bodySmall: bodyS,
+        // Label
+        labelLarge: button,
+        labelMedium: label,
+        labelSmall: caption,
+      );
 
   /// The Comic-Neue UI text theme: the same 15-slot ladder as [theme], but
   /// every style carries [uiFamily] explicitly and runs through
@@ -280,9 +280,9 @@ abstract final class AzText {
   /// [money] and [delta] carry [numericFamily] themselves.
   static TextTheme uiTheme() {
     TextStyle ui(TextStyle s) => s.copyWith(
-      fontFamily: uiFamily,
-      fontWeight: mapUiWeight(s.fontWeight ?? FontWeight.w400),
-    );
+          fontFamily: uiFamily,
+          fontWeight: mapUiWeight(s.fontWeight ?? FontWeight.w400),
+        );
     final t = theme();
     return TextTheme(
       displayLarge: ui(t.displayLarge!),

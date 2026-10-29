@@ -23,13 +23,10 @@ class AzPullToRefresh extends ConsumerWidget {
 
   /// Ignored — kept for drop-in compatibility with RefreshIndicator.
   final Color? color;
-
   /// Ignored — kept for drop-in compatibility with RefreshIndicator.
   final Color? backgroundColor;
-
   /// Ignored — kept for drop-in compatibility with RefreshIndicator.
   final double displacement;
-
   /// Ignored — kept for drop-in compatibility with RefreshIndicator.
   final double strokeWidth;
 

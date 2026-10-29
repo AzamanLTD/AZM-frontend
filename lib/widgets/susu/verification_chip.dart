@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 
+
 class VerificationChip extends StatelessWidget {
   final String label; // 'KYC' | 'PoA'
   final String state; // 'red' | 'yellow' | 'green'

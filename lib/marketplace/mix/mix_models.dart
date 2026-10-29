@@ -174,11 +174,11 @@ class MixTaxonomy {
   static List<MixTaxonomy> forCategory(String? wire) => wire == null
       ? const []
       : canonical
-            .where(
-              (t) =>
-                  t.applicableCategory == null || t.applicableCategory == wire,
-            )
-            .toList(growable: false);
+          .where(
+            (t) =>
+                t.applicableCategory == null || t.applicableCategory == wire,
+          )
+          .toList(growable: false);
 
   static MixTaxonomy? byId(String? id) {
     if (id == null) return null;

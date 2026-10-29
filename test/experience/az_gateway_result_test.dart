@@ -39,10 +39,10 @@ void main() {
 
   test('exhaustive switch over the sealed hierarchy', () {
     String describe(AzGatewayResult<int> r) => switch (r) {
-      AzOk<int>(:final value) => 'ok:$value',
-      AzFailed<int>(:final message) => 'failed:$message',
-      AzUnsupported<int>(:final reason) => 'unsupported:$reason',
-    };
+          AzOk<int>(:final value) => 'ok:$value',
+          AzFailed<int>(:final message) => 'failed:$message',
+          AzUnsupported<int>(:final reason) => 'unsupported:$reason',
+        };
     expect(describe(const AzOk(1)), 'ok:1');
     expect(describe(const AzFailed('e')), 'failed:e');
     expect(describe(const AzUnsupported('n')), 'unsupported:n');

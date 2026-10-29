@@ -74,62 +74,62 @@ class _SharedAxisRoute<T> extends PageRouteBuilder<T> {
     required this.axis,
     bool fullscreenDialog = false,
   }) : super(
-         fullscreenDialog: fullscreenDialog,
-         transitionDuration: MotionTokens.standard,
-         reverseTransitionDuration: MotionTokens.fast,
-         pageBuilder: (context, animation, secondaryAnimation) => child,
-         transitionsBuilder: (context, animation, secondaryAnimation, c) {
-           final reduceMotion = MediaQuery.disableAnimationsOf(context);
-           if (reduceMotion) return c;
+          fullscreenDialog: fullscreenDialog,
+          transitionDuration: MotionTokens.standard,
+          reverseTransitionDuration: MotionTokens.fast,
+          pageBuilder: (context, animation, secondaryAnimation) => child,
+          transitionsBuilder: (context, animation, secondaryAnimation, c) {
+            final reduceMotion = MediaQuery.disableAnimationsOf(context);
+            if (reduceMotion) return c;
 
-           final curve = Curves.easeOutCubic;
-           final curved = CurvedAnimation(parent: animation, curve: curve);
-           final revCurved = CurvedAnimation(
-             parent: secondaryAnimation,
-             curve: curve,
-           );
+            final curve = Curves.easeOutCubic;
+            final curved = CurvedAnimation(parent: animation, curve: curve);
+            final revCurved = CurvedAnimation(
+              parent: secondaryAnimation,
+              curve: curve,
+            );
 
-           switch (axis) {
-             case NavAxis.vertical:
-               return FadeTransition(
-                 opacity: curved,
-                 child: SlideTransition(
-                   position: Tween<Offset>(
-                     begin: const Offset(0, 0.06),
-                     end: Offset.zero,
-                   ).animate(curved),
-                   child: FadeTransition(
-                     opacity: ReverseAnimation(revCurved),
-                     child: c,
-                   ),
-                 ),
-               );
-             case NavAxis.horizontal:
-               return FadeTransition(
-                 opacity: curved,
-                 child: SlideTransition(
-                   position: Tween<Offset>(
-                     begin: const Offset(0.06, 0),
-                     end: Offset.zero,
-                   ).animate(curved),
-                   child: FadeTransition(
-                     opacity: ReverseAnimation(revCurved),
-                     child: c,
-                   ),
-                 ),
-               );
-             case NavAxis.scaled:
-               return FadeTransition(
-                 opacity: curved,
-                 child: ScaleTransition(
-                   scale: Tween<double>(begin: 0.92, end: 1.0).animate(curved),
-                   child: FadeTransition(
-                     opacity: ReverseAnimation(revCurved),
-                     child: c,
-                   ),
-                 ),
-               );
-           }
-         },
-       );
+            switch (axis) {
+              case NavAxis.vertical:
+                return FadeTransition(
+                  opacity: curved,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.06),
+                      end: Offset.zero,
+                    ).animate(curved),
+                    child: FadeTransition(
+                      opacity: ReverseAnimation(revCurved),
+                      child: c,
+                    ),
+                  ),
+                );
+              case NavAxis.horizontal:
+                return FadeTransition(
+                  opacity: curved,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0.06, 0),
+                      end: Offset.zero,
+                    ).animate(curved),
+                    child: FadeTransition(
+                      opacity: ReverseAnimation(revCurved),
+                      child: c,
+                    ),
+                  ),
+                );
+              case NavAxis.scaled:
+                return FadeTransition(
+                  opacity: curved,
+                  child: ScaleTransition(
+                    scale: Tween<double>(begin: 0.92, end: 1.0).animate(curved),
+                    child: FadeTransition(
+                      opacity: ReverseAnimation(revCurved),
+                      child: c,
+                    ),
+                  ),
+                );
+            }
+          },
+        );
 }

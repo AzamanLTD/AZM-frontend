@@ -27,6 +27,7 @@ import 'package:azaman/services/connectivity_service.dart';
 import 'package:azaman/widgets/offline_hairline.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
+
 class AzamanConnectivityBanner extends ConsumerStatefulWidget {
   /// The actual app body. The banner is overlaid above it so the user's
   /// screens never reflow when connectivity flips.

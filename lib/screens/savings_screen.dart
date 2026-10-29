@@ -50,6 +50,7 @@ class _SavingsScreenState extends ConsumerState<SavingsScreen> {
   }
 
   Widget _buildBody(AzamanColors colors) {
+
     if (_isLoading && _overview == null) {
       return const SkeletonList(itemHeight: 100, count: 4);
     }
