@@ -288,7 +288,9 @@ class _BillsRequestScreenState extends ConsumerState<BillsRequestScreen> {
                 BillsKeyValue(label: 'Biller', value: _account!.billerName),
                 BillsKeyValue(
                   label: 'Account holder',
-                  value: _account!.holderName,
+                  value:
+                      _account!.holderName ??
+                      'Not returned by the provider yet',
                 ),
                 BillsKeyValue(
                   label: 'Account',

@@ -36,6 +36,15 @@ class AppConfig {
   static bool get isStaging => _env == 'staging';
   static bool get isProduction => _env == 'prod';
 
+  /// The saved-account half of Bills has a reviewable backend contract, but
+  /// those routes are not in the deployed API yet. The client is written and
+  /// switched OFF: `--dart-define=BILLS_API=true` turns it on the moment the
+  /// routes ship, and until then production keeps the truthful empty state.
+  static const bool billsApiEnabled = bool.fromEnvironment(
+    'BILLS_API',
+    defaultValue: false,
+  );
+
   static const bool _demoModeCompileTime = bool.fromEnvironment(
     'DEMO_MODE',
     defaultValue: false,

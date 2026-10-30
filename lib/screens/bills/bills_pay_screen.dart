@@ -196,7 +196,9 @@ class _BillsPayScreenState extends ConsumerState<BillsPayScreen> {
                           ),
                           BillsKeyValue(
                             label: 'Account holder',
-                            value: account.holderName,
+                            value:
+                                account.holderName ??
+                                'Not returned by the provider yet',
                           ),
                           BillsKeyValue(
                             label: 'Account',

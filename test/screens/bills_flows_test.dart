@@ -45,6 +45,7 @@ class _Scripted extends UnavailableBillsGateway {
   int pays = 0;
   final List<BillPaymentRequest> sentRequests = [];
   final List<String> savedAliases = [];
+  final List<String> savedIdentifiers = [];
 
   @override
   bool get isDemo => false;
@@ -75,17 +76,23 @@ class _Scripted extends UnavailableBillsGateway {
 
   @override
   Future<SavedBillAccount> saveAccount({
-    required BillLookup lookup,
+    required String billerId,
+    required String identifier,
     String? alias,
   }) async {
     savedAliases.add(alias ?? '');
+    savedIdentifiers.add(identifier);
+    // This suite pins the UI contract, so the fake reports the holder name its
+    // own lookup produced. The real HTTP contract carries no holder name at all
+    // and is pinned separately in test/services/http_bills_gateway_test.dart.
     return SavedBillAccount(
       id: 'a1',
-      billerId: lookup.billerId,
-      billerName: lookup.billerName,
+      billerId: billerId,
+      billerName: lookupResult?.billerName ?? 'Test Power',
       categoryId: 'electricity',
-      identifierMasked: lookup.identifierMasked,
-      holderName: lookup.holderName,
+      identifierMasked: lookupResult?.identifierMasked ?? '•••• 5678',
+      holderName: lookupResult?.holderName,
+      verificationStatus: 'VERIFIED',
       alias: alias,
     );
   }
@@ -216,7 +223,8 @@ void main() {
       expect(
         find.text('12345678'),
         findsOneWidget,
-        reason: 'the typed value stays in its own field, and appears nowhere '
+        reason:
+            'the typed value stays in its own field, and appears nowhere '
             'else on the confirm card',
       );
     });

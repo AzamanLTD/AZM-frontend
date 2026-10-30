@@ -25,6 +25,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/config.dart';
+import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/bills/http_bills_gateway.dart';
 
 import 'demo_bills_gateway.dart';
 
@@ -107,7 +109,8 @@ class SavedBillAccount {
     required this.billerName,
     required this.categoryId,
     required this.identifierMasked,
-    required this.holderName,
+    this.holderName,
+    this.verificationStatus,
     this.alias,
   });
 
@@ -116,10 +119,27 @@ class SavedBillAccount {
   final String billerName;
   final String categoryId;
   final String identifierMasked;
-  final String holderName;
+
+  /// The holder name the PROVIDER returned, or null when no provider lookup
+  /// exists for this service yet.
+  ///
+  /// The saved-account contract the backend actually publishes (billsRoutes:
+  /// saved-accounts only) carries no holder name: verification is a status, not
+  /// a name. A client that filled this in from the member's own typing would be
+  /// printing an invented identity over a real account number, so null is a
+  /// fact here, not a gap to paper over.
+  final String? holderName;
+
+  /// Server-reported verification state ('VERIFIED', 'UNVERIFIED',
+  /// 'LOOKUP_UNAVAILABLE', …). Null means the server said nothing.
+  final String? verificationStatus;
 
   /// The member's own name for it — "My Apartment".
   final String? alias;
+
+  /// True only when the provider itself confirmed a holder.
+  bool get hasProviderVerifiedHolder =>
+      holderName != null && holderName!.trim().isNotEmpty;
 
   String get displayName =>
       (alias != null && alias!.trim().isNotEmpty) ? alias!.trim() : billerName;
@@ -307,8 +327,15 @@ abstract class BillsGateway {
 
   Future<List<SavedBillAccount>> savedAccounts();
 
+  /// Saves an account reference.
+  ///
+  /// Deliberately NOT `required BillLookup`: the one contract the backend
+  /// publishes saves an identifier and answers with a server-made mask, and it
+  /// performs no provider lookup. Requiring a lookup here would force every
+  /// implementation to invent a holder name to satisfy the type.
   Future<SavedBillAccount> saveAccount({
-    required BillLookup lookup,
+    required String billerId,
+    required String identifier,
     String? alias,
   });
 
@@ -368,7 +395,8 @@ class UnavailableBillsGateway implements BillsGateway {
 
   @override
   Future<SavedBillAccount> saveAccount({
-    required BillLookup lookup,
+    required String billerId,
+    required String identifier,
     String? alias,
   }) => _refuse();
 
@@ -410,6 +438,9 @@ class UnavailableBillsGateway implements BillsGateway {
 final billsGatewayProvider = Provider<BillsGateway>((ref) {
   if (AppConfig.demoMode && !AppConfig.isProduction) {
     return DemoBillsGateway();
+  }
+  if (AppConfig.billsApiEnabled) {
+    return HttpBillsGateway(ref.watch(apiClientProvider));
   }
   return const UnavailableBillsGateway();
 });

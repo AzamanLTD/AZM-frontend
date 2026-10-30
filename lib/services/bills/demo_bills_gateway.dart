@@ -104,10 +104,15 @@ class DemoBillsGateway implements BillsGateway {
 
   @override
   Future<SavedBillAccount> saveAccount({
-    required BillLookup lookup,
+    required String billerId,
+    required String identifier,
     String? alias,
   }) async {
-    final biller = _billers.firstWhere((b) => b.id == lookup.billerId);
+    final biller = _billers.firstWhere((b) => b.id == billerId);
+    final lookup = await this.lookup(
+      billerId: billerId,
+      identifier: identifier,
+    );
     final account = SavedBillAccount(
       id: 'acct-${++_seq}',
       billerId: biller.id,
@@ -141,7 +146,9 @@ class DemoBillsGateway implements BillsGateway {
       accountId: account.id,
       billerName: account.billerName,
       identifierMasked: account.identifierMasked,
-      holderName: account.holderName,
+      // Demo accounts carry a provider name; a real saved account from the
+      // server may not, and the quote then says so instead of borrowing one.
+      holderName: account.holderName ?? account.displayName,
       amount: due,
       feeAmount: fee,
       totalAmount: due + fee,

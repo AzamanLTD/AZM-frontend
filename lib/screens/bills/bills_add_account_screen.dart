@@ -114,7 +114,11 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
     try {
       await ref
           .read(billsGatewayProvider)
-          .saveAccount(lookup: lookup, alias: _alias.text.trim());
+          .saveAccount(
+            billerId: lookup.billerId,
+            identifier: _identifier.text.trim(),
+            alias: _alias.text.trim(),
+          );
       ref.invalidate(billsHubProvider);
       ref.invalidate(savedBillAccountsProvider);
       if (!mounted) return;
