@@ -21,6 +21,8 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/screens/transaction_history_screen.dart';
 
+import '../support/money_access_test_support.dart';
+
 /// One recorded fiat deposit: GH₵ 150.00 in / 10.00 USDC out, at a recorded
 /// rate of 15.0 — the amounts are historical fact, not live conversions.
 TransactionRecord _recordedDeposit() => TransactionRecord(
@@ -77,6 +79,9 @@ void main() {
       overrides: [
         themeProvider.overrideWith((ref) => theme),
         transactionHistoryProvider.overrideWith((ref) => _PinnedHistory()),
+        // The row hierarchy is the subject here, not the privacy gate (which
+        // has its own suite), so the member is unlocked for the whole run.
+        unlockedMoneyAccess(),
       ],
     );
     addTearDown(container.dispose);
