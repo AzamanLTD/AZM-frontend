@@ -2,12 +2,15 @@
 // that unlocks must NOT also open the actions menu, and the menu itself must
 // remain the untouched five-action launcher.
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/services/money_unlock.dart';
+import 'package:azaman/widgets/az_logo_mark.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 
 class _FakeCoordinator implements MoneyUnlockCoordinator {
@@ -204,7 +207,7 @@ void main() {
       );
     });
 
-    testWidgets('the badge opens across the morph rather than vanishing', (
+    testWidgets('the logo plays its own animation after the lock opens', (
       tester,
     ) async {
       final access = MoneyAccessController();
@@ -218,20 +221,98 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
       await tester.pump();
-      // Mid-morph the badge is still mounted but partly faded: the unlock is
-      // legible as motion, not as a frame where it disappears.
-      await tester.pump(const Duration(milliseconds: 40));
 
-      final opacity = tester.widgetList<Opacity>(
-        find.descendant(of: badge(), matching: find.byType(Opacity)),
-      );
-      if (badge().evaluate().isNotEmpty) {
-        expect(opacity.first.opacity, lessThan(1.0));
-        expect(opacity.first.opacity, greaterThan(0.0));
+      // The three beats are distinct, in this order: the badge opens, and only
+      // then does the Azaman logo fill (the access signal).
+      double peakFill = 0;
+      double opacityWhenFillStarted = -1;
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        final marks = tester.widgetList<AzLogoMark>(find.byType(AzLogoMark));
+        if (marks.isEmpty) continue;
+        final mark = marks.first;
+        if (mark.fill3 > 0 && opacityWhenFillStarted < 0) {
+          final fades = tester.widgetList<Opacity>(
+            find.descendant(of: badge(), matching: find.byType(Opacity)),
+          );
+          opacityWhenFillStarted = fades.isEmpty ? 0 : fades.first.opacity;
+        }
+        peakFill = math.max(peakFill, mark.fill3);
       }
 
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(badge(), findsNothing);
+      expect(
+        peakFill,
+        greaterThan(0.9),
+        reason: 'the Azaman logo must play its own fill animation on unlock',
+      );
+      expect(
+        opacityWhenFillStarted,
+        lessThan(0.2),
+        reason: 'the lock must have finished opening before the logo plays',
+      );
+      expect(badge(), findsNothing, reason: 'the lock stays open afterwards');
+      expect(
+        controller.isOpen,
+        isFalse,
+        reason: 'the whole choreography resolves to the mark, not the menu',
+      );
+      final mark = tester.widgetList<AzLogoMark>(find.byType(AzLogoMark)).first;
+      expect(
+        mark.fill3,
+        0,
+        reason: 'it releases back to the idle mark once the animation ends',
+      );
+    });
+
+    testWidgets('tapping the unlocked mark plays the same logo animation', (
+      tester,
+    ) async {
+      // The member already unlocked earlier in the session, through the
+      // controller's real API.
+      final access = MoneyAccessController();
+      access.finishUnlock(access.beginUnlock());
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+      );
+
+      await tester.pumpWidget(
+        _host(controller: controller, access: access, coordinator: coordinator),
+      );
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+
+      double peakFill = 0;
+      var openedAtFill = -1.0;
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        final marks = tester.widgetList<AzLogoMark>(find.byType(AzLogoMark));
+        if (marks.isEmpty) continue;
+        final fill = marks.first.fill3;
+        if (controller.isOpen && openedAtFill < 0) openedAtFill = fill;
+        if (!controller.isOpen) peakFill = math.max(peakFill, fill);
+      }
+
+      expect(
+        peakFill,
+        greaterThan(0.9),
+        reason: 'the tap to open uses the logo own animation, as it always has',
+      );
+      expect(
+        controller.isOpen,
+        isTrue,
+        reason: 'the menu still opens after the animation, unchanged',
+      );
+      expect(
+        openedAtFill,
+        greaterThan(0.9),
+        reason: 'the menu opens only once the final segment has filled',
+      );
+      expect(
+        coordinator.calls,
+        0,
+        reason: 'an unlocked tap must never re-prompt for authentication',
+      );
     });
 
     testWidgets('a failed verification keeps the lock badge', (tester) async {

@@ -138,11 +138,16 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
 
   bool _filling = false;
 
-  /// The unlock morph: 0 at rest. While it runs, the lock badge opens and the
-  /// brand mark breathes once, then everything settles back to the mark. It
-  /// deliberately ends at rest rather than at a "just unlocked" pose, because
-  /// the idle mark is the honest resting state — the unlock is a moment, not a
-  /// badge the member keeps.
+  /// True while beat three (the logo celebration) is running. A tap during it
+  /// must OPEN the menu immediately: the member has just proven access, and
+  /// swallowing the tap they make next is the worst possible moment to go
+  /// unresponsive.
+  bool _celebrating = false;
+
+  /// Beat one of the unlock: 0 at rest, 1 when the lock is fully open. While it
+  /// runs the badge shrinks and fades away. It does not fill the mark — that is
+  /// beat two, the Azaman logo's OWN animation, which is what tells the member
+  /// they now have access to the transactional features.
   late final AnimationController _unlockMorph = AnimationController(
     vsync: this,
     duration: MotionTokens.standard,
@@ -163,14 +168,50 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
     super.dispose();
   }
 
-  /// Reduced motion keeps the state change and drops the travel: the badge is
-  /// gone on the same frame the state flips, with no breath.
-  void _playUnlockMorph() {
+  /// The full unlock choreography, in the order the owner specified:
+  ///
+  ///   1. LOCKED — the closed badge sits on the mark.
+  ///   2. UNLOCKED — the badge opens (shrinks, fades).
+  ///   3. THE AZAMAN LOGO, playing its own animation — the cumulative
+  ///      bottom-up fill, the same brand motion the launcher uses when the
+  ///      actions open. It fills, holds a beat, and releases back to the idle
+  ///      mark, because the fill is also the menu-open state; the IDLE mark is
+  ///      what the unlocked trigger rests at.
+  ///
+  /// Reduced motion keeps the state change and drops both travels: the badge is
+  /// gone on the frame the state flips and the mark never fills.
+  Future<void> _playUnlockMorph() async {
     if (_reduceMotion) {
       _unlockMorph.value = 0;
       return;
     }
-    _unlockMorph.forward(from: 0);
+    await _unlockMorph.forward(from: 0);
+    if (!mounted || widget.controller.isOpen) return;
+    // Beat three: the brand mark's own animation, played exactly as the
+    // launcher plays it, so "the logo animated" means the same thing here as
+    // everywhere else in the app.
+    if (_fill.isAnimating || _filling) return;
+    _filling = true;
+    _celebrating = true;
+    try {
+      await _fill.forward(from: 0);
+      if (!mounted || widget.controller.isOpen) return;
+      await Future<void>.delayed(MotionTokens.control);
+      if (!mounted || widget.controller.isOpen) return;
+      await _fill.reverse();
+    } finally {
+      _filling = false;
+      _celebrating = false;
+    }
+  }
+
+  /// A tap during the celebration cancels it and yields to the menu, rather
+  /// than being dropped on the floor.
+  void _interruptCelebration() {
+    _celebrating = false;
+    _filling = false;
+    _fill.stop();
+    _fill.value = 0;
   }
 
   void _sync() {
@@ -193,7 +234,18 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
     }
   }
 
-  bool get _reduceMotion => !AzMotion.of(context).travel;
+  /// Cached from build. The unlock morph starts on a provider notification and
+  /// the launcher's own sync fires from a controller callback; both are outside
+  /// build, where an inherited lookup would throw. The motion decision comes
+  /// from the same source either way.
+  bool _travelEnabled = true;
+
+  /// The last access state this trigger rendered, so the unlock is detected as a
+  /// real edge (see build).
+  bool _wasUnlocked = false;
+  bool _accessSeeded = false;
+
+  bool get _reduceMotion => !_travelEnabled;
 
   Future<void> _playLogoFill() async {
     if (_filling || widget.controller.isOpen) return;
@@ -220,6 +272,7 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    _travelEnabled = AzMotion.of(context).travel;
     // WATCH, not read: the badge and the label are part of the trigger's
     // appearance, so a lock state change must repaint it.
     final access = ref.watch(moneyAccessProvider);
@@ -227,11 +280,22 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
     final moneyAuthenticating = access.isAuthenticating;
 
     // The morph belongs to the TRANSITION, not to the state: a member who is
-    // already unlocked (or who unlocks while another surface owns the moment)
-    // must not see it replay on every rebuild.
-    ref.listen<MoneyAccessController>(moneyAccessProvider, (previous, next) {
-      if (previous == null) return;
-      if (!previous.canViewMoney && next.canViewMoney) _playUnlockMorph();
+    // already unlocked must not see it replay on every rebuild.
+    //
+    // The edge is tracked here rather than compared against `previous`, because
+    // this provider carries a CHANGE NOTIFIER: `previous` and `next` are the
+    // same controller instance, mutated in place, so both report the new state
+    // by the time a listener runs. An unlocked->unlocked "transition" is what
+    // that comparison actually produces.
+    if (!_accessSeeded) {
+      _accessSeeded = true;
+      _wasUnlocked = access.canViewMoney;
+    }
+    ref.listen<MoneyAccessController>(moneyAccessProvider, (_, next) {
+      final unlocked = next.canViewMoney;
+      final becameUnlocked = unlocked && !_wasUnlocked;
+      _wasUnlocked = unlocked;
+      if (becameUnlocked) _playUnlockMorph();
     });
 
     return AnimatedBuilder(
@@ -239,14 +303,14 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
       builder: (context, _) {
         final open = widget.controller.isOpen;
         final morph = _unlockMorph.value;
-        // The mark breathes once across the morph and lands back at rest.
-        final breath = morph == 0 ? 0.0 : math.sin(math.pi * morph);
         // While the menu is open the brand mark reads as ACTIVE: fully
         // filled. On close, _sync resets the fill so the next open plays.
-        final t = open ? 1.0 : math.max(_fill.value, breath);
+        // After an unlock the same fill plays as the access signal, so the mark
+        // reads the same way for "unlocked" as it does for "open".
+        final t = open ? 1.0 : _fill.value;
         // The lock badge is present only while the money is actually locked,
         // and it opens (fades + shrinks) across the first half of the morph.
-        final badgeT = (morph / 0.55).clamp(0.0, 1.0);
+        final badgeT = morph.clamp(0.0, 1.0);
         final badgeOpacity = moneyUnlocked ? 0.0 : 1.0 - badgeT;
         return Semantics(
           button: true,
@@ -286,7 +350,11 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
                 widget.controller.close();
                 return;
               }
-              if (_filling) return; // rapid duplicate taps never stack
+              if (_celebrating) {
+                _interruptCelebration();
+              } else if (_filling) {
+                return; // rapid duplicate taps never stack
+              }
               AzamanHaptics.nav();
               if (_reduceMotion) {
                 // Reduced motion: same semantics and final state, no
@@ -334,9 +402,9 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
                     child: Transform.rotate(
                       angle: math.pi / 4, // fixed 45° clockwise — no animation
                       child: AzLogoMark(
-                    size: Size.square(widget.size * 0.5),
-                    outlineColor: colors.onAccent,
-                    fillColor: colors.onAccent,
+                        size: Size.square(widget.size * 0.5),
+                        outlineColor: colors.onAccent,
+                        fillColor: colors.onAccent,
                         fill3: _cumulativeFill(0, t),
                         fill2: _cumulativeFill(1, t),
                         fill1: _cumulativeFill(2, t),
