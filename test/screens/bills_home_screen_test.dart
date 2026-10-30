@@ -17,8 +17,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/screens/bills/bills_home_screen.dart';
 import 'package:azaman/services/bills/bills_gateway.dart';
+import 'package:azaman/services/bills/demo_bills_gateway.dart';
 
-class _FakeGateway implements BillsGateway {
+/// Extends the production "not configured" implementation so a test only has to
+/// state the one capability it is exercising; everything else stays honest.
+class _FakeGateway extends UnavailableBillsGateway {
   _FakeGateway(this.answer);
 
   final Future<BillsAvailability> Function() answer;
@@ -28,6 +31,10 @@ class _FakeGateway implements BillsGateway {
 }
 
 Future<void> _pump(WidgetTester tester, BillsGateway gateway) async {
+  // The Hub is a scrolling page of sections. A tall canvas keeps every section
+  // in the built tree, so these contracts read the page rather than the fold.
+  await tester.binding.setSurfaceSize(const Size(420, 2600));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     ProviderScope(
       overrides: [billsGatewayProvider.overrideWithValue(gateway)],
@@ -102,6 +109,13 @@ void main() {
   test('no live Bills source hardcodes a biller brand', () {
     // FEX's published billers are not proof our credentials reach them, and a
     // brand name in the source is how a fake catalogue starts.
+    //
+    // ONE exemption, and it is deliberately narrow: the demo gateway, whose
+    // whole job is to make the flow walkable before the backend lands. It is
+    // named in the file, it declares `isDemo => true`, every screen it feeds
+    // shows a "Demo data" banner, and billsGatewayProvider only ever returns it
+    // when AppConfig.demoMode is true in a non-production build. The exemption
+    // is pinned by filename so a second file cannot quietly join it.
     final brands = [
       'ECG',
       'Ghana Water',
@@ -110,11 +124,14 @@ void main() {
       'StarTimes',
       'Telecel',
     ];
+    const demoFile = 'demo_bills_gateway.dart';
+
     final sources =
         Directory('lib/services/bills')
             .listSync(recursive: true)
             .whereType<File>()
             .where((f) => f.path.endsWith('.dart'))
+            .where((f) => !f.path.endsWith(demoFile))
             .toList()
           ..addAll(
             Directory('lib/screens/bills')
@@ -134,5 +151,16 @@ void main() {
         );
       }
     }
+  });
+
+  test('the demo gateway is demo-only and says so on its face', () {
+    final demo = DemoBillsGateway();
+    expect(
+      demo.isDemo,
+      isTrue,
+      reason: 'a demo that hides that it is a demo is a fake bill',
+    );
+    // And the production build never reaches it: covered above by the gateway
+    // type check, which runs with demoMode false.
   });
 }

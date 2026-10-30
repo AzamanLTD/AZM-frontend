@@ -49,7 +49,10 @@ import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Com
 import 'package:azaman/screens/splash_screen.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/screens/intro/app_intro_screen.dart';
+import 'package:azaman/screens/bills/bills_add_account_screen.dart';
 import 'package:azaman/screens/bills/bills_home_screen.dart';
+import 'package:azaman/screens/bills/bills_pay_screen.dart';
+import 'package:azaman/screens/bills/bills_request_screen.dart';
 import 'package:azaman/widgets/navigation/bubble_morph.dart';
 import 'package:azaman/screens/onboarding_screen.dart';
 import 'package:azaman/screens/auth/phone_verification_screen.dart';
@@ -442,6 +445,53 @@ GoRouter _buildAppRouter() => GoRouter(
           child: BillsHomeScreen(),
         ),
       ),
+      routes: [
+        // The Bills facility's own screens. They read the SAME gateway provider
+        // as the Hub, so wiring the real routes in later changes one file, not
+        // this table.
+        GoRoute(
+          path: 'add',
+          name: AzRouteNames.billsAdd,
+          pageBuilder: (context, state) => traversePage(
+            key: state.pageKey,
+            restorationId: state.name,
+            child: BillsAddAccountScreen(
+              categoryId: state.uri.queryParameters['category'],
+            ),
+          ),
+        ),
+        GoRoute(
+          path: 'pay/:accountId',
+          name: AzRouteNames.billsPay,
+          pageBuilder: (context, state) => traversePage(
+            key: state.pageKey,
+            restorationId: state.name,
+            child: BillsPayScreen(
+              accountId: state.pathParameters['accountId']!,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: 'request',
+          name: AzRouteNames.billsRequest,
+          pageBuilder: (context, state) => traversePage(
+            key: state.pageKey,
+            restorationId: state.name,
+            child: const BillsRequestScreen(),
+          ),
+        ),
+        GoRoute(
+          path: 'request/:requestId',
+          name: AzRouteNames.billsRequestDetail,
+          pageBuilder: (context, state) => traversePage(
+            key: state.pageKey,
+            restorationId: state.name,
+            child: BillsRequestScreen(
+              requestId: state.pathParameters['requestId'],
+            ),
+          ),
+        ),
+      ],
     ),
     GoRoute(
       path: '/savings',

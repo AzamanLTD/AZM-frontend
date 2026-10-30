@@ -4,20 +4,25 @@
 // the SERVER, not by this file: a biller catalogue that the backend reports it
 // can actually reach, and nothing invented when it reports none.
 //
-// Deliberately NOT done here: no hardcoded billers from FEX's published guide,
-// no sample accounts, no sample amounts, no placeholder "recent payments". A
-// member who arrives while the facility is unavailable sees a truthful state
-// and cannot walk into a fake confirmation.
+// The Hub is a real page, not a placeholder: saved accounts, find a biller,
+// recently paid, requests received and sent. Each section is driven by
+// [billsHubProvider], so when the HTTP gateway lands nothing here changes — a
+// section simply stops being empty. A failed read is shown as a failed read,
+// never as "you have no bills".
 //
-// The gateway is an interface so the screen is testable BEFORE the backend
-// contract lands, and so the empty state is not the only path ever exercised.
+// Deliberately NOT done here: no hardcoded billers from a provider's published
+// guide, no sample accounts, no sample amounts, no placeholder "recent
+// payments", no outstanding claim the server did not make.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/bills/bills_gateway.dart';
 import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/widgets/bills/bills_ui.dart';
 
 class BillsHomeScreen extends ConsumerStatefulWidget {
   const BillsHomeScreen({super.key});
@@ -35,9 +40,19 @@ class _BillsHomeScreenState extends ConsumerState<BillsHomeScreen> {
     _availability = ref.read(billsGatewayProvider).availability();
   }
 
+  Future<void> _refresh() async {
+    setState(() {
+      _availability = ref.read(billsGatewayProvider).availability();
+    });
+    ref.invalidate(billsHubProvider);
+    ref.invalidate(savedBillAccountsProvider);
+    await _availability;
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    final gateway = ref.watch(billsGatewayProvider);
     return Scaffold(
       backgroundColor: colors.scaffoldBackground,
       appBar: AppBar(
@@ -64,7 +79,12 @@ class _BillsHomeScreenState extends ConsumerState<BillsHomeScreen> {
               !snapshot.data!.isAvailable) {
             return _UnavailableState(colors: colors);
           }
-          return _AvailableState(availability: snapshot.data!, colors: colors);
+          return _AvailableState(
+            availability: snapshot.data!,
+            colors: colors,
+            isDemo: gateway.isDemo,
+            onRefresh: _refresh,
+          );
         },
       ),
     );
@@ -120,46 +140,423 @@ class _UnavailableState extends StatelessWidget {
   }
 }
 
-/// Reachable billers, exactly as the server reports them.
-class _AvailableState extends StatelessWidget {
-  const _AvailableState({required this.availability, required this.colors});
+/// Reachable billers and the member's own bills, exactly as the server reports
+/// them.
+class _AvailableState extends ConsumerStatefulWidget {
+  const _AvailableState({
+    required this.availability,
+    required this.colors,
+    required this.isDemo,
+    required this.onRefresh,
+  });
 
   final BillsAvailability availability;
   final AzamanColors colors;
+  final bool isDemo;
+  final Future<void> Function() onRefresh;
+
+  @override
+  ConsumerState<_AvailableState> createState() => _AvailableStateState();
+}
+
+class _AvailableStateState extends ConsumerState<_AvailableState> {
+  @override
+  Widget build(BuildContext context) {
+    final colors = widget.colors;
+    final hub = ref.watch(billsHubProvider);
+
+    return RefreshIndicator(
+      onRefresh: widget.onRefresh,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 36),
+        children: [
+          if (widget.isDemo) const BillsDemoBanner(),
+
+          // ── The member's own bills ────────────────────────────────────
+          BillsSection(
+            title: 'YOUR BILLS',
+            child: hub.when(
+              loading: () => _Loading(colors: colors),
+              error: (_, _) => BillsEmptyNote(
+                icon: HugeIconsSolid.wifiError01,
+                text:
+                    "We couldn't load your bills just now. That is not the "
+                    'same as having none — pull down to try again.',
+              ),
+              data: (snapshot) {
+                if (snapshot.savedAccounts.isEmpty) {
+                  return BillsEmptyNote(
+                    icon: HugeIconsSolid.note01,
+                    text:
+                        'No saved bills yet. Find a biller below, we look up '
+                        'the account with them, then it lives here.',
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final account in snapshot.savedAccounts) ...[
+                      BillsAccountTile(
+                        title: account.displayName,
+                        subtitle: account.billerName,
+                        maskedIdentifier: account.identifierMasked,
+                        trailing: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: colors.textTertiary,
+                        ),
+                        onTap: () =>
+                            context.push('${AzRoutes.bills}/pay/${account.id}'),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // ── Find a biller ─────────────────────────────────────────────
+          BillsSection(
+            title: 'FIND A BILLER',
+            child: Column(
+              children: [
+                for (final category in widget.availability.categories) ...[
+                  _CategoryRow(
+                    category: category,
+                    colors: colors,
+                    onTap: category.billerCount == 0
+                        ? null
+                        : () => context.push(
+                            '${AzRoutes.bills}/add?category=${category.id}',
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ),
+          ),
+
+          // ── Outstanding, only when the server claims it ───────────────
+          if (hub.valueOrNull != null &&
+              hub.valueOrNull!.outstanding.isNotEmpty)
+            BillsSection(
+              title: 'DUE NOW',
+              child: Column(
+                children: [
+                  for (final account in hub.valueOrNull!.outstanding) ...[
+                    BillsAccountTile(
+                      title: account.displayName,
+                      subtitle: 'Payment due',
+                      maskedIdentifier: account.identifierMasked,
+                      onTap: () =>
+                          context.push('${AzRoutes.bills}/pay/${account.id}'),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ],
+              ),
+            ),
+
+          // ── Requests from contacts ────────────────────────────────────
+          BillsSection(
+            title: 'REQUESTS',
+            subtitle: 'A contact can ask you to pay a bill they saved.',
+            child: hub.when(
+              loading: () => _Loading(colors: colors),
+              error: (_, _) =>
+                  BillsEmptyNote(text: "We couldn't load requests just now."),
+              data: (snapshot) {
+                if (snapshot.requests.isEmpty) {
+                  return BillsEmptyNote(
+                    icon: HugeIconsSolid.userCheck01,
+                    text: 'Nothing waiting on you.',
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final request in snapshot.requests) ...[
+                      _RequestRow(
+                        request: request,
+                        colors: colors,
+                        onTap: () => context.push(
+                          '${AzRoutes.bills}/request/${request.id}',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // ── Recently paid ─────────────────────────────────────────────
+          BillsSection(
+            title: 'RECENTLY PAID',
+            child: hub.when(
+              loading: () => _Loading(colors: colors),
+              error: (_, _) => BillsEmptyNote(
+                text: "We couldn't load your receipts just now.",
+              ),
+              data: (snapshot) {
+                if (snapshot.recentPayments.isEmpty) {
+                  return BillsEmptyNote(
+                    icon: HugeIconsSolid.invoice01,
+                    text:
+                        'Payments you make will show here with the '
+                        "provider's own reference.",
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final receipt in snapshot.recentPayments) ...[
+                      _ReceiptRow(receipt: receipt, colors: colors),
+                      const SizedBox(height: 8),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+
+          // ── Ask someone to pay ────────────────────────────────────────
+          BillsSection(
+            title: 'ASK A CONTACT TO PAY',
+            child: BillsCard(
+              onTap: () => context.push('${AzRoutes.bills}/request'),
+              semanticLabel: 'Ask a contact to pay a saved bill',
+              child: Row(
+                children: [
+                  Icon(
+                    HugeIconsSolid.share08,
+                    size: 18,
+                    color: colors.textSecondary,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Pick a saved bill, choose who to ask, and they pay it '
+                      'from their own balance.',
+                      style: AzText.bodyS.copyWith(
+                        color: colors.textSecondary,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: colors.textTertiary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({
+    required this.category,
+    required this.colors,
+    required this.onTap,
+  });
+
+  final BillsCategory category;
+  final AzamanColors colors;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-      itemCount: availability.categories.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 10),
-      itemBuilder: (context, i) {
-        final category = availability.categories[i];
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.divider),
+    final reachable = category.billerCount > 0;
+    return BillsCard(
+      onTap: onTap,
+      semanticLabel: reachable
+          ? '${category.label}, ${category.billerCount} billers'
+          : '${category.label}, not available yet',
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              category.label,
+              style: AzText.body.copyWith(
+                color: reachable ? colors.textPrimary : colors.textTertiary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  category.label,
-                  style: AzText.title.copyWith(
+          Text(
+            reachable ? '${category.billerCount}' : 'Soon',
+            style: AzText.caption.copyWith(color: colors.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RequestRow extends StatelessWidget {
+  const _RequestRow({
+    required this.request,
+    required this.colors,
+    required this.onTap,
+  });
+
+  final BillPaymentRequest request;
+  final AzamanColors colors;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final who = request.isIncoming
+        ? '${request.counterpartyName} asked you'
+        : 'You asked ${request.counterpartyName}';
+    return BillsCard(
+      onTap: onTap,
+      semanticLabel:
+          '$who to pay ${request.displayName}, '
+          '${_requestStateLabel(request.state)}',
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  request.displayName,
+                  style: AzText.body.copyWith(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
+                const SizedBox(height: 3),
+                Text(
+                  '$who · ${request.identifierMasked}',
+                  style: AzText.caption.copyWith(color: colors.textTertiary),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            _requestStateLabel(request.state),
+            style: AzText.caption.copyWith(color: colors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _requestStateLabel(BillRequestState state) {
+  switch (state) {
+    case BillRequestState.pending:
+      return 'Waiting';
+    case BillRequestState.acceptedAwaitingPayment:
+      return 'Sent to pay';
+    case BillRequestState.paid:
+      return 'Paid';
+    case BillRequestState.failed:
+      return 'Failed';
+    case BillRequestState.declined:
+      return 'Declined';
+    case BillRequestState.cancelled:
+      return 'Cancelled';
+    case BillRequestState.expired:
+      return 'Expired';
+  }
+}
+
+class _ReceiptRow extends StatelessWidget {
+  const _ReceiptRow({required this.receipt, required this.colors});
+
+  final BillPaymentReceipt receipt;
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    // Only a provider-completed payment is called paid; anything else states
+    // what it is, in its own words.
+    final label = switch (receipt.state) {
+      BillPaymentState.paid => 'Paid',
+      BillPaymentState.pending => 'Pending',
+      BillPaymentState.processing => 'Processing',
+      BillPaymentState.failed => 'Failed',
+      BillPaymentState.unknown => 'Unconfirmed',
+    };
+    return BillsCard(
+      semanticLabel:
+          '${receipt.billerName}, $label, '
+          '${receipt.totalAmount.toStringAsFixed(2)} ${receipt.currency}',
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  receipt.billerName,
+                  style: AzText.body.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  receipt.reference ?? receipt.identifierMasked,
+                  style: AzText.caption.copyWith(color: colors.textTertiary),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
               Text(
-                '${category.billerCount}',
-                style: AzText.body.copyWith(color: colors.textTertiary),
+                '${receipt.totalAmount.toStringAsFixed(2)} ${receipt.currency}',
+                style: AzText.bodyS.copyWith(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: AzText.caption.copyWith(
+                  color: receipt.state == BillPaymentState.failed
+                      ? colors.danger
+                      : colors.textTertiary,
+                ),
               ),
             ],
           ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+}
+
+class _Loading extends StatelessWidget {
+  const _Loading({required this.colors});
+
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
+      child: Center(
+        child: SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: colors.mutedAccent,
+          ),
+        ),
+      ),
     );
   }
 }
