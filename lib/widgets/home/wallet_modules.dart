@@ -26,6 +26,7 @@ import 'package:azaman/models/susu_model.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
+import 'package:azaman/widgets/navigation/bubble_morph.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -65,43 +66,55 @@ class WalletModulesRow extends ConsumerWidget {
       child: Row(
         children: [
           Expanded(
-            child: HomeActionBubble(
-              key: const ValueKey('wallet-module-save'),
-              icon: HugeIconsSolid.piggyBank,
-              label: 'Save',
-              onTap: () {
-                AzamanHaptics.nav();
-                context.push(AzRoutes.savings);
-              },
+            child: BubbleMorphSource(
+              tag: BubbleMorphTag.save,
+              child: HomeActionBubble(
+                key: const ValueKey('wallet-module-save'),
+                icon: HugeIconsSolid.piggyBank,
+                label: 'Save',
+                onTap: () {
+                  AzamanHaptics.nav();
+                  if (!BubbleNavigation.allow(AzRoutes.savings)) return;
+                  context.push(AzRoutes.savings);
+                },
+              ),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: HomeActionBubble(
-              key: const ValueKey('wallet-module-p2p'),
-              icon: HugeIconsSolid.creditCard,
-              label: 'P2P',
-              onTap: () {
-                AzamanHaptics.nav();
-                // UX-CORRECTION §10 — the CANONICAL USDC/P2P market page
-                // (/marketplace → P2PMarketListScreen), not the legacy
-                // P2PMarketplaceScreen. No second P2P page.
-                context.push(AzRoutes.marketplace);
-              },
+            child: BubbleMorphSource(
+              tag: BubbleMorphTag.p2p,
+              child: HomeActionBubble(
+                key: const ValueKey('wallet-module-p2p'),
+                icon: HugeIconsSolid.creditCard,
+                label: 'P2P',
+                onTap: () {
+                  AzamanHaptics.nav();
+                  // UX-CORRECTION §10 — the CANONICAL USDC/P2P market page
+                  // (/marketplace → P2PMarketListScreen), not the legacy
+                  // P2PMarketplaceScreen. No second P2P page.
+                  if (!BubbleNavigation.allow(AzRoutes.marketplace)) return;
+                  context.push(AzRoutes.marketplace);
+                },
+              ),
             ),
           ),
           const SizedBox(width: 8),
           const Expanded(child: _SusuBubble()),
           const SizedBox(width: 8),
           Expanded(
-            child: HomeActionBubble(
-              key: const ValueKey('wallet-module-bills'),
-              icon: HugeIconsSolid.invoice01,
-              label: 'Bills',
-              onTap: () {
-                AzamanHaptics.nav();
-                context.push(AzRoutes.bills);
-              },
+            child: BubbleMorphSource(
+              tag: BubbleMorphTag.bills,
+              child: HomeActionBubble(
+                key: const ValueKey('wallet-module-bills'),
+                icon: HugeIconsSolid.invoice01,
+                label: 'Bills',
+                onTap: () {
+                  AzamanHaptics.nav();
+                  if (!BubbleNavigation.allow(AzRoutes.bills)) return;
+                  context.push(AzRoutes.bills);
+                },
+              ),
             ),
           ),
         ],
@@ -120,14 +133,19 @@ class _SusuBubble extends ConsumerWidget {
     final groups =
         ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];
     final active = chooseMostRelevantSusu(groups);
-    return HomeActionBubble(
-      key: const ValueKey('wallet-module-susu'),
-      icon: HugeIconsSolid.userGroup,
-      label: 'Susu',
-      onTap: () {
-        AzamanHaptics.nav();
-        context.push(active != null ? '/susu/${active.id}' : '/susu');
-      },
+    final destination = active != null ? '/susu/${active.id}' : '/susu';
+    return BubbleMorphSource(
+      tag: BubbleMorphTag.susu,
+      child: HomeActionBubble(
+        key: const ValueKey('wallet-module-susu'),
+        icon: HugeIconsSolid.userGroup,
+        label: 'Susu',
+        onTap: () {
+          AzamanHaptics.nav();
+          if (!BubbleNavigation.allow(destination)) return;
+          context.push(destination);
+        },
+      ),
     );
   }
 }

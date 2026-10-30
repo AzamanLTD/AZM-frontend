@@ -50,6 +50,7 @@ import 'package:azaman/screens/splash_screen.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/screens/intro/app_intro_screen.dart';
 import 'package:azaman/screens/bills/bills_home_screen.dart';
+import 'package:azaman/widgets/navigation/bubble_morph.dart';
 import 'package:azaman/screens/onboarding_screen.dart';
 import 'package:azaman/screens/auth/phone_verification_screen.dart';
 import 'package:azaman/screens/force_update_screen.dart';
@@ -419,7 +420,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const P2PMarketListScreen(),
+        child: const BubbleMorphDestination(
+          tag: BubbleMorphTag.p2p,
+          child: P2PMarketListScreen(),
+        ),
       ),
     ),
     // ── Bills (Home bubble destination) ────────────────────────────────
@@ -429,7 +433,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const BillsHomeScreen(),
+        child: const BubbleMorphDestination(
+          tag: BubbleMorphTag.bills,
+          child: BillsHomeScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -438,7 +445,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const SavingsScreen(),
+        child: const BubbleMorphDestination(
+          tag: BubbleMorphTag.save,
+          child: SavingsScreen(),
+        ),
       ),
     ),
 
@@ -593,7 +603,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const SusuHubScreen(),
+        child: const BubbleMorphDestination(
+          tag: BubbleMorphTag.susu,
+          child: SusuHubScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -614,8 +627,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/susu/:id',
       name: AzRouteNames.susuDetail,
-      builder: (context, state) =>
-          SusuDashboardScreen(susuId: state.pathParameters['id']!),
+      builder: (context, state) => BubbleMorphDestination(
+        tag: BubbleMorphTag.susu,
+        child: SusuDashboardScreen(susuId: state.pathParameters['id']!),
+      ),
     ),
     GoRoute(
       path: '/susu/:id/contract',
