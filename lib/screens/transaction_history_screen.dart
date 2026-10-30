@@ -11,7 +11,11 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:shimmer/shimmer.dart';
 
+import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/services/money_unlock_flow.dart';
+import 'package:azaman/widgets/home/money_lock_surface.dart';
 import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/transaction_history_provider.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
@@ -105,6 +109,10 @@ class _TransactionHistoryScreenState
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final state = ref.watch(transactionHistoryProvider);
+    // Transaction history is protected money: amounts, counterparties and
+    // references. While the local gate is locked the list is not built at all,
+    // so nothing sensitive can reach semantics or a screenshot.
+    final locked = !ref.watch(moneyAccessProvider).canViewMoney;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -124,77 +132,91 @@ class _TransactionHistoryScreenState
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: ['ALL', 'IN', 'OUT', 'INTERNAL'].map((f) {
-                final isActive = state.filter == f;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => ref
-                        .read(transactionHistoryProvider.notifier)
-                        .setFilter(f),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isActive ? colors.accent : colors.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isActive ? colors.accent : colors.divider,
+      body: locked
+          ? _LockedHistory(colors: colors)
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: ['ALL', 'IN', 'OUT', 'INTERNAL'].map((f) {
+                      final isActive = state.filter == f;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () => ref
+                              .read(transactionHistoryProvider.notifier)
+                              .setFilter(f),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isActive ? colors.accent : colors.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isActive
+                                    ? colors.accent
+                                    : colors.divider,
+                              ),
+                            ),
+                            child: Text(
+                              f,
+                              style: TextStyle(
+                                color: isActive
+                                    ? Colors.white
+                                    : colors.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                  child: TextField(
+                    onChanged: (v) =>
+                        setState(() => _searchQuery = v.toLowerCase()),
+                    style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: "Search transactions...",
+                      hintStyle: TextStyle(color: colors.textTertiary),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: colors.textTertiary,
+                        size: 18,
                       ),
-                      child: Text(
-                        f,
-                        style: TextStyle(
-                          color: isActive ? Colors.white : colors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      filled: true,
+                      fillColor: colors.card,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: TextField(
-              onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
-              style: TextStyle(color: colors.textPrimary, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: "Search transactions...",
-                hintStyle: TextStyle(color: colors.textTertiary),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: colors.textTertiary,
-                  size: 18,
                 ),
-                filled: true,
-                fillColor: colors.card,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+                Expanded(
+                  child: state.error != null && state.items.isEmpty
+                      ? _buildErrorState(colors, state.error!)
+                      : state.isLoading && state.items.isEmpty
+                      ? _buildShimmer(colors)
+                      : _buildGroupedList(
+                          colors,
+                          state,
+                          ghsFirst: _isGhsFirst(),
+                        ),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
+              ],
             ),
-          ),
-          Expanded(
-            child: state.error != null && state.items.isEmpty
-                ? _buildErrorState(colors, state.error!)
-                : state.isLoading && state.items.isEmpty
-                ? _buildShimmer(colors)
-                : _buildGroupedList(colors, state, ghsFirst: _isGhsFirst()),
-          ),
-        ],
-      ),
     );
   }
 
@@ -830,5 +852,46 @@ class _TransactionHistoryScreenState
 
   String _formatDate(DateTime dt) {
     return '${dt.month}/${dt.day}/${dt.year} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+/// What stands in for the history while locked. One clear way forward: unlock
+/// here, or from the Home trigger. Nothing behind it is built, so a locked
+/// member cannot read an amount from the accessibility tree.
+class _LockedHistory extends ConsumerWidget {
+  const _LockedHistory({required this.colors});
+
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
+      child: Column(
+        children: [
+          const LockedMoneySurface(
+            message: 'Transactions are locked',
+            hint: 'Unlock to see what came in, what went out and when.',
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              key: const ValueKey('history-unlock'),
+              onPressed: () => runMoneyUnlockFlow(context, ref),
+              style: FilledButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: colors.onAccent,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: Text(
+                'Unlock',
+                style: AzText.label.copyWith(color: colors.onAccent),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
