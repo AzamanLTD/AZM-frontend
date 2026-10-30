@@ -127,7 +127,7 @@ class PlusLauncherTrigger extends ConsumerStatefulWidget {
 }
 
 class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   /// The single well-owned animation clock for the cumulative logo fill.
   /// 0 = outline-only brand mark; 1 = all three segments filled.
   late final AnimationController _fill = AnimationController(
@@ -137,6 +137,17 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   );
 
   bool _filling = false;
+
+  /// The unlock morph: 0 at rest. While it runs, the lock badge opens and the
+  /// brand mark breathes once, then everything settles back to the mark. It
+  /// deliberately ends at rest rather than at a "just unlocked" pose, because
+  /// the idle mark is the honest resting state — the unlock is a moment, not a
+  /// badge the member keeps.
+  late final AnimationController _unlockMorph = AnimationController(
+    vsync: this,
+    duration: MotionTokens.standard,
+    value: 0,
+  );
 
   @override
   void initState() {
@@ -148,7 +159,18 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   void dispose() {
     widget.controller.removeListener(_sync);
     _fill.dispose();
+    _unlockMorph.dispose();
     super.dispose();
+  }
+
+  /// Reduced motion keeps the state change and drops the travel: the badge is
+  /// gone on the same frame the state flips, with no breath.
+  void _playUnlockMorph() {
+    if (_reduceMotion) {
+      _unlockMorph.value = 0;
+      return;
+    }
+    _unlockMorph.forward(from: 0);
   }
 
   void _sync() {
@@ -172,11 +194,6 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   }
 
   bool get _reduceMotion => !AzMotion.of(context).travel;
-
-  bool get _moneyUnlocked => ref.read(moneyAccessProvider).canViewMoney;
-
-  bool get _moneyAuthenticating =>
-      ref.read(moneyAccessProvider).isAuthenticating;
 
   Future<void> _playLogoFill() async {
     if (_filling || widget.controller.isOpen) return;
@@ -203,21 +220,41 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    // WATCH, not read: the badge and the label are part of the trigger's
+    // appearance, so a lock state change must repaint it.
+    final access = ref.watch(moneyAccessProvider);
+    final moneyUnlocked = access.canViewMoney;
+    final moneyAuthenticating = access.isAuthenticating;
+
+    // The morph belongs to the TRANSITION, not to the state: a member who is
+    // already unlocked (or who unlocks while another surface owns the moment)
+    // must not see it replay on every rebuild.
+    ref.listen<MoneyAccessController>(moneyAccessProvider, (previous, next) {
+      if (previous == null) return;
+      if (!previous.canViewMoney && next.canViewMoney) _playUnlockMorph();
+    });
 
     return AnimatedBuilder(
-      animation: _fill,
+      animation: Listenable.merge([_fill, _unlockMorph]),
       builder: (context, _) {
         final open = widget.controller.isOpen;
+        final morph = _unlockMorph.value;
+        // The mark breathes once across the morph and lands back at rest.
+        final breath = morph == 0 ? 0.0 : math.sin(math.pi * morph);
         // While the menu is open the brand mark reads as ACTIVE: fully
         // filled. On close, _sync resets the fill so the next open plays.
-        final t = open ? 1.0 : _fill.value;
+        final t = open ? 1.0 : math.max(_fill.value, breath);
+        // The lock badge is present only while the money is actually locked,
+        // and it opens (fades + shrinks) across the first half of the morph.
+        final badgeT = (morph / 0.55).clamp(0.0, 1.0);
+        final badgeOpacity = moneyUnlocked ? 0.0 : 1.0 - badgeT;
         return Semantics(
           button: true,
           excludeSemantics: true,
           // The trigger is icon-only — the semantic label is the entire
           // affordance. It announces the CURRENT state honestly.
-          label: !_moneyUnlocked
-              ? (_moneyAuthenticating ? 'Unlocking' : 'Unlock your money')
+          label: !moneyUnlocked
+              ? (moneyAuthenticating ? 'Unlocking' : 'Unlock your money')
               : (open ? 'Close actions' : 'Open actions'),
           child: GestureDetector(
             key: const ValueKey('plus-launcher-trigger'),
@@ -290,18 +327,60 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
               // a send arrow — the same treatment as the chat send button.
               // The rotation is applied to the mark ONLY, never the clickable
               // container (hit geometry unchanged); it does not animate.
-              child: Center(
-                child: Transform.rotate(
-                  angle: math.pi / 4, // fixed 45° clockwise — no animation
-                  child: AzLogoMark(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Center(
+                    child: Transform.rotate(
+                      angle: math.pi / 4, // fixed 45° clockwise — no animation
+                      child: AzLogoMark(
                     size: Size.square(widget.size * 0.5),
                     outlineColor: colors.onAccent,
                     fillColor: colors.onAccent,
-                    fill3: _cumulativeFill(0, t),
-                    fill2: _cumulativeFill(1, t),
-                    fill1: _cumulativeFill(2, t),
+                        fill3: _cumulativeFill(0, t),
+                        fill2: _cumulativeFill(1, t),
+                        fill1: _cumulativeFill(2, t),
+                      ),
+                    ),
                   ),
-                ),
+                  // THE LOCKED LOOK. A small badge, not a different control:
+                  // the member still taps the same 54px mark, and the badge
+                  // says what that tap will do. It shrinks and fades as the
+                  // lock opens, so the unlock is visible rather than implied.
+                  if (badgeOpacity > 0)
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: IgnorePointer(
+                        child: Opacity(
+                          opacity: badgeOpacity,
+                          child: Transform.scale(
+                            scale: 1 - 0.35 * badgeT,
+                            child: Container(
+                              key: const ValueKey('plus-launcher-lock-badge'),
+                              width: widget.size * 0.34,
+                              height: widget.size * 0.34,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: colors.surface,
+                                border: Border.all(
+                                  color: colors.accent.withValues(alpha: 0.55),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.lock_rounded,
+                                  size: widget.size * 0.17,
+                                  color: colors.accent,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

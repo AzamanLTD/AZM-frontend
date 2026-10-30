@@ -168,4 +168,121 @@ void main() {
     expect(size.width, greaterThanOrEqualTo(54));
     expect(size.height, greaterThanOrEqualTo(54));
   });
+
+  group('the unlock is a visible morph, not a silent state flip', () {
+    Finder badge() => find.byKey(const ValueKey('plus-launcher-lock-badge'));
+
+    testWidgets('the closed lock is shown while locked, gone once open', (
+      tester,
+    ) async {
+      final access = MoneyAccessController();
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+      );
+
+      await tester.pumpWidget(
+        _host(controller: controller, access: access, coordinator: coordinator),
+      );
+
+      expect(
+        badge(),
+        findsOneWidget,
+        reason: 'a locked app must say so on the control that unlocks it',
+      );
+
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(access.canViewMoney, isTrue);
+      expect(badge(), findsNothing, reason: 'the lock opened');
+      expect(
+        controller.isOpen,
+        isFalse,
+        reason: 'the morph resolves to the mark, it does not open the menu',
+      );
+    });
+
+    testWidgets('the badge opens across the morph rather than vanishing', (
+      tester,
+    ) async {
+      final access = MoneyAccessController();
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+      );
+
+      await tester.pumpWidget(
+        _host(controller: controller, access: access, coordinator: coordinator),
+      );
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+      // Mid-morph the badge is still mounted but partly faded: the unlock is
+      // legible as motion, not as a frame where it disappears.
+      await tester.pump(const Duration(milliseconds: 40));
+
+      final opacity = tester.widgetList<Opacity>(
+        find.descendant(of: badge(), matching: find.byType(Opacity)),
+      );
+      if (badge().evaluate().isNotEmpty) {
+        expect(opacity.first.opacity, lessThan(1.0));
+        expect(opacity.first.opacity, greaterThan(0.0));
+      }
+
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(badge(), findsNothing);
+    });
+
+    testWidgets('a failed verification keeps the lock badge', (tester) async {
+      final access = MoneyAccessController();
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.failed),
+      );
+
+      await tester.pumpWidget(
+        _host(controller: controller, access: access, coordinator: coordinator),
+      );
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(access.canViewMoney, isFalse);
+      expect(
+        badge(),
+        findsOneWidget,
+        reason: 'a refusal must not look like an unlock',
+      );
+    });
+
+    testWidgets('reduced motion still opens the lock, without the travel', (
+      tester,
+    ) async {
+      final access = MoneyAccessController();
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+      );
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: _host(
+            controller: controller,
+            access: access,
+            coordinator: coordinator,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(access.canViewMoney, isTrue);
+      expect(badge(), findsNothing);
+      expect(controller.isOpen, isFalse);
+    });
+  });
 }
