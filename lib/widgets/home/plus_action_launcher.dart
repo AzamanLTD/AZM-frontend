@@ -27,6 +27,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/services/money_unlock.dart';
+import 'package:azaman/services/money_unlock_flow.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -331,9 +332,11 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
               if (!access.canViewMoney) {
                 if (access.isAuthenticating) return; // one challenge at a time
                 final attempt = access.beginUnlock();
-                final result = await ref
-                    .read(moneyUnlockCoordinatorProvider)
-                    .authenticate();
+                // ONE flow decides the challenge: the member's chosen method
+                // for this account, else device auth, else whatever the
+                // backend says the account configured. A refusal is never
+                // reported as an unlock.
+                final result = await runMoneyUnlockFlow(context, ref);
                 if (!mounted) return;
                 if (result.isSuccess) {
                   access.finishUnlock(attempt);

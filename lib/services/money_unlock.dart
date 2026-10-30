@@ -30,6 +30,10 @@ class MoneyUnlockResult {
 }
 
 abstract class MoneyUnlockCoordinator {
+  /// Whether this device can run this challenge at all (enrolled biometrics or
+  /// a platform device credential). Never a guess about the member's account.
+  Future<bool> get isAvailable;
+
   /// Challenge the member. Must never mutate app state itself: the caller
   /// owns the generation-checked transition.
   Future<MoneyUnlockResult> authenticate();
@@ -40,6 +44,9 @@ class DeviceAuthUnlockCoordinator implements MoneyUnlockCoordinator {
     : _service = service ?? BiometricService();
 
   final BiometricService _service;
+
+  @override
+  Future<bool> get isAvailable => _service.isAvailable;
 
   @override
   Future<MoneyUnlockResult> authenticate() async {

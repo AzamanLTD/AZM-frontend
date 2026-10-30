@@ -9,15 +9,47 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/providers/money_access_provider.dart';
+import 'package:azaman/services/app_unlock_gateway.dart';
 import 'package:azaman/services/money_unlock.dart';
+import 'package:azaman/services/money_unlock_flow.dart';
 import 'package:azaman/widgets/az_logo_mark.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
+
+/// No backend-configured challenge in this suite: the trigger's own contract is
+/// device authentication, and the gateway is injected so the flow never reaches
+/// the network inside a widget test.
+class _NoCapabilityGateway implements AppUnlockGateway {
+  @override
+  Future<AppUnlockCapabilities> capabilities() async =>
+      AppUnlockCapabilities.none;
+
+  @override
+  Future<void> verifyPin(String pin) async =>
+      throw const AppUnlockRefusal('PIN_NOT_CONFIGURED');
+
+  @override
+  Future<void> verifyTotp(String token) async =>
+      throw const AppUnlockRefusal('TOTP_NOT_CONFIGURED');
+
+  @override
+  Future<AppUnlockSmsChallenge> sendSmsChallenge() async =>
+      throw const AppUnlockRefusal('PHONE_UNVERIFIED');
+
+  @override
+  Future<void> verifySmsChallenge({
+    required String challengeId,
+    required String code,
+  }) async => throw const AppUnlockRefusal('CHALLENGE_INVALID');
+}
 
 class _FakeCoordinator implements MoneyUnlockCoordinator {
   _FakeCoordinator(this.result);
 
   MoneyUnlockResult result;
   int calls = 0;
+
+  @override
+  Future<bool> get isAvailable async => true;
 
   @override
   Future<MoneyUnlockResult> authenticate() async {
@@ -35,6 +67,7 @@ Widget _host({
     overrides: [
       moneyAccessProvider.overrideWith((ref) => access),
       moneyUnlockCoordinatorProvider.overrideWithValue(coordinator),
+      appUnlockGatewayProvider.overrideWithValue(_NoCapabilityGateway()),
     ],
     child: MaterialApp(
       home: Scaffold(

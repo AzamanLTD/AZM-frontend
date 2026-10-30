@@ -563,18 +563,38 @@ class ApiClient {
   http.Response _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300)
       return response;
-    if (response.statusCode == 429)
+    if (response.statusCode == 429) {
+      // A 429 is not always a rate limiter. The app-unlock endpoints answer a
+      // spent attempt budget with 429 + PIN_LOCKED/CHALLENGE_LOCKED; dropping
+      // the body would turn "your PIN is locked" into "slow down".
+      Map<String, dynamic>? lockedBody;
+      String? lockedCode;
+      try {
+        final parsed = jsonDecode(response.body);
+        if (parsed is Map<String, dynamic>) {
+          lockedBody = parsed;
+          lockedCode = parsed['code']?.toString();
+        }
+      } on FormatException {
+        // No structured body: it is a genuine rate limit.
+      }
       throw ApiException(
-        message:
-            'Slow down! Too many requests. Please wait a moment and try again.',
+        message: lockedCode == null
+            ? 'Slow down! Too many requests. Please wait a moment and try again.'
+            : (lockedBody?['message']?.toString() ?? lockedCode),
         statusCode: 429,
+        code: lockedCode,
+        body: lockedBody,
       );
+    }
     var message = 'Request failed with status ${response.statusCode}';
     List<String>? errors;
     String? code;
+    Map<String, dynamic>? body;
     try {
       final errorData = jsonDecode(response.body);
       if (errorData is Map<String, dynamic>) {
+        body = errorData;
         message = errorData['message']?.toString() ?? message;
         code = errorData['code']?.toString();
         if (errorData['errors'] is List)
@@ -586,6 +606,7 @@ class ApiClient {
       statusCode: response.statusCode,
       errors: errors,
       code: code,
+      body: body,
     );
   }
 
@@ -727,11 +748,19 @@ class ApiException implements Exception {
   final int statusCode;
   final String? code;
   final List<String>? errors;
+
+  /// The decoded error body, when the server sent one. Unlock challenges need
+  /// it: a refused PIN reports `attemptsLeft` beside its `code`, and the UI can
+  /// only be honest about how many tries remain if the number survives the
+  /// trip. Never used for anything the caller could mistake for success.
+  final Map<String, dynamic>? body;
+
   ApiException({
     required this.message,
     required this.statusCode,
     this.errors,
     this.code,
+    this.body,
   });
   @override
   String toString() => errors != null && errors!.isNotEmpty
