@@ -40,6 +40,7 @@ import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../support/money_access_test_support.dart';
 
 const _surfaceSize = Size(400, 900);
 const _rootKey = Key('shot-root');
@@ -125,6 +126,7 @@ Future<ProviderContainer> _pumpHome(
 
   final container = ProviderContainer(
     overrides: [
+          unlockedMoneyAccess(),
       themeProvider.overrideWith((ref) => themeProviderInstance),
       authProvider.overrideWith((ref) => AuthProvider()),
       transactionHistoryProvider.overrideWith((ref) => _NoopHistoryNotifier()),

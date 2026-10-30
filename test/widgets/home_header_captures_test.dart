@@ -37,6 +37,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../support/money_access_test_support.dart';
 
 const _rootKey = ValueKey('home-header-capture-root');
 const _height = 780.0;
@@ -105,6 +106,7 @@ Future<void> _pumpHome(
   await tester.binding.setSurfaceSize(surface);
   final container = ProviderContainer(
     overrides: [
+          unlockedMoneyAccess(),
       authProvider.overrideWith((ref) => AuthProvider()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
