@@ -31,7 +31,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
+import 'package:azaman/widgets/home/money_lock_surface.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
@@ -248,6 +251,10 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    // The gate, read here rather than at the screen: a goal sheet can be
+    // reached from a deep link or a notification while the app is locked, and
+    // it is the last place that must refuse to move money.
+    final moneyLocked = !ref.watch(moneyAccessProvider).canViewMoney;
     final canFund = _status == 'ACTIVE';
     final canWithdraw = _currentGhs > 0 && _status != 'CANCELLED';
     final isPaused = _status == 'PAUSED';
@@ -304,7 +311,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
                               color: colors.textTertiary,
                             ),
                           if (_isLocked) const SizedBox(width: 3),
-                          Text(
+                          MoneyText(
                             '$_frequency \u00b7 GHS ${_frequencyAmount.toStringAsFixed(0)}',
                             style: TextStyle(
                               color: colors.textTertiary,
@@ -334,12 +341,20 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'GHS ${_currentGhs.toStringAsFixed(2)} / ${_targetGhs.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                // The ledger line is the flexible one: a large goal beside the
+                // percentage used to overflow by a stripe on a wide-audit
+                // device. It is the figure that may be shortened, never the
+                // percentage, which is the same number either way.
+                Flexible(
+                  child: MoneyText(
+                    'GHS ${_currentGhs.toStringAsFixed(2)} / ${_targetGhs.toStringAsFixed(2)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 Text(
@@ -363,7 +378,9 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
                     label: 'Fund',
                     color: colors.success,
                     enabled: canFund && !_busy,
-                    onTap: () => _showFundSheet(colors),
+                    onTap: () => moneyLocked
+                        ? blockedMoneyAccessFeedback(ref)
+                        : _showFundSheet(colors),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -373,7 +390,9 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
                     label: 'Withdraw',
                     color: colors.accent,
                     enabled: canWithdraw && !_busy,
-                    onTap: () => _showWithdrawSheet(colors),
+                    onTap: () => moneyLocked
+                        ? blockedMoneyAccessFeedback(ref)
+                        : _showWithdrawSheet(colors),
                   ),
                 ),
               ],

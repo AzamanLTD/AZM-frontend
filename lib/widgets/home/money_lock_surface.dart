@@ -154,3 +154,54 @@ class MoneyLockGate extends ConsumerWidget {
     return SizedBox(height: height, child: locked);
   }
 }
+
+/// Money as TEXT, gated.
+///
+/// A figure buried in a sentence is still money: masking the headline while
+/// `GHS 1,250.00 / 5,000.00` sits under a progress bar leaks the same fact.
+/// This renders the figure only while the money gate is open; while it is
+/// closed the surface shows a mask and the semantics carry NO digits at all —
+/// a screen reader, a screenshot and a widget tree all learn nothing.
+class MoneyText extends ConsumerWidget {
+  const MoneyText(
+    this.text, {
+    super.key,
+    this.style,
+    this.textAlign,
+    this.maxLines,
+    this.overflow,
+  });
+
+  final String text;
+  final TextStyle? style;
+  final TextAlign? textAlign;
+  final int? maxLines;
+  final TextOverflow? overflow;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final visible = ref.watch(moneyAccessProvider).canViewMoney;
+    if (visible) {
+      return Text(
+        text,
+        style: style,
+        textAlign: textAlign,
+        maxLines: maxLines,
+        overflow: overflow,
+      );
+    }
+    return Semantics(
+      label: 'Hidden while your money is locked',
+      excludeSemantics: true,
+      child: ExcludeSemantics(
+        child: Text(
+          '\u2022\u2022\u2022\u2022',
+          style: style,
+          textAlign: textAlign,
+          maxLines: maxLines,
+          overflow: overflow,
+        ),
+      ),
+    );
+  }
+}
