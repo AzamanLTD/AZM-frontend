@@ -34,6 +34,10 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
   List<Biller>? _billers;
   Biller? _biller;
   BillLookup? _lookup;
+
+  /// Set when the server says this service has no provider lookup yet. It is a
+  /// reason, not an error: the account can still be saved, unverified.
+  String? _lookupUnavailable;
   bool _loadingBillers = true;
   bool _looking = false;
   bool _saving = false;
@@ -90,6 +94,17 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
         _looking = false;
       });
       HapticFeedback.selectionClick();
+    } on BillsUnavailableException catch (e) {
+      // The gateway refusing to look up is the truth about this service: no
+      // provider is connected. Offering "save unverified" is the honest next
+      // step, and the account carries no holder name it did not receive.
+      if (!mounted) return;
+      setState(() {
+        _looking = false;
+        _lookup = null;
+        _lookupUnavailable =
+            e.message ?? 'This biller cannot verify accounts yet.';
+      });
     } on BillsLookupNotFoundException {
       if (!mounted) return;
       setState(() {
@@ -117,6 +132,35 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
           .saveAccount(
             billerId: lookup.billerId,
             identifier: _identifier.text.trim(),
+            alias: _alias.text.trim(),
+          );
+      ref.invalidate(billsHubProvider);
+      ref.invalidate(savedBillAccountsProvider);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = "We couldn't save that bill. Nothing was charged.";
+      });
+    }
+  }
+
+  /// Saves the reference without a verification step, because the provider
+  /// offers none. Nothing about the member's typing is promoted to a holder
+  /// name: the server answers with the mask it made.
+  Future<void> _saveUnverified() async {
+    final biller = _biller;
+    final raw = _identifier.text.trim();
+    if (biller == null || raw.isEmpty || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(billsGatewayProvider)
+          .saveAccount(
+            billerId: biller.id,
+            identifier: raw,
             alias: _alias.text.trim(),
           );
       ref.invalidate(billsHubProvider);
@@ -176,6 +220,7 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
                           onTap: () => setState(() {
                             _biller = biller;
                             _lookup = null;
+                            _lookupUnavailable = null;
                             _error = null;
                           }),
                         ),
@@ -218,7 +263,11 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
                             ),
                             onSubmitted: (_) => _runLookup(),
                           ),
-                          if (_lookup == null) ...[
+                          // Once the server has said this service has no
+                          // lookup, offering the button again would just repeat
+                          // the same refusal.
+                          if (_lookup == null &&
+                              _lookupUnavailable == null) ...[
                             const SizedBox(height: 12),
                             BillsPrimaryButton(
                               label: 'Look it up',
@@ -228,6 +277,61 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
                           ],
                         ],
                       ),
+                    ),
+                  ),
+
+                // ── 3a. No lookup available: save it anyway, unverified ──
+                if (_lookup == null &&
+                    _lookupUnavailable != null &&
+                    _identifier.text.trim().isNotEmpty)
+                  BillsSection(
+                    title: '3 · SAVE UNVERIFIED',
+                    subtitle: _lookupUnavailable,
+                    child: Column(
+                      children: [
+                        const BillsEmptyNote(
+                          text:
+                              'We can hold this reference for you, but no '
+                              'holder name will be shown until the provider '
+                              'connects account lookup. Nothing is paid by '
+                              'saving.',
+                        ),
+                        const SizedBox(height: 12),
+                        BillsCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'NAME IT (OPTIONAL)',
+                                style: AzText.eyebrow.copyWith(
+                                  color: colors.textTertiary,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              TextField(
+                                controller: _alias,
+                                style: AzText.body.copyWith(
+                                  color: colors.textPrimary,
+                                ),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  hintText: 'My Apartment',
+                                  hintStyle: AzText.body.copyWith(
+                                    color: colors.textTertiary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        BillsPrimaryButton(
+                          label: 'Save without verification',
+                          busy: _saving,
+                          onPressed: _runner(_saveUnverified),
+                        ),
+                      ],
                     ),
                   ),
 
