@@ -8,6 +8,7 @@
 //   "Open actions" closed, "Close actions" open) and its VISUAL state
 //   rebuilds from the animation controller — mid-flight rotation ticks
 //   prove the tree tracks _rot itself, not incidental parent rebuilds.
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -93,7 +94,10 @@ Future<void> _pumpDispatchHost(
     ],
   );
   await tester.pumpWidget(
-    ProviderScope(child: MaterialApp.router(routerConfig: router)),
+    ProviderScope(
+      overrides: [unlockedMoneyAccess()],
+      child: MaterialApp.router(routerConfig: router),
+    ),
   );
 }
 
@@ -187,6 +191,7 @@ void main() {
     }) async {
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [unlockedMoneyAccess()],
           child: MaterialApp(
             theme: ThemeProvider.getThemeData(AzamanTheme.light),
             home: MediaQuery(

@@ -24,6 +24,7 @@
 //     (launcher owns the screen) and resumes when it closes.
 // =============================================================================
 
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
@@ -135,6 +136,9 @@ Future<void> _pumpShell(
   final container = ProviderContainer(
     overrides: [
       auth_pkg.authProvider.overrideWith((ref) => auth_pkg.AuthProvider()),
+      // This suite's subject is the launcher/captures, so money starts
+      // unlocked; the privacy gate has its own suites.
+      unlockedMoneyAccess(),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
         (ref) => const BalanceData(availableBalance: 100),
