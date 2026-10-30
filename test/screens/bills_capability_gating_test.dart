@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:azaman/providers/money_access_provider.dart';
+import 'package:azaman/screens/bills/bills_home_screen.dart';
 import 'package:azaman/screens/bills/bills_pay_screen.dart';
 import 'package:azaman/screens/bills/bills_request_screen.dart';
 import 'package:azaman/services/bills/bills_gateway.dart';
@@ -33,8 +35,48 @@ class _Gateway extends UnavailableBillsGateway {
   @override
   bool get isDemo => false;
 
+  final List<String> renames = <String>[];
+  final List<bool> primaries = <bool>[];
+  final List<String> removed = <String>[];
+
   @override
   Future<List<SavedBillAccount>> savedAccounts() async => accounts;
+
+  @override
+  Future<BillsHubSnapshot> hub() async => BillsHubSnapshot(
+    savedAccounts: accounts,
+    recentPayments: const [],
+    outstanding: const [],
+    requests: const [],
+  );
+
+  @override
+  Future<SavedBillAccount> updateAccount({
+    required String accountId,
+    String? alias,
+    bool? isPrimary,
+  }) async {
+    if (alias != null) renames.add(alias);
+    if (isPrimary != null) primaries.add(isPrimary);
+    final base = accounts.firstWhere((a) => a.id == accountId);
+    return SavedBillAccount(
+      id: base.id,
+      billerId: base.billerId,
+      billerName: base.billerName,
+      categoryId: base.categoryId,
+      identifierMasked: base.identifierMasked,
+      verificationStatus: base.verificationStatus,
+      alias: alias ?? base.alias,
+      isPrimary: isPrimary ?? base.isPrimary,
+      canQuote: base.canQuote,
+      canPay: base.canPay,
+    );
+  }
+
+  @override
+  Future<void> removeAccount(String accountId) async {
+    removed.add(accountId);
+  }
 
   @override
   Future<BillsAvailability> availability() async =>
@@ -54,6 +96,15 @@ Future<void> _pump(WidgetTester tester, Widget screen, _Gateway gw) async {
       child: MaterialApp(home: screen),
     ),
   );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  // The saved-bills section is behind the privacy gate by design, so the test
+  // member unlocks first — that is the only way a real member sees it either.
+  final container = ProviderScope.containerOf(
+    tester.element(find.byType(MaterialApp)),
+  );
+  final access = container.read(moneyAccessProvider);
+  access.finishUnlock(access.beginUnlock());
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 300));
 }
@@ -98,6 +149,80 @@ void main() {
 
     expect(find.text('Send the request'), findsNothing);
     expect(find.textContaining('not connected yet'), findsWidgets);
+  });
+
+  group('managing a saved bill', () {
+    testWidgets('rename sends the new label and never the identifier', (
+      tester,
+    ) async {
+      final gw = _Gateway([_account(canQuote: false, canPay: false)]);
+      await _pump(tester, const BillsHomeScreen(), gw);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.byKey(const ValueKey('bill-actions-acct_1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Rename'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'My Apartment');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(gw.renames, ['My Apartment']);
+      expect(gw.removed, isEmpty);
+    });
+
+    testWidgets('make primary flips the marker through the same PATCH', (
+      tester,
+    ) async {
+      final gw = _Gateway([_account(canQuote: false, canPay: false)]);
+      await _pump(tester, const BillsHomeScreen(), gw);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.byKey(const ValueKey('bill-actions-acct_1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Make primary'));
+      await tester.pumpAndSettle();
+
+      expect(gw.primaries, [true]);
+    });
+
+    testWidgets('delete asks first, and only then calls the server', (
+      tester,
+    ) async {
+      final gw = _Gateway([_account(canQuote: false, canPay: false)]);
+      await _pump(tester, const BillsHomeScreen(), gw);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.byKey(const ValueKey('bill-actions-acct_1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove this bill'));
+      await tester.pumpAndSettle();
+
+      // Nothing deleted yet: the confirmation is shown first.
+      expect(gw.removed, isEmpty);
+      expect(find.text('Remove this bill?'), findsOneWidget);
+      // The dialog shows the server's mask, never a decrypted number.
+      expect(find.textContaining('•••• 4321'), findsWidgets);
+
+      await tester.tap(find.text('Remove'));
+      await tester.pumpAndSettle();
+      expect(gw.removed, ['acct_1']);
+    });
+
+    testWidgets('keep it leaves the bill alone', (tester) async {
+      final gw = _Gateway([_account(canQuote: false, canPay: false)]);
+      await _pump(tester, const BillsHomeScreen(), gw);
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.byKey(const ValueKey('bill-actions-acct_1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove this bill'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Keep it'));
+      await tester.pumpAndSettle();
+
+      expect(gw.removed, isEmpty);
+    });
   });
 
   test('a category counts the services the server actually sent', () {

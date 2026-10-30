@@ -161,6 +161,103 @@ class _AvailableState extends ConsumerStatefulWidget {
 }
 
 class _AvailableStateState extends ConsumerState<_AvailableState> {
+  /// Rename, primary and delete, against the routes the backend publishes.
+  /// Each refreshes the hub so the list is the SERVER's answer rather than an
+  /// optimistic guess, and a failure is reported in place.
+  Future<void> _manageAccount(SavedBillAccount account, String choice) async {
+    final gateway = ref.read(billsGatewayProvider);
+    try {
+      switch (choice) {
+        case 'rename':
+          final name = await _askName(account);
+          if (name == null || !mounted) return;
+          await gateway.updateAccount(accountId: account.id, alias: name);
+          break;
+        case 'primary':
+          await gateway.updateAccount(
+            accountId: account.id,
+            isPrimary: !account.isPrimary,
+          );
+          break;
+        case 'delete':
+          if (!mounted) return;
+          final confirmed = await _confirmDelete(account);
+          if (confirmed != true) return;
+          await gateway.removeAccount(account.id);
+          break;
+      }
+      ref.invalidate(billsHubProvider);
+      ref.invalidate(savedBillAccountsProvider);
+      if (!mounted) return;
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e is BillsUnavailableException
+                ? (e.message ?? 'That change was not saved.')
+                : 'That change was not saved. Nothing was charged.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<String?> _askName(SavedBillAccount account) async {
+    final controller = TextEditingController(text: account.alias ?? '');
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Name this bill'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'My Apartment',
+            labelText: 'Name',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(
+              controller.text.trim().isEmpty ? null : controller.text.trim(),
+            ),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _confirmDelete(SavedBillAccount account) => showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Remove this bill?'),
+      // The masked reference is the only identifier ever shown, and it is the
+      // server's own mask: the decrypted number never reaches this screen.
+      content: Text(
+        '${account.displayName} (${account.identifierMasked}) will be removed '
+        'from your saved bills. Nothing is paid, cancelled or closed with the '
+        'biller.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Keep it'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Remove'),
+        ),
+      ],
+    ),
+  );
+
   /// True only when some saved bill could actually be PAID, since that is what
   /// asking a contact leads to. No published service carries the payment
   /// capability yet, so in production this is false and the section is a plan
@@ -212,12 +309,61 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
                       for (final account in snapshot.savedAccounts) ...[
                         BillsAccountTile(
                           title: account.displayName,
-                          subtitle: account.billerName,
+                          subtitle: account.isPrimary
+                              ? '${account.billerName} · Primary'
+                              : account.billerName,
                           maskedIdentifier: account.identifierMasked,
-                          trailing: Icon(
-                            Icons.chevron_right_rounded,
-                            size: 20,
-                            color: colors.textTertiary,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (account.verificationStatus == 'UNVERIFIED')
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: Text(
+                                    'Unverified',
+                                    style: AzText.caption.copyWith(
+                                      color: colors.textTertiary,
+                                    ),
+                                  ),
+                                ),
+                              // Rename, primary and delete sit behind the server's PATCH/DELETE
+                              // routes. Nothing here edits the identifier: only the member's own
+                              // label, the primary marker, or the whole reference.
+                              PopupMenuButton<String>(
+                                key: ValueKey('bill-actions-${account.id}'),
+                                tooltip: 'Manage ${account.displayName}',
+                                icon: Icon(
+                                  Icons.more_horiz_rounded,
+                                  size: 20,
+                                  color: colors.textTertiary,
+                                ),
+                                onSelected: (choice) =>
+                                    _manageAccount(account, choice),
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'rename',
+                                    child: Text('Rename'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'primary',
+                                    child: Text(
+                                      account.isPrimary
+                                          ? 'Remove primary'
+                                          : 'Make primary',
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Text('Remove this bill'),
+                                  ),
+                                ],
+                              ),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                size: 20,
+                                color: colors.textTertiary,
+                              ),
+                            ],
                           ),
                           onTap: () => context.push(
                             '${AzRoutes.bills}/pay/${account.id}',
