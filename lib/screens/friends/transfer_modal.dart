@@ -10,10 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/utils/biometric_gate.dart';
+import 'package:azaman/widgets/home/money_lock_surface.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:go_router/go_router.dart';
 
@@ -137,6 +139,29 @@ class _TransferModalState extends ConsumerState<TransferModal> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
 
+    // Chat stays readable while the member is locked, but this sheet composes a
+    // payment. While locked it shows the locked surface instead: no balance, no
+    // amount field, no confirm control, and nothing to submit.
+    if (!ref.watch(moneyAccessProvider).canViewMoney) {
+      return Container(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        // The gate takes the composer as its child and simply never builds it
+        // while the gate is shut, so no balance is fetched and no field exists.
+        child: MoneyLockGate(
+          compact: true,
+          message: 'Sending money is locked',
+          child: _composer(context, colors),
+        ),
+      );
+    }
+
+    return _composer(context, colors);
+  }
+
+  Widget _composer(BuildContext context, AzamanColors colors) {
     return Container(
       decoration: BoxDecoration(
         color: colors.surface,
