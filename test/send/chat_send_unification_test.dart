@@ -26,6 +26,8 @@ import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/widgets/chat_money_card.dart';
 
+import '../support/money_access_test_support.dart';
+
 const _storageChannel = MethodChannel(
   'plugins.it_nomads.com/flutter_secure_storage',
 );
@@ -82,9 +84,15 @@ Future<void> _pump(WidgetTester tester, Widget screen) async {
   await tester.pumpAndSettle();
 }
 
-Widget _material(Widget child) => MaterialApp(
-  theme: ThemeData(useMaterial3: true),
-  home: Scaffold(body: child),
+/// The money card reads the app's money gate, so the harness supplies the
+/// scope production always has — and an unlocked session, because these
+/// contracts are about which ACTIONS a status shows.
+Widget _material(Widget child) => ProviderScope(
+  overrides: [unlockedMoneyAccess()],
+  child: MaterialApp(
+    theme: ThemeData(useMaterial3: true),
+    home: Scaffold(body: child),
+  ),
 );
 
 void main() {
