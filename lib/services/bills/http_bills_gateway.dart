@@ -221,10 +221,26 @@ class BillServiceCatalog {
         final code = c['code']?.toString();
         if (code == null || code.isEmpty) continue;
         final label = c['label']?.toString() ?? code;
-        categories.add(BillsCategory(id: code, label: label));
-        final rawServices = c['services'];
-        if (rawServices is! List) continue;
-        for (final s in rawServices) {
+        // The backend sends each category with its real `services` array and
+        // NO billerCount. Counting the services is the only honest source for
+        // "can this category be opened": zero means the registry has nothing
+        // behind it yet.
+        final categoryServices = c['services'];
+        final serviceMaps = categoryServices is List
+            ? categoryServices.whereType<Map<String, dynamic>>().toList()
+            : const <Map<String, dynamic>>[];
+        // billerCount is the count of the server's OWN services: it is the
+        // switch BillsHomeScreen uses to let a category open, so a wrong number
+        // here is a category that cannot be reached.
+        categories.add(
+          BillsCategory(
+            id: code,
+            label: label,
+            billerCount: serviceMaps.length,
+          ),
+        );
+        if (categoryServices is! List) continue;
+        for (final s in categoryServices) {
           final parsed = BillServiceTemplate.fromJson(s, categoryCode: code);
           if (parsed != null) services.add(parsed);
         }
@@ -391,6 +407,7 @@ class HttpBillsGateway implements BillsGateway {
       final data = _data(response);
       final raw = data is Map ? data['accounts'] : null;
       if (raw is! List) return const <SavedBillAccount>[];
+
       final catalog = await serviceCatalog();
       final out = <SavedBillAccount>[];
       for (final entry in raw) {
@@ -412,6 +429,9 @@ class HttpBillsGateway implements BillsGateway {
             holderName: null,
             verificationStatus: account.verificationStatus,
             alias: account.nickname,
+            canQuote: account.capabilities.quote,
+            canPay: account.capabilities.payment,
+            isPrimary: account.isPrimary,
           ),
         );
       }
@@ -469,11 +489,72 @@ class HttpBillsGateway implements BillsGateway {
         holderName: null,
         verificationStatus: account.verificationStatus,
         alias: account.nickname,
+        canQuote: account.capabilities.quote,
+        canPay: account.capabilities.payment,
+        isPrimary: account.isPrimary,
       );
     } on ApiException catch (e) {
       _refuse(e, fallback: 'SAVED_ACCOUNT_FAILED');
     } on FormatException {
       throw const BillsUnavailableException('SAVED_ACCOUNT_FAILED');
+    }
+  }
+
+  /// Rename or (un)mark primary through the published PATCH route. It answers
+  /// with the account as the server now holds it, so the caller renders the
+  /// SERVER's nickname and mask rather than echoing what it sent.
+  @override
+  Future<SavedBillAccount> updateAccount({
+    required String accountId,
+    String? alias,
+    bool? isPrimary,
+  }) async {
+    final body = <String, dynamic>{
+      if (alias != null) 'nickname': alias,
+      if (isPrimary != null) 'isPrimary': isPrimary,
+    };
+    if (body.isEmpty) {
+      throw const BillsUnavailableException('Nothing to change.');
+    }
+    try {
+      final response = await _api.patch(
+        '$_base/saved-accounts/$accountId',
+        body: body,
+      );
+      final data = _data(response);
+      final raw = data is Map ? data['account'] : null;
+      if (raw is! Map<String, dynamic>) {
+        throw const BillsUnavailableException(
+          'The server did not return the updated bill.',
+        );
+      }
+      final account = SavedServiceAccount.fromJson(raw);
+      if (account == null) {
+        throw const BillsUnavailableException(
+          'The server did not return the updated bill.',
+        );
+      }
+      final service = await serviceCatalog().then(
+        (catalog) =>
+            catalog.serviceFor(account.serviceCode, account.providerCode),
+      );
+      return SavedBillAccount(
+        id: account.id,
+        billerId: '${account.serviceCode}:${account.providerCode}',
+        billerName: service?.label ?? account.label,
+        categoryId: service?.categoryCode ?? account.categoryCode ?? '',
+        identifierMasked: account.accountMask,
+        holderName: null,
+        verificationStatus: account.verificationStatus,
+        alias: account.nickname,
+        canQuote: account.capabilities.quote,
+        canPay: account.capabilities.payment,
+        isPrimary: account.isPrimary,
+      );
+    } on ApiException catch (e) {
+      throw BillsUnavailableException(
+        e.body?['message']?.toString() ?? 'That change was not saved.',
+      );
     }
   }
 
@@ -531,7 +612,6 @@ class HttpBillsGateway implements BillsGateway {
 
   @override
   Future<BillsHubSnapshot> hub() async {
-    final catalog = await serviceCatalog();
     final accounts = await savedAccounts();
     // Only what the server can actually answer. Nothing is filled in to make
     // the screen look busier than the backend is.

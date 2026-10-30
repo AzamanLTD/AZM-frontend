@@ -445,10 +445,12 @@ GoRouter _buildAppRouter() => GoRouter(
           // Bills is a money surface: saved accounts, holder names, receipts
           // and the pay composer all live behind it. A deep link or a
           // notification tap must not open it while the member is locked.
-          child: const MoneyRouteGuard(
-            child: BillsHomeScreen(),
-            message: 'Your bills are locked',
-          ),
+          // The hub itself is a catalogue: category names and descriptions are
+          // public information. The member's own bills, the pay composer and
+          // the Add form each carry their own lock, on this page and on their
+          // own routes, so discovery works while locked and nothing personal
+          // renders.
+          child: const BillsHomeScreen(),
         ),
       ),
       routes: [
@@ -517,9 +519,16 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
         restorationId: state.name,
+        // The Hero pair stays intact: the bubble still flies into this
+        // destination. What changes is what the destination renders — while the
+        // member is locked it is the privacy surface, not their money.
         child: const BubbleMorphDestination(
           tag: BubbleMorphTag.save,
-          child: SavingsScreen(),
+          child: MoneyRouteGuard(
+            message: 'Your savings are locked',
+            hint: 'Tap the Azaman button on Home to unlock.',
+            child: SavingsScreen(),
+          ),
         ),
       ),
     ),

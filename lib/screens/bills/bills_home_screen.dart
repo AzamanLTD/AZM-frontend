@@ -23,6 +23,7 @@ import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/bills/bills_gateway.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/bills/bills_ui.dart';
+import 'package:azaman/widgets/home/money_lock_surface.dart';
 
 class BillsHomeScreen extends ConsumerStatefulWidget {
   const BillsHomeScreen({super.key});
@@ -160,6 +161,17 @@ class _AvailableState extends ConsumerStatefulWidget {
 }
 
 class _AvailableStateState extends ConsumerState<_AvailableState> {
+  /// True only when some saved bill could actually be PAID, since that is what
+  /// asking a contact leads to. No published service carries the payment
+  /// capability yet, so in production this is false and the section is a plan
+  /// rather than an entry point to a flow that cannot finish.
+  bool get _canAskAContact {
+    final accounts =
+        ref.watch(billsHubProvider).valueOrNull?.savedAccounts ??
+        const <SavedBillAccount>[];
+    return accounts.any((a) => a.canPay);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
@@ -173,45 +185,50 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
           if (widget.isDemo) const BillsDemoBanner(),
 
           // ── The member's own bills ────────────────────────────────────
-          BillsSection(
-            title: 'YOUR BILLS',
-            child: hub.when(
-              loading: () => _Loading(colors: colors),
-              error: (_, _) => BillsEmptyNote(
-                icon: HugeIconsSolid.wifiError01,
-                text:
-                    "We couldn't load your bills just now. That is not the "
-                    'same as having none — pull down to try again.',
-              ),
-              data: (snapshot) {
-                if (snapshot.savedAccounts.isEmpty) {
-                  return BillsEmptyNote(
-                    icon: HugeIconsSolid.note01,
-                    text:
-                        'No saved bills yet. Find a biller below, we look up '
-                        'the account with them, then it lives here.',
-                  );
-                }
-                return Column(
-                  children: [
-                    for (final account in snapshot.savedAccounts) ...[
-                      BillsAccountTile(
-                        title: account.displayName,
-                        subtitle: account.billerName,
-                        maskedIdentifier: account.identifierMasked,
-                        trailing: Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                          color: colors.textTertiary,
+          MoneyLockGate(
+            message: 'Your saved bills are locked',
+            hint: 'Tap the Azaman button on Home to unlock.',
+            child: BillsSection(
+              title: 'YOUR BILLS',
+              child: hub.when(
+                loading: () => _Loading(colors: colors),
+                error: (_, _) => BillsEmptyNote(
+                  icon: HugeIconsSolid.wifiError01,
+                  text:
+                      "We couldn't load your bills just now. That is not the "
+                      'same as having none — pull down to try again.',
+                ),
+                data: (snapshot) {
+                  if (snapshot.savedAccounts.isEmpty) {
+                    return BillsEmptyNote(
+                      icon: HugeIconsSolid.note01,
+                      text:
+                          'No saved bills yet. Find a biller below, we look up '
+                          'the account with them, then it lives here.',
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final account in snapshot.savedAccounts) ...[
+                        BillsAccountTile(
+                          title: account.displayName,
+                          subtitle: account.billerName,
+                          maskedIdentifier: account.identifierMasked,
+                          trailing: Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: colors.textTertiary,
+                          ),
+                          onTap: () => context.push(
+                            '${AzRoutes.bills}/pay/${account.id}',
+                          ),
                         ),
-                        onTap: () =>
-                            context.push('${AzRoutes.bills}/pay/${account.id}'),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 8),
+                      ],
                     ],
-                  ],
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
 
@@ -323,7 +340,9 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
           BillsSection(
             title: 'ASK A CONTACT TO PAY',
             child: BillsCard(
-              onTap: () => context.push('${AzRoutes.bills}/request'),
+              onTap: _canAskAContact
+                  ? () => context.push('${AzRoutes.bills}/request')
+                  : null,
               semanticLabel: 'Ask a contact to pay a saved bill',
               child: Row(
                 children: [
@@ -335,8 +354,11 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Pick a saved bill, choose who to ask, and they pay it '
-                      'from their own balance.',
+                      _canAskAContact
+                          ? 'Pick a saved bill, choose who to ask, and they '
+                                'pay it from their own balance.'
+                          : 'Coming later. Asking a contact to pay needs the '
+                                'payment routes, which are not connected yet.',
                       style: AzText.bodyS.copyWith(
                         color: colors.textSecondary,
                         height: 1.4,

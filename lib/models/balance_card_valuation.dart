@@ -267,8 +267,6 @@ class BalanceCardValuation {
   /// The headline can only be shown as a confirmed combined value.
   bool get headlineKnown => balanceConfirmed && availableGhsValue != null;
 
-
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

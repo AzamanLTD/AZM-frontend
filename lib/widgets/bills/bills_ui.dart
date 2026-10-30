@@ -288,15 +288,20 @@ class BillsKeyValue extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            value,
-            textAlign: TextAlign.right,
-            style: emphasised
-                ? AzText.money(colors.textPrimary, size: 18)
-                : AzText.body.copyWith(
-                    color: valueColor ?? colors.textPrimary,
-                    fontWeight: FontWeight.w600,
-                  ),
+          // The value can be a biller name or a server reason, not just a
+          // number: it must be allowed to wrap instead of pushing the row past
+          // the screen edge on a narrow phone.
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: emphasised
+                  ? AzText.money(colors.textPrimary, size: 18)
+                  : AzText.body.copyWith(
+                      color: valueColor ?? colors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+            ),
           ),
         ],
       ),

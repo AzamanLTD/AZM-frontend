@@ -1,12 +1,13 @@
 // AZAMAN — BILLS: SAVE A BILL
 //
-// biller → identifier → GENUINE lookup → the holder name the provider returned
-// → confirm → optional alias → save.
+// biller → identifier → optional alias → save.
 //
-// The member is never asked to trust a name this app made up. Until a lookup
-// comes back, the screen shows no holder, no address and no amount; if the
-// lookup says the identifier is unknown, the screen says exactly that and
-// leaves the field editable.
+// All nine templates the backend publishes today carry `lookupAccount: false`,
+// so in production this screen does NOT look anything up and does not pretend
+// to. It saves a reference the member typed and says plainly that no provider
+// has confirmed its identity. Where a lookup does exist (the demo gateway), the
+// confirm step appears only with the holder name that lookup actually returned:
+// the member is never asked to trust a name this app made up.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

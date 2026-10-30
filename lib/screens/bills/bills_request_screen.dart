@@ -301,11 +301,21 @@ class _BillsRequestScreenState extends ConsumerState<BillsRequestScreen> {
           ),
         ),
       const SizedBox(height: 14),
-      BillsPrimaryButton(
-        label: 'Send the request',
-        busy: _sending,
-        onPressed: _account == null ? null : _send,
-      ),
+      // A request only makes sense if the bill COULD be paid. When the service
+      // publishes no payment capability the button is not offered at all, and
+      // the screen says why rather than sending something that cannot settle.
+      if (_account != null && !_account!.canPay)
+        const BillsEmptyNote(
+          text:
+              'Asking a contact to pay is not connected yet for this biller. '
+              'Nothing has been sent.',
+        )
+      else
+        BillsPrimaryButton(
+          label: 'Send the request',
+          busy: _sending,
+          onPressed: _account == null ? null : _send,
+        ),
     ];
   }
 

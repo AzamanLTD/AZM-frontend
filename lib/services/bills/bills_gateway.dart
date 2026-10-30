@@ -112,6 +112,9 @@ class SavedBillAccount {
     this.holderName,
     this.verificationStatus,
     this.alias,
+    this.canQuote = true,
+    this.canPay = true,
+    this.isPrimary = false,
   });
 
   final String id;
@@ -136,6 +139,28 @@ class SavedBillAccount {
 
   /// The member's own name for it — "My Apartment".
   final String? alias;
+
+  /// The backend's own capability flags for this service, carried per account
+  /// so a pay button can be gated by the account it would pay.
+  ///
+  /// They default to true because an absent capability object is not a claim
+  /// that payment exists — it is the demo gateway and older fakes, which are
+  /// marked `isDemo` at the screen. A real payload always carries them, and
+  /// today every one of them is false.
+  final bool canQuote;
+  final bool canPay;
+
+  /// The server's primary marker for this member's saved bills.
+  final bool isPrimary;
+
+  /// Reads a capability boolean out of a server capability object. A payload
+  /// with no capability object leaves the flag at its default.
+  static bool capabilityFlag(Object? raw, String key) {
+    if (raw is Map && raw['capabilities'] is Map) {
+      return (raw['capabilities'] as Map)[key] == true;
+    }
+    return true;
+  }
 
   /// True only when the provider itself confirmed a holder.
   bool get hasProviderVerifiedHolder =>
@@ -339,6 +364,17 @@ abstract class BillsGateway {
     String? alias,
   });
 
+  /// Rename a saved bill or (un)mark it primary. The real gateway implements
+  /// it against the published PATCH; a demo or test gateway may leave the
+  /// default, which refuses by name rather than pretending a change happened.
+  Future<SavedBillAccount> updateAccount({
+    required String accountId,
+    String? alias,
+    bool? isPrimary,
+  }) async => throw const BillsUnavailableException(
+    'Changing a saved bill is not connected yet.',
+  );
+
   Future<void> removeAccount(String accountId);
 
   /// A fresh price for a payment. Called again at confirm time, so a stale
@@ -398,6 +434,14 @@ class UnavailableBillsGateway implements BillsGateway {
     required String billerId,
     required String identifier,
     String? alias,
+  }) => _refuse();
+
+  @override
+  @override
+  Future<SavedBillAccount> updateAccount({
+    required String accountId,
+    String? alias,
+    bool? isPrimary,
   }) => _refuse();
 
   @override

@@ -27,6 +27,7 @@ class SecuritySettingsScreen extends ConsumerStatefulWidget {
 class _SecuritySettingsScreenState
     extends ConsumerState<SecuritySettingsScreen> {
   bool _twoFactorEnabled = false;
+
   /// A secret has been minted and the QR is on screen, but NO code has been
   /// confirmed yet. The authenticator is not protecting anything at this
   /// point, so this must never read as "enabled".
@@ -708,11 +709,7 @@ class _SecuritySettingsScreenState
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: colors.warning,
-                    ),
+                    Icon(Icons.info_outline, size: 16, color: colors.warning),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

@@ -60,8 +60,8 @@ class _RateRefreshIndicatorState extends ConsumerState<RateRefreshIndicator> {
           stale
               ? 'Rate updating'
               : seconds > 0
-                  ? 'Refresh ${seconds}s'
-                  : 'Refreshing…',
+              ? 'Refresh ${seconds}s'
+              : 'Refreshing…',
           style: TextStyle(
             color: stale ? colors.warning : colors.textTertiary,
             fontSize: 9,

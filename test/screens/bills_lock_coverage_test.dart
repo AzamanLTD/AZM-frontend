@@ -1,14 +1,18 @@
-// BILLS IS A MONEY SURFACE, SO A DEEP LINK IS NOT A KEY EITHER.
+// BILLS IS A MONEY SURFACE — BUT A CATALOGUE IS NOT MONEY.
 //
-// The Hub holds saved bills, holder names and receipts; the pay screen composes
-// a payment. Both are reachable by URL, so both must be behind the same gate as
-// /withdraw and /send — not merely behind the Home bubble that usually opens
-// them.
+// The member's saved bills, the pay composer and the request flow are reachable
+// by URL, so those must sit behind the same gate as /withdraw and /send, not
+// merely behind the Home bubble.
 //
-// Two contracts, because either one alone would leave a hole:
-//   1. STRUCTURE — every Bills destination in the route table is wrapped in
-//      MoneyRouteGuard. A future screen added under /bills without the guard
-//      fails this test.
+// The HUB ITSELF is deliberately NOT gated: a list of biller categories is
+// public information, and hiding it while locked made Bills look broken to a
+// member who only wanted to see what was available. What stays protected is
+// anything personal — and that protection now lives in two places, which is
+// what these contracts check:
+//   1. STRUCTURE — the Add, Pay and Request destinations are wrapped in
+//      MoneyRouteGuard, and the Hub's own saved-bills section is wrapped in
+//      MoneyLockGate. A future screen added under /bills without a gate fails
+//      this test.
 //   2. BEHAVIOUR — mounted while locked, the pay screen is never built, so its
 //      gateway is never called: no accounts fetched, no quote requested, no
 //      total painted.
@@ -76,8 +80,35 @@ void main() {
     expect(end, greaterThan(start));
     final block = source.substring(start, end);
 
+    // The member's own bills inside the hub are gated where they render,
+    // because the hub is browsable.
+    final hub = File(
+      'lib/screens/bills/bills_home_screen.dart',
+    ).readAsStringSync();
+    final savingsStart = hub.indexOf("title: 'YOUR BILLS',");
+    expect(savingsStart, greaterThan(-1));
+    final gateAt = hub.substring(0, savingsStart).lastIndexOf('MoneyLockGate(');
+    expect(gateAt, greaterThan(-1), reason: 'YOUR BILLS has no gate at all');
+    // The gate must open immediately before this section, not somewhere
+    // unrelated earlier in the file.
+    expect(
+      savingsStart - gateAt,
+      lessThan(200),
+      reason: 'YOUR BILLS must be the child of that MoneyLockGate',
+    );
+
+    // The hub itself must NOT be wholly gated any more: discovery works while
+    // locked.
+    final hubAt = block.indexOf('BillsHomeScreen()');
+    expect(hubAt, greaterThan(-1));
+    final hubBefore = block.substring(0, hubAt);
+    expect(
+      hubBefore.lastIndexOf('MoneyRouteGuard('),
+      lessThan(hubBefore.lastIndexOf('pageBuilder:')),
+      reason: 'the Bills hub is public; only its private parts are gated',
+    );
+
     for (final screen in [
-      'BillsHomeScreen()',
       'BillsAddAccountScreen(',
       'BillsPayScreen(',
       'BillsRequestScreen(',

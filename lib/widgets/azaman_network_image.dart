@@ -94,19 +94,19 @@ class AzamanNetworkImage extends ConsumerWidget {
   }
 
   Widget _shimmerBlock(AzamanColors colors, double w, double h) => Container(
-        width: width ?? w,
-        height: height ?? h,
-        color: colors.softSurface,
-      );
+    width: width ?? w,
+    height: height ?? h,
+    color: colors.softSurface,
+  );
 
   Widget _fallback(AzamanColors colors, double w, double h) => Container(
-        width: width ?? w,
-        height: height ?? h,
-        color: colors.softSurface,
-        child: Icon(
-          Icons.image_outlined,
-          size: (w * 0.35).clamp(16.0, 48.0),
-          color: colors.textTertiary,
-        ),
-      );
+    width: width ?? w,
+    height: height ?? h,
+    color: colors.softSurface,
+    child: Icon(
+      Icons.image_outlined,
+      size: (w * 0.35).clamp(16.0, 48.0),
+      color: colors.textTertiary,
+    ),
+  );
 }

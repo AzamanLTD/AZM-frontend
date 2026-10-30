@@ -42,5 +42,5 @@ class PlatformConfigNotifier extends StateNotifier<PlatformConfig> {
 /// admin updates a fee and refresh() is called.
 final platformConfigProvider =
     StateNotifierProvider<PlatformConfigNotifier, PlatformConfig>((ref) {
-  return PlatformConfigNotifier(PlatformConfigService());
-});
+      return PlatformConfigNotifier(PlatformConfigService());
+    });

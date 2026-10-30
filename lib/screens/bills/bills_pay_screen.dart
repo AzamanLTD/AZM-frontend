@@ -208,7 +208,19 @@ class _BillsPayScreenState extends ConsumerState<BillsPayScreen> {
                       ),
                     ),
                   ),
-                  if (_quote == null)
+                  if (_quote == null && !_account!.canQuote)
+                    BillsSection(
+                      title: 'NOT CONNECTED YET',
+                      child: BillsEmptyNote(
+                        icon: HugeIconsSolid.invoice01,
+                        text:
+                            'This reference is saved, but '
+                            '${_account!.billerName} has no price lookup '
+                            'connected yet. Nothing can be paid here, and '
+                            'nothing has been charged.',
+                      ),
+                    )
+                  else if (_quote == null)
                     BillsSection(
                       title: 'AMOUNT',
                       subtitle:

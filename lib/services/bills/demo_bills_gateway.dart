@@ -129,6 +129,30 @@ class DemoBillsGateway implements BillsGateway {
   }
 
   @override
+  Future<SavedBillAccount> updateAccount({
+    required String accountId,
+    String? alias,
+    bool? isPrimary,
+  }) async {
+    final existing = _accounts.firstWhere((a) => a.id == accountId);
+    final updated = SavedBillAccount(
+      id: existing.id,
+      billerId: existing.billerId,
+      billerName: existing.billerName,
+      categoryId: existing.categoryId,
+      identifierMasked: existing.identifierMasked,
+      holderName: existing.holderName,
+      verificationStatus: existing.verificationStatus,
+      alias: alias ?? existing.alias,
+      canQuote: existing.canQuote,
+      canPay: existing.canPay,
+      isPrimary: isPrimary ?? existing.isPrimary,
+    );
+    _accounts[_accounts.indexWhere((a) => a.id == accountId)] = updated;
+    return updated;
+  }
+
+  @override
   Future<void> removeAccount(String accountId) async {
     _accounts.removeWhere((a) => a.id == accountId);
   }
