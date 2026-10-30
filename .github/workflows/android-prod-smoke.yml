@@ -100,8 +100,8 @@ jobs:
               c.get("client_info", {}).get("android_client_info", {}).get("package_name")
               for c in clients
           }
-          assert "com.example.azaman" in package_names, (
-              f"Firebase config does not contain com.example.azaman; got {sorted(package_names)}"
+          assert "com.azaman.app" in package_names, (
+              f"Firebase config does not contain com.azaman.app; got {sorted(package_names)}"
           )
           PY
 
