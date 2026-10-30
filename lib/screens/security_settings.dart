@@ -11,6 +11,11 @@ import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
+/// The security screen's single HTTP client. Injectable because the false
+/// states this screen used to report (a PIN "removed", 2FA "enabled" the moment
+/// a secret was minted) are only provable by driving real responses.
+final securityApiClientProvider = Provider<ApiClient>((ref) => ApiClient());
+
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
   const SecuritySettingsScreen({super.key});
 
@@ -22,6 +27,10 @@ class SecuritySettingsScreen extends ConsumerStatefulWidget {
 class _SecuritySettingsScreenState
     extends ConsumerState<SecuritySettingsScreen> {
   bool _twoFactorEnabled = false;
+  /// A secret has been minted and the QR is on screen, but NO code has been
+  /// confirmed yet. The authenticator is not protecting anything at this
+  /// point, so this must never read as "enabled".
+  bool _twoFactorPending = false;
   bool _showQrSetup = false;
   final _verificationCodeController = TextEditingController();
   final _pinController = TextEditingController();
@@ -36,6 +45,9 @@ class _SecuritySettingsScreenState
   bool _obscurePinConfirm = true;
   bool _loading2fa = false;
   bool _loadingPin = false;
+
+  /// The code typed into the turn-off-2FA dialog.
+  final TextEditingController _disableCodeController = TextEditingController();
 
   String _qrData = '';
   String _secret = '';
@@ -149,6 +161,7 @@ class _SecuritySettingsScreenState
     _verificationCodeController.dispose();
     _pinController.dispose();
     _pinConfirmController.dispose();
+    _disableCodeController.dispose();
     super.dispose();
   }
 
@@ -160,13 +173,16 @@ class _SecuritySettingsScreenState
       });
       final token = ref.read(authProvider).user?.token;
       try {
-        final apiClient = ApiClient();
+        final apiClient = ref.read(securityApiClientProvider);
         final res = await apiClient.post('/security/2fa/setup', {});
         if (res.statusCode == 200 || res.statusCode == 201) {
           final body = jsonDecode(res.body);
           final data = body['data'] ?? body;
           setState(() {
-            _twoFactorEnabled = true;
+            // A secret exists; nothing is enabled until the server confirms a
+            // code from it. Showing "on" here was the defect.
+            _twoFactorEnabled = false;
+            _twoFactorPending = true;
             _showQrSetup = true;
             _qrData = data['qrCodeDataURL'] ?? data['otpauthUrl'] ?? '';
             _secret = data['secret'] ?? '';
@@ -192,41 +208,119 @@ class _SecuritySettingsScreenState
         if (mounted) setState(() => _loading2fa = false);
       }
     } else {
-      // Disable: show code input to confirm disable
-      setState(() {
-        _twoFactorEnabled = false;
-        _showQrSetup = false;
-        _verificationCodeController.clear();
-      });
-      _disable2fa();
+      // Turning protection OFF needs proof, and the switch must not move until
+      // the server agrees. Flipping it first meant a member could walk away
+      // believing 2FA was off while the backend still required it.
+      await _confirmDisable2fa();
+      return;
     }
     HapticFeedback.mediumImpact();
   }
 
-  Future<void> _disable2fa() async {
-    final code = _verificationCodeController.text.trim();
+  /// Ask for the current code, then disable. The switch only moves after the
+  /// server confirms; a refusal leaves protection ON and says why. Every branch
+  /// here used to end in silence, which is the worst possible outcome for a
+  /// security switch.
+  Future<void> _confirmDisable2fa() async {
+    // Owned by the State, not by this call: disposing it when showDialog
+    // returns tears the controller out from under the dialog's own exit
+    // animation, which throws "used after being disposed".
+    final controller = _disableCodeController..clear();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final colors = ref.read(themeProvider).colors;
+        return AlertDialog(
+          backgroundColor: colors.surface,
+          title: Text(
+            'Turn off two-factor authentication?',
+            style: TextStyle(color: colors.textPrimary),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            decoration: const InputDecoration(
+              counterText: '',
+              hintText: '6-digit code',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Turn off'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted || code == null) return;
+    await _disable2fa(code);
+  }
+
+  Future<void> _disable2fa(String code) async {
     if (code.length != 6) {
-      // Just toggle off the UI; they'll need to verify next time
+      _securityNotice('Enter the 6-digit code from your authenticator', false);
       return;
     }
-    final token = ref.read(authProvider).user?.token;
+    setState(() => _loading2fa = true);
     try {
-      final apiClient = ApiClient();
+      final apiClient = ref.read(securityApiClientProvider);
       final res = await apiClient.post('/security/2fa/disable', {
         'token': code,
       });
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('2FA disabled successfully'),
-            backgroundColor: ref.read(themeProvider).colors.warning,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        // Confirmed off by the server — only now does the switch move.
+        setState(() {
+          _twoFactorEnabled = false;
+          _twoFactorPending = false;
+          _showQrSetup = false;
+          _verificationCodeController.clear();
+        });
+        _securityNotice('Two-factor authentication is off', false);
+      } else {
+        _securityNotice(_serverMessage(res, 'Could not turn off 2FA'), true);
       }
-    } catch (e) {
-      debugPrint('Disable 2FA error: $e');
+    } on ApiException catch (e) {
+      // The client raises on non-2xx, so a refusal arrives here, not as a
+      // status code. Its message is the server's own reason — the member is
+      // told why the code was rejected AND that protection is still on.
+      _securityNotice(e.message, true);
+    } catch (_) {
+      _securityNotice('Could not reach Azaman. 2FA is still on.', true);
+    } finally {
+      if (mounted) setState(() => _loading2fa = false);
     }
+  }
+
+  /// The server's own message, or a truthful fallback. Never a guessed one.
+  String _serverMessage(dynamic res, String fallback) {
+    try {
+      final body = jsonDecode(res.body);
+      final message = body['message'] ?? body['error'];
+      if (message is String && message.trim().isNotEmpty) return message;
+    } catch (_) {
+      // Non-JSON error body: the fallback is the honest answer.
+    }
+    return fallback;
+  }
+
+  void _securityNotice(String message, bool isError) {
+    if (!mounted) return;
+    final colors = ref.read(themeProvider).colors;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? colors.danger : colors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _verifyCode() async {
@@ -246,19 +340,19 @@ class _SecuritySettingsScreenState
     final token = ref.read(authProvider).user?.token;
 
     try {
-      final apiClient = ApiClient();
+      final apiClient = ref.read(securityApiClientProvider);
       final res = await apiClient.post('/security/2fa/verify', {'token': code});
 
       if (res.statusCode == 200) {
         HapticFeedback.heavyImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('2FA enabled successfully'),
-            backgroundColor: ref.read(themeProvider).colors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        setState(() => _showQrSetup = false);
+        _securityNotice('Two-factor authentication is on', false);
+        setState(() {
+          _showQrSetup = false;
+          _twoFactorPending = false;
+          // Enabled, because the SERVER confirmed a code from the secret.
+          _twoFactorEnabled = true;
+          _verificationCodeController.clear();
+        });
       } else {
         final errBody = jsonDecode(res.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -312,7 +406,7 @@ class _SecuritySettingsScreenState
     final token = ref.read(authProvider).user?.token;
 
     try {
-      final apiClient = ApiClient();
+      final apiClient = ref.read(securityApiClientProvider);
       final res = await apiClient.post('/security/pin/set', {'pin': pin});
 
       if (res.statusCode == 200 || res.statusCode == 201) {
@@ -348,19 +442,6 @@ class _SecuritySettingsScreenState
     } finally {
       if (mounted) setState(() => _loadingPin = false);
     }
-  }
-
-  void _removePin() {
-    setState(() => _pinSet = false);
-    HapticFeedback.mediumImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Azaman PIN removed'),
-        backgroundColor: ref.read(themeProvider).colors.warning,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    // Note: backend PIN removal could be wired here if endpoint exists
   }
 
   @override
@@ -613,14 +694,41 @@ class _SecuritySettingsScreenState
                 colors,
                 icon: Icons.security,
                 title: 'Google Authenticator',
-                subtitle: 'Add an extra layer of security',
+                subtitle: _twoFactorEnabled
+                    ? 'On — a code is required when you sign in'
+                    : _twoFactorPending
+                    ? 'Not enabled yet — confirm a code below'
+                    : 'Add an extra layer of security',
                 value: _twoFactorEnabled,
-                onChanged: _onToggle2fa,
+                onChanged: _loading2fa ? null : _onToggle2fa,
               ),
-              if (_twoFactorEnabled && _showQrSetup) ...[
+              if (_showQrSetup && !_twoFactorEnabled) ...[
                 const SizedBox(height: 4),
                 Divider(color: colors.divider, height: 1),
                 const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: colors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        // No claim of protection until a code lands.
+                        'Two-factor authentication is not on yet. It turns on '
+                        'when you confirm a code from this secret.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(16),
@@ -761,7 +869,9 @@ class _SecuritySettingsScreenState
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _savePin,
+                    // A second tap while the first is still in flight would
+                    // be a second write of the same secret.
+                    onPressed: _loadingPin ? null : _savePin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
                       foregroundColor: colors.isDark
@@ -773,7 +883,7 @@ class _SecuritySettingsScreenState
                       elevation: 0,
                     ),
                     child: Text(
-                      'Set PIN',
+                      _loadingPin ? 'Saving…' : 'Set PIN',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -822,15 +932,16 @@ class _SecuritySettingsScreenState
                         ],
                       ),
                     ),
-                    TextButton(
-                      onPressed: _removePin,
-                      child: Text(
-                        'Remove',
-                        style: TextStyle(
-                          color: colors.danger,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
+                    // There is no removal endpoint on the security surface
+                    // (only /security/pin/set and /pin/verify), so this tile
+                    // must not offer a "Remove" that only edits a local flag.
+                    // Changing the PIN is real; removing it is not available.
+                    Text(
+                      'Change it above',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
                       ),
                     ),
                   ],
