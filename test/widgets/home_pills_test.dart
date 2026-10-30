@@ -12,6 +12,7 @@
 // The harness mirrors the previous NEW-D home tests: an inert AuthProvider
 // (user null → greeting degrades to "there"), zeroed unread count, stubbed
 // balance/oracle, and the real app theme with the Inter face loaded.
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -63,6 +64,9 @@ Future<ProviderContainer> _pumpHome(
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
+      // These suites are about the card itself, so money is unlocked; the
+      // privacy gate has its own suites and stays locked by default.
+      unlockedMoneyAccess(),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
         (ref) => const BalanceData(availableBalance: 100),

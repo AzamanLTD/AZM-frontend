@@ -39,7 +39,9 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/home/home_persistent_header.dart';
+import 'package:azaman/widgets/home/balance_card_pair.dart';
 import 'package:azaman/widgets/home/home_balance_card.dart';
+import 'package:azaman/widgets/home/money_lock_surface.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
@@ -726,7 +728,14 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: AzSpace.lg,
                                       ),
-                                      child: _DeckHost(key: _deckKey),
+                                      // The card deck is money: while the local
+                                      // gate is locked the deck is REPLACED, never
+                                      // blurred, and keeps its 180dp footprint so
+                                      // the measured doorway below cannot shift.
+                                      child: MoneyLockGate(
+                                        height: BalanceCardGeometry.height,
+                                        child: _DeckHost(key: _deckKey),
+                                      ),
                                     ),
                                     reduceMotion,
                                   ),

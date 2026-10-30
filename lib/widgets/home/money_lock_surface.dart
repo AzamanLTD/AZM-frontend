@@ -119,6 +119,7 @@ class MoneyLockGate extends ConsumerWidget {
     this.compact = false,
     this.message,
     this.hint,
+    this.height,
   });
 
   final Widget child;
@@ -126,14 +127,21 @@ class MoneyLockGate extends ConsumerWidget {
   final String? message;
   final String? hint;
 
+  /// Optional fixed height for the locked replacement. Surfaces that have a
+  /// size contract of their own (the 180dp balance deck) pass it so the gate
+  /// never collapses layout while locked.
+  final double? height;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final access = ref.watch(moneyAccessProvider);
     if (access.canViewMoney) return child;
-    return LockedMoneySurface(
+    final locked = LockedMoneySurface(
       compact: compact,
       message: message ?? 'Your money is locked',
       hint: hint ?? 'Tap the Azaman button below to unlock.',
     );
+    if (height == null) return locked;
+    return SizedBox(height: height, child: locked);
   }
 }

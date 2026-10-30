@@ -23,6 +23,7 @@
 //      with truthful copy: no success state, no endpoint, no mutation.
 // =============================================================================
 
+import '../support/money_access_test_support.dart';
 import 'dart:async';
 
 import 'package:azaman/providers/auth_provider.dart';
@@ -117,6 +118,9 @@ ProviderContainer _container({AzmCardProgramme? programme}) {
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
+      // These suites are about the card itself, so money is unlocked; the
+      // privacy gate has its own suites and stays locked by default.
+      unlockedMoneyAccess(),
       balanceDataProvider.overrideWith(
         (ref) => const BalanceData(availableBalance: 100),
       ),

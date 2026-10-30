@@ -25,6 +25,7 @@
 // composer are gated by their own §13/§14/§16 suites; this gate pins
 // the Home composition they all sit alongside.
 
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -166,6 +167,9 @@ Future<void> _pumpHome(
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
+      // These suites are about the card itself, so money is unlocked; the
+      // privacy gate has its own suites and stays locked by default.
+      unlockedMoneyAccess(),
       transactionHistoryProvider.overrideWith((ref) => history),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
