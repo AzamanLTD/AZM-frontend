@@ -60,6 +60,8 @@ import 'package:azaman/screens/wallet/convert_screen.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/services/business_service.dart';
 
+import '../support/money_access_test_support.dart';
+
 bool _fontsLoaded = false;
 
 Future<void> _loadFonts() async {
@@ -114,6 +116,10 @@ Future<void> _pumpRealApp(WidgetTester tester) async {
       ),
       oracleRateProvider.overrideWith((ref) => 1.0),
       businessSearchProvider.overrideWith((ref) => _InertSearchNotifier()),
+      // These journeys push money destinations (Send, Convert) and assert the
+      // member STAYS on them; the money gate has its own suites, so start
+      // these from an unlocked session rather than proxying the gate's state.
+      unlockedMoneyAccess(),
     ],
   );
   addTearDown(container.dispose);

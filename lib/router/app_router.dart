@@ -138,6 +138,7 @@ import 'package:azaman/router/top_route_observer.dart';
 import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/widgets/home/activity_actions.dart'
     show ActivityRecipient;
+import 'package:azaman/widgets/home/money_route_guard.dart';
 
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
@@ -341,7 +342,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const AccountActivityScreen(),
+        child: const MoneyRouteGuard(
+          message: 'Your activity is locked',
+          child: AccountActivityScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -459,7 +463,7 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const PaymentRequestsScreen(),
+        child: const MoneyRouteGuard(child: PaymentRequestsScreen()),
       ),
     ),
     GoRoute(
@@ -468,8 +472,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: PaymentRequestLandingScreen(
-          token: state.pathParameters['token']!,
+        child: MoneyRouteGuard(
+          child: PaymentRequestLandingScreen(
+            token: state.pathParameters['token']!,
+          ),
         ),
       ),
     ),
@@ -481,7 +487,12 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const ReceiveScreen(),
+        // Money initiation: a deep link must not compose a receipt while
+        // the gate is shut.
+        child: const MoneyRouteGuard(
+          message: 'Your money is locked',
+          child: ReceiveScreen(),
+        ),
       ),
     ),
 
@@ -499,14 +510,16 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: DepositScreen(
-          // §C continuation — the notification centre's Resume pushes the
-          // canonical route with the draft's editable inputs as extra.
-          restoredDraft: state.extra is Map<String, dynamic>
-              ? state.extra as Map<String, dynamic>
-              : null,
-          prefillAmount: state.uri.queryParameters['amount'],
-          memo: state.uri.queryParameters['memo'],
+        child: MoneyRouteGuard(
+          child: DepositScreen(
+            // §C continuation — the notification centre's Resume pushes the
+            // canonical route with the draft's editable inputs as extra.
+            restoredDraft: state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null,
+            prefillAmount: state.uri.queryParameters['amount'],
+            memo: state.uri.queryParameters['memo'],
+          ),
         ),
       ),
     ),
@@ -524,18 +537,20 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: SendMoneyScreen(
-          initialRecipient: state.uri.queryParameters['to'] == null
-              ? null
-              : ActivityRecipient(
-                  azamanId: state.uri.queryParameters['to']!,
-                  displayName: state.uri.queryParameters['name'] ?? '',
-                ),
-          // §C continuation — the notification centre's Resume pushes the
-          // canonical route with the draft's editable inputs as extra.
-          restoredDraft: state.extra is Map<String, dynamic>
-              ? state.extra as Map<String, dynamic>
-              : null,
+        child: MoneyRouteGuard(
+          child: SendMoneyScreen(
+            initialRecipient: state.uri.queryParameters['to'] == null
+                ? null
+                : ActivityRecipient(
+                    azamanId: state.uri.queryParameters['to']!,
+                    displayName: state.uri.queryParameters['name'] ?? '',
+                  ),
+            // §C continuation — the notification centre's Resume pushes the
+            // canonical route with the draft's editable inputs as extra.
+            restoredDraft: state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null,
+          ),
         ),
       ),
     ),
@@ -550,12 +565,14 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: WithdrawalScreen(
-          // §C continuation — editable draft inputs from the
-          // notification centre's Resume.
-          restoredDraft: state.extra is Map<String, dynamic>
-              ? state.extra as Map<String, dynamic>
-              : null,
+        child: MoneyRouteGuard(
+          child: WithdrawalScreen(
+            // §C continuation — editable draft inputs from the
+            // notification centre's Resume.
+            restoredDraft: state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null,
+          ),
         ),
       ),
     ),
@@ -570,12 +587,14 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: ConvertScreen(
-          // §C continuation — the notification centre's Resume pushes
-          // the canonical route with the draft's editable inputs as extra.
-          restoredDraft: state.extra is Map<String, dynamic>
-              ? state.extra as Map<String, dynamic>
-              : null,
+        child: MoneyRouteGuard(
+          child: ConvertScreen(
+            // §C continuation — the notification centre's Resume pushes
+            // the canonical route with the draft's editable inputs as extra.
+            restoredDraft: state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null,
+          ),
         ),
       ),
     ),
@@ -589,7 +608,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const CardTransferScreen(),
+        child: const MoneyRouteGuard(
+          message: 'Your money is locked',
+          child: CardTransferScreen(),
+        ),
       ),
     ),
 
