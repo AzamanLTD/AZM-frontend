@@ -156,76 +156,119 @@ class HomeActionBubble extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
 
-    Widget backdrop(bool recessed) {
-      // Same rim vocabulary as the pills: tertiary ink, softened for the
-      // settled state. The CIRCLE is the only container treatment.
-      final ink = colors.textTertiary;
-      final rim = recessed ? ink.withValues(alpha: ink.a * 0.55) : ink;
+    // THE BUBBLE (owner, 2026-10-30): a genuinely ROUND bubble carrying a soft
+    // light, not a tall capsule. Owner direction supersedes the earlier
+    // flat-only treatment: a restrained glassy sheen and a gentle lift are
+    // wanted, still nothing loud — no blur, no big glow, no particles.
+    Widget bubble(bool recessed) {
+      final accent = colors.accent;
+      final rim = colors.textTertiary.withValues(alpha: recessed ? 0.42 : 0.78);
       return DecoratedBox(
         key: ValueKey<bool>(recessed),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
+          // Reads as a sphere: light-facing tint at the top-left falling away
+          // to almost nothing at the bottom-right.
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              accent.withValues(alpha: recessed ? 0.07 : 0.13),
+              accent.withValues(alpha: 0.02),
+              accent.withValues(alpha: recessed ? 0.01 : 0.03),
+            ],
+            stops: const [0.0, 0.55, 1.0],
+          ),
           border: Border.all(color: rim, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: recessed ? 0.06 : 0.11),
+              blurRadius: 12,
+              spreadRadius: -2,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: const SizedBox.expand(),
       );
     }
 
+    Widget specular(bool recessed) => Align(
+      alignment: const Alignment(-0.42, -0.55),
+      child: FractionallySizedBox(
+        widthFactor: 0.42,
+        heightFactor: 0.26,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                Colors.white.withValues(alpha: recessed ? 0.16 : 0.26),
+                Colors.white.withValues(alpha: 0.0),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final diameter = width.clamp(56.0, 72.0);
+        // A circle, always. The diameter is CAPPED so a wide slot cannot
+        // stretch it, and the box is SQUARE and fixed so nothing below can
+        // inflate it vertically (that is what made them look tall).
+        final diameter = constraints.maxWidth.clamp(52.0, 60.0);
 
-        final content = SizedBox(
-          width: diameter,
-          height: diameter,
-          child: Center(
-            child: Padding(
-              // Keeps the pair off the rim at 1.6x text.
-              padding: EdgeInsets.symmetric(horizontal: diameter * 0.13),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      icon,
-                      size: diameter * 0.30,
-                      color: colors.mutedAccent,
+        final content = Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: diameter * 0.14),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: diameter * 0.30, color: colors.mutedAccent),
+                  SizedBox(height: diameter * 0.04),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    style: AzText.caption.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                      height: 1.05,
+                      letterSpacing: 0.2,
                     ),
-                    SizedBox(height: diameter * 0.045),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      style: AzText.caption.copyWith(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w800,
-                        height: 1.05,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         );
 
-        return ScaleTap(
-          onTap: () {
-            QuietDepthScope.maybeOf(context)?.wake();
-            onTap();
-          },
-          child: QuietDepthSurface(
-            content: Center(
-              // Guarantees the 48dp floor even if a future circle shrinks.
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                child: content,
+        // The widget must CLAIM only the circle's height. A bare Center
+        // fills its slot (a Column gives it the viewport height), which is
+        // exactly what made the row tall and the bubbles look stretched.
+        return SizedBox(
+          height: diameter,
+          child: Center(
+            child: SizedBox(
+              width: diameter,
+              height: diameter,
+              child: ScaleTap(
+                onTap: () {
+                  QuietDepthScope.maybeOf(context)?.wake();
+                  onTap();
+                },
+                child: QuietDepthSurface(
+                  content: content,
+                  backdrop: (context, recessed) => Stack(
+                    fit: StackFit.expand,
+                    children: [bubble(recessed), specular(recessed)],
+                  ),
+                ),
               ),
             ),
-            backdrop: (context, recessed) => backdrop(recessed),
           ),
         );
       },

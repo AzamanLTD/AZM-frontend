@@ -161,7 +161,7 @@ void main() {
     }
   });
 
-  testWidgets('the bubble is a circle with a hairline rim, not a raised body', (
+  testWidgets('each control is a ROUND bubble with a light on it', (
     tester,
   ) async {
     await tester.pumpWidget(_host(router: _router(<String>[])));
@@ -176,13 +176,56 @@ void main() {
         .whereType<BoxDecoration>()
         .where((d) => d.shape == BoxShape.circle)
         .toList();
-    expect(circles, isNotEmpty, reason: 'the rim must be circular');
-    for (final d in circles) {
-      expect(d.border, isNotNull);
-      expect(d.color, isNull, reason: 'flat: no filled body');
-      expect(d.gradient, isNull, reason: 'flat: no gradient');
-      expect(d.boxShadow, anyOf(isNull, isEmpty), reason: 'no shadow');
+    expect(circles, isNotEmpty, reason: 'the bubble must be circular');
+    final rimmed = circles.where((d) => d.border != null).toList();
+    expect(rimmed, isNotEmpty, reason: 'a bubble has a rim');
+    expect(
+      rimmed.any((d) => d.gradient is LinearGradient),
+      isTrue,
+      reason: 'the owner asked for a light sheen on the bubble body',
+    );
+    for (final d in rimmed) {
+      // Restrained, not a glow bomb: a short soft lift at most.
+      for (final shadow in d.boxShadow ?? const <BoxShadow>[]) {
+        expect(shadow.blurRadius, lessThanOrEqualTo(16));
+        expect(shadow.offset.dy.abs(), lessThanOrEqualTo(6));
+      }
     }
+
+    // The specular highlight is what sells the bubble.
+    final specular = tester
+        .widgetList<DecoratedBox>(
+          find.descendant(of: bubble, matching: find.byType(DecoratedBox)),
+        )
+        .map((d) => d.decoration)
+        .whereType<BoxDecoration>()
+        .where((d) => d.gradient is RadialGradient)
+        .length;
+    expect(
+      specular,
+      greaterThanOrEqualTo(1),
+      reason: 'no specular highlight found',
+    );
+
+    // And it is ROUND, not an ellipse, and not blown up to the slot width:
+    // the painted circle is square and capped.
+    final circleFinder = find
+        .descendant(of: bubble, matching: find.byType(DecoratedBox))
+        .at(0);
+    final painted = tester.getRect(circleFinder);
+    expect(
+      (painted.width - painted.height).abs(),
+      lessThanOrEqualTo(1.0),
+      reason:
+          'the bubble must be a circle, not an ellipse '
+          '(${painted.width}x${painted.height})',
+    );
+    expect(
+      painted.width,
+      lessThanOrEqualTo(64.0),
+      reason: 'the bubble must not stretch to fill its slot',
+    );
+    expect(tester.getRect(bubble).height, greaterThanOrEqualTo(48.0));
   });
 
   for (final width in <double>[320, 360, 390]) {

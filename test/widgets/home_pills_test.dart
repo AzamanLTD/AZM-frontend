@@ -153,50 +153,51 @@ void main() {
   // crisp 1px rim as the ONLY container treatment. The quiet-depth
   // wake survives as rim strength, never a raised body.
 
-  void expectFlatBorderOnlyPill(WidgetTester tester, Finder pill) {
-    // The pill subtree must contain NOTHING that paints a body.
+  // OWNER DIRECTION (2026-10-30): the quick actions are now ROUND BUBBLES
+  // carrying a soft light. The old "flat, border only, no gradient, no shadow"
+  // contract is superseded for this row by that instruction — what survives is
+  // the restraint: no backdrop blur (that would be a glass body), and any
+  // shadow stays short and soft rather than a glow bomb.
+  void expectBubbleSurface(WidgetTester tester, Finder bubble) {
     expect(
-      find.descendant(of: pill, matching: find.byType(BackdropFilter)),
+      find.descendant(of: bubble, matching: find.byType(BackdropFilter)),
       findsNothing,
-      reason:
-          'backdrop blur is a raised/glass body treatment — the '
-          'settled quick actions are flat',
+      reason: 'backdrop blur would be a glass body',
     );
 
     final boxes = tester
         .widgetList<DecoratedBox>(
-          find.descendant(of: pill, matching: find.byType(DecoratedBox)),
+          find.descendant(of: bubble, matching: find.byType(DecoratedBox)),
         )
         .where((d) => d.decoration is BoxDecoration)
         .map((d) => d.decoration as BoxDecoration)
         .toList(growable: false);
 
-    for (final b in boxes) {
-      expect(
-        b.color,
-        anyOf(isNull, isA<Color>().having((c) => c.a, 'a', 0)),
-        reason:
-            'a pill decoration paints a body fill — the settled '
-            'body must visually disappear into the page',
-      );
-      expect(b.gradient, isNull, reason: 'gradients read as a raised body');
-      expect(
-        b.boxShadow,
-        anyOf(isNull, isEmpty),
-        reason:
-            'shadows are an elevation effect — forbidden on the '
-            'settled quick actions',
-      );
-    }
-
-    // Border-only container: the rim exists and is the ONLY container
-    // treatment. (BoxDecoration.border, no fill, no shadow — above.)
-    final rimmed = boxes.where((b) => b.border != null).toList(growable: false);
+    final rimmed = boxes.where((b) => b.border != null).toList();
+    expect(rimmed, isNotEmpty, reason: 'a bubble keeps its rim');
     expect(
-      rimmed,
-      isNotEmpty,
-      reason: 'the outline IS the container treatment — it must exist',
+      rimmed.any((b) => b.gradient != null),
+      isTrue,
+      reason: 'the owner asked for a light sheen on the bubble',
     );
+    for (final b in boxes) {
+      for (final shadow in b.boxShadow ?? const <BoxShadow>[]) {
+        expect(
+          shadow.blurRadius,
+          lessThanOrEqualTo(16),
+          reason: 'the lift stays soft',
+        );
+        expect(shadow.offset.dy.abs(), lessThanOrEqualTo(6));
+        expect(shadow.spreadRadius, lessThanOrEqualTo(0));
+      }
+      if (b.color != null) {
+        expect(
+          b.color!.a,
+          lessThan(0.35),
+          reason: 'no opaque body fill — the page still shows through',
+        );
+      }
+    }
   }
 
   testWidgets('flat contract — light settled pills are BORDER-ONLY in both '
@@ -211,7 +212,7 @@ void main() {
     ]) {
       final pill = find.byKey(ValueKey(key));
       expect(pill, findsOneWidget);
-      expectFlatBorderOnlyPill(tester, pill);
+      expectBubbleSurface(tester, pill);
 
       // The woken rim: crisp full-strength tertiary ink.
       final raisedRim =
@@ -230,8 +231,8 @@ void main() {
               as Border;
       expect(
         raisedRim.top.color.a,
-        greaterThan(0.9),
-        reason: 'the woken rim must be crisp (full tertiary ink)',
+        greaterThan(0.7),
+        reason: 'the woken bubble rim is the crisper of the two states',
       );
     }
 
@@ -244,7 +245,7 @@ void main() {
       'wallet-module-susu',
     ]) {
       final pill = find.byKey(ValueKey(key));
-      expectFlatBorderOnlyPill(tester, pill);
+      expectBubbleSurface(tester, pill);
       final recessedRim =
           tester
                   .widgetList<DecoratedBox>(
@@ -261,7 +262,7 @@ void main() {
               as Border;
       expect(
         recessedRim.top.color.a,
-        lessThan(0.8),
+        lessThan(0.6),
         reason: 'the settled rim is the whisper hairline',
       );
     }
@@ -278,7 +279,7 @@ void main() {
       expect(pill, findsOneWidget);
       // Glass = BackdropFilter + PremiumGlassContainer — BOTH must be
       // gone from the dark pills too.
-      expectFlatBorderOnlyPill(tester, pill);
+      expectBubbleSurface(tester, pill);
       expect(
         find.descendant(of: pill, matching: find.byType(PremiumGlassContainer)),
         findsNothing,
@@ -292,7 +293,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     for (final key in ['wallet-module-save', 'wallet-module-p2p']) {
       final pill = find.byKey(ValueKey(key));
-      expectFlatBorderOnlyPill(tester, pill);
+      expectBubbleSurface(tester, pill);
     }
   });
 }

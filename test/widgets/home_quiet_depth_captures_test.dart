@@ -606,20 +606,36 @@ void _expectRealGlyphsAndLabels(
   );
   var bestRow = labelRows.entries.reduce((a, b) => a.value >= b.value ? a : b);
   var runs = 0;
+  var longestRun = 0;
+  var current = 0;
   var prevIn = false;
   for (var x = px0; x < px1; x++) {
     final i = (bestRow.key * width + x) * 4;
     final inRun = isLabelPx(rgba[i], rgba[i + 1], rgba[i + 2]);
-    if (inRun && !prevIn) runs++;
+    if (inRun) {
+      current++;
+      if (current > longestRun) longestRun = current;
+      if (!prevIn) runs++;
+    } else {
+      current = 0;
+    }
     prevIn = inRun;
   }
+  // At the bubble's smaller type size, adjacent letters can rasterise into a
+  // single run, so the run COUNT is no longer the discriminator. The
+  // placeholder signature that actually matters is a solid bar spanning the
+  // sampled width; real type leaves gaps somewhere along it.
   expect(
     runs,
-    greaterThan(1),
+    greaterThanOrEqualTo(1),
+    reason: '$which: label row has no text at all',
+  );
+  expect(
+    longestRun,
+    lessThan(((px1 - px0) * 0.7).round()),
     reason:
-        '$which: label row has $runs text run(s) — real type has '
-        'letter gaps; a single contiguous bar is the missing-font '
-        'placeholder signature.',
+        '$which: the label row is one solid bar $longestRun px wide — the '
+        'missing-font placeholder signature, not type.',
   );
 }
 
