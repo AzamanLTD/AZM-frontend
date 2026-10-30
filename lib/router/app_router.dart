@@ -625,9 +625,15 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const BubbleMorphDestination(
-          tag: BubbleMorphTag.susu,
-          child: SusuHubScreen(),
+        // A Susu hub is a list of groups with money in them. The morph keeps
+        // its source/destination tags inside the guard so the bubble still
+        // opens into the page once the gate is open.
+        child: const MoneyRouteGuard(
+          message: 'Your Susu money is locked',
+          child: BubbleMorphDestination(
+            tag: BubbleMorphTag.susu,
+            child: SusuHubScreen(),
+          ),
         ),
       ),
     ),
@@ -649,16 +655,20 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/susu/:id',
       name: AzRouteNames.susuDetail,
-      builder: (context, state) => BubbleMorphDestination(
-        tag: BubbleMorphTag.susu,
-        child: SusuDashboardScreen(susuId: state.pathParameters['id']!),
+      builder: (context, state) => MoneyRouteGuard(
+        message: 'Your Susu money is locked',
+        child: BubbleMorphDestination(
+          tag: BubbleMorphTag.susu,
+          child: SusuDashboardScreen(susuId: state.pathParameters['id']!),
+        ),
       ),
     ),
     GoRoute(
       path: '/susu/:id/contract',
       name: AzRouteNames.susuContract,
-      builder: (context, state) =>
-          LiabilityAcceptanceScreen(susuId: state.pathParameters['id']!),
+      builder: (context, state) => MoneyRouteGuard(
+        child: LiabilityAcceptanceScreen(susuId: state.pathParameters['id']!),
+      ),
     ),
 
     // ── V3 Premium Marketplace (2026-06-21) ─────────────────────────────────
