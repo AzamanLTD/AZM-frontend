@@ -442,7 +442,13 @@ GoRouter _buildAppRouter() => GoRouter(
         restorationId: state.name,
         child: const BubbleMorphDestination(
           tag: BubbleMorphTag.bills,
-          child: BillsHomeScreen(),
+          // Bills is a money surface: saved accounts, holder names, receipts
+          // and the pay composer all live behind it. A deep link or a
+          // notification tap must not open it while the member is locked.
+          child: const MoneyRouteGuard(
+            child: BillsHomeScreen(),
+            message: 'Your bills are locked',
+          ),
         ),
       ),
       routes: [
@@ -455,8 +461,11 @@ GoRouter _buildAppRouter() => GoRouter(
           pageBuilder: (context, state) => traversePage(
             key: state.pageKey,
             restorationId: state.name,
-            child: BillsAddAccountScreen(
-              categoryId: state.uri.queryParameters['category'],
+            child: MoneyRouteGuard(
+              message: 'Your bills are locked',
+              child: BillsAddAccountScreen(
+                categoryId: state.uri.queryParameters['category'],
+              ),
             ),
           ),
         ),
@@ -466,8 +475,11 @@ GoRouter _buildAppRouter() => GoRouter(
           pageBuilder: (context, state) => traversePage(
             key: state.pageKey,
             restorationId: state.name,
-            child: BillsPayScreen(
-              accountId: state.pathParameters['accountId']!,
+            child: MoneyRouteGuard(
+              message: 'Your bills are locked',
+              child: BillsPayScreen(
+                accountId: state.pathParameters['accountId']!,
+              ),
             ),
           ),
         ),
@@ -477,7 +489,10 @@ GoRouter _buildAppRouter() => GoRouter(
           pageBuilder: (context, state) => traversePage(
             key: state.pageKey,
             restorationId: state.name,
-            child: const BillsRequestScreen(),
+            child: const MoneyRouteGuard(
+              message: 'Your bills are locked',
+              child: BillsRequestScreen(),
+            ),
           ),
         ),
         GoRoute(
@@ -486,8 +501,11 @@ GoRouter _buildAppRouter() => GoRouter(
           pageBuilder: (context, state) => traversePage(
             key: state.pageKey,
             restorationId: state.name,
-            child: BillsRequestScreen(
-              requestId: state.pathParameters['requestId'],
+            child: MoneyRouteGuard(
+              message: 'Your bills are locked',
+              child: BillsRequestScreen(
+                requestId: state.pathParameters['requestId'],
+              ),
             ),
           ),
         ),
