@@ -20,11 +20,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/balance_card_valuation_provider.dart';
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/balance_card_pair.dart';
 import 'package:azaman/widgets/home/balance_card_selector.dart';
 import 'package:azaman/widgets/home/large_text_deck_sheet.dart'
     show LargeTextDeckButton;
+import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
+import 'package:azaman/widgets/home/money_privacy.dart';
 
 class HomeBalanceCard extends ConsumerStatefulWidget {
   const HomeBalanceCard({super.key});
@@ -76,6 +79,15 @@ class _HomeBalanceCardState extends ConsumerState<HomeBalanceCard> {
   Widget build(BuildContext context) {
     final valuation = ref.watch(balanceCardValuationProvider);
     final theme = ref.watch(themeProvider);
+    // THE GATE, INSIDE THE CARD (owner requirement 2026-10-30): the deck stays
+    // exactly where it is — same pouch, same artwork, same 180dp geometry.
+    // What locks is the money: the figures mask, the flip and the selector
+    // refuse, and the large-text sheet (which would print the balance) is not
+    // mounted at all.
+    final canViewMoney = ref.watch(moneyAccessProvider).canViewMoney;
+    final visibility = canViewMoney
+        ? MoneyVisibility.visible
+        : MoneyVisibility.redacted;
     final colors = theme.colors;
     final variant = theme.cardVariant;
 
@@ -89,22 +101,28 @@ class _HomeBalanceCardState extends ConsumerState<HomeBalanceCard> {
           colors: colors,
           variant: variant,
           flipGuard: _flipGuard,
-          onCardLongPress: _openSelector,
+          onCardLongPress: canViewMoney ? _openSelector : null,
+          visibility: visibility,
+          onBlockedInteraction: () {
+            blockedMoneyAccessFeedback(ref);
+            showMoneyLockedHint(context);
+          },
         ),
-        // LARGE-TEXT HIT TARGET — the same card-level 48x48 overlay the
-        // retired FlippableBalanceCard hosted: the interactive +
-        // semantic target is this transparent overlay, topmost, so a
-        // near-miss tap opens the sheet instead of flipping the card.
-        Positioned(
-          top: 12,
-          right: 2,
-          width: LargeTextDeckButton.hitExtent,
-          height: LargeTextDeckButton.hitExtent,
-          child: LargeTextDeckButton(
-            flipGuard: _flipGuard,
-            ambientScaler: MediaQuery.textScalerOf(context),
+        if (canViewMoney)
+          // LARGE-TEXT HIT TARGET — the same card-level 48x48 overlay the
+          // retired FlippableBalanceCard hosted: the interactive +
+          // semantic target is this transparent overlay, topmost, so a
+          // near-miss tap opens the sheet instead of flipping the card.
+          Positioned(
+            top: 12,
+            right: 2,
+            width: LargeTextDeckButton.hitExtent,
+            height: LargeTextDeckButton.hitExtent,
+            child: LargeTextDeckButton(
+              flipGuard: _flipGuard,
+              ambientScaler: MediaQuery.textScalerOf(context),
+            ),
           ),
-        ),
       ],
     );
   }

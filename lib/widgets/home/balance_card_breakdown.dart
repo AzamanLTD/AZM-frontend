@@ -48,6 +48,7 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
+import 'package:azaman/widgets/home/money_privacy.dart';
 import 'package:azaman/providers/theme_provider.dart' show AzamanColors;
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -235,6 +236,11 @@ class _Section {
 }
 
 /// The section-paged back face.
+/// A figure the card may not show while money is locked. `vis` decides; the
+/// caller has already formatted the value, and the mask replaces it wholesale.
+String _money(MoneyVisibility vis, String formatted) =>
+    vis.masked(() => formatted);
+
 class BalanceCardBreakdown extends StatefulWidget {
   const BalanceCardBreakdown({
     super.key,
@@ -242,6 +248,7 @@ class BalanceCardBreakdown extends StatefulWidget {
     required this.colors,
     this.flipGuard,
     this.onFlipBackRequested,
+    this.visibility = MoneyVisibility.visible,
   });
 
   final BalanceCardValuation valuation;
@@ -249,11 +256,15 @@ class BalanceCardBreakdown extends StatefulWidget {
   final ValueNotifier<bool>? flipGuard;
   final VoidCallback? onFlipBackRequested;
 
+  /// Whether the member may see money right now (see BalanceCardFx).
+  final MoneyVisibility visibility;
+
   @override
   State<BalanceCardBreakdown> createState() => _BalanceCardBreakdownState();
 }
 
 class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
+  MoneyVisibility get vis => widget.visibility;
   final PageController _pageController = PageController(
     // 0.86 leaves a deliberate peek of the NEXT section's header at the
     // bottom of every page — the affordance that more sections exist.
@@ -297,7 +308,7 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               // No native-GHS wallet exists on the current contract:
               // unknown renders as a dash, never as GH₵ 0.00.
               amount: v.nativeGhsAvailable != null
-                  ? AzMoney.amount(v.nativeGhsAvailable!)
+                  ? _money(vis, AzMoney.amount(v.nativeGhsAvailable!))
                   : '—',
               unit: '',
               colors: colors,
@@ -310,7 +321,9 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               label: 'USDC held',
               icon: HugeIconsSolid.coins01,
               iconSemantic: 'USDC wallet icon',
-              amount: confirmed ? AzMoney.amount(v.availableUsdc) : '—',
+              amount: confirmed
+                  ? _money(vis, AzMoney.amount(v.availableUsdc))
+                  : '—',
               unit: confirmed ? 'USDC' : '',
               colors: colors,
               detail: confirmed ? null : 'not confirmed yet',
@@ -335,7 +348,7 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               icon: HugeIconsSolid.shield01,
               iconSemantic: 'Vault shield icon',
               amount: v.vaultLocked != null
-                  ? AzMoney.amount(v.vaultLocked!)
+                  ? _money(vis, AzMoney.amount(v.vaultLocked!))
                   : '—',
               unit: v.vaultLocked != null ? 'USDC' : '',
               colors: colors,
@@ -353,7 +366,7 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               // surface that does show the factual figure.
               amount:
                   kCardDisplaysSavingsAggregate && v.savingsLockedGhs != null
-                  ? AzMoney.amount(v.savingsLockedGhs!)
+                  ? _money(vis, AzMoney.amount(v.savingsLockedGhs!))
                   : '—',
               unit: kCardDisplaysSavingsAggregate && v.savingsLockedGhs != null
                   ? 'GHS'
@@ -372,7 +385,7 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               // Unknown (still loading / failed fetch) is a DASH, never
               // a zero: unknown must not read as 'nothing'.
               amount: v.susuCommitted != null
-                  ? AzMoney.amount(v.susuCommitted!)
+                  ? _money(vis, AzMoney.amount(v.susuCommitted!))
                   : '—',
               unit: v.susuCommitted != null ? 'USDC' : '',
               colors: colors,
@@ -397,7 +410,9 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               label: 'Escrow',
               icon: HugeIconsSolid.lock,
               iconSemantic: 'Escrow lock icon',
-              amount: confirmed ? AzMoney.amount(v.escrowLocked) : '—',
+              amount: confirmed
+                  ? _money(vis, AzMoney.amount(v.escrowLocked))
+                  : '—',
               unit: confirmed ? 'USDC' : '',
               colors: colors,
               detail: confirmed ? null : 'not confirmed yet',
@@ -407,7 +422,9 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               label: 'Dispute escrow',
               icon: HugeIconsSolid.shieldUser,
               iconSemantic: 'Dispute escrow shield icon',
-              amount: confirmed ? AzMoney.amount(v.disputeEscrow) : '—',
+              amount: confirmed
+                  ? _money(vis, AzMoney.amount(v.disputeEscrow))
+                  : '—',
               unit: confirmed ? 'USDC' : '',
               colors: colors,
               detail: confirmed ? null : 'not confirmed yet',
@@ -434,7 +451,7 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
                 icon: HugeIconsSolid.store01,
                 iconSemantic: 'Vendor storefront icon',
                 amount: confirmed
-                    ? AzMoney.amount(v.vendorUnallocatedUsdc)
+                    ? _money(vis, AzMoney.amount(v.vendorUnallocatedUsdc))
                     : '—',
                 unit: confirmed ? 'USDC' : '',
                 colors: colors,
@@ -468,7 +485,7 @@ class _BalanceCardBreakdownState extends State<BalanceCardBreakdown> {
               // Never money: excluded from every monetary total, FX
               // calculation and rail.
               amount: confirmed
-                  ? AzMoney.amount(v.azmPoints, decimals: 0)
+                  ? _money(vis, AzMoney.amount(v.azmPoints, decimals: 0))
                   : '—',
               unit: confirmed ? 'pts' : '',
               colors: colors,

@@ -54,6 +54,7 @@ import 'package:flutter/material.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
+import 'package:azaman/widgets/home/money_privacy.dart';
 import 'package:azaman/providers/theme_provider.dart' show AzamanColors;
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -86,12 +87,18 @@ const double _kLabelSlot = 20;
 const double _kRateSlot = 13;
 
 /// The redesigned Home balance card front face.
+/// A figure the card may not show while money is locked. `vis` decides; the
+/// caller has already formatted the value, and the mask replaces it wholesale.
+String _money(MoneyVisibility vis, String formatted) =>
+    vis.masked(() => formatted);
+
 class BalanceCardFx extends StatelessWidget {
   const BalanceCardFx({
     super.key,
     required this.valuation,
     required this.colors,
     this.flipGuard,
+    this.visibility = MoneyVisibility.visible,
   });
 
   /// The typed valuation the card renders.
@@ -104,6 +111,12 @@ class BalanceCardFx extends StatelessWidget {
   /// this face's interactive affordances (the disclosure button) so
   /// operating them never also flips the card.
   final ValueNotifier<bool>? flipGuard;
+
+  /// Whether the member may see money right now. Redacted keeps the whole
+  /// face — artwork, chip, gradients — and masks the figures.
+  final MoneyVisibility visibility;
+
+  MoneyVisibility get vis => visibility;
 
   String _observedAtLabel() {
     final at = valuation.rate.observedAt;
@@ -140,7 +153,9 @@ class BalanceCardFx extends StatelessWidget {
       } else {
         buffer.write(' using the last saved validated rate');
       }
-      buffer.write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
+      buffer.write(
+        ' (${_money(vis, AzMoney.ghs(rate.ghsPerUsdc ?? 0))} per USDC)',
+      );
       if (source != null && source.isNotEmpty) {
         buffer.write(', source: $source');
       }
@@ -167,7 +182,7 @@ class BalanceCardFx extends StatelessWidget {
         'currency. The USDC figure is the approximate USDC equivalent '
         'of that balance, converted from it at the current rate',
       )
-      ..write(' (${AzMoney.ghs(rate.ghsPerUsdc ?? 0)} per USDC)');
+      ..write(' (${_money(vis, AzMoney.ghs(rate.ghsPerUsdc ?? 0))} per USDC)');
     if (source != null && source.isNotEmpty) {
       buffer.write(', source: $source');
     }
@@ -247,7 +262,7 @@ class BalanceCardFx extends StatelessWidget {
       headline = _AmountLine(
         key: const ValueKey('balance-fx-headline'),
         unit: 'GH₵',
-        amount: AzMoney.amount(v.availableGhsValue!),
+        amount: _money(vis, AzMoney.amount(v.availableGhsValue!)),
         amountStyle: AzText.money(
           colors.textPrimary,
           size: _kHeadlineSize,
@@ -268,7 +283,7 @@ class BalanceCardFx extends StatelessWidget {
         // The estimate language lives ONLY on the USDC line.
         semanticsLabel:
             'Available balance '
-            '${AzMoney.ghs(v.availableGhsValue!)} in GHS',
+            '${_money(vis, AzMoney.ghs(v.availableGhsValue!))} in GHS',
       );
     } else {
       // Confirmed balance, but the backend published NO authoritative
@@ -356,9 +371,9 @@ class BalanceCardFx extends StatelessWidget {
             child: Text.rich(
               key: const ValueKey('balance-fx-equivalent'),
               TextSpan(
-                text: AzMoney.amount(v.availableUsdcEquivalent!),
+                text: _money(vis, AzMoney.amount(v.availableUsdcEquivalent!)),
                 semanticsLabel:
-                    '${AzMoney.amount(v.availableUsdcEquivalent!)} USDC — '
+                    '${_money(vis, AzMoney.amount(v.availableUsdcEquivalent!))} USDC — '
                     'the USDC equivalent of the available balance, an '
                     'equivalent calculation, not necessarily USDC held',
                 // E1: the squiggly ≈ already SAYS 'equivalent' — no
@@ -445,7 +460,7 @@ class BalanceCardFx extends StatelessWidget {
         FxRateKind.none => '',
       };
       final rateWidget = Text(
-        '1 USDC ≈ ${AzMoney.ghs(rate.ghsPerUsdc!)}$suffix',
+        '1 USDC ≈ ${_money(vis, AzMoney.ghs(rate.ghsPerUsdc!))}$suffix',
         key: ValueKey(switch (rate.kind) {
           FxRateKind.saved => 'balance-fx-rate-saved',
           FxRateKind.demo => 'balance-fx-rate-demo',

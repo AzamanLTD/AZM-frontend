@@ -22,6 +22,27 @@ void blockedMoneyAccessFeedback(WidgetRef ref) {
   ref.read(moneyBlockedPulseProvider.notifier).state++;
 }
 
+/// The owner's exact wording, shown as a brief message when a locked member
+/// reaches for a money surface (the card deck, the transfer clasp).
+const String kMoneyLockedHint = 'Tap the Azaman lock to unlock your money.';
+
+/// Shows [kMoneyLockedHint] briefly. Purely explanatory: nothing is queued and
+/// nothing navigates, so the member still unlocks deliberately and repeats the
+/// action themselves.
+void showMoneyLockedHint(BuildContext context) {
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  if (messenger == null) return;
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(
+        content: Text(kMoneyLockedHint),
+        duration: Duration(milliseconds: 2200),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+}
+
 /// Shakes its child when a money action was refused while locked.
 class MoneyLockShake extends ConsumerStatefulWidget {
   const MoneyLockShake({super.key, required this.child});
