@@ -19,6 +19,7 @@ import 'package:azaman/services/api_client.dart';
 
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/widgets/home/home_plus_actions.dart';
+import 'package:azaman/widgets/home/money_lock_lifecycle_guard.dart';
 import 'package:azaman/widgets/home/plus_action_launcher.dart';
 
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
@@ -320,6 +321,9 @@ class AzamanApp extends ConsumerWidget {
                       bottom: 0,
                       child: ContextualNavBand(),
                     ),
+                    // App-wide money privacy gate: relocks when the app
+                    // leaves the foreground. Paints nothing itself.
+                    const MoneyLockLifecycleGuard(child: SizedBox.shrink()),
                   ],
                 ),
               ),

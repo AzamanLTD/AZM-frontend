@@ -25,6 +25,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
+import 'package:azaman/providers/money_access_provider.dart';
+import 'package:azaman/services/money_unlock.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -171,6 +173,11 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
 
   bool get _reduceMotion => !AzMotion.of(context).travel;
 
+  bool get _moneyUnlocked => ref.read(moneyAccessProvider).canViewMoney;
+
+  bool get _moneyAuthenticating =>
+      ref.read(moneyAccessProvider).isAuthenticating;
+
   Future<void> _playLogoFill() async {
     if (_filling || widget.controller.isOpen) return;
     _filling = true;
@@ -209,10 +216,33 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
           excludeSemantics: true,
           // The trigger is icon-only — the semantic label is the entire
           // affordance. It announces the CURRENT state honestly.
-          label: open ? 'Close actions' : 'Open actions',
+          label: !_moneyUnlocked
+              ? (_moneyAuthenticating ? 'Unlocking' : 'Unlock your money')
+              : (open ? 'Close actions' : 'Open actions'),
           child: GestureDetector(
             key: const ValueKey('plus-launcher-trigger'),
             onTap: () async {
+              // THE LOCK (owner brief §4): while money is locked this trigger
+              // is the unlock affordance. The tap verifies the member, opens
+              // the lock and resolves back to the Azaman mark — it does NOT
+              // open the actions menu. The next tap does.
+              final access = ref.read(moneyAccessProvider);
+              if (!access.canViewMoney) {
+                if (access.isAuthenticating) return; // one challenge at a time
+                final attempt = access.beginUnlock();
+                final result = await ref
+                    .read(moneyUnlockCoordinatorProvider)
+                    .authenticate();
+                if (!mounted) return;
+                if (result.isSuccess) {
+                  access.finishUnlock(attempt);
+                  AzamanHaptics.confirm();
+                } else {
+                  access.cancelUnlock(attempt);
+                  AzamanHaptics.selection();
+                }
+                return;
+              }
               if (widget.controller.isOpen) {
                 // Dismissal is silent (the liquid-launcher haptic
                 // convention).
