@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/money_access_provider.dart';
+import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -136,10 +137,18 @@ class MoneyLockGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final access = ref.watch(moneyAccessProvider);
     if (access.canViewMoney) return child;
-    final locked = LockedMoneySurface(
-      compact: compact,
-      message: message ?? 'Your money is locked',
-      hint: hint ?? 'Tap the Azaman button below to unlock.',
+    // A tap on the gate is a refused attempt: it shakes and haptics instead of
+    // silently doing nothing, and it never reveals or defers the action.
+    final locked = MoneyLockShake(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => blockedMoneyAccessFeedback(ref),
+        child: LockedMoneySurface(
+          compact: compact,
+          message: message ?? 'Your money is locked',
+          hint: hint ?? 'Tap the Azaman button below to unlock.',
+        ),
+      ),
     );
     if (height == null) return locked;
     return SizedBox(height: height, child: locked);
