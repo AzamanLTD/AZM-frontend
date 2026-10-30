@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -6,8 +8,22 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// The upload key is environment-specific and is NEVER committed. Read it from
+// android/key.properties (local) or the properties CI writes from secrets.
+// Without it a release build still assembles, signed with the debug key, so a
+// contributor is never blocked; the build prints that it is NOT uploadable.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasUploadKey = keystorePropertiesFile.exists()
+if (hasUploadKey) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
 android {
-    namespace = "com.example.azaman"
+    // Play rejects any package starting with com.example, and the ID is
+    // permanent once the first build is uploaded. azaman.app is the product
+    // domain, so this is its reverse.
+    namespace = "com.azaman.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +38,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.azaman"
+        applicationId = "com.azaman.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -33,9 +49,32 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasUploadKey) {
+            create("release") {
+                // Resolved against android/, matching key.properties itself.
+                storeFile = rootProject.file(
+                    keystoreProperties.getProperty("storeFile")
+                )
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasUploadKey) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "WARNING: android/key.properties is missing. This release build is " +
+                        "signed with the DEBUG key and CANNOT be uploaded to Play. " +
+                        "See docs/RELEASE_SIGNING.md."
+                )
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

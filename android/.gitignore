@@ -12,3 +12,6 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Upload key material — see docs/RELEASE_SIGNING.md
+upload-keystore.jks
