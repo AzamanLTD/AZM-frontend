@@ -62,6 +62,7 @@ abstract final class AzRouteNames {
   // Marketplace + savings
   static const marketplace = 'marketplace';
   static const savings = 'savings';
+  static const bills = 'bills';
   static const deposit = 'deposit';
   static const withdraw = 'withdraw';
   static const convert = 'convert';
@@ -200,6 +201,8 @@ abstract final class AzRoutes {
   /// The P2P crypto market — the FCM `OPEN_AD` target.
   static const marketplace = '/marketplace';
   static const savings = '/savings';
+  /// Bills hub — the Home Bills bubble's canonical destination.
+  static const bills = '/bills';
   static const receive = '/receive';
   static const paymentRequests = '/payment-requests';
   static String paymentRequestLink(String token) =>

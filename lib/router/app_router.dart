@@ -49,6 +49,7 @@ import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Com
 import 'package:azaman/screens/splash_screen.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
 import 'package:azaman/screens/intro/app_intro_screen.dart';
+import 'package:azaman/screens/bills/bills_home_screen.dart';
 import 'package:azaman/screens/onboarding_screen.dart';
 import 'package:azaman/screens/auth/phone_verification_screen.dart';
 import 'package:azaman/screens/force_update_screen.dart';
@@ -419,6 +420,16 @@ GoRouter _buildAppRouter() => GoRouter(
         key: state.pageKey,
         restorationId: state.name,
         child: const P2PMarketListScreen(),
+      ),
+    ),
+    // ── Bills (Home bubble destination) ────────────────────────────────
+    GoRoute(
+      path: AzRoutes.bills,
+      name: AzRouteNames.bills,
+      pageBuilder: (context, state) => traversePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: const BillsHomeScreen(),
       ),
     ),
     GoRoute(
