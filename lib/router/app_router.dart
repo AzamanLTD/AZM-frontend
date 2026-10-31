@@ -832,8 +832,11 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/business-market/dine-in/:tabId',
       name: AzRouteNames.dineInTab,
-      builder: (context, state) =>
-          DineInTabScreen(tabId: state.pathParameters['tabId']!),
+      // A dine-in tab is an amount owed at a table.
+      builder: (context, state) => MoneyRouteGuard(
+        message: 'This tab is locked',
+        child: DineInTabScreen(tabId: state.pathParameters['tabId']!),
+      ),
     ),
     GoRoute(
       path: '/business-market/:bizId/stories',
@@ -931,7 +934,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/worker/payroll',
       name: AzRouteNames.workerPayroll,
-      builder: (_, __) => const WorkerPayrollScreen(),
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Payroll is locked',
+        child: WorkerPayrollScreen(),
+      ),
     ),
     GoRoute(
       path: '/worker/team',
@@ -951,7 +957,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/worker/ewa',
       name: AzRouteNames.workerEwa,
-      builder: (_, __) => const WorkerEwaScreen(),
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Earned wage access is locked',
+        child: WorkerEwaScreen(),
+      ),
     ),
     GoRoute(
       path: '/worker/swaps',
@@ -961,7 +970,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/storefront/staking',
       name: AzRouteNames.storefrontStaking,
-      builder: (_, __) => const StorefrontStakingScreen(),
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Staking is locked',
+        child: StorefrontStakingScreen(),
+      ),
     ),
     GoRoute(
       path: '/storefront/:businessProfileId',
@@ -1120,13 +1132,16 @@ GoRouter _buildAppRouter() => GoRouter(
       name: AzRouteNames.susuCompletion,
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
-        return SusuCompletionScreen(
-          groupName: extra['groupName'] as String? ?? 'Susu Group',
-          totalContributed: extra['totalContributed'] as double? ?? 0,
-          totalPayout: extra['totalPayout'] as double? ?? 0,
-          members: (extra['members'] as List? ?? [])
-              .cast<Map<String, dynamic>>(),
-          currency: extra['currency'] as String? ?? 'GHS',
+        return MoneyRouteGuard(
+          message: 'Payout details are locked',
+          child: SusuCompletionScreen(
+            groupName: extra['groupName'] as String? ?? 'Susu Group',
+            totalContributed: extra['totalContributed'] as double? ?? 0,
+            totalPayout: extra['totalPayout'] as double? ?? 0,
+            members: (extra['members'] as List? ?? [])
+                .cast<Map<String, dynamic>>(),
+            currency: extra['currency'] as String? ?? 'GHS',
+          ),
         );
       },
     ),
@@ -1167,8 +1182,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/vault/:vaultId/yield',
       name: AzRouteNames.vaultYield,
-      builder: (context, state) =>
-          VaultYieldScreen(vaultId: state.pathParameters['vaultId']!),
+      builder: (context, state) => MoneyRouteGuard(
+        message: 'Vault yield is locked',
+        child: VaultYieldScreen(vaultId: state.pathParameters['vaultId']!),
+      ),
     ),
     GoRoute(
       path: '/story-create',

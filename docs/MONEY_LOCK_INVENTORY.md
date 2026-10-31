@@ -19,7 +19,7 @@ Two mechanisms exist:
   the screen is a catalogue and only part of it is money (`/bills` is the model
   case: the hub is public, `YOUR BILLS` is gated).
 
-## Guarded today (20 routes)
+## Guarded at the route (26 routes)
 
 | Route | Mechanism | Notes |
 | --- | --- | --- |
@@ -45,23 +45,34 @@ Two mechanisms exist:
 | `/round-up` | `MoneyRouteGuard` | round-up savings amounts |
 | `/my-orders` | `MoneyRouteGuard` | order totals and payment state |
 | `/trade/:tradeId` | `MoneyRouteGuard` | trade amount, counterparty, payment method |
+| `/vault/:vaultId/yield` | `MoneyRouteGuard` | vault yield figures |
+| `/storefront/staking` | `MoneyRouteGuard` | staked amounts and yield |
+| `/susu/completion` | `MoneyRouteGuard` | group payout amounts |
+| `/worker/payroll` | `MoneyRouteGuard` | wage amounts |
+| `/worker/ewa` | `MoneyRouteGuard` | earned wage access |
+| `/business-market/dine-in/:tabId` | `MoneyRouteGuard` | a running tab is money owed |
 
-## Money-bearing routes with no gate — candidates, not conclusions
+## Guarded inside the screen, not at the route
 
-These were found by reading route blocks, not by watching them run. Each needs
-one decision: gate it, gate a section of it, or record why it is not money.
+These read `moneyAccessProvider` themselves, so a route-level guard would be
+redundant. They were listed as unguarded in the first version of this file
+because the audit only looked at route blocks; a screen-level gate is invisible
+from the router.
+
+| Route | Mechanism |
+| --- | --- |
+| `/transactions` | `TransactionHistoryScreen` watches `moneyAccessProvider` |
+
+## Money-bearing routes still open — candidates, not conclusions
+
+Each needs one decision: gate it, gate a section, or record why it is not money.
 
 | Route | What it plausibly exposes |
 | --- | --- |
-| `/transactions` | transaction list (may be a legacy duplicate of `/account/activity`) |
-| `/storefront/staking` | staked amounts and yield |
-| `/vault/:vaultId/yield` | vault yield figures |
-| `/business-market/orders`, `/business-market/invoices`, `/business-market/invoices/:invoiceId` | invoices and money owed |
-| `/business-market/dine-in/:tabId` | a running tab to pay |
-| `/marketplace/transit/:tripId/seats` | seat prices at the payment boundary |
-| `/worker/payroll`, `/worker/ewa` | payroll and earned-wage amounts |
-| `/loyalty-cards`, `/wallet-pass/:passType/:itemId` | stored-value representations |
-| `/susu/position-picker`, `/susu/completion` | susu hand and payout amounts |
+| `/business-market/orders`, `/business-market/invoices`, `/business-market/invoices/:invoiceId` | invoices and money owed; business-side, needs a product call on whether a locked member may still see business paperwork |
+| `/marketplace/transit/:tripId/seats` | seat prices at the payment boundary; the seat map is catalogue, the purchase is not |
+| `/loyalty-cards`, `/wallet-pass/:passType/:itemId` | stored-value representations; points are not money, but a wallet pass can carry value |
+| `/susu/position-picker` | picks a hand before joining; intermediate step, not an amount |
 
 ## Deliberately not gated
 
