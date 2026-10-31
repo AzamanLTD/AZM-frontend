@@ -249,16 +249,29 @@ class _BillsPayScreenState extends ConsumerState<BillsPayScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-                          BillsPrimaryButton(
-                            label: 'Get the price',
-                            busy: _quoting,
-                            onPressed: () {
-                              final parsed = double.tryParse(
-                                _amount.text.trim(),
-                              );
-                              _requestQuote(amount: parsed);
-                            },
-                          ),
+                          // A capability the server does not publish is not a
+                          // button. The reference stays saved and usable; the
+                          // price step is simply not connected yet.
+                          if (_account?.canQuote == false)
+                            BillsEmptyNote(
+                              icon: HugeIconsSolid.invoice01,
+                              text:
+                                  'This reference is saved, but ${_account!.billerName} has no '
+                                  'price lookup connected yet. Nothing can be '
+                                  'priced or paid here, and nothing has been '
+                                  'charged.',
+                            )
+                          else
+                            BillsPrimaryButton(
+                              label: 'Get the price',
+                              busy: _quoting,
+                              onPressed: () {
+                                final parsed = double.tryParse(
+                                  _amount.text.trim(),
+                                );
+                                _requestQuote(amount: parsed);
+                              },
+                            ),
                         ],
                       ),
                     )

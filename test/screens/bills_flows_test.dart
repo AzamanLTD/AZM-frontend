@@ -168,9 +168,12 @@ BillQuote _quote({
   feeAmount: 2.5,
   totalAmount: 217.85,
   currency: 'GHS',
+  // Relative to the clock, never a wall date: a fixed "23:59" quietly becomes
+  // an EXPIRED quote once the calendar passes it, and the pay screen correctly
+  // refetches instead of paying — which then looks like a payment regression.
   expiresAt: expired
-      ? DateTime(2026, 10, 30, 11)
-      : DateTime(2026, 10, 30, 23, 59),
+      ? DateTime.now().subtract(const Duration(minutes: 1))
+      : DateTime.now().add(const Duration(minutes: 10)),
   amountDueIsAuthoritative: authoritative,
 );
 
