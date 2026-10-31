@@ -8,7 +8,9 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
+import 'package:azaman/services/app_unlock_gateway.dart';
 import 'package:azaman/services/biometric_service.dart';
+import 'package:azaman/services/money_unlock_flow.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
 /// The security screen's single HTTP client. Injectable because the false
@@ -817,6 +819,19 @@ class _SecuritySettingsScreenState
           ),
 
           const SizedBox(height: 28),
+          _sectionHeader('Preferred unlock method', colors),
+          _buildCard(
+            colors,
+            children: [
+              // The Home trigger asks for whatever this member chose, not
+              // whatever the device happens to have. Only methods this account
+              // can actually satisfy are offered; an unavailable one is named
+              // as unavailable instead of silently replaced.
+              ..._preferenceRows(colors),
+            ],
+          ),
+
+          const SizedBox(height: 28),
           _sectionHeader('Biometric Lock', colors),
           _buildCard(
             colors,
@@ -1426,6 +1441,71 @@ class _SecuritySettingsScreenState
         children: children,
       ),
     );
+  }
+
+  /// The methods this account can really use, in the order the unlock flow
+  /// tries them. Nothing here is a promise the backend has not made.
+  List<Widget> _preferenceRows(AzamanColors colors) {
+    final chosen = ref.watch(moneyUnlockPreferenceProvider);
+    final userId = ref.read(currentUserProvider).value?.id;
+    final rows = <Widget>[];
+
+    void add(AppUnlockMethod method, String title, String subtitle) {
+      final selected = chosen == method;
+      rows.add(
+        Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: selected ? colors.accent : colors.textTertiary,
+            ),
+            title: Text(title),
+            subtitle: Text(subtitle),
+            onTap: () async {
+              await ref
+                  .read(moneyUnlockPreferenceProvider.notifier)
+                  .remember(userId, method);
+              if (mounted) AzamanHaptics.commit();
+            },
+          ),
+        ),
+      );
+    }
+
+    if (_biometricAvailable) {
+      add(
+        AppUnlockMethod.deviceAuth,
+        'Device authentication',
+        'Face, fingerprint or the device passcode',
+      );
+    }
+    if (_pinSet) {
+      add(AppUnlockMethod.pin, 'Azaman PIN', 'The 4-digit PIN you set here');
+    }
+    if (_twoFactorEnabled && !_twoFactorPending) {
+      add(
+        AppUnlockMethod.totp,
+        'Authenticator app',
+        'A code from your authenticator',
+      );
+    }
+    if (rows.isEmpty) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            'No unlock method is configured yet. Set a PIN below, or enroll a '
+            'fingerprint or face on this device.',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+        ),
+      );
+    }
+    return rows;
   }
 
   Widget _toggleRow(
