@@ -37,6 +37,7 @@ class _SecuritySettingsScreenState
   bool _showQrSetup = false;
   final _verificationCodeController = TextEditingController();
   final _pinController = TextEditingController();
+  final _pinCurrentController = TextEditingController();
   final _pinConfirmController = TextEditingController();
   bool _pinSet = false;
   // r42 — unfinished durable financial operations (process-death recovery).
@@ -163,6 +164,7 @@ class _SecuritySettingsScreenState
   void dispose() {
     _verificationCodeController.dispose();
     _pinController.dispose();
+    _pinCurrentController.dispose();
     _pinConfirmController.dispose();
     _disableCodeController.dispose();
     super.dispose();
@@ -405,11 +407,50 @@ class _SecuritySettingsScreenState
       return;
     }
 
+    final currentPin = _pinCurrentController.text.trim();
+    if (_pinSet) {
+      if (currentPin.length != 4) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Enter your current PIN to change it'),
+            backgroundColor: ref.read(themeProvider).colors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _loadingPin = true);
     final token = ref.read(authProvider).user?.token;
 
     try {
       final apiClient = ref.read(securityApiClientProvider);
+
+      if (_pinSet) {
+        // Prove the old PIN before replacing it. A pickpocket with the
+        // unlocked phone must not be able to rotate the PIN and lock the owner
+        // out of their own authorization.
+        final verified = await apiClient.post('/security/pin/verify', {
+          'pin': currentPin,
+        });
+        if (verified.statusCode != 200 && verified.statusCode != 201) {
+          if (mounted) {
+            setState(() => _loadingPin = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'That is not the current PIN. Nothing was changed.',
+                ),
+                backgroundColor: ref.read(themeProvider).colors.danger,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       final res = await apiClient.post('/security/pin/set', {'pin': pin});
 
       if (res.statusCode == 200 || res.statusCode == 201) {
@@ -417,6 +458,7 @@ class _SecuritySettingsScreenState
         setState(() => _pinSet = true);
         _pinController.clear();
         _pinConfirmController.clear();
+        _pinCurrentController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Azaman PIN set successfully'),
@@ -858,10 +900,55 @@ class _SecuritySettingsScreenState
           _buildCard(
             colors,
             children: [
-              if (!_pinSet) ...[
+              if (_pinSet) ...[
+                // A status line, not a control: there is no removal endpoint,
+                // and the form below is the only thing that can change it.
+                Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 18,
+                      color: colors.success,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Azaman PIN active',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Change it above',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // The server is the authority for rotation: it must be told
+                // the PIN being replaced, so the member proves they know it
+                // before a new one is written.
                 _pinField(
                   colors,
-                  label: 'New 4-digit PIN',
+                  label: 'Current 4-digit PIN',
+                  controller: _pinCurrentController,
+                  obscure: _obscurePin,
+                  onToggleObscure: () =>
+                      setState(() => _obscurePin = !_obscurePin),
+                ),
+                const SizedBox(height: 12),
+              ],
+              ...[
+                _pinField(
+                  colors,
+                  label: _pinSet ? 'New 4-digit PIN' : 'New 4-digit PIN',
                   controller: _pinController,
                   obscure: _obscurePin,
                   onToggleObscure: () =>
@@ -903,60 +990,6 @@ class _SecuritySettingsScreenState
                       ),
                     ),
                   ),
-                ),
-              ] else ...[
-                Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: colors.success.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.check_circle_outline,
-                        color: colors.success,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Azaman PIN active',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Used for transaction authorization',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // There is no removal endpoint on the security surface
-                    // (only /security/pin/set and /pin/verify), so this tile
-                    // must not offer a "Remove" that only edits a local flag.
-                    // Changing the PIN is real; removing it is not available.
-                    Text(
-                      'Change it above',
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ],
