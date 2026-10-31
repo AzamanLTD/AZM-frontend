@@ -282,7 +282,9 @@ jobs:
             echo "| real upload key | \`${{ steps.key.outputs.real }}\` |"
             echo ""
             echo "```"
-            grep -E "Signer #1 certificate (DN|SHA-256 digest)" /tmp/certs.txt || true
+            # The exact wording depends on the signature scheme the build uses
+            # (V2 Signer, or Signer #1 on older build-tools), so both are read.
+            grep -E "certificate (DN|SHA-256 digest)" /tmp/certs.txt || true
             echo "```"
           } >> "$GITHUB_STEP_SUMMARY"
 
