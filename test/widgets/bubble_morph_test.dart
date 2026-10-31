@@ -104,6 +104,10 @@ GoRouter _router(List<String> visited) {
 }
 
 Future<void> _pumpRouter(WidgetTester tester, GoRouter router) async {
+  // The duplicate-tap guard is global and measured against the wall clock, so a
+  // previous test's push can still be inside its window on a fast machine and
+  // silently refuse this one. Every router test starts from a clean slate.
+  BubbleNavigation.reset();
   await tester.binding.setSurfaceSize(const Size(390, 844));
   await tester.pumpWidget(
     ProviderScope(child: MaterialApp.router(routerConfig: router)),
