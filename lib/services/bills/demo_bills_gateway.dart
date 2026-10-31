@@ -47,6 +47,7 @@ class DemoBillsGateway implements BillsGateway {
       categoryId: 'electricity',
       name: 'Electricity Company of Ghana',
       identifierLabel: 'Meter number',
+      canLookup: true,
       identifierHint: 'Try ecg-001',
     ),
     Biller(
@@ -54,6 +55,7 @@ class DemoBillsGateway implements BillsGateway {
       categoryId: 'water',
       name: 'Ghana Water Company',
       identifierLabel: 'Account number',
+      canLookup: true,
       identifierHint: 'Try gw-002',
     ),
     Biller(
@@ -61,6 +63,7 @@ class DemoBillsGateway implements BillsGateway {
       categoryId: 'tv',
       name: 'DStv',
       identifierLabel: 'Smartcard number',
+      canLookup: true,
       identifierHint: 'Try dstv-003',
     ),
   ];

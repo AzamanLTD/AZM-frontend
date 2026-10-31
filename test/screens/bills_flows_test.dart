@@ -60,6 +60,7 @@ class _Scripted extends UnavailableBillsGateway {
       categoryId: 'electricity',
       name: 'Test Power',
       identifierLabel: 'Meter number',
+      canLookup: true,
       identifierHint: 'Try 1234',
     ),
   ];

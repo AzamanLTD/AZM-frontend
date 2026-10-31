@@ -80,6 +80,8 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
     final biller = _biller;
     final raw = _identifier.text.trim();
     if (biller == null || raw.isEmpty || _looking) return;
+    // Never ask the network for a capability the server says does not exist.
+    if (!biller.canLookup) return;
     setState(() {
       _looking = true;
       _error = null;
@@ -221,8 +223,14 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
                           onTap: () => setState(() {
                             _biller = biller;
                             _lookup = null;
-                            _lookupUnavailable = null;
                             _error = null;
+                            // No provider lookup for this service means there
+                            // is nothing to press: say so at selection time and
+                            // go straight to saving an unverified reference.
+                            _lookupUnavailable = biller.canLookup
+                                ? null
+                                : '${biller.name} has no connected account '
+                                      'lookup yet, so this is saved unverified.';
                           }),
                         ),
                         const SizedBox(height: 8),
@@ -262,12 +270,17 @@ class _BillsAddAccountScreenState extends ConsumerState<BillsAddAccountScreen> {
                                 color: colors.textTertiary,
                               ),
                             ),
+                            // The save lane appears as soon as there is
+                            // something to save, so a member without provider
+                            // lookup is never left looking at an empty step.
+                            onChanged: (_) => setState(() {}),
                             onSubmitted: (_) => _runLookup(),
                           ),
                           // Once the server has said this service has no
                           // lookup, offering the button again would just repeat
                           // the same refusal.
-                          if (_lookup == null &&
+                          if (_biller!.canLookup &&
+                              _lookup == null &&
                               _lookupUnavailable == null) ...[
                             const SizedBox(height: 12),
                             BillsPrimaryButton(

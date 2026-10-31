@@ -109,6 +109,7 @@ Map<String, dynamic> _templatesPayload() => {
               'payment': false,
             },
             'providerAdapter': null,
+            'identityField': 'meterNumber',
             'fields': [
               {
                 'key': 'meterNumber',
@@ -137,6 +138,7 @@ Map<String, dynamic> _templatesPayload() => {
               'payment': false,
             },
             'providerAdapter': null,
+            'identityField': 'recipientPhone',
             'fields': [
               {
                 'key': 'recipientPhone',
@@ -380,4 +382,118 @@ void main() {
       );
     },
   );
+
+  // ── CAPABILITY ACCURACY (owner pass, 2026-10-31) ──────────────────────────
+  group('lookup capability', () {
+    test(
+      'a biller carries the server\'s lookupAccount, not a default',
+      () async {
+        final api = _ScriptedApiClient({
+          'GET /bills/service-templates': () => _json(_templatesPayload()),
+        });
+        final billers = await HttpBillsGateway(api).billers();
+
+        final ecg = billers.firstWhere((b) => b.name == 'ECG prepaid');
+        expect(
+          ecg.canLookup,
+          isFalse,
+          reason: 'the template says lookupAccount: false, so no CTA is honest',
+        );
+        expect(ecg.canSaveReference, isTrue);
+        expect(
+          ecg.identifierHint,
+          isNot('identifier'),
+          reason: 'a schema type is not member copy',
+        );
+      },
+    );
+
+    test('a provider with lookup says so, and still saves', () async {
+      final payload = _templatesPayload();
+      final service =
+          (payload['data']['categories'] as List).first['services'][0]
+              as Map<String, dynamic>;
+      (service['capabilities'] as Map<String, dynamic>)['lookupAccount'] = true;
+      final api = _ScriptedApiClient({
+        'GET /bills/service-templates': () => _json(payload),
+      });
+
+      final billers = await HttpBillsGateway(api).billers();
+      final ecg = billers.firstWhere((b) => b.name == 'ECG prepaid');
+      expect(ecg.canLookup, isTrue);
+    });
+  });
+
+  group('identity field', () {
+    test('is resolved by the declared key, not by field order', () async {
+      final payload = _templatesPayload();
+      final service =
+          (payload['data']['categories'] as List).first['services'][0]
+              as Map<String, dynamic>;
+      // A required field listed FIRST that is not the identity, and the real
+      // identity second. Field-order inference would pick the wrong one.
+      service['fields'] = [
+        {
+          'key': 'nickname',
+          'label': 'Nickname',
+          'type': 'text',
+          'required': true,
+        },
+        {
+          'key': 'meterNumber',
+          'label': 'Meter number',
+          'type': 'identifier',
+          'required': true,
+        },
+      ];
+      final api = _ScriptedApiClient({
+        'GET /bills/service-templates': () => _json(payload),
+      });
+
+      final catalog = await HttpBillsGateway(api).serviceCatalog();
+      final ecg = catalog.serviceByCode('ECG_PREPAID')!;
+      expect(ecg.identityField!.key, 'meterNumber');
+      expect(
+        ecg.identityField!.label,
+        'Meter number',
+        reason: 'the form asks with the server\'s human label',
+      );
+
+      final billers = await HttpBillsGateway(api).billers();
+      final ecgBiller = billers.firstWhere((b) => b.name == 'ECG prepaid');
+      expect(ecgBiller.identifierLabel, 'Meter number');
+    });
+
+    test('a template with no declared identity cannot be saved', () async {
+      final payload = _templatesPayload();
+      final service =
+          (payload['data']['categories'] as List).first['services'][0]
+              as Map<String, dynamic>;
+      service.remove('identityField');
+      final api = _ScriptedApiClient({
+        'GET /bills/service-templates': () => _json(payload),
+      });
+      final gateway = HttpBillsGateway(api);
+
+      final catalog = await gateway.serviceCatalog();
+      expect(
+        catalog.serviceByCode('ECG_PREPAID')!.identityField,
+        isNull,
+        reason: 'no key means unknown, never "the first required field"',
+      );
+
+      final billers = await gateway.billers();
+      final ecgBiller = billers.firstWhere((b) => b.name == 'ECG prepaid');
+      expect(ecgBiller.canSaveReference, isFalse);
+
+      await expectLater(
+        gateway.saveAccount(
+          billerId: ecgBiller.id,
+          identifier: '1234567890',
+          alias: null,
+        ),
+        throwsA(isA<BillsUnavailableException>()),
+      );
+    });
+  });
 }

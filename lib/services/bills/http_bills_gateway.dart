@@ -118,6 +118,7 @@ class BillServiceTemplate {
     required this.categoryCode,
     required this.capabilities,
     required this.fields,
+    required this.identityFieldKey,
   });
 
   final String serviceCode;
@@ -127,12 +128,21 @@ class BillServiceTemplate {
   final BillServiceCapabilities capabilities;
   final List<BillServiceField> fields;
 
+  /// The server's declared identity key (a schema key, not a display hint).
+  final String? identityFieldKey;
+
   /// The field that identifies the account with the provider.
+  ///
+  /// Resolved ONLY from [identityFieldKey]. This used to return the first
+  /// required field, which guessed the reference's meaning from field order and
+  /// could silently save a phone number where a meter number belonged.
   BillServiceField? get identityField {
+    final key = identityFieldKey;
+    if (key == null || key.isEmpty) return null;
     for (final f in fields) {
-      if (f.required) return f;
+      if (f.key == key) return f;
     }
-    return fields.isEmpty ? null : fields.first;
+    return null;
   }
 
   /// A service is only ever offered as payable when the server says all four
@@ -170,6 +180,7 @@ class BillServiceTemplate {
       categoryCode: categoryCode,
       capabilities: BillServiceCapabilities.fromJson(raw['capabilities']),
       fields: List<BillServiceField>.unmodifiable(fields),
+      identityFieldKey: raw['identityField']?.toString(),
     );
   }
 }
@@ -372,8 +383,12 @@ class HttpBillsGateway implements BillsGateway {
           id: '${service.serviceCode}:${service.providerCode}',
           categoryId: service.categoryCode,
           name: service.label,
-          identifierLabel: identity?.label ?? 'Account number',
-          identifierHint: identity?.type,
+          identifierLabel: identity?.label ?? 'Reference',
+          canLookup: service.capabilities.lookupAccount,
+          canSaveReference: identity != null,
+          // The server publishes a label, not a typable hint, so no hint is
+          // invented here. A schema type ('identifier') is not member copy.
+          identifierHint: null,
         ),
       );
     }

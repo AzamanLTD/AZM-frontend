@@ -69,6 +69,8 @@ class Biller {
     required this.categoryId,
     required this.name,
     required this.identifierLabel,
+    required this.canLookup,
+    this.canSaveReference = true,
     this.identifierHint,
   });
 
@@ -80,6 +82,20 @@ class Biller {
   /// number", "Account number". Supplied by the server so the form never
   /// guesses the identifier's meaning.
   final String identifierLabel;
+
+  /// Whether this provider can verify a reference before it is saved. Read from
+  /// the server's `lookupAccount` capability: when it is false there is no
+  /// lookup to offer, so the screen must not render a button that can only
+  /// refuse.
+  final bool canLookup;
+
+  /// Whether saving a reference is possible at all. False when the server has
+  /// not published which field forms the identity, because the client must not
+  /// guess one from field order.
+  final bool canSaveReference;
+
+  /// A human hint from the server. Never a schema type name such as
+  /// `identifier`, which means nothing to a member.
   final String? identifierHint;
 }
 

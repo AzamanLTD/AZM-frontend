@@ -310,8 +310,9 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
                     return BillsEmptyNote(
                       icon: HugeIconsSolid.note01,
                       text:
-                          'No saved bills yet. Find a biller below, we look up '
-                          'the account with them, then it lives here.',
+                          'No saved bills yet. Find a biller below and save a '
+                          'service reference; it lives here, marked unverified '
+                          'until a provider can confirm it.',
                     );
                   }
                   return Column(
@@ -436,67 +437,67 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
           // Private section: not built while locked.
           if (canViewMoney)
             BillsSection(
-            title: 'REQUESTS',
-            subtitle: 'A contact can ask you to pay a bill they saved.',
-            child: hub.when(
-              loading: () => _Loading(colors: colors),
-              error: (_, _) =>
-                  BillsEmptyNote(text: "We couldn't load requests just now."),
-              data: (snapshot) {
-                if (snapshot.requests.isEmpty) {
-                  return BillsEmptyNote(
-                    icon: HugeIconsSolid.userCheck01,
-                    text: 'Nothing waiting on you.',
-                  );
-                }
-                return Column(
-                  children: [
-                    for (final request in snapshot.requests) ...[
-                      _RequestRow(
-                        request: request,
-                        colors: colors,
-                        onTap: () => context.push(
-                          '${AzRoutes.bills}/request/${request.id}',
+              title: 'REQUESTS',
+              subtitle: 'A contact can ask you to pay a bill they saved.',
+              child: hub.when(
+                loading: () => _Loading(colors: colors),
+                error: (_, _) =>
+                    BillsEmptyNote(text: "We couldn't load requests just now."),
+                data: (snapshot) {
+                  if (snapshot.requests.isEmpty) {
+                    return BillsEmptyNote(
+                      icon: HugeIconsSolid.userCheck01,
+                      text: 'Nothing waiting on you.',
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final request in snapshot.requests) ...[
+                        _RequestRow(
+                          request: request,
+                          colors: colors,
+                          onTap: () => context.push(
+                            '${AzRoutes.bills}/request/${request.id}',
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
+                        const SizedBox(height: 8),
+                      ],
                     ],
-                  ],
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
 
           // ── Recently paid ─────────────────────────────────────────────
           // Private section: not built while locked.
           if (canViewMoney)
             BillsSection(
-            title: 'RECENTLY PAID',
-            child: hub.when(
-              loading: () => _Loading(colors: colors),
-              error: (_, _) => BillsEmptyNote(
-                text: "We couldn't load your receipts just now.",
-              ),
-              data: (snapshot) {
-                if (snapshot.recentPayments.isEmpty) {
-                  return BillsEmptyNote(
-                    icon: HugeIconsSolid.invoice01,
-                    text:
-                        'Payments you make will show here with the '
-                        "provider's own reference.",
-                  );
-                }
-                return Column(
-                  children: [
-                    for (final receipt in snapshot.recentPayments) ...[
-                      _ReceiptRow(receipt: receipt, colors: colors),
-                      const SizedBox(height: 8),
+              title: 'RECENTLY PAID',
+              child: hub.when(
+                loading: () => _Loading(colors: colors),
+                error: (_, _) => BillsEmptyNote(
+                  text: "We couldn't load your receipts just now.",
+                ),
+                data: (snapshot) {
+                  if (snapshot.recentPayments.isEmpty) {
+                    return BillsEmptyNote(
+                      icon: HugeIconsSolid.invoice01,
+                      text:
+                          'Payments you make will show here with the '
+                          "provider's own reference.",
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final receipt in snapshot.recentPayments) ...[
+                        _ReceiptRow(receipt: receipt, colors: colors),
+                        const SizedBox(height: 8),
+                      ],
                     ],
-                  ],
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
 
           // ── Ask someone to pay ────────────────────────────────────────
           BillsSection(

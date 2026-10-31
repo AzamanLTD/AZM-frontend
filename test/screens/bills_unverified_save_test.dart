@@ -30,6 +30,7 @@ class _NoLookupGateway extends UnavailableBillsGateway {
       categoryId: 'ELECTRICITY',
       name: 'ECG prepaid',
       identifierLabel: 'Meter number',
+      canLookup: false,
     ),
   ];
 
@@ -77,29 +78,37 @@ Future<void> _pump(WidgetTester tester, _NoLookupGateway gateway) async {
   await tester.pump(const Duration(milliseconds: 300));
 }
 
-Future<void> _attemptLookup(WidgetTester tester) async {
+/// Picks the biller whose server template says `lookupAccount: false`.
+///
+/// This used to tap "Look it up" and let the gateway refuse. The screen no
+/// longer draws that button when the capability is false, so the contract is
+/// stronger: nothing is pressed, no request is made, and the save lane is
+/// already there.
+Future<void> _chooseUnlookupableBiller(WidgetTester tester) async {
   await tester.tap(find.text('ECG prepaid'));
   await tester.pump();
   await tester.enterText(find.byType(TextField).first, '1234567890');
-  await tester.tap(find.text('Look it up'));
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 300));
 }
 
 void main() {
   testWidgets(
-    'a refused lookup offers saving, and says why nothing is verified',
+    'a service without lookup offers saving, and says why nothing is verified',
     (tester) async {
       final gateway = _NoLookupGateway();
       await _pump(tester, gateway);
-      await _attemptLookup(tester);
+      await _chooseUnlookupableBiller(tester);
 
-      expect(gateway.lookups, 1);
+      expect(
+        gateway.lookups,
+        0,
+        reason: 'a capability the server denies must not reach the network',
+      );
       expect(find.text('3 · SAVE UNVERIFIED'), findsOneWidget);
       expect(
-        find.textContaining('no provider lookup is connected'),
+        find.textContaining('has no connected account lookup yet'),
         findsOneWidget,
-        reason: 'the server\'s own reason reaches the member',
+        reason: 'the reason is stated at selection, not after a dead press',
       );
       expect(
         find.textContaining('no holder name will be shown'),
@@ -116,7 +125,7 @@ void main() {
     (tester) async {
       final gateway = _NoLookupGateway();
       await _pump(tester, gateway);
-      await _attemptLookup(tester);
+      await _chooseUnlookupableBiller(tester);
 
       await tester.enterText(find.byType(TextField).last, 'My Apartment');
       await tester.tap(find.text('Save without verification'));
@@ -135,7 +144,7 @@ void main() {
   ) async {
     final gateway = _NoLookupGateway();
     await _pump(tester, gateway);
-    await _attemptLookup(tester);
+    await _chooseUnlookupableBiller(tester);
 
     // The CONFIRM step is the only place a holder name can appear, and it only
     // exists once a lookup returned one.
