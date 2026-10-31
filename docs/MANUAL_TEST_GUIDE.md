@@ -2,10 +2,20 @@
 
 Test in order. Each step says what to look at, not just what to tap.
 
-**Build under test:** branch `feat/balance-card-identity`. The APK is the
-`azaman-android-debug` artifact from the Android Integration workflow. It is
-debug-signed: fine for internal testing, not a release candidate, and not
-uploadable to Play.
+**Build under test:** branch `feat/member-money-lock-home-bills`. The APK is the
+`azaman-android-debug` artifact from the Android Integration workflow.
+
+Which artifact you are holding matters, and it is not a release candidate:
+
+| artifact | what it proves | what it does not |
+| --- | --- | --- |
+| `azaman-android-debug` | layout, interaction, navigation, the money lock, Bills surfaces | nothing about Firebase: with the placeholder configuration nobody can sign in and no message arrives |
+| `azaman-android-prod-debug` | the same, plus the production backend and a real Firebase configuration | only when the Firebase secret and the Web client id are configured |
+| `azaman-android-release` | the signed bundle and APK | uploadable only when the upload key is configured; otherwise it is a diagnostic build |
+
+A successful build is not evidence that Google Sign-In works. Check the run's job
+summary first: it states whether the configuration was real or a placeholder, and
+which certificate signed the APK.
 
 **What has been verified automatically** is listed at the end. Everything in
 this guide is what CI cannot check.
@@ -115,8 +125,9 @@ This is the new single-step setup, and deliberately not a second tour.
 
 | Item | State |
 |---|---|
-| Package id | Settled: `com.azaman.app`, in `namespace`, `applicationId` and the Kotlin package. Play treats it as permanent from the first upload. |
-| Release signing | `release` uses the debug key; no keystore in the repo. Owner action. |
+| Package id | Settled: `com.azaman.app`, in `namespace`, `applicationId` and the Kotlin package. Registered in the existing Firebase project `azaman-app`. |
+| Release signing | Release builds require the upload key (`android/key.properties` or the `ANDROID_*` CI secrets) and stop with a clear message without it. No keystore is in the repo. Owner action: add the secrets. |
+| CI debug signer | `azaman-android-debug` is signed by the dedicated CI debug identity when its secrets are configured; otherwise by the runner's throwaway debug certificate, which changes every run and must not be registered in Firebase. |
 | AAB | CI builds a debug APK only, by design. First upload must be built locally. |
 | KYC at withdrawal | Client half present, backend gate unmerged, so the gate is inert here. Do not read a successful withdrawal as evidence it works. |
 

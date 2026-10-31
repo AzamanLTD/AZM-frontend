@@ -82,12 +82,60 @@ file or any entry is missing, printing the missing entry names. That keeps the f
 one place it matters and leaves `flutter build apk --debug`, `flutter test` and the analyzer
 untouched.
 
+## The CI debug identity
+
+The artifact the owner installs on a phone (`azaman-android-debug`) needs a signer whose
+fingerprint can be registered in Firebase and stay valid. Hosted runners cannot provide that:
+each runner generates its own debug keystore, so two independent runs of the same commit carry
+two different certificates. Measured on this branch, two runs of `azaman-android-debug` produced
+different signers, so the default is explicitly not treated as stable.
+
+The separate CI debug identity fixes that. It is a different key from the upload key, it is used
+only by the Android Integration debug build, and a developer's local debug signing is unchanged
+(no `android/ci-debug.properties` on their machine means the ambient debug keystore is used).
+
+| secret | value |
+| --- | --- |
+| `ANDROID_CI_DEBUG_KEYSTORE_BASE64` | the CI debug keystore file, base64-encoded as one line |
+| `ANDROID_CI_DEBUG_STORE_PASSWORD` | its store password |
+| `ANDROID_CI_DEBUG_KEY_ALIAS` | its key alias |
+| `ANDROID_CI_DEBUG_KEY_PASSWORD` | its key password |
+
+Generate it once, on your own machine, and keep the file out of the repository (both
+`ci-debug.properties` and `ci-debug-keystore.jks` are gitignored):
+
+```powershell
+keytool -genkeypair -v `
+  -keystore ci-debug-keystore.jks -storetype JKS `
+  -keyalg RSA -keysize 2048 -validity 10000 `
+  -alias cidebug `
+  -dname "CN=Azaman CI Debug, O=Azaman, C=GH"
+
+# the single-line secret value (no newlines)
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("ci-debug-keystore.jks")) | Set-Clipboard
+
+# the fingerprints to register in Firebase for the Android app com.azaman.app
+keytool -list -v -keystore ci-debug-keystore.jks -alias cidebug
+```
+
+Back the file up privately: the fingerprint is only stable while the same file is used. Then
+register its SHA-1 and SHA-256 in Firebase for `com.azaman.app` and download a refreshed
+`google-services.json` if the console issues one.
+
+Until those four secrets exist, the debug job still produces `azaman-android-debug` with the same
+name and retention, but its summary reports the signer as unstable and says not to register it.
+Its APK is a layout and interaction artifact, not a verified Google Sign-In build.
+
 ## What the lane proves
 
-`release-identity` builds the AAB and the release APK, then asserts with `aapt2` that the
-package is `com.azaman.app` and with `apksigner` that the signer is not `CN=Android Debug`.
+`release-identity` builds the AAB and the release APK, then asserts with `aapt2` that the APK
+package is `com.azaman.app`, reads the compiled bundle manifest to confirm the same package, and
+verifies with `apksigner` and `keytool` that neither artifact is signed with a debug certificate
+and that both carry the same certificate.
 It also runs a release build with the key removed first and fails unless the build stops with
-the expected message. The artifact is `azaman-android-release`; the debug artifact
+the expected message. When no upload key is configured the job still runs, but its summary labels
+the result as diagnostic signing and states that the artifact is not uploadable and that its
+throwaway certificate must not be registered in Firebase or Play Console. The artifact is `azaman-android-release`; the debug artifact
 `azaman-android-debug` is unchanged.
 
 ```yaml

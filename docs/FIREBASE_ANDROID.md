@@ -2,86 +2,107 @@
 
 The Firebase Android configuration is environment-specific and is **never committed**.
 `android/app/google-services.json` is produced locally or injected by CI. Nothing in this
-document contains a real project identifier, key or credential.
+document contains a real project id, key, client id or credential.
 
-## The package name to register
+## Project and package
 
-Register exactly this Android package in the Firebase project:
+| item | value |
+| --- | --- |
+| Firebase project | `azaman-app` (existing; the Admin credential was rotated, the project did not change) |
+| Android package | `com.azaman.app` |
+| Required OAuth entry | a Web client with `client_type: 3` |
+| Web client id for the build | repository variable `GOOGLE_SERVER_CLIENT_ID` |
 
-```
-com.azaman.app
-```
+`com.azaman.app` must match `applicationId` in `android/app/build.gradle.kts`. Play treats the
+application id as permanent from the first upload, so the Firebase registration follows the
+build, and never the other way round. Do not create a second Firebase project for this build.
 
-It must match `applicationId` in `android/app/build.gradle.kts`. That value is the Play
-application ID, and Play treats it as permanent from the first upload, so it is the Firebase
-registration that has to follow the build, not the other way round.
+## One canonical secret
 
-If a Firebase Android app already exists for the old `com.example.azaman`, leave it or delete
-it, but the config used for release must contain a `client` whose
-`client_info.android_client_info.package_name` is `com.azaman.app`. The android-prod-smoke
-workflow asserts this and fails loudly otherwise.
+`GOOGLE_SERVICES_JSON` is the only Firebase secret. Its value is the **entire raw JSON** of
+`google-services.json`, exactly as downloaded, and both workflows read it by that name:
 
-## Certificate fingerprints to register
-
-Authentication integrations that verify the calling app (Google Sign-In's Android client,
-Phone Auth app verification, and Play Integrity / App Check when enabled) need the SHA-1 and
-SHA-256 fingerprints of the certificates that actually sign the installed app. Register all
-three that apply:
-
-| certificate | where the fingerprint comes from | why it is needed |
+| workflow | reads | writes |
 | --- | --- | --- |
-| Upload key (the keystore in `docs/RELEASE_SIGNING.md`) | `keytool -list -v -keystore android/upload-keystore.jks -alias upload` | builds you sign locally and CI-signed artifacts before Play re-signs them |
-| Play App Signing certificate | Play Console → your app → Test and release → App integrity → App signing key certificate | the certificate on the build users actually install; without it Play-delivered builds fail verification |
-| Local debug keystore | `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android` | only for debug builds on your own machine |
+| `android-integration.yml` | `secrets.GOOGLE_SERVICES_JSON` | `android/app/google-services.json` |
+| `android-prod-smoke.yml` | `secrets.GOOGLE_SERVICES_JSON` | `android/app/google-services.json` |
 
-The Play App Signing fingerprint only exists after the first upload, so the order is: register
-the upload key fingerprint, upload the first bundle to Internal testing, then add the Play
-signing fingerprint it shows you.
+There is no second, separately encoded copy. Anything that reads a base64 variant is retired;
+`test/ci/release_config_contract_test.dart` fails if either name comes back.
 
-Read the values from the commands above; do not copy fingerprints from any other document.
-Fingerprints are public material, but they are still yours to paste into the console.
+## What is validated, and what happens when it is wrong
+
+Both workflows run `tool/ci/validate_google_services.py` before Gradle compiles. It reports
+structural facts only, never the document or its keys:
+
+- the file exists, is non-empty and is valid JSON;
+- `project_info.project_id` is `azaman-app`;
+- there is exactly one Android client, and its `package_name` is `com.azaman.app`;
+- a Web OAuth client with `client_type: 3` exists;
+- when `GOOGLE_SERVER_CLIENT_ID` is supplied, it is one of those `client_type: 3` client ids,
+  so the build cannot point at an audience that is not in the configuration.
+
+A supplied but wrong configuration **fails the run**. It is never replaced by the placeholder,
+because a build that silently compiles against the wrong project looks healthy and signs nobody
+in.
+
+## Placeholder versus real
+
+`android-integration.yml` keeps compiling when the secret is absent, using a placeholder bound
+to `com.azaman.app`. That validates Gradle and the Google Services plugin and nothing else: no
+project, no API key, no sign-in, no messaging.
+
+The run says so. Its job summary prints `configuration = placeholder` and states that the build
+is not connected to Firebase, that Google Sign-In and FCM are not verified by it, and that no
+fingerprint should be registered from it. A successful APK build is never evidence that Google
+authentication works.
+
+`android-prod-smoke.yml` is the Firebase-connected device lane. It fails immediately when the
+secret or the Web client id is missing, and never falls back to the placeholder.
+
+## Certificates and fingerprints
+
+Four different certificates are involved. They are not interchangeable, and registering the
+wrong one is the most common cause of a silent sign-in failure on a real phone.
+
+| certificate | what signs with it | where the fingerprint comes from | register in Firebase? |
+| --- | --- | --- | --- |
+| Local debug | a developer's own `flutter run` / local debug APK | `keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android` (macOS/Linux) or `%USERPROFILE%\.android\debug.keystore` on Windows | only if you test sign-in on that machine's debug build |
+| CI debug | the `azaman-android-debug` artifact, once the dedicated identity is configured | printed by the `Report debug signer` step of the run that produced the APK | yes, after configuring it (see below) |
+| Upload key | release APK and AAB built by CI or locally | printed by the release verification step, or `keytool -list -v -keystore android/upload-keystore.jks -alias upload` | yes |
+| Play App Signing | the build users install from Play | Play Console → Test and release → App integrity | yes, after the first upload creates it |
+
+Hosted runners do not have a stable debug certificate: the runner's debug keystore is generated
+per machine, and two independent runs of the same commit produce two different certificates. A
+fingerprint registered from one run would stop matching on the next. That is why the CI debug
+identity exists (see `docs/RELEASE_SIGNING.md`); until it is configured, the artifact's signer is
+reported in the summary as unstable and should not be registered.
+
+## Which artifact is which
+
+| artifact | workflow | purpose | uploadable to Play |
+| --- | --- | --- | --- |
+| `azaman-android-debug` | Android Integration | install on a physical phone for layout and interaction testing | no |
+| `azaman-android-release` | Android Integration, `release-identity` job | the AAB and release APK, signed with the upload key | yes, when the upload key is configured; otherwise it is a diagnostic run with a throwaway key |
+| `azaman-android-prod-debug` | Android Prod Smoke | Firebase-connected, production-backend debug APK for device smoke testing | no |
 
 ## Where the file belongs
 
 | context | path | how it gets there |
 | --- | --- | --- |
-| local machine | `android/app/google-services.json` | download from the Firebase console after registering the package; it is gitignored |
-| CI | `android/app/google-services.json` written by the workflow | from the `GOOGLE_SERVICES_JSON` repository secret when set |
-| release build | same path, same secret | the release job in `android-integration.yml` writes it before building |
+| local machine | `android/app/google-services.json` | downloaded from the Firebase console; gitignored |
+| CI | `android/app/google-services.json` | written from `GOOGLE_SERVICES_JSON` before the build |
 
-`.gitignore` ignores `google-services.json`, so an accidental `git add -A` cannot publish it.
-Verify with `git check-ignore -v android/app/google-services.json`.
-
-## How CI gets it without committing secrets
-
-Set a repository secret named `GOOGLE_SERVICES_JSON` whose value is the **entire file
-contents**, exactly as downloaded. Both jobs in `android-integration.yml` write it to
-`android/app/google-services.json` before the Gradle build:
-
-```yaml
-- name: Write Firebase configuration
-  env:
-    GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-  run: |
-    set -euo pipefail
-    if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
-      printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-    else
-      # placeholder bound to com.azaman.app, plugin integration only
-      ...
-    fi
-```
-
-When the secret is absent the workflows still build, against a placeholder bound to
-`com.azaman.app`. That validates Gradle and the Google Services plugin, and proves nothing
-about Firebase itself: no project, no API key, no sign-in. A debug APK is evidence of layout
-and interaction, never of OAuth or FCM.
+`.gitignore` ignores `google-services.json`; confirm with
+`git check-ignore -v android/app/google-services.json`.
 
 ## What stays owner-only
 
-1. Creating or choosing the Firebase project, and registering `com.azaman.app` there.
-2. Downloading the real `google-services.json` and adding it as the `GOOGLE_SERVICES_JSON`
-   secret (or placing it locally).
-3. Enabling the sign-in providers and adding the certificate fingerprints above.
-4. Confirming, from a run of the integration lane with the secret set, that the config parsed
-   against this package.
+1. Downloading the real `google-services.json` for `com.azaman.app` in `azaman-app`, and adding
+   it as the `GOOGLE_SERVICES_JSON` secret.
+2. Adding the repository variable `GOOGLE_SERVER_CLIENT_ID` with the `client_type: 3` Web client
+   id. Never the Android client id, never a client secret.
+3. Registering the fingerprints above (upload key, the dedicated CI debug certificate once it
+   exists, and the Play App Signing certificate after the first upload).
+4. Downloading a refreshed `google-services.json` after any further fingerprint registration,
+   if the console changes it.

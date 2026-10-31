@@ -62,6 +62,30 @@ android {
     }
 
     signingConfigs {
+        // A SECOND, separate identity for the CI debug artifact. GitHub-hosted
+        // runners generate a fresh debug keystore on every run, so the default
+        // debug certificate differs between runs and any fingerprint registered
+        // in Firebase for it would stop matching immediately. When
+        // android/ci-debug.properties exists (CI only) the debug build type uses
+        // this identity instead. A developer machine has no such file and keeps
+        // signing with its ambient debug keystore. This is never the upload key.
+        val ciDebugPropertiesFile = rootProject.file("ci-debug.properties")
+        val ciDebugProperties = Properties().apply {
+            if (ciDebugPropertiesFile.exists()) {
+                ciDebugPropertiesFile.inputStream().use { load(it) }
+            }
+        }
+        val hasCiDebugKey = ciDebugPropertiesFile.exists()
+
+        if (hasCiDebugKey) {
+            create("ciDebug") {
+                storeFile = rootProject.file(ciDebugProperties.getProperty("storeFile"))
+                storePassword = ciDebugProperties.getProperty("storePassword")
+                keyAlias = ciDebugProperties.getProperty("keyAlias")
+                keyPassword = ciDebugProperties.getProperty("keyPassword")
+            }
+        }
+
         if (hasUploadKey) {
             create("release") {
                 // Resolved against android/, matching key.properties itself.
@@ -76,6 +100,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (hasCiDebugKey) {
+                signingConfig = signingConfigs.getByName("ciDebug")
+            }
+        }
+
         release {
             // Set only when the key is complete; the guard below refuses to run
             // a release task without one, so this branch can never silently

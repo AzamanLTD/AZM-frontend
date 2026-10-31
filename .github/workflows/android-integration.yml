@@ -62,21 +62,29 @@ jobs:
           echo "Disk usage after cleanup:"
           df -h /
 
-      # The real Firebase configuration is environment-specific and is not
-      # committed. When the repository secret GOOGLE_SERVICES_JSON is set it is
-      # used verbatim, so this lane builds against the actual project; otherwise
-      # a placeholder bound to the production package validates the plugin
-      # integration only. See docs/FIREBASE_ANDROID.md.
-      - name: Write Firebase configuration
+      # GOOGLE_SERVICES_JSON is the ONE canonical Firebase secret: raw JSON, read
+      # by this workflow and by android-prod-smoke.yml. A supplied configuration
+      # is VALIDATED and the run fails if it is wrong for this project or package
+      # — it is never silently replaced by the placeholder. See
+      # docs/FIREBASE_ANDROID.md.
+      - name: Write and validate Firebase configuration
+        id: firebase
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
         run: |
           set -euo pipefail
           if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
             printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-            echo "Using the real google-services.json from repository secrets."
+            python3 tool/ci/validate_google_services.py \
+              --file android/app/google-services.json \
+              --project azaman-app \
+              --package com.azaman.app \
+              --server-client-id "${GOOGLE_SERVER_CLIENT_ID:-}" \
+              --label "supplied firebase"
+            echo "mode=real" >> "$GITHUB_OUTPUT"
           else
-            echo "No GOOGLE_SERVICES_JSON secret: using the placeholder configuration."
+            echo "No GOOGLE_SERVICES_JSON secret: writing the placeholder configuration."
             cat > android/app/google-services.json << 'GSJSON'
           {
             "project_info": {
@@ -104,10 +112,73 @@ jobs:
             "configuration_version": "1"
           }
           GSJSON
+            python3 tool/ci/validate_google_services.py \
+              --file android/app/google-services.json \
+              --package com.azaman.app \
+              --label "placeholder firebase"
+            echo "mode=placeholder" >> "$GITHUB_OUTPUT"
+          fi
+
+      # States plainly what this run can and cannot have proven. A placeholder
+      # build is a layout/interaction artifact: it verifies no sign-in and
+      # receives no notifications.
+      - name: Report Firebase configuration mode
+        env:
+          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          MODE="${{ steps.firebase.outputs.mode }}"
+          {
+            echo "### Firebase configuration"
+            echo ""
+            echo "| item | value |"
+            echo "| --- | --- |"
+            echo "| configuration | $MODE |"
+            echo "| Google Sign-In web client | $([ -n "${GOOGLE_SERVER_CLIENT_ID:-}" ] && echo supplied || echo not-supplied) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$MODE" = "placeholder" ]; then
+            {
+              echo ""
+              echo "**This build is not connected to Firebase.** Google Sign-In and FCM are"
+              echo "not verified by it, and its APK proves nothing about either. Supply the"
+              echo "real configuration to make it a Firebase-connected build."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # The hosted runner's default debug keystore is generated per run, so its
+      # certificate changes between runs. The dedicated CI debug identity makes
+      # the artifact's signer stable enough to register in Firebase.
+      - name: Materialise CI debug signing identity
+        id: ci_debug
+        env:
+          CI_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_CI_DEBUG_KEYSTORE_BASE64 }}
+          CI_DEBUG_STORE_PASSWORD: ${{ secrets.ANDROID_CI_DEBUG_STORE_PASSWORD }}
+          CI_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_CI_DEBUG_KEY_ALIAS }}
+          CI_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_CI_DEBUG_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${CI_DEBUG_KEYSTORE_BASE64:-}" ]; then
+            echo "$CI_DEBUG_KEYSTORE_BASE64" | base64 -d > android/ci-debug-keystore.jks
+            {
+              echo "storeFile=ci-debug-keystore.jks"
+              echo "storePassword=$CI_DEBUG_STORE_PASSWORD"
+              echo "keyAlias=$CI_DEBUG_KEY_ALIAS"
+              echo "keyPassword=$CI_DEBUG_KEY_PASSWORD"
+            } > android/ci-debug.properties
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+            echo "Signed with the dedicated CI debug identity."
+          else
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ANDROID_CI_DEBUG_KEYSTORE_BASE64 is not set. This APK is signed with the runner's throwaway debug certificate, which is NOT stable between runs; register no fingerprint for it."
           fi
 
       - name: Build Android debug APK
-        run: flutter build apk --debug
+        env:
+          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          flutter build apk --debug \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID="${GOOGLE_SERVER_CLIENT_ID:-}"
 
       # The identity is asserted, not assumed: a rename that misses a manifest,
       # Kotlin package or Gradle field shows up here rather than in Play.
@@ -124,6 +195,43 @@ jobs:
             exit 1
           }
 
+      # The owner installs this artifact on a physical phone, so its signer is
+      # reported rather than assumed: it is the only way to know which
+      # certificate fingerprints the build actually carries.
+      - name: Report debug signer
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          BT="$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)"
+          APK=build/app/outputs/flutter-apk/app-debug.apk
+          "$BT/apksigner" verify --print-certs "$APK" > /tmp/debug-certs.txt
+          DN="$(grep -m1 'certificate DN' /tmp/debug-certs.txt | sed 's/.*DN: //')"
+          SHA1="$(grep -m1 'SHA-1 digest' /tmp/debug-certs.txt | sed 's/.*digest: //')"
+          SHA256="$(grep -m1 'SHA-256 digest' /tmp/debug-certs.txt | sed 's/.*digest: //')"
+          echo "debug signer DN: $DN"
+          echo "debug signer SHA-1: $SHA1"
+          echo "debug signer SHA-256: $SHA256"
+          STABLE="${{ steps.ci_debug.outputs.stable }}"
+          {
+            echo "### Debug signer"
+            echo ""
+            echo "| item | value |"
+            echo "| --- | --- |"
+            echo "| certificate | \`$DN\` |"
+            echo "| SHA-1 | \`$SHA1\` |"
+            echo "| SHA-256 | \`$SHA256\` |"
+            echo "| dedicated CI identity | \`$STABLE\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$STABLE" != "true" ]; then
+            {
+              echo ""
+              echo "**Unstable signer.** No dedicated CI debug key is configured, so this"
+              echo "certificate is the runner's throwaway debug certificate and changes"
+              echo "between runs. Do not register these fingerprints anywhere: register the"
+              echo "dedicated CI debug certificate instead."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -131,6 +239,11 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Never leave key material behind, even on a cached or self-hosted runner.
+      - name: Remove CI debug key material
+        if: always()
+        run: rm -f android/ci-debug.properties android/ci-debug-keystore.jks
 
   # Proves the signed release path end to end without ever needing the owner's
   # key in the repository. With the four ANDROID_* secrets present it builds the
@@ -166,13 +279,20 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Write Firebase configuration
+      - name: Write and validate Firebase configuration
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
         run: |
           set -euo pipefail
           if [ -n "${GOOGLE_SERVICES_JSON:-}" ]; then
             printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            python3 tool/ci/validate_google_services.py \
+              --file android/app/google-services.json \
+              --project azaman-app \
+              --package com.azaman.app \
+              --server-client-id "${GOOGLE_SERVER_CLIENT_ID:-}" \
+              --label "supplied firebase"
           else
             cat > android/app/google-services.json << 'GSJSON'
           {
@@ -197,6 +317,11 @@ jobs:
             "configuration_version": "1"
           }
           GSJSON
+            python3 tool/ci/validate_google_services.py \
+              --file android/app/google-services.json \
+              --package com.azaman.app \
+              --label "placeholder firebase"
+            echo "::warning::Release identity is being proved against the placeholder Firebase configuration; sign-in is not verified by this artifact."
           fi
 
       # A release without a key must STOP. This is the contract the owner asked
@@ -250,10 +375,14 @@ jobs:
           fi
 
       - name: Build signed release
+        env:
+          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
         run: |
           set -euo pipefail
-          flutter build appbundle --release
-          flutter build apk --release
+          flutter build appbundle --release \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID="${GOOGLE_SERVER_CLIENT_ID:-}"
+          flutter build apk --release \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID="${GOOGLE_SERVER_CLIENT_ID:-}"
 
       - name: Verify release identity and signing certificate
         run: |
@@ -273,20 +402,52 @@ jobs:
             echo "::error::the release APK is signed with the debug certificate"
             exit 1
           fi
+          APK_SHA1="$(grep -m1 'SHA-1 digest' /tmp/certs.txt | sed 's/.*digest: //')"
+          APK_SHA256="$(grep -m1 'SHA-256 digest' /tmp/certs.txt | sed 's/.*digest: //')"
+          APK_DN="$(grep -m1 'certificate DN' /tmp/certs.txt | sed 's/.*DN: //')"
+
+          # The bundle is what Play receives. Its package name is compiled into
+          # the binary manifest, and its signer must be the same certificate as
+          # the APK, otherwise one of the two artifacts is not uploadable.
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          test -s "$AAB" || { echo "::error::no release bundle was produced"; exit 1; }
+          unzip -p "$AAB" base/manifest/AndroidManifest.xml > /tmp/aab-manifest.bin
+          python3 - <<'PY'
+          import sys
+          data = open('/tmp/aab-manifest.bin', 'rb').read()
+          ok = b'com.azaman.app' in data or 'com.azaman.app'.encode('utf-16-le') in data
+          print('aab manifest carries com.azaman.app:', ok)
+          sys.exit(0 if ok else 1)
+          PY
+          keytool -printcert -jarfile "$AAB" > /tmp/aab-certs.txt
+          AAB_SHA1="$(grep -m1 'SHA1:' /tmp/aab-certs.txt | sed 's/.*SHA1: //')"
+          AAB_SHA256="$(grep -m1 'SHA256:' /tmp/aab-certs.txt | sed 's/.*SHA256: //')"
+          echo "aab signer SHA-1: $AAB_SHA1"
+          echo "aab signer SHA-256: $AAB_SHA256"
+          if [ "$AAB_SHA256" != "$APK_SHA256" ]; then
+            echo "::error::the bundle and the APK are signed by different certificates"
+            exit 1
+          fi
           {
             echo "### Release identity"
             echo ""
             echo "| field | value |"
             echo "| --- | --- |"
-            echo "| package | \`$PKG\` |"
-            echo "| real upload key | \`${{ steps.key.outputs.real }}\` |"
-            echo ""
-            echo "```"
-            # The exact wording depends on the signature scheme the build uses
-            # (V2 Signer, or Signer #1 on older build-tools), so both are read.
-            grep -E "certificate (DN|SHA-256 digest)" /tmp/certs.txt || true
-            echo "```"
+            echo "| release APK package | \`$PKG\` |"
+            echo "| bundle package | \`com.azaman.app\` in the compiled manifest |"
+            echo "| certificate | \`$APK_DN\` |"
+            echo "| SHA-1 | \`$APK_SHA1\` |"
+            echo "| SHA-256 | \`$APK_SHA256\` |"
+            echo "| APK and AAB signer match | yes |"
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.key.outputs.real }}" != "true" ]; then
+            {
+              echo ""
+              echo "**Diagnostic signing.** No upload key was configured, so this run used"
+              echo "a throwaway key. The artifact is NOT uploadable to Play and this"
+              echo "certificate must not be registered in Firebase or Play Console."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload release bundle
         uses: actions/upload-artifact@v4
