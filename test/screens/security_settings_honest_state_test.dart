@@ -19,6 +19,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/screens/security_settings.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/app_unlock_gateway.dart';
+import 'package:azaman/services/money_unlock_flow.dart';
 
 /// Records what the screen sent and answers from a small table.
 class _Wire {
@@ -78,9 +80,41 @@ class _Wire {
   });
 }
 
+/// Answers the app-unlock capabilities read the way the real server does for
+/// these flows: no PIN yet, then one PIN once the write has landed. Without an
+/// answer the screen refuses to write at all, which is the point of the gate.
+class _ServerCaps implements AppUnlockGateway {
+  int calls = 0;
+
+  @override
+  Future<AppUnlockCapabilities> capabilities() async {
+    calls++;
+    return AppUnlockCapabilities(
+      pinConfigured: calls > 1,
+      authenticatorConfigured: false,
+      phoneVerified: false,
+      smsUnlockAvailable: false,
+    );
+  }
+
+  @override
+  Future<void> verifyPin(String pin) async {}
+  @override
+  Future<void> verifyTotp(String token) async {}
+  @override
+  Future<AppUnlockSmsChallenge> sendSmsChallenge() async =>
+      throw UnimplementedError();
+  @override
+  Future<void> verifySmsChallenge({
+    required String challengeId,
+    required String code,
+  }) async {}
+}
+
 Widget _host(_Wire wire) => ProviderScope(
   overrides: [
     securityApiClientProvider.overrideWithValue(ApiClient(client: wire.client)),
+    appUnlockGatewayProvider.overrideWithValue(_ServerCaps()),
     authProvider.overrideWith((ref) => AuthProvider()),
   ],
   child: const MaterialApp(home: SecuritySettingsScreen()),

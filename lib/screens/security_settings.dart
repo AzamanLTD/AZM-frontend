@@ -460,6 +460,30 @@ class _SecuritySettingsScreenState
       return;
     }
 
+    // FAIL CLOSED ON AN UNCONFIRMED PIN STATUS.
+    //
+    // "/security/pin/set" on backend main reads only `pin` and overwrites
+    // pinHash: no proof of the current PIN, no compare-and-swap, no refusal
+    // codes. The verifying handler ships with the app-unlock routes, and the
+    // capabilities read is the only signal this client has that they are
+    // deployed. When that read fails, "no PIN yet" and "rotate an existing
+    // PIN" are indistinguishable, so writing could silently replace a PIN the
+    // member never proved. Nothing is written and nothing is claimed.
+    if (_unlockCapsPhase != _UnlockCapsPhase.known) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Your PIN status could not be confirmed, so nothing was changed. '
+            'Try again in a moment.',
+          ),
+          backgroundColor: ref.read(themeProvider).colors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      unawaited(_loadUnlockCapabilities());
+      return;
+    }
+
     final currentPin = _pinCurrentController.text.trim();
     if (_pinSet) {
       if (currentPin.length != 4) {
