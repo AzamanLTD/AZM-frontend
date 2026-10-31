@@ -25,6 +25,7 @@ class _FakeGateway implements AppUnlockGateway {
     this.refusal,
     this.smsRefusal,
     this.challenge,
+    this.refreshCaps,
   });
 
   final String? acceptedPin;
@@ -32,12 +33,18 @@ class _FakeGateway implements AppUnlockGateway {
   final AppUnlockRefusal? smsRefusal;
   final AppUnlockSmsChallenge? challenge;
 
+  /// What a re-read after a refusal reports. Absent means "nothing configured".
+  final AppUnlockCapabilities? refreshCaps;
+
   String? seenPin;
   int smsSends = 0;
+  int capsCalls = 0;
 
   @override
-  Future<AppUnlockCapabilities> capabilities() async =>
-      AppUnlockCapabilities.none;
+  Future<AppUnlockCapabilities> capabilities() async {
+    capsCalls++;
+    return refreshCaps ?? AppUnlockCapabilities.none;
+  }
 
   @override
   Future<void> verifyPin(String pin) async {
@@ -223,7 +230,7 @@ void main() {
     expect(find.text('Authenticator code'), findsNothing);
     expect(find.text('Text message code'), findsNothing);
     expect(find.byKey(const ValueKey('money-unlock-input')), findsOneWidget);
-    expect(find.text('4 to 8 digits'), findsOneWidget);
+    expect(find.text('4 digits'), findsOneWidget);
   });
 
   testWidgets('a method choice appears only when there is a choice', (
@@ -275,6 +282,151 @@ void main() {
     );
     expect(find.byKey(const ValueKey('money-unlock-input')), findsNothing);
     expect(find.byKey(const ValueKey('money-unlock-submit')), findsNothing);
+  });
+
+  testWidgets('a PIN the server says is gone stops being offered', (
+    tester,
+  ) async {
+    // The account kept a PIN when the sheet opened and lost it since. The
+    // sheet must believe the server, ask again, and point at setup — never
+    // keep a challenge on screen that cannot succeed.
+    final gateway = _FakeGateway(
+      refusal: const AppUnlockRefusal('PIN_NOT_CONFIGURED'),
+      refreshCaps: const AppUnlockCapabilities(
+        pinConfigured: false,
+        authenticatorConfigured: true,
+        phoneVerified: false,
+        smsUnlockAvailable: false,
+      ),
+    );
+    MoneyUnlockResult? result;
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    result = await showMoneyUnlockSheet(
+                      context,
+                      gateway: gateway,
+                      capabilities: _pinOnly(),
+                      userId: 'user_1',
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('money-unlock-input')),
+      '1234',
+    );
+    await tester.tap(find.byKey(const ValueKey('money-unlock-submit')));
+    await tester.pumpAndSettle();
+
+    expect(
+      gateway.capsCalls,
+      1,
+      reason: 'our view was contradicted, so it is re-read from the server',
+    );
+    expect(
+      find.textContaining('No Azaman PIN is set'),
+      findsOneWidget,
+      reason: 'the member is told what is actually true and where to fix it',
+    );
+    expect(
+      find.text('Azaman PIN'),
+      findsNothing,
+      reason: 'the PIN challenge is no longer offered',
+    );
+    expect(
+      find.byKey(const ValueKey('money-unlock-submit')),
+      findsOneWidget,
+      reason: 'the remaining method is still usable',
+    );
+    expect(result, isNull, reason: 'nothing was unlocked');
+  });
+
+  testWidgets('a missing PIN is named, and the sheet stays open', (
+    tester,
+  ) async {
+    final gateway = _FakeGateway(
+      refusal: const AppUnlockRefusal('PIN_REQUIRED'),
+    );
+    await _openSheet(tester, gateway: gateway, capabilities: _pinOnly());
+    await tester.enterText(
+      find.byKey(const ValueKey('money-unlock-input')),
+      '1234',
+    );
+    await tester.tap(find.byKey(const ValueKey('money-unlock-submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Enter your 4-digit PIN.'), findsOneWidget);
+    expect(
+      gateway.capsCalls,
+      0,
+      reason: 'a missing field is not evidence that the account changed',
+    );
+    expect(find.byKey(const ValueKey('money-unlock-sheet')), findsOneWidget);
+  });
+
+  testWidgets('the PIN field is four digits, and four are what is sent', (
+    tester,
+  ) async {
+    // The backend refuses anything that is not exactly four digits, so the
+    // field cannot collect six and the copy says so.
+    final gateway = _FakeGateway(acceptedPin: '1234');
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    MoneyUnlockResult? result;
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    result = await showMoneyUnlockSheet(
+                      context,
+                      gateway: gateway,
+                      capabilities: _pinOnly(),
+                      userId: 'user_1',
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('4 digits'), findsOneWidget, reason: 'the hint is exact');
+    await tester.enterText(
+      find.byKey(const ValueKey('money-unlock-input')),
+      '123456',
+    );
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey('money-unlock-input')),
+    );
+    expect(field.controller!.text, '1234', reason: 'six digits never fit');
+
+    await tester.tap(find.byKey(const ValueKey('money-unlock-submit')));
+    await tester.pumpAndSettle();
+    expect(gateway.seenPin, '1234');
+    expect(result?.outcome, MoneyUnlockOutcome.unlocked);
   });
 
   testWidgets('the demo build labels its demo PIN', (tester) async {

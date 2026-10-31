@@ -71,6 +71,11 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
   String? _error;
   AppUnlockSmsChallenge? _challenge;
 
+  /// The account's capabilities as last confirmed. Seeded from the caller and
+  /// re-read whenever the server says our view is stale, so a method the
+  /// backend no longer has cannot stay on screen.
+  late AppUnlockCapabilities _caps = widget.capabilities;
+
   @override
   void dispose() {
     _input.dispose();
@@ -86,9 +91,17 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
     AppUnlockMethod.sms => 'Text message code',
   };
 
+  /// The backend refuses anything that is not four digits, so the field stops
+  /// at four rather than letting the member type a PIN that cannot be sent.
+  int _maxLengthFor(AppUnlockMethod? method) => switch (method) {
+    AppUnlockMethod.pin || null => 4,
+    AppUnlockMethod.totp || AppUnlockMethod.sms => 6,
+    AppUnlockMethod.deviceAuth => 4,
+  };
+
   String _hintFor(AppUnlockMethod method) => switch (method) {
     AppUnlockMethod.deviceAuth => 'Your phone’s own screen lock',
-    AppUnlockMethod.pin => '4 to 8 digits',
+    AppUnlockMethod.pin => '4 digits',
     AppUnlockMethod.totp => '6 digits from your authenticator',
     AppUnlockMethod.sms => '6 digits sent to your phone',
   };
@@ -100,8 +113,14 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
         ? ''
         : ' $left ${left == 1 ? 'try' : 'tries'} left.';
     return switch (refusal.code) {
-      'PIN_REQUIRED' || 'PIN_FORMAT_INVALID' => 'Enter your 4 to 8 digit PIN.',
-      'PIN_NOT_CONFIGURED' => 'No Azaman PIN is set for this account.',
+      // PIN_REQUIRED means the request carried no PIN at all. The input is
+      // guarded before sending, so this is the server speaking on an edge we
+      // did not anticipate: name the missing input instead of guessing.
+      'PIN_REQUIRED' => 'Enter your 4-digit PIN.',
+      'PIN_FORMAT_INVALID' => 'Your PIN is four digits.',
+      // Stale client view: the account has no PIN, whatever we last heard.
+      // The caller re-reads capabilities so the sheet stops offering it.
+      'PIN_NOT_CONFIGURED' => 'No Azaman PIN is set for this account yet.',
       'PIN_INVALID' => 'That PIN is not right.$tail',
       'PIN_LOCKED' => 'Too many wrong PINs. PIN unlock is locked for now.',
       'TOTP_REQUIRED' => 'Enter the 6 digit code.',
@@ -136,6 +155,12 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
     final value = _input.text.trim();
     if (method != AppUnlockMethod.sms && value.isEmpty) {
       setState(() => _error = 'Enter your ${_hintFor(method).toLowerCase()}.');
+      return;
+    }
+    if (method == AppUnlockMethod.pin && value.length != 4) {
+      // One round trip saved, and the member is told the rule instead of a
+      // server error: the PIN is four digits, not four to eight.
+      setState(() => _error = 'Your PIN is four digits.');
       return;
     }
     if (method == AppUnlockMethod.sms && _challenge == null) {
@@ -180,6 +205,11 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
         _error = _messageFor(refusal);
       });
       AzamanHaptics.selection();
+      if (refusal.code == 'PIN_NOT_CONFIGURED') {
+        // The server says this account has no PIN. Ask again rather than keep
+        // showing a challenge that cannot succeed, and point at setup.
+        await _refreshCapabilities();
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {
@@ -187,6 +217,32 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
         _error = 'That did not work. Try again.';
       });
     }
+  }
+
+  /// Re-reads the account's capabilities after the server contradicted our
+  /// view of it. A failed read changes nothing: the refusal already on screen
+  /// is still the truth, and no method is invented or removed on a guess.
+  Future<void> _refreshCapabilities() async {
+    AppUnlockCapabilities? fresh;
+    try {
+      fresh = await widget.gateway.capabilities();
+    } catch (_) {
+      fresh = null;
+    }
+    if (!mounted || fresh == null) return;
+    setState(() {
+      _caps = fresh!;
+      if (_method != null && !_caps.canUse(_method!)) {
+        _method = _caps.configured.isEmpty ? null : _caps.configured.first;
+        _input.clear();
+        _challenge = null;
+      }
+      if (!_caps.pinConfigured) {
+        _error =
+            'No Azaman PIN is set for this account yet. Add one in Security '
+            'settings, then unlock with it.';
+      }
+    });
   }
 
   Future<void> _sendCode() async {
@@ -220,7 +276,7 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final methods = widget.capabilities.configured;
+    final methods = _caps.configured;
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
 
     return Padding(
@@ -302,7 +358,7 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
                 keyboardType: TextInputType.number,
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(8),
+                  LengthLimitingTextInputFormatter(_maxLengthFor(_method)),
                 ],
                 style: AzText.money(colors.textPrimary, size: 20),
                 decoration: InputDecoration(
@@ -376,7 +432,7 @@ class _MoneyUnlockSheetState extends ConsumerState<_MoneyUnlockSheet> {
   }
 
   String _emptyStateMessage() {
-    if (widget.capabilities.smsUnavailableReason == 'PHONE_UNVERIFIED') {
+    if (_caps.smsUnavailableReason == 'PHONE_UNVERIFIED') {
       return 'This device has no screen lock, and your account has no unlock '
           'method yet. Add a PIN in Security settings, then unlock.';
     }

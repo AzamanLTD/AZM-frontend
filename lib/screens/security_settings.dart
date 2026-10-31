@@ -119,8 +119,12 @@ class _SecuritySettingsScreenState
       setState(() {
         _unlockCaps = caps;
         _unlockCapsPhase = _UnlockCapsPhase.known;
-        // The server's answer is the only reason these may read as configured.
-        _pinSet = caps.pinConfigured || _pinSet;
+        // The server's answer is the only reason these may read as configured,
+        // and it is also the only reason they may read as unconfigured: the
+        // old `|| _pinSet` latch meant a PIN deleted elsewhere kept demanding a
+        // current PIN here. A failed read never reaches this branch, it becomes
+        // "unknown", so nothing is cleared on a guess.
+        _pinSet = caps.pinConfigured;
         if (caps.authenticatorConfigured) {
           _twoFactorEnabled = true;
           _twoFactorPending = false;
@@ -479,55 +483,29 @@ class _SecuritySettingsScreenState
       // current PIN inside this same request and refuses without touching the
       // hash, so a second /pin/verify call would be a rival verification path
       // that can disagree with the one that actually guards the write.
-      final res = await apiClient.post('/security/pin/set', {
+      await apiClient.post('/security/pin/set', {
         'pin': pin,
         if (_pinSet) 'currentPin': currentPin,
       });
 
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        HapticFeedback.heavyImpact();
-        setState(() => _pinSet = true);
-        unawaited(_loadUnlockCapabilities());
-        _pinController.clear();
-        _pinConfirmController.clear();
-        _pinCurrentController.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Azaman PIN set successfully'),
-            backgroundColor: ref.read(themeProvider).colors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        // Refusals are reported as refusals. The codes are the contract:
-        // PIN_CURRENT_REQUIRED, PIN_INVALID, PIN_LOCKED, PIN_FORMAT_INVALID.
-        String code = '';
-        String message = 'The PIN was not changed.';
-        try {
-          final errBody = jsonDecode(res.body);
-          if (errBody is Map) {
-            code = (errBody['code'] ?? '').toString();
-            message = (errBody['message'] ?? message).toString();
-          }
-        } catch (_) {
-          // A non-JSON refusal still refuses; keep the honest default.
-        }
-        final refusal = switch (code) {
-          'PIN_CURRENT_REQUIRED' => 'Enter your current PIN to change it.',
-          'PIN_INVALID' => 'That is not the current PIN. Nothing was changed.',
-          'PIN_LOCKED' =>
-            'Too many wrong attempts. Try again later. Nothing was changed.',
-          'PIN_FORMAT_INVALID' => 'A PIN is four digits.',
-          _ => message,
-        };
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(refusal),
-            backgroundColor: ref.read(themeProvider).colors.danger,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      HapticFeedback.heavyImpact();
+      setState(() => _pinSet = true);
+      unawaited(_loadUnlockCapabilities());
+      _pinController.clear();
+      _pinConfirmController.clear();
+      _pinCurrentController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Azaman PIN set successfully'),
+          backgroundColor: ref.read(themeProvider).colors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on ApiException catch (err) {
+      // A refusal is NOT a network fault. ApiClient throws for every non-2xx
+      // response, so this is where the server's own code arrives: treating it
+      // as a transport error used to hide a refusal behind "Network error".
+      _showPinRefusal(code: err.code ?? '', message: err.message);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -539,6 +517,54 @@ class _SecuritySettingsScreenState
     } finally {
       if (mounted) setState(() => _loadingPin = false);
     }
+  }
+
+  /// Refusals are reported as refusals. The codes are the contract:
+  /// PIN_FORMAT_INVALID, PIN_CURRENT_REQUIRED, PIN_REQUIRED, PIN_INVALID,
+  /// PIN_LOCKED, PIN_ROTATION_CONFLICT and PIN_NOT_CONFIGURED.
+  ///
+  /// Two of them mean the client's view of the account is older than the
+  /// server's, so the screen asks again instead of leaving the member to retry
+  /// against a state that no longer exists. Nothing here ever reports a change,
+  /// touches [_pinSet] upward, or discards the new PIN the member typed.
+  void _showPinRefusal({required String code, required String message}) {
+    if (!mounted) return;
+    final refusal = switch (code) {
+      'PIN_CURRENT_REQUIRED' => 'Enter your current PIN to change it.',
+      'PIN_REQUIRED' =>
+        'Your current PIN was missing from that request, so nothing was '
+            'changed. Enter it and try again.',
+      'PIN_INVALID' => 'That is not the current PIN. Nothing was changed.',
+      'PIN_LOCKED' =>
+        'Too many wrong attempts. Try again later. Nothing was changed.',
+      'PIN_FORMAT_INVALID' => 'A PIN is four digits.',
+      'PIN_ROTATION_CONFLICT' =>
+        'Your PIN was changed somewhere else while this screen was open, so '
+            'this change was refused and your PIN is unchanged. Re-enter the '
+            'current PIN to continue.',
+      'PIN_NOT_CONFIGURED' =>
+        'No Azaman PIN is set on this account yet, so there was no current PIN '
+            'to prove. Nothing was created. Save again to set one.',
+      _ => message,
+    };
+    if (code == 'PIN_NOT_CONFIGURED') {
+      // The server just said none exists: drop the current-PIN prompt rather
+      // than keep asking for proof of something that is not there.
+      setState(() => _pinSet = false);
+      unawaited(_loadUnlockCapabilities());
+    } else if (code == 'PIN_ROTATION_CONFLICT') {
+      // The proof we hold is stale. Clearing it asks for the right one without
+      // discarding the new PIN already typed.
+      _pinCurrentController.clear();
+      unawaited(_loadUnlockCapabilities());
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(refusal),
+        backgroundColor: ref.read(themeProvider).colors.danger,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   // ── SESSION MANAGEMENT ──────────────────────────────────────────────────────
