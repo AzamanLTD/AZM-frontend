@@ -19,7 +19,12 @@ Two mechanisms exist:
   the screen is a catalogue and only part of it is money (`/bills` is the model
   case: the hub is public, `YOUR BILLS` is gated).
 
-## Guarded at the route (30 routes)
+## Guarded at the route (32 routes)
+
+The count is the table below, row by row. `test/router/money_lock_route_coverage_test.dart`
+enforces 27 of them by name; the four Bills child routes (`/bills/add`, `/bills/pay/:accountId`,
+`/bills/request`, `/bills/request/:requestId`) are enforced by the Bills suite, and `/bills`
+is listed because the hub itself is deliberately public with only its saved section gated.
 
 | Route | Mechanism | Notes |
 | --- | --- | --- |
