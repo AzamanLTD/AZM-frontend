@@ -526,7 +526,10 @@ class _SecuritySettingsScreenState
   /// Two of them mean the client's view of the account is older than the
   /// server's, so the screen asks again instead of leaving the member to retry
   /// against a state that no longer exists. Nothing here ever reports a change,
-  /// touches [_pinSet] upward, or discards the new PIN the member typed.
+  /// touches [_pinSet] upward, or discards the new PIN the member typed, and
+  /// none of them claims what the active PIN currently is: after a conflict the
+  /// stored hash may have been replaced by another operation, so the only
+  /// truthful statement about it is that this attempt was not applied.
   void _showPinRefusal({required String code, required String message}) {
     if (!mounted) return;
     final refusal = switch (code) {
@@ -538,10 +541,16 @@ class _SecuritySettingsScreenState
       'PIN_LOCKED' =>
         'Too many wrong attempts. Try again later. Nothing was changed.',
       'PIN_FORMAT_INVALID' => 'A PIN is four digits.',
+      // A conflict means the compare-and-swap snapshot no longer matches the
+      // stored hash. Something changed the PIN while this screen was open, but
+      // which operation won and what the active PIN now is are facts only the
+      // server holds, so this must never say the PIN is unchanged: that would
+      // be a claim this client cannot make. It reports what it knows (the
+      // details changed, this attempt was not applied) and asks for the
+      // current PIN.
       'PIN_ROTATION_CONFLICT' =>
-        'Your PIN was changed somewhere else while this screen was open, so '
-            'this change was refused and your PIN is unchanged. Re-enter the '
-            'current PIN to continue.',
+        'Your PIN details changed while this screen was open. This change '
+            "wasn't applied. Refresh and enter the current PIN to continue.",
       'PIN_NOT_CONFIGURED' =>
         'No Azaman PIN is set on this account yet, so there was no current PIN '
             'to prove. Nothing was created. Save again to set one.',

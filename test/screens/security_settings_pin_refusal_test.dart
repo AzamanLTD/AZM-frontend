@@ -66,8 +66,7 @@ class _Wire {
     return http.Response(jsonEncode({}), 200);
   });
 
-  int countOf(String suffix) =>
-      paths.where((p) => p.endsWith(suffix)).length;
+  int countOf(String suffix) => paths.where((p) => p.endsWith(suffix)).length;
 }
 
 /// Capabilities answered from a queue, so the screen's first read and the
@@ -144,54 +143,83 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
   });
 
-  testWidgets('a rotation conflict says the PIN changed elsewhere and re-asks', (
-    tester,
-  ) async {
-    _sizeForEverything(tester);
-    final wire = _Wire(status: 409, code: 'PIN_ROTATION_CONFLICT');
-    final gateway = _CapsGateway([_pinConfigured]);
-    await tester.pumpWidget(_host(wire, gateway));
-    await tester.pumpAndSettle();
-    expect(
-      find.text('Current 4-digit PIN'),
-      findsOneWidget,
-      reason: 'a configured account is asked for the PIN being replaced',
-    );
-    final readsBefore = gateway.calls;
+  testWidgets(
+    'a rotation conflict says the details changed elsewhere, that this attempt '
+    'was not applied, and re-asks for the current PIN',
+    (tester) async {
+      _sizeForEverything(tester);
+      final wire = _Wire(status: 409, code: 'PIN_ROTATION_CONFLICT');
+      final gateway = _CapsGateway([_pinConfigured]);
+      await tester.pumpWidget(_host(wire, gateway));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Current 4-digit PIN'),
+        findsOneWidget,
+        reason: 'a configured account is asked for the PIN being replaced',
+      );
+      final readsBefore = gateway.calls;
 
-    await _attemptRotation(tester);
+      await _attemptRotation(tester);
 
-    expect(
-      find.textContaining('changed somewhere else'),
-      findsOneWidget,
-      reason: 'the member is told why the change was refused',
-    );
-    expect(
-      find.text('Azaman PIN set successfully'),
-      findsNothing,
-      reason: 'a refusal may never be reported as a saved PIN',
-    );
-    expect(
-      gateway.calls,
-      greaterThan(readsBefore),
-      reason: 'the stale view is re-read from the server, not assumed',
-    );
-    expect(
-      _textIn(tester, 1),
-      '5678',
-      reason: 'the new PIN the member typed is theirs to keep',
-    );
-    expect(
-      _textIn(tester, 0),
-      '',
-      reason: 'the proof is known-stale, so it is cleared rather than resent',
-    );
-    expect(
-      find.text('Azaman PIN active'),
-      findsOneWidget,
-      reason: 'the PIN still exists; only this change failed',
-    );
-  });
+      // The three facts the member needs, each asserted separately so a rewrite
+      // cannot quietly drop one: what changed, whether it took effect, and what
+      // the screen now needs from them.
+      expect(
+        find.textContaining('PIN details changed while this screen was open'),
+        findsOneWidget,
+        reason: 'the member is told the PIN state moved on elsewhere',
+      );
+      expect(
+        find.textContaining("This change wasn't applied"),
+        findsOneWidget,
+        reason:
+            'the attempt is named as not applied, not as refused-in-passing',
+      );
+      expect(
+        find.textContaining('enter the current PIN to continue'),
+        findsOneWidget,
+        reason: 'the screen asks for the current active PIN',
+      );
+      // The snapshot mismatched, so the stored hash may now be someone else's.
+      // Saying "unchanged" would assert a value this client cannot know.
+      expect(
+        find.textContaining('unchanged'),
+        findsNothing,
+        reason: 'a conflict cannot claim the active PIN is unchanged',
+      );
+      expect(
+        find.text('Azaman PIN set successfully'),
+        findsNothing,
+        reason: 'a refusal may never be reported as a saved PIN',
+      );
+      expect(
+        gateway.calls,
+        greaterThan(readsBefore),
+        reason: 'the stale view is re-read from the server, not assumed',
+      );
+      expect(
+        _textIn(tester, 1),
+        '5678',
+        reason: 'the new PIN the member typed is theirs to keep',
+      );
+      expect(
+        _textIn(tester, 0),
+        '',
+        reason: 'the proof is known-stale, so it is cleared rather than resent',
+      );
+      expect(
+        find.text('Current 4-digit PIN'),
+        findsOneWidget,
+        reason:
+            'the prompt is for the current PIN, which the member must supply',
+      );
+      expect(
+        find.text('Azaman PIN active'),
+        findsOneWidget,
+        reason: 'the PIN still exists; only this change failed',
+      );
+    },
+  );
 
   testWidgets('one refusal is one write, never a second verification path', (
     tester,
@@ -208,7 +236,8 @@ void main() {
     expect(
       wire.countOf('/security/pin/verify'),
       0,
-      reason: 'the write verifies the current PIN itself; a rival check '
+      reason:
+          'the write verifies the current PIN itself; a rival check '
           'could disagree with the one guarding the hash',
     );
     final sent = wire.bodies.where((b) => b.containsKey('pin')).last;
