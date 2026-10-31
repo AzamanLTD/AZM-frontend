@@ -5,6 +5,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -86,6 +87,15 @@ Future<void> _settleUnlockChoreography(WidgetTester tester) async {
 }
 
 void main() {
+  // The unlock flow hydrates the member's saved method before it reads it, and
+  // hydration reads SharedPreferences. Without a mock store the channel never
+  // answers in a widget test, so every unlock would wait out the flow's bounded
+  // fallback and shift the choreography by that delay. A real (empty) store is
+  // what these contracts should run against.
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('a locked tap authenticates and does not open the menu', (
     tester,
   ) async {
@@ -272,18 +282,27 @@ void main() {
 
       // The three beats are distinct, in this order: the badge opens, and only
       // then does the Azaman logo fill (the access signal).
+      //
+      // The fill is measured as GROWTH from the mark's resting value, not as
+      // "fill3 > 0": the idle mark already carries a nonzero third segment, so
+      // a nonzero test fired on the frame the badge was still fully opaque and
+      // reported the lock and the logo as simultaneous. What the owner asked
+      // for is an order, and this now measures that order.
       double peakFill = 0;
-      double opacityWhenFillStarted = -1;
+      double restingFill = -1;
+      int? badgeGoneAt;
+      int? fillGrewAt;
       for (var i = 0; i < 60; i++) {
         await tester.pump(const Duration(milliseconds: 20));
         final marks = tester.widgetList<AzLogoMark>(find.byType(AzLogoMark));
         if (marks.isEmpty) continue;
         final mark = marks.first;
-        if (mark.fill3 > 0 && opacityWhenFillStarted < 0) {
-          final fades = tester.widgetList<Opacity>(
-            find.descendant(of: badge(), matching: find.byType(Opacity)),
-          );
-          opacityWhenFillStarted = fades.isEmpty ? 0 : fades.first.opacity;
+        restingFill = restingFill < 0 ? mark.fill3 : restingFill;
+        if (badgeGoneAt == null && badge().evaluate().isEmpty) badgeGoneAt = i;
+        if (fillGrewAt == null &&
+            badgeGoneAt != null &&
+            mark.fill3 > restingFill + 0.05) {
+          fillGrewAt = i;
         }
         peakFill = math.max(peakFill, mark.fill3);
       }
@@ -294,8 +313,18 @@ void main() {
         reason: 'the Azaman logo must play its own fill animation on unlock',
       );
       expect(
-        opacityWhenFillStarted,
-        lessThan(0.2),
+        badgeGoneAt,
+        isNotNull,
+        reason: 'the badge must open at some point during the choreography',
+      );
+      expect(
+        fillGrewAt,
+        isNotNull,
+        reason: 'the logo must fill only once the badge is gone',
+      );
+      expect(
+        fillGrewAt!,
+        greaterThanOrEqualTo(badgeGoneAt!),
         reason: 'the lock must have finished opening before the logo plays',
       );
       expect(badge(), findsNothing, reason: 'the lock stays open afterwards');

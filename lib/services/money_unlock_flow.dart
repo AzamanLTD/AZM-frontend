@@ -154,7 +154,16 @@ Future<MoneyUnlockResult> runMoneyUnlockFlow(
   // Hydrate BEFORE reading. A fire-and-forget hydration made the first unlock
   // after a restart ignore the member's saved choice; awaiting a local read
   // exposes nothing (money stays locked) and is over in milliseconds.
-  await ref.read(moneyUnlockPreferenceProvider.notifier).hydrate(userId);
+  //
+  // Bounded, because a storage read is not allowed to hold the lock hostage: on
+  // a platform where the preferences channel never answers, an unbounded await
+  // left the tap doing nothing at all — the member pressed, the app stayed
+  // locked, and no challenge was ever shown. A slow or missing read falls back
+  // to the available methods, which is exactly what an absent preference means.
+  await ref
+      .read(moneyUnlockPreferenceProvider.notifier)
+      .hydrate(userId)
+      .timeout(const Duration(milliseconds: 400), onTimeout: () {});
   final preferred = ref.read(moneyUnlockPreferenceProvider);
   if (!context.mounted) {
     return const MoneyUnlockResult(MoneyUnlockOutcome.cancelled);
