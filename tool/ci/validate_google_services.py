@@ -81,15 +81,15 @@ def main() -> None:
             f"{args.label}: project_id is '{project or '(absent)'}', expected "
             f"'{args.project}'. Refusing to build against the wrong Firebase project."
         )
-    if len(android_packages) != 1:
+    # The project may legitimately register other packages (a retired
+    # com.example.* app, an iOS-bridged Android app), so only OUR package is
+    # constrained: it must be present exactly once. Two clients for the same
+    # package would make the build's identity ambiguous.
+    if len(matching) != 1:
         fail(
-            f"{args.label}: expected exactly one Android client, found "
-            f"{len(android_packages)} ({sorted(set(android_packages))})"
-        )
-    if not matching:
-        fail(
-            f"{args.label}: no Android client for '{args.package}' "
-            f"(found {android_packages})"
+            f"{args.label}: expected exactly one Android client for "
+            f"'{args.package}', found {len(matching)} "
+            f"(all registered packages: {sorted(set(android_packages))})"
         )
     # A real configuration must carry the Web client that Google id-token
     # issuance needs. The CI placeholder is validated for structure and package

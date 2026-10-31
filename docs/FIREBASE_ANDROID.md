@@ -37,7 +37,8 @@ structural facts only, never the document or its keys:
 
 - the file exists, is non-empty and is valid JSON;
 - `project_info.project_id` is `azaman-app`;
-- there is exactly one Android client, and its `package_name` is `com.azaman.app`;
+- exactly one Android client carries `package_name: com.azaman.app` (other registered packages
+  are tolerated, a second client for this package is not);
 - a Web OAuth client with `client_type: 3` exists;
 - when `GOOGLE_SERVER_CLIENT_ID` is supplied, it is one of those `client_type: 3` client ids,
   so the build cannot point at an audience that is not in the configuration.

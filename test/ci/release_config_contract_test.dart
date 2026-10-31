@@ -311,6 +311,26 @@ void main() {
       expect(result.stdout, contains('expected'));
     });
 
+    test('tolerates other registered packages but requires ours once', () {
+      final path = write(
+        'two-packages.json',
+        _config(extraPackages: ['com.example.azaman']),
+      );
+      final result = run(path, project: 'azaman-app');
+      expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
+      expect(result.stdout, contains('android_clients=2'));
+    });
+
+    test('rejects a duplicated client for our package', () {
+      final path = write(
+        'duplicate.json',
+        _config(extraPackages: ['com.azaman.app']),
+      );
+      final result = run(path, project: 'azaman-app');
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('expected exactly one Android client'));
+    });
+
     test('rejects a config without the Android package', () {
       final path = write(
         'wrong-package.json',
@@ -318,7 +338,7 @@ void main() {
       );
       final result = run(path, project: 'azaman-app');
       expect(result.exitCode, isNot(0));
-      expect(result.stdout, contains('no Android client for'));
+      expect(result.stdout, contains('expected exactly one Android client'));
     });
 
     test('rejects a config with no Web OAuth client', () {
@@ -408,6 +428,7 @@ Map<String, Object?> _config({
   String project = 'azaman-app',
   String package = 'com.azaman.app',
   bool webClient = true,
+  List<String> extraPackages = const [],
 }) {
   return {
     'project_info': {
@@ -429,6 +450,17 @@ Map<String, Object?> _config({
           {'current_key': 'AIzaFAKEKEYFORCONTRACTTESTONLY0000000000'},
         ],
       },
+      for (final extra in extraPackages)
+        {
+          'client_info': {
+            'mobilesdk_app_id': '1:123456789012:android:$extra',
+            'android_client_info': {'package_name': extra},
+          },
+          'oauth_client': const [],
+          'api_key': const [
+            {'current_key': 'AIzaFAKEKEYFORCONTRACTTESTONLY0000000000'},
+          ],
+        },
     ],
     'configuration_version': '1',
   };
