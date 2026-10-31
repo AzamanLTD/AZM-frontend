@@ -254,6 +254,27 @@ void main() {
       );
     });
 
+    test('the CI debug flag is declared where both blocks can see it', () {
+      final gradle = _read(_gradle);
+      // Declared inside signingConfigs {} it is invisible to buildTypes{}, and
+      // Gradle reports "Unresolved reference: hasCiDebugKey" at build time.
+      final declaration = gradle.indexOf('val hasCiDebugKey');
+      final signingBlock = gradle.indexOf('signingConfigs {');
+      expect(declaration, greaterThan(0));
+      expect(
+        declaration,
+        lessThan(signingBlock),
+        reason:
+            'the flag must be declared before signingConfigs, not inside it',
+      );
+      expect(
+        gradle.substring(signingBlock, gradle.indexOf('buildTypes {')),
+        isNot(contains('val hasCiDebugKey')),
+        reason:
+            'a declaration inside signingConfigs is out of scope for buildTypes',
+      );
+    });
+
     test('the debug job reports its signer and cleans up key material', () {
       final yaml = _read(_integration);
       expect(yaml, contains('- name: Report debug signer'));

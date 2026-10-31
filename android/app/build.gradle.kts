@@ -61,22 +61,24 @@ android {
         }
     }
 
+    // Declared at module scope so both the signing configs and the debug build
+    // type can see them. See the CI debug identity note below.
+    val ciDebugPropertiesFile = rootProject.file("ci-debug.properties")
+    val ciDebugProperties = Properties().apply {
+        if (ciDebugPropertiesFile.exists()) {
+            ciDebugPropertiesFile.inputStream().use { load(it) }
+        }
+    }
+    val hasCiDebugKey = ciDebugPropertiesFile.exists()
+
     signingConfigs {
         // A SECOND, separate identity for the CI debug artifact. GitHub-hosted
         // runners generate a fresh debug keystore on every run, so the default
         // debug certificate differs between runs and any fingerprint registered
-        // in Firebase for it would stop matching immediately. When
-        // android/ci-debug.properties exists (CI only) the debug build type uses
-        // this identity instead. A developer machine has no such file and keeps
-        // signing with its ambient debug keystore. This is never the upload key.
-        val ciDebugPropertiesFile = rootProject.file("ci-debug.properties")
-        val ciDebugProperties = Properties().apply {
-            if (ciDebugPropertiesFile.exists()) {
-                ciDebugPropertiesFile.inputStream().use { load(it) }
-            }
-        }
-        val hasCiDebugKey = ciDebugPropertiesFile.exists()
-
+        // in Firebase for it would stop matching. When ci-debug.properties exists
+        // (CI only) the debug build type uses this identity; a developer machine
+        // has no such file and keeps its ambient debug keystore. Never the upload
+        // key.
         if (hasCiDebugKey) {
             create("ciDebug") {
                 storeFile = rootProject.file(ciDebugProperties.getProperty("storeFile"))
