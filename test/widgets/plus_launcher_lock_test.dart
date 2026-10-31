@@ -77,6 +77,14 @@ Widget _host({
   );
 }
 
+/// Drives the unlock choreography to its end: badge travel, mark fill, the hold
+/// (a timer, so pumpAndSettle alone stops before it) and the release.
+Future<void> _settleUnlockChoreography(WidgetTester tester) async {
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
+  await tester.pump(const Duration(milliseconds: 250));
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
+}
+
 void main() {
   testWidgets('a locked tap authenticates and does not open the menu', (
     tester,
@@ -119,9 +127,16 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
 
+    // The unlock choreography (badge opens, mark fills, holds, releases) owns
+    // the trigger while it runs, and a tap inside it is ignored by design. The
+    // member watches the brand mark settle before asking for the menu; the test
+    // settles it too. pumpAndSettle, not one long pump: a single jump starts
+    // the closing travel at the end of the frame instead of finishing it.
+    await _settleUnlockChoreography(tester);
+
     await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(coordinator.calls, 1, reason: 'one challenge, not one per tap');
     expect(controller.isOpen, isTrue);
@@ -398,5 +413,39 @@ void main() {
       expect(badge(), findsNothing);
       expect(controller.isOpen, isFalse);
     });
+  });
+
+  testWidgets('a tap INSIDE the unlock choreography is ignored, not queued', (
+    tester,
+  ) async {
+    final access = MoneyAccessController();
+    final controller = PlusLauncherController();
+    final coordinator = _FakeCoordinator(
+      const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+    );
+
+    await tester.pumpWidget(
+      _host(controller: controller, access: access, coordinator: coordinator),
+    );
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    // One frame into the choreography: the badge is still opening.
+    await tester.pump(const Duration(milliseconds: 60));
+
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      controller.isOpen,
+      isFalse,
+      reason: 'the choreography must finish before the menu can open',
+    );
+
+    // Once it settles, the member's next tap opens the menu.
+    await _settleUnlockChoreography(tester);
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(controller.isOpen, isTrue);
+    expect(coordinator.calls, 1, reason: 'still one challenge');
   });
 }

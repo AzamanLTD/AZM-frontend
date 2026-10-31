@@ -145,6 +145,13 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   /// unresponsive.
   bool _celebrating = false;
 
+  /// True for exactly as long as the unlock choreography is on screen: the
+  /// badge opening, the brand mark filling, the hold, and the release back to
+  /// the idle mark. Derived from the animations themselves rather than a flag
+  /// cleared by hand, so it cannot get stuck on or leak past the sequence.
+  bool get _unlockChoreographyRunning =>
+      _unlockMorph.isAnimating || _fill.isAnimating || _celebrating || _filling;
+
   /// Beat one of the unlock: 0 at rest, 1 when the lock is fully open. While it
   /// runs the badge shrinks and fades away. It does not fill the mark — that is
   /// beat two, the Azaman logo's OWN animation, which is what tells the member
@@ -182,27 +189,30 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
   /// Reduced motion keeps the state change and drops both travels: the badge is
   /// gone on the frame the state flips and the mark never fills.
   Future<void> _playUnlockMorph() async {
-    if (_reduceMotion) {
-      _unlockMorph.value = 0;
-      return;
-    }
-    await _unlockMorph.forward(from: 0);
-    if (!mounted || widget.controller.isOpen) return;
-    // Beat three: the brand mark's own animation, played exactly as the
-    // launcher plays it, so "the logo animated" means the same thing here as
-    // everywhere else in the app.
-    if (_fill.isAnimating || _filling) return;
-    _filling = true;
-    _celebrating = true;
-    try {
-      await _fill.forward(from: 0);
+    if (_unlockChoreographyRunning) return;
+    {
+      if (_reduceMotion) {
+        _unlockMorph.value = 0;
+        return;
+      }
+      await _unlockMorph.forward(from: 0);
       if (!mounted || widget.controller.isOpen) return;
-      await Future<void>.delayed(MotionTokens.control);
-      if (!mounted || widget.controller.isOpen) return;
-      await _fill.reverse();
-    } finally {
-      _filling = false;
-      _celebrating = false;
+      // Beat three: the brand mark's own animation, played exactly as the
+      // launcher plays it, so "the logo animated" means the same thing here as
+      // everywhere else in the app.
+      if (_fill.isAnimating || _filling) return;
+      _filling = true;
+      _celebrating = true;
+      try {
+        await _fill.forward(from: 0);
+        if (!mounted || widget.controller.isOpen) return;
+        await Future<void>.delayed(MotionTokens.control);
+        if (!mounted || widget.controller.isOpen) return;
+        await _fill.reverse();
+      } finally {
+        _filling = false;
+        _celebrating = false;
+      }
     }
   }
 
@@ -353,6 +363,10 @@ class _PlusLauncherTriggerState extends ConsumerState<PlusLauncherTrigger>
                 widget.controller.close();
                 return;
               }
+              // The unlock choreography owns this window: a tap here is
+              // swallowed, not queued. Starting the menu-opening fill under it
+              // would interleave two animations meant to be read in order.
+              if (_unlockChoreographyRunning) return;
               if (_celebrating) {
                 _interruptCelebration();
               } else if (_filling) {
