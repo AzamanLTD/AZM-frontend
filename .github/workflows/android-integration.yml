@@ -424,7 +424,12 @@ jobs:
           AAB_SHA256="$(grep -m1 'SHA256:' /tmp/aab-certs.txt | sed 's/.*SHA256: //')"
           echo "aab signer SHA-1: $AAB_SHA1"
           echo "aab signer SHA-256: $AAB_SHA256"
-          if [ "$AAB_SHA256" != "$APK_SHA256" ]; then
+
+          # The two tools format the same digest differently: apksigner prints
+          # lowercase without separators, keytool uppercase with colons. Compare
+          # the value, not the formatting.
+          normalise() { printf '%s' "$1" | tr -d ':' | tr 'a-f' 'A-F'; }
+          if [ "$(normalise "$AAB_SHA256")" != "$(normalise "$APK_SHA256")" ]; then
             echo "::error::the bundle and the APK are signed by different certificates"
             exit 1
           fi

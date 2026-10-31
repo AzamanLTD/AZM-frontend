@@ -275,6 +275,23 @@ void main() {
       );
     });
 
+    test('the APK and bundle digests are compared after normalising format', () {
+      final yaml = _read(_integration);
+      expect(
+        yaml,
+        contains(r"""tr -d ':' | tr 'a-f' 'A-F'"""),
+        reason:
+            'apksigner prints lowercase/colonless, keytool uppercase/colonised',
+      );
+      expect(
+        yaml,
+        contains(
+          r'''$(normalise "$AAB_SHA256")" != "$(normalise "$APK_SHA256")''',
+        ),
+        reason: 'raw string comparison fails on identical certificates',
+      );
+    });
+
     test('the debug job reports its signer and cleans up key material', () {
       final yaml = _read(_integration);
       expect(yaml, contains('- name: Report debug signer'));
