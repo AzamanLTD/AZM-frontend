@@ -342,6 +342,56 @@ void main() {
       );
     });
 
+    test('the prod smoke signer guard actually fires on apksigner output', () {
+      // A guard written against keytool's DN order never matches apksigner's
+      // reversed one, so the check has to be executed, not just read.
+      final yaml = _read(_prodSmoke);
+      final start = yaml.indexOf('case "\$DN" in');
+      expect(start, isNot(-1), reason: 'the upload-key guard is missing');
+      final end = yaml.indexOf('esac', start);
+      expect(end, isNot(-1), reason: 'the guard is not closed');
+      final block = yaml.substring(start, end + 4);
+
+      bool rejects(String dn) {
+        // DN goes in the environment: interpolating a multi-line script into
+        // a shell string would word-split it.
+        final result = Process.runSync(
+          'bash',
+          ['-c', block],
+          environment: {'DN': dn},
+        );
+        // exit 1 is the guard firing; anything else means it stayed silent.
+        expect(
+          result.stderr,
+          isNot(contains('syntax error')),
+          reason: 'the extracted guard must be valid shell',
+        );
+        return result.exitCode == 1;
+      }
+
+      expect(
+        rejects('C=GH, O=Azaman, L=Accra, CN=Azaman'),
+        isTrue,
+        reason: "apksigner's ordering must be rejected",
+      );
+      expect(
+        rejects('CN=Azaman, O=Azaman, L=Accra, C=GH'),
+        isTrue,
+        reason: "keytool's ordering must be rejected too",
+      );
+      expect(
+        rejects('C=GH, O=Azaman, L=Accra, CN=Azaman CI Debug'),
+        isFalse,
+        reason: 'the dedicated CI debug identity is the point of the workflow',
+      );
+      expect(
+        rejects('C=US, O=Android, CN=Android Debug'),
+        isFalse,
+        reason:
+            "the runner's own key stays allowed, and is flagged unstable instead",
+      );
+    });
+
     test('the CI debug keystore lives in android/ and is git-ignored', () {
       // The documented commands must write where .gitignore actually looks: the
       // ignore patterns are relative to android/, so a keystore at the repo root

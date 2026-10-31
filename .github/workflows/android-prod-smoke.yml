@@ -196,10 +196,16 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             echo "::warning::This APK's signer is unstable. It is not evidence about Google Sign-In, and its fingerprints must not be registered anywhere."
           fi
-          # The upload key must never appear on a debug artifact.
+          # The upload key must never appear on a debug artifact. Matched on the
+          # components apksigner prints, not on keytool's "CN=..., O=..." order:
+          # apksigner prints least specific first ("C=KH, O=Azaman, L=Accra,
+          # CN=Azaman"), so a CN-first pattern here would silently never fire.
+          # Both debug identities carry "Debug" in their CN, the upload key does
+          # not, which separates them without hardcoding a fingerprint.
           case "$DN" in
-            *"CN=Azaman, O=Azaman"*)
-              echo "::error::this debug APK is signed with the upload key; debug builds must use the CI debug identity or the ambient debug key"
+            *"Debug"*) : ;;
+            *"O=Azaman"*)
+              echo "::error::this debug APK is signed with the upload key ($DN); debug builds must use the CI debug identity or the ambient debug key"
               exit 1
               ;;
           esac
