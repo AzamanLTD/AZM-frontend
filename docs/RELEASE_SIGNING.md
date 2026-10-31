@@ -3,8 +3,10 @@
 The upload key is environment-specific. It is **never** committed: `android/key.properties`
 and every `*.jks` / `*.keystore` are ignored by `android/.gitignore`.
 
-Without the key a release build still assembles, but Gradle prints a warning and signs with
-the **debug** key. That APK/AAB cannot be uploaded to Play.
+Release builds **require** the key. Without it Gradle stops with one sentence naming what is
+missing, because a debug-signed bundle is refused by Play and a build that succeeds while
+being unuploadable is worse than one that fails. Debug builds are unaffected and keep signing
+with the debug key, so contributors and the integration lane never need the upload key.
 
 ## One-time: create the upload key
 
@@ -32,10 +34,61 @@ keyPassword=...
 `storeFile` is resolved relative to `android/`, so the plain filename above points at
 `android/upload-keystore.jks`.
 
-## CI
+## CI secrets
 
-The workflows expect the same four values as repository secrets. Write them to
-`android/key.properties` in a step before the build, for example:
+Four repository secrets, exactly these names:
+
+| secret | value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | the whole keystore file, base64-encoded as one string (`base64 -w0 android/upload-keystore.jks`) |
+| `ANDROID_STORE_PASSWORD` | the keystore password, plain text |
+| `ANDROID_KEY_ALIAS` | the key alias, plain text (`upload` in the command above) |
+| `ANDROID_KEY_PASSWORD` | the key password, plain text |
+
+Create the base64 value without newlines; `base64 -w0` writes it as a single line. On macOS
+use `base64 -i android/upload-keystore.jks | tr -d '\n'`.
+
+## How CI materialises the key
+
+The `release-identity` job in `.github/workflows/android-integration.yml` writes both files
+immediately before the build, from job-level environment variables bound to the secrets:
+
+```yaml
+- name: Materialise the upload key
+  id: key
+  run: |
+    set -euo pipefail
+    if [ -n "${KEYSTORE_BASE64:-}" ]; then
+      echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+      { echo "storeFile=upload-keystore.jks"; ... } > android/key.properties
+      echo "real=true" >> "$GITHUB_OUTPUT"
+    else
+      # throwaway key so the signing wiring is still exercised
+      ...
+      echo "real=false" >> "$GITHUB_OUTPUT"
+      echo "::warning::ANDROID_KEYSTORE_BASE64 is not set. ... NOT uploadable to Play."
+    fi
+```
+
+Nothing is echoed: the step writes files and one flag. The keystore and `key.properties` are
+deleted in an `if: always()` step, so a cached or self-hosted runner keeps no key material.
+
+## How Gradle reads it
+
+`android/app/build.gradle.kts` loads `android/key.properties` when it exists, builds a
+`release` signing config from the four values, and points `buildTypes.release` at it. A
+`gradle.taskGraph.whenReady` guard refuses any task whose name contains `Release` when the
+file or any entry is missing, printing the missing entry names. That keeps the failure at the
+one place it matters and leaves `flutter build apk --debug`, `flutter test` and the analyzer
+untouched.
+
+## What the lane proves
+
+`release-identity` builds the AAB and the release APK, then asserts with `aapt2` that the
+package is `com.azaman.app` and with `apksigner` that the signer is not `CN=Android Debug`.
+It also runs a release build with the key removed first and fails unless the build stops with
+the expected message. The artifact is `azaman-android-release`; the debug artifact
+`azaman-android-debug` is unchanged.
 
 ```yaml
 - name: Write upload key

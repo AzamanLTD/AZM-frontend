@@ -115,7 +115,7 @@ This is the new single-step setup, and deliberately not a second tour.
 
 | Item | State |
 |---|---|
-| Package id `com.example.azaman` | Play rejects `com.example.*`; permanent once published. Owner decision. |
+| Package id | Settled: `com.azaman.app`, in `namespace`, `applicationId` and the Kotlin package. Play treats it as permanent from the first upload. |
 | Release signing | `release` uses the debug key; no keystore in the repo. Owner action. |
 | AAB | CI builds a debug APK only, by design. First upload must be built locally. |
 | KYC at withdrawal | Client half present, backend gate unmerged, so the gate is inert here. Do not read a successful withdrawal as evidence it works. |
