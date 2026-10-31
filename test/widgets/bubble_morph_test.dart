@@ -103,6 +103,19 @@ GoRouter _router(List<String> visited) {
   );
 }
 
+Future<void> _pumpRouter(WidgetTester tester, GoRouter router) async {
+  await tester.binding.setSurfaceSize(const Size(390, 844));
+  await tester.pumpWidget(
+    ProviderScope(child: MaterialApp.router(routerConfig: router)),
+  );
+  await tester.pump(const Duration(milliseconds: 80));
+}
+
+/// The rect the bubble actually occupies, which is where a flight must start
+/// from and where it must land on the way back.
+Rect _bubbleRect(WidgetTester tester, String key) =>
+    tester.getRect(find.byKey(ValueKey(key)));
+
 void main() {
   testWidgets('every bubble owns a distinct, stable identity', (tester) async {
     await _pumpRow(tester, reduceMotion: false);
@@ -204,6 +217,72 @@ void main() {
     // No source bubble on screen: the Hero simply has nothing to fly with.
     expect(find.byType(WalletModulesRow), findsNothing);
     expect(find.text('Bills'), findsOneWidget);
+  });
+
+  testWidgets('the flight leaves from the bubble it came from, and lands there', (
+    tester,
+  ) async {
+    final visited = <String>[];
+    final router = _router(visited);
+    await _pumpRouter(tester, router);
+
+    final before = _bubbleRect(tester, 'wallet-module-bills');
+    final rowBefore = tester.getRect(find.byType(WalletModulesRow));
+
+    await tester.tap(find.byKey(const ValueKey('wallet-module-bills')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+
+    // Mid-flight the source is a placeholder at the bubble's own bounds, so the
+    // row must still measure exactly as it did: the slot never collapses and
+    // the flight never starts from a shrunken or expanded box.
+    // Size, not position: the whole page is travelling during the transition,
+    // so the honest question is whether the slot reflowed under the flight.
+    expect(
+      tester.getSize(find.byType(WalletModulesRow)),
+      rowBefore.size,
+      reason: 'the row must not reflow under the flight',
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('Bills'), findsOneWidget);
+
+    // Back: the reverse flight lands on the bubble, not near it.
+    router.pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+    await tester.pumpAndSettle();
+    expect(
+      _bubbleRect(tester, 'wallet-module-bills'),
+      before,
+      reason: 'the reverse flight returns the bubble to its own bounds',
+    );
+    expect(tester.getSize(find.byType(WalletModulesRow)), rowBefore.size);
+  });
+
+  testWidgets('every bubble flies to its own destination, and back', (
+    tester,
+  ) async {
+    const expected = <String, String>{
+      'wallet-module-save': '/savings',
+      'wallet-module-p2p': '/marketplace',
+      'wallet-module-bills': '/bills',
+    };
+
+    for (final entry in expected.entries) {
+      final visited = <String>[];
+      final router = _router(visited);
+      BubbleNavigation.reset();
+      await _pumpRouter(tester, router);
+
+      await tester.tap(find.byKey(ValueKey(entry.key)));
+      await tester.pumpAndSettle();
+      expect(visited, [entry.value], reason: entry.key);
+
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(find.byKey(ValueKey(entry.key)), findsOneWidget);
+    }
   });
 
   test('the double-tap guard expires', () async {
