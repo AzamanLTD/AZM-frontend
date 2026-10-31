@@ -39,9 +39,14 @@ structural facts only, never the document or its keys:
 - `project_info.project_id` is `azaman-app`;
 - exactly one Android client carries `package_name: com.azaman.app` (other registered packages
   are tolerated, a second client for this package is not);
-- a Web OAuth client with `client_type: 3` exists;
-- when `GOOGLE_SERVER_CLIENT_ID` is supplied, it is one of those `client_type: 3` client ids,
-  so the build cannot point at an audience that is not in the configuration.
+- the client object for `com.azaman.app` carries a Web OAuth client with `client_type: 3`;
+- when `GOOGLE_SERVER_CLIENT_ID` is supplied, it is one of **that app's own** `client_type: 3`
+  client ids, so the build cannot point at an audience that is not in the configuration.
+
+The Web client check is scoped to our app on purpose. Firebase writes one client object per
+registered Android app, and this project also registers the retired `com.example.azaman`. A Web
+client attached only to that object is not a fallback: it issues tokens for that app, not for
+ours, so supplying it fails with a message naming the app that owns it.
 
 A supplied but wrong configuration **fails the run**. It is never replaced by the placeholder,
 because a build that silently compiles against the wrong project looks healthy and signs nobody

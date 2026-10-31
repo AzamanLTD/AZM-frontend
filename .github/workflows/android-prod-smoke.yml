@@ -20,6 +20,12 @@
 # Dispatch-only. It fails early and loudly when the configuration or the OAuth
 # client id is missing: a device build that looks production-connected but
 # cannot sign anyone in is worse than no build.
+#
+# Signing: the debug APK uses the SAME dedicated CI debug identity as the Android
+# Integration workflow (the four ANDROID_CI_DEBUG_* secrets). The upload key is
+# never substituted here. When those secrets are absent the build still runs, but
+# its summary marks the signer unstable and unsuitable for Firebase SHA
+# registration, because the hosted runner's debug certificate changes every run.
 
 name: Android Prod Smoke Build
 
@@ -115,6 +121,32 @@ jobs:
             echo "| Web OAuth client | supplied and matched against the configuration |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Same dedicated CI debug identity as Android Integration: one certificate
+      # the owner can register in Firebase, separate from the upload key.
+      - name: Materialise CI debug signing identity
+        id: ci_debug
+        env:
+          CI_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_CI_DEBUG_KEYSTORE_BASE64 }}
+          CI_DEBUG_STORE_PASSWORD: ${{ secrets.ANDROID_CI_DEBUG_STORE_PASSWORD }}
+          CI_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_CI_DEBUG_KEY_ALIAS }}
+          CI_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_CI_DEBUG_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${CI_DEBUG_KEYSTORE_BASE64:-}" ]; then
+            echo "$CI_DEBUG_KEYSTORE_BASE64" | base64 -d > android/ci-debug-keystore.jks
+            {
+              echo "storeFile=ci-debug-keystore.jks"
+              echo "storePassword=$CI_DEBUG_STORE_PASSWORD"
+              echo "keyAlias=$CI_DEBUG_KEY_ALIAS"
+              echo "keyPassword=$CI_DEBUG_KEY_PASSWORD"
+            } > android/ci-debug.properties
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+            echo "Signed with the dedicated CI debug identity."
+          else
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ANDROID_CI_DEBUG_KEYSTORE_BASE64 is not set. This APK is signed with the runner's throwaway debug certificate, which is NOT stable between runs; register no fingerprint for it."
+          fi
+
       - name: Build production-connected debug APK
         env:
           GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
@@ -128,7 +160,7 @@ jobs:
 
       # The phone installs this file, so its signer is reported rather than
       # assumed. A fingerprint is only useful if it is printed by the build that
-      # produced it.
+      # produced it, and only trustworthy if the key behind it is stable.
       - name: Report APK signer
         run: |
           set -euo pipefail
@@ -139,7 +171,9 @@ jobs:
           DN="$(grep -m1 'certificate DN' /tmp/smoke-certs.txt | sed 's/.*DN: //')"
           SHA1="$(grep -m1 'SHA-1 digest' /tmp/smoke-certs.txt | sed 's/.*digest: //')"
           SHA256="$(grep -m1 'SHA-256 digest' /tmp/smoke-certs.txt | sed 's/.*digest: //')"
+          STABLE="${{ steps.ci_debug.outputs.stable }}"
           echo "smoke APK signer: $DN"
+          echo "smoke APK signer is the dedicated CI identity: $STABLE"
           {
             echo "### Device APK signer"
             echo ""
@@ -148,16 +182,25 @@ jobs:
             echo "| certificate | \`$DN\` |"
             echo "| SHA-1 | \`$SHA1\` |"
             echo "| SHA-256 | \`$SHA256\` |"
+            echo "| dedicated CI identity | \`$STABLE\` |"
           } >> "$GITHUB_STEP_SUMMARY"
+          # "Stable" is claimed only when the dedicated key was actually
+          # materialised; the upload key is never used for a debug build.
+          if [ "$STABLE" != "true" ]; then
+            {
+              echo ""
+              echo "**Unstable signer.** The dedicated CI debug secrets are not configured,"
+              echo "so this APK carries the runner's throwaway debug certificate, which"
+              echo "changes between runs. It is unsuitable for Firebase SHA registration"
+              echo "and Google Sign-In on it is expected to fail."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::This APK's signer is unstable. It is not evidence about Google Sign-In, and its fingerprints must not be registered anywhere."
+          fi
+          # The upload key must never appear on a debug artifact.
           case "$DN" in
-            *"Android Debug"*)
-              {
-                echo ""
-                echo "**Registration caveat.** This certificate came from the runner's own"
-                echo "debug keystore. Hosted runners generate it per run, so this fingerprint"
-                echo "is not stable: register only a dedicated CI debug certificate, and treat"
-                echo "Google Sign-In on this APK as unverified until then."
-              } >> "$GITHUB_STEP_SUMMARY"
+            *"CN=Azaman, O=Azaman"*)
+              echo "::error::this debug APK is signed with the upload key; debug builds must use the CI debug identity or the ambient debug key"
+              exit 1
               ;;
           esac
 
@@ -168,3 +211,8 @@ jobs:
           path: build/app/outputs/flutter-apk/*-arm64-v8a-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Never leave CI key material behind, even on a cached or self-hosted runner.
+      - name: Remove CI debug key material
+        if: always()
+        run: rm -f android/ci-debug.properties android/ci-debug-keystore.jks

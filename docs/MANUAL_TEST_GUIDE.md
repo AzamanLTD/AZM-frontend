@@ -5,17 +5,31 @@ Test in order. Each step says what to look at, not just what to tap.
 **Build under test:** branch `feat/member-money-lock-home-bills`. The APK is the
 `azaman-android-debug` artifact from the Android Integration workflow.
 
-Which artifact you are holding matters, and it is not a release candidate:
+Which artifact you are holding matters, and none of them is a release candidate:
 
 | artifact | what it proves | what it does not |
 | --- | --- | --- |
-| `azaman-android-debug` | layout, interaction, navigation, the money lock, Bills surfaces | nothing about Firebase: with the placeholder configuration nobody can sign in and no message arrives |
-| `azaman-android-prod-debug` | the same, plus the production backend and a real Firebase configuration | only when the Firebase secret and the Web client id are configured |
-| `azaman-android-release` | the signed bundle and APK | uploadable only when the upload key is configured; otherwise it is a diagnostic build |
+| `azaman-android-debug` | layout, interaction, navigation, the money lock, Bills surfaces, and a build compiled against the **real** Firebase configuration (project `azaman-app`, package `com.azaman.app`, matched Web OAuth client) | that Google Sign-In or FCM actually work. Both need a physical device and a certificate fingerprint registered in Firebase |
+| `azaman-android-prod-debug` | the same, wired to the **production** backend, for a device dry run | nothing, unless the Firebase secret and Web client id are configured; and it is dispatch-only, never run without owner authorisation |
+| `azaman-android-release` | the signed AAB **and** APK, built with the permanent upload key and verified against it | installability from Play, which needs the app registered there first |
 
-A successful build is not evidence that Google Sign-In works. Check the run's job
-summary first: it states whether the configuration was real or a placeholder, and
-which certificate signed the APK.
+The three things here are separate and easy to confuse:
+
+1. **Configuration validity** — the Firebase document names the right project and
+   package and the Web OAuth client belongs to `com.azaman.app`. CI checks this on
+   every run, and the current runs use the real configuration, not the placeholder.
+2. **Compilation** — the APK builds, carries `com.azaman.app`, and is signed by a
+   certificate CI prints. CI checks this too.
+3. **Device behaviour** — a human taps "Continue with Google" on a phone and sees a
+   token come back, and a push notification arrives. **Nothing in CI can prove
+   this.** It needs the APK's signing certificate registered in Firebase, plus a
+   real device.
+
+A green run therefore proves 1 and 2 only. Read the job summary before testing: it
+states which Firebase configuration was used and which certificate signed the APK.
+If the summary says the signer is unstable, a Google Sign-In test on that build is
+expected to fail with a certificate mismatch, and that is a signing-registration
+problem, not an app defect.
 
 **What has been verified automatically** is listed at the end. Everything in
 this guide is what CI cannot check.
@@ -126,9 +140,9 @@ This is the new single-step setup, and deliberately not a second tour.
 | Item | State |
 |---|---|
 | Package id | Settled: `com.azaman.app`, in `namespace`, `applicationId` and the Kotlin package. Registered in the existing Firebase project `azaman-app`. |
-| Release signing | Release builds require the upload key (`android/key.properties` or the `ANDROID_*` CI secrets) and stop with a clear message without it. No keystore is in the repo. Owner action: add the secrets. |
-| CI debug signer | `azaman-android-debug` is signed by the dedicated CI debug identity when its secrets are configured; otherwise by the runner's throwaway debug certificate, which changes every run and must not be registered in Firebase. |
-| AAB | CI builds a debug APK only, by design. First upload must be built locally. |
+| Release signing | **Configured and verified.** The four `ANDROID_*` secrets exist, so `release-identity` builds with the permanent upload key and asserts the result. Measured signer of both artifacts: `CN=Azaman, O=Azaman, L=Accra, C=GH`, SHA-1 `F2:E7:F5:B1:B2:B8:77:12:DA:9A:63:D2:2A:BB:91:F4:67:5B:0B:AA`, SHA-256 `D7:CB:D9:02:E2:F0:35:10:B9:56:B4:5D:F8:0D:20:B1:74:C5:9B:D3:9D:44:C5:E3:CB:7F:23:BF:4C:AF:6E:76`. No keystore is in the repo. |
+| CI debug signer | **Still unstable.** The dedicated CI debug identity is wired and ready, but its four `ANDROID_CI_DEBUG_*` secrets are not configured yet, so `azaman-android-debug` is signed by the runner's throwaway debug certificate and the certificate differs between runs. Do not register those fingerprints. Owner action: add the four secrets, then register the resulting fingerprint. |
+| AAB | **Built by CI.** `release-identity` produces both `app-release.aab` and `app-release.apk` in the `azaman-android-release` artifact, with the same verified certificate. Uploading the first build to Play still needs the Play Console app to exist. |
 | KYC at withdrawal | Client half present, backend gate unmerged, so the gate is inert here. Do not read a successful withdrawal as evidence it works. |
 
 ---

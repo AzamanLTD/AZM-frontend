@@ -101,22 +101,47 @@ only by the Android Integration debug build, and a developer's local debug signi
 | `ANDROID_CI_DEBUG_KEY_ALIAS` | its key alias |
 | `ANDROID_CI_DEBUG_KEY_PASSWORD` | its key password |
 
-Generate it once, on your own machine, and keep the file out of the repository (both
-`ci-debug.properties` and `ci-debug-keystore.jks` are gitignored):
+Generate it once, on your own machine. The file lives at **`android/ci-debug-keystore.jks`**, not
+at the repository root: `android/.gitignore` carries `ci-debug-keystore.jks` and
+`ci-debug.properties`, and those patterns are relative to `android/`. A keystore left at the root
+would be committed by the next `git add -A`, so the commands below write it into `android/` and
+`git check-ignore` confirms it before anything is staged.
+
+Run from the repository root in PowerShell, using the JDK that ships with Android Studio (it is the
+`keytool` you already have; a bare `keytool` may not be on `PATH`):
 
 ```powershell
-keytool -genkeypair -v `
-  -keystore ci-debug-keystore.jks -storetype JKS `
+# Android Studio's bundled JDK; adjust the drive if Studio is installed elsewhere.
+$keytool = "${env:ProgramFiles}\Android\Android Studio\jbr\bin\keytool.exe"
+if (-not (Test-Path $keytool)) { throw "keytool not found at $keytool" }
+
+$storePass = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 20 | % {[char]$_})
+$keyPass   = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 20 | % {[char]$_})
+
+& $keytool -genkeypair -v `
+  -keystore android\ci-debug-keystore.jks -storetype JKS `
   -keyalg RSA -keysize 2048 -validity 10000 `
-  -alias cidebug `
+  -alias cidebug -storepass $storePass -keypass $keyPass `
   -dname "CN=Azaman CI Debug, O=Azaman, C=GH"
 
-# the single-line secret value (no newlines)
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("ci-debug-keystore.jks")) | Set-Clipboard
+# It must be ignored before it can ever be committed.
+git check-ignore -v android/ci-debug-keystore.jks
+if ($LASTEXITCODE -ne 0) { throw "android/ci-debug-keystore.jks is NOT gitignored; stop" }
 
-# the fingerprints to register in Firebase for the Android app com.azaman.app
-keytool -list -v -keystore ci-debug-keystore.jks -alias cidebug
+# The single-line secret value (no newlines).
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("android\ci-debug-keystore.jks")) | Set-Clipboard
+
+# The fingerprints to register in Firebase for the Android app com.azaman.app.
+& $keytool -list -v -keystore android\ci-debug-keystore.jks -alias cidebug -storepass $storePass
 ```
+
+Paste that base64 string into `ANDROID_CI_DEBUG_KEYSTORE_BASE64`, and the two passwords and the
+alias (`cidebug`) into the other three secrets. They are generated above rather than chosen, so
+they are strong by construction; keep them with the file.
+
+This key is **not** the upload key and must never be used to sign a release: `release` signing
+reads `android/key.properties` only, `ciDebug` is applied to the debug build type only, and a
+contract test enforces that separation.
 
 Back the file up privately: the fingerprint is only stable while the same file is used. Then
 register its SHA-1 and SHA-256 in Firebase for `com.azaman.app` and download a refreshed
@@ -124,7 +149,9 @@ register its SHA-1 and SHA-256 in Firebase for `com.azaman.app` and download a r
 
 Until those four secrets exist, the debug job still produces `azaman-android-debug` with the same
 name and retention, but its summary reports the signer as unstable and says not to register it.
-Its APK is a layout and interaction artifact, not a verified Google Sign-In build.
+Its APK is a layout and interaction artifact, not a verified Google Sign-In build. The prod-smoke
+workflow uses the same identity and the same four secrets, reports its signer, and marks the
+artifact unstable when they are absent.
 
 ## What the lane proves
 
