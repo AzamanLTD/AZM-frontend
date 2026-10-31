@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/services/bills/bills_gateway.dart';
@@ -263,6 +264,9 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
   /// capability yet, so in production this is false and the section is a plan
   /// rather than an entry point to a flow that cannot finish.
   bool get _canAskAContact {
+    // Reading this provider is itself a private act: while locked nothing is
+    // loaded, and the honest answer is "not offered".
+    if (!ref.watch(moneyAccessProvider).canViewMoney) return false;
     final accounts =
         ref.watch(billsHubProvider).valueOrNull?.savedAccounts ??
         const <SavedBillAccount>[];
@@ -272,7 +276,13 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
-    final hub = ref.watch(billsHubProvider);
+    // The gate below hides the widget; this condition stops the FETCH. A locked
+    // member must never cause a saved-account request, so the private provider
+    // is not watched at all until money is open.
+    final canViewMoney = ref.watch(moneyAccessProvider).canViewMoney;
+    final hub = canViewMoney
+        ? ref.watch(billsHubProvider)
+        : AsyncValue<BillsHubSnapshot>.data(BillsHubSnapshot.empty);
 
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
@@ -400,7 +410,9 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
           ),
 
           // ── Outstanding, only when the server claims it ───────────────
-          if (hub.valueOrNull != null &&
+          // Private: an amount owed is member money, so it is not built locked.
+          if (canViewMoney &&
+              hub.valueOrNull != null &&
               hub.valueOrNull!.outstanding.isNotEmpty)
             BillsSection(
               title: 'DUE NOW',
@@ -421,7 +433,9 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
             ),
 
           // ── Requests from contacts ────────────────────────────────────
-          BillsSection(
+          // Private section: not built while locked.
+          if (canViewMoney)
+            BillsSection(
             title: 'REQUESTS',
             subtitle: 'A contact can ask you to pay a bill they saved.',
             child: hub.when(
@@ -454,7 +468,9 @@ class _AvailableStateState extends ConsumerState<_AvailableState> {
           ),
 
           // ── Recently paid ─────────────────────────────────────────────
-          BillsSection(
+          // Private section: not built while locked.
+          if (canViewMoney)
+            BillsSection(
             title: 'RECENTLY PAID',
             child: hub.when(
               loading: () => _Loading(colors: colors),

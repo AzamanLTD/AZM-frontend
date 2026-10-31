@@ -422,36 +422,18 @@ class _SecuritySettingsScreenState
     }
 
     setState(() => _loadingPin = true);
-    final token = ref.read(authProvider).user?.token;
 
     try {
       final apiClient = ref.read(securityApiClientProvider);
 
-      if (_pinSet) {
-        // Prove the old PIN before replacing it. A pickpocket with the
-        // unlocked phone must not be able to rotate the PIN and lock the owner
-        // out of their own authorization.
-        final verified = await apiClient.post('/security/pin/verify', {
-          'pin': currentPin,
-        });
-        if (verified.statusCode != 200 && verified.statusCode != 201) {
-          if (mounted) {
-            setState(() => _loadingPin = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text(
-                  'That is not the current PIN. Nothing was changed.',
-                ),
-                backgroundColor: ref.read(themeProvider).colors.danger,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-          return;
-        }
-      }
-
-      final res = await apiClient.post('/security/pin/set', {'pin': pin});
+      // One server-authoritative proof-and-update. The backend verifies the
+      // current PIN inside this same request and refuses without touching the
+      // hash, so a second /pin/verify call would be a rival verification path
+      // that can disagree with the one that actually guards the write.
+      final res = await apiClient.post('/security/pin/set', {
+        'pin': pin,
+        if (_pinSet) 'currentPin': currentPin,
+      });
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         HapticFeedback.heavyImpact();
@@ -467,10 +449,30 @@ class _SecuritySettingsScreenState
           ),
         );
       } else {
-        final errBody = jsonDecode(res.body);
+        // Refusals are reported as refusals. The codes are the contract:
+        // PIN_CURRENT_REQUIRED, PIN_INVALID, PIN_LOCKED, PIN_FORMAT_INVALID.
+        String code = '';
+        String message = 'The PIN was not changed.';
+        try {
+          final errBody = jsonDecode(res.body);
+          if (errBody is Map) {
+            code = (errBody['code'] ?? '').toString();
+            message = (errBody['message'] ?? message).toString();
+          }
+        } catch (_) {
+          // A non-JSON refusal still refuses; keep the honest default.
+        }
+        final refusal = switch (code) {
+          'PIN_CURRENT_REQUIRED' => 'Enter your current PIN to change it.',
+          'PIN_INVALID' => 'That is not the current PIN. Nothing was changed.',
+          'PIN_LOCKED' =>
+            'Too many wrong attempts. Try again later. Nothing was changed.',
+          'PIN_FORMAT_INVALID' => 'A PIN is four digits.',
+          _ => message,
+        };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errBody['message'] ?? 'Failed to set PIN'),
+            content: Text(refusal),
             backgroundColor: ref.read(themeProvider).colors.danger,
             behavior: SnackBarBehavior.floating,
           ),

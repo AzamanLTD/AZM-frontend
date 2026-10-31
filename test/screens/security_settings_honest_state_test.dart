@@ -32,8 +32,20 @@ class _Wire {
 
   final List<String> paths = [];
 
+  /// Every body the screen sends, so a contract can assert on the exact shape
+  /// rather than on "some request happened".
+  final List<Map<String, dynamic>> bodies = [];
+
   MockClient get client => MockClient((request) async {
     paths.add(request.url.path);
+    if (request.body.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(request.body);
+        if (decoded is Map<String, dynamic>) bodies.add(decoded);
+      } catch (_) {
+        // A non-JSON body is not part of any contract here.
+      }
+    }
     final path = request.url.path;
     if (path.endsWith('/security/2fa/setup')) {
       return http.Response(
@@ -76,7 +88,10 @@ Widget _host(_Wire wire) => ProviderScope(
 
 Finder _authenticatorSwitch() => find.descendant(
   of: find
-      .ancestor(of: find.text('Google Authenticator'), matching: find.byType(Row))
+      .ancestor(
+        of: find.text('Google Authenticator'),
+        matching: find.byType(Row),
+      )
       .first,
   matching: find.byType(Switch),
 );
@@ -165,10 +180,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(
-      wire.paths.any((p) => p.endsWith('/security/2fa/verify')),
-      isTrue,
-    );
+    expect(wire.paths.any((p) => p.endsWith('/security/2fa/verify')), isTrue);
     expect(_switchValue(tester, 'Google Authenticator'), isTrue);
     expect(
       find.text('On — a code is required when you sign in'),
@@ -204,10 +216,7 @@ void main() {
     await tester.pump(const Duration(seconds: 4));
     await tester.pumpAndSettle();
 
-    expect(
-      wire.paths.any((p) => p.endsWith('/security/2fa/disable')),
-      isTrue,
-    );
+    expect(wire.paths.any((p) => p.endsWith('/security/2fa/disable')), isTrue);
     expect(
       _switchValue(tester, 'Google Authenticator'),
       isTrue,
@@ -241,9 +250,57 @@ void main() {
       reason: 'there is no /security/pin/remove endpoint to call',
     );
     expect(find.text('Change it above'), findsOneWidget);
-    expect(
-      wire.paths.any((p) => p.endsWith('/security/pin/set')),
-      isTrue,
-    );
+    expect(wire.paths.any((p) => p.endsWith('/security/pin/set')), isTrue);
   });
+
+  testWidgets(
+    'rotating an existing PIN proves it in the SAME request that writes it',
+    (tester) async {
+      final wire = _Wire();
+      _sizeForEverything(tester);
+      await tester.pumpWidget(_host(wire));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // First enrolment: two fields, and no current PIN to prove.
+      await tester.enterText(find.byType(TextField).first, '1234');
+      await tester.enterText(find.byType(TextField).at(1), '1234');
+      await tester.tap(find.text('Set PIN').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final enrolled = wire.bodies.where((b) => b.containsKey('pin')).last;
+      expect(
+        enrolled.containsKey('currentPin'),
+        isFalse,
+        reason: 'nothing exists yet to prove on first enrolment',
+      );
+
+      // Rotation: the second attempt carries the existing PIN in the write.
+      wire.bodies.clear();
+      wire.paths.clear();
+      await tester.enterText(find.byType(TextField).at(0), '1234');
+      await tester.enterText(find.byType(TextField).at(1), '5678');
+      await tester.enterText(find.byType(TextField).at(2), '5678');
+      await tester.tap(find.text('Set PIN').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final rotation = wire.bodies.where((b) => b.containsKey('pin')).last;
+      expect(rotation['pin'], '5678');
+      expect(
+        rotation['currentPin'],
+        '1234',
+        reason:
+            'the server verifies the old PIN inside the write, so the '
+            'request must carry it',
+      );
+      expect(
+        wire.paths.any((p) => p.endsWith('/security/pin/verify')),
+        isFalse,
+        reason:
+            'a second verification path can disagree with the one that '
+            'actually guards the write',
+      );
+    },
+  );
 }

@@ -94,6 +94,11 @@ class _Scripted extends UnavailableBillsGateway {
       holderName: lookupResult?.holderName,
       verificationStatus: 'VERIFIED',
       alias: alias,
+      // This fake stands in for a gateway that really can quote and pay — the
+      // demo one. Production defaults now fail closed, so a fake must SAY what
+      // it claims instead of inheriting permission.
+      canQuote: true,
+      canPay: true,
     );
   }
 
@@ -152,6 +157,8 @@ const _account = SavedBillAccount(
   identifierMasked: '•••• 5678',
   holderName: 'AMA MENSAH',
   alias: 'My Apartment',
+  canQuote: true,
+  canPay: true,
 );
 
 BillQuote _quote({

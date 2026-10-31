@@ -25,6 +25,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/config.dart';
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/bills/http_bills_gateway.dart';
 
@@ -112,8 +113,8 @@ class SavedBillAccount {
     this.holderName,
     this.verificationStatus,
     this.alias,
-    this.canQuote = true,
-    this.canPay = true,
+    this.canQuote = false,
+    this.canPay = false,
     this.isPrimary = false,
   });
 
@@ -143,24 +144,16 @@ class SavedBillAccount {
   /// The backend's own capability flags for this service, carried per account
   /// so a pay button can be gated by the account it would pay.
   ///
-  /// They default to true because an absent capability object is not a claim
-  /// that payment exists — it is the demo gateway and older fakes, which are
-  /// marked `isDemo` at the screen. A real payload always carries them, and
-  /// today every one of them is false.
+  /// They FAIL CLOSED. An absent capability object means "nobody told me this
+  /// service can be quoted or paid", which is not permission — the old defaults
+  /// were true, so any payload missing `capabilities` silently produced a live
+  /// Pay button over a service that cannot pay. The demo gateway states its own
+  /// capabilities explicitly instead of inheriting a lenient default.
   final bool canQuote;
   final bool canPay;
 
   /// The server's primary marker for this member's saved bills.
   final bool isPrimary;
-
-  /// Reads a capability boolean out of a server capability object. A payload
-  /// with no capability object leaves the flag at its default.
-  static bool capabilityFlag(Object? raw, String key) {
-    if (raw is Map && raw['capabilities'] is Map) {
-      return (raw['capabilities'] as Map)[key] == true;
-    }
-    return true;
-  }
 
   /// True only when the provider itself confirmed a holder.
   bool get hasProviderVerifiedHolder =>
@@ -502,6 +495,15 @@ Provider<DemoBillsGateway> get demoBillsGatewayProvider => _demoGatewayProvider;
 /// What the Hub reads. A failed read is NOT the same as "no bills": the Hub
 /// distinguishes them so a network problem never looks like an empty account.
 final billsHubProvider = FutureProvider<BillsHubSnapshot>((ref) async {
+  // Private member data. The lock has to stop the FETCH, not merely the paint:
+  // a gate that hides a widget while the provider above it still runs leaves a
+  // full saved-account snapshot resident in memory and on the wire. Watching the
+  // lock here means a locked member makes no private request at all, and because
+  // the dependency change rebuilds this provider, a snapshot from before the
+  // lock is dropped rather than kept as "the last good value".
+  if (!ref.watch(moneyAccessProvider).canViewMoney) {
+    return BillsHubSnapshot.empty;
+  }
   return ref.watch(billsGatewayProvider).hub();
 });
 
@@ -509,5 +511,7 @@ final billsHubProvider = FutureProvider<BillsHubSnapshot>((ref) async {
 final savedBillAccountsProvider = FutureProvider<List<SavedBillAccount>>((
   ref,
 ) async {
+  // Same rule as the Hub: masked is not public.
+  if (!ref.watch(moneyAccessProvider).canViewMoney) return const [];
   return ref.watch(billsGatewayProvider).savedAccounts();
 });

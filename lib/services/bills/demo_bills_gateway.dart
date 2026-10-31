@@ -121,6 +121,11 @@ class DemoBillsGateway implements BillsGateway {
       identifierMasked: lookup.identifierMasked,
       holderName: lookup.holderName,
       alias: (alias != null && alias.trim().isNotEmpty) ? alias.trim() : null,
+      // DEMO capabilities, stated here rather than inherited. The production
+      // defaults now fail closed, and this gateway is the only thing allowed to
+      // claim a demo can quote and pay.
+      canQuote: true,
+      canPay: true,
     );
     _accounts
       ..removeWhere((a) => a.identifierMasked == account.identifierMasked)
