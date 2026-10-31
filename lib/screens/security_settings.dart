@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +18,9 @@ import 'package:azaman/utils/azaman_haptics.dart';
 /// states this screen used to report (a PIN "removed", 2FA "enabled" the moment
 /// a secret was minted) are only provable by driving real responses.
 final securityApiClientProvider = Provider<ApiClient>((ref) => ApiClient());
+
+/// What the screen knows about this account's unlock methods.
+enum _UnlockCapsPhase { loading, known, unknown }
 
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
   const SecuritySettingsScreen({super.key});
@@ -49,6 +53,16 @@ class _SecuritySettingsScreenState
   bool _obscurePinConfirm = true;
   bool _loading2fa = false;
   bool _loadingPin = false;
+
+  /// The app-unlock capability read. Three states, because "we asked and could
+  /// not find out" is not the same answer as "this account has nothing set up":
+  /// showing an existing member as unconfigured is the bug this exists to stop.
+  _UnlockCapsPhase _unlockCapsPhase = _UnlockCapsPhase.loading;
+  AppUnlockCapabilities? _unlockCaps;
+
+  /// Every read is stamped, so a slow answer for a previous account cannot
+  /// paint itself over the current member's screen.
+  int _unlockCapsGeneration = 0;
 
   /// The code typed into the turn-off-2FA dialog.
   final TextEditingController _disableCodeController = TextEditingController();
@@ -84,6 +98,41 @@ class _SecuritySettingsScreenState
     // });
     _loadBiometricState();
     _loadSessions();
+    _loadUnlockCapabilities();
+  }
+
+  /// Ask the server what this account can actually use to unlock money.
+  ///
+  /// The screen used to default every factor to "not configured" and never ask,
+  /// so a member who HAD a PIN saw an unconfigured account. Availability is a
+  /// server fact; this screen only reports what the server said.
+  Future<void> _loadUnlockCapabilities() async {
+    final generation = ++_unlockCapsGeneration;
+    final userId = ref.read(currentUserProvider).value?.id;
+    if (mounted) {
+      setState(() => _unlockCapsPhase = _UnlockCapsPhase.loading);
+    }
+    try {
+      final caps = await ref.read(appUnlockGatewayProvider).capabilities();
+      if (!mounted || generation != _unlockCapsGeneration) return;
+      if (ref.read(currentUserProvider).value?.id != userId) return;
+      setState(() {
+        _unlockCaps = caps;
+        _unlockCapsPhase = _UnlockCapsPhase.known;
+        // The server's answer is the only reason these may read as configured.
+        _pinSet = caps.pinConfigured || _pinSet;
+        if (caps.authenticatorConfigured) {
+          _twoFactorEnabled = true;
+          _twoFactorPending = false;
+        }
+      });
+    } catch (_) {
+      if (!mounted || generation != _unlockCapsGeneration) return;
+      setState(() {
+        _unlockCaps = null;
+        _unlockCapsPhase = _UnlockCapsPhase.unknown;
+      });
+    }
   }
 
   Future<void> _loadBiometricState() async {
@@ -438,6 +487,7 @@ class _SecuritySettingsScreenState
       if (res.statusCode == 200 || res.statusCode == 201) {
         HapticFeedback.heavyImpact();
         setState(() => _pinSet = true);
+        unawaited(_loadUnlockCapabilities());
         _pinController.clear();
         _pinConfirmController.clear();
         _pinCurrentController.clear();
@@ -491,7 +541,6 @@ class _SecuritySettingsScreenState
     }
   }
 
-  @override
   // ── SESSION MANAGEMENT ──────────────────────────────────────────────────────
   Future<void> _loadSessions() async {
     setState(() => _loadingSessions = true);
@@ -733,6 +782,9 @@ class _SecuritySettingsScreenState
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         children: [
+          _sectionHeader('Unlock Money', colors),
+          _buildCard(colors, children: [_unlockMethodRows(colors)]),
+          const SizedBox(height: 20),
           _sectionHeader('Two-Factor Authentication', colors),
           _buildCard(
             colors,
@@ -1639,5 +1691,140 @@ class _SecuritySettingsScreenState
         ),
       ),
     );
+  }
+
+  /// One truthful row per unlock method. No row is ever rendered from a local
+  /// boolean: the value comes from the capability read, or the row says the
+  /// answer is unknown.
+  Widget _unlockMethodRows(colors) {
+    if (_unlockCapsPhase == _UnlockCapsPhase.loading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Checking what this account can use…',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_unlockCapsPhase == _UnlockCapsPhase.unknown) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.help_outline, size: 16, color: colors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'We could not confirm this account\'s unlock methods.',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'That is not the same as having none set up. Retry when you are '
+              'online.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
+            TextButton(
+              onPressed: _loadUnlockCapabilities,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final caps = _unlockCaps!;
+    final rows = <Widget>[
+      _capabilityRow(
+        colors,
+        icon: Icons.password,
+        title: 'Azaman PIN',
+        status: caps.pinConfigured ? 'Configured' : 'Not configured',
+        available: caps.pinConfigured,
+      ),
+      _capabilityRow(
+        colors,
+        icon: Icons.security,
+        title: 'Authenticator app',
+        status: caps.authenticatorConfigured ? 'Configured' : 'Not configured',
+        available: caps.authenticatorConfigured,
+      ),
+      _capabilityRow(
+        colors,
+        icon: Icons.sms_outlined,
+        title: 'SMS code',
+        // Offered only when the server says it can actually send one, and when
+        // it cannot, the server's own reason is what the member reads.
+        status: caps.smsUnlockAvailable
+            ? 'Available'
+            : _smsUnavailableCopy(caps.smsUnavailableReason),
+        available: caps.smsUnlockAvailable,
+      ),
+    ];
+    return Column(children: rows);
+  }
+
+  Widget _capabilityRow(
+    colors, {
+    required IconData icon,
+    required String title,
+    required String status,
+    required bool available,
+  }) {
+    return ListTile(
+      dense: true,
+      leading: Icon(
+        icon,
+        size: 20,
+        color: available ? colors.textPrimary : colors.textTertiary,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(color: colors.textPrimary, fontSize: 14),
+      ),
+      subtitle: Text(
+        status,
+        style: TextStyle(
+          color: available ? colors.success : colors.textTertiary,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  /// The server's reason, in words a member can act on. An unknown reason is
+  /// reported as unknown rather than guessed.
+  String _smsUnavailableCopy(String? reason) {
+    switch (reason) {
+      case 'PHONE_UNVERIFIED':
+        return 'Not available — verify your phone number first';
+      case 'SMS_SERVICE_UNAVAILABLE':
+        return 'Not available — SMS sending is not configured';
+      default:
+        return 'Not available';
+    }
   }
 }

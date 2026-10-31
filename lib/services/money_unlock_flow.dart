@@ -35,7 +35,7 @@ final appUnlockGatewayProvider = Provider<AppUnlockGateway>((ref) {
     // one whose PIN 1234 is a stand-in for a real unlock; an ordinary account
     // signed into a demo build must go through the real gateway, or the demo
     // PIN would be a master key for anyone who tested in that build.
-    final userId = ref.watch(currentUserProvider).value?.id?.toString();
+    final userId = ref.watch(currentUserProvider).value?.id.toString();
     if (userId == DemoSeedData.demoUserId) return DemoAppUnlockGateway();
   }
   return HttpAppUnlockGateway(ref.watch(apiClientProvider));
@@ -60,10 +60,21 @@ class MoneyUnlockPreference extends Notifier<AppUnlockMethod?> {
   /// at a method this member never chose.
   String? _hydratedFor;
 
+  /// Bumped by every hydrate and every remember. A slow read that returns after
+  /// the member changed their mind (or after the account changed) is stale and
+  /// must not overwrite what is already there.
+  int _generation = 0;
+
   @override
   AppUnlockMethod? build() => null;
 
-  /// Called by the flow once the signed-in account is known.
+  /// Called by the flow BEFORE it reads the preference.
+  ///
+  /// This used to be fire-and-forget, so the first unlock after a restart read
+  /// the empty mirror and fell back to device auth, ignoring a member's saved
+  /// choice. The unlock now awaits this, which blocks nothing the member can
+  /// see: the money is still locked and no protected data is exposed while a
+  /// local read finishes.
   Future<void> hydrate(Object? userId) async {
     final key = moneyUnlockPreferenceKey(userId);
     if (_hydrated && _hydratedFor == key) return;
@@ -72,24 +83,37 @@ class MoneyUnlockPreference extends Notifier<AppUnlockMethod?> {
       // read this one's.
       state = null;
     }
+    final generation = ++_generation;
     _hydrated = true;
     _hydratedFor = key;
+    final raw = await _read(key);
+    if (generation != _generation || _hydratedFor != key) return;
+    if (raw == null) return;
+    for (final method in AppUnlockMethod.values) {
+      if (method.name == raw) {
+        state = method;
+        return;
+      }
+    }
+  }
+
+  /// The stored value, or null when storage is unreadable. Never a guess.
+  Future<String?> _read(String key) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(moneyUnlockPreferenceKey(userId));
-      if (raw == null) return;
-      for (final method in AppUnlockMethod.values) {
-        if (method.name == raw) {
-          state = method;
-          return;
-        }
-      }
+      return prefs.getString(key);
     } catch (_) {
-      // No readable storage: no preference. Never a reason to fail an unlock.
+      // No readable storage: no preference. Never a reason to fail an unlock,
+      // and never a reason to claim one was honoured.
+      return null;
     }
   }
 
   Future<void> remember(Object? userId, AppUnlockMethod method) async {
+    // The choice beats an in-flight read: bumping the generation invalidates it.
+    _generation++;
+    _hydrated = true;
+    _hydratedFor = moneyUnlockPreferenceKey(userId);
     state = method;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -97,6 +121,14 @@ class MoneyUnlockPreference extends Notifier<AppUnlockMethod?> {
     } catch (_) {
       // A convenience that failed to persist is still the choice this session.
     }
+  }
+
+  /// Sign-out / account switch. Nothing of the previous member survives.
+  void clear() {
+    _generation++;
+    _hydrated = false;
+    _hydratedFor = null;
+    state = null;
   }
 }
 
@@ -119,10 +151,11 @@ Future<MoneyUnlockResult> runMoneyUnlockFlow(
   final deviceAuth = ref.read(moneyUnlockCoordinatorProvider);
   final userId = ref.read(currentUserProvider).value?.id;
 
-  // Synchronous by design (see MoneyUnlockPreference); the hydration runs in
-  // the background and is picked up on the next unlock.
+  // Hydrate BEFORE reading. A fire-and-forget hydration made the first unlock
+  // after a restart ignore the member's saved choice; awaiting a local read
+  // exposes nothing (money stays locked) and is over in milliseconds.
+  await ref.read(moneyUnlockPreferenceProvider.notifier).hydrate(userId);
   final preferred = ref.read(moneyUnlockPreferenceProvider);
-  unawaited(ref.read(moneyUnlockPreferenceProvider.notifier).hydrate(userId));
   if (!context.mounted) {
     return const MoneyUnlockResult(MoneyUnlockOutcome.cancelled);
   }

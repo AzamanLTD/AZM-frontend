@@ -31,10 +31,7 @@ double _scale(WidgetTester tester) {
   return transform.transform.entry(0, 0);
 }
 
-Widget _host({
-  required VoidCallback onTap,
-  bool reduceMotion = false,
-}) {
+Widget _host({required VoidCallback onTap, bool reduceMotion = false}) {
   return MaterialApp(
     home: MediaQuery(
       data: MediaQueryData(disableAnimations: reduceMotion),
@@ -64,7 +61,48 @@ Widget _host({
 }
 
 void main() {
-  testWidgets('a held bubble compresses, and releasing pops it once', (
+  testWidgets('a quick flick (released mid-press) never snaps smaller', (
+    tester,
+  ) async {
+    var taps = 0;
+    await tester.pumpWidget(_host(onTap: () => taps++));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(BubblePress)),
+    );
+    // 15ms: well inside the 90ms press, so the finger never reached 0.93.
+    await tester.pump(const Duration(milliseconds: 15));
+    final released = _scale(tester);
+    expect(released, greaterThan(0.96), reason: 'a flick barely compresses');
+
+    await gesture.up();
+
+    // Sample every frame of the rebound. The scale must move continuously:
+    // restarting the pop at the fully-pressed depth would jump straight back
+    // down to _pressScale here, which is the bug this contract exists for.
+    var previous = released;
+    var sawCrest = false;
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      final now = _scale(tester);
+      expect(
+        (now - previous).abs(),
+        lessThan(0.05),
+        reason:
+            'discontinuity between ${previous.toStringAsFixed(3)} and '
+            '${now.toStringAsFixed(3)} on frame $i',
+      );
+      if (now > 1.0) sawCrest = true;
+      previous = now;
+    }
+
+    expect(sawCrest, isTrue, reason: 'the flick must still pop past its size');
+    expect(taps, 1, reason: 'one flick is one navigation');
+    await tester.pumpAndSettle();
+    expect(_scale(tester), 1.0);
+  });
+
+  testWidgets('a held bubble compresses, and the push waits for the crest', (
     tester,
   ) async {
     var taps = 0;
@@ -80,22 +118,28 @@ void main() {
     final pressed = _scale(tester);
     expect(
       pressed,
-      lessThan(0.99),
-      reason: 'a bubble under a finger must visibly give way',
+      lessThan(0.95),
+      reason: 'a held bubble must reach its press depth',
     );
-    expect(pressed, greaterThan(0.88), reason: 'a press is contact, not a squash');
     expect(taps, 0, reason: 'nothing navigates while the finger is down');
 
     await gesture.up();
     await tester.pump();
-    expect(taps, 1, reason: 'the release is the navigation');
-
-    // The crest overshoots before it settles.
-    await tester.pump(const Duration(milliseconds: 40));
     expect(
-      _scale(tester),
-      greaterThan(1.0),
-      reason: 'the rebound must pass its own size, or it reads as a fade back',
+      taps,
+      0,
+      reason:
+          'the release frame must NOT navigate: the pop leaves at the crest',
+    );
+
+    // Hold until the bubble is at its widest, then the push is due. The rise
+    // is the first 40% of a 180ms pop, so the crest lands around 72ms.
+    await tester.pump(const Duration(milliseconds: 85));
+    expect(_scale(tester), greaterThan(1.0), reason: 'crest');
+    expect(
+      taps,
+      1,
+      reason: 'the navigation leaves with the bubble at its widest',
     );
 
     await tester.pumpAndSettle();
@@ -110,12 +154,15 @@ void main() {
     await tester.pumpWidget(_host(onTap: () => taps++));
 
     await tester.tap(find.byType(BubblePress));
+    // 20ms in: the pop is travelling, the crest has not arrived.
     await tester.pump(const Duration(milliseconds: 20));
 
     // Mid-pop: the member taps again, impatient.
     await tester.tap(find.byType(BubblePress));
     await tester.pump();
 
+    // Past the crest of the FIRST pop: exactly one navigation, not two.
+    await tester.pump(const Duration(milliseconds: 80));
     expect(taps, 1, reason: 'one gesture, one navigation');
 
     await tester.pumpAndSettle();

@@ -3,20 +3,25 @@
 // The copy of the interaction this widget owns, in order:
 //
 //   REST  →  1.0, idle.
-//   PRESS →  1.0 → 0.93 in 90ms on tap-down. Contact, not a slide.
-//   POP   →  0.93 → 1.06 → 1.0 in 170ms on tap-up. The navigation is fired at
-//            the crest of the overshoot, so the Hero flight leaves while the
-//            bubble is still moving outward. Popping and then waiting for the
-//            scale to settle reads as two separate events; handing off at the
-//            crest reads as one.
+//   PRESS →  1.0 → 0.93 over 90ms on tap-down. Contact, not a slide.
+//   POP   →  whatever the press reached → 1.06 → 1.0 over 180ms on tap-up.
+//   PUSH  →  the navigation fires AT THE CREST of the pop, so the Hero flight
+//            begins while the bubble is still expanding outward. Popping and
+//            then navigating reads as one event; navigating on the same frame
+//            as the release reads as a flat tap with an unrelated animation
+//            afterwards, which is what this file used to do.
+//
+// The pop starts from the compression the finger actually achieved, not from
+// the fully-pressed depth. A 15ms flick releases at ~0.98; restarting the pop
+// at 0.93 there would snap the bubble smaller before it grew, which is the
+// discontinuity a fast tap produced.
 //
 // Two things this widget refuses to do:
 //
-//   • Push twice. A second tap while the pop is still travelling is swallowed,
-//     so a double tap cannot queue two navigations (or two Hero flights on the
-//     same tag).
-//   • Push a bubble that was not pressed to completion. Dragging off the
-//     bubble cancels: the scale returns to rest and nothing navigates.
+//   • Push twice. A second tap while the pop is travelling is swallowed, so a
+//     double tap cannot queue two navigations (or two flights on one Hero tag).
+//   • Push a bubble that was not pressed to completion. Dragging off cancels:
+//     the scale returns to rest and nothing navigates.
 //
 // Reduced motion (MediaQuery.disableAnimations) skips the scale entirely and
 // calls onTap on tap, because a deferred action with no visible cause is worse
@@ -59,49 +64,72 @@ class _BubblePressState extends State<BubblePress>
   /// 0 → 1 across the rebound and settle.
   late final AnimationController _pop = AnimationController(
     vsync: this,
-    duration: MotionTokens.control,
+    duration: const Duration(milliseconds: 180),
   );
 
-  /// The rebound itself: compressed → crest → rest, ending EXACTLY at 1.0 so
-  /// the bubble cannot be left sitting slightly small after a navigation.
-  late final Animation<double> _popScale = TweenSequence<double>([
-    TweenSequenceItem(
-      tween: Tween<double>(
-        begin: widget.pressScale,
-        end: widget.popScale,
-      ).chain(CurveTween(curve: Curves.easeOutCubic)),
-      // Fast rise to the crest.
-      weight: 40,
-    ),
-    TweenSequenceItem(
-      tween: Tween<double>(
-        begin: widget.popScale,
-        end: 1.0,
-      ).chain(CurveTween(curve: MotionTokens.spring)),
-      // A settle that comes back through rest rather than easing into it.
-      weight: 60,
-    ),
-  ]).animate(_pop);
+  /// The scale the pop started from: the compression the finger reached.
+  double _popStart = 1.0;
+
+  /// Fraction of the pop devoted to the rise. The rest is the settle back.
+  static const double _riseShare = 0.4;
 
   /// True between a tap-up and the navigation it will fire, so a second tap in
   /// that window cannot start a rival push.
   bool _fired = false;
 
+  /// True once the navigation has actually been handed to the caller.
+  bool _navigated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pop.addListener(_fireAtCrest);
+    _pop.addStatusListener(_onPopStatus);
+  }
+
   @override
   void dispose() {
+    _pop.removeListener(_fireAtCrest);
+    _pop.removeStatusListener(_onPopStatus);
     _press.dispose();
     _pop.dispose();
     super.dispose();
   }
 
+  double _compressed() => 1 - ((1 - widget.pressScale) * _press.value);
+
+  /// The scale to draw. While the pop is running it is the pop curve; before
+  /// that it is the finger's compression.
   double _scale() {
-    // Compression is the finger; the pop is the release. They never blend: a
-    // rebound starts from the compressed depth, so mixing them would launch
-    // from wherever the press happened to stop.
-    if (_pop.isDismissed) {
-      return 1 - ((1 - widget.pressScale) * _press.value);
+    if (_pop.isDismissed) return _compressed();
+    final t = _pop.value;
+    if (t < _riseShare) {
+      final k = Curves.easeOutCubic.transform(t / _riseShare);
+      return _popStart + (widget.popScale - _popStart) * k;
     }
-    return _popScale.value;
+    final k = Curves.easeOutCubic.transform(
+      (t - _riseShare) / (1 - _riseShare),
+    );
+    return widget.popScale + (1.0 - widget.popScale) * k;
+  }
+
+  /// The navigation leaves with the bubble at its widest, not on the release
+  /// frame. Every tick before the crest is silent.
+  void _fireAtCrest() {
+    if (_navigated || _pop.value < _riseShare) return;
+    _navigated = true;
+    widget.onTap();
+  }
+
+  void _onPopStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed) return;
+    // Rest exactly, so a completed pop can never leave the bubble slightly
+    // small (and the next gesture starts from a known state).
+    _fired = false;
+    _navigated = false;
+    _popStart = 1.0;
+    _press.value = 0;
+    _pop.value = 0;
   }
 
   void _down(TapDownDetails _) {
@@ -113,15 +141,8 @@ class _BubblePressState extends State<BubblePress>
   void _up(TapUpDetails _) {
     if (_fired) return;
     _fired = true;
-    _pop.forward(from: 0).whenCompleteOrCancel(() {
-      if (!mounted) return;
-      _fired = false;
-      _press.value = 0;
-      _pop.value = 0;
-    });
-    // Hand off at the crest rather than after the settle: the Hero is already
-    // carrying this bubble's size by then.
-    widget.onTap();
+    _popStart = _compressed();
+    _pop.forward(from: 0);
   }
 
   void _cancel() {
