@@ -1,0 +1,480 @@
+// The Home trigger is the unlock affordance while money is locked. The tap
+// that unlocks must NOT also open the actions menu, and the menu itself must
+// remain the untouched five-action launcher.
+
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:azaman/providers/money_access_provider.dart';
+import 'package:azaman/services/app_unlock_gateway.dart';
+import 'package:azaman/services/money_unlock.dart';
+import 'package:azaman/services/money_unlock_flow.dart';
+import 'package:azaman/widgets/az_logo_mark.dart';
+import 'package:azaman/widgets/home/plus_action_launcher.dart';
+
+/// No backend-configured challenge in this suite: the trigger's own contract is
+/// device authentication, and the gateway is injected so the flow never reaches
+/// the network inside a widget test.
+class _NoCapabilityGateway implements AppUnlockGateway {
+  @override
+  Future<AppUnlockCapabilities> capabilities() async =>
+      AppUnlockCapabilities.none;
+
+  @override
+  Future<void> verifyPin(String pin) async =>
+      throw const AppUnlockRefusal('PIN_NOT_CONFIGURED');
+
+  @override
+  Future<void> verifyTotp(String token) async =>
+      throw const AppUnlockRefusal('TOTP_NOT_CONFIGURED');
+
+  @override
+  Future<AppUnlockSmsChallenge> sendSmsChallenge() async =>
+      throw const AppUnlockRefusal('PHONE_UNVERIFIED');
+
+  @override
+  Future<void> verifySmsChallenge({
+    required String challengeId,
+    required String code,
+  }) async => throw const AppUnlockRefusal('CHALLENGE_INVALID');
+}
+
+class _FakeCoordinator implements MoneyUnlockCoordinator {
+  _FakeCoordinator(this.result);
+
+  MoneyUnlockResult result;
+  int calls = 0;
+
+  @override
+  Future<bool> get isAvailable async => true;
+
+  @override
+  Future<MoneyUnlockResult> authenticate() async {
+    calls++;
+    return result;
+  }
+}
+
+Widget _host({
+  required PlusLauncherController controller,
+  required MoneyAccessController access,
+  required MoneyUnlockCoordinator coordinator,
+}) {
+  return ProviderScope(
+    overrides: [
+      moneyAccessProvider.overrideWith((ref) => access),
+      moneyUnlockCoordinatorProvider.overrideWithValue(coordinator),
+      appUnlockGatewayProvider.overrideWithValue(_NoCapabilityGateway()),
+    ],
+    child: MaterialApp(
+      home: Scaffold(
+        body: Center(child: PlusLauncherTrigger(controller: controller)),
+      ),
+    ),
+  );
+}
+
+/// Drives the unlock choreography to its end: badge travel, mark fill, the hold
+/// (a timer, so pumpAndSettle alone stops before it) and the release.
+Future<void> _settleUnlockChoreography(WidgetTester tester) async {
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
+  await tester.pump(const Duration(milliseconds: 250));
+  await tester.pumpAndSettle(const Duration(milliseconds: 50));
+}
+
+void main() {
+  // The unlock flow hydrates the member's saved method before it reads it, and
+  // hydration reads SharedPreferences. Without a mock store the channel never
+  // answers in a widget test, so every unlock would wait out the flow's bounded
+  // fallback and shift the choreography by that delay. A real (empty) store is
+  // what these contracts should run against.
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('a locked tap authenticates and does not open the menu', (
+    tester,
+  ) async {
+    final access = MoneyAccessController();
+    final controller = PlusLauncherController();
+    final coordinator = _FakeCoordinator(
+      const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+    );
+
+    await tester.pumpWidget(
+      _host(controller: controller, access: access, coordinator: coordinator),
+    );
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(coordinator.calls, 1);
+    expect(access.canViewMoney, isTrue);
+    expect(
+      controller.isOpen,
+      isFalse,
+      reason: 'the unlocking tap must not also open the actions menu',
+    );
+  });
+
+  testWidgets('the next tap opens the existing menu and does not re-prompt', (
+    tester,
+  ) async {
+    final access = MoneyAccessController();
+    final controller = PlusLauncherController();
+    final coordinator = _FakeCoordinator(
+      const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+    );
+
+    await tester.pumpWidget(
+      _host(controller: controller, access: access, coordinator: coordinator),
+    );
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    // The unlock choreography (badge opens, mark fills, holds, releases) owns
+    // the trigger while it runs, and a tap inside it is ignored by design. The
+    // member watches the brand mark settle before asking for the menu; the test
+    // settles it too. pumpAndSettle, not one long pump: a single jump starts
+    // the closing travel at the end of the frame instead of finishing it.
+    await _settleUnlockChoreography(tester);
+
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(coordinator.calls, 1, reason: 'one challenge, not one per tap');
+    expect(controller.isOpen, isTrue);
+  });
+
+  testWidgets('a failed verification leaves the app locked and the menu shut', (
+    tester,
+  ) async {
+    final access = MoneyAccessController();
+    final controller = PlusLauncherController();
+    final coordinator = _FakeCoordinator(
+      const MoneyUnlockResult(MoneyUnlockOutcome.failed),
+    );
+
+    await tester.pumpWidget(
+      _host(controller: controller, access: access, coordinator: coordinator),
+    );
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(access.state, MoneyAccessState.locked);
+    expect(controller.isOpen, isFalse);
+  });
+
+  testWidgets('an unavailable method does not unlock or pretend to', (
+    tester,
+  ) async {
+    final access = MoneyAccessController();
+    final controller = PlusLauncherController();
+    final coordinator = _FakeCoordinator(
+      const MoneyUnlockResult(MoneyUnlockOutcome.unavailable),
+    );
+
+    await tester.pumpWidget(
+      _host(controller: controller, access: access, coordinator: coordinator),
+    );
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(access.state, MoneyAccessState.locked);
+    expect(controller.isOpen, isFalse);
+  });
+
+  testWidgets('rapid taps create exactly one challenge', (tester) async {
+    final access = MoneyAccessController();
+    final controller = PlusLauncherController();
+    final coordinator = _FakeCoordinator(
+      const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+    );
+
+    await tester.pumpWidget(
+      _host(controller: controller, access: access, coordinator: coordinator),
+    );
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(coordinator.calls, 1);
+  });
+
+  testWidgets('the trigger keeps its 54px circular hit surface', (
+    tester,
+  ) async {
+    final access = MoneyAccessController();
+    final controller = PlusLauncherController();
+    final coordinator = _FakeCoordinator(
+      const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+    );
+
+    await tester.pumpWidget(
+      _host(controller: controller, access: access, coordinator: coordinator),
+    );
+    final size = tester.getSize(
+      find.byKey(const ValueKey('plus-launcher-trigger')),
+    );
+    expect(size.width, greaterThanOrEqualTo(54));
+    expect(size.height, greaterThanOrEqualTo(54));
+  });
+
+  group('the unlock is a visible morph, not a silent state flip', () {
+    Finder badge() => find.byKey(const ValueKey('plus-launcher-lock-badge'));
+
+    testWidgets('the closed lock is shown while locked, gone once open', (
+      tester,
+    ) async {
+      final access = MoneyAccessController();
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+      );
+
+      await tester.pumpWidget(
+        _host(controller: controller, access: access, coordinator: coordinator),
+      );
+
+      expect(
+        badge(),
+        findsOneWidget,
+        reason: 'a locked app must say so on the control that unlocks it',
+      );
+
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(access.canViewMoney, isTrue);
+      expect(badge(), findsNothing, reason: 'the lock opened');
+      expect(
+        controller.isOpen,
+        isFalse,
+        reason: 'the morph resolves to the mark, it does not open the menu',
+      );
+    });
+
+    testWidgets('the logo plays its own animation after the lock opens', (
+      tester,
+    ) async {
+      final access = MoneyAccessController();
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+      );
+
+      await tester.pumpWidget(
+        _host(controller: controller, access: access, coordinator: coordinator),
+      );
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+
+      // The three beats are distinct, in this order: the badge opens, and only
+      // then does the Azaman logo fill (the access signal).
+      //
+      // The fill is measured as GROWTH from the mark's resting value, not as
+      // "fill3 > 0": the idle mark already carries a nonzero third segment, so
+      // a nonzero test fired on the frame the badge was still fully opaque and
+      // reported the lock and the logo as simultaneous. What the owner asked
+      // for is an order, and this now measures that order.
+      double peakFill = 0;
+      double restingFill = -1;
+      int? badgeGoneAt;
+      int? fillGrewAt;
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        final marks = tester.widgetList<AzLogoMark>(find.byType(AzLogoMark));
+        if (marks.isEmpty) continue;
+        final mark = marks.first;
+        restingFill = restingFill < 0 ? mark.fill3 : restingFill;
+        if (badgeGoneAt == null && badge().evaluate().isEmpty) badgeGoneAt = i;
+        if (fillGrewAt == null &&
+            badgeGoneAt != null &&
+            mark.fill3 > restingFill + 0.05) {
+          fillGrewAt = i;
+        }
+        peakFill = math.max(peakFill, mark.fill3);
+      }
+
+      expect(
+        peakFill,
+        greaterThan(0.9),
+        reason: 'the Azaman logo must play its own fill animation on unlock',
+      );
+      expect(
+        badgeGoneAt,
+        isNotNull,
+        reason: 'the badge must open at some point during the choreography',
+      );
+      expect(
+        fillGrewAt,
+        isNotNull,
+        reason: 'the logo must fill only once the badge is gone',
+      );
+      expect(
+        fillGrewAt!,
+        greaterThanOrEqualTo(badgeGoneAt!),
+        reason: 'the lock must have finished opening before the logo plays',
+      );
+      expect(badge(), findsNothing, reason: 'the lock stays open afterwards');
+      expect(
+        controller.isOpen,
+        isFalse,
+        reason: 'the whole choreography resolves to the mark, not the menu',
+      );
+      final mark = tester.widgetList<AzLogoMark>(find.byType(AzLogoMark)).first;
+      expect(
+        mark.fill3,
+        0,
+        reason: 'it releases back to the idle mark once the animation ends',
+      );
+    });
+
+    testWidgets('tapping the unlocked mark plays the same logo animation', (
+      tester,
+    ) async {
+      // The member already unlocked earlier in the session, through the
+      // controller's real API.
+      final access = MoneyAccessController();
+      access.finishUnlock(access.beginUnlock());
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+      );
+
+      await tester.pumpWidget(
+        _host(controller: controller, access: access, coordinator: coordinator),
+      );
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+
+      double peakFill = 0;
+      var openedAtFill = -1.0;
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+        final marks = tester.widgetList<AzLogoMark>(find.byType(AzLogoMark));
+        if (marks.isEmpty) continue;
+        final fill = marks.first.fill3;
+        if (controller.isOpen && openedAtFill < 0) openedAtFill = fill;
+        if (!controller.isOpen) peakFill = math.max(peakFill, fill);
+      }
+
+      expect(
+        peakFill,
+        greaterThan(0.9),
+        reason: 'the tap to open uses the logo own animation, as it always has',
+      );
+      expect(
+        controller.isOpen,
+        isTrue,
+        reason: 'the menu still opens after the animation, unchanged',
+      );
+      expect(
+        openedAtFill,
+        greaterThan(0.9),
+        reason: 'the menu opens only once the final segment has filled',
+      );
+      expect(
+        coordinator.calls,
+        0,
+        reason: 'an unlocked tap must never re-prompt for authentication',
+      );
+    });
+
+    testWidgets('a failed verification keeps the lock badge', (tester) async {
+      final access = MoneyAccessController();
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.failed),
+      );
+
+      await tester.pumpWidget(
+        _host(controller: controller, access: access, coordinator: coordinator),
+      );
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(access.canViewMoney, isFalse);
+      expect(
+        badge(),
+        findsOneWidget,
+        reason: 'a refusal must not look like an unlock',
+      );
+    });
+
+    testWidgets('reduced motion still opens the lock, without the travel', (
+      tester,
+    ) async {
+      final access = MoneyAccessController();
+      final controller = PlusLauncherController();
+      final coordinator = _FakeCoordinator(
+        const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+      );
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: _host(
+            controller: controller,
+            access: access,
+            coordinator: coordinator,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      expect(access.canViewMoney, isTrue);
+      expect(badge(), findsNothing);
+      expect(controller.isOpen, isFalse);
+    });
+  });
+
+  testWidgets('a tap INSIDE the unlock choreography is ignored, not queued', (
+    tester,
+  ) async {
+    final access = MoneyAccessController();
+    final controller = PlusLauncherController();
+    final coordinator = _FakeCoordinator(
+      const MoneyUnlockResult(MoneyUnlockOutcome.unlocked),
+    );
+
+    await tester.pumpWidget(
+      _host(controller: controller, access: access, coordinator: coordinator),
+    );
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    // One frame into the choreography: the badge is still opening.
+    await tester.pump(const Duration(milliseconds: 60));
+
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      controller.isOpen,
+      isFalse,
+      reason: 'the choreography must finish before the menu can open',
+    );
+
+    // Once it settles, the member's next tap opens the menu.
+    await _settleUnlockChoreography(tester);
+    await tester.tap(find.byKey(const ValueKey('plus-launcher-trigger')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(controller.isOpen, isTrue);
+    expect(coordinator.calls, 1, reason: 'still one challenge');
+  });
+}

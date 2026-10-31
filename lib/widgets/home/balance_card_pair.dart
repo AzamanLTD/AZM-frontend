@@ -54,6 +54,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
+import 'package:azaman/widgets/home/money_privacy.dart';
 import 'package:azaman/providers/theme_provider.dart' show AzamanColors;
 import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:azaman/theme/motion_tokens.dart';
@@ -112,6 +113,8 @@ class BalanceCardPair extends StatefulWidget {
     this.variant = BalanceCardVariant.blue,
     this.flipGuard,
     this.onCardLongPress,
+    this.visibility = MoneyVisibility.visible,
+    this.onBlockedInteraction,
   });
 
   final BalanceCardValuation valuation;
@@ -124,6 +127,16 @@ class BalanceCardPair extends StatefulWidget {
   /// A deliberate press-and-hold on the card asks the host to open the wallet
   /// card selector. Null keeps the card long-press-free (tests, sheets).
   final VoidCallback? onCardLongPress;
+
+  /// Whether the member may see money. Redacted KEEPS this card — same
+  /// geometry, same artwork, same gesture surface — and masks the figures.
+  /// Nothing about the card is replaced: the owner's deck stays mounted.
+  final MoneyVisibility visibility;
+
+  /// Fired instead of flipping/holding when the card is redacted. The host
+  /// turns it into the refusal the member can feel: a haptic, a shake and the
+  /// hint that points at the Azaman lock. Never queues the action.
+  final VoidCallback? onBlockedInteraction;
 
   /// The shared nested-gesture guard. When the HOST mounts card-level
   /// affordances (the Home deck's large-text overlay), it owns the guard
@@ -172,7 +185,15 @@ class _BalanceCardPairState extends State<BalanceCardPair>
     super.dispose();
   }
 
+  bool get _redacted => widget.visibility.isRedacted;
+
   void _toggle() {
+    // LOCKED: the card is still the card, but turning it over would reveal the
+    // figures the gate is hiding. Refuse like any other protected action.
+    if (_redacted) {
+      widget.onBlockedInteraction?.call();
+      return;
+    }
     // A flip is a deliberate reveal of the user's own money — a selection.
     AzamanHaptics.selection();
     // Reduced motion: the flip lands on the very first frame. Read per
@@ -225,10 +246,18 @@ class _BalanceCardPairState extends State<BalanceCardPair>
       key: const ValueKey('balance-pair-semantics'),
       container: true,
       button: true,
-      label: _isBack
+      // While redacted the card's own figures (and every row of the reverse)
+      // must be unreachable from the accessibility tree — the mask is a value
+      // replacement, and the tree is excluded for the same reason.
+      excludeSemantics: _redacted,
+      label: _redacted
+          ? 'Balance card — locked'
+          : _isBack
           ? 'Balance card — details breakdown'
           : 'Balance card — available balance',
-      onTapHint: _isBack
+      onTapHint: _redacted
+          ? 'unlock your money with the Azaman button'
+          : _isBack
           ? 'return to the balance summary'
           : 'show the balance details',
       onTap: _toggle,
@@ -242,7 +271,9 @@ class _BalanceCardPairState extends State<BalanceCardPair>
           downOnAffordance = _flipGuard.value;
           _holdFired = false;
           _holdTimer?.cancel();
-          if (widget.onCardLongPress != null && !(downOnAffordance ?? false)) {
+          if (widget.onCardLongPress != null &&
+              !(downOnAffordance ?? false) &&
+              !_redacted) {
             _holdTimer = Timer(kCardHoldDuration, _onHold);
           }
         },
@@ -324,6 +355,7 @@ class _BalanceCardPairState extends State<BalanceCardPair>
                               colors: _ink,
                               flipGuard: _flipGuard,
                               onFlipBackRequested: _toggle,
+                              visibility: widget.visibility,
                             ),
                           ),
                         )
@@ -336,6 +368,7 @@ class _BalanceCardPairState extends State<BalanceCardPair>
                             valuation: widget.valuation,
                             colors: _ink,
                             flipGuard: _flipGuard,
+                            visibility: widget.visibility,
                           ),
                         ),
                     ],

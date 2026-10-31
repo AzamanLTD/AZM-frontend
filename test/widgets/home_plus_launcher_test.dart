@@ -8,6 +8,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -107,6 +108,15 @@ Future<void> _pumpShell(
 }
 
 void main() {
+  // Tapping the Plus trigger runs the unlock flow, which hydrates the member's
+  // saved method from SharedPreferences before it reads it. Without a mock
+  // store the platform channel never answers here, so the flow's bounded wait
+  // would still be pending when the test ends. A real, empty store keeps these
+  // contracts measuring the launcher rather than a timeout.
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('§2A: the launcher mark is a STATIC 45° clockwise rotation — the '
       'chat-send orientation, never animated, never the container', (
     tester,

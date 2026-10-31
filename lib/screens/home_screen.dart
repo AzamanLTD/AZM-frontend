@@ -32,6 +32,7 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
@@ -39,7 +40,10 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/home/home_persistent_header.dart';
+import 'package:azaman/widgets/home/balance_card_pair.dart';
 import 'package:azaman/widgets/home/home_balance_card.dart';
+import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
+import 'package:azaman/widgets/home/money_lock_surface.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
@@ -726,6 +730,15 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: AzSpace.lg,
                                       ),
+                                      // OWNER REQUIREMENT (2026-10-30): the
+                                      // Balance and Visa cards stay tucked in
+                                      // the pouch while money is locked. The
+                                      // deck is NEVER replaced — the gate now
+                                      // lives inside the cards (masked figures,
+                                      // refused reveals), so the pouch, the
+                                      // artwork and the 180dp doorway the
+                                      // measurement below depends on all keep
+                                      // their exact geometry.
                                       child: _DeckHost(key: _deckKey),
                                     ),
                                     reduceMotion,
@@ -968,9 +981,30 @@ class _DeckHostState extends ConsumerState<_DeckHost>
   // not just this constant.
   static const double _cardHeight = 180;
 
+  /// The app-wide money gate. Read (not cached) at every gesture so a relock
+  /// is honoured on the very next touch.
+  bool get _moneyLocked => !ref.read(moneyAccessProvider).canViewMoney;
+
+  /// A locked member reaching for a card: short haptic, one shake, and the
+  /// hint that points at the Azaman lock. No pose change, no route, no queued
+  /// action — the unlock path stays the launcher.
+  void _refuse() {
+    if (!mounted) return;
+    blockedMoneyAccessFeedback(ref);
+    showMoneyLockedHint(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    final moneyLocked = !ref.watch(moneyAccessProvider).canViewMoney;
+
+    // A relock (background, logout, tab change, explicit lock) must also drop
+    // the Visa detail panel and return the deck to the pouch: the gate closing
+    // is the same event as _relockNow().
+    ref.listen<MoneyAccessController>(moneyAccessProvider, (previous, next) {
+      if (!next.canViewMoney) _relockNow();
+    });
 
     // AUDIT §7 — MainWrapper keeps pages mounted, so an unlock can never be
     // treated as indefinitely valid. The INSTANT Home stops being the
@@ -980,40 +1014,47 @@ class _DeckHostState extends ConsumerState<_DeckHost>
       if (!next) _relockNow();
     });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        VisaTransferSeamAnchor(
-          visible: _deckState == WalletDeckState.tucked,
-          onTransfer: () => context.push(AzRoutes.cardTransfer),
-          child: WalletCardDeck(
-            key: _deckKey,
-            cardHeight: _cardHeight,
-            // WALLET POUCH follow-up: the old TapHintOverlay is REMOVED —
-            // its hand animation played invisibly behind the opaque pouch
-            // (the deck's exposed headers already teach tap-to-select).
-            // No perpetual ambient animation replaces it.
-            balanceCard: const HomeBalanceCard(),
-            visaCard: const AzmVisaCard(),
-            onStateChanged: _onDeckStateChanged,
-          ),
-        ),
-        // §6: sensitive card content appears ONLY after the gate passes.
-        if (_detailsUnlocked)
-          Padding(
-            padding: const EdgeInsets.only(top: AzSpace.md),
-            child: Container(
-              padding: const EdgeInsets.all(AzSpace.lg),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: AzmCardDetailsPanel(
-                programme: ref.read(azmCardProgrammeProvider),
-              ),
+    return MoneyLockShake(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          VisaTransferSeamAnchor(
+            visible: _deckState == WalletDeckState.tucked,
+            // Card Transfer is a protected action: while locked the clasp
+            // refuses instead of opening a money route.
+            onTransfer: () =>
+                moneyLocked ? _refuse() : context.push(AzRoutes.cardTransfer),
+            child: WalletCardDeck(
+              key: _deckKey,
+              cardHeight: _cardHeight,
+              // WALLET POUCH follow-up: the old TapHintOverlay is REMOVED —
+              // its hand animation played invisibly behind the opaque pouch
+              // (the deck's exposed headers already teach tap-to-select).
+              // No perpetual ambient animation replaces it.
+              balanceCard: const HomeBalanceCard(),
+              visaCard: const AzmVisaCard(),
+              onStateChanged: _onDeckStateChanged,
+              interactionLocked: moneyLocked,
+              onLockedInteraction: _refuse,
             ),
           ),
-      ],
+          // §6: sensitive card content appears ONLY after the gate passes.
+          if (_detailsUnlocked)
+            Padding(
+              padding: const EdgeInsets.only(top: AzSpace.md),
+              child: Container(
+                padding: const EdgeInsets.all(AzSpace.lg),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: AzmCardDetailsPanel(
+                  programme: ref.read(azmCardProgrammeProvider),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

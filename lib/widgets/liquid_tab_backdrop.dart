@@ -57,7 +57,7 @@ class _LiquidTabBackdropState extends State<LiquidTabBackdrop> {
             : targetCenterX;
         final currentCenterX =
             Curves.easeOutCubic.transform(t) * (targetCenterX - startCenterX) +
-                startCenterX;
+            startCenterX;
 
         return Positioned(
           left: currentCenterX - (40 * stretch) / 2,

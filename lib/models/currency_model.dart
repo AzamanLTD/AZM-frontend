@@ -103,5 +103,5 @@ class CurrencyNotifier extends StateNotifier<DisplayCurrency> {
 
 final currencyProvider =
     StateNotifierProvider<CurrencyNotifier, DisplayCurrency>(
-  (ref) => CurrencyNotifier(),
-);
+      (ref) => CurrencyNotifier(),
+    );

@@ -28,11 +28,11 @@ import 'package:azaman/services/server_social_proof_service.dart';
 /// re-runs — the counts must track real follow/unfollow changes anyway.
 final serverSocialProofProvider = FutureProvider.autoDispose
     .family<ServerSocialProof, String>((ref, businessProfileId) async {
-  if (AppConfig.demoMode) {
-    throw SocialProofUnavailable();
-  }
-  return ServerSocialProofService().fetch(businessProfileId);
-});
+      if (AppConfig.demoMode) {
+        throw SocialProofUnavailable();
+      }
+      return ServerSocialProofService().fetch(businessProfileId);
+    });
 
 /// The presentation seam. Returns the one-line, number-only label for
 /// the identity block, or null when there is nothing honest to show:

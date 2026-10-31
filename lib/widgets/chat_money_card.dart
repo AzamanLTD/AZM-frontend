@@ -28,10 +28,19 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-class ChatMoneyCard extends StatefulWidget {
+import 'package:azaman/providers/money_access_provider.dart';
+import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
+
+/// Money that arrives in a CHAT is still money. A transfer card carries the
+/// amount, the reference and, on an inbound request, an Accept & Pay control —
+/// so it reads the same gate as the wallet. While the gate is shut the figures
+/// are replaced (never merely dimmed) and the buttons refuse; the conversation
+/// itself stays readable, because a chat is not a financial surface.
+class ChatMoneyCard extends ConsumerStatefulWidget {
   final double amount;
   final String currency;
 
@@ -77,10 +86,10 @@ class ChatMoneyCard extends StatefulWidget {
   });
 
   @override
-  State<ChatMoneyCard> createState() => _ChatMoneyCardState();
+  ConsumerState<ChatMoneyCard> createState() => _ChatMoneyCardState();
 }
 
-class _ChatMoneyCardState extends State<ChatMoneyCard>
+class _ChatMoneyCardState extends ConsumerState<ChatMoneyCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _sheenCtrl;
 
@@ -208,6 +217,10 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
+  /// True while the money gate is shut: figures are masked and no money
+  /// action can be composed from a chat bubble.
+  bool get _locked => !ref.watch(moneyAccessProvider).canViewMoney;
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width * 0.74;
@@ -284,13 +297,18 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
                       ],
                       if (widget.reference != null) ...[
                         const SizedBox(height: 4),
-                        Text(
-                          widget.reference ?? '—',
-                          style: TextStyle(
-                            color: _textColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.2,
+                        // A reference identifies a specific payment, so it is
+                        // masked with the amount rather than shown bare.
+                        ExcludeSemantics(
+                          excluding: _locked,
+                          child: Text(
+                            _locked ? '•••• ••••' : (widget.reference ?? '—'),
+                            style: TextStyle(
+                              color: _textColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
+                            ),
                           ),
                         ),
                       ],
@@ -401,14 +419,17 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
         child: FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.bottomRight,
-          child: Text(
-            _fmtAmount(widget.amount),
-            style: TextStyle(
-              color: _textColor,
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.5,
-              height: 1.0,
+          child: ExcludeSemantics(
+            excluding: _locked,
+            child: Text(
+              _locked ? '••••' : _fmtAmount(widget.amount),
+              style: TextStyle(
+                color: _textColor,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                height: 1.0,
+              ),
             ),
           ),
         ),
@@ -482,7 +503,9 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
       if (widget.onDecline != null)
         Expanded(
           child: GestureDetector(
-            onTap: widget.onDecline,
+            onTap: _locked
+                ? () => blockedMoneyAccessFeedback(ref)
+                : widget.onDecline,
             child: Container(
               height: 38,
               alignment: Alignment.center,
@@ -511,7 +534,9 @@ class _ChatMoneyCardState extends State<ChatMoneyCard>
         Expanded(
           flex: 2,
           child: GestureDetector(
-            onTap: widget.onAccept,
+            onTap: _locked
+                ? () => blockedMoneyAccessFeedback(ref)
+                : widget.onAccept,
             child: Container(
               height: 38,
               alignment: Alignment.center,

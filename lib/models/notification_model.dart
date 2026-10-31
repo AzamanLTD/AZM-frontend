@@ -1,14 +1,14 @@
 import 'dart:convert';
 
 enum NotificationCategory {
-  general,         // catch-all / legacy
+  general, // catch-all / legacy
   securityAccount, // logins, password changes, 2FA
-  vendorPriority,  // vendor-specific alerts
-  adminSystem,     // system/admin alerts
-  money,           // deposits, withdrawals, transfers
-  social,          // stories, follows, reactions
-  chat,            // messages, replies
-  system,          // system-wide announcements
+  vendorPriority, // vendor-specific alerts
+  adminSystem, // system/admin alerts
+  money, // deposits, withdrawals, transfers
+  social, // stories, follows, reactions
+  chat, // messages, replies
+  system, // system-wide announcements
 }
 
 class AppNotification {
@@ -57,14 +57,14 @@ class AppNotification {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'body': body,
-        'category': category.name,
-        'actionPayload': actionPayload,
-        'createdAt': createdAt.toIso8601String(),
-        'isRead': isRead,
-      };
+    'id': id,
+    'title': title,
+    'body': body,
+    'category': category.name,
+    'actionPayload': actionPayload,
+    'createdAt': createdAt.toIso8601String(),
+    'isRead': isRead,
+  };
 
   static NotificationCategory _parseCategory(dynamic value) {
     if (value is String) {

@@ -8,9 +8,11 @@
 //   "Open actions" closed, "Close actions" open) and its VISUAL state
 //   rebuilds from the animation controller — mid-flight rotation ticks
 //   prove the tree tracks _rot itself, not incidental parent rebuilds.
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -93,11 +95,23 @@ Future<void> _pumpDispatchHost(
     ],
   );
   await tester.pumpWidget(
-    ProviderScope(child: MaterialApp.router(routerConfig: router)),
+    ProviderScope(
+      overrides: [unlockedMoneyAccess()],
+      child: MaterialApp.router(routerConfig: router),
+    ),
   );
 }
 
 void main() {
+  // Tapping the Plus trigger runs the unlock flow, which hydrates the member's
+  // saved method from SharedPreferences before it reads it. Without a mock
+  // store the platform channel never answers here, so the flow's bounded wait
+  // would still be pending when the test ends. A real, empty store keeps these
+  // contracts measuring the launcher rather than a timeout.
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   group('activity actions dispatch through the canonical router', () {
     testWidgets('Details lands on /account/activity — not a '
         'MaterialPageRoute', (tester) async {
@@ -187,6 +201,7 @@ void main() {
     }) async {
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [unlockedMoneyAccess()],
           child: MaterialApp(
             theme: ThemeProvider.getThemeData(AzamanTheme.light),
             home: MediaQuery(

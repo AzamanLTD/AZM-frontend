@@ -130,6 +130,8 @@ class WalletCardDeck extends StatefulWidget {
     required this.visaCard,
     required this.cardHeight,
     this.onStateChanged,
+    this.interactionLocked = false,
+    this.onLockedInteraction,
   });
 
   final Widget balanceCard;
@@ -139,6 +141,16 @@ class WalletCardDeck extends StatefulWidget {
   /// Fired with the deck's NEW state on every committed state change
   /// (selection, return-to-pouch, programmatic [tuck]).
   final ValueChanged<WalletDeckState>? onStateChanged;
+
+  /// True while the app-wide money gate is locked. The deck KEEPS its cards,
+  /// its geometry and its pouch — only the reveal is refused. Selection goes
+  /// through [onLockedInteraction] instead of changing the pose, so the member
+  /// feels the refusal and nothing is queued or expanded.
+  final bool interactionLocked;
+
+  /// The refusal the host renders (haptic + shake + hint) when a locked member
+  /// reaches for a card.
+  final VoidCallback? onLockedInteraction;
 
   @override
   State<WalletCardDeck> createState() => WalletCardDeckState();
@@ -308,6 +320,12 @@ class WalletCardDeckState extends State<WalletCardDeck>
   /// clears the PIN gate and sensitive details exactly as it does for
   /// the swipe.
   void select(WalletDeckState target) {
+    if (widget.interactionLocked) {
+      // Locked: no pose change, no expansion, no queued action — the host
+      // answers with feedback instead.
+      widget.onLockedInteraction?.call();
+      return;
+    }
     if (target == _state) {
       if (target == WalletDeckState.tucked) return; // already home
       AzamanHaptics.selection();

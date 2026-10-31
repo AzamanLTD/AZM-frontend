@@ -4,7 +4,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
@@ -189,7 +191,13 @@ class _CashBalanceCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final balance = ref.watch(hologramBalanceProvider);
-    final visible = ref.watch(balanceVisibleProvider);
+    // The eye toggle is the member's own choice; the privacy lock is not
+    // optional. A public marketplace stays browsable, but the member's own
+    // balance behind it does not: it is money, and it is masked until the
+    // Home trigger unlocks.
+    final visible =
+        ref.watch(balanceVisibleProvider) &&
+        ref.watch(moneyAccessProvider).canViewMoney;
 
     // Premium "bank card" treatment — deep carbon-to-black gradient with a
     // fixed gold sheen (never the app's switchable theme accent), a faint
@@ -363,6 +371,12 @@ class _CashBalanceCard extends ConsumerWidget {
                         label: 'Add money',
                         onDarkCard: true,
                         onTap: () {
+                          // A locked money action refuses, in place: it never
+                          // navigates to a composer behind the member's back.
+                          if (!ref.read(moneyAccessProvider).canViewMoney) {
+                            blockedMoneyAccessFeedback(ref);
+                            return;
+                          }
                           HapticFeedback.lightImpact();
                           // NEW-A: canonical /deposit route.
                           context.push(AzRoutes.deposit());
@@ -376,6 +390,10 @@ class _CashBalanceCard extends ConsumerWidget {
                         label: 'Withdraw',
                         onDarkCard: true,
                         onTap: () {
+                          if (!ref.read(moneyAccessProvider).canViewMoney) {
+                            blockedMoneyAccessFeedback(ref);
+                            return;
+                          }
                           HapticFeedback.lightImpact();
                           // CANONICAL ROUTE: /withdraw (Workstream C).
                           context.push(AzRoutes.withdraw());

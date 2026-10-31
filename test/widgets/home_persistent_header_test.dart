@@ -228,9 +228,11 @@ void main() {
   ) async {
     var opened = 0;
     await _pumpHome(tester, onOpenSettings: () => opened++);
-    // The avatar is Home's only Hero (tag 'profile-avatar'); ScaleTap
-    // inside carries the tap → settings contract.
-    await tester.tap(find.byType(Hero));
+    // The avatar is Home's own hero (tag 'profile-avatar'); the four service
+    // bubbles are heroes too now, so target the identity, not the type.
+    await tester.tap(
+      find.byWidgetPredicate((w) => w is Hero && w.tag == 'profile-avatar'),
+    );
     await tester.pump(const Duration(milliseconds: 350));
     expect(
       opened,

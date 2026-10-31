@@ -18,5 +18,5 @@ class RecentlyViewedProductsNotifier extends StateNotifier<List<String>> {
 
 final recentlyViewedProductsProvider =
     StateNotifierProvider<RecentlyViewedProductsNotifier, List<String>>(
-  (_) => RecentlyViewedProductsNotifier(),
-);
+      (_) => RecentlyViewedProductsNotifier(),
+    );

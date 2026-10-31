@@ -18,10 +18,7 @@ AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.light);
 void main() {
   group('KycRefusal.fromResponse', () {
     test('returns null for a successful response', () {
-      expect(
-        KycRefusal.fromResponse(_res(200, {'success': true})),
-        isNull,
-      );
+      expect(KycRefusal.fromResponse(_res(200, {'success': true})), isNull);
     });
 
     test('returns null for a 403 that is not an identity refusal', () {
@@ -43,13 +40,16 @@ void main() {
     });
 
     test('parses the refusal the backend actually sends', () {
-      final r = KycRefusal.fromResponse(_res(403, {
-        'success': false,
-        'code': 'KYC_REQUIRED',
-        'kycStatus': 'UNVERIFIED',
-        'requiredFor': 'withdraw',
-        'message': 'Verify your identity to withdraw. It takes a few minutes.',
-      }));
+      final r = KycRefusal.fromResponse(
+        _res(403, {
+          'success': false,
+          'code': 'KYC_REQUIRED',
+          'kycStatus': 'UNVERIFIED',
+          'requiredFor': 'withdraw',
+          'message':
+              'Verify your identity to withdraw. It takes a few minutes.',
+        }),
+      );
       expect(r, isNotNull);
       expect(r!.code, 'KYC_REQUIRED');
       expect(r.status, 'UNVERIFIED');
@@ -58,12 +58,14 @@ void main() {
     });
 
     test('a pending review is not treated as "start the check"', () {
-      final r = KycRefusal.fromResponse(_res(403, {
-        'code': 'KYC_PENDING',
-        'kycStatus': 'PENDING',
-        'requiredFor': 'withdraw',
-        'message': 'Your identity check is still under review.',
-      }))!;
+      final r = KycRefusal.fromResponse(
+        _res(403, {
+          'code': 'KYC_PENDING',
+          'kycStatus': 'PENDING',
+          'requiredFor': 'withdraw',
+          'message': 'Your identity check is still under review.',
+        }),
+      )!;
       expect(r.needsSubmission, isFalse);
       expect(r.copy.cta, 'See status');
     });
@@ -101,31 +103,32 @@ void main() {
       KycRefusal refusal,
       void Function(bool) onResult,
     ) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: ElevatedButton(
-                onPressed: () async {
-                  final went = await presentKycRefusal(
-                    context,
-                    refusal,
-                    colors: _colors,
-                  );
-                  onResult(went);
-                },
-                child: const Text('trigger'),
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final went = await presentKycRefusal(
+                      context,
+                      refusal,
+                      colors: _colors,
+                    );
+                    onResult(went);
+                  },
+                  child: const Text('trigger'),
+                ),
               ),
             ),
           ),
         ),
-      ));
+      );
       await tester.tap(find.text('trigger'));
       await tester.pumpAndSettle();
     }
 
-    testWidgets('explains the refusal and offers the way out',
-        (tester) async {
+    testWidgets('explains the refusal and offers the way out', (tester) async {
       await pumpHost(
         tester,
         const KycRefusal(
@@ -146,8 +149,9 @@ void main() {
       expect(find.text('Not now'), findsOneWidget);
     });
 
-    testWidgets('"Not now" resolves false — the action was not taken',
-        (tester) async {
+    testWidgets('"Not now" resolves false — the action was not taken', (
+      tester,
+    ) async {
       bool? result;
       await pumpHost(
         tester,

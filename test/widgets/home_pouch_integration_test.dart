@@ -14,6 +14,7 @@
 //      out card with locked details).
 //   4. App-backgrounding re-locks: any out card and unlocked details
 //      drop back to the tucked pouch the moment the app loses focus.
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -103,6 +104,9 @@ Future<ProviderContainer> _pumpHome(WidgetTester tester) async {
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
+      // These suites are about the card itself, so money is unlocked; the
+      // privacy gate has its own suites and stays locked by default.
+      unlockedMoneyAccess(),
       transactionHistoryProvider.overrideWith((ref) => _NoopHistoryNotifier()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(

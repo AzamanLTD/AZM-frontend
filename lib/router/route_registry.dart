@@ -62,6 +62,11 @@ abstract final class AzRouteNames {
   // Marketplace + savings
   static const marketplace = 'marketplace';
   static const savings = 'savings';
+  static const bills = 'bills';
+  static const billsAdd = 'bills-add';
+  static const billsPay = 'bills-pay';
+  static const billsRequest = 'bills-request';
+  static const billsRequestDetail = 'bills-request-detail';
   static const deposit = 'deposit';
   static const withdraw = 'withdraw';
   static const convert = 'convert';
@@ -200,6 +205,14 @@ abstract final class AzRoutes {
   /// The P2P crypto market — the FCM `OPEN_AD` target.
   static const marketplace = '/marketplace';
   static const savings = '/savings';
+
+  /// Bills hub — the Home Bills bubble's canonical destination.
+  static const bills = '/bills';
+  // Children of /bills. They are pushed with `context.push` on the Hub's own
+  // path, so the top-level depth rules treat them as one level under Bills.
+  static const billsAddPath = '/bills/add';
+  static const billsRequestPath = '/bills/request';
+  static String billsPayPath(String accountId) => '/bills/pay/$accountId';
   static const receive = '/receive';
   static const paymentRequests = '/payment-requests';
   static String paymentRequestLink(String token) =>

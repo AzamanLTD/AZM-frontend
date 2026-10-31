@@ -28,6 +28,7 @@
 // viewport, 1.6x text scale, keyboard/reduced-motion, and semantics +
 // hit-target continuity in both depth states.
 
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -204,6 +205,8 @@ Future<ProviderContainer> _pumpHome(
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
+      // The subject here is Home's layout, so money is unlocked.
+      unlockedMoneyAccess(),
       transactionHistoryProvider.overrideWith((ref) => _NoopHistoryNotifier()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
@@ -335,10 +338,14 @@ void main() {
     await _pumpIdleSettle(tester);
     expect(find.byKey(_recessedKeys), findsWidgets);
 
-    // The Save pill's real destination still opens, immediately.
+    // The Save pill's real destination still opens. The push is handed over at
+    // the crest of the bubble's rebound rather than on the release frame, so the
+    // route builds one frame after that crest — the delay is the pop itself,
+    // not a swallowed action.
     await tester.tap(find.byKey(const ValueKey('wallet-module-save')));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 120));
+    await tester.pump();
 
     expect(find.text('SAVINGS PAGE'), findsOneWidget);
     expect(tester.takeException(), isNull);

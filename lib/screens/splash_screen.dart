@@ -119,7 +119,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   /// splash must still be able to leave. It can only ever run LATE, never
   /// early, so the "never cut the animation" guarantee holds either way.
 
-
   /// Reduced motion never plays the full travel; it shows the settled brand
   /// state and continues through boot.
   late final bool _reduceMotion = WidgetsBinding

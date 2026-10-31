@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,8 +9,18 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
+import 'package:azaman/services/app_unlock_gateway.dart';
 import 'package:azaman/services/biometric_service.dart';
+import 'package:azaman/services/money_unlock_flow.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+
+/// The security screen's single HTTP client. Injectable because the false
+/// states this screen used to report (a PIN "removed", 2FA "enabled" the moment
+/// a secret was minted) are only provable by driving real responses.
+final securityApiClientProvider = Provider<ApiClient>((ref) => ApiClient());
+
+/// What the screen knows about this account's unlock methods.
+enum _UnlockCapsPhase { loading, known, unknown }
 
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
   const SecuritySettingsScreen({super.key});
@@ -22,9 +33,15 @@ class SecuritySettingsScreen extends ConsumerStatefulWidget {
 class _SecuritySettingsScreenState
     extends ConsumerState<SecuritySettingsScreen> {
   bool _twoFactorEnabled = false;
+
+  /// A secret has been minted and the QR is on screen, but NO code has been
+  /// confirmed yet. The authenticator is not protecting anything at this
+  /// point, so this must never read as "enabled".
+  bool _twoFactorPending = false;
   bool _showQrSetup = false;
   final _verificationCodeController = TextEditingController();
   final _pinController = TextEditingController();
+  final _pinCurrentController = TextEditingController();
   final _pinConfirmController = TextEditingController();
   bool _pinSet = false;
   // r42 — unfinished durable financial operations (process-death recovery).
@@ -36,6 +53,19 @@ class _SecuritySettingsScreenState
   bool _obscurePinConfirm = true;
   bool _loading2fa = false;
   bool _loadingPin = false;
+
+  /// The app-unlock capability read. Three states, because "we asked and could
+  /// not find out" is not the same answer as "this account has nothing set up":
+  /// showing an existing member as unconfigured is the bug this exists to stop.
+  _UnlockCapsPhase _unlockCapsPhase = _UnlockCapsPhase.loading;
+  AppUnlockCapabilities? _unlockCaps;
+
+  /// Every read is stamped, so a slow answer for a previous account cannot
+  /// paint itself over the current member's screen.
+  int _unlockCapsGeneration = 0;
+
+  /// The code typed into the turn-off-2FA dialog.
+  final TextEditingController _disableCodeController = TextEditingController();
 
   String _qrData = '';
   String _secret = '';
@@ -68,6 +98,41 @@ class _SecuritySettingsScreenState
     // });
     _loadBiometricState();
     _loadSessions();
+    _loadUnlockCapabilities();
+  }
+
+  /// Ask the server what this account can actually use to unlock money.
+  ///
+  /// The screen used to default every factor to "not configured" and never ask,
+  /// so a member who HAD a PIN saw an unconfigured account. Availability is a
+  /// server fact; this screen only reports what the server said.
+  Future<void> _loadUnlockCapabilities() async {
+    final generation = ++_unlockCapsGeneration;
+    final userId = ref.read(currentUserProvider).value?.id;
+    if (mounted) {
+      setState(() => _unlockCapsPhase = _UnlockCapsPhase.loading);
+    }
+    try {
+      final caps = await ref.read(appUnlockGatewayProvider).capabilities();
+      if (!mounted || generation != _unlockCapsGeneration) return;
+      if (ref.read(currentUserProvider).value?.id != userId) return;
+      setState(() {
+        _unlockCaps = caps;
+        _unlockCapsPhase = _UnlockCapsPhase.known;
+        // The server's answer is the only reason these may read as configured.
+        _pinSet = caps.pinConfigured || _pinSet;
+        if (caps.authenticatorConfigured) {
+          _twoFactorEnabled = true;
+          _twoFactorPending = false;
+        }
+      });
+    } catch (_) {
+      if (!mounted || generation != _unlockCapsGeneration) return;
+      setState(() {
+        _unlockCaps = null;
+        _unlockCapsPhase = _UnlockCapsPhase.unknown;
+      });
+    }
   }
 
   Future<void> _loadBiometricState() async {
@@ -148,7 +213,9 @@ class _SecuritySettingsScreenState
   void dispose() {
     _verificationCodeController.dispose();
     _pinController.dispose();
+    _pinCurrentController.dispose();
     _pinConfirmController.dispose();
+    _disableCodeController.dispose();
     super.dispose();
   }
 
@@ -160,13 +227,16 @@ class _SecuritySettingsScreenState
       });
       final token = ref.read(authProvider).user?.token;
       try {
-        final apiClient = ApiClient();
+        final apiClient = ref.read(securityApiClientProvider);
         final res = await apiClient.post('/security/2fa/setup', {});
         if (res.statusCode == 200 || res.statusCode == 201) {
           final body = jsonDecode(res.body);
           final data = body['data'] ?? body;
           setState(() {
-            _twoFactorEnabled = true;
+            // A secret exists; nothing is enabled until the server confirms a
+            // code from it. Showing "on" here was the defect.
+            _twoFactorEnabled = false;
+            _twoFactorPending = true;
             _showQrSetup = true;
             _qrData = data['qrCodeDataURL'] ?? data['otpauthUrl'] ?? '';
             _secret = data['secret'] ?? '';
@@ -192,41 +262,119 @@ class _SecuritySettingsScreenState
         if (mounted) setState(() => _loading2fa = false);
       }
     } else {
-      // Disable: show code input to confirm disable
-      setState(() {
-        _twoFactorEnabled = false;
-        _showQrSetup = false;
-        _verificationCodeController.clear();
-      });
-      _disable2fa();
+      // Turning protection OFF needs proof, and the switch must not move until
+      // the server agrees. Flipping it first meant a member could walk away
+      // believing 2FA was off while the backend still required it.
+      await _confirmDisable2fa();
+      return;
     }
     HapticFeedback.mediumImpact();
   }
 
-  Future<void> _disable2fa() async {
-    final code = _verificationCodeController.text.trim();
+  /// Ask for the current code, then disable. The switch only moves after the
+  /// server confirms; a refusal leaves protection ON and says why. Every branch
+  /// here used to end in silence, which is the worst possible outcome for a
+  /// security switch.
+  Future<void> _confirmDisable2fa() async {
+    // Owned by the State, not by this call: disposing it when showDialog
+    // returns tears the controller out from under the dialog's own exit
+    // animation, which throws "used after being disposed".
+    final controller = _disableCodeController..clear();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final colors = ref.read(themeProvider).colors;
+        return AlertDialog(
+          backgroundColor: colors.surface,
+          title: Text(
+            'Turn off two-factor authentication?',
+            style: TextStyle(color: colors.textPrimary),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            decoration: const InputDecoration(
+              counterText: '',
+              hintText: '6-digit code',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Turn off'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted || code == null) return;
+    await _disable2fa(code);
+  }
+
+  Future<void> _disable2fa(String code) async {
     if (code.length != 6) {
-      // Just toggle off the UI; they'll need to verify next time
+      _securityNotice('Enter the 6-digit code from your authenticator', false);
       return;
     }
-    final token = ref.read(authProvider).user?.token;
+    setState(() => _loading2fa = true);
     try {
-      final apiClient = ApiClient();
+      final apiClient = ref.read(securityApiClientProvider);
       final res = await apiClient.post('/security/2fa/disable', {
         'token': code,
       });
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('2FA disabled successfully'),
-            backgroundColor: ref.read(themeProvider).colors.warning,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        // Confirmed off by the server — only now does the switch move.
+        setState(() {
+          _twoFactorEnabled = false;
+          _twoFactorPending = false;
+          _showQrSetup = false;
+          _verificationCodeController.clear();
+        });
+        _securityNotice('Two-factor authentication is off', false);
+      } else {
+        _securityNotice(_serverMessage(res, 'Could not turn off 2FA'), true);
       }
-    } catch (e) {
-      debugPrint('Disable 2FA error: $e');
+    } on ApiException catch (e) {
+      // The client raises on non-2xx, so a refusal arrives here, not as a
+      // status code. Its message is the server's own reason — the member is
+      // told why the code was rejected AND that protection is still on.
+      _securityNotice(e.message, true);
+    } catch (_) {
+      _securityNotice('Could not reach Azaman. 2FA is still on.', true);
+    } finally {
+      if (mounted) setState(() => _loading2fa = false);
     }
+  }
+
+  /// The server's own message, or a truthful fallback. Never a guessed one.
+  String _serverMessage(dynamic res, String fallback) {
+    try {
+      final body = jsonDecode(res.body);
+      final message = body['message'] ?? body['error'];
+      if (message is String && message.trim().isNotEmpty) return message;
+    } catch (_) {
+      // Non-JSON error body: the fallback is the honest answer.
+    }
+    return fallback;
+  }
+
+  void _securityNotice(String message, bool isError) {
+    if (!mounted) return;
+    final colors = ref.read(themeProvider).colors;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? colors.danger : colors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _verifyCode() async {
@@ -246,19 +394,19 @@ class _SecuritySettingsScreenState
     final token = ref.read(authProvider).user?.token;
 
     try {
-      final apiClient = ApiClient();
+      final apiClient = ref.read(securityApiClientProvider);
       final res = await apiClient.post('/security/2fa/verify', {'token': code});
 
       if (res.statusCode == 200) {
         HapticFeedback.heavyImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('2FA enabled successfully'),
-            backgroundColor: ref.read(themeProvider).colors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        setState(() => _showQrSetup = false);
+        _securityNotice('Two-factor authentication is on', false);
+        setState(() {
+          _showQrSetup = false;
+          _twoFactorPending = false;
+          // Enabled, because the SERVER confirmed a code from the secret.
+          _twoFactorEnabled = true;
+          _verificationCodeController.clear();
+        });
       } else {
         final errBody = jsonDecode(res.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -308,18 +456,41 @@ class _SecuritySettingsScreenState
       return;
     }
 
+    final currentPin = _pinCurrentController.text.trim();
+    if (_pinSet) {
+      if (currentPin.length != 4) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Enter your current PIN to change it'),
+            backgroundColor: ref.read(themeProvider).colors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _loadingPin = true);
-    final token = ref.read(authProvider).user?.token;
 
     try {
-      final apiClient = ApiClient();
-      final res = await apiClient.post('/security/pin/set', {'pin': pin});
+      final apiClient = ref.read(securityApiClientProvider);
+
+      // One server-authoritative proof-and-update. The backend verifies the
+      // current PIN inside this same request and refuses without touching the
+      // hash, so a second /pin/verify call would be a rival verification path
+      // that can disagree with the one that actually guards the write.
+      final res = await apiClient.post('/security/pin/set', {
+        'pin': pin,
+        if (_pinSet) 'currentPin': currentPin,
+      });
 
       if (res.statusCode == 200 || res.statusCode == 201) {
         HapticFeedback.heavyImpact();
         setState(() => _pinSet = true);
+        unawaited(_loadUnlockCapabilities());
         _pinController.clear();
         _pinConfirmController.clear();
+        _pinCurrentController.clear();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Azaman PIN set successfully'),
@@ -328,10 +499,30 @@ class _SecuritySettingsScreenState
           ),
         );
       } else {
-        final errBody = jsonDecode(res.body);
+        // Refusals are reported as refusals. The codes are the contract:
+        // PIN_CURRENT_REQUIRED, PIN_INVALID, PIN_LOCKED, PIN_FORMAT_INVALID.
+        String code = '';
+        String message = 'The PIN was not changed.';
+        try {
+          final errBody = jsonDecode(res.body);
+          if (errBody is Map) {
+            code = (errBody['code'] ?? '').toString();
+            message = (errBody['message'] ?? message).toString();
+          }
+        } catch (_) {
+          // A non-JSON refusal still refuses; keep the honest default.
+        }
+        final refusal = switch (code) {
+          'PIN_CURRENT_REQUIRED' => 'Enter your current PIN to change it.',
+          'PIN_INVALID' => 'That is not the current PIN. Nothing was changed.',
+          'PIN_LOCKED' =>
+            'Too many wrong attempts. Try again later. Nothing was changed.',
+          'PIN_FORMAT_INVALID' => 'A PIN is four digits.',
+          _ => message,
+        };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errBody['message'] ?? 'Failed to set PIN'),
+            content: Text(refusal),
             backgroundColor: ref.read(themeProvider).colors.danger,
             behavior: SnackBarBehavior.floating,
           ),
@@ -350,20 +541,6 @@ class _SecuritySettingsScreenState
     }
   }
 
-  void _removePin() {
-    setState(() => _pinSet = false);
-    HapticFeedback.mediumImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Azaman PIN removed'),
-        backgroundColor: ref.read(themeProvider).colors.warning,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-    // Note: backend PIN removal could be wired here if endpoint exists
-  }
-
-  @override
   // ── SESSION MANAGEMENT ──────────────────────────────────────────────────────
   Future<void> _loadSessions() async {
     setState(() => _loadingSessions = true);
@@ -605,6 +782,9 @@ class _SecuritySettingsScreenState
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         children: [
+          _sectionHeader('Unlock Money', colors),
+          _buildCard(colors, children: [_unlockMethodRows(colors)]),
+          const SizedBox(height: 20),
           _sectionHeader('Two-Factor Authentication', colors),
           _buildCard(
             colors,
@@ -613,14 +793,37 @@ class _SecuritySettingsScreenState
                 colors,
                 icon: Icons.security,
                 title: 'Google Authenticator',
-                subtitle: 'Add an extra layer of security',
+                subtitle: _twoFactorEnabled
+                    ? 'On — a code is required when you sign in'
+                    : _twoFactorPending
+                    ? 'Not enabled yet — confirm a code below'
+                    : 'Add an extra layer of security',
                 value: _twoFactorEnabled,
-                onChanged: _onToggle2fa,
+                onChanged: _loading2fa ? null : _onToggle2fa,
               ),
-              if (_twoFactorEnabled && _showQrSetup) ...[
+              if (_showQrSetup && !_twoFactorEnabled) ...[
                 const SizedBox(height: 4),
                 Divider(color: colors.divider, height: 1),
                 const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: colors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        // No claim of protection until a code lands.
+                        'Two-factor authentication is not on yet. It turns on '
+                        'when you confirm a code from this secret.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(16),
@@ -712,6 +915,19 @@ class _SecuritySettingsScreenState
           ),
 
           const SizedBox(height: 28),
+          _sectionHeader('Preferred unlock method', colors),
+          _buildCard(
+            colors,
+            children: [
+              // The Home trigger asks for whatever this member chose, not
+              // whatever the device happens to have. Only methods this account
+              // can actually satisfy are offered; an unavailable one is named
+              // as unavailable instead of silently replaced.
+              ..._preferenceRows(colors),
+            ],
+          ),
+
+          const SizedBox(height: 28),
           _sectionHeader('Biometric Lock', colors),
           _buildCard(
             colors,
@@ -738,10 +954,55 @@ class _SecuritySettingsScreenState
           _buildCard(
             colors,
             children: [
-              if (!_pinSet) ...[
+              if (_pinSet) ...[
+                // A status line, not a control: there is no removal endpoint,
+                // and the form below is the only thing that can change it.
+                Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 18,
+                      color: colors.success,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Azaman PIN active',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Change it above',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // The server is the authority for rotation: it must be told
+                // the PIN being replaced, so the member proves they know it
+                // before a new one is written.
                 _pinField(
                   colors,
-                  label: 'New 4-digit PIN',
+                  label: 'Current 4-digit PIN',
+                  controller: _pinCurrentController,
+                  obscure: _obscurePin,
+                  onToggleObscure: () =>
+                      setState(() => _obscurePin = !_obscurePin),
+                ),
+                const SizedBox(height: 12),
+              ],
+              ...[
+                _pinField(
+                  colors,
+                  label: _pinSet ? 'New 4-digit PIN' : 'New 4-digit PIN',
                   controller: _pinController,
                   obscure: _obscurePin,
                   onToggleObscure: () =>
@@ -761,7 +1022,9 @@ class _SecuritySettingsScreenState
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _savePin,
+                    // A second tap while the first is still in flight would
+                    // be a second write of the same secret.
+                    onPressed: _loadingPin ? null : _savePin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
                       foregroundColor: colors.isDark
@@ -773,7 +1036,7 @@ class _SecuritySettingsScreenState
                       elevation: 0,
                     ),
                     child: Text(
-                      'Set PIN',
+                      _loadingPin ? 'Saving…' : 'Set PIN',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -781,59 +1044,6 @@ class _SecuritySettingsScreenState
                       ),
                     ),
                   ),
-                ),
-              ] else ...[
-                Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: colors.success.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.check_circle_outline,
-                        color: colors.success,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Azaman PIN active',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Used for transaction authorization',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _removePin,
-                      child: Text(
-                        'Remove',
-                        style: TextStyle(
-                          color: colors.danger,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ],
             ],
@@ -1320,6 +1530,71 @@ class _SecuritySettingsScreenState
     );
   }
 
+  /// The methods this account can really use, in the order the unlock flow
+  /// tries them. Nothing here is a promise the backend has not made.
+  List<Widget> _preferenceRows(AzamanColors colors) {
+    final chosen = ref.watch(moneyUnlockPreferenceProvider);
+    final userId = ref.read(currentUserProvider).value?.id;
+    final rows = <Widget>[];
+
+    void add(AppUnlockMethod method, String title, String subtitle) {
+      final selected = chosen == method;
+      rows.add(
+        Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: selected ? colors.accent : colors.textTertiary,
+            ),
+            title: Text(title),
+            subtitle: Text(subtitle),
+            onTap: () async {
+              await ref
+                  .read(moneyUnlockPreferenceProvider.notifier)
+                  .remember(userId, method);
+              if (mounted) AzamanHaptics.commit();
+            },
+          ),
+        ),
+      );
+    }
+
+    if (_biometricAvailable) {
+      add(
+        AppUnlockMethod.deviceAuth,
+        'Device authentication',
+        'Face, fingerprint or the device passcode',
+      );
+    }
+    if (_pinSet) {
+      add(AppUnlockMethod.pin, 'Azaman PIN', 'The 4-digit PIN you set here');
+    }
+    if (_twoFactorEnabled && !_twoFactorPending) {
+      add(
+        AppUnlockMethod.totp,
+        'Authenticator app',
+        'A code from your authenticator',
+      );
+    }
+    if (rows.isEmpty) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            'No unlock method is configured yet. Set a PIN below, or enroll a '
+            'fingerprint or face on this device.',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+        ),
+      );
+    }
+    return rows;
+  }
+
   Widget _toggleRow(
     AzamanColors colors, {
     required IconData icon,
@@ -1416,5 +1691,140 @@ class _SecuritySettingsScreenState
         ),
       ),
     );
+  }
+
+  /// One truthful row per unlock method. No row is ever rendered from a local
+  /// boolean: the value comes from the capability read, or the row says the
+  /// answer is unknown.
+  Widget _unlockMethodRows(colors) {
+    if (_unlockCapsPhase == _UnlockCapsPhase.loading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Checking what this account can use…',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_unlockCapsPhase == _UnlockCapsPhase.unknown) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.help_outline, size: 16, color: colors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'We could not confirm this account\'s unlock methods.',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'That is not the same as having none set up. Retry when you are '
+              'online.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
+            TextButton(
+              onPressed: _loadUnlockCapabilities,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final caps = _unlockCaps!;
+    final rows = <Widget>[
+      _capabilityRow(
+        colors,
+        icon: Icons.password,
+        title: 'Azaman PIN',
+        status: caps.pinConfigured ? 'Configured' : 'Not configured',
+        available: caps.pinConfigured,
+      ),
+      _capabilityRow(
+        colors,
+        icon: Icons.security,
+        title: 'Authenticator app',
+        status: caps.authenticatorConfigured ? 'Configured' : 'Not configured',
+        available: caps.authenticatorConfigured,
+      ),
+      _capabilityRow(
+        colors,
+        icon: Icons.sms_outlined,
+        title: 'SMS code',
+        // Offered only when the server says it can actually send one, and when
+        // it cannot, the server's own reason is what the member reads.
+        status: caps.smsUnlockAvailable
+            ? 'Available'
+            : _smsUnavailableCopy(caps.smsUnavailableReason),
+        available: caps.smsUnlockAvailable,
+      ),
+    ];
+    return Column(children: rows);
+  }
+
+  Widget _capabilityRow(
+    colors, {
+    required IconData icon,
+    required String title,
+    required String status,
+    required bool available,
+  }) {
+    return ListTile(
+      dense: true,
+      leading: Icon(
+        icon,
+        size: 20,
+        color: available ? colors.textPrimary : colors.textTertiary,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(color: colors.textPrimary, fontSize: 14),
+      ),
+      subtitle: Text(
+        status,
+        style: TextStyle(
+          color: available ? colors.success : colors.textTertiary,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  /// The server's reason, in words a member can act on. An unknown reason is
+  /// reported as unknown rather than guessed.
+  String _smsUnavailableCopy(String? reason) {
+    switch (reason) {
+      case 'PHONE_UNVERIFIED':
+        return 'Not available — verify your phone number first';
+      case 'SMS_SERVICE_UNAVAILABLE':
+        return 'Not available — SMS sending is not configured';
+      default:
+        return 'Not available';
+    }
   }
 }

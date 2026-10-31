@@ -33,6 +33,8 @@ import 'package:azaman/router/app_router.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/screens/account_activity_screen.dart';
 
+import '../support/money_access_test_support.dart';
+
 void main() {
   setUpAll(() {
     // Demo mode routes /users/me/security-logs to DemoInterceptor's
@@ -62,8 +64,11 @@ void main() {
       '(serialized restoration data, all in-memory state destroyed)', (
     tester,
   ) async {
-    Widget harness() => const ProviderScope(
-      child: MaterialApp(
+    // The activity list is a money surface; its own gate suite covers the
+    // locked state, so this restoration contract runs unlocked.
+    Widget harness() => ProviderScope(
+      overrides: [unlockedMoneyAccess()],
+      child: const MaterialApp(
         restorationScopeId: 'root',
         home: AccountActivityScreen(),
       ),
@@ -99,6 +104,7 @@ void main() {
     'through the real GoRouter page stack',
     (tester) async {
       Widget harness() => ProviderScope(
+        overrides: [unlockedMoneyAccess()],
         child: MaterialApp.router(
           restorationScopeId: 'root',
           routerConfig: appRouter,

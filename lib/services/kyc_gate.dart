@@ -47,8 +47,8 @@ class KycRefusal {
     if (!code.startsWith('KYC_')) return null;
     return KycRefusal(
       code: code,
-      message: data['message']?.toString() ??
-          'Verify your identity to continue.',
+      message:
+          data['message']?.toString() ?? 'Verify your identity to continue.',
       status: data['kycStatus']?.toString(),
       action: data['requiredFor']?.toString(),
     );
@@ -132,7 +132,11 @@ Future<bool> presentKycRefusal(
           const SizedBox(height: 10),
           Text(
             wording.body,
-            style: TextStyle(color: c.textSecondary, fontSize: 13, height: 1.45),
+            style: TextStyle(
+              color: c.textSecondary,
+              fontSize: 13,
+              height: 1.45,
+            ),
           ),
           const SizedBox(height: 18),
           Row(
@@ -166,8 +170,8 @@ Future<bool> presentKycRefusal(
   // The KYC screen owns its own submit/poll lifecycle; it pops when the user
   // leaves it. We do NOT assume verification succeeded — the user returns to
   // the action and the server's verdict (not this screen) decides.
-  await Navigator.of(context).push(
-    MaterialPageRoute(builder: (_) => const KycVerificationScreen()),
-  );
+  await Navigator.of(
+    context,
+  ).push(MaterialPageRoute(builder: (_) => const KycVerificationScreen()));
   return true;
 }
