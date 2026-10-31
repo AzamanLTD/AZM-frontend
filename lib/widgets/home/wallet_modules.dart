@@ -13,10 +13,18 @@
 // label below the circle; the owner overrode that while sending the brief, and
 // this file implements the override.
 //
-// Material language is unchanged from the pills these replace (PR #184):
-// FLAT, border-only, no fill, no glass, no gradient, no glow, no shadow. The
-// quiet-depth cycle still animates the RIM ALONE, which is why the content
-// subtree is never inside the backdrop.
+// Material language (owner, 2026-10-30): DIMENSIONAL. The circle is a sphere,
+// not a disc — a light-facing tint falling to almost nothing at the bottom
+// right, a shaded lower edge, a rim, a specular highlight and a short shadow to
+// lift it off the row. Everything stays measured: no blur, no glow bloom, no
+// particles. The quiet-depth cycle still animates the rim alone, which is why
+// the content subtree is never inside the backdrop.
+//
+// FEEL: press and pop are one gesture, not two (lib/widgets/home/bubble_press
+// .dart). The bubble compresses under the finger, rebounds past its own size,
+// and the navigation fires as it leaves — the Hero carries it from there. A
+// second tap during that window is swallowed so one gesture cannot queue two
+// pushes.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,7 +39,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
-import 'package:azaman/widgets/scale_tap.dart';
+import 'package:azaman/widgets/home/bubble_press.dart';
 
 /// Deterministic active-group selection, unchanged: the first active group in
 /// the server's own order wins.
@@ -150,11 +158,12 @@ class _SusuBubble extends ConsumerWidget {
   }
 }
 
-/// One circular control: symbol AND caption inside a single flat rim.
+/// One circular control: symbol AND caption inside a single dimensional
+/// bubble.
 ///
 /// Sizing is derived from the width the row actually gives each item, so four
 /// bubbles fit 320dp without a second row and without clipping a word:
-///   • the visual circle is clamped to [56, 72] logical px;
+///   • the visual circle is clamped to [52, 60] logical px;
 ///   • the tap target is never smaller than 48dp (the circle already is);
 ///   • label type scales down with the circle instead of being ellipsised, so
 ///     a 1.6x text scale shrinks the pair rather than losing the word.
@@ -178,6 +187,10 @@ class HomeActionBubble extends ConsumerWidget {
     // light, not a tall capsule. Owner direction supersedes the earlier
     // flat-only treatment: a restrained glassy sheen and a gentle lift are
     // wanted, still nothing loud — no blur, no big glow, no particles.
+    //
+    // Volume is three layers on one circle: the body gradient (light top-left,
+    // nothing bottom-right), a lower-edge shade so the underside turns away,
+    // and the specular highlight below.
     Widget bubble(bool recessed) {
       final accent = colors.accent;
       final rim = colors.textTertiary.withValues(alpha: recessed ? 0.42 : 0.78);
@@ -191,9 +204,9 @@ class HomeActionBubble extends ConsumerWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              accent.withValues(alpha: recessed ? 0.07 : 0.13),
-              accent.withValues(alpha: 0.02),
-              accent.withValues(alpha: recessed ? 0.01 : 0.03),
+              accent.withValues(alpha: recessed ? 0.09 : 0.17),
+              accent.withValues(alpha: recessed ? 0.03 : 0.06),
+              accent.withValues(alpha: recessed ? 0.01 : 0.02),
             ],
             stops: const [0.0, 0.55, 1.0],
           ),
@@ -210,6 +223,27 @@ class HomeActionBubble extends ConsumerWidget {
         child: const SizedBox.expand(),
       );
     }
+
+    // The underside turning away from the light. A tint at the bottom-right is
+    // what makes the circle read as a sphere rather than a filled disc; it is
+    // deliberately weak, because a strong one turns into a drop shadow inside
+    // the bubble.
+    Widget underside(bool recessed) => IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            center: const Alignment(0.55, 0.75),
+            radius: 0.95,
+            colors: [
+              Colors.black.withValues(alpha: recessed ? 0.10 : 0.16),
+              Colors.black.withValues(alpha: 0.0),
+            ],
+            stops: const [0.0, 0.72],
+          ),
+        ),
+      ),
+    );
 
     Widget specular(bool recessed) => Align(
       alignment: const Alignment(-0.42, -0.55),
@@ -273,7 +307,7 @@ class HomeActionBubble extends ConsumerWidget {
             child: SizedBox(
               width: diameter,
               height: diameter,
-              child: ScaleTap(
+              child: BubblePress(
                 onTap: () {
                   QuietDepthScope.maybeOf(context)?.wake();
                   onTap();
@@ -282,7 +316,11 @@ class HomeActionBubble extends ConsumerWidget {
                   content: content,
                   backdrop: (context, recessed) => Stack(
                     fit: StackFit.expand,
-                    children: [bubble(recessed), specular(recessed)],
+                    children: [
+                      bubble(recessed),
+                      underside(recessed),
+                      specular(recessed),
+                    ],
                   ),
                 ),
               ),
