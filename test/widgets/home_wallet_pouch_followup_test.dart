@@ -85,7 +85,8 @@ Future<void> _pumpDeck(
       child: ProviderScope(
         overrides: [
           unlockedMoneyAccess(),
-          authProvider.overrideWith((ref) => AuthProvider(ref: ref))],
+          authProvider.overrideWith((ref) => AuthProvider(ref: ref)),
+        ],
         child: MaterialApp(
           home: Scaffold(
             backgroundColor: const Color(0xFFF2F2F7),

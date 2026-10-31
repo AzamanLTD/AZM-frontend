@@ -126,7 +126,7 @@ Future<ProviderContainer> _pumpHome(
 
   final container = ProviderContainer(
     overrides: [
-          unlockedMoneyAccess(),
+      unlockedMoneyAccess(),
       themeProvider.overrideWith((ref) => themeProviderInstance),
       authProvider.overrideWith((ref) => AuthProvider()),
       transactionHistoryProvider.overrideWith((ref) => _NoopHistoryNotifier()),

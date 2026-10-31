@@ -19,7 +19,7 @@ Two mechanisms exist:
   the screen is a catalogue and only part of it is money (`/bills` is the model
   case: the hub is public, `YOUR BILLS` is gated).
 
-## Guarded at the route (26 routes)
+## Guarded at the route (30 routes)
 
 | Route | Mechanism | Notes |
 | --- | --- | --- |
@@ -51,6 +51,10 @@ Two mechanisms exist:
 | `/worker/payroll` | `MoneyRouteGuard` | wage amounts |
 | `/worker/ewa` | `MoneyRouteGuard` | earned wage access |
 | `/business-market/dine-in/:tabId` | `MoneyRouteGuard` | a running tab is money owed |
+| `/business-market/orders` | `MoneyRouteGuard` | order totals and payment state |
+| `/business-market/invoices` | `MoneyRouteGuard` | amounts owed and paid |
+| `/business-market/invoices/:invoiceId` | `MoneyRouteGuard` | invoice amount, payment state, private paperwork |
+| `/wallet-pass/:passType/:itemId` | `MoneyRouteGuard` | a pass can carry stored value and payment credentials |
 
 ## Guarded inside the screen, not at the route
 
@@ -63,24 +67,32 @@ from the router.
 | --- | --- |
 | `/transactions` | `TransactionHistoryScreen` watches `moneyAccessProvider` |
 
-## Money-bearing routes still open — candidates, not conclusions
+## The four open surfaces: decided 2026-10-31
 
-Each needs one decision: gate it, gate a section, or record why it is not money.
+Each was a candidate, not a conclusion. The owner decided all four. A section
+gate is not a route gate, so the "guarded at the route" count does not include
+the two that are gated inside the screen.
 
-| Route | What it plausibly exposes |
-| --- | --- |
-| `/business-market/orders`, `/business-market/invoices`, `/business-market/invoices/:invoiceId` | invoices and money owed; business-side, needs a product call on whether a locked member may still see business paperwork |
-| `/marketplace/transit/:tripId/seats` | seat prices at the payment boundary; the seat map is catalogue, the purchase is not |
-| `/loyalty-cards`, `/wallet-pass/:passType/:itemId` | stored-value representations; points are not money, but a wallet pass can carry value |
-| `/susu/position-picker` | picks a hand before joining; intermediate step, not an amount |
+| Surface | Decision | Where the gate lives |
+| --- | --- | --- |
+| Business paperwork (`/business-market/orders`, `/business-market/invoices`, `/business-market/invoices/:invoiceId`) | **Gated at the route.** Order totals, amounts owed, payment state and attached private paperwork are the member's money, even when the document is business-shaped. | `MoneyRouteGuard` on all three routes |
+| Transit seats (`/marketplace/transit/:tripId/seats`) | **Section gated.** The seat map, the fare and the selection stay browsable: they are catalogue. Reserving and paying are not. | `MoneyLockGate(compact: true)` wraps only the dock's commitment button ("Continue to book"). Because the guard replaces the button, a locked tap cannot hold a seat. |
+| Loyalty (`/loyalty-cards`, `/wallet-pass/:passType/:itemId`) | **Split.** Points are not money, so the loyalty list stays open. A wallet pass is a stored-value representation and can carry payment credentials. | `/loyalty-cards` unguarded (points only: `pointsBalance` is the sole money-shaped field, and it is reproducible, not owned money); `/wallet-pass/...` behind `MoneyRouteGuard` |
+| Susu position picker (`/susu/position-picker`) | **Stays open.** It chooses a hand before joining. It shows no amount, holds no money and commits nothing; the commitment is the contract at `/susu/:id/contract`, already gated. | none here; `/susu`, `/susu/:id`, `/susu/:id/contract` and `/susu/completion` remain route-guarded |
+
+Why the picker is genuinely not money: it renders a wheel of positions, a legend
+and the member list, and calls back with an index. There is no quote, no hold, no
+payment call and no balance in the widget, so gating it would hide browsing
+without protecting anything.
 
 ## Deliberately not gated
 
 `/marketplace`, `/business-market`, `/business/:bizId`, `/worker` profiles,
 `/friends`, `/messages`, `/notifications`, `/settings`, `/profile/edit`,
-`/discover/storefronts`, story surfaces. Prices on a public menu, a business
-profile or a story are catalogue data; the member is not exposing their own
-money by looking at them.
+`/discover/storefronts`, `/loyalty-cards`, `/marketplace/transit/:tripId/seats`
+(the route; its commitment is gated inside), `/susu/position-picker`, story
+surfaces. Prices on a public menu, a business profile or a story are catalogue
+data; the member is not exposing their own money by looking at them.
 
 ## Rules for adding a surface
 

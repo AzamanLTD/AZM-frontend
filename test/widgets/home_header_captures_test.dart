@@ -106,7 +106,7 @@ Future<void> _pumpHome(
   await tester.binding.setSurfaceSize(surface);
   final container = ProviderContainer(
     overrides: [
-          unlockedMoneyAccess(),
+      unlockedMoneyAccess(),
       authProvider.overrideWith((ref) => AuthProvider()),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(

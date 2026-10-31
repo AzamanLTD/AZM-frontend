@@ -396,18 +396,21 @@ void main() {
       expect(
         gradients.length,
         greaterThanOrEqualTo(2),
-        reason: 'volume needs a light-facing body AND an underside turning '
+        reason:
+            'volume needs a light-facing body AND an underside turning '
             'away; one flat gradient is a filled disc',
       );
       expect(
         gradients.where((d) => d.gradient is RadialGradient).length,
         greaterThanOrEqualTo(2),
-        reason: 'the specular highlight and the underside shade are both '
+        reason:
+            'the specular highlight and the underside shade are both '
             'radial',
       );
       expect(
         gradients.any(
-          (d) => d.gradient!.colors.first.a > 0 && d.gradient!.colors.last.a == 0,
+          (d) =>
+              d.gradient!.colors.first.a > 0 && d.gradient!.colors.last.a == 0,
         ),
         isTrue,
         reason: 'a light must fall away to nothing, not end at a band',

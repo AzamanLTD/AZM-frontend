@@ -857,18 +857,33 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/business-market/orders',
       name: AzRouteNames.businessMarketOrders,
-      builder: (_, __) => const MyOrdersScreen(),
+      // Owner decision 2026-10-31: order totals and payment state are the
+      // member's money, even when the paperwork is business-shaped.
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Your orders are locked',
+        child: MyOrdersScreen(),
+      ),
     ),
     GoRoute(
       path: '/business-market/invoices',
       name: AzRouteNames.businessMarketInvoices,
-      builder: (_, __) => const MyInvoicesScreen(),
+      // Owner decision 2026-10-31: an invoice list is amounts owed and paid.
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Your invoices are locked',
+        child: MyInvoicesScreen(),
+      ),
     ),
     GoRoute(
       path: '/business-market/invoices/:invoiceId',
       name: AzRouteNames.invoiceDetail,
-      builder: (_, state) =>
-          InvoiceDetailScreen(invoiceId: state.pathParameters['invoiceId']!),
+      // Owner decision 2026-10-31: the detail carries the amount, the payment
+      // state and any private paperwork attached to it.
+      builder: (_, state) => MoneyRouteGuard(
+        message: 'This invoice is locked',
+        child: InvoiceDetailScreen(
+          invoiceId: state.pathParameters['invoiceId']!,
+        ),
+      ),
     ),
     GoRoute(
       path: '/business-market/dashboard',
@@ -1160,11 +1175,16 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/wallet-pass/:passType/:itemId',
       name: AzRouteNames.walletPass,
-      builder: (context, state) => WalletPassScreen(
-        passType: state.pathParameters['passType']!,
-        itemId: state.pathParameters['itemId']!,
-        title: state.uri.queryParameters['title'] ?? '',
-        subtitle: state.uri.queryParameters['subtitle'] ?? '',
+      // Owner decision 2026-10-31: points are not money, but a wallet pass is
+      // a stored-value representation and can carry payment credentials.
+      builder: (context, state) => MoneyRouteGuard(
+        message: 'This pass is locked',
+        child: WalletPassScreen(
+          passType: state.pathParameters['passType']!,
+          itemId: state.pathParameters['itemId']!,
+          title: state.uri.queryParameters['title'] ?? '',
+          subtitle: state.uri.queryParameters['subtitle'] ?? '',
+        ),
       ),
     ),
     GoRoute(

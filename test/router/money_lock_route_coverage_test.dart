@@ -39,6 +39,13 @@ const _mustBeGated = <String, String>{
   '/susu': 'group balances',
   '/susu/:id': 'group ledger',
   '/susu/:id/contract': 'contract terms and amounts',
+  // Owner decisions, 2026-10-31.
+  '/business-market/orders': 'order totals and payment state',
+  '/business-market/invoices': 'amounts owed and paid',
+  '/business-market/invoices/:invoiceId':
+      'invoice amount, payment state, paperwork',
+  '/wallet-pass/:passType/:itemId':
+      'a pass can carry stored value and payment credentials',
 };
 
 /// Routes that must stay browsable: catalogue, social or configuration data.
@@ -46,6 +53,11 @@ const _mustStayOpen = <String>[
   '/bills',
   '/marketplace',
   '/business-market',
+  // Owner decisions, 2026-10-31: these three are browsable, and only their
+  // money-bearing section or commitment is gated.
+  '/loyalty-cards', // points are not money; the pass is (gated above)
+  '/marketplace/transit/:tripId/seats', // seat map and fare are catalogue
+  '/susu/position-picker', // chooses a hand, commits nothing
   '/notifications',
   '/settings',
 ];
@@ -147,6 +159,34 @@ void main() {
       reason:
           'a catalogue is not money; these routes were gated and would read as '
           'broken to a locked member: ${wronglyGated.join(', ')}',
+    );
+  });
+
+  test('a gated transit commitment still leaves the seat map browsable', () {
+    final route = blocks['/marketplace/transit/:tripId/seats'];
+    expect(route, isNotNull);
+    expect(
+      route!.contains('MoneyRouteGuard'),
+      isFalse,
+      reason: 'gating the whole route would hide the fare map while locked',
+    );
+
+    final screen = File(
+      'lib/screens/marketplace/transit_seat_selection_screen.dart',
+    ).readAsStringSync();
+    final commit = screen.indexOf(
+      "Text(busy ? 'Booking…' : 'Continue to book')",
+    );
+    expect(commit, greaterThan(-1));
+    expect(
+      screen.substring(0, commit).lastIndexOf('MoneyLockGate('),
+      greaterThan(-1),
+      reason: 'the commitment must sit inside MoneyLockGate',
+    );
+    expect(
+      screen.contains('toStringAsFixed(2)} USDC'),
+      isTrue,
+      reason: 'the fare stays visible: it is the price, not the member money',
     );
   });
 
