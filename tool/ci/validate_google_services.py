@@ -61,6 +61,8 @@ def main() -> None:
 
     android_packages = []
     web_clients = []
+    android_client_ids = []
+    ios_client_ids = []
     for client in clients:
         if not isinstance(client, dict):
             continue
@@ -71,8 +73,16 @@ def main() -> None:
         for oauth in client.get("oauth_client") or []:
             if not isinstance(oauth, dict):
                 continue
-            if oauth.get("client_type") == 3 and oauth.get("client_id"):
-                web_clients.append(str(oauth["client_id"]))
+            oauth_id = str(oauth.get("client_id") or "")
+            oauth_type = oauth.get("client_type")
+            if not oauth_id:
+                continue
+            if oauth_type == 1:
+                android_client_ids.append(oauth_id)
+            elif oauth_type == 2:
+                ios_client_ids.append(oauth_id)
+            elif oauth_type == 3:
+                web_clients.append(oauth_id)
 
     matching = [p for p in android_packages if p == args.package]
 
@@ -100,10 +110,34 @@ def main() -> None:
             "Android cannot issue a usable id token without it."
         )
     if args.server_client_id and args.server_client_id not in web_clients:
+        # Client ids are public identifiers (they ship inside every APK), so the
+        # candidates are printed: they are the only way to pick the right value
+        # without opening the console again. No key or secret is printed.
+        supplied = args.server_client_id
+        if supplied.startswith(("http://", "https://")):
+            shape = (
+                "it is a URL, not a client id. Firebase shows both on the same "
+                "page; the build needs the client id (…apps.googleusercontent.com "
+                "with a project-number prefix), not an authorised redirect URI"
+            )
+        elif supplied in android_client_ids:
+            shape = (
+                "it is this project's ANDROID client id (client_type 1). Android "
+                "id-token issuance needs the WEB client id (client_type 3)"
+            )
+        elif supplied in ios_client_ids:
+            shape = "it is an iOS client id (client_type 2), not the web client id"
+        elif not supplied.endswith(".apps.googleusercontent.com"):
+            shape = "it does not have the shape of a Google OAuth client id"
+        else:
+            shape = (
+                "it is shaped like a client id but belongs to a different OAuth "
+                "client or a different project"
+            )
         fail(
-            f"{args.label}: the configured Web client id is not one of the "
-            f"client_type 3 clients in this configuration ({len(web_clients)} present). "
-            "Refusing to compile a build whose Google Sign-In audience would not match."
+            f"{args.label}: the supplied Web client id cannot be used: {shape}. "
+            f"The configuration contains {len(web_clients)} client_type 3 "
+            f"client(s): {web_clients}"
         )
 
     print(

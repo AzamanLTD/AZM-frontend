@@ -348,6 +348,28 @@ void main() {
       expect(result.stdout, contains('client_type 3'));
     });
 
+    test('names the wrong shape when the value is a URL', () {
+      final path = write('ok.json', _config());
+      final result = run(
+        path,
+        project: 'azaman-app',
+        clientId: 'https://azaman-app.firebaseapp.com/__/auth/handler',
+      );
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('it is a URL, not a client id'));
+    });
+
+    test('names the wrong shape when the value is the Android client id', () {
+      final path = write('ok.json', _config());
+      final result = run(
+        path,
+        project: 'azaman-app',
+        clientId: 'android-1.apps.googleusercontent.com',
+      );
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('ANDROID client id'));
+    });
+
     test('rejects a client id that is not in the configuration', () {
       final path = write('mismatch.json', _config());
       final result = run(
@@ -356,7 +378,7 @@ void main() {
         clientId: 'someone-else.apps.googleusercontent.com',
       );
       expect(result.exitCode, isNot(0));
-      expect(result.stdout, contains('not one of the'));
+      expect(result.stdout, contains('belongs to a different OAuth client'));
     });
 
     test('rejects malformed JSON', () {
@@ -443,6 +465,11 @@ Map<String, Object?> _config({
           'android_client_info': {'package_name': package},
         },
         'oauth_client': [
+          if (webClient)
+            {
+              'client_id': 'android-1.apps.googleusercontent.com',
+              'client_type': 1,
+            },
           if (webClient)
             {'client_id': 'web-1.apps.googleusercontent.com', 'client_type': 3},
         ],
