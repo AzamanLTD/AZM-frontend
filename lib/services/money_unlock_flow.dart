@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/config.dart';
+import 'package:azaman/data/demo_seed_data.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/app_unlock_gateway.dart';
@@ -30,7 +31,12 @@ import 'package:azaman/widgets/home/money_unlock_sheet.dart';
 /// demo gateway that can never appear in production.
 final appUnlockGatewayProvider = Provider<AppUnlockGateway>((ref) {
   if (AppConfig.demoMode && !AppConfig.isProduction) {
-    return DemoAppUnlockGateway();
+    // A demo BUILD is not a demo MEMBER. The seeded demo identity is the only
+    // one whose PIN 1234 is a stand-in for a real unlock; an ordinary account
+    // signed into a demo build must go through the real gateway, or the demo
+    // PIN would be a master key for anyone who tested in that build.
+    final userId = ref.watch(currentUserProvider).value?.id?.toString();
+    if (userId == DemoSeedData.demoUserId) return DemoAppUnlockGateway();
   }
   return HttpAppUnlockGateway(ref.watch(apiClientProvider));
 });
@@ -48,13 +54,26 @@ String moneyUnlockPreferenceKey(Object? userId) =>
 class MoneyUnlockPreference extends Notifier<AppUnlockMethod?> {
   bool _hydrated = false;
 
+  /// Which account the in-memory mirror currently stands for. One member's
+  /// choice must not survive an account switch: the mirror is read
+  /// synchronously on the tap path, so a stale value would aim the next unlock
+  /// at a method this member never chose.
+  String? _hydratedFor;
+
   @override
   AppUnlockMethod? build() => null;
 
   /// Called by the flow once the signed-in account is known.
   Future<void> hydrate(Object? userId) async {
-    if (_hydrated) return;
+    final key = moneyUnlockPreferenceKey(userId);
+    if (_hydrated && _hydratedFor == key) return;
+    if (_hydratedFor != null && _hydratedFor != key) {
+      // Account switched: drop the previous member's choice immediately, then
+      // read this one's.
+      state = null;
+    }
     _hydrated = true;
+    _hydratedFor = key;
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(moneyUnlockPreferenceKey(userId));
