@@ -287,10 +287,17 @@ GoRouter _buildAppRouter() => GoRouter(
         // Warm pushes (and only they) may carry amount/paymentMethod via
         // extra; deep links land with the screen's defaults.
         final extra = state.extra as Map<String, dynamic>?;
-        return ActiveTradeScreen(
-          orderId: '#$tradeId',
-          amount: (extra?['amount'] as num?)?.toDouble() ?? 0.0,
-          paymentMethod: extra?['paymentMethod'] as String? ?? 'Bank Transfer',
+        // A trade is money in flight: amount, counterparty and payment
+        // method. It is reachable by URL and by push, so it carries the same
+        // gate as /send.
+        return MoneyRouteGuard(
+          message: 'This trade is locked',
+          child: ActiveTradeScreen(
+            orderId: '#$tradeId',
+            amount: (extra?['amount'] as num?)?.toDouble() ?? 0.0,
+            paymentMethod:
+                extra?['paymentMethod'] as String? ?? 'Bank Transfer',
+          ),
         );
       },
     ),
@@ -979,7 +986,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const StorefrontOrderHistoryScreen(),
+        child: MoneyRouteGuard(
+          message: 'Your orders are locked',
+          child: const StorefrontOrderHistoryScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -997,7 +1007,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const SpendingInsightsScreen(),
+        child: MoneyRouteGuard(
+          message: 'Your spending is locked',
+          child: const SpendingInsightsScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -1006,7 +1019,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const RoundUpSettingsScreen(),
+        child: MoneyRouteGuard(
+          message: 'Round-up savings are locked',
+          child: const RoundUpSettingsScreen(),
+        ),
       ),
     ),
     GoRoute(

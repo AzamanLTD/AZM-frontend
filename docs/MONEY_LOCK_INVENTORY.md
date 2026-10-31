@@ -19,7 +19,7 @@ Two mechanisms exist:
   the screen is a catalogue and only part of it is money (`/bills` is the model
   case: the hub is public, `YOUR BILLS` is gated).
 
-## Guarded today (16 routes)
+## Guarded today (20 routes)
 
 | Route | Mechanism | Notes |
 | --- | --- | --- |
@@ -41,6 +41,10 @@ Two mechanisms exist:
 | `/susu` | `MoneyRouteGuard` | group balances |
 | `/susu/:id` | `MoneyRouteGuard` | group ledger |
 | `/susu/:id/contract` | `MoneyRouteGuard` | contract terms and amounts |
+| `/spending-insights` | `MoneyRouteGuard` | spending totals |
+| `/round-up` | `MoneyRouteGuard` | round-up savings amounts |
+| `/my-orders` | `MoneyRouteGuard` | order totals and payment state |
+| `/trade/:tradeId` | `MoneyRouteGuard` | trade amount, counterparty, payment method |
 
 ## Money-bearing routes with no gate — candidates, not conclusions
 
@@ -49,13 +53,9 @@ one decision: gate it, gate a section of it, or record why it is not money.
 
 | Route | What it plausibly exposes |
 | --- | --- |
-| `/trade/:tradeId` | P2P trade amounts, counterparty, escrow state |
 | `/transactions` | transaction list (may be a legacy duplicate of `/account/activity`) |
-| `/spending-insights` | spending totals |
-| `/round-up` | round-up savings amounts |
 | `/storefront/staking` | staked amounts and yield |
 | `/vault/:vaultId/yield` | vault yield figures |
-| `/my-orders` | order totals and payment state |
 | `/business-market/orders`, `/business-market/invoices`, `/business-market/invoices/:invoiceId` | invoices and money owed |
 | `/business-market/dine-in/:tabId` | a running tab to pay |
 | `/marketplace/transit/:tripId/seats` | seat prices at the payment boundary |
