@@ -117,7 +117,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('could not confirm'),
+      find.textContaining("could not confirm this account's unlock methods"),
       findsOneWidget,
       reason: 'unknown is its own answer',
     );

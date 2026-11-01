@@ -165,3 +165,35 @@ This is the new single-step setup, and deliberately not a second tour.
 **Not verified anywhere yet:** the physical cold-start transition. No emulator
 or device was available where this was built. Section 1 is the only place that
 gets answered, and it needs your eyes.
+
+## PIN setup and rotation require a confirmed server status
+
+Azaman only offers PIN setup or rotation when the server tells the app whether
+this account already has a PIN (`GET /security/app-unlock/capabilities`). That
+route is part of the app-unlock contract, which is **not on backend `main` yet**
+(backend PR #387 carries it, and is itself unmerged). Until it is deployed, the
+Security Settings PIN card reads one of two states and neither of them is a form:
+
+| what the card shows | what it means |
+| --- | --- |
+| "Checking your PIN status…" | the read is still in flight |
+| "PIN status unavailable" + **Check again** | the server could not confirm the status |
+
+In the unavailable state there is no PIN field and no save button, because the
+two cases it cannot tell apart are "this account has no PIN" and "this account
+has a PIN being replaced". Writing in that state would let a client overwrite a
+PIN nobody proved, so nothing is sent to `/security/pin/set`.
+
+**Do not read that state as a successful setup.** A tester who sees "PIN status
+unavailable" has no PIN change, no PIN created, and no PIN removed. Tapping
+**Check again** only re-asks the server.
+
+When the capability read succeeds, the card is truthful in both directions:
+
+- `pinConfigured: false` → a first-time form; the request carries `pin` only.
+- `pinConfigured: true` → rotation; the request carries `pin` **and**
+  `currentPin`, which the server verifies inside the same write.
+
+If a change is refused, the screen reports the server's refusal and never
+claims the PIN was changed. `PIN_ROTATION_CONFLICT` says the details changed
+while the screen was open and that this attempt was not applied.

@@ -283,7 +283,7 @@ void main() {
       findsNothing,
       reason: 'there is no /security/pin/remove endpoint to call',
     );
-    expect(find.text('Change it above'), findsOneWidget);
+    expect(find.text('Change it below'), findsOneWidget);
     expect(wire.paths.any((p) => p.endsWith('/security/pin/set')), isTrue);
   });
 

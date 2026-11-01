@@ -1013,97 +1013,106 @@ class _SecuritySettingsScreenState
           _buildCard(
             colors,
             children: [
-              if (_pinSet) ...[
-                // A status line, not a control: there is no removal endpoint,
-                // and the form below is the only thing that can change it.
-                Row(
-                  children: [
-                    Icon(
-                      Icons.check_circle_outline,
-                      size: 18,
-                      color: colors.success,
+              // The status of this account's PIN is a server fact. Until it
+              // arrives, the card may imply neither "no PIN" (which would
+              // offer a first-time form over an existing secret) nor "PIN
+              // active" (which would offer rotation the server may not have).
+              if (_unlockCapsPhase != _UnlockCapsPhase.known) ...[
+                ..._pinStatusUnavailable(colors),
+              ] else ...[
+                if (_pinSet) ...[
+                  // A status line, not a control: there is no removal endpoint,
+                  // and the form below is the only thing that can change it.
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 18,
+                        color: colors.success,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Azaman PIN active',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Change it below',
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // The server is the authority for rotation: it must be told
+                  // the PIN being replaced, so the member proves they know it
+                  // before a new one is written.
+                  _pinField(
+                    colors,
+                    label: 'Current 4-digit PIN',
+                    controller: _pinCurrentController,
+                    obscure: _obscurePin,
+                    onToggleObscure: () =>
+                        setState(() => _obscurePin = !_obscurePin),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                ...[
+                  _pinField(
+                    colors,
+                    label: _pinSet ? 'New 4-digit PIN' : 'New 4-digit PIN',
+                    controller: _pinController,
+                    obscure: _obscurePin,
+                    onToggleObscure: () =>
+                        setState(() => _obscurePin = !_obscurePin),
+                  ),
+                  const SizedBox(height: 12),
+                  _pinField(
+                    colors,
+                    label: 'Confirm PIN',
+                    controller: _pinConfirmController,
+                    obscure: _obscurePinConfirm,
+                    onToggleObscure: () => setState(
+                      () => _obscurePinConfirm = !_obscurePinConfirm,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      // A second tap while the first is still in flight would
+                      // be a second write of the same secret.
+                      onPressed: _loadingPin ? null : _savePin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.accent,
+                        foregroundColor: colors.isDark
+                            ? Colors.black
+                            : Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
                       child: Text(
-                        'Azaman PIN active',
+                        _loadingPin ? 'Saving…' : 'Set PIN',
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
+                          fontWeight: FontWeight.bold,
+                          color: colors.isDark ? Colors.black : Colors.white,
                         ),
                       ),
                     ),
-                    Text(
-                      'Change it above',
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                // The server is the authority for rotation: it must be told
-                // the PIN being replaced, so the member proves they know it
-                // before a new one is written.
-                _pinField(
-                  colors,
-                  label: 'Current 4-digit PIN',
-                  controller: _pinCurrentController,
-                  obscure: _obscurePin,
-                  onToggleObscure: () =>
-                      setState(() => _obscurePin = !_obscurePin),
-                ),
-                const SizedBox(height: 12),
-              ],
-              ...[
-                _pinField(
-                  colors,
-                  label: _pinSet ? 'New 4-digit PIN' : 'New 4-digit PIN',
-                  controller: _pinController,
-                  obscure: _obscurePin,
-                  onToggleObscure: () =>
-                      setState(() => _obscurePin = !_obscurePin),
-                ),
-                const SizedBox(height: 12),
-                _pinField(
-                  colors,
-                  label: 'Confirm PIN',
-                  controller: _pinConfirmController,
-                  obscure: _obscurePinConfirm,
-                  onToggleObscure: () =>
-                      setState(() => _obscurePinConfirm = !_obscurePinConfirm),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    // A second tap while the first is still in flight would
-                    // be a second write of the same secret.
-                    onPressed: _loadingPin ? null : _savePin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.accent,
-                      foregroundColor: colors.isDark
-                          ? Colors.black
-                          : Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      _loadingPin ? 'Saving…' : 'Set PIN',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: colors.isDark ? Colors.black : Colors.white,
-                      ),
-                    ),
                   ),
-                ),
+                ],
               ],
             ],
           ),
@@ -1571,6 +1580,77 @@ class _SecuritySettingsScreenState
         ),
       ),
     );
+  }
+
+  /// The PIN card when the server has not said whether this account has a PIN.
+  ///
+  /// Rendering the form here was a defect of its own: it showed an empty
+  /// first-time setup over a PIN that might already exist, and the member only
+  /// learned the truth after pressing a button that then refused. This says
+  /// what is actually known (nothing yet), offers the one action that can
+  /// change that (ask again), and shows no field the client would write.
+  List<Widget> _pinStatusUnavailable(AzamanColors colors) {
+    final loading = _unlockCapsPhase == _UnlockCapsPhase.loading;
+    return [
+      Row(
+        children: [
+          Icon(
+            loading ? Icons.hourglass_empty : Icons.help_outline,
+            size: 18,
+            color: colors.textTertiary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              loading ? 'Checking your PIN status…' : 'PIN status unavailable',
+              key: const ValueKey('pin-status-unavailable'),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Text(
+        loading
+            ? 'Azaman is asking the server what this account can use.'
+            : 'Azaman could not confirm whether this account has a PIN, so '
+                  'setting or changing one is unavailable right now. Nothing '
+                  'has been changed.',
+        style: TextStyle(
+          fontSize: 13,
+          height: 1.45,
+          color: colors.textSecondary,
+        ),
+      ),
+      if (!loading) ...[
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton(
+            key: const ValueKey('pin-status-retry'),
+            onPressed: _loadUnlockCapabilities,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.textPrimary,
+              side: BorderSide(
+                color: colors.textTertiary.withValues(alpha: 0.4),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Check again',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
+    ];
   }
 
   Widget _buildCard(AzamanColors colors, {required List<Widget> children}) {
