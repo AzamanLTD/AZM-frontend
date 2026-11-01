@@ -55,7 +55,7 @@ class ChatTrustMetricsState {
 
 class ChatTrustMetricsNotifier extends StateNotifier<ChatTrustMetricsState> {
   ChatTrustMetricsNotifier(this._friendshipId)
-      : super(const ChatTrustMetricsState());
+    : super(const ChatTrustMetricsState());
 
   final String _friendshipId;
   final ChatProfileService _service = ChatProfileService.instance;
@@ -80,17 +80,16 @@ class ChatTrustMetricsNotifier extends StateNotifier<ChatTrustMetricsState> {
       state = ChatTrustMetricsState(metrics: metrics, isLoading: false);
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(
-        isLoading: false,
-        error: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 }
 
 /// Riverpod family — one notifier per friendshipId. The chat screen
 /// watches `chatTrustMetricsProvider(friendshipId)` and primes on mount.
-final chatTrustMetricsProvider = StateNotifierProvider.family<
-    ChatTrustMetricsNotifier, ChatTrustMetricsState, String>(
-  (ref, friendshipId) => ChatTrustMetricsNotifier(friendshipId),
-);
+final chatTrustMetricsProvider =
+    StateNotifierProvider.family<
+      ChatTrustMetricsNotifier,
+      ChatTrustMetricsState,
+      String
+    >((ref, friendshipId) => ChatTrustMetricsNotifier(friendshipId));

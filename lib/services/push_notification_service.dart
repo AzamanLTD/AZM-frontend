@@ -52,7 +52,8 @@ class PushNotificationService {
         sound: true,
       );
       debugPrint(
-          '🔔 [Push] permission status: ${settings.authorizationStatus}');
+        '🔔 [Push] permission status: ${settings.authorizationStatus}',
+      );
 
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         return;
@@ -92,13 +93,16 @@ class PushNotificationService {
       final fcmToken = await _messaging.getToken();
       if (fcmToken == null) return null;
 
-      final res = await apiClient.put('/auth/fcm-token', {'fcmToken': fcmToken});
+      final res = await apiClient.put('/auth/fcm-token', {
+        'fcmToken': fcmToken,
+      });
 
       if (res.statusCode == 200) {
         debugPrint('✅ [Push] FCM token synced with server');
       } else {
         debugPrint(
-            '⚠️ [Push] token sync failed (${res.statusCode}): ${res.body}');
+          '⚠️ [Push] token sync failed (${res.statusCode}): ${res.body}',
+        );
       }
       return fcmToken;
     } on ApiException catch (e) {
@@ -112,7 +116,8 @@ class PushNotificationService {
 
   void _handleForeground(RemoteMessage message) {
     debugPrint(
-        '📨 [Push] foreground: ${message.notification?.title} / ${message.data}');
+      '📨 [Push] foreground: ${message.notification?.title} / ${message.data}',
+    );
     HapticFeedback.lightImpact();
     onForegroundMessage?.call(message);
   }

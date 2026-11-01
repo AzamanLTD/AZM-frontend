@@ -61,27 +61,30 @@ abstract interface class MarketplaceDiscoveryGateway {
 }
 
 /// Real adapter over the EXISTING Riverpod business providers.
-class RiverpodMarketplaceDiscoveryGateway implements MarketplaceDiscoveryGateway {
+class RiverpodMarketplaceDiscoveryGateway
+    implements MarketplaceDiscoveryGateway {
   RiverpodMarketplaceDiscoveryGateway(this.ref);
   final Ref ref;
 
   @override
   Set<DiscoverySignal> get supportedSignals => const {
-        // Derived from BusinessLocation.operatingHours via BusinessHours.
-        DiscoverySignal.openNow,
-        // nearbySearchProvider distances.
-        DiscoverySignal.nearby,
-        // averageRating with enough reviews to mean something.
-        DiscoverySignal.topRated,
-        // recentlyAdded / departingSoon / availableTonight need fields the
-        // snapshot does not expose (no createdAt; trip/room data lives per
-        // business). Deliberately absent — do not add a fake.
-      };
+    // Derived from BusinessLocation.operatingHours via BusinessHours.
+    DiscoverySignal.openNow,
+    // nearbySearchProvider distances.
+    DiscoverySignal.nearby,
+    // averageRating with enough reviews to mean something.
+    DiscoverySignal.topRated,
+    // recentlyAdded / departingSoon / availableTonight need fields the
+    // snapshot does not expose (no createdAt; trip/room data lives per
+    // business). Deliberately absent — do not add a fake.
+  };
 
   @override
   Future<AzGatewayResult<void>> refreshCatalog() async {
     try {
-      await ref.read(businessSearchProvider.notifier).search('', category: null);
+      await ref
+          .read(businessSearchProvider.notifier)
+          .search('', category: null);
       return const AzOk(null);
     } catch (e) {
       return AzFailed('Could not refresh businesses', cause: e);
@@ -89,6 +92,7 @@ class RiverpodMarketplaceDiscoveryGateway implements MarketplaceDiscoveryGateway
   }
 }
 
-final marketplaceDiscoveryGatewayProvider = Provider<MarketplaceDiscoveryGateway>(
-  (ref) => RiverpodMarketplaceDiscoveryGateway(ref),
-);
+final marketplaceDiscoveryGatewayProvider =
+    Provider<MarketplaceDiscoveryGateway>(
+      (ref) => RiverpodMarketplaceDiscoveryGateway(ref),
+    );

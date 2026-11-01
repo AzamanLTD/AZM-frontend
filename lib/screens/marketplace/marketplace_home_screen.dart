@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
@@ -1179,36 +1180,50 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
   // Stay / Eat (All is a REAL selectable state, wire null, and the
   // default). Services and Wellness are removed: no other user-facing
   // satellite exists.
-  static const List<CategoryDialItem> _dialCategories = [
-    // PR #142 FINAL PASS §2 — real categories carry their own accent (the
-    // marketplace category palette) so they stand out over the neutral
-    // gray goo; "All" stays the quiet neutral pill.
-    CategoryDialItem(wire: null, icon: Icons.apps_rounded, label: 'All'),
-    CategoryDialItem(
-      wire: 'FOOD_BEVERAGE',
-      icon: Icons.restaurant_rounded,
-      label: 'Eat',
-      accent: Color(0xFFF59E0B),
-    ),
-    CategoryDialItem(
-      wire: 'RETAIL',
-      icon: Icons.shopping_bag_rounded,
-      label: 'Shop',
-      accent: Color(0xFF00D97E),
-    ),
-    CategoryDialItem(
-      wire: 'LOGISTICS',
-      icon: Icons.directions_bus_rounded,
-      label: 'Ride',
-      accent: Color(0xFF4F8EF7),
-    ),
-    CategoryDialItem(
-      wire: 'REAL_ESTATE',
-      icon: Icons.apartment_rounded,
-      label: 'Stay',
-      accent: Color(0xFFA78BFA),
-    ),
-  ];
+  /// The category dial. Colour comes from the SHARED card palettes through
+  /// the fixed vertical mapping (Shop->azadark, Stay->azablue, Eat->azagreen,
+  /// Ride->azared) in lib/theme/balance_card_brand.dart — one palette system
+  /// for the card and the Marketplace, never two disconnected colour tables.
+  ///
+  /// Resolved per brightness because a solid pill has to read on both the
+  /// light canvas and the near-black one; the mapping itself is fixed and
+  /// never consults the user's applied balance card.
+  List<CategoryDialItem> _dialCategoriesFor(bool isDark) {
+    Color accentFor(MarketplaceVertical v) =>
+        verticalAccentFor(v, isDark).accent;
+    return [
+      // "All" stays the quiet neutral pill — it is a real selectable state.
+      const CategoryDialItem(
+        wire: null,
+        icon: Icons.apps_rounded,
+        label: 'All',
+      ),
+      CategoryDialItem(
+        wire: 'FOOD_BEVERAGE',
+        icon: Icons.restaurant_rounded,
+        label: 'Eat',
+        accent: accentFor(MarketplaceVertical.eat),
+      ),
+      CategoryDialItem(
+        wire: 'RETAIL',
+        icon: Icons.shopping_bag_rounded,
+        label: 'Shop',
+        accent: accentFor(MarketplaceVertical.shop),
+      ),
+      CategoryDialItem(
+        wire: 'LOGISTICS',
+        icon: Icons.directions_bus_rounded,
+        label: 'Ride',
+        accent: accentFor(MarketplaceVertical.ride),
+      ),
+      CategoryDialItem(
+        wire: 'REAL_ESTATE',
+        icon: Icons.apartment_rounded,
+        label: 'Stay',
+        accent: accentFor(MarketplaceVertical.stay),
+      ),
+    ];
+  }
 
   // EXPERIENCE PASS §11 — the category SPEED DIAL is THE category system.
   // The radial fan / goo-morph arms remain the visual grammar; the old row
@@ -1254,7 +1269,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                     children: [
                       CategorySpeedDial(
                         key: const ValueKey('marketplace-category-dial'),
-                        categories: _dialCategories,
+                        categories: _dialCategoriesFor(colors.isDark),
                         selectedWire: _selectedCategory,
                         colors: colors,
                         onSelected: (wire) async {

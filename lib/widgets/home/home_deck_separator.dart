@@ -41,24 +41,24 @@ class HomeDeckSeparator extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Row(
-          key: ValueKey('home-deck-separator-$label'),
-          children: [
-            Expanded(child: _FadingRule(colors: c, mirror: true)),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
+            key: ValueKey('home-deck-separator-$label'),
+            children: [
+              Expanded(child: _FadingRule(colors: c, mirror: true)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     // Deliberately quiet: small gray text, never a heading.
-                  color: c.textTertiary,
-                  letterSpacing: 0.4,
-                  decoration: TextDecoration.none,
+                    color: c.textTertiary,
+                    letterSpacing: 0.4,
+                    decoration: TextDecoration.none,
+                  ),
                 ),
               ),
-            ),
-            Expanded(child: _FadingRule(colors: c)),
+              Expanded(child: _FadingRule(colors: c)),
             ],
           ),
         ),
@@ -81,10 +81,7 @@ class _FadingRule extends StatelessWidget {
     final line = colors.divider.withValues(alpha: 0.55);
     return CustomPaint(
       size: const Size(double.infinity, 1),
-      painter: _FadingRulePainter(
-        color: line,
-        mirror: mirror,
-      ),
+      painter: _FadingRulePainter(color: line, mirror: mirror),
     );
   }
 }
@@ -98,8 +95,7 @@ class _FadingRulePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (size.width <= 0) return;
-    final rect = Offset(0, size.height / 2 - 0.5) &
-        Size(size.width, 1.0);
+    final rect = Offset(0, size.height / 2 - 0.5) & Size(size.width, 1.0);
     // Weight gently reduces toward the outer end: a horizontal gradient
     // from fully solid at the label to transparent at the edge. The inner
     // (label) side stays the divider hue at partial strength — visible

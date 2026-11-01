@@ -92,7 +92,7 @@ class ChatProfileNotifier extends StateNotifier<ChatProfileState> {
   final ChatProfileService _service;
 
   ChatProfileNotifier(this.friendshipId, this._service)
-      : super(const ChatProfileState());
+    : super(const ChatProfileState());
 
   /// First-load: fetches profile + all four vault datasets in parallel.
   /// Subsequent tab switches don't re-fetch unless the user pulls to
@@ -207,8 +207,7 @@ class ChatProfileNotifier extends StateNotifier<ChatProfileState> {
         receiptsLoadingMore: false,
       );
     } catch (e) {
-      state = state.copyWith(
-          receiptsLoadingMore: false, error: e.toString());
+      state = state.copyWith(receiptsLoadingMore: false, error: e.toString());
     }
   }
 
@@ -230,7 +229,11 @@ class ChatProfileNotifier extends StateNotifier<ChatProfileState> {
       myNicknameForFriend: next,
       mutualTradesCompleted: originalProfile.mutualTradesCompleted,
     );
-    state = state.copyWith(profile: optimistic, nicknameUpdating: true, clearError: true);
+    state = state.copyWith(
+      profile: optimistic,
+      nicknameUpdating: true,
+      clearError: true,
+    );
     try {
       await _service.setNickname(friendshipId, next);
       state = state.copyWith(nicknameUpdating: false);
@@ -247,6 +250,6 @@ class ChatProfileNotifier extends StateNotifier<ChatProfileState> {
 
 final chatProfileProvider = StateNotifierProvider.family
     .autoDispose<ChatProfileNotifier, ChatProfileState, String>(
-  (ref, friendshipId) =>
-      ChatProfileNotifier(friendshipId, ChatProfileService.instance),
-);
+      (ref, friendshipId) =>
+          ChatProfileNotifier(friendshipId, ChatProfileService.instance),
+    );

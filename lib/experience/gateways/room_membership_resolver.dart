@@ -85,15 +85,18 @@ class ProviderRoomMembershipResolver implements RoomMembershipResolver {
 
   late final LookupRoomMembershipResolver _core = LookupRoomMembershipResolver(
     myUserId: myUserId,
-    hasFriendship: (id) => ref.read(friendProvider).friends.any(
-          (f) => (f['friendshipId'] ?? f['id'])?.toString() == id,
-        ),
+    hasFriendship: (id) => ref
+        .read(friendProvider)
+        .friends
+        .any((f) => (f['friendshipId'] ?? f['id'])?.toString() == id),
     groupMemberUserIds: (id) {
       final groups = ref.read(groupListProvider).valueOrNull;
       if (groups == null) return null;
       for (final g in groups) {
         if (g.id == id) {
-          return g.members.where((m) => m.removedAt == null).map((m) => m.userId);
+          return g.members
+              .where((m) => m.removedAt == null)
+              .map((m) => m.userId);
         }
       }
       return null;

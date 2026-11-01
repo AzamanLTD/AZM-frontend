@@ -26,8 +26,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
-
-
 class VendorApplyScreen extends ConsumerStatefulWidget {
   const VendorApplyScreen({super.key});
 
@@ -62,7 +60,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
   bool _hasPreviousExperience = false;
   final _previousPlatformsCtrl = TextEditingController();
 
-
   // Step 4: Payment Methods
   final List<Map<String, String>> _paymentMethods = [];
   final _pmTypeCtrl = TextEditingController();
@@ -76,22 +73,37 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
   final _picker = ImagePicker();
 
   final List<String> _countries = [
-    'Ghana', 'Nigeria', 'Kenya', 'South Africa', 'United States',
-    'United Kingdom', 'Canada', 'Germany', 'France', 'Other',
+    'Ghana',
+    'Nigeria',
+    'Kenya',
+    'South Africa',
+    'United States',
+    'United Kingdom',
+    'Canada',
+    'Germany',
+    'France',
+    'Other',
   ];
 
   final List<String> _idTypes = [
-    'National ID', 'International Passport', 'Driver\'s License',
+    'National ID',
+    'International Passport',
+    'Driver\'s License',
   ];
 
   final List<String> _fundSources = [
-    'Employment income', 'Business income', 'Investments',
-    'Savings', 'Other',
+    'Employment income',
+    'Business income',
+    'Investments',
+    'Savings',
+    'Other',
   ];
 
   final List<String> _volumeRanges = [
-    '\$0 – \$1,000', '\$1,000 – \$5,000',
-    '\$5,000 – \$20,000', '\$20,000+',
+    '\$0 – \$1,000',
+    '\$1,000 – \$5,000',
+    '\$5,000 – \$20,000',
+    '\$20,000+',
   ];
 
   @override
@@ -109,7 +121,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
     super.dispose();
   }
 
-
   Future<void> _pickImage(String target) async {
     try {
       final source = await _showImageSourcePicker();
@@ -118,10 +129,18 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       if (file == null) return;
       setState(() {
         switch (target) {
-          case 'id_front': _idFront = File(file.path); break;
-          case 'id_back': _idBack = File(file.path); break;
-          case 'selfie': _selfieWithId = File(file.path); break;
-          case 'address': _addressProof = File(file.path); break;
+          case 'id_front':
+            _idFront = File(file.path);
+            break;
+          case 'id_back':
+            _idBack = File(file.path);
+            break;
+          case 'selfie':
+            _selfieWithId = File(file.path);
+            break;
+          case 'address':
+            _addressProof = File(file.path);
+            break;
         }
       });
     } catch (e) {
@@ -154,7 +173,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       ),
     );
   }
-
 
   bool _canProceed() {
     switch (_currentStep) {
@@ -194,7 +212,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
     }
   }
 
-
   /// Upload vendor documents (ID front/back, selfie, address proof) and return URLs.
   /// Returns a map of field names to uploaded URLs, or null on failure.
   Future<Map<String, String>?> _uploadDocuments() async {
@@ -203,16 +220,24 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
 
     // Attach files that exist
     if (_idFront != null) {
-      request.files.add(await http.MultipartFile.fromPath('idFront', _idFront!.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('idFront', _idFront!.path),
+      );
     }
     if (_idBack != null) {
-      request.files.add(await http.MultipartFile.fromPath('idBack', _idBack!.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('idBack', _idBack!.path),
+      );
     }
     if (_selfieWithId != null) {
-      request.files.add(await http.MultipartFile.fromPath('selfie', _selfieWithId!.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('selfie', _selfieWithId!.path),
+      );
     }
     if (_addressProof != null) {
-      request.files.add(await http.MultipartFile.fromPath('addressProof', _addressProof!.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('addressProof', _addressProof!.path),
+      );
     }
 
     if (request.files.isEmpty) return {};
@@ -238,7 +263,9 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Failed to upload documents. Please try again.'),
+              content: const Text(
+                'Failed to upload documents. Please try again.',
+              ),
               backgroundColor: colors.danger,
             ),
           );
@@ -307,7 +334,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
     }
   }
 
-
   void _showSuccessDialog() {
     final colors = ref.read(themeProvider).colors;
     showDialog(
@@ -326,19 +352,31 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 color: colors.success.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.check_circle_outline, color: colors.success, size: 48),
+              child: Icon(
+                Icons.check_circle_outline,
+                color: colors.success,
+                size: 48,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
               'Application Submitted!',
-              style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
               'Our team will review your application within 24-48 hours. '
               'You\'ll receive a notification once approved.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4),
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -351,10 +389,15 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors.accent,
                   foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],
@@ -362,7 +405,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -382,7 +424,11 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         elevation: 0,
         title: Text(
           'Vendor Application',
-          style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         centerTitle: true,
         iconTheme: IconThemeData(color: colors.textPrimary),
@@ -394,7 +440,10 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               }
             },
-            child: Text('Learn More', style: TextStyle(color: colors.accent, fontSize: 12)),
+            child: Text(
+              'Learn More',
+              style: TextStyle(color: colors.accent, fontSize: 12),
+            ),
           ),
         ],
       ),
@@ -418,7 +467,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
     );
   }
 
-
   Widget _buildProgressBar(AzamanColors colors, List<String> titles) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
@@ -437,22 +485,31 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 child: Row(
                   children: [
                     Container(
-                      width: 24, height: 24,
+                      width: 24,
+                      height: 24,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isDone
                             ? colors.success
                             : isActive
-                                ? colors.accent
-                                : colors.divider,
+                            ? colors.accent
+                            : colors.divider,
                       ),
                       child: Center(
                         child: isDone
-                            ? const Icon(Icons.check_circle_outline, color: Colors.white, size: 14)
+                            ? const Icon(
+                                Icons.check_circle_outline,
+                                color: Colors.white,
+                                size: 14,
+                              )
                             : Text(
                                 '${i + 1}',
                                 style: TextStyle(
-                                  color: isActive ? (colors.isDark ? Colors.black : Colors.white) : colors.textTertiary,
+                                  color: isActive
+                                      ? (colors.isDark
+                                            ? Colors.black
+                                            : Colors.white)
+                                      : colors.textTertiary,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -463,7 +520,9 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                       Expanded(
                         child: Container(
                           height: 2,
-                          color: i < _currentStep ? colors.success : colors.divider,
+                          color: i < _currentStep
+                              ? colors.success
+                              : colors.divider,
                         ),
                       ),
                   ],
@@ -474,22 +533,31 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           const SizedBox(height: 10),
           Text(
             'Step ${_currentStep + 1}: ${titles[_currentStep]}',
-            style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
   }
 
-
   Widget _buildStepContent(AzamanColors colors) {
     switch (_currentStep) {
-      case 0: return _buildStep1Identity(colors);
-      case 1: return _buildStep2Address(colors);
-      case 2: return _buildStep3Financial(colors);
-      case 3: return _buildStep4PaymentMethods(colors);
-      case 4: return _buildStep5Terms(colors);
-      default: return const SizedBox.shrink();
+      case 0:
+        return _buildStep1Identity(colors);
+      case 1:
+        return _buildStep2Address(colors);
+      case 2:
+        return _buildStep3Financial(colors);
+      case 3:
+        return _buildStep4PaymentMethods(colors);
+      case 4:
+        return _buildStep5Terms(colors);
+      default:
+        return const SizedBox.shrink();
     }
   }
 
@@ -509,9 +577,17 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: colors.divider),
                   padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: Text('Back', style: TextStyle(color: colors.textSecondary, fontWeight: FontWeight.w600)),
+                child: Text(
+                  'Back',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           if (_currentStep > 0) const SizedBox(width: 12),
@@ -524,11 +600,14 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 disabledBackgroundColor: colors.divider,
                 foregroundColor: colors.isDark ? Colors.black : Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               child: _isSubmitting
                   ? SizedBox(
-                      width: 20, height: 20,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: colors.isDark ? Colors.black : Colors.white,
@@ -536,7 +615,10 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                     )
                   : Text(
                       _currentStep == 4 ? 'Submit Application' : 'Continue',
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
             ),
           ),
@@ -544,7 +626,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       ),
     );
   }
-
 
   // =========================================================================
   // STEP 1: Personal Identity
@@ -554,20 +635,32 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionLabel(colors, 'Legal Full Name'),
-        _textField(colors, _legalNameCtrl, 'As it appears on your ID', Icons.person_outline),
+        _textField(
+          colors,
+          _legalNameCtrl,
+          'As it appears on your ID',
+          Icons.person_outline,
+        ),
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'Date of Birth'),
-        _textField(colors, _dobCtrl, 'DD/MM/YYYY', Icons.calendar_today_outlined,
+        _textField(
+          colors,
+          _dobCtrl,
+          'DD/MM/YYYY',
+          Icons.calendar_today_outlined,
           onTap: () async {
             final date = await showDatePicker(
               context: context,
               initialDate: DateTime(2000, 1, 1),
               firstDate: DateTime(1940),
-              lastDate: DateTime.now().subtract(const Duration(days: 6570)), // 18+
+              lastDate: DateTime.now().subtract(
+                const Duration(days: 6570),
+              ), // 18+
             );
             if (date != null) {
-              _dobCtrl.text = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+              _dobCtrl.text =
+                  '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
               setState(() {});
             }
           },
@@ -575,15 +668,30 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'Country of Residence'),
-        _dropdown(colors, _selectedCountry, _countries, (v) => setState(() => _selectedCountry = v!)),
+        _dropdown(
+          colors,
+          _selectedCountry,
+          _countries,
+          (v) => setState(() => _selectedCountry = v!),
+        ),
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'ID Type'),
-        _dropdown(colors, _selectedIdType, _idTypes, (v) => setState(() => _selectedIdType = v!)),
+        _dropdown(
+          colors,
+          _selectedIdType,
+          _idTypes,
+          (v) => setState(() => _selectedIdType = v!),
+        ),
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'Government ID — Front'),
-        _imageUploadCard(colors, _idFront, 'id_front', 'Upload front of your ID'),
+        _imageUploadCard(
+          colors,
+          _idFront,
+          'id_front',
+          'Upload front of your ID',
+        ),
         const SizedBox(height: 12),
 
         _sectionLabel(colors, 'Government ID — Back (Optional)'),
@@ -591,7 +699,12 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         const SizedBox(height: 12),
 
         _sectionLabel(colors, 'Selfie Holding Your ID'),
-        _imageUploadCard(colors, _selfieWithId, 'selfie', 'Take a selfie holding your ID next to your face'),
+        _imageUploadCard(
+          colors,
+          _selfieWithId,
+          'selfie',
+          'Take a selfie holding your ID next to your face',
+        ),
         const SizedBox(height: 12),
 
         Container(
@@ -608,7 +721,11 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
               Expanded(
                 child: Text(
                   'Ensure your face and all ID details are clearly visible. Blurry images will be rejected.',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 11, height: 1.3),
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11,
+                    height: 1.3,
+                  ),
                 ),
               ),
             ],
@@ -617,7 +734,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       ],
     );
   }
-
 
   // =========================================================================
   // STEP 2: Proof of Address
@@ -632,11 +748,21 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           style: TextStyle(color: colors.textTertiary, fontSize: 12),
         ),
         const SizedBox(height: 12),
-        _imageUploadCard(colors, _addressProof, 'address', 'Upload proof of address'),
+        _imageUploadCard(
+          colors,
+          _addressProof,
+          'address',
+          'Upload proof of address',
+        ),
         const SizedBox(height: 20),
 
         _sectionLabel(colors, 'Street Address'),
-        _textField(colors, _streetCtrl, 'House number and street name', Icons.location_on_outlined),
+        _textField(
+          colors,
+          _streetCtrl,
+          'House number and street name',
+          Icons.location_on_outlined,
+        ),
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'City'),
@@ -648,11 +774,15 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         const SizedBox(height: 16),
 
         _sectionLabel(colors, 'Postal Code (Optional)'),
-        _textField(colors, _postalCtrl, 'Postal / ZIP code', Icons.mail_outline),
+        _textField(
+          colors,
+          _postalCtrl,
+          'Postal / ZIP code',
+          Icons.mail_outline,
+        ),
       ],
     );
   }
-
 
   // =========================================================================
   // STEP 3: Financial Background
@@ -662,15 +792,30 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionLabel(colors, 'Source of Funds'),
-        _dropdown(colors, _sourceOfFunds, _fundSources, (v) => setState(() => _sourceOfFunds = v!)),
+        _dropdown(
+          colors,
+          _sourceOfFunds,
+          _fundSources,
+          (v) => setState(() => _sourceOfFunds = v!),
+        ),
         if (_sourceOfFunds == 'Other') ...[
           const SizedBox(height: 12),
-          _textField(colors, _sourceOtherCtrl, 'Please explain', Icons.edit_outlined),
+          _textField(
+            colors,
+            _sourceOtherCtrl,
+            'Please explain',
+            Icons.edit_outlined,
+          ),
         ],
         const SizedBox(height: 20),
 
         _sectionLabel(colors, 'Expected Monthly Trading Volume'),
-        _dropdown(colors, _monthlyVolume, _volumeRanges, (v) => setState(() => _monthlyVolume = v!)),
+        _dropdown(
+          colors,
+          _monthlyVolume,
+          _volumeRanges,
+          (v) => setState(() => _monthlyVolume = v!),
+        ),
         const SizedBox(height: 20),
 
         _sectionLabel(colors, 'Previous P2P / Crypto Trading Experience'),
@@ -686,7 +831,8 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         ),
         if (_hasPreviousExperience) ...[
           _textField(
-            colors, _previousPlatformsCtrl,
+            colors,
+            _previousPlatformsCtrl,
             'Which platforms? (e.g. Binance P2P, Paxful)',
             Icons.task_alt_outlined,
           ),
@@ -694,7 +840,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       ],
     );
   }
-
 
   // =========================================================================
   // STEP 4: Payment Methods (min 2 required)
@@ -711,41 +856,68 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         Text(
           '${_paymentMethods.length}/2 minimum added',
           style: TextStyle(
-            color: _paymentMethods.length >= 2 ? colors.success : colors.warning,
-            fontSize: 12, fontWeight: FontWeight.w700,
+            color: _paymentMethods.length >= 2
+                ? colors.success
+                : colors.warning,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 16),
 
         // Added methods list
-        ..._paymentMethods.asMap().entries.map((entry) => Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: colors.divider),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.credit_card_outlined, color: colors.accent, size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(entry.value['type'] ?? '', style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text(entry.value['details'] ?? '', style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-                  ],
+        ..._paymentMethods.asMap().entries.map(
+          (entry) => Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colors.divider),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.credit_card_outlined,
+                  color: colors.accent,
+                  size: 20,
                 ),
-              ),
-              IconButton(
-                icon: Icon(Icons.cancel_outlined, color: colors.danger, size: 18),
-                onPressed: () => setState(() => _paymentMethods.removeAt(entry.key)),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.value['type'] ?? '',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        entry.value['details'] ?? '',
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.cancel_outlined,
+                    color: colors.danger,
+                    size: 18,
+                  ),
+                  onPressed: () =>
+                      setState(() => _paymentMethods.removeAt(entry.key)),
+                ),
+              ],
+            ),
           ),
-        )),
+        ),
 
         const SizedBox(height: 12),
 
@@ -760,17 +932,36 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Add Payment Method', style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+              Text(
+                'Add Payment Method',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               const SizedBox(height: 12),
-              _textField(colors, _pmTypeCtrl, 'Type (e.g. MTN MoMo, CashApp, Bank)', Icons.grid_view_outlined),
+              _textField(
+                colors,
+                _pmTypeCtrl,
+                'Type (e.g. MTN MoMo, CashApp, Bank)',
+                Icons.grid_view_outlined,
+              ),
               const SizedBox(height: 10),
-              _textField(colors, _pmDetailsCtrl, 'Account details (number/tag/email)', Icons.info_outline),
+              _textField(
+                colors,
+                _pmDetailsCtrl,
+                'Account details (number/tag/email)',
+                Icons.info_outline,
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    if (_pmTypeCtrl.text.trim().isEmpty || _pmDetailsCtrl.text.trim().isEmpty) return;
+                    if (_pmTypeCtrl.text.trim().isEmpty ||
+                        _pmDetailsCtrl.text.trim().isEmpty)
+                      return;
                     setState(() {
                       _paymentMethods.add({
                         'type': _pmTypeCtrl.text.trim(),
@@ -784,7 +975,9 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                   icon: Icon(Icons.add, color: colors.accent, size: 18),
                   label: Text('Add', style: TextStyle(color: colors.accent)),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
+                    side: BorderSide(
+                      color: colors.accent.withValues(alpha: 0.4),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -795,7 +988,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       ],
     );
   }
-
 
   // =========================================================================
   // STEP 5: Collateral & Terms
@@ -821,7 +1013,11 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                   Expanded(
                     child: Text(
                       'Collateral Requirement',
-                      style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -831,7 +1027,11 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 'A minimum of \$500 USDT will be locked as collateral during your active vendor period. '
                 'This protects buyers and ensures you have skin in the game. '
                 'Collateral is fully refundable if you choose to deactivate your vendor account.',
-                style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.5),
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 12),
               Container(
@@ -843,8 +1043,21 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('Required: ', style: TextStyle(color: colors.textTertiary, fontSize: 14)),
-                    Text('\$500.00 USDT', style: TextStyle(color: colors.accent, fontSize: 18, fontWeight: FontWeight.w900)),
+                    Text(
+                      'Required: ',
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      '\$500.00 USDT',
+                      style: TextStyle(
+                        color: colors.accent,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -895,7 +1108,11 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
               const SizedBox(width: 8),
               Text(
                 'Read full vendor agreement on azaman.me/vendors',
-                style: TextStyle(color: colors.accent, fontSize: 12, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -903,7 +1120,6 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       ],
     );
   }
-
 
   // =========================================================================
   // SHARED WIDGETS
@@ -914,7 +1130,11 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -946,12 +1166,20 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: colors.accent.withValues(alpha: 0.5)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
 
-  Widget _dropdown(AzamanColors colors, String value, List<String> items, ValueChanged<String?> onChanged) {
+  Widget _dropdown(
+    AzamanColors colors,
+    String value,
+    List<String> items,
+    ValueChanged<String?> onChanged,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -964,14 +1192,20 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         dropdownColor: colors.card,
         style: TextStyle(color: colors.textPrimary, fontSize: 14),
         decoration: const InputDecoration(border: InputBorder.none),
-        items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+        items: items
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
         onChanged: onChanged,
       ),
     );
   }
 
-
-  Widget _imageUploadCard(AzamanColors colors, File? file, String target, String hint) {
+  Widget _imageUploadCard(
+    AzamanColors colors,
+    File? file,
+    String target,
+    String hint,
+  ) {
     return GestureDetector(
       onTap: () => _pickImage(target),
       child: Container(
@@ -981,41 +1215,64 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: file != null ? colors.success.withValues(alpha: 0.4) : colors.divider,
+            color: file != null
+                ? colors.success.withValues(alpha: 0.4)
+                : colors.divider,
           ),
         ),
         child: file == null
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.camera_alt_outlined, color: colors.accent, size: 28),
+                  Icon(
+                    Icons.camera_alt_outlined,
+                    color: colors.accent,
+                    size: 28,
+                  ),
                   const SizedBox(height: 8),
-                  Text(hint, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+                  Text(
+                    hint,
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                  ),
                 ],
               )
             : Stack(
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    child: Image.file(file, width: double.infinity, height: 180, fit: BoxFit.cover),
+                    child: Image.file(
+                      file,
+                      width: double.infinity,
+                      height: 180,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                   Positioned(
-                    top: 8, right: 8,
+                    top: 8,
+                    right: 8,
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: colors.success,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.check_circle_outline, color: Colors.white, size: 14),
+                      child: const Icon(
+                        Icons.check_circle_outline,
+                        color: Colors.white,
+                        size: 14,
+                      ),
                     ),
                   ),
                   Positioned(
-                    bottom: 8, right: 8,
+                    bottom: 8,
+                    right: 8,
                     child: GestureDetector(
                       onTap: () => _pickImage(target),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black87,
                           borderRadius: BorderRadius.circular(16),
@@ -1025,7 +1282,13 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
                           children: [
                             Icon(Icons.refresh, color: Colors.white, size: 14),
                             SizedBox(width: 4),
-                            Text('Change', style: TextStyle(color: Colors.white, fontSize: 11)),
+                            Text(
+                              'Change',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -1057,8 +1320,18 @@ class _VendorApplyScreenState extends ConsumerState<VendorApplyScreen> {
         value: value,
         onChanged: onChanged,
         activeColor: colors.success,
-        title: Text(title, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: colors.textTertiary, fontSize: 11),
+        ),
         controlAffinity: ListTileControlAffinity.leading,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),

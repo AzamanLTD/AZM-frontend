@@ -21,10 +21,13 @@ import 'package:azaman/widgets/nav_transitions.dart';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-final loyaltyCardsProvider = StateNotifierProvider.autoDispose
-    <LoyaltyCardsNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  return LoyaltyCardsNotifier()..load();
-});
+final loyaltyCardsProvider =
+    StateNotifierProvider.autoDispose<
+      LoyaltyCardsNotifier,
+      AsyncValue<List<Map<String, dynamic>>>
+    >((ref) {
+      return LoyaltyCardsNotifier()..load();
+    });
 
 class LoyaltyCardsNotifier
     extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
@@ -80,29 +83,46 @@ class _LoyaltyCardsScreenState extends ConsumerState<LoyaltyCardsScreen> {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: Text('Loyalty Cards', style: TextStyle(color: colors.textPrimary)),
+        title: Text(
+          'Loyalty Cards',
+          style: TextStyle(color: colors.textPrimary),
+        ),
         leading: IconButton(
           icon: Icon(HugeIconsSolid.arrowLeft01, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: cards.when(
-        loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
-        error: (_, __) => Center(child: Text('Failed to load loyalty cards',
-            style: TextStyle(color: colors.textSecondary))),
+        loading: () =>
+            Center(child: CircularProgressIndicator(color: colors.accent)),
+        error: (_, __) => Center(
+          child: Text(
+            'Failed to load loyalty cards',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+        ),
         data: (list) {
           if (list.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(HugeIconsSolid.giftCard, size: 48, color: colors.textTertiary),
+                  Icon(
+                    HugeIconsSolid.giftCard,
+                    size: 48,
+                    color: colors.textTertiary,
+                  ),
                   const SizedBox(height: 12),
-                  Text('No loyalty cards yet', style: TextStyle(color: colors.textSecondary, fontSize: 16)),
+                  Text(
+                    'No loyalty cards yet',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 16),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Order from businesses with loyalty programs\nto start earning rewards',
-                      style: TextStyle(color: colors.textTertiary, fontSize: 13),
-                      textAlign: TextAlign.center),
+                  Text(
+                    'Order from businesses with loyalty programs\nto start earning rewards',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ).animate().fadeIn(),
             );
@@ -115,11 +135,15 @@ class _LoyaltyCardsScreenState extends ConsumerState<LoyaltyCardsScreen> {
               colors: colors,
               onRedeem: (programId) async {
                 AzamanHaptics.confirm();
-                final success = await ref.read(loyaltyCardsProvider.notifier).redeem(programId);
+                final success = await ref
+                    .read(loyaltyCardsProvider.notifier)
+                    .redeem(programId);
                 if (success && context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text('Reward redeemed! Show this to the business.'),
+                      content: const Text(
+                        'Reward redeemed! Show this to the business.',
+                      ),
                       backgroundColor: colors.success,
                     ),
                   );
@@ -154,7 +178,9 @@ class _LoyaltyCard extends StatelessWidget {
     final stampsCollected = (card['stampsCollected'] as num?)?.toInt() ?? 0;
     final stampsRequired = (program['stampsRequired'] as num?)?.toInt() ?? 10;
     final pointsBalance = (card['pointsBalance'] as num?)?.toDouble() ?? 0;
-    final cardColor = _parseColor(program['cardColor']?.toString() ?? '#FFD700');
+    final cardColor = _parseColor(
+      program['cardColor']?.toString() ?? '#FFD700',
+    );
     final bizName = biz['businessName']?.toString() ?? 'Business';
     final bizLogo = biz['logoUrl']?.toString();
     final rewardDesc = program['rewardDescription']?.toString() ?? 'Reward';
@@ -185,9 +211,11 @@ class _LoyaltyCard extends StatelessWidget {
           children: [
             // Decorative circles
             Positioned(
-              right: -30, top: -30,
+              right: -30,
+              top: -30,
               child: Container(
-                width: 100, height: 100,
+                width: 100,
+                height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(alpha: 0.1),
@@ -195,9 +223,11 @@ class _LoyaltyCard extends StatelessWidget {
               ),
             ),
             Positioned(
-              right: 10, bottom: -20,
+              right: 10,
+              bottom: -20,
               child: Container(
-                width: 60, height: 60,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(alpha: 0.08),
@@ -214,30 +244,63 @@ class _LoyaltyCard extends StatelessWidget {
                   Row(
                     children: [
                       if (bizLogo != null)
-                        CircleAvatar(radius: 18, backgroundImage: NetworkImage(bizLogo),
-                            backgroundColor: Colors.white24)
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundImage: NetworkImage(bizLogo),
+                          backgroundColor: Colors.white24,
+                        )
                       else
-                        CircleAvatar(radius: 18, backgroundColor: Colors.white24,
-                            child: Text(bizName[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600))),
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Colors.white24,
+                          child: Text(
+                            bizName[0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(bizName, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
-                            Text(program['name']?.toString() ?? 'Loyalty Program',
-                                style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12)),
+                            Text(
+                              bizName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              program['name']?.toString() ?? 'Loyalty Program',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
                       if (totalRedeemed > 0)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Text('$totalRedeemed redeemed', style: const TextStyle(color: Colors.white, fontSize: 10)),
+                          child: Text(
+                            '$totalRedeemed redeemed',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -252,8 +315,13 @@ class _LoyaltyCard extends StatelessWidget {
                       cardColor: cardColor,
                     ),
                     const SizedBox(height: 12),
-                    Text('Reward: $rewardDesc',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                    Text(
+                      'Reward: $rewardDesc',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     // Redeem button
                     SizedBox(
@@ -267,12 +335,19 @@ class _LoyaltyCard extends StatelessWidget {
                           foregroundColor: cardColor,
                           disabledBackgroundColor: Colors.white24,
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: Text(
-                          isRedeemable ? 'Redeem Reward' : '\$stampsCollected / \$stampsRequired stamps',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14,
-                            color: isRedeemable ? cardColor : Colors.white54),
+                          isRedeemable
+                              ? 'Redeem Reward'
+                              : '\$stampsCollected / \$stampsRequired stamps',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: isRedeemable ? cardColor : Colors.white54,
+                          ),
                         ),
                       ),
                     ),
@@ -281,49 +356,90 @@ class _LoyaltyCard extends StatelessWidget {
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: () => pushWithVerticalTransition(context, WalletPassScreen(passType: 'loyalty',
+                        onPressed: () => pushWithVerticalTransition(
+                          context,
+                          WalletPassScreen(
+                            passType: 'loyalty',
                             itemId: card['id'] as String,
-                            title: program['name'] as String? ?? 'Loyalty Card',)),
+                            title: program['name'] as String? ?? 'Loyalty Card',
+                          ),
+                        ),
                         icon: const Icon(Icons.wallet, size: 16),
-                        label: const Text('Add to Wallet', style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          'Add to Wallet',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: const BorderSide(color: Colors.white30),
                           padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                     ),
                   ] else if (type == 'POINTS') ...[
                     Row(
                       children: [
-                        Text(pointsBalance.toStringAsFixed(0),
-                            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800)),
+                        Text(
+                          pointsBalance.toStringAsFixed(0),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                         const SizedBox(width: 6),
-                        Text('points', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14)),
+                        Text(
+                          'points',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 14,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Reward: $rewardDesc',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                    Text(
+                      'Reward: $rewardDesc',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13,
+                      ),
+                    ),
                   ] else ...[
                     // TIER
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Text(card['currentTier']?.toString() ?? 'BRONZE',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+                          child: Text(
+                            card['currentTier']?.toString() ?? 'BRONZE',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Text('Reward: $rewardDesc',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                    Text(
+                      'Reward: $rewardDesc',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -337,7 +453,9 @@ class _LoyaltyCard extends StatelessWidget {
   Color _parseColor(String hex) {
     try {
       return Color(int.parse(hex.replaceFirst('#', '0xFF')));
-    } catch (_) { return const Color(0xFFFFD700); }
+    } catch (_) {
+      return const Color(0xFFFFD700);
+    }
   }
 }
 
@@ -348,7 +466,11 @@ class _StampGrid extends StatelessWidget {
   final int required;
   final Color cardColor;
 
-  const _StampGrid({required this.collected, required this.required, required this.cardColor});
+  const _StampGrid({
+    required this.collected,
+    required this.required,
+    required this.cardColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -364,14 +486,22 @@ class _StampGrid extends StatelessWidget {
           height: cols == 6 ? 38 : 42,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isStamped ? Colors.white : Colors.white.withValues(alpha: 0.15),
+            color: isStamped
+                ? Colors.white
+                : Colors.white.withValues(alpha: 0.15),
             border: Border.all(
-              color: isStamped ? Colors.white : Colors.white.withValues(alpha: 0.3),
+              color: isStamped
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: 0.3),
               width: isStamped ? 0 : 1.5,
             ),
           ),
           child: isStamped
-              ? Icon(HugeIconsSolid.checkmarkBadge02, color: cardColor, size: 20)
+              ? Icon(
+                  HugeIconsSolid.checkmarkBadge02,
+                  color: cardColor,
+                  size: 20,
+                )
               : null,
         );
       }),

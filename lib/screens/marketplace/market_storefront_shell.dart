@@ -422,8 +422,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
     // logo + ring (78px), md gap, up-to-2-line name, meta line and the
     // social proof line — all under the live text scale, so large-text
     // users never get their hero clipped by the band edge.
-    final textScale =
-        MediaQuery.textScalerOf(context).scale(14) / 14;
+    final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
     final identityReserve =
         78.0 + (12 + 57 + 6 + 18 + 4 + 18) * textScale + AzSpace.xs;
     final bandHeight = safeTop + 72 + identityReserve;

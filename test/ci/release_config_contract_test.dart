@@ -1,0 +1,750 @@
+// Contracts for the Android release configuration itself.
+//
+// These are not widget tests: they read the workflow files, the Gradle script
+// and the shared validator as text and assert the properties that a physical
+// phone install and a Play upload actually depend on. Every one of them came
+// from a defect that had already reached a branch, so they are written to fail
+// when the property is lost, not when a line moves.
+
+import 'dart:io';
+
+import 'package:flutter_test/flutter_test.dart';
+
+const _integration = '.github/workflows/android-integration.yml';
+const _prodSmoke = '.github/workflows/android-prod-smoke.yml';
+const _gradle = 'android/app/build.gradle.kts';
+const _validator = 'tool/ci/validate_google_services.py';
+
+String _read(String path) {
+  final file = File(path);
+  if (!file.existsSync()) {
+    fail('$path is missing; the release configuration contract cannot hold');
+  }
+  return file.readAsStringSync();
+}
+
+/// Joins shell line continuations so a command split across lines is read as
+/// the one command the shell will run.
+List<String> _commands(String yaml) {
+  final lines = yaml.split('\n');
+  final out = <String>[];
+  var buffer = '';
+  for (final line in lines) {
+    if (buffer.isEmpty) {
+      if (!line.contains('flutter build')) continue;
+      buffer = line;
+    } else {
+      buffer = '$buffer ${line.trim()}';
+    }
+    if (buffer.trimRight().endsWith(r'\')) {
+      buffer = buffer.trimRight().substring(0, buffer.trimRight().length - 1);
+      continue;
+    }
+    out.add(buffer.trim());
+    buffer = '';
+  }
+  return out;
+}
+
+bool _hasPython() {
+  try {
+    final probe = Process.runSync('python3', ['--version']);
+    return probe.exitCode == 0;
+  } on ProcessException {
+    return false;
+  }
+}
+
+void main() {
+  group('one canonical Firebase secret', () {
+    test('both workflows read the raw JSON secret under one name', () {
+      for (final workflow in [_integration, _prodSmoke]) {
+        expect(
+          _read(workflow),
+          contains(r'secrets.GOOGLE_SERVICES_JSON'),
+          reason: '$workflow must read the canonical secret',
+        );
+      }
+    });
+
+    test('the duplicated base64 contract is gone from workflows and docs', () {
+      final sources = <String>[
+        _integration,
+        _prodSmoke,
+        'docs/FIREBASE_ANDROID.md',
+        'docs/RELEASE_SIGNING.md',
+        'docs/MANUAL_TEST_GUIDE.md',
+      ];
+      for (final source in sources) {
+        final text = _read(source);
+        expect(
+          text,
+          isNot(contains('AZM_ANDROID_GOOGLE_SERVICES_JSON_B64')),
+          reason: '$source still names the retired base64 secret',
+        );
+        expect(
+          text,
+          isNot(contains('GOOGLE_SERVICES_JSON_B64')),
+          reason: '$source still carries a second, encoded variable',
+        );
+      }
+    });
+
+    test('both workflows write the configuration to the app module', () {
+      for (final workflow in [_integration, _prodSmoke]) {
+        expect(
+          _read(workflow),
+          contains('android/app/google-services.json'),
+          reason:
+              '$workflow must write the file the Google Services plugin reads',
+        );
+      }
+    });
+  });
+
+  group('the Web OAuth client id reaches every build', () {
+    test('every flutter build passes the dart-define', () {
+      for (final workflow in [_integration, _prodSmoke]) {
+        final commands = _commands(_read(workflow));
+        expect(
+          commands,
+          isNotEmpty,
+          reason: '$workflow should contain at least one build command',
+        );
+        for (final command in commands) {
+          // The keyless-release probe is deliberately bare: it must fail.
+          if (command.contains('nokey')) continue;
+          expect(
+            command,
+            contains('--dart-define=GOOGLE_SERVER_CLIENT_ID'),
+            reason:
+                'a build command in $workflow omits the Web client id: $command',
+          );
+        }
+      }
+    });
+
+    test(
+      'the debug APK, release APK, bundle and smoke APK are all covered',
+      () {
+        final integration = _commands(_read(_integration));
+        final smoke = _commands(_read(_prodSmoke));
+        expect(
+          integration.any((c) => c.contains('flutter build apk --debug')),
+          isTrue,
+          reason: 'the Android Integration debug APK must pass the client id',
+        );
+        expect(
+          integration.any((c) => c.contains('appbundle --release')),
+          isTrue,
+          reason: 'the release bundle must pass the client id',
+        );
+        expect(
+          integration.any(
+            (c) => c.contains('apk --release') && !c.contains('nokey'),
+          ),
+          isTrue,
+          reason: 'the release APK must pass the client id',
+        );
+        expect(
+          smoke.any((c) => c.contains('flutter build apk')),
+          isTrue,
+          reason: 'the smoke APK must pass the client id',
+        );
+      },
+    );
+  });
+
+  group('Workfront artifact contract', () {
+    test('the debug artifact keeps its exact name and retention', () {
+      final yaml = _read(_integration);
+      expect(yaml, contains('name: azaman-android-debug'));
+      expect(yaml, contains('retention-days: 14'));
+      expect(
+        yaml,
+        isNot(contains('name: azaman-android-debug-')),
+        reason: 'the physical-device artifact must not be renamed or suffixed',
+      );
+    });
+
+    test('the release artifact is separate from the debug artifact', () {
+      final yaml = _read(_integration);
+      expect(yaml, contains('name: azaman-android-release'));
+      expect(yaml, isNot(contains('name: azaman-android-release-debug')));
+    });
+  });
+
+  group('Firebase builds are labelled honestly', () {
+    test('the placeholder path says sign-in and FCM are not verified', () {
+      final yaml = _read(_integration);
+      expect(yaml, contains('not connected to Firebase'));
+      expect(yaml, contains('Google Sign-In and FCM are'));
+      expect(
+        yaml,
+        contains('mode=placeholder'),
+        reason: 'the run must record which configuration it used',
+      );
+    });
+
+    test('a supplied configuration is validated, never replaced', () {
+      final yaml = _read(_integration);
+      expect(yaml, contains('--project azaman-app'));
+      expect(yaml, contains('--package com.azaman.app'));
+      expect(
+        yaml,
+        contains('--server-client-id'),
+        reason: 'the OAuth audience must be checked against the configuration',
+      );
+      // The validate call sits on the supplied branch, before the placeholder.
+      final supplied = yaml.indexOf('printf \'%s\' "\$GOOGLE_SERVICES_JSON"');
+      final validator = yaml.indexOf('validate_google_services.py');
+      expect(supplied, greaterThan(0));
+      expect(validator, greaterThan(supplied));
+    });
+
+    test(
+      'prod smoke fails early without the configuration or the client id',
+      () {
+        final yaml = _read(_prodSmoke);
+        expect(
+          yaml,
+          contains('Required secret GOOGLE_SERVICES_JSON is missing'),
+        );
+        expect(
+          yaml,
+          contains('Required variable GOOGLE_SERVER_CLIENT_ID is missing'),
+        );
+        expect(
+          yaml,
+          isNot(contains('azaman-ci.appspot.com')),
+          reason: 'prod smoke must never fall back to the CI placeholder',
+        );
+      },
+    );
+  });
+
+  group('release signing stays fail-closed', () {
+    test('release reads the upload key and never the debug key', () {
+      final gradle = _read(_gradle);
+      expect(gradle, contains('signingConfigs.getByName("release")'));
+      final releaseBlock = gradle.substring(
+        gradle.indexOf('buildTypes {'),
+        gradle.indexOf('gradle.taskGraph.whenReady'),
+      );
+      expect(
+        releaseBlock,
+        isNot(contains('signingConfigs.getByName("debug")')),
+        reason: 'a release build must never silently use the debug key',
+      );
+      expect(gradle, contains('Release builds are signed with the upload key'));
+    });
+
+    test('the CI debug identity is separate from the release identity', () {
+      final gradle = _read(_gradle);
+      expect(gradle, contains('create("ciDebug")'));
+      final debugBlock = gradle.substring(
+        gradle.indexOf('debug {'),
+        gradle.indexOf('release {'),
+      );
+      expect(debugBlock, contains('signingConfigs.getByName("ciDebug")'));
+      expect(
+        _read('android/.gitignore'),
+        contains('ci-debug-keystore.jks'),
+        reason: 'the CI debug key material must be ignored like the upload key',
+      );
+    });
+
+    test('the CI debug flag is declared where both blocks can see it', () {
+      final gradle = _read(_gradle);
+      // Declared inside signingConfigs {} it is invisible to buildTypes{}, and
+      // Gradle reports "Unresolved reference: hasCiDebugKey" at build time.
+      final declaration = gradle.indexOf('val hasCiDebugKey');
+      final signingBlock = gradle.indexOf('signingConfigs {');
+      expect(declaration, greaterThan(0));
+      expect(
+        declaration,
+        lessThan(signingBlock),
+        reason:
+            'the flag must be declared before signingConfigs, not inside it',
+      );
+      expect(
+        gradle.substring(signingBlock, gradle.indexOf('buildTypes {')),
+        isNot(contains('val hasCiDebugKey')),
+        reason:
+            'a declaration inside signingConfigs is out of scope for buildTypes',
+      );
+    });
+
+    test('the APK and bundle digests are compared after normalising format', () {
+      final yaml = _read(_integration);
+      expect(
+        yaml,
+        contains(r"""tr -d ':' | tr 'a-f' 'A-F'"""),
+        reason:
+            'apksigner prints lowercase/colonless, keytool uppercase/colonised',
+      );
+      expect(
+        yaml,
+        contains(
+          r'''$(normalise "$AAB_SHA256")" != "$(normalise "$APK_SHA256")''',
+        ),
+        reason: 'raw string comparison fails on identical certificates',
+      );
+    });
+
+    test('prod smoke uses the same dedicated CI debug identity', () {
+      final yaml = _read(_prodSmoke);
+      // The device APK is the one a phone installs, so it needs the same stable
+      // certificate the integration artifact uses. A second, different key would
+      // mean a second Firebase registration.
+      expect(yaml, contains('ANDROID_CI_DEBUG_KEYSTORE_BASE64'));
+      expect(yaml, contains('ANDROID_CI_DEBUG_STORE_PASSWORD'));
+      expect(yaml, contains('ANDROID_CI_DEBUG_KEY_ALIAS'));
+      expect(yaml, contains('ANDROID_CI_DEBUG_KEY_PASSWORD'));
+      expect(
+        yaml,
+        contains('base64 -d > android/ci-debug-keystore.jks'),
+        reason: 'the same file path the integration job writes',
+      );
+      expect(
+        yaml,
+        contains('if: always()'),
+        reason: 'key material must be removed even when the build fails',
+      );
+      expect(
+        yaml,
+        contains(
+          'rm -f android/ci-debug.properties android/ci-debug-keystore.jks',
+        ),
+      );
+    });
+
+    test('prod smoke reports its signer and never borrows the upload key', () {
+      final yaml = _read(_prodSmoke);
+      expect(yaml, contains('SHA-1 |'));
+      expect(yaml, contains('Unstable signer'));
+      expect(
+        yaml,
+        contains('unsuitable for Firebase SHA registration'),
+        reason:
+            'an absent CI identity must be named as unusable, not tolerated',
+      );
+      expect(
+        yaml,
+        isNot(contains('ANDROID_KEYSTORE_BASE64')),
+        reason: 'a debug artifact must never be signed with the upload key',
+      );
+      expect(
+        yaml,
+        isNot(contains('key.properties')),
+        reason:
+            'writing key.properties here would hand the debug build the upload key',
+      );
+    });
+
+    test('the prod smoke signer guard actually fires on apksigner output', () {
+      // A guard written against keytool's DN order never matches apksigner's
+      // reversed one, so the check has to be executed, not just read.
+      final yaml = _read(_prodSmoke);
+      final start = yaml.indexOf('case "\$DN" in');
+      expect(start, isNot(-1), reason: 'the upload-key guard is missing');
+      final end = yaml.indexOf('esac', start);
+      expect(end, isNot(-1), reason: 'the guard is not closed');
+      final block = yaml.substring(start, end + 4);
+
+      bool rejects(String dn) {
+        // DN goes in the environment: interpolating a multi-line script into
+        // a shell string would word-split it.
+        final result = Process.runSync(
+          'bash',
+          ['-c', block],
+          environment: {'DN': dn},
+        );
+        // exit 1 is the guard firing; anything else means it stayed silent.
+        expect(
+          result.stderr,
+          isNot(contains('syntax error')),
+          reason: 'the extracted guard must be valid shell',
+        );
+        return result.exitCode == 1;
+      }
+
+      expect(
+        rejects('C=GH, O=Azaman, L=Accra, CN=Azaman'),
+        isTrue,
+        reason: "apksigner's ordering must be rejected",
+      );
+      expect(
+        rejects('CN=Azaman, O=Azaman, L=Accra, C=GH'),
+        isTrue,
+        reason: "keytool's ordering must be rejected too",
+      );
+      expect(
+        rejects('C=GH, O=Azaman, L=Accra, CN=Azaman CI Debug'),
+        isFalse,
+        reason: 'the dedicated CI debug identity is the point of the workflow',
+      );
+      expect(
+        rejects('C=US, O=Android, CN=Android Debug'),
+        isFalse,
+        reason:
+            "the runner's own key stays allowed, and is flagged unstable instead",
+      );
+    });
+
+    test('the CI debug keystore lives in android/ and is git-ignored', () {
+      // The documented commands must write where .gitignore actually looks: the
+      // ignore patterns are relative to android/, so a keystore at the repo root
+      // would be committed by the next git add -A.
+      final docs = _read('docs/RELEASE_SIGNING.md');
+      expect(docs, contains(r'android\ci-debug-keystore.jks'));
+      expect(
+        docs,
+        isNot(contains('-keystore ci-debug-keystore.jks')),
+        reason: 'a relative path like that resolves to the repository root',
+      );
+      expect(
+        docs,
+        contains('git check-ignore -v android/ci-debug-keystore.jks'),
+        reason: 'the instructions must verify the ignore rule, not assume it',
+      );
+      expect(
+        docs,
+        contains(r'Android Studio\jbr\bin\keytool.exe'),
+        reason: 'the bundled keytool is the one the owner actually has',
+      );
+
+      final ignore = _read('android/.gitignore');
+      expect(ignore, contains('ci-debug-keystore.jks'));
+      expect(ignore, contains('ci-debug.properties'));
+      expect(
+        ignore,
+        contains('upload-keystore.jks'),
+        reason: 'the upload key must stay ignored too',
+      );
+    });
+
+    test('the manual guide separates configuration from device behaviour', () {
+      final guide = _read('docs/MANUAL_TEST_GUIDE.md');
+      expect(
+        guide,
+        contains('compiled against the **real** Firebase configuration'),
+        reason: 'the current integration run is no longer a placeholder build',
+      );
+      expect(guide, contains('Nothing in CI can prove'));
+      expect(
+        guide,
+        contains('Built by CI'),
+        reason: 'the release job produces both the AAB and the APK',
+      );
+      expect(guide, contains('Still unstable'));
+      expect(
+        guide,
+        isNot(
+          contains('with the placeholder configuration nobody can sign in'),
+        ),
+        reason: 'that claim described a configuration CI no longer uses',
+      );
+    });
+
+    test('the debug job reports its signer and cleans up key material', () {
+      final yaml = _read(_integration);
+      expect(yaml, contains('- name: Report debug signer'));
+      expect(yaml, contains('apksigner'));
+      expect(yaml, contains('Remove CI debug key material'));
+      expect(yaml, contains('if: always()'));
+    });
+  });
+
+  group('the shared validator', () {
+    late Directory tmp;
+
+    setUp(() => tmp = Directory.systemTemp.createTempSync('fbcfg'));
+    tearDown(() => tmp.deleteSync(recursive: true));
+
+    String write(String name, Object? data) {
+      final file = File('${tmp.path}/$name');
+      file.writeAsStringSync(data is String ? data : _json(data));
+      return file.path;
+    }
+
+    ProcessResult run(String path, {String? project, String? clientId}) {
+      return Process.runSync('python3', [
+        _validator,
+        '--file',
+        path,
+        if (project != null) ...['--project', project],
+        if (clientId != null) ...['--server-client-id', clientId],
+      ]);
+    }
+
+    test('accepts the expected production shape', () {
+      final path = write('ok.json', _config());
+      final result = run(
+        path,
+        project: 'azaman-app',
+        clientId: 'web-1.apps.googleusercontent.com',
+      );
+      expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
+      expect(result.stdout, contains('project_id=azaman-app'));
+      expect(
+        result.stdout,
+        contains('server_client_id=matched'),
+        reason: 'the validator must confirm the audience it was given',
+      );
+    });
+
+    test('rejects the wrong project', () {
+      final path = write(
+        'wrong-project.json',
+        _config(project: 'other-project'),
+      );
+      final result = run(path, project: 'azaman-app');
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('expected'));
+    });
+
+    test('tolerates other registered packages but requires ours once', () {
+      final path = write(
+        'two-packages.json',
+        _config(extraPackages: ['com.example.azaman']),
+      );
+      final result = run(path, project: 'azaman-app');
+      expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
+      expect(result.stdout, contains('android_clients=2'));
+    });
+
+    test('rejects a duplicated client for our package', () {
+      final path = write(
+        'duplicate.json',
+        _config(extraPackages: ['com.azaman.app']),
+      );
+      final result = run(path, project: 'azaman-app');
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('expected exactly one Android client'));
+    });
+
+    test('rejects a config without the Android package', () {
+      final path = write(
+        'wrong-package.json',
+        _config(package: 'com.example.other'),
+      );
+      final result = run(path, project: 'azaman-app');
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('expected exactly one Android client'));
+    });
+
+    test('rejects a config with no Web OAuth client', () {
+      final path = write('no-web.json', _config(webClient: false));
+      final result = run(path, project: 'azaman-app');
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('client_type 3'));
+    });
+
+    test('names the wrong shape when the value is a URL', () {
+      final path = write('ok.json', _config());
+      final result = run(
+        path,
+        project: 'azaman-app',
+        clientId: 'https://azaman-app.firebaseapp.com/__/auth/handler',
+      );
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('it is a URL, not a client id'));
+    });
+
+    test('names the wrong shape when the value is the Android client id', () {
+      final path = write('ok.json', _config());
+      final result = run(
+        path,
+        project: 'azaman-app',
+        clientId: 'android-1.apps.googleusercontent.com',
+      );
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('ANDROID client id'));
+    });
+
+    test('rejects a client id that is not in the configuration', () {
+      final path = write('mismatch.json', _config());
+      final result = run(
+        path,
+        project: 'azaman-app',
+        clientId: 'someone-else.apps.googleusercontent.com',
+      );
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('belongs to a different OAuth client'));
+    });
+
+    test('rejects a Web client that belongs to the legacy package only', () {
+      // The exact shape the live project has: the retired com.example.azaman
+      // app carries the Web client, our app does not. A union across the
+      // document would accept this and ship a build that cannot sign anyone in.
+      final path = write(
+        'cross-package.json',
+        _config(
+          extraPackages: ['com.example.azaman'],
+          webClient: false,
+          webClientOnExtras: true,
+        ),
+      );
+      final withoutId = run(path, project: 'azaman-app');
+      expect(withoutId.exitCode, isNot(0));
+      expect(
+        withoutId.stdout,
+        contains("no Web OAuth client (client_type 3) on the 'com.azaman.app'"),
+      );
+      expect(withoutId.stdout, contains('com.example.azaman'));
+
+      final withId = run(
+        path,
+        project: 'azaman-app',
+        clientId: 'web-extra.apps.googleusercontent.com',
+      );
+      expect(withId.exitCode, isNot(0));
+      expect(
+        withId.stdout,
+        contains('Web client of a different registered app'),
+        reason: 'a Web client attached to another app must never be accepted',
+      );
+    });
+
+    test('accepts the Web client of our own package beside a legacy app', () {
+      final path = write(
+        'scoped.json',
+        _config(extraPackages: ['com.example.azaman'], webClientOnExtras: true),
+      );
+      final result = run(
+        path,
+        project: 'azaman-app',
+        clientId: 'web-1.apps.googleusercontent.com',
+      );
+      expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
+      expect(result.stdout, contains('server_client_id=matched'));
+      expect(
+        result.stdout,
+        contains('web_clients_elsewhere=1'),
+        reason: 'the other app client is reported, never used',
+      );
+    });
+
+    test('rejects malformed JSON', () {
+      final path = write('broken.json', '{"project_info": ');
+      final result = run(path);
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('not valid JSON'));
+    });
+
+    test('rejects a missing file', () {
+      final result = run('${tmp.path}/absent.json');
+      expect(result.exitCode, isNot(0));
+      expect(result.stdout, contains('missing or empty'));
+    });
+
+    test('validates the placeholder by structure and package only', () {
+      final path = write(
+        'placeholder.json',
+        _config(project: 'azaman-ci', webClient: false),
+      );
+      final result = run(path);
+      expect(result.exitCode, 0, reason: '${result.stdout}${result.stderr}');
+      expect(result.stdout, contains('project_id=azaman-ci'));
+    });
+
+    test('never prints key material', () {
+      final path = write('ok.json', _config());
+      final result = run(path, project: 'azaman-app');
+      expect(result.stdout, isNot(contains('AIza')));
+      expect(result.stdout, isNot(contains('api_key')));
+    });
+  }, skip: _hasPython() ? false : 'python3 is unavailable in this environment');
+
+  group('the validator is wired into every workflow that compiles', () {
+    test('both workflows call the shared script', () {
+      for (final workflow in [_integration, _prodSmoke]) {
+        expect(
+          _read(workflow),
+          contains('tool/ci/validate_google_services.py'),
+          reason: '$workflow must validate rather than trust the configuration',
+        );
+      }
+    });
+  });
+}
+
+String _json(Object? data) => const JsonEncoderShim().convert(data);
+
+class JsonEncoderShim {
+  const JsonEncoderShim();
+  String convert(Object? value) => _encode(value);
+
+  static String _encode(Object? v) {
+    if (v is Map) {
+      final entries = v.entries
+          .map((e) => '"${e.key}":${_encode(e.value)}')
+          .join(',');
+      return '{$entries}';
+    }
+    if (v is List) return '[${v.map(_encode).join(',')}]';
+    if (v is String) return '"$v"';
+    if (v is num || v is bool) return '$v';
+    if (v == null) return 'null';
+    throw ArgumentError('unsupported $v');
+  }
+}
+
+Map<String, Object?> _config({
+  String project = 'azaman-app',
+  String package = 'com.azaman.app',
+  bool webClient = true,
+  List<String> extraPackages = const [],
+  bool webClientOnExtras = false,
+}) {
+  return {
+    'project_info': {
+      'project_number': '123456789012',
+      'project_id': project,
+      'storage_bucket': '$project.appspot.com',
+    },
+    'client': [
+      {
+        'client_info': {
+          'mobilesdk_app_id': '1:123456789012:android:abcdef1234567890',
+          'android_client_info': {'package_name': package},
+        },
+        'oauth_client': [
+          if (webClient)
+            {
+              'client_id': 'android-1.apps.googleusercontent.com',
+              'client_type': 1,
+            },
+          if (webClient)
+            {'client_id': 'web-1.apps.googleusercontent.com', 'client_type': 3},
+        ],
+        'api_key': [
+          {'current_key': 'AIzaFAKEKEYFORCONTRACTTESTONLY0000000000'},
+        ],
+      },
+      for (final extra in extraPackages)
+        {
+          'client_info': {
+            'mobilesdk_app_id': '1:123456789012:android:$extra',
+            'android_client_info': {'package_name': extra},
+          },
+          'oauth_client': [
+            const {
+              'client_id': 'android-extra.apps.googleusercontent.com',
+              'client_type': 1,
+            },
+            if (webClientOnExtras)
+              const {
+                'client_id': 'web-extra.apps.googleusercontent.com',
+                'client_type': 3,
+              },
+          ],
+          'api_key': const [
+            {'current_key': 'AIzaFAKEKEYFORCONTRACTTESTONLY0000000000'},
+          ],
+        },
+    ],
+    'configuration_version': '1',
+  };
+}

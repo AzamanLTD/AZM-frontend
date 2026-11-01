@@ -41,7 +41,6 @@ import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/widgets/susu/susu_wheel.dart';
 
-
 class SusuDashboardScreen extends ConsumerWidget {
   final String susuId;
 
@@ -49,8 +48,7 @@ class SusuDashboardScreen extends ConsumerWidget {
   /// are deterministic. Production always leaves it null (wall clock).
   final DateTime Function()? nowFn;
 
-  const SusuDashboardScreen(
-      {super.key, required this.susuId, this.nowFn});
+  const SusuDashboardScreen({super.key, required this.susuId, this.nowFn});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,8 +65,7 @@ class SusuDashboardScreen extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -111,9 +108,8 @@ class SusuDashboardScreen extends ConsumerWidget {
             ]);
           },
           child: detail.when(
-            loading: () => Center(
-              child: CircularProgressIndicator(color: colors.warning),
-            ),
+            loading: () =>
+                Center(child: CircularProgressIndicator(color: colors.warning)),
             error: (e, _) => _ErrorView(error: e, colors: colors),
             data: (susu) => ListView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -136,7 +132,10 @@ class SusuDashboardScreen extends ConsumerWidget {
                 if (susu.status == SusuStatus.completed)
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: _CompletionCelebrationCard(susu: susu, colors: colors),
+                    child: _CompletionCelebrationCard(
+                      susu: susu,
+                      colors: colors,
+                    ),
                   ),
                 if (susu.status == SusuStatus.frozenDispute)
                   Padding(
@@ -147,10 +146,7 @@ class SusuDashboardScreen extends ConsumerWidget {
                     _isPendingContractFor(me?.id, members.value))
                   Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    child: _AcceptContractCta(
-                      susuId: susu.id,
-                      colors: colors,
-                    ),
+                    child: _AcceptContractCta(susuId: susu.id, colors: colors),
                   ),
                 const SizedBox(height: 16),
                 _UpcomingCycleCard(
@@ -195,7 +191,9 @@ class SusuDashboardScreen extends ConsumerWidget {
   /// privacy-minimal and omits userId; we fall back to it only if the
   /// detail somehow returned no members.
   List<SusuMemberView> _bestMembers(
-      SusuDetail susu, List<SusuMemberView>? rosterFallback) {
+    SusuDetail susu,
+    List<SusuMemberView>? rosterFallback,
+  ) {
     if (susu.members.isNotEmpty) return susu.members;
     return rosterFallback ?? const [];
   }
@@ -256,13 +254,14 @@ class _Hero extends ConsumerWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(4),
-                  border:
-                      Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
+                  border: Border.all(
+                    color: color.withValues(alpha: 0.30),
+                    width: 0.7,
+                  ),
                 ),
                 child: Text(
                   label,
@@ -349,75 +348,98 @@ class _CompletionCelebrationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalPayout = susu.contributionUsdc * susu.totalCycles;
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            colors.accent.withValues(alpha: 0.20),
-            colors.accent.withValues(alpha: 0.06),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.accent.withValues(alpha: 0.35), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                colors.accent.withValues(alpha: 0.20),
+                colors.accent.withValues(alpha: 0.06),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: colors.accent.withValues(alpha: 0.35),
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.celebration, color: colors.accent, size: 22),
-              const SizedBox(width: 8),
+              Row(
+                children: [
+                  Icon(Icons.celebration, color: colors.accent, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Susu Complete! 🎉',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
               Text(
-                'Susu Complete! 🎉',
+                'This Susu group has completed all ${susu.totalCycles} cycles. '
+                'Total pool: \$${susu.contributionUsdc.toStringAsFixed(2)} × ${susu.totalCycles} = \$${totalPayout.toStringAsFixed(2)}',
                 style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    context.push(
+                      '/susu/completion',
+                      extra: {
+                        'groupName': susu.name,
+                        'totalContributed':
+                            susu.contributionUsdc * susu.totalCycles,
+                        'totalPayout': totalPayout,
+                        'members': susu.members
+                            .map(
+                              (m) => {
+                                'username': m.displayName,
+                                'avatarUrl': m.avatar,
+                                'position': m.cycleSlot ?? 0,
+                                'receivedAmount':
+                                    susu.contributionUsdc *
+                                    susu.totalCycles /
+                                    susu.members.length,
+                              },
+                            )
+                            .toList(),
+                        'currency': 'GHS',
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.celebration, size: 18),
+                  label: const Text(
+                    'View Celebration',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colors.accent,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            'This Susu group has completed all ${susu.totalCycles} cycles. '
-            'Total pool: \$${susu.contributionUsdc.toStringAsFixed(2)} × ${susu.totalCycles} = \$${totalPayout.toStringAsFixed(2)}',
-            style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                context.push('/susu/completion', extra: {
-                  'groupName': susu.name,
-                  'totalContributed': susu.contributionUsdc * susu.totalCycles,
-                  'totalPayout': totalPayout,
-                  'members': susu.members.map((m) => {
-                    'username': m.displayName,
-                    'avatarUrl': m.avatar,
-                    'position': m.cycleSlot ?? 0,
-                    'receivedAmount': susu.contributionUsdc * susu.totalCycles / susu.members.length,
-                  }).toList(),
-                  'currency': 'GHS',
-                });
-              },
-              icon: const Icon(Icons.celebration, size: 18),
-              label: const Text(
-                'View Celebration',
-                style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colors.accent,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
-            ),
-          ),
-        ],
-      ),
-    )
+        )
         .animate()
         .fadeIn(duration: 500.ms)
         .scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1));
@@ -491,8 +513,7 @@ class _UpcomingCycleCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.check_circle_outline,
-                color: colors.success, size: 16),
+            Icon(Icons.check_circle_outline, color: colors.success, size: 16),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -532,8 +553,11 @@ class _UpcomingCycleCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.access_time,
-                  color: ready ? colors.success : colors.warning, size: 16),
+              Icon(
+                Icons.access_time,
+                color: ready ? colors.success : colors.warning,
+                size: 16,
+              ),
               const SizedBox(width: 6),
               Text(
                 'Upcoming Cycle ${next.cycleNumber}',
@@ -574,18 +598,22 @@ class _UpcomingCycleCard extends StatelessWidget {
           const SizedBox(height: 10),
           if (ready)
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: colors.success.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                    color: colors.success.withValues(alpha: 0.30), width: 0.7),
+                  color: colors.success.withValues(alpha: 0.30),
+                  width: 0.7,
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_outline,
-                      color: colors.success, size: 14),
+                  Icon(
+                    Icons.check_circle_outline,
+                    color: colors.success,
+                    size: 14,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     'Ready for cycle',
@@ -608,8 +636,10 @@ class _UpcomingCycleCard extends StatelessWidget {
                   final memo = Uri.encodeComponent('susu:${susu.id}');
                   context.push('/deposit?amount=$amount&memo=$memo');
                 },
-                icon: const Icon(Icons.account_balance_wallet_outlined,
-                    size: 16),
+                icon: const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 16,
+                ),
                 label: Text(
                   'Fund \$${shortfall.toStringAsFixed(2)} to cover cycle',
                   style: const TextStyle(
@@ -622,7 +652,8 @@ class _UpcomingCycleCard extends StatelessWidget {
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                   elevation: 0,
                 ),
               ),
@@ -713,126 +744,136 @@ class _MembersRoster extends StatelessWidget {
       );
     }
     return Column(
-          children: rows.asMap().entries.map((e) {
-            final m = e.value;
-            final isMe = meUserId != null &&
-                m.userId.toString() == meUserId.toString();
-            final (statusLabel, statusColor) = switch (m.status) {
-              SusuMemberStatus.pendingVouch =>
-                ('PENDING_VOUCH', colors.warning),
-              SusuMemberStatus.pendingContract =>
-                ('PENDING_CONTRACT', colors.warning),
-              SusuMemberStatus.active => ('ACTIVE', colors.success),
-              SusuMemberStatus.defaulted => ('DEFAULTED', colors.danger),
-              SusuMemberStatus.removed => ('REMOVED', colors.textTertiary),
-              SusuMemberStatus.unknown => ('—', colors.textTertiary),
-            };
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: colors.divider, width: 0.6),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor: colors.accent.withValues(alpha: 0.15),
-                      child: Text(
-                        m.displayName.isEmpty
-                            ? '?'
-                            : m.displayName[0].toUpperCase(),
-                        style: TextStyle(
-                          color: colors.accent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+      children: rows.asMap().entries.map((e) {
+        final m = e.value;
+        final isMe =
+            meUserId != null && m.userId.toString() == meUserId.toString();
+        final (statusLabel, statusColor) = switch (m.status) {
+          SusuMemberStatus.pendingVouch => ('PENDING_VOUCH', colors.warning),
+          SusuMemberStatus.pendingContract => (
+            'PENDING_CONTRACT',
+            colors.warning,
+          ),
+          SusuMemberStatus.active => ('ACTIVE', colors.success),
+          SusuMemberStatus.defaulted => ('DEFAULTED', colors.danger),
+          SusuMemberStatus.removed => ('REMOVED', colors.textTertiary),
+          SusuMemberStatus.unknown => ('—', colors.textTertiary),
+        };
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: colors.card,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: colors.divider, width: 0.6),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: colors.accent.withValues(alpha: 0.15),
+                  child: Text(
+                    m.displayName.isEmpty
+                        ? '?'
+                        : m.displayName[0].toUpperCase(),
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  '@${m.displayName}',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: colors.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                          Flexible(
+                            child: Text(
+                              '@${m.displayName}',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          if (isMe) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'YOU',
+                                style: TextStyle(
+                                  color: colors.accent,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
-                              if (isMe) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: colors.accent.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    'YOU',
-                                    style: TextStyle(
-                                      color: colors.accent,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              if (m.role.toUpperCase() == 'ADMIN') ...[
-                                const SizedBox(width: 4),
-                                Icon(Icons.shield_outlined,
-                                    color: colors.warning, size: 12),
-                              ],
-                            ],
-                          ),
-                          Text(
-                            'Slot #${m.cycleSlot ?? '—'}',
-                            style: TextStyle(
-                                color: colors.textTertiary, fontSize: 10),
-                          ),
+                            ),
+                          ],
+                          if (m.role.toUpperCase() == 'ADMIN') ...[
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.shield_outlined,
+                              color: colors.warning,
+                              size: 12,
+                            ),
+                          ],
                         ],
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(
-                            color: statusColor.withValues(alpha: 0.30),
-                            width: 0.7),
-                      ),
-                      child: Text(
-                        statusLabel,
+                      Text(
+                        'Slot #${m.cycleSlot ?? '—'}',
                         style: TextStyle(
-                          color: statusColor,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
+                          color: colors.textTertiary,
+                          fontSize: 10,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ).animate().fadeIn(delay: (e.key * 30).ms, duration: 240.ms),
-            );
-          }).toList(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.30),
+                      width: 0.7,
+                    ),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ).animate().fadeIn(delay: (e.key * 30).ms, duration: 240.ms),
         );
+      }).toList(),
+    );
   }
 }
 
@@ -868,16 +909,17 @@ class _CycleSchedule extends StatelessWidget {
         }
         return Column(
           children: rows.map((c) {
-            final winner =
-                members.where((m) => m.userId == c.payoutUserId).firstOrNull;
+            final winner = members
+                .where((m) => m.userId == c.payoutUserId)
+                .firstOrNull;
             final (label, color) = switch (c.status) {
               SusuCycleStatus.pending => ('PENDING', colors.textTertiary),
               SusuCycleStatus.collecting => ('COLLECTING', colors.warning),
               SusuCycleStatus.collectingGrace => ('GRACE 24H', colors.danger),
               SusuCycleStatus.paidOut => (
-                  c.escrowDivertedAt != null ? 'DIVERTED' : 'PAID',
-                  c.escrowDivertedAt != null ? colors.warning : colors.success
-                ),
+                c.escrowDivertedAt != null ? 'DIVERTED' : 'PAID',
+                c.escrowDivertedAt != null ? colors.warning : colors.success,
+              ),
               SusuCycleStatus.defaulted => ('DEFAULTED', colors.danger),
               SusuCycleStatus.unknown => ('—', colors.textTertiary),
             };
@@ -885,7 +927,9 @@ class _CycleSchedule extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 6),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: colors.card,
                   borderRadius: BorderRadius.circular(10),
@@ -926,21 +970,31 @@ class _CycleSchedule extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            c.scheduledRunAt.toLocal().toString().split('.').first,
+                            c.scheduledRunAt
+                                .toLocal()
+                                .toString()
+                                .split('.')
+                                .first,
                             style: TextStyle(
-                                color: colors.textTertiary, fontSize: 10),
+                              color: colors.textTertiary,
+                              fontSize: 10,
+                            ),
                           ),
                         ],
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                            color: color.withValues(alpha: 0.30), width: 0.7),
+                          color: color.withValues(alpha: 0.30),
+                          width: 0.7,
+                        ),
                       ),
                       child: Text(
                         label,
@@ -972,14 +1026,14 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        _title.toUpperCase(),
-        style: TextStyle(
-          color: colors.textTertiary,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.8,
-        ),
-      );
+    _title.toUpperCase(),
+    style: TextStyle(
+      color: colors.textTertiary,
+      fontSize: 10,
+      fontWeight: FontWeight.w800,
+      letterSpacing: 0.8,
+    ),
+  );
 }
 
 class _ErrorView extends StatelessWidget {
@@ -1016,7 +1070,7 @@ class _ErrorView extends StatelessWidget {
             Text(
               notFound
                   ? 'You either are not a member, your acceptance is still '
-                      'pending, or the Susu does not exist.'
+                        'pending, or the Susu does not exist.'
                   : msg,
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.textTertiary, fontSize: 11),
@@ -1085,11 +1139,14 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
             children: [
               Icon(Icons.savings_outlined, color: colors.accent, size: 16),
               const SizedBox(width: 8),
-              Text('Make payouts work for you',
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800)),
+              Text(
+                'Make payouts work for you',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
@@ -1098,7 +1155,10 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
             'bit by bit and keep some balance on the app — your next '
             'contribution is then ready without a manual top-up.',
             style: TextStyle(
-                color: colors.textSecondary, fontSize: 12, height: 1.4),
+              color: colors.textSecondary,
+              fontSize: 12,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 8),
           // Material host: this Container paints a background, so a bare
@@ -1109,35 +1169,36 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
             type: MaterialType.transparency,
             child: SwitchListTile.adaptive(
               value: _enabled,
-            onChanged: _busy
-                ? null
-                : (v) async {
-                    setState(() {
-                      _enabled = v;
-                      _busy = true;
-                    });
-                    try {
-                      await susuService.setAutoRetain(widget.susuId, v);
-                      ref.invalidate(susuDetailV2Provider(widget.susuId));
-                    } catch (e) {
-                      if (mounted) {
-                        setState(() => _enabled = !v); // revert
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(e.toString())),
-                        );
+              onChanged: _busy
+                  ? null
+                  : (v) async {
+                      setState(() {
+                        _enabled = v;
+                        _busy = true;
+                      });
+                      try {
+                        await susuService.setAutoRetain(widget.susuId, v);
+                        ref.invalidate(susuDetailV2Provider(widget.susuId));
+                      } catch (e) {
+                        if (mounted) {
+                          setState(() => _enabled = !v); // revert
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(e.toString())));
+                        }
+                      } finally {
+                        if (mounted) setState(() => _busy = false);
                       }
-                    } finally {
-                      if (mounted) setState(() => _busy = false);
-                    }
-                  },
+                    },
               activeColor: colors.accent,
               contentPadding: EdgeInsets.zero,
               title: Text(
                 'Auto-retain next contribution',
                 style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700),
+                  color: colors.textPrimary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               subtitle: Text(
                 'Reserve my next cycle amount from my balance after each payout.',

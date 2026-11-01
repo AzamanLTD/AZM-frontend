@@ -31,9 +31,11 @@ import 'package:azaman/services/business_service.dart';
 import 'package:azaman/widgets/marketplace/profile_joystick.dart';
 import 'package:http/http.dart' as http;
 
-http.Response _json(int status, Map<String, dynamic> body) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
+http.Response _json(int status, Map<String, dynamic> body) => http.Response(
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
 
 class _MenuClient extends ApiClient {
   /// The live menu contract; [] means an honestly EMPTY catalog.
@@ -42,8 +44,11 @@ class _MenuClient extends ApiClient {
   _MenuClient({this.uncategorisedProducts = const []});
 
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     if (endpoint == '/business/BIZ-TEST01/menu') {
       return _json(200, {
         'success': true,
@@ -75,46 +80,42 @@ class _ProfileService extends BusinessService {
     String? status,
     int limit = 20,
     String? cursor,
-  }) async =>
-      (invoices: <BusinessInvoice>[], hasMore: false, nextCursor: null);
+  }) async => (invoices: <BusinessInvoice>[], hasMore: false, nextCursor: null);
 }
 
 BusinessProfile _business() => BusinessProfile(
-      id: 'biz-1',
-      bizId: 'BIZ-TEST01',
-      businessName: 'Makola Fresh Market',
-      category: 'RETAIL',
-      isVerified: true,
-      isSuspended: false,
-      kybStatus: 'VERIFIED',
-      totalEscrows: 42,
-      completedEscrows: 40,
-      userId: 1,
-      totalVolume: 1200,
-      averageRating: 4.8,
-      reviewCount: 24,
-      username: 'makola',
-      description: 'Genuine Accra goods.',
-      address: '12 Kojo Thompson Rd, Accra',
-      logoUrl: 'https://img.example/logo.png',
-    );
+  id: 'biz-1',
+  bizId: 'BIZ-TEST01',
+  businessName: 'Makola Fresh Market',
+  category: 'RETAIL',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 42,
+  completedEscrows: 40,
+  userId: 1,
+  totalVolume: 1200,
+  averageRating: 4.8,
+  reviewCount: 24,
+  username: 'makola',
+  description: 'Genuine Accra goods.',
+  address: '12 Kojo Thompson Rd, Accra',
+  logoUrl: 'https://img.example/logo.png',
+);
 
 Map<String, dynamic> _productJson(String name) => {
-      'id': 'p-$name',
-      'businessProfileId': 'biz-1',
-      'name': name,
-      'slug': name.toLowerCase(),
-      'priceUsdc': 12,
-      'totalRevenue': 0,
-      'imageUrls': const [],
-      'isActive': true,
-      'totalOrders': 5,
-    };
+  'id': 'p-$name',
+  'businessProfileId': 'biz-1',
+  'name': name,
+  'slug': name.toLowerCase(),
+  'priceUsdc': 12,
+  'totalRevenue': 0,
+  'imageUrls': const [],
+  'isActive': true,
+  'totalOrders': 5,
+};
 
-Future<void> _pumpScreen(
-  WidgetTester tester, {
-  _MenuClient? client,
-}) async {
+Future<void> _pumpScreen(WidgetTester tester, {_MenuClient? client}) async {
   SharedPreferences.setMockInitialValues({});
   await tester.binding.setSurfaceSize(const Size(800, 1200));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -122,7 +123,9 @@ Future<void> _pumpScreen(
     ProviderScope(
       overrides: [
         apiClientProvider.overrideWithValue(
-            client ?? _MenuClient(uncategorisedProducts: [_productJson('Kente Cloth')])),
+          client ??
+              _MenuClient(uncategorisedProducts: [_productJson('Kente Cloth')]),
+        ),
       ],
       child: MaterialApp(
         home: BusinessProfileScreen(
@@ -147,8 +150,11 @@ Future<void> _pumpToLiveHero(WidgetTester tester) async {
     await tester.pump(const Duration(milliseconds: 10));
     if (find.byType(ProfileJoystick).evaluate().isNotEmpty) break;
   }
-  expect(find.byType(ProfileJoystick), findsOneWidget,
-      reason: 'the storefront hero attaches with its joystick');
+  expect(
+    find.byType(ProfileJoystick),
+    findsOneWidget,
+    reason: 'the storefront hero attaches with its joystick',
+  );
   await tester.pump(const Duration(milliseconds: 50));
 }
 
@@ -171,7 +177,8 @@ void main() {
       await _pumpToLiveHero(tester);
 
       final gesture = await tester.startGesture(
-          tester.getCenter(find.byType(ProfileJoystick)));
+        tester.getCenter(find.byType(ProfileJoystick)),
+      );
       await tester.pump();
       // The dial claims the drag BEFORE the release (no long-press).
       await gesture.moveBy(const Offset(0, -90));
@@ -179,9 +186,13 @@ void main() {
       await gesture.up();
       await _settle(tester);
 
-      expect(find.byType(CatalogStorefrontScreen), findsOneWidget,
-          reason: 'Up releases onto the REAL catalog destination: the '
-              'CatalogStorefrontScreen built from the fetched menu contract');
+      expect(
+        find.byType(CatalogStorefrontScreen),
+        findsOneWidget,
+        reason:
+            'Up releases onto the REAL catalog destination: the '
+            'CatalogStorefrontScreen built from the fetched menu contract',
+      );
     });
 
     testWidgets('an honestly EMPTY catalog dims the menu satellite and a '
@@ -191,16 +202,19 @@ void main() {
 
       // Transient dial: release WITHOUT committing a route.
       final gesture = await tester.startGesture(
-          tester.getCenter(find.byType(ProfileJoystick)));
+        tester.getCenter(find.byType(ProfileJoystick)),
+      );
       await tester.pump();
       await gesture.moveBy(const Offset(0, -90));
       await tester.pump();
       await gesture.up();
       await _settle(tester);
 
-      expect(find.byType(CatalogStorefrontScreen), findsNothing,
-          reason: 'a dead delegate never pushes a route');
-
+      expect(
+        find.byType(CatalogStorefrontScreen),
+        findsNothing,
+        reason: 'a dead delegate never pushes a route',
+      );
     });
 
     testWidgets('the dimmed menu satellite discloses its reason on the '
@@ -213,9 +227,11 @@ void main() {
       final semantics = tester.ensureSemantics();
       await tester.tap(find.byType(ProfileJoystick));
       await _settle(tester);
-      expect(find.bySemanticsLabel('Products (No catalog yet)'),
-          findsOneWidget,
-          reason: 'the dimmed satellite says exactly why it is dimmed');
+      expect(
+        find.bySemanticsLabel('Products (No catalog yet)'),
+        findsOneWidget,
+        reason: 'the dimmed satellite says exactly why it is dimmed',
+      );
       semantics.dispose();
     });
   });

@@ -10,17 +10,27 @@ class ProductGridWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const ProductGridWidget({super.key, required this.props, required this.business});
+  const ProductGridWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
     final title = props['title'] as String? ?? 'Featured';
     final maxItems = _positiveInt(props['maxItems'], fallback: 6, max: 50);
     final columns = _positiveInt(props['columns'], fallback: 2, max: 4);
-    final showPrice = props['showPrice'] is bool ? props['showPrice'] as bool : true;
+    final showPrice = props['showPrice'] is bool
+        ? props['showPrice'] as bool
+        : true;
     final rawItems = props['items'];
     final items = rawItems is List
-        ? rawItems.whereType<Map>().map((item) => Map<String, dynamic>.from(item)).take(maxItems).toList()
+        ? rawItems
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .take(maxItems)
+              .toList()
         : const <Map<String, dynamic>>[];
 
     return Column(
@@ -30,8 +40,7 @@ class ProductGridWidget extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(title, style: Theme.of(context).textTheme.titleMedium),
         ),
-        if (items.isEmpty)
-          _EmptyProductState(),
+        if (items.isEmpty) _EmptyProductState(),
         if (items.isNotEmpty)
           GridView.builder(
             shrinkWrap: true,
@@ -43,16 +52,18 @@ class ProductGridWidget extends StatelessWidget {
               childAspectRatio: 0.75,
             ),
             itemCount: items.length,
-            itemBuilder: (ctx, i) => _ProductCard(
-              product: items[i],
-              showPrice: showPrice,
-            ),
+            itemBuilder: (ctx, i) =>
+                _ProductCard(product: items[i], showPrice: showPrice),
           ),
       ],
     );
   }
 
-  static int _positiveInt(dynamic value, {required int fallback, required int max}) {
+  static int _positiveInt(
+    dynamic value, {
+    required int fallback,
+    required int max,
+  }) {
     final parsed = value is num ? value.toInt() : int.tryParse('$value');
     if (parsed == null || parsed < 1) return fallback;
     return parsed.clamp(1, max);
@@ -69,19 +80,27 @@ class _EmptyProductState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.35,
+        ),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         children: [
-          Icon(Icons.inventory_2_outlined, size: 30, color: theme.colorScheme.onSurfaceVariant),
+          Icon(
+            Icons.inventory_2_outlined,
+            size: 30,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 8),
           Text('No products available yet', style: theme.textTheme.titleSmall),
           const SizedBox(height: 4),
           Text(
             'Check back soon for new items.',
             textAlign: TextAlign.center,
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -99,14 +118,10 @@ class _ProductCard extends StatelessWidget {
     final bizId = StorefrontTrackingScope.of(context);
     if (bizId == null) return;
 
-    StorefrontTrackingService.instance.trackEvent(
-      bizId,
-      'product_tap',
-      {
-        'productId': product['id'] ?? product['productId'],
-        'widgetType': 'product_grid',
-      },
-    );
+    StorefrontTrackingService.instance.trackEvent(bizId, 'product_tap', {
+      'productId': product['id'] ?? product['productId'],
+      'widgetType': 'product_grid',
+    });
   }
 
   @override
@@ -199,7 +214,11 @@ class _ImageFallback extends StatelessWidget {
     return Container(
       color: scheme.surfaceContainerHighest,
       alignment: Alignment.center,
-      child: Icon(Icons.image_outlined, size: 34, color: scheme.onSurfaceVariant),
+      child: Icon(
+        Icons.image_outlined,
+        size: 34,
+        color: scheme.onSurfaceVariant,
+      ),
     );
   }
 }

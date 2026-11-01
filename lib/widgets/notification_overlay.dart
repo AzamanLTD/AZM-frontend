@@ -410,25 +410,25 @@ class _State extends ConsumerState<NotificationOverlay>
   /// the launcher windows push; Resume pushes the canonical route with the
   /// draft's editable inputs as extra, never an invented route.
   String _draftRoute(LauncherSurface surface) => switch (surface) {
-        LauncherSurface.send => '/send',
-        LauncherSurface.withdraw => '/withdraw',
-        LauncherSurface.addCash => '/deposit',
-        LauncherSurface.convert => '/convert',
-      };
+    LauncherSurface.send => '/send',
+    LauncherSurface.withdraw => '/withdraw',
+    LauncherSurface.addCash => '/deposit',
+    LauncherSurface.convert => '/convert',
+  };
 
   String _draftTitle(LauncherSurface surface) => switch (surface) {
-        LauncherSurface.send => 'Continue sending',
-        LauncherSurface.withdraw => 'Continue withdrawal',
-        LauncherSurface.addCash => 'Continue adding cash',
-        LauncherSurface.convert => 'Continue conversion estimate',
-      };
+    LauncherSurface.send => 'Continue sending',
+    LauncherSurface.withdraw => 'Continue withdrawal',
+    LauncherSurface.addCash => 'Continue adding cash',
+    LauncherSurface.convert => 'Continue conversion estimate',
+  };
 
   IconData _draftIcon(LauncherSurface surface) => switch (surface) {
-        LauncherSurface.send => Icons.send_rounded,
-        LauncherSurface.withdraw => Icons.south_west_rounded,
-        LauncherSurface.addCash => Icons.add_card_rounded,
-        LauncherSurface.convert => Icons.swap_vert_circle_rounded,
-      };
+    LauncherSurface.send => Icons.send_rounded,
+    LauncherSurface.withdraw => Icons.south_west_rounded,
+    LauncherSurface.addCash => Icons.add_card_rounded,
+    LauncherSurface.convert => Icons.swap_vert_circle_rounded,
+  };
 
   /// §C.3 Resume — dismiss the panel FIRST (the same guard-and-order the
   /// notification dispatcher uses), then push the canonical route once.
@@ -656,8 +656,9 @@ class _State extends ConsumerState<NotificationOverlay>
           ),
           ...continuations.map((c) {
             final ref = c.reference.trim();
-            final short =
-                ref.length > 14 ? '…${ref.substring(ref.length - 12)}' : ref;
+            final short = ref.length > 14
+                ? '…${ref.substring(ref.length - 12)}'
+                : ref;
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Container(
@@ -752,9 +753,10 @@ class _State extends ConsumerState<NotificationOverlay>
     _closing = true;
     _dismiss();
     Future<void>.delayed(const Duration(milliseconds: 260), () {
-      router.push('/deposit', extra: {
-        'pendingReference': continuation.reference,
-      });
+      router.push(
+        '/deposit',
+        extra: {'pendingReference': continuation.reference},
+      );
     });
   }
 
@@ -797,9 +799,7 @@ class _State extends ConsumerState<NotificationOverlay>
                 // touches server notifications or any transaction.
                 onDismissed: (_) {
                   AzamanHaptics.selection();
-                  ref
-                      .read(launcherDraftsProvider.notifier)
-                      .discardDraft(d.id);
+                  ref.read(launcherDraftsProvider.notifier).discardDraft(d.id);
                 },
                 background: Container(
                   alignment: Alignment.centerLeft,
@@ -808,8 +808,10 @@ class _State extends ConsumerState<NotificationOverlay>
                     color: colors.danger,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.delete_outline_rounded,
-                      color: Colors.white),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.white,
+                  ),
                 ),
                 secondaryBackground: Container(
                   alignment: Alignment.centerRight,
@@ -818,8 +820,10 @@ class _State extends ConsumerState<NotificationOverlay>
                     color: colors.danger,
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.delete_outline_rounded,
-                      color: Colors.white),
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Colors.white,
+                  ),
                 ),
                 child: Container(
                   decoration: BoxDecoration(
@@ -873,8 +877,7 @@ class _State extends ConsumerState<NotificationOverlay>
                       TextButton(
                         // An expired card cannot Resume; the next
                         // loadForUser sweep removes it.
-                        onPressed:
-                            expired ? null : () => _resumeDraft(d),
+                        onPressed: expired ? null : () => _resumeDraft(d),
                         style: TextButton.styleFrom(
                           backgroundColor: colors.accentSurface,
                           foregroundColor: colors.accent,
@@ -1010,8 +1013,8 @@ class _State extends ConsumerState<NotificationOverlay>
     /// account switch included), without depending on some unrelated
     /// provider update happening to trigger a rebuild.
     final currentUid = ref.watch(authProvider).user?.id;
-    final drafts = (draftState.userId != null &&
-            draftState.userId == currentUid)
+    final drafts =
+        (draftState.userId != null && draftState.userId == currentUid)
         ? draftState.drafts
         : const <LauncherDraft>[];
 
@@ -1020,8 +1023,8 @@ class _State extends ConsumerState<NotificationOverlay>
     // disappears because a form-draft clock expired. Same render gate:
     // only the active user's continuations are shown.
     final contState = ref.watch(depositContinuationsProvider);
-    final continuations = (contState.userId != null &&
-            contState.userId == currentUid)
+    final continuations =
+        (contState.userId != null && contState.userId == currentUid)
         ? contState.continuations
         : const <DepositContinuation>[];
     final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -1715,20 +1718,20 @@ class _SlideState extends State<_SlideRevealNotification>
                                     decoration: TextDecoration.none,
                                   ),
                                 ),
-                              if (_dismissFailed) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  "Couldn't dismiss — not saved. Try again.",
-                                  style: TextStyle(
-                                    color: c.danger,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    decoration: TextDecoration.none,
+                                if (_dismissFailed) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "Couldn't dismiss — not saved. Try again.",
+                                    style: TextStyle(
+                                      color: c.danger,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.none,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
-                            ],
-                          ),
+                            ),
                           ),
                         ],
                       ),

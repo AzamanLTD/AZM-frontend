@@ -235,12 +235,20 @@ void main() {
     expect(find.text('Add to bag'), findsNothing);
   });
 
-  testWidgets('a product without a price never enters the money cart',
-      (tester) async {
+  testWidgets('a product without a price never enters the money cart', (
+    tester,
+  ) async {
     final cart = _RecordingCartNotifier();
-    await pumpPicker(tester, cart, _product(price: null, variants: {
-      'Size': ['S', 'M', 'L'],
-    }));
+    await pumpPicker(
+      tester,
+      cart,
+      _product(
+        price: null,
+        variants: {
+          'Size': ['S', 'M', 'L'],
+        },
+      ),
+    );
 
     expect(find.text('Price unavailable'), findsOneWidget);
     final button = tester.widget<FilledButton>(find.byType(FilledButton));
@@ -258,8 +266,9 @@ void main() {
     expect(cart.startNewCartCalls, 0);
   });
 
-  testWidgets('a cancelled cross-business confirmation mutates nothing',
-      (tester) async {
+  testWidgets('a cancelled cross-business confirmation mutates nothing', (
+    tester,
+  ) async {
     final cart = _RecordingCartNotifier();
     await pumpPicker(tester, cart, _product());
 
@@ -277,8 +286,9 @@ void main() {
     expect(find.text('Add to bag'), findsOneWidget);
   });
 
-  testWidgets('a confirmed cross-business switch restarts the cart once',
-      (tester) async {
+  testWidgets('a confirmed cross-business switch restarts the cart once', (
+    tester,
+  ) async {
     final cart = _RecordingCartNotifier();
     await pumpPicker(tester, cart, _product());
 

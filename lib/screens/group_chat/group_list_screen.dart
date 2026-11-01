@@ -16,7 +16,6 @@ import 'package:azaman/screens/group_chat/group_create_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class GroupListScreen extends ConsumerWidget {
   const GroupListScreen({super.key});
 
@@ -33,30 +32,45 @@ class GroupListScreen extends ConsumerWidget {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Groups',
-            style: TextStyle(
-                color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Text(
+          'Groups',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: AzPullToRefresh(
         color: colors.accent,
         backgroundColor: colors.card,
         onRefresh: () => ref.read(groupListProvider.notifier).refresh(),
         child: groupsAsync.when(
-          loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+          loading: () =>
+              Center(child: CircularProgressIndicator(color: colors.accent)),
           error: (e, _) => Center(child: Text(e.toString())),
           data: (groups) {
             if (groups.isEmpty) {
               return ListView(
-                physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
+                ),
                 children: [
                   const SizedBox(height: 80),
-                  Icon(Icons.person_add_outlined, size: 56, color: colors.textTertiary),
+                  Icon(
+                    Icons.person_add_outlined,
+                    size: 56,
+                    color: colors.textTertiary,
+                  ),
                   const SizedBox(height: 16),
                   Center(
                     child: Text(
                       'No groups yet',
                       style: TextStyle(
-                          color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+                        color: colors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -66,7 +80,10 @@ class GroupListScreen extends ConsumerWidget {
                       child: Text(
                         'Create a group to chat with friends. Enable Susu to run a rotational savings cycle.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ),
@@ -74,21 +91,31 @@ class GroupListScreen extends ConsumerWidget {
               );
             }
             return ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: ClampingScrollPhysics(),
+              ),
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
               itemCount: groups.length,
               itemBuilder: (context, i) {
                 final g = groups[i];
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: _GroupTile(
-                    group: g,
-                    colors: colors,
-                    onTap: () => pushWithVerticalTransition(context, GroupChatScreen(groupId: g.id)),
-                  )
-                      .animate()
-                      .fadeIn(delay: (i * 50).ms, duration: 280.ms)
-                      .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+                  child:
+                      _GroupTile(
+                            group: g,
+                            colors: colors,
+                            onTap: () => pushWithVerticalTransition(
+                              context,
+                              GroupChatScreen(groupId: g.id),
+                            ),
+                          )
+                          .animate()
+                          .fadeIn(delay: (i * 50).ms, duration: 280.ms)
+                          .slideY(
+                            begin: 0.06,
+                            end: 0,
+                            curve: Curves.easeOutCubic,
+                          ),
                 );
               },
             );
@@ -103,8 +130,10 @@ class GroupListScreen extends ConsumerWidget {
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
         icon: const Icon(Icons.person_add_outlined, size: 18),
-        label: const Text('New Group',
-            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3)),
+        label: const Text(
+          'New Group',
+          style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.3),
+        ),
       ),
     );
   }
@@ -114,7 +143,11 @@ class _GroupTile extends StatelessWidget {
   final GroupSummary group;
   final AzamanColors colors;
   final VoidCallback onTap;
-  const _GroupTile({required this.group, required this.colors, required this.onTap});
+  const _GroupTile({
+    required this.group,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +218,10 @@ class _GroupTile extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         '${group.members.length} members',
-                        style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),

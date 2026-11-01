@@ -105,43 +105,58 @@ void main() {
     });
   });
 
-  group('AzMoney.ghsExact — exact-decimal GHS (Marketplace Mix listing prices)', () {
-    test('formats an exact 2dp string with grouping, symbol + nbsp', () {
-      expect(AzMoney.ghsExact('25.00'), 'GH₵\u00A025.00');
-      expect(AzMoney.ghsExact('1240.42'), 'GH₵\u00A01,240.42');
-      expect(AzMoney.ghsExact('0.42'), 'GH₵\u00A00.42');
-    });
+  group(
+    'AzMoney.ghsExact — exact-decimal GHS (Marketplace Mix listing prices)',
+    () {
+      test('formats an exact 2dp string with grouping, symbol + nbsp', () {
+        expect(AzMoney.ghsExact('25.00'), 'GH₵\u00A025.00');
+        expect(AzMoney.ghsExact('1240.42'), 'GH₵\u00A01,240.42');
+        expect(AzMoney.ghsExact('0.42'), 'GH₵\u00A00.42');
+      });
 
-    test('is pure string math — pesewa-exact values survive float-hostile cases',
+      test(
+        'is pure string math — pesewa-exact values survive float-hostile cases',
         () {
-      // 0.10 is not representable as a double; the string path never floats.
-      expect(AzMoney.ghsExact('0.10'), 'GH₵\u00A00.10');
-      expect(AzMoney.ghsExact('1000000000.01'), 'GH₵\u00A01,000,000,000.01');
-    });
+          // 0.10 is not representable as a double; the string path never floats.
+          expect(AzMoney.ghsExact('0.10'), 'GH₵\u00A00.10');
+          expect(
+            AzMoney.ghsExact('1000000000.01'),
+            'GH₵\u00A01,000,000,000.01',
+          );
+        },
+      );
 
-    test('returns null for every invalid shape — never invents a figure', () {
-      for (final bad in [
-        null,
-        '',
-        '  ',
-        '12.5',
-        '12.500',
-        '12',
-        '-12.50',
-        '1,240.42',
-        'GH12.00',
-        '12.00a',
-        '.50',
-        '12.',
-      ]) {
-        expect(AzMoney.ghsExact(bad), isNull, reason: '"$bad" must not render');
-      }
-    });
+      test('returns null for every invalid shape — never invents a figure', () {
+        for (final bad in [
+          null,
+          '',
+          '  ',
+          '12.5',
+          '12.500',
+          '12',
+          '-12.50',
+          '1,240.42',
+          'GH12.00',
+          '12.00a',
+          '.50',
+          '12.',
+        ]) {
+          expect(
+            AzMoney.ghsExact(bad),
+            isNull,
+            reason: '"$bad" must not render',
+          );
+        }
+      });
 
-    test('never falls back to another currency or zero', () {
-      expect(AzMoney.ghsExact('0.00'), isNotNull,
-          reason: 'a TRUE zero price is a real price, not an invented one');
-      expect(AzMoney.ghsExact('0.00'), 'GH₵\u00A00.00');
-    });
-  });
+      test('never falls back to another currency or zero', () {
+        expect(
+          AzMoney.ghsExact('0.00'),
+          isNotNull,
+          reason: 'a TRUE zero price is a real price, not an invented one',
+        );
+        expect(AzMoney.ghsExact('0.00'), 'GH₵\u00A00.00');
+      });
+    },
+  );
 }

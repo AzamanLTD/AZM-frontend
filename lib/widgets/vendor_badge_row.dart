@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:azaman/services/vendor_badge_service.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 // =============================================================================
 // AZAMAN — VENDOR BADGE ROW (Phase Q13-FE)
 //
@@ -59,10 +58,9 @@ class _VendorBadgeRowState extends State<VendorBadgeRow> {
       padding: const EdgeInsets.only(top: 6),
       child: Row(
         children: [
-          ...displayBadges.map((badge) => _BadgeChip(
-                badge: badge,
-                colors: widget.colors,
-              )),
+          ...displayBadges.map(
+            (badge) => _BadgeChip(badge: badge, colors: widget.colors),
+          ),
           if (overflow > 0) ...[
             const SizedBox(width: 4),
             Text(
@@ -104,11 +102,7 @@ class _BadgeChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                _getIconData(badge.icon),
-                size: 12,
-                color: color,
-              ),
+              Icon(_getIconData(badge.icon), size: 12, color: color),
               const SizedBox(width: 3),
               Text(
                 badge.name,

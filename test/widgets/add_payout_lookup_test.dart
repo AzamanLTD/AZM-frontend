@@ -92,8 +92,11 @@ class _FakeHttpClientRequest implements HttpClientRequest {
 
 class _FakeHttpClientResponse extends Stream<List<int>>
     implements HttpClientResponse {
-  _FakeHttpClientResponse(this.statusCode, this.body,
-      {required this.reasonPhrase});
+  _FakeHttpClientResponse(
+    this.statusCode,
+    this.body, {
+    required this.reasonPhrase,
+  });
 
   @override
   final int statusCode;
@@ -108,8 +111,12 @@ class _FakeHttpClientResponse extends Stream<List<int>>
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return _singleShot().listen(onData,
-        onError: onError, onDone: onDone, cancelOnError: cancelOnError);
+    return _singleShot().listen(
+      onData,
+      onError: onError,
+      onDone: onDone,
+      cancelOnError: cancelOnError,
+    );
   }
 
   Stream<Uint8List> _singleShot() async* {
@@ -159,8 +166,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = _TestHttpOverrides();
 
-  const secureStorageChannel =
-      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const secureStorageChannel = MethodChannel(
+    'plugins.it_nomads.com/flutter_secure_storage',
+  );
 
   setUp(() {
     _wire.clear();
@@ -175,15 +183,18 @@ void main() {
     });
   });
 
-  Future<String> lookupPayloadsJson() async => jsonEncode(captured
-      .where((r) =>
-          r['method'] == 'POST' && (r['path'] as String).endsWith('lookup'))
-      .map((r) => jsonDecode(r['body'] as String) as Map<String, dynamic>)
-      .toList());
+  Future<String> lookupPayloadsJson() async => jsonEncode(
+    captured
+        .where(
+          (r) =>
+              r['method'] == 'POST' && (r['path'] as String).endsWith('lookup'),
+        )
+        .map((r) => jsonDecode(r['body'] as String) as Map<String, dynamic>)
+        .toList(),
+  );
 
   testWidgets('AddPayoutSheet name lookup sends the canonical provider for '
-      'every network — AirtelTigo is AIRTELTIGO, not TELECEL',
-      (tester) async {
+      'every network — AirtelTigo is AIRTELTIGO, not TELECEL', (tester) async {
     tester.view.physicalSize = const Size(420, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -191,15 +202,18 @@ void main() {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(
-            home: Scaffold(body: AddPayoutSheet(onSaved: _noop))),
+          home: Scaffold(body: AddPayoutSheet(onSaved: _noop)),
+        ),
       ),
     );
     await tester.pump();
 
     // The sheet defaults to MTN. Type a number and verify.
-    final phoneField = find.byWidgetPredicate((w) =>
-        w is TextField &&
-        (w.decoration?.hintText ?? '').startsWith('0541234567'));
+    final phoneField = find.byWidgetPredicate(
+      (w) =>
+          w is TextField &&
+          (w.decoration?.hintText ?? '').startsWith('0541234567'),
+    );
     await tester.enterText(phoneField, '0541234567');
     await tester.tap(find.text('Verify Account Holder'));
     await tester.pumpAndSettle();
@@ -232,7 +246,8 @@ void main() {
       '[{"provider":"MTN","phoneNumber":"0541234567"},'
       '{"provider":"AIRTELTIGO","phoneNumber":"+233541234567"},'
       '{"provider":"TELECEL","phoneNumber":"+233541234567"}]',
-      reason: 'Each Verify must send the canonical provider for the '
+      reason:
+          'Each Verify must send the canonical provider for the '
           'selected network, in order: default MTN, then AirtelTigo, '
           'then Telecel.',
     );

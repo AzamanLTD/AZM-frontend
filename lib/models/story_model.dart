@@ -1,4 +1,5 @@
-import 'package:azaman/models/marketplace_booking_models.dart' show BusinessStory;
+import 'package:azaman/models/marketplace_booking_models.dart'
+    show BusinessStory;
 
 class StoryItem {
   final String id;
@@ -21,9 +22,15 @@ class StoryItem {
   final int? durationSecondsProvided;
 
   const StoryItem({
-    required this.id, required this.mediaUrl, required this.mediaType,
-    this.caption, this.linkedBizId, required this.durationSeconds,
-    required this.boosted, required this.seen, required this.createdAt,
+    required this.id,
+    required this.mediaUrl,
+    required this.mediaType,
+    this.caption,
+    this.linkedBizId,
+    required this.durationSeconds,
+    required this.boosted,
+    required this.seen,
+    required this.createdAt,
     this.durationSecondsProvided,
   });
 
@@ -36,7 +43,8 @@ class StoryItem {
     durationSeconds: (j['durationSeconds'] as num?)?.toInt() ?? 5,
     boosted: j['boosted'] == true,
     seen: j['seen'] == true,
-    createdAt: DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
+    createdAt:
+        DateTime.tryParse(j['createdAt']?.toString() ?? '') ?? DateTime.now(),
     durationSecondsProvided: (j['durationSeconds'] as num?)?.toInt(),
   );
 }
@@ -50,8 +58,12 @@ class StoryGroup {
   final List<StoryItem> stories;
 
   const StoryGroup({
-    required this.authorId, required this.authorUsername, this.authorAvatarUrl,
-    required this.hasUnseen, required this.isBoosted, required this.stories,
+    required this.authorId,
+    required this.authorUsername,
+    this.authorAvatarUrl,
+    required this.hasUnseen,
+    required this.isBoosted,
+    required this.stories,
   });
 
   factory StoryGroup.fromJson(Map<String, dynamic> j) {
@@ -63,7 +75,8 @@ class StoryGroup {
       hasUnseen: j['hasUnseen'] == true,
       isBoosted: j['isBoosted'] == true,
       stories: (j['stories'] as List? ?? [])
-        .map((s) => StoryItem.fromJson(s as Map<String, dynamic>)).toList(),
+          .map((s) => StoryItem.fromJson(s as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
@@ -88,18 +101,20 @@ StoryGroup storyGroupFromBusinessStories(List<BusinessStory> stories) {
     hasUnseen: true,
     isBoosted: false,
     stories: stories
-        .map((s) => StoryItem(
-              id: s.id,
-              mediaUrl: s.mediaUrl,
-              mediaType: 'IMAGE',
-              caption: s.caption,
-              linkedBizId: s.businessProfileId,
-              durationSeconds: 5,
-              boosted: false,
-              seen: false,
-              createdAt: s.createdAt,
-              durationSecondsProvided: null,
-            ))
+        .map(
+          (s) => StoryItem(
+            id: s.id,
+            mediaUrl: s.mediaUrl,
+            mediaType: 'IMAGE',
+            caption: s.caption,
+            linkedBizId: s.businessProfileId,
+            durationSeconds: 5,
+            boosted: false,
+            seen: false,
+            createdAt: s.createdAt,
+            durationSecondsProvided: null,
+          ),
+        )
         .toList(),
   );
 }

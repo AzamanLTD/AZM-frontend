@@ -35,10 +35,13 @@ class WorkerHubScreen extends ConsumerWidget {
         ),
       ),
       body: dashAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+        loading: () =>
+            Center(child: CircularProgressIndicator(color: colors.accent)),
         error: (_, __) => Center(
-          child: Text('Unable to load dashboard',
-              style: TextStyle(color: colors.textSecondary)),
+          child: Text(
+            'Unable to load dashboard',
+            style: TextStyle(color: colors.textSecondary),
+          ),
         ),
         data: (dash) {
           if (dash == null || dash.employee == null) {
@@ -48,8 +51,10 @@ class WorkerHubScreen extends ConsumerWidget {
                 children: [
                   Icon(Icons.work_off, size: 48, color: colors.textTertiary),
                   const SizedBox(height: 12),
-                  Text('You are not an active employee',
-                      style: TextStyle(color: colors.textSecondary, fontSize: 15)),
+                  Text(
+                    'You are not an active employee',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 15),
+                  ),
                 ],
               ),
             );
@@ -100,17 +105,30 @@ class _SalaryCountdownCard extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [colors.accent.withValues(alpha: 0.15), colors.accent.withValues(alpha: 0.03)],
-          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [
+            colors.accent.withValues(alpha: 0.15),
+            colors.accent.withValues(alpha: 0.03),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.accent.withValues(alpha: 0.2), width: 1),
+        border: Border.all(
+          color: colors.accent.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Salary Countdown', style: TextStyle(
-            color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(
+            'Salary Countdown',
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -118,27 +136,40 @@ class _SalaryCountdownCard extends StatelessWidget {
               Text(
                 '\$${salary.netAccrued.toStringAsFixed(2)}',
                 style: TextStyle(
-                  color: colors.textPrimary, fontSize: 32, fontWeight: FontWeight.w800,
+                  color: colors.textPrimary,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 4, left: 6),
-                child: Text('accrued', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+                child: Text(
+                  'accrued',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           if (salary.monthlySalary != null)
-            Text('of \$${salary.monthlySalary!.toStringAsFixed(0)}/mo',
-                style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+            Text(
+              'of \$${salary.monthlySalary!.toStringAsFixed(0)}/mo',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
           const SizedBox(height: 12),
           Row(
             children: [
               Icon(Icons.calendar_today, size: 14, color: colors.accent),
               const SizedBox(width: 6),
-              Text('${salary.daysUntilPayday} days until payday',
-                  style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(
+                '${salary.daysUntilPayday} days until payday',
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ],
@@ -160,15 +191,18 @@ class _NextShiftCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.surface, borderRadius: BorderRadius.circular(16),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.border, width: 1),
       ),
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12),
+              color: colors.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.schedule, color: colors.accent, size: 22),
           ),
@@ -177,11 +211,27 @@ class _NextShiftCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Next Shift', style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-                Text(dateStr, style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w700)),
-                Text(timeStr, style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                Text(
+                  'Next Shift',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                ),
+                Text(
+                  dateStr,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  timeStr,
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                ),
                 if (shift.shiftLabel != null)
-                  Text(shift.shiftLabel!, style: TextStyle(color: colors.accent, fontSize: 12)),
+                  Text(
+                    shift.shiftLabel!,
+                    style: TextStyle(color: colors.accent, fontSize: 12),
+                  ),
               ],
             ),
           ),
@@ -201,15 +251,21 @@ class _ActiveShiftCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.success.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.success.withValues(alpha: 0.2), width: 1),
+        color: colors.success.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colors.success.withValues(alpha: 0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: colors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12),
+              color: colors.success.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.play_arrow, color: colors.success, size: 22),
           ),
@@ -218,15 +274,35 @@ class _ActiveShiftCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('CLOCKED IN', style: TextStyle(color: colors.success, fontSize: 11, fontWeight: FontWeight.w700)),
-                Text('Since ${_fmtTime(shift.startTime)}',
-                    style: TextStyle(color: colors.textPrimary, fontSize: 15, fontWeight: FontWeight.w600)),
+                Text(
+                  'CLOCKED IN',
+                  style: TextStyle(
+                    color: colors.success,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  'Since ${_fmtTime(shift.startTime)}',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
           TextButton(
             onPressed: () => AzamanHaptics.toggle(),
-            child: Text('Clock Out', style: TextStyle(color: colors.success, fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text(
+              'Clock Out',
+              style: TextStyle(
+                color: colors.success,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -244,15 +320,18 @@ class _EwaCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.surface, borderRadius: BorderRadius.circular(16),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.border, width: 1),
       ),
       child: Row(
         children: [
           Container(
-            width: 44, height: 44,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: colors.accentSecondary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12),
+              color: colors.accentSecondary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(Icons.bolt, color: colors.accentSecondary, size: 22),
           ),
@@ -261,9 +340,18 @@ class _EwaCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('EWA Available', style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-                Text('\$${dash.ewaAvailable.toStringAsFixed(2)}',
-                    style: TextStyle(color: colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w700)),
+                Text(
+                  'EWA Available',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                ),
+                Text(
+                  '\$${dash.ewaAvailable.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
             ),
           ),
@@ -273,7 +361,14 @@ class _EwaCard extends StatelessWidget {
                 AzamanHaptics.toggle();
                 context.push('/worker/ewa');
               },
-              child: Text('Withdraw', style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w600)),
+              child: Text(
+                'Withdraw',
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
         ],
       ),
@@ -300,7 +395,10 @@ class _QuickActionsGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3, childAspectRatio: 1.0, crossAxisSpacing: 10, mainAxisSpacing: 10,
+        crossAxisCount: 3,
+        childAspectRatio: 1.0,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
       itemCount: actions.length,
       itemBuilder: (context, i) {
@@ -312,7 +410,8 @@ class _QuickActionsGrid extends StatelessWidget {
           },
           child: Container(
             decoration: BoxDecoration(
-              color: colors.surface, borderRadius: BorderRadius.circular(14),
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: colors.border, width: 1),
             ),
             child: Column(
@@ -320,7 +419,14 @@ class _QuickActionsGrid extends StatelessWidget {
               children: [
                 Icon(icon, color: colors.accent, size: 24),
                 const SizedBox(height: 6),
-                Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w500)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
@@ -340,7 +446,8 @@ class _TeamOnDutyCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.surface, borderRadius: BorderRadius.circular(16),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.border, width: 1),
       ),
       child: Column(
@@ -348,30 +455,71 @@ class _TeamOnDutyCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(color: colors.success, shape: BoxShape.circle)),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: colors.success,
+                  shape: BoxShape.circle,
+                ),
+              ),
               const SizedBox(width: 8),
-              Text('On Duty Now', style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
+              Text(
+                'On Duty Now',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          ...dash.teamOnDuty.map((m) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(color: colors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                  child: Center(child: Text(m.name.isNotEmpty ? m.name[0].toUpperCase() : '?',
-                      style: TextStyle(color: colors.accent, fontSize: 12, fontWeight: FontWeight.w700))),
-                ),
-                const SizedBox(width: 10),
-                Text(m.name, style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
-                const Spacer(),
-                if (m.shiftLabel != null)
-                  Text(m.shiftLabel!, style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-              ],
+          ...dash.teamOnDuty.map(
+            (m) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: colors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Text(
+                        m.name.isNotEmpty ? m.name[0].toUpperCase() : '?',
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    m.name,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (m.shiftLabel != null)
+                    Text(
+                      m.shiftLabel!,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          )),
+          ),
         ],
       ),
     );
@@ -388,38 +536,83 @@ class _FeedbackCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: colors.surface, borderRadius: BorderRadius.circular(16),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: colors.border, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent Feedback', style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 12),
-          ...dash.recentFeedback.map((f) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(
-              children: [
-                Row(children: List.generate(5, (i) => Icon(
-                  i < f.rating ? Icons.star : Icons.star_border,
-                  size: 14, color: Colors.amber))),
-                const SizedBox(width: 8),
-                Expanded(child: Text(f.giverName ?? 'Anonymous',
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12))),
-                if (f.comment != null)
-                  Text(f.comment!, maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.textTertiary, fontSize: 11)),
-              ],
+          Text(
+            'Recent Feedback',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
-          )),
+          ),
+          const SizedBox(height: 12),
+          ...dash.recentFeedback.map(
+            (f) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Row(
+                    children: List.generate(
+                      5,
+                      (i) => Icon(
+                        i < f.rating ? Icons.star : Icons.star_border,
+                        size: 14,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      f.giverName ?? 'Anonymous',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  if (f.comment != null)
+                    Text(
+                      f.comment!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-String _fmtTime(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+String _fmtTime(DateTime dt) =>
+    '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
 String _fmtDate(DateTime dt) {
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return '${months[dt.month - 1]} ${dt.day}';
 }

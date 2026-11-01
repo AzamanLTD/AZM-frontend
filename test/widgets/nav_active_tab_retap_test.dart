@@ -37,10 +37,7 @@ import 'package:azaman/widgets/premium_bottom_nav.dart';
 /// controller owned by the State, and the retap wired through
 /// [PremiumBottomNav.onActiveTabRetap].
 class _ShellHarness extends StatefulWidget {
-  const _ShellHarness({
-    this.reduceMotion = false,
-    this.pages = const [],
-  });
+  const _ShellHarness({this.reduceMotion = false, this.pages = const []});
 
   final bool reduceMotion;
   final List<Widget> pages;
@@ -72,8 +69,10 @@ class _ShellHarnessState extends State<_ShellHarness>
   @override
   Widget build(BuildContext context) {
     return MediaQuery(
-      data: MediaQuery.of(context)
-          .copyWith(disableAnimations: widget.reduceMotion || MediaQuery.disableAnimationsOf(context)),
+      data: MediaQuery.of(context).copyWith(
+        disableAnimations:
+            widget.reduceMotion || MediaQuery.disableAnimationsOf(context),
+      ),
       child: Scaffold(
         body: NotificationListener<ScrollNotification>(
           onNotification: (n) {
@@ -85,10 +84,7 @@ class _ShellHarnessState extends State<_ShellHarness>
             scale: retap.lift,
             child: IndexedStack(
               index: _tab,
-              children: [
-                ...widget.pages,
-                const SizedBox.shrink(),
-              ],
+              children: [...widget.pages, const SizedBox.shrink()],
             ),
           ),
         ),
@@ -161,16 +157,19 @@ void main() {
   tearDown(() => AzSensory.apply(const SensoryPreferences()));
 
   group('scroll-to-top (the spring)', () {
-    testWidgets('re-tap on a scrolled page springs it to the top, animated',
-        (tester) async {
-      await tester.pumpWidget(_host(_ShellHarness(
-        pages: [_longList(key: const Key('page-list'))],
-      )));
+    testWidgets('re-tap on a scrolled page springs it to the top, animated', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(_ShellHarness(pages: [_longList(key: const Key('page-list'))])),
+      );
       await tester.pumpAndSettle();
 
       // Scroll the page for real — the gesture drives the notifications.
       await tester.drag(
-          find.byKey(const Key('page-list')), const Offset(0, -1500));
+        find.byKey(const Key('page-list')),
+        const Offset(0, -1500),
+      );
       await tester.pumpAndSettle();
       final startOffset = _offset(0);
       expect(startOffset, greaterThan(500));
@@ -195,11 +194,12 @@ void main() {
       );
     });
 
-    testWidgets('re-tap at the top lifts the content and never scrolls it',
-        (tester) async {
-      await tester.pumpWidget(_host(_ShellHarness(
-        pages: [_longList(key: const Key('page-list'))],
-      )));
+    testWidgets('re-tap at the top lifts the content and never scrolls it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(_ShellHarness(pages: [_longList(key: const Key('page-list'))])),
+      );
       await tester.pumpAndSettle();
       // An unscrolled page may have never emitted a notification — no
       // recorded scrollable is still "at the top" for the retap contract.
@@ -235,19 +235,24 @@ void main() {
       expect(_offset(0) ?? 0, 0); // never scrolled
     });
 
-    testWidgets('reduced motion: instant jump to the top, no lift',
-        (tester) async {
-      await tester.pumpWidget(_host(
-        _ShellHarness(
+    testWidgets('reduced motion: instant jump to the top, no lift', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          _ShellHarness(
+            reduceMotion: true,
+            pages: [_longList(key: const Key('page-list'))],
+          ),
           reduceMotion: true,
-          pages: [_longList(key: const Key('page-list'))],
         ),
-        reduceMotion: true,
-      ));
+      );
       await tester.pumpAndSettle();
 
       await tester.drag(
-          find.byKey(const Key('page-list')), const Offset(0, -1500));
+        find.byKey(const Key('page-list')),
+        const Offset(0, -1500),
+      );
       await tester.pumpAndSettle();
       expect(_offset(0), greaterThan(500));
       await _restPill(tester);
@@ -267,29 +272,33 @@ void main() {
 
   group('which scrollable answers the re-tap', () {
     testWidgets('nested scrollables defer to the outer list', (tester) async {
-      await tester.pumpWidget(_host(_ShellHarness(
-        pages: [
-          ListView(
-            key: const Key('outer-list'),
-            children: [
-              for (var i = 0; i < 12; i++)
-                if (i == 6)
-                  SizedBox(
-                    height: 200,
-                    child: ListView(
-                      key: const Key('inner-list'),
-                      children: [
-                        for (var j = 0; j < 40; j++)
-                          ListTile(title: Text('Inner $j')),
-                      ],
-                    ),
-                  )
-                else
-                  ListTile(title: Text('Outer tile $i')),
+      await tester.pumpWidget(
+        _host(
+          _ShellHarness(
+            pages: [
+              ListView(
+                key: const Key('outer-list'),
+                children: [
+                  for (var i = 0; i < 12; i++)
+                    if (i == 6)
+                      SizedBox(
+                        height: 200,
+                        child: ListView(
+                          key: const Key('inner-list'),
+                          children: [
+                            for (var j = 0; j < 40; j++)
+                              ListTile(title: Text('Inner $j')),
+                          ],
+                        ),
+                      )
+                    else
+                      ListTile(title: Text('Outer tile $i')),
+                ],
+              ),
             ],
           ),
-        ],
-      )));
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Scroll the OUTER list by dragging a plain row (outside the inner).
@@ -311,20 +320,24 @@ void main() {
     });
 
     testWidgets('horizontal scrollables are never recorded', (tester) async {
-      await tester.pumpWidget(_host(_ShellHarness(
-        pages: [
-          ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              for (var i = 0; i < 30; i++)
-                SizedBox(
-                  width: 200,
-                  child: ListTile(title: Text('Rail $i')),
-                ),
+      await tester.pumpWidget(
+        _host(
+          _ShellHarness(
+            pages: [
+              ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (var i = 0; i < 30; i++)
+                    SizedBox(
+                      width: 200,
+                      child: ListTile(title: Text('Rail $i')),
+                    ),
+                ],
+              ),
             ],
           ),
-        ],
-      )));
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.drag(find.text('Rail 2'), const Offset(-800, 0));
@@ -335,19 +348,26 @@ void main() {
       expect(TabScrollRegistry.instance.primaryFor(0), isNull);
     });
 
-    testWidgets('per-tab isolation: one tab never scrolls for another',
-        (tester) async {
-      await tester.pumpWidget(_host(_ShellHarness(
-        pages: [
-          _longList(key: const Key('home-list')),
-          _longList(key: const Key('chat-list')),
-        ],
-      )));
+    testWidgets('per-tab isolation: one tab never scrolls for another', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(
+          _ShellHarness(
+            pages: [
+              _longList(key: const Key('home-list')),
+              _longList(key: const Key('chat-list')),
+            ],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Home scrolled (tab 0).
       await tester.drag(
-          find.byKey(const Key('home-list')), const Offset(0, -1500));
+        find.byKey(const Key('home-list')),
+        const Offset(0, -1500),
+      );
       await tester.pumpAndSettle();
       expect(_offset(0), greaterThan(300));
 
@@ -356,7 +376,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('nav-item-1')));
       await tester.pumpAndSettle();
       await tester.drag(
-          find.byKey(const Key('chat-list')), const Offset(0, -300));
+        find.byKey(const Key('chat-list')),
+        const Offset(0, -300),
+      );
       await tester.pumpAndSettle();
 
       final homeOffset = _offset(0);
@@ -373,15 +395,18 @@ void main() {
       expect(_offset(0), homeOffset);
     });
 
-    testWidgets('dead entries are dropped when their page unmounts',
-        (tester) async {
-      await tester.pumpWidget(_host(_ShellHarness(
-        pages: [_longList(key: const Key('page-list'))],
-      )));
+    testWidgets('dead entries are dropped when their page unmounts', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(_ShellHarness(pages: [_longList(key: const Key('page-list'))])),
+      );
       await tester.pumpAndSettle();
 
       await tester.drag(
-          find.byKey(const Key('page-list')), const Offset(0, -900));
+        find.byKey(const Key('page-list')),
+        const Offset(0, -900),
+      );
       await tester.pumpAndSettle();
       expect(TabScrollRegistry.instance.primaryFor(0), isNotNull);
 
@@ -393,8 +418,9 @@ void main() {
   });
 
   group('the nav seam', () {
-    testWidgets('a tap on the active tab fires the retap, never a selection',
-        (tester) async {
+    testWidgets('a tap on the active tab fires the retap, never a selection', (
+      tester,
+    ) async {
       var retaps = 0;
       final selections = <int>[];
       await tester.pumpWidget(
@@ -432,33 +458,34 @@ void main() {
     });
 
     testWidgets(
-        'legacy callers without onActiveTabRetap keep the haptic-only ack',
-        (tester) async {
-      final selections = <int>[];
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            totalUnreadChatCountProvider.overrideWith((ref) async => 0),
-            activeTradeCountProvider.overrideWith((ref) async => 0),
-            unreadCountProvider.overrideWith((ref) => 0),
-          ],
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: Scaffold(
-              bottomNavigationBar: PremiumBottomNav(
-                selectedIndex: 0,
-                onItemSelected: selections.add,
+      'legacy callers without onActiveTabRetap keep the haptic-only ack',
+      (tester) async {
+        final selections = <int>[];
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              totalUnreadChatCountProvider.overrideWith((ref) async => 0),
+              activeTradeCountProvider.overrideWith((ref) async => 0),
+              unreadCountProvider.overrideWith((ref) => 0),
+            ],
+            child: MaterialApp(
+              debugShowCheckedModeBanner: false,
+              home: Scaffold(
+                bottomNavigationBar: PremiumBottomNav(
+                  selectedIndex: 0,
+                  onItemSelected: selections.add,
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // No retap wired → the tap is inert, and never a re-selection.
-      await tester.tap(find.byKey(const ValueKey('nav-item-0')));
-      await tester.pump();
-      expect(selections, isEmpty);
-    });
+        // No retap wired → the tap is inert, and never a re-selection.
+        await tester.tap(find.byKey(const ValueKey('nav-item-0')));
+        await tester.pump();
+        expect(selections, isEmpty);
+      },
+    );
   });
 }

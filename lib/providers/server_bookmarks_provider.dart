@@ -44,8 +44,10 @@ import 'package:azaman/services/server_bookmark_service.dart';
 class ServerBookmarksState {
   /// The caller's bookmarks, newest first (server order).
   final List<ServerBookmark> bookmarks;
+
   /// Whether the first hydrate has completed.
   final bool loaded;
+
   /// Honest load failure — the last known list is retained when set.
   final String? error;
 
@@ -75,9 +77,11 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
   /// [service] injectable so the contract is testable at the provider
   /// boundary. [autoHydrate] false skips the initial list fetch (tests
   /// that seed state directly).
-  ServerBookmarksNotifier({ServerBookmarkService? service, bool autoHydrate = true})
-      : _service = service ?? ServerBookmarkService(),
-        super(const ServerBookmarksState()) {
+  ServerBookmarksNotifier({
+    ServerBookmarkService? service,
+    bool autoHydrate = true,
+  }) : _service = service ?? ServerBookmarkService(),
+       super(const ServerBookmarksState()) {
     if (autoHydrate) hydrate();
   }
 
@@ -96,7 +100,11 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
       final page = await _service.list();
       // Success clears any stale error AND any optimistic placeholders:
       // the server list is the whole truth.
-      state = state.copyWith(bookmarks: page.bookmarks, loaded: true, clearError: true);
+      state = state.copyWith(
+        bookmarks: page.bookmarks,
+        loaded: true,
+        clearError: true,
+      );
     } catch (e) {
       // Keep the last known list; record the honest failure. NEVER
       // clear the user's bookmarks because a load failed.
@@ -147,17 +155,20 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
           businessProfileId: result.businessProfileId,
           businessName: '',
           category: '',
-          savedAt: result.savedAt ??
+          savedAt:
+              result.savedAt ??
               state.bookmarks
                   .firstWhere(
-                      (b) => b.businessProfileId == result.businessProfileId)
+                    (b) => b.businessProfileId == result.businessProfileId,
+                  )
                   .savedAt,
         );
         state = state.copyWith(
           bookmarks: [
             confirmed,
-            ...state.bookmarks
-                .where((b) => b.businessProfileId != result.businessProfileId),
+            ...state.bookmarks.where(
+              (b) => b.businessProfileId != result.businessProfileId,
+            ),
           ],
         );
         return true;
@@ -183,10 +194,12 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
     if (_demo) return false;
     if (!isSaved(businessProfileId)) return true;
 
-    final removed = state.bookmarks
-        .firstWhere((b) => b.businessProfileId == businessProfileId);
-    final originalIndex =
-        state.bookmarks.indexWhere((b) => b.businessProfileId == businessProfileId);
+    final removed = state.bookmarks.firstWhere(
+      (b) => b.businessProfileId == businessProfileId,
+    );
+    final originalIndex = state.bookmarks.indexWhere(
+      (b) => b.businessProfileId == businessProfileId,
+    );
     state = state.copyWith(
       bookmarks: state.bookmarks
           .where((b) => b.businessProfileId != businessProfileId)
@@ -197,7 +210,9 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
     void rollbackOwn() {
       // A concurrent settle for this id (hydrate or re-save) wins over
       // the stale optimistic removal — never overwrite a live row.
-      if (state.bookmarks.any((b) => b.businessProfileId == businessProfileId)) {
+      if (state.bookmarks.any(
+        (b) => b.businessProfileId == businessProfileId,
+      )) {
         return;
       }
       final next = [...state.bookmarks];
@@ -222,8 +237,10 @@ class ServerBookmarksNotifier extends StateNotifier<ServerBookmarksState> {
 
 final serverBookmarksProvider =
     StateNotifierProvider<ServerBookmarksNotifier, ServerBookmarksState>(
-        (ref) => ServerBookmarksNotifier(
-            service: ServerBookmarkService(client: ref.watch(apiClientProvider))));
+      (ref) => ServerBookmarksNotifier(
+        service: ServerBookmarkService(client: ref.watch(apiClientProvider)),
+      ),
+    );
 
 /// The durable bookmark ids — canonical BusinessProfile.id values.
 /// Cards select from this set; it always agrees with the full state.
@@ -254,8 +271,11 @@ bool isBusinessSaved(WidgetRef ref, BusinessProfile business) {
 /// (true = saved). On rejection the optimistic change has already been
 /// rolled back, so the icon snaps back on its own; a SnackBar tells
 /// the user why.
-Future<bool> toggleBusinessSaved(BuildContext context, WidgetRef ref,
-    BusinessProfile business) async {
+Future<bool> toggleBusinessSaved(
+  BuildContext context,
+  WidgetRef ref,
+  BusinessProfile business,
+) async {
   if (AppConfig.demoMode) {
     await ref.read(savedBusinessesProvider.notifier).toggle(business.bizId);
     return ref.read(savedBusinessesProvider).contains(business.bizId);
@@ -269,9 +289,11 @@ Future<bool> toggleBusinessSaved(BuildContext context, WidgetRef ref,
     if (!context.mounted) return nowSaved;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(nowSaved
-            ? 'Could not remove this bookmark. Not saved — try again.'
-            : 'Could not save this business. Not saved — try again.'),
+        content: Text(
+          nowSaved
+              ? 'Could not remove this bookmark. Not saved — try again.'
+              : 'Could not save this business. Not saved — try again.',
+        ),
         duration: const Duration(seconds: 2),
       ),
     );

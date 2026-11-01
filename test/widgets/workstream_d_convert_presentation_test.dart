@@ -301,10 +301,9 @@ void main() {
   group('D3 — surface grammar', () {
     testWidgets('Max fill is OMITTED until the canonical balance read '
         'has loaded — never a fabricated figure', (tester) async {
-      await tester.pumpWidget(_convertHarness(
-        snapshot: _usableSnapshot(),
-        balanceLoaded: false,
-      ));
+      await tester.pumpWidget(
+        _convertHarness(snapshot: _usableSnapshot(), balanceLoaded: false),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('convert_max_absent')), findsOneWidget);
@@ -314,10 +313,9 @@ void main() {
 
     testWidgets('Max fill appears with the balance line once the read '
         'loads', (tester) async {
-      await tester.pumpWidget(_convertHarness(
-        snapshot: _usableSnapshot(),
-        balanceLoaded: true,
-      ));
+      await tester.pumpWidget(
+        _convertHarness(snapshot: _usableSnapshot(), balanceLoaded: true),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('convert_max')), findsOneWidget);
@@ -326,11 +324,13 @@ void main() {
 
     testWidgets('tapping Max fills the field with the full available '
         'balance at display precision', (tester) async {
-      await tester.pumpWidget(_convertHarness(
-        snapshot: _usableSnapshot(),
-        balanceLoaded: true,
-        availableBalance: 987.65,
-      ));
+      await tester.pumpWidget(
+        _convertHarness(
+          snapshot: _usableSnapshot(),
+          balanceLoaded: true,
+          availableBalance: 987.65,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('convert_max')));
@@ -345,11 +345,13 @@ void main() {
     testWidgets('Max fill carries sub-pesewa dust down to display '
         'precision — the field shows the same figure the balance line '
         'shows', (tester) async {
-      await tester.pumpWidget(_convertHarness(
-        snapshot: _usableSnapshot(),
-        balanceLoaded: true,
-        availableBalance: 987.654321,
-      ));
+      await tester.pumpWidget(
+        _convertHarness(
+          snapshot: _usableSnapshot(),
+          balanceLoaded: true,
+          availableBalance: 987.654321,
+        ),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('convert_max')));
@@ -363,10 +365,9 @@ void main() {
 
     testWidgets('Max is OMITTED in the reversed direction (GHS has no '
         'balance to disclose)', (tester) async {
-      await tester.pumpWidget(_convertHarness(
-        snapshot: _usableSnapshot(),
-        balanceLoaded: true,
-      ));
+      await tester.pumpWidget(
+        _convertHarness(snapshot: _usableSnapshot(), balanceLoaded: true),
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('convert_direction_switch')));
@@ -378,11 +379,13 @@ void main() {
 
     testWidgets('a zero available balance renders no Max (an empty fill '
         'would be a lie about what Max means)', (tester) async {
-      await tester.pumpWidget(_convertHarness(
-        snapshot: _usableSnapshot(),
-        balanceLoaded: true,
-        availableBalance: 0,
-      ));
+      await tester.pumpWidget(
+        _convertHarness(
+          snapshot: _usableSnapshot(),
+          balanceLoaded: true,
+          availableBalance: 0,
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('convert_max_absent')), findsOneWidget);

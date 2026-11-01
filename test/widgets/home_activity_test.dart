@@ -35,8 +35,9 @@ Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
   final bytes = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
   final loader = FontLoader('Inter')
-    ..addFont(Future<ByteData>.value(
-        ByteData.view(Uint8List.fromList(bytes).buffer)));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
   _fontsLoaded = true;
 }
@@ -74,11 +75,13 @@ class _RecordingHistoryNotifier extends TransactionHistoryNotifier {
   }
 }
 
-TransactionRecord _record(String rawType,
-    {double amountUsdc = -1,
-    Map<String, dynamic> metadata = const {},
-    String providerRef = 'ref-x',
-    String status = 'COMPLETED'}) {
+TransactionRecord _record(
+  String rawType, {
+  double amountUsdc = -1,
+  Map<String, dynamic> metadata = const {},
+  String providerRef = 'ref-x',
+  String status = 'COMPLETED',
+}) {
   return TransactionRecord(
     id: 'txn-$rawType',
     rawType: rawType,
@@ -96,7 +99,7 @@ TransactionRecord _record(String rawType,
 /// EXTRA, and entering the activity state fetches exactly once.
 class _RecordingHomeSummaryNotifier extends HomeSummaryNotifier {
   _RecordingHomeSummaryNotifier(Ref ref, HomeSummaryService service)
-      : super(ref, service);
+    : super(ref, service);
 
   int refreshCalls = 0;
 
@@ -108,13 +111,12 @@ class _RecordingHomeSummaryNotifier extends HomeSummaryNotifier {
 }
 
 Future<
-    (
-      _RecordingHomeSummaryNotifier,
-      _RecordingHistoryNotifier,
-      ProviderContainer
-    )> _pumpHome(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues(
-      {'has_seen_flippable_card_hint': true});
+  (_RecordingHomeSummaryNotifier, _RecordingHistoryNotifier, ProviderContainer)
+>
+_pumpHome(WidgetTester tester) async {
+  SharedPreferences.setMockInitialValues({
+    'has_seen_flippable_card_hint': true,
+  });
   await tester.runAsync(_loadFonts);
   await tester.binding.setSurfaceSize(_surfaceSize);
 
@@ -126,12 +128,16 @@ Future<
   final history = _RecordingHistoryNotifier([
     [
       _record('DEPOSIT_FIAT', amountUsdc: 5),
-      _record('INTERNAL_TRANSFER',
-          amountUsdc: -2,
-          metadata: {'recipientAzamId': 'azm-77',
-              'recipientName': 'Ama'}),
-      _record('SUSU_CONTRIBUTION',
-          amountUsdc: -1, metadata: {'susuGroupId': 'susu-9'}),
+      _record(
+        'INTERNAL_TRANSFER',
+        amountUsdc: -2,
+        metadata: {'recipientAzamId': 'azm-77', 'recipientName': 'Ama'},
+      ),
+      _record(
+        'SUSU_CONTRIBUTION',
+        amountUsdc: -1,
+        metadata: {'susuGroupId': 'susu-9'},
+      ),
       _record('P2P_TRADE_SETTLED', amountUsdc: -3, providerRef: 'trade-77'),
       _record('DEPOSIT_FIAT', amountUsdc: 10, providerRef: 'd5'),
       _record('DEPOSIT_FIAT', amountUsdc: 11, providerRef: 'd6'),
@@ -150,9 +156,13 @@ Future<
       _record('DEPOSIT_FIAT', amountUsdc: 20, providerRef: 'd15'),
       _record('DEPOSIT_FIAT', amountUsdc: 21, providerRef: 'd16'),
       ...List.generate(
-          8,
-          (i) => _record('DEPOSIT_FIAT',
-              amountUsdc: (22 + i).toDouble(), providerRef: 'filler-$i')),
+        8,
+        (i) => _record(
+          'DEPOSIT_FIAT',
+          amountUsdc: (22 + i).toDouble(),
+          providerRef: 'filler-$i',
+        ),
+      ),
     ],
     [_record('WITHDRAWAL_CRYPTO', amountUsdc: -4)],
   ]);
@@ -162,11 +172,11 @@ Future<
       transactionHistoryProvider.overrideWith((ref) => history),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
-          (ref) => const BalanceData(availableBalance: 100)),
+        (ref) => const BalanceData(availableBalance: 100),
+      ),
       oracleRateProvider.overrideWith((ref) => 1.0),
       homeSummaryProvider.overrideWith((ref) {
-        notifier ??=
-            _RecordingHomeSummaryNotifier(ref, HomeSummaryService());
+        notifier ??= _RecordingHomeSummaryNotifier(ref, HomeSummaryService());
         return notifier!;
       }),
     ],
@@ -214,7 +224,9 @@ Future<void> _enterActivity(WidgetTester tester) async {
   }
   for (var attempt = 0; attempt < 2; attempt++) {
     await tester.drag(
-        find.byType(RecentActivityDoorway), const Offset(0, -260));
+      find.byType(RecentActivityDoorway),
+      const Offset(0, -260),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 900));
     if (_activityOpacity(tester) > 0.99) return;
@@ -233,19 +245,22 @@ double _activityOpacity(WidgetTester tester) {
 void main() {
   group('ActivityHandoffPhysics (pure)', () {
     test('resisted progress + deliberate threshold', () {
-      expect(ActivityHandoffPhysics.revealFor(0.25), lessThan(0.25),
-          reason: 'the handoff resists early movement');
+      expect(
+        ActivityHandoffPhysics.revealFor(0.25),
+        lessThan(0.25),
+        reason: 'the handoff resists early movement',
+      );
       expect(ActivityHandoffPhysics.commits(0.3), isFalse);
       expect(ActivityHandoffPhysics.commits(0.5), isFalse);
       expect(
-          ActivityHandoffPhysics.commits(
-              ActivityHandoffPhysics.commitThreshold),
-          isTrue);
+        ActivityHandoffPhysics.commits(ActivityHandoffPhysics.commitThreshold),
+        isTrue,
+      );
       expect(ActivityHandoffPhysics.progressFor(-10), 0);
       expect(
-          ActivityHandoffPhysics.progressFor(
-              ActivityHandoffPhysics.travelPx * 4),
-          1.0);
+        ActivityHandoffPhysics.progressFor(ActivityHandoffPhysics.travelPx * 4),
+        1.0,
+      );
     });
   });
 
@@ -256,44 +271,54 @@ void main() {
         ActivityActionResolver.resolve(t);
 
     test('maps the structured rawType, never the title', () {
-      expect(resolve(_record('SUSU_CONTRIBUTION')).type,
-          ActivityActionType.viewSusu);
+      expect(
+        resolve(_record('SUSU_CONTRIBUTION')).type,
+        ActivityActionType.viewSusu,
+      );
     });
 
     test('deposit / withdrawal / trade mapping', () {
-      expect(resolve(_record('DEPOSIT_FIAT')).type,
-          ActivityActionType.viewDeposit);
-      expect(resolve(_record('WITHDRAWAL_CRYPTO')).type,
-          ActivityActionType.viewWithdrawal);
+      expect(
+        resolve(_record('DEPOSIT_FIAT')).type,
+        ActivityActionType.viewDeposit,
+      );
+      expect(
+        resolve(_record('WITHDRAWAL_CRYPTO')).type,
+        ActivityActionType.viewWithdrawal,
+      );
     });
 
     test('a trade with a real reference opens the trade route; without one '
         'it falls back to details (never guesses)', () {
       expect(
-          resolve(_record('P2P_TRADE_SETTLED', providerRef: 'trade-77'))
-              .type,
-          ActivityActionType.viewTrade);
+        resolve(_record('P2P_TRADE_SETTLED', providerRef: 'trade-77')).type,
+        ActivityActionType.viewTrade,
+      );
       expect(
-          resolve(_record('P2P_TRADE_SETTLED', providerRef: 'trade-77'))
-              .reference,
-          'trade-77');
+        resolve(
+          _record('P2P_TRADE_SETTLED', providerRef: 'trade-77'),
+        ).reference,
+        'trade-77',
+      );
       expect(
-          resolve(_record('P2P_TRADE_SETTLED', providerRef: ''))
-              .type,
-          ActivityActionType.viewDetails);
+        resolve(_record('P2P_TRADE_SETTLED', providerRef: '')).type,
+        ActivityActionType.viewDetails,
+      );
     });
 
     test('SEND AGAIN: only an outbound transfer WITH authoritative '
         'recipient metadata — a display title never counts', () {
       // Outbound + recipient AZM ID in metadata → the action carries the
       // payload explicitly.
-      final outbound = _record('INTERNAL_TRANSFER',
-          amountUsdc: -2,
-          metadata: {
-            'recipientAzamId': 'azm-77',
-            'recipientName': 'Ama',
-            'description': 'A misleading display description',
-          });
+      final outbound = _record(
+        'INTERNAL_TRANSFER',
+        amountUsdc: -2,
+        metadata: {
+          'recipientAzamId': 'azm-77',
+          'recipientName': 'Ama',
+          'description': 'A misleading display description',
+        },
+      );
       final resolvedOut = resolve(outbound);
       expect(resolvedOut.type, ActivityActionType.sendAgain);
       expect(resolvedOut.recipient, isNotNull);
@@ -305,21 +330,26 @@ void main() {
       expect(resolve(anonymous).type, ActivityActionType.viewDetails);
 
       // INCOMING transfer (credit) → never Send Again without a contract.
-      final incoming = _record('INTERNAL_TRANSFER',
-          amountUsdc: 2,
-          metadata: {'counterpartyAzamId': 'azm-77'});
+      final incoming = _record(
+        'INTERNAL_TRANSFER',
+        amountUsdc: 2,
+        metadata: {'counterpartyAzamId': 'azm-77'},
+      );
       expect(resolve(incoming).type, ActivityActionType.viewDetails);
     });
 
     test('unknown kinds resolve to the safe details fallback', () {
-      expect(resolve(_record('WEIRD_THING')).type,
-          ActivityActionType.viewDetails);
+      expect(
+        resolve(_record('WEIRD_THING')).type,
+        ActivityActionType.viewDetails,
+      );
     });
   });
 
   group('Home — two resting states + the lazy-load boundary', () {
-    testWidgets('resting Home: doorway present, no rows, no extra fetch',
-        (tester) async {
+    testWidgets('resting Home: doorway present, no rows, no extra fetch', (
+      tester,
+    ) async {
       final (notifier, history, _) = await _pumpHome(tester);
 
       expect(find.byType(RecentActivityDoorway), findsOneWidget);
@@ -332,17 +362,26 @@ void main() {
       // The surface is mounted (it fades in during the drag) but not
       // entered: opacity 0 and NO fetch beyond the NEW-D prime.
       expect(_activityOpacity(tester), 0.0);
-      expect(notifier.refreshCalls, 1,
-          reason: 'only the NEW-D prime fetch — the resting Home fetches '
-              'nothing to decorate a preview');
-      expect(history.refreshCalls, 0,
-          reason: 'AUDIT §12: the transaction history fetch happens ONLY '
-              'on entry — resting Home never pre-fetches activity data');
+      expect(
+        notifier.refreshCalls,
+        1,
+        reason:
+            'only the NEW-D prime fetch — the resting Home fetches '
+            'nothing to decorate a preview',
+      );
+      expect(
+        history.refreshCalls,
+        0,
+        reason:
+            'AUDIT §12: the transaction history fetch happens ONLY '
+            'on entry — resting Home never pre-fetches activity data',
+      );
       expect(history.loadMoreCalls, 0);
     });
 
-    testWidgets('below-threshold pull returns to the wallet state',
-        (tester) async {
+    testWidgets('below-threshold pull returns to the wallet state', (
+      tester,
+    ) async {
       final (notifier, history, _) = await _pumpHome(tester);
 
       // 60px < 0.55 × 170px travel — below the commit threshold.
@@ -352,16 +391,27 @@ void main() {
       await tester.ensureVisible(find.byType(RecentActivityDoorway));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.drag(
-          find.byType(RecentActivityDoorway), const Offset(0, -60));
+        find.byType(RecentActivityDoorway),
+        const Offset(0, -60),
+      );
       await tester.pump(const Duration(milliseconds: 900));
       await tester.pump(const Duration(milliseconds: 900));
 
-      expect(_activityOpacity(tester), lessThan(0.05),
-          reason: 'a sub-threshold pull must return to rest');
-      expect(notifier.refreshCalls, 1,
-          reason: 'no entry fetch below the threshold');
-      expect(history.refreshCalls, 0,
-          reason: 'no activity fetch without an actual entry');
+      expect(
+        _activityOpacity(tester),
+        lessThan(0.05),
+        reason: 'a sub-threshold pull must return to rest',
+      );
+      expect(
+        notifier.refreshCalls,
+        1,
+        reason: 'no entry fetch below the threshold',
+      );
+      expect(
+        history.refreshCalls,
+        0,
+        reason: 'no activity fetch without an actual entry',
+      );
     });
 
     testWidgets('crossing the threshold commits the activity state and '
@@ -374,30 +424,46 @@ void main() {
       // the NEXT frame.
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(_activityOpacity(tester), greaterThan(0.99),
-          reason: 'the activity surface snaps into focus');
+      expect(
+        _activityOpacity(tester),
+        greaterThan(0.99),
+        reason: 'the activity surface snaps into focus',
+      );
       // CORRECTION A: the header is the premium identity + UP arrow only —
       // the "← Wallet" back affordance is gone; the reverse pull hands back.
       expect(find.text('← Wallet'), findsNothing);
-      expect(find.byKey(const ValueKey('home-activity-header-title')),
-          findsOneWidget);
-      expect(notifier.refreshCalls, 1,
-          reason: 'AUDIT §12: entering the activity state does NOT touch '
-              'the home summary (rates/friend requests/notifications are '
-              'not the activity data source)');
-      expect(history.refreshCalls, 1,
-          reason: 'AUDIT §12: the REAL lazy-load boundary — entering the '
-              'activity state fetches the real transaction history '
-              '(/finance/transactions) exactly once');
+      expect(
+        find.byKey(const ValueKey('home-activity-header-title')),
+        findsOneWidget,
+      );
+      expect(
+        notifier.refreshCalls,
+        1,
+        reason:
+            'AUDIT §12: entering the activity state does NOT touch '
+            'the home summary (rates/friend requests/notifications are '
+            'not the activity data source)',
+      );
+      expect(
+        history.refreshCalls,
+        1,
+        reason:
+            'AUDIT §12: the REAL lazy-load boundary — entering the '
+            'activity state fetches the real transaction history '
+            '(/finance/transactions) exactly once',
+      );
       expect(find.byType(HomeActivitySurface), findsOneWidget);
-      expect(find.text('Send again'), findsOneWidget,
-          reason: 'the outbound transfer with recipient metadata carries '
-              'the Send Again action');
+      expect(
+        find.text('Send again'),
+        findsOneWidget,
+        reason:
+            'the outbound transfer with recipient metadata carries '
+            'the Send Again action',
+      );
     });
 
     testWidgets('AUDIT §12: cursor pagination — the list continues beyond '
-        'the first page (nothing hard-stops after four items)',
-        (tester) async {
+        'the first page (nothing hard-stops after four items)', (tester) async {
       final (_, history, _) = await _pumpHome(tester);
 
       await _enterActivity(tester);
@@ -417,22 +483,32 @@ void main() {
       // flips false), so the page load — not the tile's presence — is
       // the done-signal here.
       for (var i = 0; i < 8 && history.loadMoreCalls < 2; i++) {
-        await tester.drag(find.byKey(const ValueKey('home-activity-list')),
-            const Offset(0, -600));
+        await tester.drag(
+          find.byKey(const ValueKey('home-activity-list')),
+          const Offset(0, -600),
+        );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 200));
       }
 
-      expect(history.loadMoreCalls, 2,
-          reason: 'the cursor pagination (hasMore/nextCursor) continues '
-              'the list beyond the first page');
-      expect(find.text('View withdrawal'), findsOneWidget,
-          reason: 'the second page record rendered');
+      expect(
+        history.loadMoreCalls,
+        2,
+        reason:
+            'the cursor pagination (hasMore/nextCursor) continues '
+            'the list beyond the first page',
+      );
+      expect(
+        find.text('View withdrawal'),
+        findsOneWidget,
+        reason: 'the second page record rendered',
+      );
     });
 
     testWidgets('AUDIT §1: pulling down from the top of the activity '
-        'surface hands back to the wallet state (the reverse handoff)',
-        (tester) async {
+        'surface hands back to the wallet state (the reverse handoff)', (
+      tester,
+    ) async {
       final (_, history, _) = await _pumpHome(tester);
 
       // Enter the activity state.
@@ -448,16 +524,21 @@ void main() {
       // committed surface, not a touch. The small-pull counterpart below
       // pins that a 60px pull springs back.
       final header = find.descendant(
-          of: find.byType(HomeActivitySurface),
-          matching: find.text('Recent'));
+        of: find.byType(HomeActivitySurface),
+        matching: find.text('Recent'),
+      );
       expect(header, findsOneWidget);
       await tester.drag(header, const Offset(0, 260));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 900));
 
-      expect(_activityOpacity(tester), lessThan(0.05),
-          reason: 'the reverse handoff collapses the activity state back '
-              'to the wallet resting state');
+      expect(
+        _activityOpacity(tester),
+        lessThan(0.05),
+        reason:
+            'the reverse handoff collapses the activity state back '
+            'to the wallet resting state',
+      );
       // The activity surface still exists (mounted, dormant) and the
       // data is still cached: no re-fetch from a collapse.
       expect(history.refreshCalls, 1);
@@ -471,22 +552,29 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       await tester.drag(
-          find.descendant(
-              of: find.byType(HomeActivitySurface),
-              matching: find.text('Recent')),
-          const Offset(0, 60));
+        find.descendant(
+          of: find.byType(HomeActivitySurface),
+          matching: find.text('Recent'),
+        ),
+        const Offset(0, 60),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 900));
 
-      expect(_activityOpacity(tester), greaterThan(0.99),
-          reason: 'a sub-threshold reverse pull stays in the activity '
-              'state — the same commit threshold as the forward handoff');
+      expect(
+        _activityOpacity(tester),
+        greaterThan(0.99),
+        reason:
+            'a sub-threshold reverse pull stays in the activity '
+            'state — the same commit threshold as the forward handoff',
+      );
       expect(history.refreshCalls, 1);
     });
 
     testWidgets('AUDIT §1: pulling down on the LIST at its top boundary '
-        '(the first activity row) hands back through the overscroll',
-        (tester) async {
+        '(the first activity row) hands back through the overscroll', (
+      tester,
+    ) async {
       final (_, history, _) = await _pumpHome(tester);
 
       await _enterActivity(tester);
@@ -499,15 +587,20 @@ void main() {
       // drag is exactly that overscroll. Same deliberate threshold
       // grammar: 260px passes the armed point.
       await tester.drag(
-          find.byKey(const ValueKey('home-activity-list')),
-          const Offset(0, 260));
+        find.byKey(const ValueKey('home-activity-list')),
+        const Offset(0, 260),
+      );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 900));
 
-      expect(_activityOpacity(tester), lessThan(0.05),
-          reason: 'the at-top overscroll drives the same reverse '
-              'handoff — a pull from the first row hands back to the '
-              'wallet resting state');
+      expect(
+        _activityOpacity(tester),
+        lessThan(0.05),
+        reason:
+            'the at-top overscroll drives the same reverse '
+            'handoff — a pull from the first row hands back to the '
+            'wallet resting state',
+      );
       expect(history.refreshCalls, 1);
     });
 
@@ -522,13 +615,16 @@ void main() {
       // The first-viewport drag lands on the cued heading's surrounding
       // padding / surface chrome — an area with no tap target and no
       // scrollable, so only the surface-level vertical drag can claim it.
-      final surfaceRect =
-          tester.getRect(find.byType(HomeActivitySurface));
-      final listRect =
-          tester.getRect(find.byKey(const ValueKey('home-activity-list')));
-      final headerRect = tester.getRect(find.descendant(
+      final surfaceRect = tester.getRect(find.byType(HomeActivitySurface));
+      final listRect = tester.getRect(
+        find.byKey(const ValueKey('home-activity-list')),
+      );
+      final headerRect = tester.getRect(
+        find.descendant(
           of: find.byType(HomeActivitySurface),
-          matching: find.text('Recent')));
+          matching: find.text('Recent'),
+        ),
+      );
 
       // A spot strictly inside the surface but above the list and below
       // the heading text — the heading inset band.
@@ -536,8 +632,11 @@ void main() {
         surfaceRect.center.dx,
         (headerRect.bottom + listRect.top) / 2,
       );
-      expect(spot.dy, lessThan(listRect.top),
-          reason: 'the probe point must sit outside the list');
+      expect(
+        spot.dy,
+        lessThan(listRect.top),
+        reason: 'the probe point must sit outside the list',
+      );
 
       final gesture = await tester.startGesture(spot);
       for (var i = 0; i < 13; i++) {
@@ -548,9 +647,13 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 900));
 
-      expect(_activityOpacity(tester), lessThan(0.05),
-          reason: 'an arbitrary-area pull drives the same reverse '
-              'handoff back to the wallet resting state');
+      expect(
+        _activityOpacity(tester),
+        lessThan(0.05),
+        reason:
+            'an arbitrary-area pull drives the same reverse '
+            'handoff back to the wallet resting state',
+      );
       expect(history.refreshCalls, 1);
     });
   });

@@ -17,7 +17,8 @@ class DampedSpringCurve extends Curve {
   double transformInternal(double t) {
     final d = zeta * omega;
     final wd = omega * math.sqrt(1 - zeta * zeta);
-    return 1.0 - math.exp(-d * t) * (math.cos(wd * t) + (d / wd) * math.sin(wd * t));
+    return 1.0 -
+        math.exp(-d * t) * (math.cos(wd * t) + (d / wd) * math.sin(wd * t));
   }
 }
 
@@ -47,8 +48,10 @@ class GooRim {
   final double inner;
   const GooRim(this.outer, this.inner);
 
-  static GooRim lerp(GooRim a, GooRim b, double t) =>
-      GooRim(ui.lerpDouble(a.outer, b.outer, t)!, ui.lerpDouble(a.inner, b.inner, t)!);
+  static GooRim lerp(GooRim a, GooRim b, double t) => GooRim(
+    ui.lerpDouble(a.outer, b.outer, t)!,
+    ui.lerpDouble(a.inner, b.inner, t)!,
+  );
 }
 
 const List<double> _kSigmaKnots = [1, 4, 5, 7];
@@ -66,18 +69,37 @@ GooRim gooRimFor(double sigma) {
     final lo = _kSigmaKnots[i], hi = _kSigmaKnots[i + 1];
     if (s <= hi) {
       return GooRim.lerp(
-          _kRimTable[lo.toInt()]!, _kRimTable[hi.toInt()]!, (s - lo) / (hi - lo));
+        _kRimTable[lo.toInt()]!,
+        _kRimTable[hi.toInt()]!,
+        (s - lo) / (hi - lo),
+      );
     }
   }
   return _kRimTable[7]!;
 }
 
 ui.ColorFilter gooThreshold(double offset) => ui.ColorFilter.matrix(<double>[
-      1, 0, 0, 0, 0,
-      0, 1, 0, 0, 0,
-      0, 0, 1, 0, 0,
-      0, 0, 0, kGooAlphaGain, offset * _kAlphaScale,
-    ]);
+  1,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0,
+  0,
+  0,
+  0,
+  kGooAlphaGain,
+  offset * _kAlphaScale,
+]);
 
 const double kGooBlurRest = 1.0;
 const double kGooBlurGrab = 5.0;
@@ -109,9 +131,12 @@ void paintGoo(
         ),
       );
     canvas.saveLayer(bounds, layer);
-    shapes(canvas, Paint()
-      ..color = color
-      ..isAntiAlias = true);
+    shapes(
+      canvas,
+      Paint()
+        ..color = color
+        ..isAntiAlias = true,
+    );
     canvas.restore();
   }
 
@@ -127,9 +152,15 @@ Path squirclePath(Rect rect, double radius) {
   final w = rect.width, h = rect.height;
   final s = math.min(radius * 1.528665, math.min(w / 2, h / 2));
   double u(double k) => s * (k / 1.528665);
-  final c = [1.528665, 1.08849, 0.86840, 0.63149, 0.37283, 0.16906, 0.07491]
-      .map(u)
-      .toList(growable: false);
+  final c = [
+    1.528665,
+    1.08849,
+    0.86840,
+    0.63149,
+    0.37283,
+    0.16906,
+    0.07491,
+  ].map(u).toList(growable: false);
   final l = rect.left, t = rect.top, rr = rect.right, b = rect.bottom;
 
   return Path()
@@ -159,9 +190,9 @@ Path squirclePath(Rect rect, double radius) {
 
 class GooBead {
   final double follow; // fraction of full travel
-  final double size;   // radius multiplier
-  final double thin;   // necking at full tension
-  final double lag;    // trailing offset
+  final double size; // radius multiplier
+  final double thin; // necking at full tension
+  final double lag; // trailing offset
   const GooBead(this.follow, this.size, this.thin, this.lag);
 }
 

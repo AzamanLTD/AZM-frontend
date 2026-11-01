@@ -23,7 +23,10 @@ import 'package:azaman/models/business_models.dart';
 
 // ── Providers ───────────────────────────────────────────────────────────────
 
-final orderTrackingProvider = FutureProvider.family<OrderTracking, String>((ref, orderId) async {
+final orderTrackingProvider = FutureProvider.family<OrderTracking, String>((
+  ref,
+  orderId,
+) async {
   final res = await apiClient.get('/orders/$orderId/tracking');
   if (res.statusCode != 200) throw Exception('Failed to load tracking');
   final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -31,13 +34,16 @@ final orderTrackingProvider = FutureProvider.family<OrderTracking, String>((ref,
   return OrderTracking.fromJson(body['tracking'] as Map<String, dynamic>);
 });
 
-final orderTimelineProvider = FutureProvider.family<List<TimelineEvent>, String>((ref, orderId) async {
-  final res = await apiClient.get('/orders/$orderId/tracking/timeline');
-  if (res.statusCode != 200) return [];
-  final body = jsonDecode(res.body) as Map<String, dynamic>;
-  final list = body['timeline'] as List<dynamic>? ?? [];
-  return list.map((e) => TimelineEvent.fromJson(e as Map<String, dynamic>)).toList();
-});
+final orderTimelineProvider =
+    FutureProvider.family<List<TimelineEvent>, String>((ref, orderId) async {
+      final res = await apiClient.get('/orders/$orderId/tracking/timeline');
+      if (res.statusCode != 200) return [];
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      final list = body['timeline'] as List<dynamic>? ?? [];
+      return list
+          .map((e) => TimelineEvent.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
 
 // ── Models ──────────────────────────────────────────────────────────────────
 
@@ -81,24 +87,42 @@ class OrderTracking {
   });
 
   factory OrderTracking.fromJson(Map<String, dynamic> j) => OrderTracking(
-        id: j['id'] as String,
-        orderId: j['orderId'] as String,
-        courierLatitude: j['courierLatitude'] != null ? (j['courierLatitude'] as num).toDouble() : null,
-        courierLongitude: j['courierLongitude'] != null ? (j['courierLongitude'] as num).toDouble() : null,
-        courierHeading: j['courierHeading'] != null ? (j['courierHeading'] as num).toDouble() : null,
-        courierSpeedKmh: j['courierSpeedKmh'] != null ? (j['courierSpeedKmh'] as num).toDouble() : null,
-        deliveryLatitude: j['deliveryLatitude'] != null ? (j['deliveryLatitude'] as num).toDouble() : null,
-        deliveryLongitude: j['deliveryLongitude'] != null ? (j['deliveryLongitude'] as num).toDouble() : null,
-        deliveryAddress: j['deliveryAddress'] as String?,
-        estimatedArrival: j['estimatedArrival'] != null ? DateTime.tryParse(j['estimatedArrival']) : null,
-        actualArrival: j['actualArrival'] != null ? DateTime.tryParse(j['actualArrival']) : null,
-        timeline: j['timeline'] as List<dynamic>? ?? [],
-        driverName: j['driverName'] as String?,
-        driverPhone: j['driverPhone'] as String?,
-        vehiclePlate: j['vehiclePlate'] as String?,
-        businessProfileId: j['businessProfileId'] as String?,
-        lastPingAt: j['lastPingAt'] != null ? DateTime.tryParse(j['lastPingAt']) : null,
-      );
+    id: j['id'] as String,
+    orderId: j['orderId'] as String,
+    courierLatitude: j['courierLatitude'] != null
+        ? (j['courierLatitude'] as num).toDouble()
+        : null,
+    courierLongitude: j['courierLongitude'] != null
+        ? (j['courierLongitude'] as num).toDouble()
+        : null,
+    courierHeading: j['courierHeading'] != null
+        ? (j['courierHeading'] as num).toDouble()
+        : null,
+    courierSpeedKmh: j['courierSpeedKmh'] != null
+        ? (j['courierSpeedKmh'] as num).toDouble()
+        : null,
+    deliveryLatitude: j['deliveryLatitude'] != null
+        ? (j['deliveryLatitude'] as num).toDouble()
+        : null,
+    deliveryLongitude: j['deliveryLongitude'] != null
+        ? (j['deliveryLongitude'] as num).toDouble()
+        : null,
+    deliveryAddress: j['deliveryAddress'] as String?,
+    estimatedArrival: j['estimatedArrival'] != null
+        ? DateTime.tryParse(j['estimatedArrival'])
+        : null,
+    actualArrival: j['actualArrival'] != null
+        ? DateTime.tryParse(j['actualArrival'])
+        : null,
+    timeline: j['timeline'] as List<dynamic>? ?? [],
+    driverName: j['driverName'] as String?,
+    driverPhone: j['driverPhone'] as String?,
+    vehiclePlate: j['vehiclePlate'] as String?,
+    businessProfileId: j['businessProfileId'] as String?,
+    lastPingAt: j['lastPingAt'] != null
+        ? DateTime.tryParse(j['lastPingAt'])
+        : null,
+  );
 }
 
 class TimelineEvent {
@@ -106,13 +130,17 @@ class TimelineEvent {
   final String note;
   final DateTime timestamp;
 
-  TimelineEvent({required this.status, required this.note, required this.timestamp});
+  TimelineEvent({
+    required this.status,
+    required this.note,
+    required this.timestamp,
+  });
 
   factory TimelineEvent.fromJson(Map<String, dynamic> j) => TimelineEvent(
-        status: j['status'] as String,
-        note: j['note'] as String? ?? '',
-        timestamp: DateTime.parse(j['timestamp'] as String),
-      );
+    status: j['status'] as String,
+    note: j['note'] as String? ?? '',
+    timestamp: DateTime.parse(j['timestamp'] as String),
+  );
 }
 
 // ── Screen ──────────────────────────────────────────────────────────────────
@@ -128,7 +156,8 @@ class OrderTrackingScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
+  ConsumerState<OrderTrackingScreen> createState() =>
+      _OrderTrackingScreenState();
 }
 
 class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
@@ -219,27 +248,31 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   void _updateMarkersRealtime(double lat, double lng, double heading) {
     final markers = <Marker>{..._markers};
     markers.removeWhere((m) => m.markerId == const MarkerId('courier'));
-    markers.add(Marker(
-      markerId: const MarkerId('courier'),
-      position: LatLng(lat, lng),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-      infoWindow: const InfoWindow(title: 'Courier'),
-      rotation: heading,
-    ));
+    markers.add(
+      Marker(
+        markerId: const MarkerId('courier'),
+        position: LatLng(lat, lng),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: const InfoWindow(title: 'Courier'),
+        rotation: heading,
+      ),
+    );
     _markers = markers;
   }
 
   void _animateCameraToCourier() {
     if (_mapController != null && _courierPos != null) {
-      _mapController!.animateCamera(
-        CameraUpdate.newLatLng(_courierPos!),
-      );
+      _mapController!.animateCamera(CameraUpdate.newLatLng(_courierPos!));
     }
   }
 
   /// Smoothly interpolate the courier marker between position updates
   /// instead of snapping — this is what makes tracking feel "alive."
-  Future<void> _animateMarkerTo(LatLng from, LatLng to, {Duration duration = const Duration(milliseconds: 900)}) async {
+  Future<void> _animateMarkerTo(
+    LatLng from,
+    LatLng to, {
+    Duration duration = const Duration(milliseconds: 900),
+  }) async {
     const steps = 30;
     final stepDuration = duration ~/ steps;
     for (var i = 1; i <= steps; i++) {
@@ -255,7 +288,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           Marker(
             markerId: const MarkerId('courier'),
             position: LatLng(lat, lng),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueBlue,
+            ),
             infoWindow: const InfoWindow(title: 'Courier'),
           ),
         };
@@ -298,24 +333,34 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       backgroundColor: colors.background,
       appBar: AppBar(
         backgroundColor: colors.card,
-        title: Text('Track Order${widget.orderRef.isNotEmpty ? ' ${widget.orderRef}' : ''}',
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
+        title: Text(
+          'Track Order${widget.orderRef.isNotEmpty ? ' ${widget.orderRef}' : ''}',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         iconTheme: IconThemeData(color: colors.textPrimary),
         elevation: 0,
       ),
       body: tracking.when(
-        loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+        loading: () =>
+            Center(child: CircularProgressIndicator(color: colors.accent)),
         error: (err, _) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.location_off, size: 64, color: colors.textSecondary),
               const SizedBox(height: 16),
-              Text(err.toString(), style: TextStyle(color: colors.textSecondary),
-                  textAlign: TextAlign.center),
+              Text(
+                err.toString(),
+                style: TextStyle(color: colors.textSecondary),
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () => ref.refresh(orderTrackingProvider(widget.orderId)),
+                onPressed: () =>
+                    ref.refresh(orderTrackingProvider(widget.orderId)),
                 child: const Text('Retry'),
               ),
             ],
@@ -326,14 +371,17 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
           return ListView(
             children: [
-              if (track.courierLatitude != null && track.courierLongitude != null) ...[
+              if (track.courierLatitude != null &&
+                  track.courierLongitude != null) ...[
                 SizedBox(
                   height: 300,
                   child: GoogleMap(
-                    initialCameraPosition: _initialCamera ?? CameraPosition(
-                      target: _courierPos ?? const LatLng(5.6037, -0.1870),
-                      zoom: 14,
-                    ),
+                    initialCameraPosition:
+                        _initialCamera ??
+                        CameraPosition(
+                          target: _courierPos ?? const LatLng(5.6037, -0.1870),
+                          zoom: 14,
+                        ),
                     markers: _markers,
                     polylines: _polylines,
                     myLocationButtonEnabled: false,
@@ -351,10 +399,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.delivery_dining, size: 64, color: colors.textSecondary),
+                      Icon(
+                        Icons.delivery_dining,
+                        size: 64,
+                        color: colors.textSecondary,
+                      ),
                       const SizedBox(height: 12),
-                      Text('Waiting for courier location...',
-                          style: TextStyle(color: colors.textSecondary)),
+                      Text(
+                        'Waiting for courier location...',
+                        style: TextStyle(color: colors.textSecondary),
+                      ),
                     ],
                   ),
                 ),
@@ -363,8 +417,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               const SizedBox(height: 16),
 
               if (track.estimatedArrival != null)
-                _EtaCard(eta: track.estimatedArrival!, colors: colors)
-                    .animate().fadeIn(duration: 300.ms),
+                _EtaCard(
+                  eta: track.estimatedArrival!,
+                  colors: colors,
+                ).animate().fadeIn(duration: 300.ms),
 
               if (track.driverName != null || track.vehiclePlate != null) ...[
                 const SizedBox(height: 12),
@@ -374,23 +430,35 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               const SizedBox(height: 16),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text('Order Timeline',
-                    style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+                child: Text(
+                  'Order Timeline',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               timeline.when(
                 data: (events) => events.isEmpty
                     ? Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Text('No tracking events yet',
-                            style: TextStyle(color: colors.textSecondary)),
+                        child: Text(
+                          'No tracking events yet',
+                          style: TextStyle(color: colors.textSecondary),
+                        ),
                       )
                     : Column(
                         children: events.asMap().entries.map((entry) {
                           final i = entry.key;
                           final e = entry.value;
                           final isLast = i == events.length - 1;
-                          return _TimelineTile(event: e, isLast: isLast, colors: colors);
+                          return _TimelineTile(
+                            event: e,
+                            isLast: isLast,
+                            colors: colors,
+                          );
                         }).toList(),
                       ),
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -414,8 +482,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                         Icon(Icons.location_on, color: colors.accent, size: 20),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(track.deliveryAddress!,
-                              style: TextStyle(color: colors.textPrimary, fontSize: 14)),
+                          child: Text(
+                            track.deliveryAddress!,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 14,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -437,8 +510,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final delLat = track.deliveryLatitude;
     final delLng = track.deliveryLongitude;
 
-    _courierPos = (courierLat != null && courierLng != null) ? LatLng(courierLat, courierLng) : null;
-    _deliveryPos = (delLat != null && delLng != null) ? LatLng(delLat, delLng) : null;
+    _courierPos = (courierLat != null && courierLng != null)
+        ? LatLng(courierLat, courierLng)
+        : null;
+    _deliveryPos = (delLat != null && delLng != null)
+        ? LatLng(delLat, delLng)
+        : null;
 
     if (_courierPos != null) {
       _initialCamera ??= CameraPosition(target: _courierPos!, zoom: 14);
@@ -446,21 +523,25 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
 
     final markers = <Marker>{};
     if (_courierPos != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('courier'),
-        position: _courierPos!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        infoWindow: const InfoWindow(title: 'Courier'),
-        rotation: track.courierHeading ?? 0,
-      ));
+      markers.add(
+        Marker(
+          markerId: const MarkerId('courier'),
+          position: _courierPos!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          infoWindow: const InfoWindow(title: 'Courier'),
+          rotation: track.courierHeading ?? 0,
+        ),
+      );
     }
     if (_deliveryPos != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('delivery'),
-        position: _deliveryPos!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-        infoWindow: const InfoWindow(title: 'Delivery Location'),
-      ));
+      markers.add(
+        Marker(
+          markerId: const MarkerId('delivery'),
+          position: _deliveryPos!,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: const InfoWindow(title: 'Delivery Location'),
+        ),
+      );
     }
     _markers = markers;
 
@@ -482,17 +563,27 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     if (_courierPos != null && _deliveryPos != null) {
       final bounds = LatLngBounds(
         southwest: LatLng(
-          _courierPos!.latitude < _deliveryPos!.latitude ? _courierPos!.latitude : _deliveryPos!.latitude,
-          _courierPos!.longitude < _deliveryPos!.longitude ? _courierPos!.longitude : _deliveryPos!.longitude,
+          _courierPos!.latitude < _deliveryPos!.latitude
+              ? _courierPos!.latitude
+              : _deliveryPos!.latitude,
+          _courierPos!.longitude < _deliveryPos!.longitude
+              ? _courierPos!.longitude
+              : _deliveryPos!.longitude,
         ),
         northeast: LatLng(
-          _courierPos!.latitude > _deliveryPos!.latitude ? _courierPos!.latitude : _deliveryPos!.latitude,
-          _courierPos!.longitude > _deliveryPos!.longitude ? _courierPos!.longitude : _deliveryPos!.longitude,
+          _courierPos!.latitude > _deliveryPos!.latitude
+              ? _courierPos!.latitude
+              : _deliveryPos!.latitude,
+          _courierPos!.longitude > _deliveryPos!.longitude
+              ? _courierPos!.longitude
+              : _deliveryPos!.longitude,
         ),
       );
       _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
     } else if (_courierPos != null) {
-      _mapController!.animateCamera(CameraUpdate.newLatLngZoom(_courierPos!, 15));
+      _mapController!.animateCamera(
+        CameraUpdate.newLatLngZoom(_courierPos!, 15),
+      );
     }
   }
 }
@@ -539,15 +630,18 @@ class _EtaCardState extends State<_EtaCard> {
     final countdownText = isArrived
         ? 'Delivered'
         : hours > 0
-            ? '${hours}h ${remainingMins}m'
-            : '$remainingMins min';
+        ? '${hours}h ${remainingMins}m'
+        : '$remainingMins min';
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [widget.colors.accent, widget.colors.accent.withValues(alpha: 0.7)],
+          colors: [
+            widget.colors.accent,
+            widget.colors.accent.withValues(alpha: 0.7),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -555,8 +649,11 @@ class _EtaCardState extends State<_EtaCard> {
       ),
       child: Row(
         children: [
-          Icon(isArrived ? Icons.check_circle : Icons.access_time,
-              color: Colors.white, size: 36),
+          Icon(
+            isArrived ? Icons.check_circle : Icons.access_time,
+            color: Colors.white,
+            size: 36,
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -568,11 +665,16 @@ class _EtaCardState extends State<_EtaCard> {
                 ),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+                  transitionBuilder: (child, anim) =>
+                      FadeTransition(opacity: anim, child: child),
                   child: Text(
                     countdownText,
                     key: ValueKey(countdownText),
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
                 Text(
@@ -616,14 +718,23 @@ class _DriverInfoCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (track.driverName != null)
-                  Text(track.driverName!,
-                      style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                  Text(
+                    track.driverName!,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 if (track.vehiclePlate != null)
-                  Text('Plate: ${track.vehiclePlate}',
-                      style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                  Text(
+                    'Plate: ${track.vehiclePlate}',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 13),
+                  ),
                 if (track.courierSpeedKmh != null)
-                  Text('${track.courierSpeedKmh!.toStringAsFixed(0)} km/h',
-                      style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                  Text(
+                    '${track.courierSpeedKmh!.toStringAsFixed(0)} km/h',
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                  ),
               ],
             ),
           ),
@@ -645,7 +756,11 @@ class _TimelineTile extends StatelessWidget {
   final bool isLast;
   final AzamanColors colors;
 
-  const _TimelineTile({required this.event, required this.isLast, required this.colors});
+  const _TimelineTile({
+    required this.event,
+    required this.isLast,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -672,12 +787,7 @@ class _TimelineTile extends StatelessWidget {
                     child: Icon(icon, color: color, size: 18),
                   ),
                   if (!isLast)
-                    Expanded(
-                      child: Container(
-                        width: 2,
-                        color: colors.divider,
-                      ),
-                    ),
+                    Expanded(child: Container(width: 2, color: colors.divider)),
                 ],
               ),
             ),
@@ -688,12 +798,28 @@ class _TimelineTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(event.status.replaceAll('_', ' '),
-                        style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700)),
+                    Text(
+                      event.status.replaceAll('_', ' '),
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     if (event.note.isNotEmpty)
-                      Text(event.note, style: TextStyle(color: colors.textSecondary, fontSize: 13)),
-                    Text(_formatTime(event.timestamp),
-                        style: TextStyle(color: colors.textSecondary, fontSize: 11)),
+                      Text(
+                        event.note,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    Text(
+                      _formatTime(event.timestamp),
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 11,
+                      ),
+                    ),
                   ],
                 ),
               ),

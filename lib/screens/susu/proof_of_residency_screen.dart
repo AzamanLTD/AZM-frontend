@@ -33,7 +33,6 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/susu_service.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class ProofOfResidencyScreen extends ConsumerStatefulWidget {
   const ProofOfResidencyScreen({super.key});
 
@@ -69,7 +68,9 @@ class _ProofOfResidencyScreenState
       final size = f.size;
       // Client-side mirror of the backend rule (Req 3.2 / 3.3).
       if (size <= _minBytes) {
-        setState(() => _localError = 'File too small (must be larger than 10 KB).');
+        setState(
+          () => _localError = 'File too small (must be larger than 10 KB).',
+        );
         return;
       }
       if (size > _maxBytes) {
@@ -124,8 +125,7 @@ class _ProofOfResidencyScreenState
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
@@ -140,7 +140,8 @@ class _ProofOfResidencyScreenState
       body: SafeArea(
         child: AzPullToRefresh(
           color: colors.warning,
-          onRefresh: () => ref.read(proofOfResidencyProvider.notifier).refresh(),
+          onRefresh: () =>
+              ref.read(proofOfResidencyProvider.notifier).refresh(),
           child: porAsync.when(
             loading: () => const _CenterLoader(),
             error: (e, _) => ListView(
@@ -172,29 +173,36 @@ class _ProofOfResidencyScreenState
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed:
-                          (_picked == null || _uploading) ? null : _upload,
+                      onPressed: (_picked == null || _uploading)
+                          ? null
+                          : _upload,
                       icon: _uploading
                           ? const SizedBox(
                               width: 16,
                               height: 16,
                               child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.black),
+                                strokeWidth: 2,
+                                color: Colors.black,
+                              ),
                             )
                           : const Icon(Icons.cloud_upload_outlined, size: 16),
                       label: Text(
                         _uploading ? 'Uploading…' : 'Submit document',
                         style: const TextStyle(
-                            fontWeight: FontWeight.w800, letterSpacing: 0.3),
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.warning,
                         foregroundColor: Colors.black,
-                        disabledBackgroundColor:
-                            colors.warning.withValues(alpha: 0.30),
+                        disabledBackgroundColor: colors.warning.withValues(
+                          alpha: 0.30,
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         elevation: 0,
                       ),
                     ),
@@ -291,7 +299,10 @@ class _StatusCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     'Submitted ${_fmt(state.submittedAt!)}',
-                    style: TextStyle(color: colors.textTertiary, fontSize: 10.5),
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 10.5,
+                    ),
                   ),
                 ],
                 if (state.verifiedAt != null &&
@@ -299,7 +310,10 @@ class _StatusCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     'Verified ${_fmt(state.verifiedAt!)}',
-                    style: TextStyle(color: colors.textTertiary, fontSize: 10.5),
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 10.5,
+                    ),
                   ),
                 ],
               ],
@@ -351,23 +365,25 @@ class _Explainer extends StatelessWidget {
   }
 
   Widget _bullet(AzamanColors colors, String t) => Padding(
-        padding: const EdgeInsets.only(top: 5),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.check_circle_outline,
-                color: colors.success, size: 13),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                t,
-                style: TextStyle(
-                    color: colors.textSecondary, fontSize: 11.5, height: 1.4),
-              ),
+    padding: const EdgeInsets.only(top: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.check_circle_outline, color: colors.success, size: 13),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            t,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 11.5,
+              height: 1.4,
             ),
-          ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _UploadArea extends StatelessWidget {
@@ -393,7 +409,9 @@ class _UploadArea extends StatelessWidget {
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: has ? colors.success.withValues(alpha: 0.40) : colors.divider,
+            color: has
+                ? colors.success.withValues(alpha: 0.40)
+                : colors.divider,
             width: 0.9,
           ),
         ),

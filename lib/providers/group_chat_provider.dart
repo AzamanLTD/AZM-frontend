@@ -32,16 +32,18 @@ class GroupMember {
   });
 
   factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(
-        id: j['id']?.toString() ?? '',
-        userId: j['userId'] != null ? (j['userId'] as num).toInt() : 0,
-        username: j['user']?['username']?.toString(),
-        profilePictureUrl: j['user']?['profilePictureUrl']?.toString(),
-        role: j['role']?.toString() ?? 'MEMBER',
-        joinedAt: j['joinedAt'] != null
-            ? DateTime.tryParse(j['joinedAt'].toString()) ?? DateTime.now()
-            : DateTime.now(),
-        removedAt: j['removedAt'] != null ? DateTime.tryParse(j['removedAt'].toString()) : null,
-      );
+    id: j['id']?.toString() ?? '',
+    userId: j['userId'] != null ? (j['userId'] as num).toInt() : 0,
+    username: j['user']?['username']?.toString(),
+    profilePictureUrl: j['user']?['profilePictureUrl']?.toString(),
+    role: j['role']?.toString() ?? 'MEMBER',
+    joinedAt: j['joinedAt'] != null
+        ? DateTime.tryParse(j['joinedAt'].toString()) ?? DateTime.now()
+        : DateTime.now(),
+    removedAt: j['removedAt'] != null
+        ? DateTime.tryParse(j['removedAt'].toString())
+        : null,
+  );
 }
 
 class GroupSummary {
@@ -51,7 +53,8 @@ class GroupSummary {
   final String? avatarUrl;
   final String status;
   final String? susuGroupId;
-  final String? susuStatus; // CONFIGURING | ACTIVE | COMPLETED | ... (null if no susu)
+  final String?
+  susuStatus; // CONFIGURING | ACTIVE | COMPLETED | ... (null if no susu)
   final DateTime? initiationDeadline;
   final List<GroupMember> members;
   final DateTime updatedAt;
@@ -74,23 +77,23 @@ class GroupSummary {
   bool get isSusuActive => susuStatus == 'ACTIVE';
 
   factory GroupSummary.fromJson(Map<String, dynamic> j) => GroupSummary(
-        id: j['id']?.toString() ?? '',
-        name: j['name']?.toString() ?? 'Group',
-        description: j['description']?.toString(),
-        avatarUrl: j['avatarUrl']?.toString(),
-        status: j['status']?.toString() ?? 'ACTIVE',
-        susuGroupId: j['susuGroupId']?.toString(),
-        susuStatus: j['susuGroup']?['status']?.toString(),
-        initiationDeadline: j['susuGroup']?['initiationDeadline'] != null
-            ? DateTime.tryParse(j['susuGroup']['initiationDeadline'].toString())
-            : null,
-        members: (j['members'] as List<dynamic>? ?? const [])
-            .map((m) => GroupMember.fromJson(m))
-            .toList(),
-        updatedAt: j['updatedAt'] != null
-            ? DateTime.tryParse(j['updatedAt'].toString()) ?? DateTime.now()
-            : DateTime.now(),
-      );
+    id: j['id']?.toString() ?? '',
+    name: j['name']?.toString() ?? 'Group',
+    description: j['description']?.toString(),
+    avatarUrl: j['avatarUrl']?.toString(),
+    status: j['status']?.toString() ?? 'ACTIVE',
+    susuGroupId: j['susuGroupId']?.toString(),
+    susuStatus: j['susuGroup']?['status']?.toString(),
+    initiationDeadline: j['susuGroup']?['initiationDeadline'] != null
+        ? DateTime.tryParse(j['susuGroup']['initiationDeadline'].toString())
+        : null,
+    members: (j['members'] as List<dynamic>? ?? const [])
+        .map((m) => GroupMember.fromJson(m))
+        .toList(),
+    updatedAt: j['updatedAt'] != null
+        ? DateTime.tryParse(j['updatedAt'].toString()) ?? DateTime.now()
+        : DateTime.now(),
+  );
 }
 
 // ── Providers ─────────────────────────────────────────────────────────────
@@ -147,10 +150,14 @@ class GroupListNotifier extends AsyncNotifier<List<GroupSummary>> {
 }
 
 final groupListProvider =
-    AsyncNotifierProvider<GroupListNotifier, List<GroupSummary>>(GroupListNotifier.new);
+    AsyncNotifierProvider<GroupListNotifier, List<GroupSummary>>(
+      GroupListNotifier.new,
+    );
 
-final groupDetailProvider =
-    FutureProvider.family<GroupSummary?, String>((ref, groupId) async {
+final groupDetailProvider = FutureProvider.family<GroupSummary?, String>((
+  ref,
+  groupId,
+) async {
   final res = await apiClient.get('/group-chats/$groupId');
   if (res.statusCode != 200) return null;
   final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -201,8 +208,10 @@ class SusuInitiationMember {
   final String? avatar;
   final String groupRole; // ADMIN | MEMBER
   final String kyc; // UNVERIFIED | PENDING | VERIFIED | REJECTED
-  final String por; // NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | REJECTED | EXPIRED
-  final String? susuMemberStatus; // PENDING_VOUCH | PENDING_CONTRACT | ACTIVE | ...
+  final String
+  por; // NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | REJECTED | EXPIRED
+  final String?
+  susuMemberStatus; // PENDING_VOUCH | PENDING_CONTRACT | ACTIVE | ...
   final bool ready;
 
   SusuInitiationMember({
@@ -273,8 +282,7 @@ class SusuInitiationStatus {
   bool get isActive => status == 'ACTIVE';
 
   /// Projected pool per cycle = contribution × member count (USDC).
-  double get projectedPoolUsdc =>
-      (contributionUsdc ?? 0) * (memberCount);
+  double get projectedPoolUsdc => (contributionUsdc ?? 0) * (memberCount);
 
   factory SusuInitiationStatus.fromJson(Map<String, dynamic> j) =>
       SusuInitiationStatus(
@@ -293,7 +301,9 @@ class SusuInitiationStatus {
         memberCount: (j['memberCount'] as num?)?.toInt() ?? 0,
         readyCount: (j['readyCount'] as num?)?.toInt() ?? 0,
         members: (j['members'] as List<dynamic>? ?? const [])
-            .map((m) => SusuInitiationMember.fromJson(m as Map<String, dynamic>))
+            .map(
+              (m) => SusuInitiationMember.fromJson(m as Map<String, dynamic>),
+            )
             .toList(),
       );
 }
@@ -302,11 +312,11 @@ class SusuInitiationStatus {
 /// and the countdown banner. Refreshable.
 final susuInitiationStatusProvider =
     FutureProvider.family<SusuInitiationStatus?, String>((ref, groupId) async {
-  final res = await apiClient.get('/group-chats/$groupId/susu/status');
-  if (res.statusCode != 200) return null;
-  final body = jsonDecode(res.body) as Map<String, dynamic>;
-  return SusuInitiationStatus.fromJson(body);
-});
+      final res = await apiClient.get('/group-chats/$groupId/susu/status');
+      if (res.statusCode != 200) return null;
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return SusuInitiationStatus.fromJson(body);
+    });
 
 extension SusuInitiationActions on GroupActions {
   /// POST /api/group-chats/:id/susu/initiate (group admin only).
@@ -330,7 +340,10 @@ extension SusuInitiationActions on GroupActions {
 
   /// POST /api/group-chats/:id/susu/cancel (group admin only).
   Future<void> cancelInitiation(String groupId) async {
-    final res = await apiClient.post('/group-chats/$groupId/susu/cancel', const {});
+    final res = await apiClient.post(
+      '/group-chats/$groupId/susu/cancel',
+      const {},
+    );
     if (res.statusCode != 200) throw Exception(_initMsg(res.body));
     ref.invalidate(susuInitiationStatusProvider(groupId));
     ref.invalidate(groupDetailProvider(groupId));

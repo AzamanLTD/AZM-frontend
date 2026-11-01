@@ -77,8 +77,10 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text('Generating your QR code...',
-                  style: TextStyle(color: colors.textSecondary)),
+              Text(
+                'Generating your QR code...',
+                style: TextStyle(color: colors.textSecondary),
+              ),
             ],
           ),
           error: (err, _) => Padding(
@@ -88,15 +90,24 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
               children: [
                 Icon(Icons.error_outline, size: 64, color: colors.danger),
                 const SizedBox(height: 16),
-                Text('Could not generate QR',
-                    style: TextStyle(fontSize: 18, color: colors.textPrimary)),
+                Text(
+                  'Could not generate QR',
+                  style: TextStyle(fontSize: 18, color: colors.textPrimary),
+                ),
                 const SizedBox(height: 8),
-                Text(err.toString().replaceFirst('MarketplaceBookingException: ', ''),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.textSecondary)),
+                Text(
+                  err.toString().replaceFirst(
+                    'MarketplaceBookingException: ',
+                    '',
+                  ),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textSecondary),
+                ),
                 const SizedBox(height: 24),
                 FilledButton.icon(
-                  onPressed: () => ref.invalidate(checkInTokenProvider(widget.reservationId)),
+                  onPressed: () => ref.invalidate(
+                    checkInTokenProvider(widget.reservationId),
+                  ),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Try Again'),
                 ),
@@ -120,8 +131,14 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
           children: [
             // Business name
             if (token.businessName != null) ...[
-              Text(token.businessName!,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: colors.textPrimary)),
+              Text(
+                token.businessName!,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: colors.textPrimary,
+                ),
+              ),
               const SizedBox(height: 8),
             ],
 
@@ -134,7 +151,11 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
               ),
               child: Text(
                 token.azamanId,
-                style: TextStyle(fontWeight: FontWeight.bold, color: colors.accent, fontSize: 13),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: colors.accent,
+                  fontSize: 13,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -147,10 +168,21 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(color: colors.accent.withValues(alpha: 0.15 * _pulseAnimation.value), blurRadius: 30 * _pulseAnimation.value, spreadRadius: 5 * _pulseAnimation.value)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: colors.accent.withValues(
+                        alpha: 0.15 * _pulseAnimation.value,
+                      ),
+                      blurRadius: 30 * _pulseAnimation.value,
+                      spreadRadius: 5 * _pulseAnimation.value,
+                    ),
+                  ],
                 ),
                 child: PremiumGlassContainer(
-                  blur: 20, opacity: 0.08, borderRadius: 20, padding: const EdgeInsets.all(16),
+                  blur: 20,
+                  opacity: 0.08,
+                  borderRadius: 20,
+                  padding: const EdgeInsets.all(16),
                   child: _buildQrPlaceholder(token.qrPayload, colors),
                 ),
               ),
@@ -212,7 +244,10 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
           final byteIndex = index % bytes.length;
           final isFilled = (bytes[byteIndex] >> (index % 8)) & 1 == 1;
           // Corner markers (like real QR codes)
-          final isCorner = (index < 3 || index % gridSize < 3 || index >= gridSize * (gridSize - 3));
+          final isCorner =
+              (index < 3 ||
+              index % gridSize < 3 ||
+              index >= gridSize * (gridSize - 3));
           return Container(
             margin: const EdgeInsets.all(1),
             color: isFilled || isCorner ? Colors.black : Colors.white,

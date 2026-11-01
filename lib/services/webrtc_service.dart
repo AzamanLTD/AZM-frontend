@@ -36,16 +36,16 @@ final webrtcServiceProvider = Provider<WebRTCService>((ref) {
 // Call State Enum
 // ---------------------------------------------------------------------------
 enum CallState {
-  idle,           // No active call
-  ringing,         // Outgoing call — waiting for callee to answer
-  incoming,        // Incoming call — waiting for user to accept/reject
-  connecting,      // SDP negotiation in progress
-  connected,       // Call established, media flowing
-  reconnecting,    // ICE restart in progress
-  ended,           // Call ended normally
-  rejected,        // Call was rejected by the other party
-  missed,          // Incoming call was not answered
-  failed,          // Call failed (network error, timeout, etc.)
+  idle, // No active call
+  ringing, // Outgoing call — waiting for callee to answer
+  incoming, // Incoming call — waiting for user to accept/reject
+  connecting, // SDP negotiation in progress
+  connected, // Call established, media flowing
+  reconnecting, // ICE restart in progress
+  ended, // Call ended normally
+  rejected, // Call was rejected by the other party
+  missed, // Incoming call was not answered
+  failed, // Call failed (network error, timeout, etc.)
 }
 
 // ---------------------------------------------------------------------------
@@ -290,7 +290,8 @@ class WebRTCService {
       } else if (state == RTCIceConnectionState.RTCIceConnectionStateFailed) {
         _updateCallState(CallState.failed);
         endCall();
-      } else if (state == RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
+      } else if (state ==
+          RTCIceConnectionState.RTCIceConnectionStateDisconnected) {
         _updateCallState(CallState.reconnecting);
       }
     };
@@ -442,7 +443,9 @@ class WebRTCService {
     }
 
     _socket?.socket?.emit('webrtc_media_state', {
-      'to': currentCall!.isCaller ? currentCall!.calleeId : currentCall!.callerId,
+      'to': currentCall!.isCaller
+          ? currentCall!.calleeId
+          : currentCall!.callerId,
       'callId': currentCall!.callId,
       'audioEnabled': currentCall!.audioEnabled,
       'videoEnabled': currentCall!.videoEnabled,
@@ -478,7 +481,9 @@ class WebRTCService {
     }
 
     _socket?.socket?.emit('webrtc_media_state', {
-      'to': currentCall!.isCaller ? currentCall!.calleeId : currentCall!.callerId,
+      'to': currentCall!.isCaller
+          ? currentCall!.calleeId
+          : currentCall!.callerId,
       'callId': currentCall!.callId,
       'audioEnabled': currentCall!.audioEnabled,
       'videoEnabled': currentCall!.videoEnabled,

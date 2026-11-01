@@ -121,22 +121,23 @@ class _LogoTraceLoaderState extends State<LogoTraceLoader>
     // Parse the raw SVG path, then smooth it.
     final rawPath = parseSvgPathData(_tracePathData);
     _tracePath = _smoothPath(rawPath);
-    _fillPaths =
-        _fillPathData.map((d) => _smoothPath(parseSvgPathData(d))).toList();
+    _fillPaths = _fillPathData
+        .map((d) => _smoothPath(parseSvgPathData(d)))
+        .toList();
 
     final metrics = _tracePath.computeMetrics().toList();
     _pathLength = metrics.fold(0.0, (sum, m) => sum + m.length);
 
     _loopController = AnimationController(
       vsync: this,
-      duration:
-          Duration(milliseconds: (widget.loopDurationSeconds * 1000).round()),
+      duration: Duration(
+        milliseconds: (widget.loopDurationSeconds * 1000).round(),
+      ),
     );
 
     _fillController = AnimationController(
       vsync: this,
-      duration:
-          Duration(milliseconds: (widget.fillFadeSeconds * 1000).round()),
+      duration: Duration(milliseconds: (widget.fillFadeSeconds * 1000).round()),
     );
 
     _loopController.repeat();

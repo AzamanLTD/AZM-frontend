@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
@@ -57,7 +56,8 @@ class TodayWidget extends ConsumerWidget {
     // First-load skeleton — only when we've never loaded data yet.
     // Subsequent refreshes keep the previous snapshot visible (the
     // notifier guarantees this) so we don't blink.
-    final isColdLoad = summary.loading &&
+    final isColdLoad =
+        summary.loading &&
         summary.activeTradesCount == 0 &&
         summary.pendingWithdrawalsCount == 0 &&
         summary.friendRequestsCount == 0 &&
@@ -273,8 +273,7 @@ class _StatTile extends StatelessWidget {
                   ),
                   child: Icon(icon, color: accent, size: 18),
                 ),
-                Icon(Icons.arrow_forward,
-                    color: colors.textTertiary, size: 11),
+                Icon(Icons.arrow_forward, color: colors.textTertiary, size: 11),
               ],
             ),
             // Count + label.
@@ -363,10 +362,7 @@ class _PendingWithdrawalsSheet {
                 items.isEmpty
                     ? 'No withdrawals waiting on settlement.'
                     : '${items.length} request${items.length == 1 ? '' : 's'} waiting on settlement.',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: colors.textTertiary, fontSize: 12),
               ),
               const SizedBox(height: 16),
               // Scrolls through the controller the Panel hands us, so a drag
@@ -406,11 +402,7 @@ class _PendingWithdrawalsSheet {
               color: colors.warning.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              Icons.send_outlined,
-              color: colors.warning,
-              size: 18,
-            ),
+            child: Icon(Icons.send_outlined, color: colors.warning, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -434,10 +426,7 @@ class _PendingWithdrawalsSheet {
                 const SizedBox(height: 2),
                 Text(
                   _relative(w.createdAt),
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
                 ),
               ],
             ),

@@ -41,12 +41,8 @@ void main() {
   /// Jumps the page scroll position until [target] is built, then makes it
   /// fully visible (fixed pumps, not pumpAndSettle — entrance animations
   /// repeat under test).
-  Future<void> reveal(
-    WidgetTester tester,
-    Finder target,
-  ) async {
-    final state =
-        tester.state<ScrollableState>(find.byType(Scrollable).first);
+  Future<void> reveal(WidgetTester tester, Finder target) async {
+    final state = tester.state<ScrollableState>(find.byType(Scrollable).first);
     var offset = 0.0;
     while (target.evaluate().isEmpty &&
         offset <= state.position.maxScrollExtent) {
@@ -67,25 +63,30 @@ void main() {
         child: MaterialApp(home: home),
       );
 
-  testWidgets('a FRESH default renders GHS in Settings and in the drawer',
-      (tester) async {
+  testWidgets('a FRESH default renders GHS in Settings and in the drawer', (
+    tester,
+  ) async {
     final theme = await loadTheme(tester);
-    final container = ProviderContainer(overrides: [
-      themeProvider.overrideWith((ref) => theme),
-      currentUserProvider.overrideWith((ref) => Stream.value(null)),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        themeProvider.overrideWith((ref) => theme),
+        currentUserProvider.overrideWith((ref) => Stream.value(null)),
+      ],
+    );
     addTearDown(container.dispose);
 
-    await tester.pumpWidget(
-      host(container, const SettingsScreen()),
-    );
+    await tester.pumpWidget(host(container, const SettingsScreen()));
     await tester.pump(const Duration(milliseconds: 300));
     await reveal(tester, find.text('Display Currency'));
 
     expect(find.text('Display Currency'), findsOneWidget);
-    expect(find.text('GHS'), findsOneWidget,
-        reason: 'Ghana-first: a fresh preference shows GHS in Settings, '
-            'not the old USDC default');
+    expect(
+      find.text('GHS'),
+      findsOneWidget,
+      reason:
+          'Ghana-first: a fresh preference shows GHS in Settings, '
+          'not the old USDC default',
+    );
 
     // The same container — the drawer must agree with Settings.
     final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -107,18 +108,25 @@ void main() {
     await reveal(tester, find.text('Currency'));
 
     expect(find.text('Currency'), findsOneWidget);
-    expect(find.text('GHS'), findsOneWidget,
-        reason: 'the drawer chip and the Settings row are the SAME '
-            'canonical preference');
+    expect(
+      find.text('GHS'),
+      findsOneWidget,
+      reason:
+          'the drawer chip and the Settings row are the SAME '
+          'canonical preference',
+    );
   });
 
-  testWidgets('a deliberate USDC pick in Settings is what the drawer shows',
-      (tester) async {
+  testWidgets('a deliberate USDC pick in Settings is what the drawer shows', (
+    tester,
+  ) async {
     final theme = await loadTheme(tester);
-    final container = ProviderContainer(overrides: [
-      themeProvider.overrideWith((ref) => theme),
-      currentUserProvider.overrideWith((ref) => Stream.value(null)),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        themeProvider.overrideWith((ref) => theme),
+        currentUserProvider.overrideWith((ref) => Stream.value(null)),
+      ],
+    );
     addTearDown(container.dispose);
 
     await tester.pumpWidget(host(container, const SettingsScreen()));
@@ -129,13 +137,16 @@ void main() {
     // call the picker itself makes. (The sheet's ListTiles trip a
     // pre-existing debug ink-splash assertion under test; the picker
     // mechanics are not this contract's subject.)
-    await tester.runAsync(() => container
-        .read(currencyProvider.notifier)
-        .set(DisplayCurrency.usdc));
+    await tester.runAsync(
+      () => container.read(currencyProvider.notifier).set(DisplayCurrency.usdc),
+    );
     await tester.pump(const Duration(milliseconds: 350));
 
-    expect(find.text('USDC'), findsOneWidget,
-        reason: 'the Settings row reflects the deliberate USDC choice');
+    expect(
+      find.text('USDC'),
+      findsOneWidget,
+      reason: 'the Settings row reflects the deliberate USDC choice',
+    );
 
     // The drawer, in the SAME container, must show the same value.
     final scaffoldKey = GlobalKey<ScaffoldState>();
@@ -157,8 +168,12 @@ void main() {
     await reveal(tester, find.text('Currency'));
 
     expect(find.text('Currency'), findsOneWidget);
-    expect(find.text('USDC'), findsOneWidget,
-        reason: 'one authority: the drawer shows the value Settings set, '
-            'with no duplicate preference state in between');
+    expect(
+      find.text('USDC'),
+      findsOneWidget,
+      reason:
+          'one authority: the drawer shows the value Settings set, '
+          'with no duplicate preference state in between',
+    );
   });
 }

@@ -16,7 +16,6 @@ import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/widgets/stories/inbox_story_rail_sliver.dart';
 
-
 /// Data-neutral item for the shared collapsed story presentation.
 ///
 /// Surfaces supply their own story sources (chat: the personal story
@@ -101,7 +100,8 @@ class CompactStoryRail extends ConsumerWidget {
             children: [
               if (avatars.isNotEmpty)
                 SizedBox(
-                  width: ringSize + ringOverlap * (avatars.length - 1).clamp(0, 2),
+                  width:
+                      ringSize + ringOverlap * (avatars.length - 1).clamp(0, 2),
                   height: ringSize,
                   child: Stack(
                     children: [
@@ -138,7 +138,9 @@ class CompactStoryRail extends ConsumerWidget {
                       key: labelKey,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AzText.caption.copyWith(color: colors.textSecondary),
+                      style: AzText.caption.copyWith(
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ),
                 ),
@@ -176,8 +178,12 @@ class StoryRailCompact extends ConsumerWidget {
   /// open rail — no second smaller story surface is ever visible.
   final ScrollController? reveal;
 
-  const StoryRailCompact(
-      {super.key, required this.onTap, this.railOpen, this.reveal});
+  const StoryRailCompact({
+    super.key,
+    required this.onTap,
+    this.railOpen,
+    this.reveal,
+  });
 
   static const double height = 40;
 
@@ -226,8 +232,9 @@ class StoryRailCompact extends ConsumerWidget {
                   final pos = rail.position;
                   if (pos.hasContentDimensions && pos.hasPixels) {
                     extent = InboxStoryRailSliver.revealExtent(
-                        minScrollExtent: pos.minScrollExtent,
-                        pixels: pos.pixels);
+                      minScrollExtent: pos.minScrollExtent,
+                      pixels: pos.pixels,
+                    );
                   }
                 }
                 final collapse = Curves.easeOut.transform(extent);

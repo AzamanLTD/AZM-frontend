@@ -62,8 +62,9 @@ List<HotelFloorBand> hotelBandsFromRooms(List<HotelRoom> rooms) {
         ),
       ),
   ];
-  final unassigned =
-      rooms.where((r) => r.floor == null).toList(growable: false);
+  final unassigned = rooms
+      .where((r) => r.floor == null)
+      .toList(growable: false);
   if (unassigned.isNotEmpty) {
     bands[0] = HotelFloorBand(
       floor: bands[0].floor,
@@ -141,14 +142,16 @@ class _BuildingCrossSectionState extends State<BuildingCrossSection> {
           return AnimatedBuilder(
             animation: _pageController,
             builder: (context, child) {
-              final page = _pageController.hasClients &&
+              final page =
+                  _pageController.hasClients &&
                       _pageController.position.hasContentDimensions
                   ? _pageController.page ?? _currentBand.toDouble()
                   : _currentBand.toDouble();
               final delta = (page - index).clamp(-1.0, 1.0).toDouble();
               final skew = -delta * 0.10;
-              final opacity =
-                  (1.0 - 0.45 * delta.abs()).clamp(0.0, 1.0).toDouble();
+              final opacity = (1.0 - 0.45 * delta.abs())
+                  .clamp(0.0, 1.0)
+                  .toDouble();
               return Opacity(
                 opacity: opacity,
                 child: Transform(
@@ -179,8 +182,11 @@ class _BuildingCrossSectionState extends State<BuildingCrossSection> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.hotel_outlined,
-                size: 44, color: widget.colors.textTertiary),
+            Icon(
+              Icons.hotel_outlined,
+              size: 44,
+              color: widget.colors.textTertiary,
+            ),
             const SizedBox(height: 10),
             Text(
               'No room inventory has been published yet.',
@@ -211,14 +217,21 @@ class _FloorBand extends StatelessWidget {
     final available = band.rooms.where((r) => r.isBookable).length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-          AzSpace.xs, AzSpace.xs, AzSpace.xs, AzSpace.sm),
+        AzSpace.xs,
+        AzSpace.xs,
+        AzSpace.xs,
+        AzSpace.sm,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.apartment_outlined,
-                  size: 15, color: colors.textTertiary),
+              Icon(
+                Icons.apartment_outlined,
+                size: 15,
+                color: colors.textTertiary,
+              ),
               const SizedBox(width: AzSpace.xs),
               Text(
                 band.floor == null ? 'Ground level' : 'Floor ${band.floor}',
@@ -276,8 +289,8 @@ class _RoomFootprint extends StatelessWidget {
     final fill = !bookable
         ? colors.card.withValues(alpha: 0.45)
         : selected
-            ? colors.accent.withValues(alpha: 0.12)
-            : colors.surface;
+        ? colors.accent.withValues(alpha: 0.12)
+        : colors.surface;
     return Semantics(
       button: bookable,
       selected: selected,

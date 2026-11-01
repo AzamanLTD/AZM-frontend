@@ -109,10 +109,8 @@ class PageCurlPainter extends CustomPainter {
   final LeafFrame frame;
   final BookMaterial material;
 
-  PageCurlPainter({
-    required this.frame,
-    required this.material,
-  }) : super(repaint: frame);
+  PageCurlPainter({required this.frame, required this.material})
+    : super(repaint: frame);
 
   final Paint _shadowPaint = Paint();
   final Paint _facePaint = Paint()..isAntiAlias = true;

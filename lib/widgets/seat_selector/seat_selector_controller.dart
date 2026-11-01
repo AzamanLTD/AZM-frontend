@@ -70,17 +70,15 @@ class SeatSelectorController extends ChangeNotifier {
   SeatSelectorController({
     TransformationController? transformController,
     int selectionLimit = 0,
-  })  : transformController =
-            transformController ?? TransformationController(),
-        _selectionLimit = selectionLimit;
+  }) : transformController = transformController ?? TransformationController(),
+       _selectionLimit = selectionLimit;
 
   /// Load a layout and compute its geometry.
-  void loadLayout(
-    VehicleLayout layout, {
-    SeatGeometryConfig? geometryConfig,
-  }) {
+  void loadLayout(VehicleLayout layout, {SeatGeometryConfig? geometryConfig}) {
     _layout = layout;
-    final solver = SeatGeometrySolver(geometryConfig ?? const SeatGeometryConfig());
+    final solver = SeatGeometrySolver(
+      geometryConfig ?? const SeatGeometryConfig(),
+    );
     _geometry = solver.compute(layout);
 
     // Build fare map from seats
@@ -184,10 +182,10 @@ class SeatSelectorController extends ChangeNotifier {
 
   /// Checkout state snapshot for the dock.
   CheckoutState get checkoutState => CheckoutState(
-        selectedSeats: Set.unmodifiable(_selectedSeats),
-        totalFare: totalFare,
-        selectionLimit: _selectionLimit,
-      );
+    selectedSeats: Set.unmodifiable(_selectedSeats),
+    totalFare: totalFare,
+    selectionLimit: _selectionLimit,
+  );
 
   @override
   void dispose() {

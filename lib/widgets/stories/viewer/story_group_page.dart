@@ -199,7 +199,9 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
     _media[i] = controller;
     controller.prepare().then((_) {
       if (!mounted) return;
-      if (i == _playback.index && controller.isVideo && controller.video != null) {
+      if (i == _playback.index &&
+          controller.isVideo &&
+          controller.video != null) {
         if (_isActive) controller.play();
       }
     });
@@ -265,32 +267,33 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
               child: media == null
                   ? const _MediaLoadingState()
                   : media.hasError
-                      ? const _MediaErrorState()
-                      : !media.ready
-                          ? const _MediaLoadingState()
-                          // AnimatedScale tracks the pinch and springs back
-                          // to 1x on release; reduced motion collapses the
-                          // duration to zero (AzMotion.duration).
-                          : AnimatedScale(
-                              scale: _zoom,
-                              duration:
-                                  AzMotion.duration(context, MotionTokens.standard),
-                              curve: MotionTokens.enter,
-                              child: media.isVideo && media.video != null
-                                  ? AspectRatio(
-                                      aspectRatio:
-                                          media.video!.value.aspectRatio,
-                                      child: VideoPlayer(media.video!),
-                                    )
-                                  : CachedNetworkImage(
-                                      imageUrl: item.mediaUrl,
-                                      fit: BoxFit.contain,
-                                      placeholder: (_, __) =>
-                                          Container(color: Colors.black),
-                                      errorWidget: (_, __, ___) =>
-                                          const _MediaErrorState(),
-                                    ),
+                  ? const _MediaErrorState()
+                  : !media.ready
+                  ? const _MediaLoadingState()
+                  // AnimatedScale tracks the pinch and springs back
+                  // to 1x on release; reduced motion collapses the
+                  // duration to zero (AzMotion.duration).
+                  : AnimatedScale(
+                      scale: _zoom,
+                      duration: AzMotion.duration(
+                        context,
+                        MotionTokens.standard,
+                      ),
+                      curve: MotionTokens.enter,
+                      child: media.isVideo && media.video != null
+                          ? AspectRatio(
+                              aspectRatio: media.video!.value.aspectRatio,
+                              child: VideoPlayer(media.video!),
+                            )
+                          : CachedNetworkImage(
+                              imageUrl: item.mediaUrl,
+                              fit: BoxFit.contain,
+                              placeholder: (_, __) =>
+                                  Container(color: Colors.black),
+                              errorWidget: (_, __, ___) =>
+                                  const _MediaErrorState(),
                             ),
+                    ),
             ),
           ),
           const DecoratedBox(
@@ -302,7 +305,7 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
                   Colors.black54,
                   Colors.transparent,
                   Colors.transparent,
-                  Colors.black54
+                  Colors.black54,
                 ],
                 stops: [0.0, 0.2, 0.7, 1.0],
               ),
@@ -319,12 +322,15 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: AzSpace.lg, vertical: AzSpace.sm),
+                    horizontal: AzSpace.lg,
+                    vertical: AzSpace.sm,
+                  ),
                   child: Row(
                     children: [
                       travel
                           ? Hero(
-                              tag: widget.heroTag ??
+                              tag:
+                                  widget.heroTag ??
                                   AzIdentityTag.story(widget.group.authorId),
                               child: _ring(),
                             )
@@ -336,14 +342,16 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
                           Text(
                             widget.group.authorUsername,
                             style: AzText.label.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700),
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           Text(
                             '${_playback.index + 1} of '
                             '${widget.group.stories.length}',
                             style: AzText.caption.copyWith(
-                                color: Colors.white.withValues(alpha: 0.5)),
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
                           ),
                         ],
                       ),
@@ -351,7 +359,9 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
                         const SizedBox(width: AzSpace.sm),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.amberAccent.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(6),
@@ -359,14 +369,20 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.bolt,
-                                  color: Colors.amberAccent, size: 12),
+                              Icon(
+                                Icons.bolt,
+                                color: Colors.amberAccent,
+                                size: 12,
+                              ),
                               SizedBox(width: 2),
-                              Text('BOOSTED',
-                                  style: TextStyle(
-                                      color: Colors.amberAccent,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800)),
+                              Text(
+                                'BOOSTED',
+                                style: TextStyle(
+                                  color: Colors.amberAccent,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -384,8 +400,11 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
                       // (the F2 pattern) — one tap, one pop.
                       StoryChromeRegion(
                         child: IconButton(
-                          icon: const Icon(Icons.close,
-                              color: Colors.white, size: 22),
+                          icon: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 22,
+                          ),
                           onPressed: () => Navigator.of(context).maybePop(),
                         ),
                       ),
@@ -412,49 +431,50 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
             // story tap-zones, its scrollable never dismisses the viewer.
             child: StoryChromeRegion(
               child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (item.caption?.isNotEmpty ?? false)
-                    // Keyed by the story: the reveal state never leaks
-                    // from one story into the next.
-                    _StoryCaptionBlock(
-                      key: ValueKey('story-caption-${item.id}'),
-                      caption: item.caption!,
-                      // Reading the full caption holds the story (the
-                      // same OR-ed pause grammar as the sheet) so it
-                      // never auto-advances mid-read; collapsing resumes.
-                      onPause: () {
-                        _revealHeldForStory = _playback.index;
-                        _playback.hold(PauseReason.captionReveal);
-                      },
-                      onResume: () {
-                        _revealHeldForStory = null;
-                        _playback.release(PauseReason.captionReveal);
-                      },
-                    ),
-                  if (item.linkedBizId != null)
-                    Padding(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: AzSpace.lg),
-                      child: StoryBusinessTray(
-                        bizId: item.linkedBizId!,
-                        onPause: () => _playback.hold(PauseReason.sheet),
-                        onResume: () => _playback.release(PauseReason.sheet),
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (item.caption?.isNotEmpty ?? false)
+                      // Keyed by the story: the reveal state never leaks
+                      // from one story into the next.
+                      _StoryCaptionBlock(
+                        key: ValueKey('story-caption-${item.id}'),
+                        caption: item.caption!,
+                        // Reading the full caption holds the story (the
+                        // same OR-ed pause grammar as the sheet) so it
+                        // never auto-advances mid-read; collapsing resumes.
+                        onPause: () {
+                          _revealHeldForStory = _playback.index;
+                          _playback.hold(PauseReason.captionReveal);
+                        },
+                        onResume: () {
+                          _revealHeldForStory = null;
+                          _playback.release(PauseReason.captionReveal);
+                        },
                       ),
+                    if (item.linkedBizId != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AzSpace.lg,
+                        ),
+                        child: StoryBusinessTray(
+                          bizId: item.linkedBizId!,
+                          onPause: () => _playback.hold(PauseReason.sheet),
+                          onResume: () => _playback.release(PauseReason.sheet),
+                        ),
+                      ),
+                    StoryInteractionBar(
+                      story: item,
+                      authorId: widget.group.authorId,
+                      onFocusChanged: (focused) => focused
+                          ? _playback.hold(PauseReason.sheet)
+                          : _playback.release(PauseReason.sheet),
                     ),
-                  StoryInteractionBar(
-                    story: item,
-                    authorId: widget.group.authorId,
-                    onFocusChanged: (focused) => focused
-                        ? _playback.hold(PauseReason.sheet)
-                        : _playback.release(PauseReason.sheet),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
             ),
           ),
         ],
@@ -463,23 +483,22 @@ class _StoryGroupPageState extends ConsumerState<StoryGroupPage>
   }
 
   Widget _ring() => StoryRing(
-        avatarUrl: widget.group.authorAvatarUrl,
-        // The viewer's own progress UI is authoritative here — a ring built
-        // from the opening snapshot would go stale mid-view (viewed dots
-        // never flip while watching). Plain border, current behavior.
-        counts: const StoryRingCounts.empty(),
-        isBoosted: false,
-        size: 36,
-      );
+    avatarUrl: widget.group.authorAvatarUrl,
+    // The viewer's own progress UI is authoritative here — a ring built
+    // from the opening snapshot would go stale mid-view (viewed dots
+    // never flip while watching). Plain border, current behavior.
+    counts: const StoryRingCounts.empty(),
+    isBoosted: false,
+    size: 36,
+  );
 }
 
 class _MediaLoadingState extends StatelessWidget {
   const _MediaLoadingState();
 
   @override
-  Widget build(BuildContext context) => const Center(
-        child: CircularProgressIndicator(color: Colors.white70),
-      );
+  Widget build(BuildContext context) =>
+      const Center(child: CircularProgressIndicator(color: Colors.white70));
 }
 
 class _MediaErrorState extends StatelessWidget {
@@ -487,11 +506,11 @@ class _MediaErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: Colors.black12,
-        child: const Center(
-          child: Icon(Icons.broken_image, color: Colors.white30, size: 48),
-        ),
-      );
+    color: Colors.black12,
+    child: const Center(
+      child: Icon(Icons.broken_image, color: Colors.white30, size: 48),
+    ),
+  );
 }
 
 // ── WORKSTREAM F2 — the bounded, revealable story caption block ─────────────
@@ -534,8 +553,7 @@ class _StoryCaptionBlockState extends State<_StoryCaptionBlock> {
   bool _expanded = false;
 
   bool get _isLong =>
-      widget.caption.trim().split(RegExp(r'\s+')).length >
-      _revealWordThreshold;
+      widget.caption.trim().split(RegExp(r'\s+')).length > _revealWordThreshold;
 
   // NOTE: the block NEVER releases from dispose — notifying listeners
   // during element teardown is unsafe ("deactivated widget's ancestor").
@@ -549,7 +567,11 @@ class _StoryCaptionBlockState extends State<_StoryCaptionBlock> {
         height: 44, // reachable touch target on small devices
         child: TextButton.icon(
           onPressed: onTap,
-          icon: Icon(icon, size: 14, color: Colors.white.withValues(alpha: 0.7)),
+          icon: Icon(
+            icon,
+            size: 14,
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
           label: Text(
             label,
             style: AzText.caption.copyWith(
@@ -575,14 +597,24 @@ class _StoryCaptionBlockState extends State<_StoryCaptionBlock> {
     if (!_isLong) {
       // Short caption: whole text, own bounded space above the CTA.
       return Padding(
-        padding: const EdgeInsets.fromLTRB(AzSpace.xl, 0, AzSpace.xl, AzSpace.sm),
+        padding: const EdgeInsets.fromLTRB(
+          AzSpace.xl,
+          0,
+          AzSpace.xl,
+          AzSpace.sm,
+        ),
         child: Text(widget.caption, style: style),
       );
     }
 
     if (!_expanded) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(AzSpace.xl, 0, AzSpace.xl, AzSpace.sm),
+        padding: const EdgeInsets.fromLTRB(
+          AzSpace.xl,
+          0,
+          AzSpace.xl,
+          AzSpace.sm,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

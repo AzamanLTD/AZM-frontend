@@ -46,13 +46,13 @@ class WithdrawalProgressSheet extends ConsumerStatefulWidget {
 
   /// Canonical fiat withdrawal — tracked by its top-level reference.
   const WithdrawalProgressSheet.fiat({super.key, required this.reference})
-      : source = _Source.fiat,
-        withdrawalId = null;
+    : source = _Source.fiat,
+      withdrawalId = null;
 
   /// Saved-payout queue withdrawal — tracked by its numeric id.
   const WithdrawalProgressSheet.wallet({super.key, required this.withdrawalId})
-      : source = _Source.wallet,
-        reference = null;
+    : source = _Source.wallet,
+      reference = null;
 
   final _Source source;
   final String? reference;
@@ -137,7 +137,8 @@ class _WithdrawalProgressSheetState
     try {
       if (widget.source == _Source.fiat) {
         final response = await apiClient.get(
-            '/withdraw/status/${Uri.encodeComponent(widget.reference!)}');
+          '/withdraw/status/${Uri.encodeComponent(widget.reference!)}',
+        );
         if (response.statusCode == 200) {
           final body = jsonDecode(response.body) as Map<String, dynamic>;
           if (body['success'] == true) {
@@ -157,8 +158,9 @@ class _WithdrawalProgressSheetState
         // 404/5xx: transient or foreign — keep polling; the user can
         // always dismiss to the manual surface.
       } else {
-        final response =
-            await apiClient.get('/wallet/withdraw/status/${widget.withdrawalId}');
+        final response = await apiClient.get(
+          '/wallet/withdraw/status/${widget.withdrawalId}',
+        );
         if (response.statusCode == 200) {
           final body = jsonDecode(response.body) as Map<String, dynamic>;
           if (body['success'] == true) {
@@ -243,7 +245,8 @@ class _WithdrawalProgressSheetState
       _ => (Icons.downloading_rounded, colors.accent),
     };
 
-    final done = _stage == _Stage.completed ||
+    final done =
+        _stage == _Stage.completed ||
         _stage == _Stage.failed ||
         _stage == _Stage.review;
 
@@ -286,10 +289,7 @@ class _WithdrawalProgressSheetState
             Text(
               '${_amount!.toStringAsFixed(2)} USDC'
               '${_destination != null ? "  →  $_destination" : ""}',
-              style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
             ),
           ],
           if (widget.source == _Source.fiat) ...[
@@ -304,7 +304,10 @@ class _WithdrawalProgressSheetState
             ClipRRect(
               borderRadius: BorderRadius.circular(6),
               child: TweenAnimationBuilder<double>(
-                tween: Tween(begin: (_pct / 100 - 0.15).clamp(0.0, 1.0), end: (_pct / 100).clamp(0.0, 1.0)),
+                tween: Tween(
+                  begin: (_pct / 100 - 0.15).clamp(0.0, 1.0),
+                  end: (_pct / 100).clamp(0.0, 1.0),
+                ),
                 duration: const Duration(milliseconds: 600),
                 curve: Curves.easeOutCubic,
                 builder: (context, value, _) => LinearProgressIndicator(

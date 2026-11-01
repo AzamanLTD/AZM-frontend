@@ -23,7 +23,11 @@ class StorefrontRenderer extends StatelessWidget {
 
   final String? businessProfileId;
 
-  const StorefrontRenderer({super.key, required this.response, this.businessProfileId});
+  const StorefrontRenderer({
+    super.key,
+    required this.response,
+    this.businessProfileId,
+  });
 
   @override
   Widget build(BuildContext context) {

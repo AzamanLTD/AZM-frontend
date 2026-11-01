@@ -38,20 +38,23 @@ class JourneyThreadModel {
       JourneyStage.values.indexOf(stage) / (JourneyStage.values.length - 1);
 
   factory JourneyThreadModel.searching({String? operatorName}) =>
-      JourneyThreadModel(fromLabel: operatorName, toLabel: 'Where to?', stage: JourneyStage.search);
+      JourneyThreadModel(
+        fromLabel: operatorName,
+        toLabel: 'Where to?',
+        stage: JourneyStage.search,
+      );
 
   factory JourneyThreadModel.fromTrip(
     TransitTrip trip, {
     JourneyStage stage = JourneyStage.trip,
     String? seatLabel,
-  }) =>
-      JourneyThreadModel(
-        fromLabel: trip.origin,
-        toLabel: trip.destination,
-        departAt: trip.departureAt,
-        seatLabel: seatLabel,
-        stage: stage,
-      );
+  }) => JourneyThreadModel(
+    fromLabel: trip.origin,
+    toLabel: trip.destination,
+    departAt: trip.departureAt,
+    seatLabel: seatLabel,
+    stage: stage,
+  );
 
   JourneyThreadModel copyWith({JourneyStage? stage, String? seatLabel}) =>
       JourneyThreadModel(
@@ -72,7 +75,8 @@ class JourneyThreadModel {
       other.stage == stage;
 
   @override
-  int get hashCode => Object.hash(fromLabel, toLabel, departAt, seatLabel, stage);
+  int get hashCode =>
+      Object.hash(fromLabel, toLabel, departAt, seatLabel, stage);
 }
 
 /// Joins seat ids into the label shown on the thread ("12A · 12B").
@@ -84,8 +88,9 @@ String? journeySeatLabel(Iterable<String> seatIds) {
 
 /// Shared across the transit screens so the thread keeps its state while the
 /// user moves between them. Never persisted.
-final journeyThreadProvider =
-    StateProvider.autoDispose<JourneyThreadModel?>((_) => null);
+final journeyThreadProvider = StateProvider.autoDispose<JourneyThreadModel?>(
+  (_) => null,
+);
 
 class JourneyThread extends ConsumerWidget {
   final JourneyThreadModel model;
@@ -124,7 +129,11 @@ class JourneyThread extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Icon(Icons.arrow_forward_rounded, size: 14, color: colors.textTertiary),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 14,
+                  color: colors.textTertiary,
+                ),
                 Expanded(
                   child: Text(
                     model.toLabel ?? '—',
@@ -155,7 +164,11 @@ class _ThreadPainter extends CustomPainter {
   final Color color;
   final Color track;
 
-  const _ThreadPainter({required this.progress, required this.color, required this.track});
+  const _ThreadPainter({
+    required this.progress,
+    required this.color,
+    required this.track,
+  });
 
   @override
   void paint(Canvas c, Size s) {
@@ -163,10 +176,18 @@ class _ThreadPainter extends CustomPainter {
     final p = Paint()
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    c.drawLine(Offset(AzSpace.xl, y), Offset(s.width - AzSpace.xl, y), p..color = track);
+    c.drawLine(
+      Offset(AzSpace.xl, y),
+      Offset(s.width - AzSpace.xl, y),
+      p..color = track,
+    );
     final span = s.width - 2 * AzSpace.xl;
     if (progress > 0) {
-      c.drawLine(Offset(AzSpace.xl, y), Offset(AzSpace.xl + span * progress, y), p..color = color);
+      c.drawLine(
+        Offset(AzSpace.xl, y),
+        Offset(AzSpace.xl + span * progress, y),
+        p..color = color,
+      );
     }
   }
 

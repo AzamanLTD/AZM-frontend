@@ -41,8 +41,9 @@ import 'package:azaman/widgets/amount_keypad.dart';
 import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 
-const _storageChannel =
-    MethodChannel('plugins.it_nomands.com/flutter_secure_storage');
+const _storageChannel = MethodChannel(
+  'plugins.it_nomands.com/flutter_secure_storage',
+);
 
 class _FixedAuth extends AuthProvider {
   _FixedAuth(this.sessionUser);
@@ -57,59 +58,59 @@ class _FixedAuth extends AuthProvider {
 }
 
 User _user() => User(
-      id: '7',
-      username: 'me',
-      email: 'me@example.com',
-      token: 'tok',
-      role: 'USER',
-      azamanId: 'AZM-999999999',
-      availableBalance: 50.0,
-    );
+  id: '7',
+  username: 'me',
+  email: 'me@example.com',
+  token: 'tok',
+  role: 'USER',
+  azamanId: 'AZM-999999999',
+  availableBalance: 50.0,
+);
 
 Future<void> _mockSecureStorage() async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
-    if (call.method == 'read') return 'mock-token';
-    return null;
-  });
+        if (call.method == 'read') return 'mock-token';
+        return null;
+      });
 }
 
 /// Mini router wired to the REAL registry location (AzRoutes.withdraw())
 /// with the production risePage — the same wiring app_router.dart uses.
 GoRouter _router() => GoRouter(
-      initialLocation: '/',
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (c, s) => Scaffold(
-            body: Center(
-              child: TextButton(
-                key: const ValueKey('base-marker'),
-                onPressed: () => GoRouter.of(c).push(AzRoutes.withdraw()),
-                child: const Text('base'),
-              ),
-            ),
+  initialLocation: '/',
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (c, s) => Scaffold(
+        body: Center(
+          child: TextButton(
+            key: const ValueKey('base-marker'),
+            onPressed: () => GoRouter.of(c).push(AzRoutes.withdraw()),
+            child: const Text('base'),
           ),
         ),
-        GoRoute(
-          path: '/withdraw',
-          name: AzRouteNames.withdraw,
-          pageBuilder: (c, s) => risePage(
-            key: s.pageKey,
-            restorationId: s.name,
-            child: const WithdrawalScreen(),
-          ),
-        ),
-      ],
-    );
+      ),
+    ),
+    GoRoute(
+      path: '/withdraw',
+      name: AzRouteNames.withdraw,
+      pageBuilder: (c, s) => risePage(
+        key: s.pageKey,
+        restorationId: s.name,
+        child: const WithdrawalScreen(),
+      ),
+    ),
+  ],
+);
 
 Widget _app() => ProviderScope(
-      overrides: [
-        authProvider.overrideWith((ref) => _FixedAuth(_user())),
-        themeProvider.overrideWith((ref) => ThemeProvider()),
-      ],
-      child: MaterialApp.router(routerConfig: _router()),
-    );
+  overrides: [
+    authProvider.overrideWith((ref) => _FixedAuth(_user())),
+    themeProvider.overrideWith((ref) => ThemeProvider()),
+  ],
+  child: MaterialApp.router(routerConfig: _router()),
+);
 
 void _phoneSize(WidgetTester tester) {
   tester.view.physicalSize = const Size(420, 920);
@@ -124,15 +125,20 @@ void _phoneSize(WidgetTester tester) {
 /// CANONICAL route — after this the surface is mounted above base.
 Future<void> _pumpSurface(WidgetTester tester) async {
   _phoneSize(tester);
-  SharedPreferences.setMockInitialValues(
-      {'azaman_theme': 1, 'biometric_lock_enabled': false});
+  SharedPreferences.setMockInitialValues({
+    'azaman_theme': 1,
+    'biometric_lock_enabled': false,
+  });
   await _mockSecureStorage();
   await tester.pumpWidget(_app());
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('base-marker')));
   await tester.pumpAndSettle();
-  expect(find.byKey(const ValueKey('base-marker')), findsNothing,
-      reason: 'the withdraw surface covers the base page');
+  expect(
+    find.byKey(const ValueKey('base-marker')),
+    findsNothing,
+    reason: 'the withdraw surface covers the base page',
+  );
 }
 
 Finder _odometerCell(String ch) =>
@@ -181,19 +187,24 @@ void main() {
       );
     });
 
-    testWidgets('the X closes the surface — the stack returns to base',
-        (tester) async {
+    testWidgets('the X closes the surface — the stack returns to base', (
+      tester,
+    ) async {
       await _pumpSurface(tester);
 
       await tester.tap(find.byIcon(Icons.close), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('base-marker')), findsOneWidget,
-          reason: 'the surface popped; the base page is back');
+      expect(
+        find.byKey(const ValueKey('base-marker')),
+        findsOneWidget,
+        reason: 'the surface popped; the base page is back',
+      );
     });
 
-    testWidgets('a deliberate downward pull dismisses the surface',
-        (tester) async {
+    testWidgets('a deliberate downward pull dismisses the surface', (
+      tester,
+    ) async {
       await _pumpSurface(tester);
 
       // From the header band (static area, no child owns the vertical
@@ -201,8 +212,11 @@ void main() {
       await tester.dragFrom(const Offset(400, 30), const Offset(0, 260));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('base-marker')), findsOneWidget,
-          reason: 'the committed pull dismissed the surface');
+      expect(
+        find.byKey(const ValueKey('base-marker')),
+        findsOneWidget,
+        reason: 'the committed pull dismissed the surface',
+      );
     });
 
     testWidgets('a small pull is rejected — the surface springs back, '
@@ -212,16 +226,23 @@ void main() {
       await tester.dragFrom(const Offset(400, 30), const Offset(0, 80));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('base-marker')), findsNothing,
-          reason: 'a hesitant pull never dismisses');
-      expect(find.text('Withdraw'), findsOneWidget,
-          reason: 'the surface is still mounted');
+      expect(
+        find.byKey(const ValueKey('base-marker')),
+        findsNothing,
+        reason: 'a hesitant pull never dismisses',
+      );
+      expect(
+        find.text('Withdraw'),
+        findsOneWidget,
+        reason: 'the surface is still mounted',
+      );
     });
   });
 
   group('B — segment toggle and PageView stay in sync', () {
-    testWidgets('tapping the Crypto Wallet segment shows the crypto page',
-        (tester) async {
+    testWidgets('tapping the Crypto Wallet segment shows the crypto page', (
+      tester,
+    ) async {
       await _pumpSurface(tester);
 
       // MoMo page first: the saved-account section is present, the
@@ -232,14 +253,21 @@ void main() {
       await tester.tap(find.text('Crypto Wallet'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.text('No saved crypto wallet'), findsOneWidget,
-          reason: 'demo seeds no legacy wallets — the honest empty state');
-      expect(find.text('Send to'), findsNothing,
-          reason: 'the MoMo page is off-stage');
+      expect(
+        find.text('No saved crypto wallet'),
+        findsOneWidget,
+        reason: 'demo seeds no legacy wallets — the honest empty state',
+      );
+      expect(
+        find.text('Send to'),
+        findsNothing,
+        reason: 'the MoMo page is off-stage',
+      );
     });
 
-    testWidgets('a horizontal swipe drives the segments back and forth',
-        (tester) async {
+    testWidgets('a horizontal swipe drives the segments back and forth', (
+      tester,
+    ) async {
       await _pumpSurface(tester);
 
       // Swipe left: MoMo → Crypto. Everything must be operable WITHOUT
@@ -256,8 +284,9 @@ void main() {
       expect(find.text('No saved crypto wallet'), findsNothing);
     });
 
-    testWidgets('the keypad and amount stay shared across mode switches',
-        (tester) async {
+    testWidgets('the keypad and amount stay shared across mode switches', (
+      tester,
+    ) async {
       await _pumpSurface(tester);
 
       for (final key in const ['1', '2', '.', '5']) {
@@ -277,13 +306,17 @@ void main() {
       await tester.tap(find.text('Mobile Money'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(_odometerCell('1'), findsWidgets,
-          reason: 'the composed amount survives mode switches');
+      expect(
+        _odometerCell('1'),
+        findsWidgets,
+        reason: 'the composed amount survives mode switches',
+      );
       expect(_odometerCell('5'), findsWidgets);
     });
 
-    testWidgets('per-section input state survives a swipe away and back',
-        (tester) async {
+    testWidgets('per-section input state survives a swipe away and back', (
+      tester,
+    ) async {
       await _pumpSurface(tester);
 
       // Pick the demo saved MoMo account through the selector sheet —
@@ -295,8 +328,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Edit'), findsOneWidget);
-      expect(find.text('Kwame Mensah'), findsWidgets,
-          reason: 'the row and the affordance preview both show the name');
+      expect(
+        find.text('Kwame Mensah'),
+        findsWidgets,
+        reason: 'the row and the affordance preview both show the name',
+      );
 
       // Swipe away and back: the pick (and its reference fill) must be
       // exactly as it was — page switches never lose section state.
@@ -305,8 +341,11 @@ void main() {
       await tester.dragFrom(_pagePoint, const Offset(350, 0));
       await tester.pumpAndSettle();
 
-      expect(find.text('Edit'), findsOneWidget,
-          reason: 'the account pick survives the round trip');
+      expect(
+        find.text('Edit'),
+        findsOneWidget,
+        reason: 'the account pick survives the round trip',
+      );
       // The account row AND the affordance preview both carry the name.
       expect(find.text('Kwame Mensah'), findsWidgets);
     });
@@ -324,8 +363,11 @@ void main() {
       // Ama Boateng · Telecel). NEITHER renders inline — the old stacked
       // list showed both networks as two wallets, which the owner
       // corrected: the selector row must be the only surface presence.
-      expect(find.text('Kwame Mensah'), findsNothing,
-          reason: 'no account tile renders before a pick');
+      expect(
+        find.text('Kwame Mensah'),
+        findsNothing,
+        reason: 'no account tile renders before a pick',
+      );
       expect(find.text('Ama Boateng'), findsNothing);
       expect(find.text('My MTN'), findsNothing);
       expect(find.text('Telecel Acct'), findsNothing);
@@ -350,12 +392,21 @@ void main() {
       await tester.pumpAndSettle();
 
       // The sheet is gone; the row carries the pick.
-      expect(find.text('Payout account'), findsNothing,
-          reason: 'the sheet closed after the acknowledged pick');
-      expect(find.text('Kwame Mensah'), findsWidgets,
-          reason: 'the row and the reference preview show the name');
-      expect(find.text('024 412 3456'), findsOneWidget,
-          reason: 'the Ghana-formatted phone renders on the row');
+      expect(
+        find.text('Payout account'),
+        findsNothing,
+        reason: 'the sheet closed after the acknowledged pick',
+      );
+      expect(
+        find.text('Kwame Mensah'),
+        findsWidgets,
+        reason: 'the row and the reference preview show the name',
+      );
+      expect(
+        find.text('024 412 3456'),
+        findsOneWidget,
+        reason: 'the Ghana-formatted phone renders on the row',
+      );
       expect(find.text('Edit'), findsOneWidget);
     });
 
@@ -373,15 +424,24 @@ void main() {
       // Reopen and switch to the Telecel account.
       await tester.tap(find.text('Kwame Mensah').first, warnIfMissed: false);
       await tester.pumpAndSettle();
-      expect(find.text('Ama Boateng'), findsOneWidget,
-          reason: 'the sheet offers the other real account');
+      expect(
+        find.text('Ama Boateng'),
+        findsOneWidget,
+        reason: 'the sheet offers the other real account',
+      );
       await tester.tap(find.text('Ama Boateng'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.text('Ama Boateng'), findsWidgets,
-          reason: 'the row now carries the switched account');
-      expect(find.text('050 098 7654'), findsOneWidget,
-          reason: 'the switched account phone renders');
+      expect(
+        find.text('Ama Boateng'),
+        findsWidgets,
+        reason: 'the row now carries the switched account',
+      );
+      expect(
+        find.text('050 098 7654'),
+        findsOneWidget,
+        reason: 'the switched account phone renders',
+      );
     });
 
     testWidgets('the sheet opens from the selected row too, and closing it '
@@ -401,8 +461,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Payout account'), findsNothing);
-      expect(find.text('Kwame Mensah'), findsWidgets,
-          reason: 'closing the sheet never undoes the committed pick');
+      expect(
+        find.text('Kwame Mensah'),
+        findsWidgets,
+        reason: 'closing the sheet never undoes the committed pick',
+      );
     });
   });
 
@@ -416,14 +479,20 @@ void main() {
       await tester.tap(find.text('Reference'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.text('e.g. Rent for May'), findsOneWidget,
-          reason: 'the modal is open with its hint');
+      expect(
+        find.text('e.g. Rent for May'),
+        findsOneWidget,
+        reason: 'the modal is open with its hint',
+      );
       await tester.enterText(find.byType(TextField).last, 'Rent for May');
       await tester.tap(find.text('Save'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.text('Rent for May'), findsOneWidget,
-          reason: 'the committed note is previewed on the affordance');
+      expect(
+        find.text('Rent for May'),
+        findsOneWidget,
+        reason: 'the committed note is previewed on the affordance',
+      );
       expect(find.text('Edit'), findsOneWidget);
     });
 
@@ -445,14 +514,21 @@ void main() {
       await tester.tap(find.text('Cancel'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.text('Rent for May'), findsOneWidget,
-          reason: 'cancel-safe: the committed note survived');
-      expect(find.text('Zzz discard me'), findsNothing,
-          reason: 'the discarded draft never leaked');
+      expect(
+        find.text('Rent for May'),
+        findsOneWidget,
+        reason: 'cancel-safe: the committed note survived',
+      );
+      expect(
+        find.text('Zzz discard me'),
+        findsNothing,
+        reason: 'the discarded draft never leaked',
+      );
     });
 
-    testWidgets('the 80-character cap stays visible in the modal',
-        (tester) async {
+    testWidgets('the 80-character cap stays visible in the modal', (
+      tester,
+    ) async {
       await _pumpSurface(tester);
 
       await tester.tap(find.text('Reference'), warnIfMissed: false);
@@ -476,8 +552,11 @@ void main() {
         'live commit', (tester) async {
       await _pumpSurface(tester);
 
-      expect(find.byType(SlideToConfirm), findsNothing,
-          reason: 'nothing to slide before an account is picked');
+      expect(
+        find.byType(SlideToConfirm),
+        findsNothing,
+        reason: 'nothing to slide before an account is picked',
+      );
       expect(find.text('Choose an account'), findsOneWidget);
     });
 
@@ -494,8 +573,11 @@ void main() {
       }
       await tester.pump();
 
-      expect(find.byType(SlideToConfirm), findsOneWidget,
-          reason: 'the mode contract is satisfied — the commit is live');
+      expect(
+        find.byType(SlideToConfirm),
+        findsOneWidget,
+        reason: 'the mode contract is satisfied — the commit is live',
+      );
       expect(find.text('Slide to send mobile money'), findsOneWidget);
     });
   });

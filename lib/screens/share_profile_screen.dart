@@ -19,7 +19,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/qr_scanner_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 
-
 class ShareProfileScreen extends ConsumerWidget {
   const ShareProfileScreen({super.key});
 
@@ -53,7 +52,10 @@ class ShareProfileScreen extends ConsumerWidget {
         backgroundColor: colors.accent,
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
         icon: const Icon(Icons.qr_code_outlined, size: 20),
-        label: const Text('Scan', style: TextStyle(fontWeight: FontWeight.w700)),
+        label: const Text(
+          'Scan',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -68,7 +70,10 @@ class ShareProfileScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: colors.accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
-                  border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 2),
+                  border: Border.all(
+                    color: colors.accent.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
                 ),
                 child: Center(
                   child: Text(
@@ -98,10 +103,7 @@ class ShareProfileScreen extends ConsumerWidget {
 
               Text(
                 'Scan to add me on Azaman',
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: colors.textSecondary, fontSize: 13),
               ),
 
               const SizedBox(height: 32),
@@ -151,7 +153,11 @@ class ShareProfileScreen extends ConsumerWidget {
                       ),
                     );
                   },
-                  icon: Icon(Icons.copy_outlined, color: colors.accent, size: 18),
+                  icon: Icon(
+                    Icons.copy_outlined,
+                    color: colors.accent,
+                    size: 18,
+                  ),
                   label: Text(
                     'Copy Username',
                     style: TextStyle(
@@ -160,7 +166,9 @@ class ShareProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.accent.withValues(alpha: 0.4)),
+                    side: BorderSide(
+                      color: colors.accent.withValues(alpha: 0.4),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -176,7 +184,12 @@ class ShareProfileScreen extends ConsumerWidget {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: 'Add me on Azaman P2P! My username: @$username\nhttps://azaman.me'));
+                    Clipboard.setData(
+                      ClipboardData(
+                        text:
+                            'Add me on Azaman P2P! My username: @$username\nhttps://azaman.me',
+                      ),
+                    );
                     HapticFeedback.mediumImpact();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -197,7 +210,9 @@ class ShareProfileScreen extends ConsumerWidget {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
-                    foregroundColor: colors.isDark ? Colors.black : Colors.white,
+                    foregroundColor: colors.isDark
+                        ? Colors.black
+                        : Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -215,7 +230,9 @@ class ShareProfileScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: colors.accent.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: colors.accent.withValues(alpha: 0.15)),
+                  border: Border.all(
+                    color: colors.accent.withValues(alpha: 0.15),
+                  ),
                 ),
                 child: Row(
                   children: [

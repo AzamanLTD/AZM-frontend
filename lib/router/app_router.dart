@@ -48,7 +48,14 @@ import 'package:azaman/screens/marketplace/business_stories_screen.dart'; // Com
 
 import 'package:azaman/screens/splash_screen.dart';
 import 'package:azaman/screens/auth/login_screen.dart';
+import 'package:azaman/screens/intro/app_intro_screen.dart';
+import 'package:azaman/screens/bills/bills_add_account_screen.dart';
+import 'package:azaman/screens/bills/bills_home_screen.dart';
+import 'package:azaman/screens/bills/bills_pay_screen.dart';
+import 'package:azaman/screens/bills/bills_request_screen.dart';
+import 'package:azaman/widgets/navigation/bubble_morph.dart';
 import 'package:azaman/screens/onboarding_screen.dart';
+import 'package:azaman/screens/auth/phone_verification_screen.dart';
 import 'package:azaman/screens/force_update_screen.dart';
 // The canonical app shell: MainWrapper is the router-owned '/home' page —
 // it must be importable here like every other route destination.
@@ -134,6 +141,7 @@ import 'package:azaman/router/top_route_observer.dart';
 import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/widgets/home/activity_actions.dart'
     show ActivityRecipient;
+import 'package:azaman/widgets/home/money_route_guard.dart';
 
 /// Global navigator key — set on the GoRouter so notification handlers
 /// can access the navigation stack from outside the widget tree.
@@ -176,6 +184,7 @@ GoRouter _buildAppRouter() => GoRouter(
     // Public routes always pass
     if (path == '/' ||
         path == '/login' ||
+        path == AzRoutes.intro ||
         path == '/force-update' ||
         path.startsWith('/susu/invite/') ||
         path.startsWith('/request/')) {
@@ -192,8 +201,10 @@ GoRouter _buildAppRouter() => GoRouter(
         // is almost always an over-eager AuthGuard flip, and the path plus
         // the flag are the only two facts needed to spot it. No tokens,
         // no credentials, no personal data in the log.
-        debugPrint('[Router] auth redirect: "$path" → / '
-            '(AuthGuard.isAuthenticated=false)');
+        debugPrint(
+          '[Router] auth redirect: "$path" → / '
+          '(AuthGuard.isAuthenticated=false)',
+        );
         return '/';
       }
     } catch (e) {
@@ -223,6 +234,12 @@ GoRouter _buildAppRouter() => GoRouter(
     ),
 
     // ── Boot-flow destinations (the splash exits via go()) ─────────────────
+    // The PUBLIC intro: shown before login, gated only by a local flag.
+    GoRoute(
+      path: AzRoutes.intro,
+      name: AzRouteNames.intro,
+      builder: (context, state) => const AppIntroScreen(),
+    ),
     GoRoute(
       path: AzRoutes.login,
       name: AzRouteNames.login,
@@ -232,6 +249,11 @@ GoRouter _buildAppRouter() => GoRouter(
       path: AzRoutes.onboarding,
       name: AzRouteNames.onboarding,
       builder: (context, state) => const OnboardingScreen(),
+    ),
+    GoRoute(
+      path: AzRoutes.verifyPhone,
+      name: 'verify-phone',
+      builder: (context, state) => const PhoneVerificationScreen(),
     ),
     GoRoute(
       path: AzRoutes.forceUpdate,
@@ -265,10 +287,17 @@ GoRouter _buildAppRouter() => GoRouter(
         // Warm pushes (and only they) may carry amount/paymentMethod via
         // extra; deep links land with the screen's defaults.
         final extra = state.extra as Map<String, dynamic>?;
-        return ActiveTradeScreen(
-          orderId: '#$tradeId',
-          amount: (extra?['amount'] as num?)?.toDouble() ?? 0.0,
-          paymentMethod: extra?['paymentMethod'] as String? ?? 'Bank Transfer',
+        // A trade is money in flight: amount, counterparty and payment
+        // method. It is reachable by URL and by push, so it carries the same
+        // gate as /send.
+        return MoneyRouteGuard(
+          message: 'This trade is locked',
+          child: ActiveTradeScreen(
+            orderId: '#$tradeId',
+            amount: (extra?['amount'] as num?)?.toDouble() ?? 0.0,
+            paymentMethod:
+                extra?['paymentMethod'] as String? ?? 'Bank Transfer',
+          ),
         );
       },
     ),
@@ -323,7 +352,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const AccountActivityScreen(),
+        child: const MoneyRouteGuard(
+          message: 'Your activity is locked',
+          child: AccountActivityScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -402,8 +434,91 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const P2PMarketListScreen(),
+        child: const BubbleMorphDestination(
+          tag: BubbleMorphTag.p2p,
+          child: P2PMarketListScreen(),
+        ),
       ),
+    ),
+    // ── Bills (Home bubble destination) ────────────────────────────────
+    GoRoute(
+      path: AzRoutes.bills,
+      name: AzRouteNames.bills,
+      pageBuilder: (context, state) => traversePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: const BubbleMorphDestination(
+          tag: BubbleMorphTag.bills,
+          // Bills is a money surface: saved accounts, holder names, receipts
+          // and the pay composer all live behind it. A deep link or a
+          // notification tap must not open it while the member is locked.
+          // The hub itself is a catalogue: category names and descriptions are
+          // public information. The member's own bills, the pay composer and
+          // the Add form each carry their own lock, on this page and on their
+          // own routes, so discovery works while locked and nothing personal
+          // renders.
+          child: const BillsHomeScreen(),
+        ),
+      ),
+      routes: [
+        // The Bills facility's own screens. They read the SAME gateway provider
+        // as the Hub, so wiring the real routes in later changes one file, not
+        // this table.
+        GoRoute(
+          path: 'add',
+          name: AzRouteNames.billsAdd,
+          pageBuilder: (context, state) => traversePage(
+            key: state.pageKey,
+            restorationId: state.name,
+            child: MoneyRouteGuard(
+              message: 'Your bills are locked',
+              child: BillsAddAccountScreen(
+                categoryId: state.uri.queryParameters['category'],
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: 'pay/:accountId',
+          name: AzRouteNames.billsPay,
+          pageBuilder: (context, state) => traversePage(
+            key: state.pageKey,
+            restorationId: state.name,
+            child: MoneyRouteGuard(
+              message: 'Your bills are locked',
+              child: BillsPayScreen(
+                accountId: state.pathParameters['accountId']!,
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: 'request',
+          name: AzRouteNames.billsRequest,
+          pageBuilder: (context, state) => traversePage(
+            key: state.pageKey,
+            restorationId: state.name,
+            child: const MoneyRouteGuard(
+              message: 'Your bills are locked',
+              child: BillsRequestScreen(),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: 'request/:requestId',
+          name: AzRouteNames.billsRequestDetail,
+          pageBuilder: (context, state) => traversePage(
+            key: state.pageKey,
+            restorationId: state.name,
+            child: MoneyRouteGuard(
+              message: 'Your bills are locked',
+              child: BillsRequestScreen(
+                requestId: state.pathParameters['requestId'],
+              ),
+            ),
+          ),
+        ),
+      ],
     ),
     GoRoute(
       path: '/savings',
@@ -411,7 +526,17 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => traversePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const SavingsScreen(),
+        // The Hero pair stays intact: the bubble still flies into this
+        // destination. What changes is what the destination renders — while the
+        // member is locked it is the privacy surface, not their money.
+        child: const BubbleMorphDestination(
+          tag: BubbleMorphTag.save,
+          child: MoneyRouteGuard(
+            message: 'Your savings are locked',
+            hint: 'Tap the Azaman button on Home to unlock.',
+            child: SavingsScreen(),
+          ),
+        ),
       ),
     ),
 
@@ -422,7 +547,7 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const PaymentRequestsScreen(),
+        child: const MoneyRouteGuard(child: PaymentRequestsScreen()),
       ),
     ),
     GoRoute(
@@ -431,8 +556,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: PaymentRequestLandingScreen(
-          token: state.pathParameters['token']!,
+        child: MoneyRouteGuard(
+          child: PaymentRequestLandingScreen(
+            token: state.pathParameters['token']!,
+          ),
         ),
       ),
     ),
@@ -444,7 +571,12 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const ReceiveScreen(),
+        // Money initiation: a deep link must not compose a receipt while
+        // the gate is shut.
+        child: const MoneyRouteGuard(
+          message: 'Your money is locked',
+          child: ReceiveScreen(),
+        ),
       ),
     ),
 
@@ -462,14 +594,16 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: DepositScreen(
-          // §C continuation — the notification centre's Resume pushes the
-          // canonical route with the draft's editable inputs as extra.
-          restoredDraft: state.extra is Map<String, dynamic>
-              ? state.extra as Map<String, dynamic>
-              : null,
-          prefillAmount: state.uri.queryParameters['amount'],
-          memo: state.uri.queryParameters['memo'],
+        child: MoneyRouteGuard(
+          child: DepositScreen(
+            // §C continuation — the notification centre's Resume pushes the
+            // canonical route with the draft's editable inputs as extra.
+            restoredDraft: state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null,
+            prefillAmount: state.uri.queryParameters['amount'],
+            memo: state.uri.queryParameters['memo'],
+          ),
         ),
       ),
     ),
@@ -487,18 +621,20 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: SendMoneyScreen(
-          initialRecipient: state.uri.queryParameters['to'] == null
-              ? null
-              : ActivityRecipient(
-                  azamanId: state.uri.queryParameters['to']!,
-                  displayName: state.uri.queryParameters['name'] ?? '',
-                ),
-          // §C continuation — the notification centre's Resume pushes the
-          // canonical route with the draft's editable inputs as extra.
-          restoredDraft: state.extra is Map<String, dynamic>
-              ? state.extra as Map<String, dynamic>
-              : null,
+        child: MoneyRouteGuard(
+          child: SendMoneyScreen(
+            initialRecipient: state.uri.queryParameters['to'] == null
+                ? null
+                : ActivityRecipient(
+                    azamanId: state.uri.queryParameters['to']!,
+                    displayName: state.uri.queryParameters['name'] ?? '',
+                  ),
+            // §C continuation — the notification centre's Resume pushes the
+            // canonical route with the draft's editable inputs as extra.
+            restoredDraft: state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null,
+          ),
         ),
       ),
     ),
@@ -513,12 +649,14 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: WithdrawalScreen(
-          // §C continuation — editable draft inputs from the
-          // notification centre's Resume.
-          restoredDraft: state.extra is Map<String, dynamic>
-              ? state.extra as Map<String, dynamic>
-              : null,
+        child: MoneyRouteGuard(
+          child: WithdrawalScreen(
+            // §C continuation — editable draft inputs from the
+            // notification centre's Resume.
+            restoredDraft: state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null,
+          ),
         ),
       ),
     ),
@@ -533,12 +671,14 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: ConvertScreen(
-          // §C continuation — the notification centre's Resume pushes
-          // the canonical route with the draft's editable inputs as extra.
-          restoredDraft: state.extra is Map<String, dynamic>
-              ? state.extra as Map<String, dynamic>
-              : null,
+        child: MoneyRouteGuard(
+          child: ConvertScreen(
+            // §C continuation — the notification centre's Resume pushes
+            // the canonical route with the draft's editable inputs as extra.
+            restoredDraft: state.extra is Map<String, dynamic>
+                ? state.extra as Map<String, dynamic>
+                : null,
+          ),
         ),
       ),
     ),
@@ -552,7 +692,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const CardTransferScreen(),
+        child: const MoneyRouteGuard(
+          message: 'Your money is locked',
+          child: CardTransferScreen(),
+        ),
       ),
     ),
 
@@ -566,7 +709,16 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const SusuHubScreen(),
+        // A Susu hub is a list of groups with money in them. The morph keeps
+        // its source/destination tags inside the guard so the bubble still
+        // opens into the page once the gate is open.
+        child: const MoneyRouteGuard(
+          message: 'Your Susu money is locked',
+          child: BubbleMorphDestination(
+            tag: BubbleMorphTag.susu,
+            child: SusuHubScreen(),
+          ),
+        ),
       ),
     ),
     GoRoute(
@@ -587,14 +739,20 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/susu/:id',
       name: AzRouteNames.susuDetail,
-      builder: (context, state) =>
-          SusuDashboardScreen(susuId: state.pathParameters['id']!),
+      builder: (context, state) => MoneyRouteGuard(
+        message: 'Your Susu money is locked',
+        child: BubbleMorphDestination(
+          tag: BubbleMorphTag.susu,
+          child: SusuDashboardScreen(susuId: state.pathParameters['id']!),
+        ),
+      ),
     ),
     GoRoute(
       path: '/susu/:id/contract',
       name: AzRouteNames.susuContract,
-      builder: (context, state) =>
-          LiabilityAcceptanceScreen(susuId: state.pathParameters['id']!),
+      builder: (context, state) => MoneyRouteGuard(
+        child: LiabilityAcceptanceScreen(susuId: state.pathParameters['id']!),
+      ),
     ),
 
     // ── V3 Premium Marketplace (2026-06-21) ─────────────────────────────────
@@ -674,8 +832,11 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/business-market/dine-in/:tabId',
       name: AzRouteNames.dineInTab,
-      builder: (context, state) =>
-          DineInTabScreen(tabId: state.pathParameters['tabId']!),
+      // A dine-in tab is an amount owed at a table.
+      builder: (context, state) => MoneyRouteGuard(
+        message: 'This tab is locked',
+        child: DineInTabScreen(tabId: state.pathParameters['tabId']!),
+      ),
     ),
     GoRoute(
       path: '/business-market/:bizId/stories',
@@ -696,18 +857,33 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/business-market/orders',
       name: AzRouteNames.businessMarketOrders,
-      builder: (_, __) => const MyOrdersScreen(),
+      // Owner decision 2026-10-31: order totals and payment state are the
+      // member's money, even when the paperwork is business-shaped.
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Your orders are locked',
+        child: MyOrdersScreen(),
+      ),
     ),
     GoRoute(
       path: '/business-market/invoices',
       name: AzRouteNames.businessMarketInvoices,
-      builder: (_, __) => const MyInvoicesScreen(),
+      // Owner decision 2026-10-31: an invoice list is amounts owed and paid.
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Your invoices are locked',
+        child: MyInvoicesScreen(),
+      ),
     ),
     GoRoute(
       path: '/business-market/invoices/:invoiceId',
       name: AzRouteNames.invoiceDetail,
-      builder: (_, state) =>
-          InvoiceDetailScreen(invoiceId: state.pathParameters['invoiceId']!),
+      // Owner decision 2026-10-31: the detail carries the amount, the payment
+      // state and any private paperwork attached to it.
+      builder: (_, state) => MoneyRouteGuard(
+        message: 'This invoice is locked',
+        child: InvoiceDetailScreen(
+          invoiceId: state.pathParameters['invoiceId']!,
+        ),
+      ),
     ),
     GoRoute(
       path: '/business-market/dashboard',
@@ -773,7 +949,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/worker/payroll',
       name: AzRouteNames.workerPayroll,
-      builder: (_, __) => const WorkerPayrollScreen(),
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Payroll is locked',
+        child: WorkerPayrollScreen(),
+      ),
     ),
     GoRoute(
       path: '/worker/team',
@@ -793,7 +972,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/worker/ewa',
       name: AzRouteNames.workerEwa,
-      builder: (_, __) => const WorkerEwaScreen(),
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Earned wage access is locked',
+        child: WorkerEwaScreen(),
+      ),
     ),
     GoRoute(
       path: '/worker/swaps',
@@ -803,7 +985,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/storefront/staking',
       name: AzRouteNames.storefrontStaking,
-      builder: (_, __) => const StorefrontStakingScreen(),
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Staking is locked',
+        child: StorefrontStakingScreen(),
+      ),
     ),
     GoRoute(
       path: '/storefront/:businessProfileId',
@@ -828,7 +1013,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const StorefrontOrderHistoryScreen(),
+        child: MoneyRouteGuard(
+          message: 'Your orders are locked',
+          child: const StorefrontOrderHistoryScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -846,7 +1034,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const SpendingInsightsScreen(),
+        child: MoneyRouteGuard(
+          message: 'Your spending is locked',
+          child: const SpendingInsightsScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -855,7 +1046,10 @@ GoRouter _buildAppRouter() => GoRouter(
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: const RoundUpSettingsScreen(),
+        child: MoneyRouteGuard(
+          message: 'Round-up savings are locked',
+          child: const RoundUpSettingsScreen(),
+        ),
       ),
     ),
     GoRoute(
@@ -953,13 +1147,16 @@ GoRouter _buildAppRouter() => GoRouter(
       name: AzRouteNames.susuCompletion,
       builder: (context, state) {
         final extra = state.extra as Map<String, dynamic>? ?? {};
-        return SusuCompletionScreen(
-          groupName: extra['groupName'] as String? ?? 'Susu Group',
-          totalContributed: extra['totalContributed'] as double? ?? 0,
-          totalPayout: extra['totalPayout'] as double? ?? 0,
-          members: (extra['members'] as List? ?? [])
-              .cast<Map<String, dynamic>>(),
-          currency: extra['currency'] as String? ?? 'GHS',
+        return MoneyRouteGuard(
+          message: 'Payout details are locked',
+          child: SusuCompletionScreen(
+            groupName: extra['groupName'] as String? ?? 'Susu Group',
+            totalContributed: extra['totalContributed'] as double? ?? 0,
+            totalPayout: extra['totalPayout'] as double? ?? 0,
+            members: (extra['members'] as List? ?? [])
+                .cast<Map<String, dynamic>>(),
+            currency: extra['currency'] as String? ?? 'GHS',
+          ),
         );
       },
     ),
@@ -978,11 +1175,16 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/wallet-pass/:passType/:itemId',
       name: AzRouteNames.walletPass,
-      builder: (context, state) => WalletPassScreen(
-        passType: state.pathParameters['passType']!,
-        itemId: state.pathParameters['itemId']!,
-        title: state.uri.queryParameters['title'] ?? '',
-        subtitle: state.uri.queryParameters['subtitle'] ?? '',
+      // Owner decision 2026-10-31: points are not money, but a wallet pass is
+      // a stored-value representation and can carry payment credentials.
+      builder: (context, state) => MoneyRouteGuard(
+        message: 'This pass is locked',
+        child: WalletPassScreen(
+          passType: state.pathParameters['passType']!,
+          itemId: state.pathParameters['itemId']!,
+          title: state.uri.queryParameters['title'] ?? '',
+          subtitle: state.uri.queryParameters['subtitle'] ?? '',
+        ),
       ),
     ),
     GoRoute(
@@ -1000,8 +1202,10 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/vault/:vaultId/yield',
       name: AzRouteNames.vaultYield,
-      builder: (context, state) =>
-          VaultYieldScreen(vaultId: state.pathParameters['vaultId']!),
+      builder: (context, state) => MoneyRouteGuard(
+        message: 'Vault yield is locked',
+        child: VaultYieldScreen(vaultId: state.pathParameters['vaultId']!),
+      ),
     ),
     GoRoute(
       path: '/story-create',

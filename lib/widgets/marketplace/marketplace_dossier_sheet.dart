@@ -90,27 +90,26 @@ class MarketplaceDossierSheet extends StatelessWidget {
   });
 
   String get _presentationLabel => switch (presentation) {
-        MarketplaceDetailPresentation.morph => 'Details',
-        MarketplaceDetailPresentation.dishDossier => 'Dish dossier',
-        MarketplaceDetailPresentation.productDossier => 'Product dossier',
-        MarketplaceDetailPresentation.roomDossier => 'Room dossier',
-        MarketplaceDetailPresentation.seatDossier => 'Seat dossier',
-        MarketplaceDetailPresentation.serviceDossier => 'Service dossier',
-      };
+    MarketplaceDetailPresentation.morph => 'Details',
+    MarketplaceDetailPresentation.dishDossier => 'Dish dossier',
+    MarketplaceDetailPresentation.productDossier => 'Product dossier',
+    MarketplaceDetailPresentation.roomDossier => 'Room dossier',
+    MarketplaceDetailPresentation.seatDossier => 'Seat dossier',
+    MarketplaceDetailPresentation.serviceDossier => 'Service dossier',
+  };
 
   // Only in-repo-verified Hugeicons names are used (F-035). `shoppingBag01`
   // from the spec is NOT present in the local package, so the product dossier
   // borrows the store glyph family rather than guessing a name.
   IconData get _presentationGlyph => switch (presentation) {
-        MarketplaceDetailPresentation.dishDossier => HugeIconsStroke.store01,
-        MarketplaceDetailPresentation.productDossier => HugeIconsSolid.store01,
-        MarketplaceDetailPresentation.roomDossier => HugeIconsSolid.bank,
-        MarketplaceDetailPresentation.seatDossier =>
-          HugeIconsSolid.arrowDataTransferHorizontal,
-        MarketplaceDetailPresentation.serviceDossier => HugeIconsSolid.note01,
-        MarketplaceDetailPresentation.morph =>
-          HugeIconsSolid.informationCircle,
-      };
+    MarketplaceDetailPresentation.dishDossier => HugeIconsStroke.store01,
+    MarketplaceDetailPresentation.productDossier => HugeIconsSolid.store01,
+    MarketplaceDetailPresentation.roomDossier => HugeIconsSolid.bank,
+    MarketplaceDetailPresentation.seatDossier =>
+      HugeIconsSolid.arrowDataTransferHorizontal,
+    MarketplaceDetailPresentation.serviceDossier => HugeIconsSolid.note01,
+    MarketplaceDetailPresentation.morph => HugeIconsSolid.informationCircle,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +122,11 @@ class MarketplaceDossierSheet extends StatelessWidget {
     // chrome). Only the inner content padding remains.
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(
-          AzSpace.lg, AzSpace.sm, AzSpace.lg, AzSpace.lg),
+        AzSpace.lg,
+        AzSpace.sm,
+        AzSpace.lg,
+        AzSpace.lg,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,8 +140,7 @@ class MarketplaceDossierSheet extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(_presentationGlyph,
-                        size: 14, color: colors.accent),
+                    Icon(_presentationGlyph, size: 14, color: colors.accent),
                     const SizedBox(width: AzSpace.xs),
                     Flexible(
                       child: Text(
@@ -151,16 +153,16 @@ class MarketplaceDossierSheet extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: AzSpace.sm),
-                Text(title, style: AzText.titleXl.copyWith(color: colors.textPrimary)),
+                Text(
+                  title,
+                  style: AzText.titleXl.copyWith(color: colors.textPrimary),
+                ),
                 const SizedBox(height: AzSpace.lg),
                 contentWidget,
               ],
             ),
           ),
-          if (footer != null) ...[
-            const SizedBox(height: AzSpace.lg),
-            footer!,
-          ],
+          if (footer != null) ...[const SizedBox(height: AzSpace.lg), footer!],
         ],
       ),
     );
@@ -190,7 +192,10 @@ class _DossierEntrance extends StatelessWidget {
       curve: curve,
       builder: (context, t, child) => Opacity(
         opacity: t,
-        child: Transform.translate(offset: Offset(0, 12 * (1 - t)), child: child),
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - t)),
+          child: child,
+        ),
       ),
       child: child,
     );

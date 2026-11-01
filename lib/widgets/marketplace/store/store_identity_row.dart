@@ -32,14 +32,23 @@ class StoreIdentityRow extends ConsumerWidget {
     ].join(' · ');
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(AzSpace.xl, AzSpace.md, AzSpace.xl, AzSpace.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AzSpace.xl,
+        AzSpace.md,
+        AzSpace.xl,
+        AzSpace.sm,
+      ),
       child: Row(
         children: [
           // Same `logoUrl` as the top pill — one identity, three sizes.
           AzIdentityMorph(
             tag: AzIdentityTag.business(business.bizId),
             travel: travel,
-            child: ChatAvatar(imageUrl: business.logoUrl, name: business.businessName, size: 56),
+            child: ChatAvatar(
+              imageUrl: business.logoUrl,
+              name: business.businessName,
+              size: 56,
+            ),
           ),
           const SizedBox(width: AzSpace.md),
           Expanded(
@@ -51,7 +60,9 @@ class StoreIdentityRow extends ConsumerWidget {
                     Flexible(
                       child: Text(
                         business.businessName,
-                        style: AzText.titleL.copyWith(color: colors.textPrimary),
+                        style: AzText.titleL.copyWith(
+                          color: colors.textPrimary,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),

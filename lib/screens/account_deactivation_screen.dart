@@ -6,15 +6,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:record/record.dart';
 
-
 class AccountDeactivationScreen extends ConsumerStatefulWidget {
   const AccountDeactivationScreen({super.key});
 
   @override
-  ConsumerState<AccountDeactivationScreen> createState() => _AccountDeactivationScreenState();
+  ConsumerState<AccountDeactivationScreen> createState() =>
+      _AccountDeactivationScreenState();
 }
 
-class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationScreen>
+class _AccountDeactivationScreenState
+    extends ConsumerState<AccountDeactivationScreen>
     with SingleTickerProviderStateMixin {
   final TextEditingController _reasonController = TextEditingController();
   final AudioRecorder _recorder = AudioRecorder();
@@ -103,7 +104,11 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
             const SizedBox(width: 10),
             Text(
               'Delete Account?',
-              style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
@@ -123,7 +128,10 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
               elevation: 0,
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -189,7 +197,10 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                       const SizedBox(height: 4),
                       Text(
                         'Deleting your account removes all data permanently.',
-                        style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -268,7 +279,9 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
         color: colors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _isRecording ? colors.danger.withValues(alpha: 0.5) : colors.divider,
+          color: _isRecording
+              ? colors.danger.withValues(alpha: 0.5)
+              : colors.divider,
         ),
       ),
       child: Column(
@@ -285,7 +298,9 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                   height: 56,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _isRecording ? colors.danger : (_hasRecording ? colors.success : colors.surface),
+                    color: _isRecording
+                        ? colors.danger
+                        : (_hasRecording ? colors.success : colors.surface),
                     boxShadow: _isRecording
                         ? [
                             BoxShadow(
@@ -295,22 +310,24 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                             ),
                           ]
                         : _hasRecording
-                            ? [
-                                BoxShadow(
-                                  color: colors.success.withValues(alpha: 0.3),
-                                  blurRadius: 12,
-                                  spreadRadius: 1,
-                                ),
-                              ]
-                            : [],
+                        ? [
+                            BoxShadow(
+                              color: colors.success.withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : [],
                   ),
                   child: Icon(
-                    _hasRecording ? Icons.check_circle_outline : Icons.mic_none_outlined,
+                    _hasRecording
+                        ? Icons.check_circle_outline
+                        : Icons.mic_none_outlined,
                     color: _isRecording
                         ? Colors.white
                         : _hasRecording
-                            ? Colors.white
-                            : colors.textTertiary,
+                        ? Colors.white
+                        : colors.textTertiary,
                     size: 24,
                   ),
                 ),
@@ -323,43 +340,54 @@ class _AccountDeactivationScreenState extends ConsumerState<AccountDeactivationS
                         color: colors.danger,
                       )
                     : _hasRecording
-                        ? Row(
-                            children: [
-                              Icon(Icons.music_note_outlined, color: colors.success, size: 18),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Recording captured',
-                                style: TextStyle(
-                                  color: colors.success,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const Spacer(),
-                              GestureDetector(
-                                onTap: _clearRecording,
-                                child: Icon(Icons.cancel_outlined, color: colors.textTertiary, size: 18),
-                              ),
-                            ],
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Hold to Record',
-                                style: TextStyle(
-                                  color: colors.textSecondary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Tap & hold the mic button',
-                                style: TextStyle(color: colors.textTertiary, fontSize: 10),
-                              ),
-                            ],
+                    ? Row(
+                        children: [
+                          Icon(
+                            Icons.music_note_outlined,
+                            color: colors.success,
+                            size: 18,
                           ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Recording captured',
+                            style: TextStyle(
+                              color: colors.success,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          GestureDetector(
+                            onTap: _clearRecording,
+                            child: Icon(
+                              Icons.cancel_outlined,
+                              color: colors.textTertiary,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hold to Record',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Tap & hold the mic button',
+                            style: TextStyle(
+                              color: colors.textTertiary,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
               ),
             ],
           ),
@@ -373,10 +401,7 @@ class _WaveformAnimation extends StatelessWidget {
   final AnimationController controller;
   final Color color;
 
-  const _WaveformAnimation({
-    required this.controller,
-    required this.color,
-  });
+  const _WaveformAnimation({required this.controller, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -385,10 +410,7 @@ class _WaveformAnimation extends StatelessWidget {
       builder: (context, _) {
         return CustomPaint(
           size: const Size(double.infinity, 40),
-          painter: _WaveformPainter(
-            progress: controller.value,
-            color: color,
-          ),
+          painter: _WaveformPainter(progress: controller.value, color: color),
         );
       },
     );

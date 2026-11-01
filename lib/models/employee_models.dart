@@ -4,8 +4,17 @@
 // =============================================================================
 
 enum EmployeeRole {
-  owner, manager, supervisor, staff, driver, housekeeper, waiter,
-  chef, receptionist, concierge, security,
+  owner,
+  manager,
+  supervisor,
+  staff,
+  driver,
+  housekeeper,
+  waiter,
+  chef,
+  receptionist,
+  concierge,
+  security,
 }
 
 enum EmployeeStatus { active, suspended, terminated, onLeave }
@@ -24,78 +33,120 @@ enum PayrollType { salary, hourly, pieceRate }
 
 EmployeeRole employeeRoleFromString(String? val) {
   switch (val?.toUpperCase()) {
-    case 'OWNER': return EmployeeRole.owner;
-    case 'MANAGER': return EmployeeRole.manager;
-    case 'SUPERVISOR': return EmployeeRole.supervisor;
-    case 'STAFF': return EmployeeRole.staff;
-    case 'DRIVER': return EmployeeRole.driver;
-    case 'HOUSEKEEPER': return EmployeeRole.housekeeper;
-    case 'WAITER': return EmployeeRole.waiter;
-    case 'CHEF': return EmployeeRole.chef;
-    case 'RECEPTIONIST': return EmployeeRole.receptionist;
-    case 'CONCIERGE': return EmployeeRole.concierge;
-    case 'SECURITY': return EmployeeRole.security;
-    default: return EmployeeRole.staff;
+    case 'OWNER':
+      return EmployeeRole.owner;
+    case 'MANAGER':
+      return EmployeeRole.manager;
+    case 'SUPERVISOR':
+      return EmployeeRole.supervisor;
+    case 'STAFF':
+      return EmployeeRole.staff;
+    case 'DRIVER':
+      return EmployeeRole.driver;
+    case 'HOUSEKEEPER':
+      return EmployeeRole.housekeeper;
+    case 'WAITER':
+      return EmployeeRole.waiter;
+    case 'CHEF':
+      return EmployeeRole.chef;
+    case 'RECEPTIONIST':
+      return EmployeeRole.receptionist;
+    case 'CONCIERGE':
+      return EmployeeRole.concierge;
+    case 'SECURITY':
+      return EmployeeRole.security;
+    default:
+      return EmployeeRole.staff;
   }
 }
 
 EmployeeStatus employeeStatusFromString(String? val) {
   switch (val?.toUpperCase()) {
-    case 'ACTIVE': return EmployeeStatus.active;
-    case 'SUSPENDED': return EmployeeStatus.suspended;
-    case 'TERMINATED': return EmployeeStatus.terminated;
-    case 'ON_LEAVE': return EmployeeStatus.onLeave;
-    default: return EmployeeStatus.active;
+    case 'ACTIVE':
+      return EmployeeStatus.active;
+    case 'SUSPENDED':
+      return EmployeeStatus.suspended;
+    case 'TERMINATED':
+      return EmployeeStatus.terminated;
+    case 'ON_LEAVE':
+      return EmployeeStatus.onLeave;
+    default:
+      return EmployeeStatus.active;
   }
 }
 
 ShiftStatus shiftStatusFromString(String? val) {
   switch (val?.toUpperCase()) {
-    case 'SCHEDULED': return ShiftStatus.scheduled;
-    case 'CLOCKED_IN': return ShiftStatus.clockedIn;
-    case 'CLOCKED_OUT': return ShiftStatus.clockedOut;
-    case 'LATE': return ShiftStatus.late;
-    case 'NO_SHOW': return ShiftStatus.noShow;
-    default: return ShiftStatus.scheduled;
+    case 'SCHEDULED':
+      return ShiftStatus.scheduled;
+    case 'CLOCKED_IN':
+      return ShiftStatus.clockedIn;
+    case 'CLOCKED_OUT':
+      return ShiftStatus.clockedOut;
+    case 'LATE':
+      return ShiftStatus.late;
+    case 'NO_SHOW':
+      return ShiftStatus.noShow;
+    default:
+      return ShiftStatus.scheduled;
   }
 }
 
 PayrollStatus payrollStatusFromString(String? val) {
   switch (val?.toUpperCase()) {
-    case 'PENDING': return PayrollStatus.pending;
-    case 'PROCESSED': return PayrollStatus.processed;
-    case 'FAILED': return PayrollStatus.failed;
-    case 'PARTIAL': return PayrollStatus.partial;
-    default: return PayrollStatus.pending;
+    case 'PENDING':
+      return PayrollStatus.pending;
+    case 'PROCESSED':
+      return PayrollStatus.processed;
+    case 'FAILED':
+      return PayrollStatus.failed;
+    case 'PARTIAL':
+      return PayrollStatus.partial;
+    default:
+      return PayrollStatus.pending;
   }
 }
 
 PayrollType payrollTypeFromString(String? val) {
   switch (val?.toUpperCase()) {
-    case 'SALARY': return PayrollType.salary;
-    case 'HOURLY': return PayrollType.hourly;
-    case 'PIECE_RATE': return PayrollType.pieceRate;
-    default: return PayrollType.salary;
+    case 'SALARY':
+      return PayrollType.salary;
+    case 'HOURLY':
+      return PayrollType.hourly;
+    case 'PIECE_RATE':
+      return PayrollType.pieceRate;
+    default:
+      return PayrollType.salary;
   }
 }
 
 TimeOffType timeOffTypeFromString(String? val) {
   switch (val?.toUpperCase()) {
-    case 'SICK': return TimeOffType.sick;
-    case 'PERSONAL': return TimeOffType.personal;
-    case 'VACATION': return TimeOffType.vacation;
-    case 'EMERGENCY': return TimeOffType.emergency;
-    case 'UNPAID': return TimeOffType.unpaid;
-    default: return TimeOffType.personal;
+    case 'SICK':
+      return TimeOffType.sick;
+    case 'PERSONAL':
+      return TimeOffType.personal;
+    case 'VACATION':
+      return TimeOffType.vacation;
+    case 'EMERGENCY':
+      return TimeOffType.emergency;
+    case 'UNPAID':
+      return TimeOffType.unpaid;
+    default:
+      return TimeOffType.personal;
   }
 }
 
 TimeOffStatus timeOffStatusFromString(String? val) {
   switch (val?.toUpperCase()) {
-    case 'PENDING': return TimeOffStatus.pending;
-    case 'APPROVED': return TimeOffStatus.approved;
-    case 'REJECTED': return TimeOffStatus.rejected;
-    default: return TimeOffStatus.pending;
+    case 'PENDING':
+      return TimeOffStatus.pending;
+    case 'APPROVED':
+      return TimeOffStatus.approved;
+    case 'REJECTED':
+      return TimeOffStatus.rejected;
+    default:
+      return TimeOffStatus.pending;
   }
 }
 
@@ -175,7 +226,9 @@ class BusinessEmployee {
       withdrawnEarly: (j['withdrawnEarly'] as num?)?.toDouble() ?? 0,
       ewaEligible: j['ewaEligible'] == true,
       hireDate: j['hireDate'] != null ? DateTime.tryParse(j['hireDate']) : null,
-      terminationDate: j['terminationDate'] != null ? DateTime.tryParse(j['terminationDate']) : null,
+      terminationDate: j['terminationDate'] != null
+          ? DateTime.tryParse(j['terminationDate'])
+          : null,
       emergencyContact: j['emergencyContact'],
       notes: j['notes'],
       lateCount: (j['lateCount'] as num?)?.toInt() ?? 0,
@@ -274,7 +327,9 @@ class PayrollRecord {
       ewaDeducted: (j['ewaDeducted'] as num?)?.toDouble(),
       feeDeducted: (j['feeDeducted'] as num?)?.toDouble(),
       status: payrollStatusFromString(j['status']),
-      processedAt: j['processedAt'] != null ? DateTime.tryParse(j['processedAt']) : null,
+      processedAt: j['processedAt'] != null
+          ? DateTime.tryParse(j['processedAt'])
+          : null,
       createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
     );
   }
@@ -346,7 +401,9 @@ class EmployeeFeedback {
       tags: (j['tags'] as List<dynamic>?)?.cast<String>() ?? [],
       comment: j['comment'],
       isAnonymous: j['isAnonymous'] == true,
-      giverName: j['isAnonymous'] == true ? 'Anonymous' : giverUser?['username'],
+      giverName: j['isAnonymous'] == true
+          ? 'Anonymous'
+          : giverUser?['username'],
       createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
     );
   }
@@ -426,10 +483,14 @@ class WorkerDashboard {
     return WorkerDashboard(
       employee: emp != null ? BusinessEmployee.fromJson(emp) : null,
       nextShift: j['nextShift'] != null ? Shift.fromJson(j['nextShift']) : null,
-      currentShift: j['currentShift'] != null ? Shift.fromJson(j['currentShift']) : null,
-      teamOnDuty: (j['teamOnDuty'] as List<dynamic>?)
-          ?.map((t) => TeamMember.fromJson(t as Map<String, dynamic>))
-          .toList() ?? [],
+      currentShift: j['currentShift'] != null
+          ? Shift.fromJson(j['currentShift'])
+          : null,
+      teamOnDuty:
+          (j['teamOnDuty'] as List<dynamic>?)
+              ?.map((t) => TeamMember.fromJson(t as Map<String, dynamic>))
+              .toList() ??
+          [],
       upcomingTeam: j['upcomingTeam'] != null
           ? TeamMember.fromJson(j['upcomingTeam'])
           : null,
@@ -437,9 +498,11 @@ class WorkerDashboard {
           ? SalaryInfo.fromJson(j['salaryInfo'])
           : null,
       ewaAvailable: (j['ewaAvailable'] as num?)?.toDouble() ?? 0,
-      recentFeedback: (j['recentFeedback'] as List<dynamic>?)
-          ?.map((f) => EmployeeFeedback.fromJson(f as Map<String, dynamic>))
-          .toList() ?? [],
+      recentFeedback:
+          (j['recentFeedback'] as List<dynamic>?)
+              ?.map((f) => EmployeeFeedback.fromJson(f as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
   }
 }

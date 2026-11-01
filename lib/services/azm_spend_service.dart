@@ -234,13 +234,14 @@ class AzmSpendService {
 
   /// Fetch paginated spend history.
   Future<({List<AzmSpendEntry> spends, String? nextCursor, bool hasMore})>
-      getHistory({String? cursor, int limit = 20, String? source}) async {
+  getHistory({String? cursor, int limit = 20, String? source}) async {
     final params = <String, String>{'limit': '$limit'};
     if (cursor != null) params['cursor'] = cursor;
     if (source != null) params['source'] = source;
 
-    final queryString =
-        params.entries.map((e) => '${e.key}=${e.value}').join('&');
+    final queryString = params.entries
+        .map((e) => '${e.key}=${e.value}')
+        .join('&');
     final response = await apiClient.get('/azm/spend/history?$queryString');
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     final data = body['data'] as Map<String, dynamic>;
@@ -314,7 +315,9 @@ class CardSkinOption {
       cost: (json['cost'] as num?)?.toDouble() ?? 0.0,
       owned: json['owned'] as bool? ?? false,
       // Free skins (cost 0, e.g. classic) are always affordable.
-      affordable: (json['affordable'] as bool?) ?? ((json['cost'] as num?)?.toDouble() ?? 0.0) == 0.0,
+      affordable:
+          (json['affordable'] as bool?) ??
+          ((json['cost'] as num?)?.toDouble() ?? 0.0) == 0.0,
     );
   }
 }
@@ -355,7 +358,9 @@ class CardSkinActionResult {
   factory CardSkinActionResult.fromJson(Map<String, dynamic> json) {
     return CardSkinActionResult(
       purchased: json['purchased'] as bool? ?? false,
-      ownedCardSkins: (json['ownedCardSkins'] as List? ?? []).map((e) => e.toString()).toList(),
+      ownedCardSkins: (json['ownedCardSkins'] as List? ?? [])
+          .map((e) => e.toString())
+          .toList(),
       newBalance: (json['newBalance'] as num?)?.toDouble() ?? 0.0,
     );
   }

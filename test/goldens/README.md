@@ -92,10 +92,11 @@ unchanged:
 > `--update-goldens` to make a suite green — a regeneration must be a
 > reviewable diff in the commit.
 
-Regenerating on **one** host only would reintroduce cross-host drift, so the
-regenerated rasters must be produced in the pinned CI environment (Linux,
-Flutter 3.47.5) and committed from there. This is why the CI version pin is a
-prerequisite and not an optional tidy-up.
+Cross-host drift is a real risk, which is why the Flutter version is pinned in
+`flutter-ci.yml`. On that pinned version (3.47.5) a dev machine and the CI runner
+were later measured to produce byte-identical output, so regenerating locally
+with the pinned SDK is valid. See "Updating a golden today" at the end of this
+file for the only procedure.
 
 ## Regeneration — DONE, and CI is green
 
@@ -172,3 +173,26 @@ but only with: real pixel comparison, an explicit documented budget, failure on
 structural differences, normal diff artifacts, no relative-path hacks, and
 dedicated tests proving a real visual regression still fails. It must never be
 a substitute for deterministic setup.
+
+
+## Updating a golden today (the only procedure)
+
+There is no CI step that records or uploads goldens, and no PR label that
+switches one on. `Flutter Quality` only ever compares the committed PNGs.
+
+1. Use the pinned Flutter in `.github/workflows/flutter-ci.yml` (currently
+   3.47.5). It renders byte-identically on a dev machine and on the runner;
+   this was verified by comparing the sha256 of a gradient-heavy capture
+   locally, in the CI artifact and in the CI-rendered `testImage`.
+2. Run `flutter test --update-goldens <the one capture suite>` for the suites
+   whose appearance intentionally changed.
+3. Open the produced PNGs and look at them. A passing run proves only that the
+   image matches itself.
+4. `git status test` must list exactly the files you expect. An empty list
+   means nothing was written, so there is nothing to commit.
+5. Commit the PNGs together with the code change that caused them.
+
+For any capture that interacts with the widget (a flip, a tap, a scroll), assert
+the resulting state before the capture. A silently missed `tester.tap` leaves
+the widget unchanged, and `--update-goldens` would then record the wrong frame
+as the new truth.

@@ -34,9 +34,9 @@ class AzUnsupported<T> extends AzGatewayResult<T> {
 
 extension AzGatewayResultX<T> on AzGatewayResult<T> {
   T? get valueOrNull => switch (this) {
-        AzOk<T>(:final value) => value,
-        _ => null,
-      };
+    AzOk<T>(:final value) => value,
+    _ => null,
+  };
 
   bool get isOk => this is AzOk<T>;
   bool get isFailed => this is AzFailed<T>;
@@ -44,16 +44,18 @@ extension AzGatewayResultX<T> on AzGatewayResult<T> {
 
   /// Human-readable failure/unsupported reason, or null when ok.
   String? get errorMessage => switch (this) {
-        AzOk<T>() => null,
-        AzFailed<T>(:final message) => message,
-        AzUnsupported<T>(:final reason) => reason,
-      };
+    AzOk<T>() => null,
+    AzFailed<T>(:final message) => message,
+    AzUnsupported<T>(:final reason) => reason,
+  };
 
   /// Transforms the success value, preserving failure/unsupported as-is.
   AzGatewayResult<R> map<R>(R Function(T value) f) => switch (this) {
-        AzOk<T>(:final value) => AzOk<R>(f(value)),
-        AzFailed<T>(:final message, :final cause) =>
-          AzFailed<R>(message, cause: cause),
-        AzUnsupported<T>(:final reason) => AzUnsupported<R>(reason),
-      };
+    AzOk<T>(:final value) => AzOk<R>(f(value)),
+    AzFailed<T>(:final message, :final cause) => AzFailed<R>(
+      message,
+      cause: cause,
+    ),
+    AzUnsupported<T>(:final reason) => AzUnsupported<R>(reason),
+  };
 }

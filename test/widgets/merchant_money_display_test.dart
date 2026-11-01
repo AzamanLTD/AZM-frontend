@@ -707,8 +707,11 @@ void main() {
       'Oct 20',
       'Oct 21',
     ]) {
-      expect(find.text(label), findsOneWidget,
-          reason: 'each dated bucket label renders once');
+      expect(
+        find.text(label),
+        findsOneWidget,
+        reason: 'each dated bucket label renders once',
+      );
     }
 
     // The non-completed amounts live ONLY in the lazy RECENT ORDERS list

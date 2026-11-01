@@ -24,8 +24,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/main.dart'
-    show kMarketTabIndex, kVerticalLauncherEntries,
-    openVerticalLauncherForTab;
+    show kMarketTabIndex, kVerticalLauncherEntries, openVerticalLauncherForTab;
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/screens/marketplace/marketplace_home_screen.dart';
 import 'package:azaman/services/business_service.dart';

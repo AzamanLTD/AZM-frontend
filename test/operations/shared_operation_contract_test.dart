@@ -77,8 +77,10 @@ class _ScriptedClient {
 }
 
 http.Response _json(Object body, [int code = 200]) => http.Response(
-    jsonEncode(body), code,
-    headers: {'content-type': 'application/json'});
+  jsonEncode(body),
+  code,
+  headers: {'content-type': 'application/json'},
+);
 
 const _account = 'acct-contract';
 
@@ -112,31 +114,50 @@ void main() {
         'retail checkout, transit booking and hotel reservation', () {
       for (final code in _statuses) {
         final retail = StorefrontService.classifyStorefrontFailure(
-            ApiException(message: 'boom', statusCode: code));
-        final transit =
-            MarketplaceBookingService.classifyTransitBookingFailure(
-                ApiException(message: 'boom', statusCode: code));
-        final hotel =
-            HotelMarketplaceService.classifyHotelReservationFailure(
-                ApiException(message: 'boom', statusCode: code));
+          ApiException(message: 'boom', statusCode: code),
+        );
+        final transit = MarketplaceBookingService.classifyTransitBookingFailure(
+          ApiException(message: 'boom', statusCode: code),
+        );
+        final hotel = HotelMarketplaceService.classifyHotelReservationFailure(
+          ApiException(message: 'boom', statusCode: code),
+        );
 
         // Same economic class NAME across the three taxonomies.
-        expect(retail.index, transit.index,
-            reason: 'status $code: retail and transit disagree — the '
-                'surfaces must share ONE predicate so a class can never '
-                'contradict the armed/retired state');
-        expect(transit.index, hotel.index,
-            reason: 'status $code: transit and hotel disagree — the '
-                'surfaces must share ONE predicate');
+        expect(
+          retail.index,
+          transit.index,
+          reason:
+              'status $code: retail and transit disagree — the '
+              'surfaces must share ONE predicate so a class can never '
+              'contradict the armed/retired state',
+        );
+        expect(
+          transit.index,
+          hotel.index,
+          reason:
+              'status $code: transit and hotel disagree — the '
+              'surfaces must share ONE predicate',
+        );
 
         // And the classes mean what the lifecycle requires: the disposition
         // RELEASES exactly the definitive pre-economic set; everything else
         // keeps the instance armed (ambiguous/unproven).
-        final isDefinitive = retail ==
-            StorefrontFailureClass.definitivePreEconomic;
-        expect(isDefinitive, code == 400 || (code >= 402 && code < 500 && code != 408 && code != 409 && code != 425 && code != 429),
-            reason: 'status $code: the definitive set is the r42 predicate —'
-                ' 401/408/409/425/429/5xx stay armed');
+        final isDefinitive =
+            retail == StorefrontFailureClass.definitivePreEconomic;
+        expect(
+          isDefinitive,
+          code == 400 ||
+              (code >= 402 &&
+                  code < 500 &&
+                  code != 408 &&
+                  code != 409 &&
+                  code != 425 &&
+                  code != 429),
+          reason:
+              'status $code: the definitive set is the r42 predicate —'
+              ' 401/408/409/425/429/5xx stay armed',
+        );
       }
     });
 
@@ -148,53 +169,68 @@ void main() {
       ];
       for (final error in unproven) {
         expect(
-            StorefrontService.classifyStorefrontFailure(error),
-            StorefrontFailureClass.ambiguousOrUnknown,
-            reason: 'an unproven outcome must keep the instance armed on '
-                'retail checkout');
+          StorefrontService.classifyStorefrontFailure(error),
+          StorefrontFailureClass.ambiguousOrUnknown,
+          reason:
+              'an unproven outcome must keep the instance armed on '
+              'retail checkout',
+        );
         expect(
-            MarketplaceBookingService.classifyTransitBookingFailure(error),
-            TransitBookingFailureClass.ambiguousOrUnknown,
-            reason: 'an unproven outcome must keep the instance armed on '
-                'transit booking');
+          MarketplaceBookingService.classifyTransitBookingFailure(error),
+          TransitBookingFailureClass.ambiguousOrUnknown,
+          reason:
+              'an unproven outcome must keep the instance armed on '
+              'transit booking',
+        );
         expect(
-            HotelMarketplaceService.classifyHotelReservationFailure(error),
-            HotelBookingFailureClass.ambiguousOrUnknown,
-            reason: 'an unproven outcome must keep the instance armed on '
-                'hotel reservation');
+          HotelMarketplaceService.classifyHotelReservationFailure(error),
+          HotelBookingFailureClass.ambiguousOrUnknown,
+          reason:
+              'an unproven outcome must keep the instance armed on '
+              'hotel reservation',
+        );
       }
     });
   });
 
   test('ONE registry: a pending retail checkout, transit booking and hotel '
       'reservation coexist under one account and never collide', () async {
-    final retailRec = _ScriptedClient(_json({
-      'success': true,
-      'order': {'id': 'order-1', 'orderRef': 'SO-001', 'status': 'CONFIRMED'},
-    }));
-    final transitRec = _ScriptedClient(_json({
-      'success': true,
-      'booking': {
-        'id': 'booking-1',
-        'bookingRef': 'TB-001',
-        'status': 'PENDING',
-      },
-    }, 201));
-    final hotelRec = _ScriptedClient(_json({
-      'success': true,
-      'reservation': {
-        'id': 'resv-1',
-        'reservationRef': 'HR-001',
-        'status': 'CONFIRMED',
-      },
-    }, 201));
+    final retailRec = _ScriptedClient(
+      _json({
+        'success': true,
+        'order': {'id': 'order-1', 'orderRef': 'SO-001', 'status': 'CONFIRMED'},
+      }),
+    );
+    final transitRec = _ScriptedClient(
+      _json({
+        'success': true,
+        'booking': {
+          'id': 'booking-1',
+          'bookingRef': 'TB-001',
+          'status': 'PENDING',
+        },
+      }, 201),
+    );
+    final hotelRec = _ScriptedClient(
+      _json({
+        'success': true,
+        'reservation': {
+          'id': 'resv-1',
+          'reservationRef': 'HR-001',
+          'status': 'CONFIRMED',
+        },
+      }, 201),
+    );
 
-    final retail =
-        StorefrontService(apiClient: ApiClient(client: retailRec.client));
+    final retail = StorefrontService(
+      apiClient: ApiClient(client: retailRec.client),
+    );
     final transit = MarketplaceBookingService(
-        apiClient: ApiClient(client: transitRec.client));
+      apiClient: ApiClient(client: transitRec.client),
+    );
     final hotel = HotelMarketplaceService(
-        apiClient: ApiClient(client: hotelRec.client));
+      apiClient: ApiClient(client: hotelRec.client),
+    );
 
     final retailRef = FinancialOperationRef();
     final transitRef = FinancialOperationRef();
@@ -206,39 +242,51 @@ void main() {
     transitRec.script.add(http.ClientException('lost'));
     hotelRec.script.add(http.ClientException('lost'));
     await expectLater(
-        retail.checkoutCart(
-            businessProfileId: 'biz-1',
-            items: [
-              {'productId': 'p1', 'quantity': 2}
-            ],
-            operationType: 'storefront.cart.checkout',
-            ref: retailRef),
-        throwsA(isA<http.ClientException>()));
+      retail.checkoutCart(
+        businessProfileId: 'biz-1',
+        items: [
+          {'productId': 'p1', 'quantity': 2},
+        ],
+        operationType: 'storefront.cart.checkout',
+        ref: retailRef,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     await expectLater(
-        transit.bookSeats(
-            tripId: 'trip-1',
-            seatIds: const ['s1'],
-            operationType: 'transit.book_seats',
-            ref: transitRef),
-        throwsA(isA<http.ClientException>()));
+      transit.bookSeats(
+        tripId: 'trip-1',
+        seatIds: const ['s1'],
+        operationType: 'transit.book_seats',
+        ref: transitRef,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     await expectLater(
-        hotel.reserve(
-            bizId: 'biz-2',
-            roomId: 'room-1',
-            checkIn: DateTime(2026, 11, 3),
-            checkOut: DateTime(2026, 11, 5),
-            operationType: 'hotel.reserve_room',
-            ref: hotelRef),
-        throwsA(isA<http.ClientException>()));
+      hotel.reserve(
+        bizId: 'biz-2',
+        roomId: 'room-1',
+        checkIn: DateTime(2026, 11, 3),
+        checkOut: DateTime(2026, 11, 5),
+        operationType: 'hotel.reserve_room',
+        ref: hotelRef,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
 
     // Each type's pending set holds EXACTLY its own instance — the three
     // operations share the registry but never each other's identity.
     final pendingRetail = await DurableOperationRegistry.pending(
-        account: _account, type: 'storefront.cart.checkout');
+      account: _account,
+      type: 'storefront.cart.checkout',
+    );
     final pendingTransit = await DurableOperationRegistry.pending(
-        account: _account, type: 'transit.book_seats');
+      account: _account,
+      type: 'transit.book_seats',
+    );
     final pendingHotel = await DurableOperationRegistry.pending(
-        account: _account, type: 'hotel.reserve_room');
+      account: _account,
+      type: 'hotel.reserve_room',
+    );
     expect(pendingRetail, hasLength(1));
     expect(pendingTransit, hasLength(1));
     expect(pendingHotel, hasLength(1));
@@ -247,121 +295,160 @@ void main() {
       pendingTransit.single.key,
       pendingHotel.single.key,
     };
-    expect(keys, hasLength(3),
-        reason: 'each logical operation holds its OWN durable identity');
+    expect(
+      keys,
+      hasLength(3),
+      reason: 'each logical operation holds its OWN durable identity',
+    );
 
     // Completing the TRANSIT booking retires ONLY the transit instance:
     // the other two stay armed, byte-identical.
     await transit.bookSeats(
-        tripId: 'trip-1',
-        seatIds: const ['s1'],
-        operationType: 'transit.book_seats',
-        ref: transitRef);
+      tripId: 'trip-1',
+      seatIds: const ['s1'],
+      operationType: 'transit.book_seats',
+      ref: transitRef,
+    );
     expect(
-        (await DurableOperationRegistry.pending(
-                account: _account, type: 'transit.book_seats'))
-            .length,
-        0);
+      (await DurableOperationRegistry.pending(
+        account: _account,
+        type: 'transit.book_seats',
+      )).length,
+      0,
+    );
     expect(
-        (await DurableOperationRegistry.pending(
-                account: _account, type: 'storefront.cart.checkout'))
-            .single
-            .key,
-        pendingRetail.single.key,
-        reason: 'a completed sibling never touches another surface\'s '
-            'armed identity');
+      (await DurableOperationRegistry.pending(
+        account: _account,
+        type: 'storefront.cart.checkout',
+      )).single.key,
+      pendingRetail.single.key,
+      reason:
+          'a completed sibling never touches another surface\'s '
+          'armed identity',
+    );
     expect(
-        (await DurableOperationRegistry.pending(
-                account: _account, type: 'hotel.reserve_room'))
-            .single
-            .key,
-        pendingHotel.single.key);
+      (await DurableOperationRegistry.pending(
+        account: _account,
+        type: 'hotel.reserve_room',
+      )).single.key,
+      pendingHotel.single.key,
+    );
 
     // And the HOTEL retry converges on its own SAME key — cross-surface
     // registry traffic never corrupts the converging retry.
     final reservation = await hotel.reserve(
-        bizId: 'biz-2',
-        roomId: 'room-1',
-        checkIn: DateTime(2026, 11, 3),
-        checkOut: DateTime(2026, 11, 5),
-        operationType: 'hotel.reserve_room',
-        ref: hotelRef);
+      bizId: 'biz-2',
+      roomId: 'room-1',
+      checkIn: DateTime(2026, 11, 3),
+      checkOut: DateTime(2026, 11, 5),
+      operationType: 'hotel.reserve_room',
+      ref: hotelRef,
+    );
     expect(reservation['id'], 'resv-1');
-    expect(hotelRec.requests[1].headers['idempotency-key'],
-        pendingHotel.single.key,
-        reason: 'the retry reuses the SAME identity so the backend replays '
-            'the committed reservation — one logical operation, one '
-            'authoritative economic result');
+    expect(
+      hotelRec.requests[1].headers['idempotency-key'],
+      pendingHotel.single.key,
+      reason:
+          'the retry reuses the SAME identity so the backend replays '
+          'the committed reservation — one logical operation, one '
+          'authoritative economic result',
+    );
   });
 
   test('the key TRANSPORT matches each backend\'s mounted authority (the '
       'cross-repo pairing rule)', () async {
-    final retailRec = _ScriptedClient(_json({
-      'success': true,
-      'data': {
-        'order': {'id': 'order-1', 'orderRef': 'SO-001'},
-      },
-    }));
-    final transitRec = _ScriptedClient(_json({
-      'success': true,
-      'booking': {'id': 'b1', 'bookingRef': 'TB-001'},
-    }, 201));
-    final hotelRec = _ScriptedClient(_json({
-      'success': true,
-      'reservation': {'id': 'r1', 'reservationRef': 'HR-001'},
-    }, 201));
+    final retailRec = _ScriptedClient(
+      _json({
+        'success': true,
+        'data': {
+          'order': {'id': 'order-1', 'orderRef': 'SO-001'},
+        },
+      }),
+    );
+    final transitRec = _ScriptedClient(
+      _json({
+        'success': true,
+        'booking': {'id': 'b1', 'bookingRef': 'TB-001'},
+      }, 201),
+    );
+    final hotelRec = _ScriptedClient(
+      _json({
+        'success': true,
+        'reservation': {'id': 'r1', 'reservationRef': 'HR-001'},
+      }, 201),
+    );
 
     // Retail checkout: the durable path arms and completes in one call.
-    await StorefrontService(apiClient: ApiClient(client: retailRec.client))
-        .checkoutCart(
-            businessProfileId: 'biz-1',
-            items: [
-              {'productId': 'p1', 'quantity': 1}
-            ],
-            operationType: 'storefront.cart.checkout',
-            ref: FinancialOperationRef());
+    await StorefrontService(
+      apiClient: ApiClient(client: retailRec.client),
+    ).checkoutCart(
+      businessProfileId: 'biz-1',
+      items: [
+        {'productId': 'p1', 'quantity': 1},
+      ],
+      operationType: 'storefront.cart.checkout',
+      ref: FinancialOperationRef(),
+    );
     final retailBody =
         jsonDecode(retailRec.requests[0].body) as Map<String, dynamic>;
-    expect(retailBody['idempotencyKey'], isA<String>(),
-        reason: 'the storefront checkout route reads the legacy '
-            'idempotencyKey BODY field — that is its authority');
-    expect(retailRec.requests[0].headers.containsKey('idempotency-key'),
-        isFalse,
-        reason: 'the storefront route has no header middleware — a header '
-            'key would be armed identity the backend never sees');
+    expect(
+      retailBody['idempotencyKey'],
+      isA<String>(),
+      reason:
+          'the storefront checkout route reads the legacy '
+          'idempotencyKey BODY field — that is its authority',
+    );
+    expect(
+      retailRec.requests[0].headers.containsKey('idempotency-key'),
+      isFalse,
+      reason:
+          'the storefront route has no header middleware — a header '
+          'key would be armed identity the backend never sees',
+    );
 
     // Transit + hotel: the routes read the Idempotency-Key HEADER.
     await MarketplaceBookingService(
-            apiClient: ApiClient(client: transitRec.client))
-        .bookSeats(
-            tripId: 'trip-1',
-            seatIds: const ['s1'],
-            operationType: 'transit.book_seats',
-            ref: FinancialOperationRef());
-    expect(transitRec.requests[0].headers['idempotency-key'], isA<String>(),
-        reason: 'the transit booking route mounts the shared idempotency '
-            'MIDDLEWARE — it reads the HEADER');
+      apiClient: ApiClient(client: transitRec.client),
+    ).bookSeats(
+      tripId: 'trip-1',
+      seatIds: const ['s1'],
+      operationType: 'transit.book_seats',
+      ref: FinancialOperationRef(),
+    );
     expect(
-        (jsonDecode(transitRec.requests[0].body)
-                as Map<String, dynamic>)
-            .containsKey('idempotencyKey'),
-        isFalse);
+      transitRec.requests[0].headers['idempotency-key'],
+      isA<String>(),
+      reason:
+          'the transit booking route mounts the shared idempotency '
+          'MIDDLEWARE — it reads the HEADER',
+    );
+    expect(
+      (jsonDecode(transitRec.requests[0].body) as Map<String, dynamic>)
+          .containsKey('idempotencyKey'),
+      isFalse,
+    );
 
-    await HotelMarketplaceService(apiClient: ApiClient(client: hotelRec.client))
-        .reserve(
-            bizId: 'biz-2',
-            roomId: 'room-1',
-            checkIn: DateTime(2026, 11, 3),
-            checkOut: DateTime(2026, 11, 5),
-            operationType: 'hotel.reserve_room',
-            ref: FinancialOperationRef());
-    expect(hotelRec.requests[0].headers['idempotency-key'], isA<String>(),
-        reason: 'the canonical createReservation reads the Idempotency-Key '
-            'HEADER — a body key would never reach the dedupe authority');
+    await HotelMarketplaceService(
+      apiClient: ApiClient(client: hotelRec.client),
+    ).reserve(
+      bizId: 'biz-2',
+      roomId: 'room-1',
+      checkIn: DateTime(2026, 11, 3),
+      checkOut: DateTime(2026, 11, 5),
+      operationType: 'hotel.reserve_room',
+      ref: FinancialOperationRef(),
+    );
     expect(
-        (jsonDecode(hotelRec.requests[0].body)
-                as Map<String, dynamic>)
-            .containsKey('idempotencyKey'),
-        isFalse);
+      hotelRec.requests[0].headers['idempotency-key'],
+      isA<String>(),
+      reason:
+          'the canonical createReservation reads the Idempotency-Key '
+          'HEADER — a body key would never reach the dedupe authority',
+    );
+    expect(
+      (jsonDecode(hotelRec.requests[0].body) as Map<String, dynamic>)
+          .containsKey('idempotencyKey'),
+      isFalse,
+    );
   });
 }

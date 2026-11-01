@@ -96,7 +96,8 @@ class DepositRecoveryService {
     final ref = reference.trim();
     if (ref.isEmpty) {
       return const DepositRecoveryOutcome(
-          status: DepositRecoveryStatus.unknown);
+        status: DepositRecoveryStatus.unknown,
+      );
     }
 
     // -- Step 1: reference -> ledger row --------------------------------
@@ -105,14 +106,17 @@ class DepositRecoveryService {
     final http.Response? history;
     try {
       history = await _client.get(
-          '/finance/transactions?q=${Uri.encodeQueryComponent(ref)}&limit=5');
+        '/finance/transactions?q=${Uri.encodeQueryComponent(ref)}&limit=5',
+      );
     } catch (_) {
       return const DepositRecoveryOutcome(
-          status: DepositRecoveryStatus.unknown);
+        status: DepositRecoveryStatus.unknown,
+      );
     }
     if (history.statusCode != 200) {
       return const DepositRecoveryOutcome(
-          status: DepositRecoveryStatus.unknown);
+        status: DepositRecoveryStatus.unknown,
+      );
     }
 
     Map<String, dynamic>? row;
@@ -128,13 +132,15 @@ class DepositRecoveryService {
       }
     } catch (_) {
       return const DepositRecoveryOutcome(
-          status: DepositRecoveryStatus.unknown);
+        status: DepositRecoveryStatus.unknown,
+      );
     }
     if (row == null) {
       // Not found is an honest answer, not an error: the row may have
       // been pruned, or the draft outlived the deposit. Claim nothing.
       return const DepositRecoveryOutcome(
-          status: DepositRecoveryStatus.unknown);
+        status: DepositRecoveryStatus.unknown,
+      );
     }
 
     final rowId = row['id']?.toString();
@@ -162,7 +168,8 @@ class DepositRecoveryService {
       default:
         // An unrecognised status is never mapped onto a claim.
         return const DepositRecoveryOutcome(
-            status: DepositRecoveryStatus.unknown);
+          status: DepositRecoveryStatus.unknown,
+        );
     }
   }
 
@@ -172,8 +179,9 @@ class DepositRecoveryService {
   Future<Map<String, dynamic>?> _continuation(String? rowId) async {
     if (rowId == null || rowId.isEmpty) return null;
     try {
-      final resp = await _client
-          .get('/deposit/fiat/status/${Uri.encodeComponent(rowId)}');
+      final resp = await _client.get(
+        '/deposit/fiat/status/${Uri.encodeComponent(rowId)}',
+      );
       if (resp.statusCode != 200) return null;
       final body = jsonDecode(resp.body);
       if (body is Map<String, dynamic> && body['success'] == true) {

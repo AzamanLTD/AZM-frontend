@@ -47,10 +47,7 @@ class _StaggeredItemState extends State<StaggeredItem>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: MotionTokens.standard,
-    );
+    _ctrl = AnimationController(vsync: this, duration: MotionTokens.standard);
 
     _fade = CurvedAnimation(parent: _ctrl, curve: MotionTokens.enter);
     _slide = Tween<Offset>(
@@ -81,10 +78,7 @@ class _StaggeredItemState extends State<StaggeredItem>
 
     return FadeTransition(
       opacity: _fade,
-      child: SlideTransition(
-        position: _slide,
-        child: widget.child,
-      ),
+      child: SlideTransition(position: _slide, child: widget.child),
     );
   }
 }

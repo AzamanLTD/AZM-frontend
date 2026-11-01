@@ -31,13 +31,19 @@ class StoryRailStrip extends ConsumerWidget {
   final void Function(List<StoryGroup> groups, int index) onOpenGroup;
   final VoidCallback onCreate;
 
-  const StoryRailStrip({super.key, required this.onOpenGroup, required this.onCreate});
+  const StoryRailStrip({
+    super.key,
+    required this.onOpenGroup,
+    required this.onCreate,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final feed = ref.watch(storyFeedProvider);
-    final myAvatar = ref.watch(authProvider.select((a) => a.user?.profilePictureUrl));
+    final myAvatar = ref.watch(
+      authProvider.select((a) => a.user?.profilePictureUrl),
+    );
     // A failed feed shows only "My story" — same as the old body.
     final groups = feed.valueOrNull ?? const <StoryGroup>[];
 
@@ -124,27 +130,27 @@ class _RailItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        button: true,
-        label: '$label story',
-        child: GestureDetector(
-          onTap: onTap,
-          child: SizedBox(
-            width: StoryRailMetrics.ring,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                child,
-                const SizedBox(height: StoryRailMetrics.labelGap),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: AzText.caption.copyWith(color: labelColor),
-                ),
-              ],
+    button: true,
+    label: '$label story',
+    child: GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: StoryRailMetrics.ring,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            child,
+            const SizedBox(height: StoryRailMetrics.labelGap),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AzText.caption.copyWith(color: labelColor),
             ),
-          ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

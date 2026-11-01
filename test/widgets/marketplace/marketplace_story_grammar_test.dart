@@ -17,7 +17,8 @@
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/marketplace/marketplace_home_screen.dart' show MarketplaceHomeScreen;
+import 'package:azaman/screens/marketplace/marketplace_home_screen.dart'
+    show MarketplaceHomeScreen;
 import 'package:azaman/widgets/marketplace/marketplace_status_rail.dart';
 import 'package:azaman/widgets/stories/story_rail_collapse.dart';
 import 'package:azaman/widgets/stories/story_rail_snap_physics.dart';
@@ -62,8 +63,13 @@ class _NullApiClient implements ApiClient {
 void main() {
   group('§16 grammar — StoryRailCollapse (the shared collapse math)', () {
     test('extent is derived from the shared rail metrics, not a literal', () {
-      expect(StoryRailCollapse.extentPx,
-          StoryRailMetrics.ring + StoryRailMetrics.labelGap + StoryRailMetrics.label + 8);
+      expect(
+        StoryRailCollapse.extentPx,
+        StoryRailMetrics.ring +
+            StoryRailMetrics.labelGap +
+            StoryRailMetrics.label +
+            8,
+      );
       // Derivation sanity: ring 64 + gap 6 + label 16 + 8 breathing.
       expect(StoryRailCollapse.extentPx, 94.0);
     });
@@ -74,34 +80,41 @@ void main() {
 
     test('motion users get the continuous attached collapse', () {
       const t = StoryRailCollapse.travelPx;
-      expect(StoryRailCollapse.ratio(scrollOffset: 0, reducedMotion: false),
-          1.0);
       expect(
-          StoryRailCollapse.ratio(
-              scrollOffset: t / 2, reducedMotion: false),
-          closeTo(0.5, 0.001));
-      expect(StoryRailCollapse.ratio(scrollOffset: t, reducedMotion: false),
-          0.0);
+        StoryRailCollapse.ratio(scrollOffset: 0, reducedMotion: false),
+        1.0,
+      );
+      expect(
+        StoryRailCollapse.ratio(scrollOffset: t / 2, reducedMotion: false),
+        closeTo(0.5, 0.001),
+      );
+      expect(
+        StoryRailCollapse.ratio(scrollOffset: t, reducedMotion: false),
+        0.0,
+      );
       // Over-travel clamps: the rail never reads below 0.
       expect(
-          StoryRailCollapse.ratio(
-              scrollOffset: t * 10, reducedMotion: false),
-          0.0);
+        StoryRailCollapse.ratio(scrollOffset: t * 10, reducedMotion: false),
+        0.0,
+      );
     });
 
     test('reduced motion lands directly — binary, no fractional slide', () {
-      final threshold = StoryRailSnapPhysics.openFraction *
-          StoryRailCollapse.travelPx;
+      final threshold =
+          StoryRailSnapPhysics.openFraction * StoryRailCollapse.travelPx;
       // Just below the shared snap threshold: fully open.
       expect(
-          StoryRailCollapse.ratio(
-              scrollOffset: threshold - 1, reducedMotion: true),
-          1.0);
+        StoryRailCollapse.ratio(
+          scrollOffset: threshold - 1,
+          reducedMotion: true,
+        ),
+        1.0,
+      );
       // At/above it: fully collapsed. No in-between value exists.
       expect(
-          StoryRailCollapse.ratio(
-              scrollOffset: threshold, reducedMotion: true),
-          0.0);
+        StoryRailCollapse.ratio(scrollOffset: threshold, reducedMotion: true),
+        0.0,
+      );
       // The snap threshold is the chat rail's own openFraction.
       expect(StoryRailSnapPhysics.openFraction, 0.40);
     });
@@ -116,13 +129,13 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          followingListProvider.overrideWith((ref) => _SeededFollowingNotifier()..load()),
+          followingListProvider.overrideWith(
+            (ref) => _SeededFollowingNotifier()..load(),
+          ),
         ],
         child: MaterialApp(
           home: Scaffold(
-            body: MarketplaceExpandedStories(
-              onOpenBusiness: (_) {},
-            ),
+            body: MarketplaceExpandedStories(onOpenBusiness: (_) {}),
           ),
         ),
       ),
@@ -143,7 +156,9 @@ void main() {
     );
     expect(
       tester.getRect(railList.first).height,
-      StoryRailMetrics.ring + StoryRailMetrics.labelGap + StoryRailMetrics.label,
+      StoryRailMetrics.ring +
+          StoryRailMetrics.labelGap +
+          StoryRailMetrics.label,
     );
   });
 
@@ -157,11 +172,10 @@ void main() {
       ProviderScope(
         overrides: [
           followingListProvider.overrideWith(
-              (ref) => _SeededFollowingNotifier()..load()),
+            (ref) => _SeededFollowingNotifier()..load(),
+          ),
         ],
-        child: const MaterialApp(
-          home: MarketplaceHomeScreen(),
-        ),
+        child: const MaterialApp(home: MarketplaceHomeScreen()),
       ),
     );
     await tester.pump(const Duration(milliseconds: 600));

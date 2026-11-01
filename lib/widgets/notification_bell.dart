@@ -58,7 +58,9 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
       // to zero, which here means "no pop at all" — the badge appears
       // already settled.
       _attention.duration = MotionTokens.accessibleDuration(
-          context, const Duration(milliseconds: 420));
+        context,
+        const Duration(milliseconds: 420),
+      );
       if (_attention.duration == Duration.zero) {
         _attention.value = 1.0;
       } else {
@@ -89,7 +91,8 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
         NotificationOverlay.show(context);
       },
       child: SizedBox(
-        width: 40, height: 40,
+        width: 40,
+        height: 40,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -103,7 +106,8 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
             // Unread badge — one-shot pop on 0 → positive, then settled.
             if (unread > 0)
               Positioned(
-                top: 6, right: 6,
+                top: 6,
+                right: 6,
                 child: AnimatedBuilder(
                   animation: _attention,
                   builder: (context, _) {
@@ -114,7 +118,8 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
                       scale: scale,
                       child: Container(
                         constraints: const BoxConstraints(
-                          minWidth: 16, minHeight: 16,
+                          minWidth: 16,
+                          minHeight: 16,
                         ),
                         alignment: Alignment.center,
                         padding: const EdgeInsets.symmetric(horizontal: 3),

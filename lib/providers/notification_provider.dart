@@ -23,10 +23,13 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
   // container may be mid-teardown, which crashes Riverpod).
   late final SocketService _socketService;
 
-  NotificationNotifier(this._ref, {ApiClient? client, SocketService? socketService})
-      : _api = client ?? apiClient,
-        _socketOverride = socketService,
-        super([]) {
+  NotificationNotifier(
+    this._ref, {
+    ApiClient? client,
+    SocketService? socketService,
+  }) : _api = client ?? apiClient,
+       _socketOverride = socketService,
+       super([]) {
     _socketService = _socketOverride ?? _ref.read(socketServiceProvider);
     _initSocketListener();
     fetchNotifications();
@@ -78,14 +81,18 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
         }
       }
     } catch (e) {
-      debugPrint('[NotificationProvider] notifications_updated parse error: $e');
+      debugPrint(
+        '[NotificationProvider] notifications_updated parse error: $e',
+      );
     }
   }
 
   @override
   void dispose() {
     _socketService.removeNewNotificationListener(_handleNewNotification);
-    _socketService.removeNotificationsUpdatedListener(_handleNotificationsUpdated);
+    _socketService.removeNotificationsUpdatedListener(
+      _handleNotificationsUpdated,
+    );
     super.dispose();
   }
 
@@ -103,16 +110,22 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
         final List notificationsJson = body['notifications'] ?? [];
 
         state = notificationsJson
-            .map<AppNotification>((json) => AppNotification.fromJson(
-                  json is Map<String, dynamic>
-                      ? json
-                      : Map<String, dynamic>.from(json),
-                ))
+            .map<AppNotification>(
+              (json) => AppNotification.fromJson(
+                json is Map<String, dynamic>
+                    ? json
+                    : Map<String, dynamic>.from(json),
+              ),
+            )
             .toList();
 
-        debugPrint('[NotificationProvider] Fetched ${state.length} notifications');
+        debugPrint(
+          '[NotificationProvider] Fetched ${state.length} notifications',
+        );
       } else {
-        debugPrint('[NotificationProvider] Fetch failed: ${response.statusCode}');
+        debugPrint(
+          '[NotificationProvider] Fetch failed: ${response.statusCode}',
+        );
       }
     } catch (e) {
       debugPrint('[NotificationProvider] Fetch error: $e');
@@ -173,7 +186,9 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
         }
         return state.length;
       }
-      debugPrint('[NotificationProvider] markAllAsRead failed: ${response.statusCode}');
+      debugPrint(
+        '[NotificationProvider] markAllAsRead failed: ${response.statusCode}',
+      );
       return null;
     } catch (e) {
       debugPrint('[NotificationProvider] markAllAsRead API error: $e');
@@ -245,7 +260,8 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
         return true;
       }
       debugPrint(
-          '[NotificationProvider] dismissal rejected: ${response.statusCode}');
+        '[NotificationProvider] dismissal rejected: ${response.statusCode}',
+      );
     } catch (e) {
       debugPrint('[NotificationProvider] dismissal error: $e');
     }
@@ -287,8 +303,8 @@ class NotificationNotifier extends StateNotifier<List<AppNotification>> {
 
 final notificationProvider =
     StateNotifierProvider<NotificationNotifier, List<AppNotification>>((ref) {
-  return NotificationNotifier(ref, client: ref.watch(apiClientProvider));
-});
+      return NotificationNotifier(ref, client: ref.watch(apiClientProvider));
+    });
 
 final unreadCountProvider = Provider<int>((ref) {
   // REVIEW 4.1 — the unread count is derived from the same canonical
@@ -296,52 +312,67 @@ final unreadCountProvider = Provider<int>((ref) {
   // notification. The previous rule silently dropped unread `general`
   // notifications, so the bell badge and the panel's own unread count
   // disagreed whenever a general notice was unread.
-  return ref.watch(notificationProvider)
-      .where((n) => !n.isRead)
-      .length;
+  return ref.watch(notificationProvider).where((n) => !n.isRead).length;
 });
 
 final generalNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref.watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.general).toList();
+  return ref
+      .watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.general)
+      .toList();
 });
 
 final securityNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref.watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.securityAccount).toList();
+  return ref
+      .watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.securityAccount)
+      .toList();
 });
 
 final vendorNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref.watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.vendorPriority).toList();
+  return ref
+      .watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.vendorPriority)
+      .toList();
 });
 
 final adminNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref.watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.adminSystem).toList();
+  return ref
+      .watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.adminSystem)
+      .toList();
 });
 
 // ── New category providers (used by notification_hub_screen) ──────────────────
 final moneyNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref.watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.money).toList();
+  return ref
+      .watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.money)
+      .toList();
 });
 
 final socialNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref.watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.social).toList();
+  return ref
+      .watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.social)
+      .toList();
 });
 
 final chatNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref.watch(notificationProvider)
-      .where((n) => n.category == NotificationCategory.chat).toList();
+  return ref
+      .watch(notificationProvider)
+      .where((n) => n.category == NotificationCategory.chat)
+      .toList();
 });
 
 final systemNotificationsProvider = Provider<List<AppNotification>>((ref) {
-  return ref.watch(notificationProvider)
-      .where((n) =>
-        n.category == NotificationCategory.system ||
-        n.category == NotificationCategory.adminSystem ||
-        n.category == NotificationCategory.vendorPriority
-      ).toList();
+  return ref
+      .watch(notificationProvider)
+      .where(
+        (n) =>
+            n.category == NotificationCategory.system ||
+            n.category == NotificationCategory.adminSystem ||
+            n.category == NotificationCategory.vendorPriority,
+      )
+      .toList();
 });

@@ -67,19 +67,49 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
   List<_MenuItem> _buildItems() {
     final items = <_MenuItem>[];
     if (widget.onImageTap != null) {
-      items.add(_MenuItem(icon: Icons.image_outlined, label: 'Image', onTap: widget.onImageTap!));
+      items.add(
+        _MenuItem(
+          icon: Icons.image_outlined,
+          label: 'Image',
+          onTap: widget.onImageTap!,
+        ),
+      );
     }
     if (widget.onDocumentTap != null) {
-      items.add(_MenuItem(icon: Icons.folder_outlined, label: 'Document', onTap: widget.onDocumentTap!));
+      items.add(
+        _MenuItem(
+          icon: Icons.folder_outlined,
+          label: 'Document',
+          onTap: widget.onDocumentTap!,
+        ),
+      );
     }
     if (widget.onStickerTap != null) {
-      items.add(_MenuItem(icon: Icons.emoji_emotions_outlined, label: 'Sticker', onTap: widget.onStickerTap!));
+      items.add(
+        _MenuItem(
+          icon: Icons.emoji_emotions_outlined,
+          label: 'Sticker',
+          onTap: widget.onStickerTap!,
+        ),
+      );
     }
     if (widget.onTransferTap != null) {
-      items.add(_MenuItem(icon: Icons.compare_arrows_rounded, label: 'Transfer', onTap: widget.onTransferTap!));
+      items.add(
+        _MenuItem(
+          icon: Icons.compare_arrows_rounded,
+          label: 'Transfer',
+          onTap: widget.onTransferTap!,
+        ),
+      );
     }
     if (widget.onEscrowTap != null) {
-      items.add(_MenuItem(icon: Icons.receipt_long_rounded, label: 'Ticket (Escrow)', onTap: widget.onEscrowTap!));
+      items.add(
+        _MenuItem(
+          icon: Icons.receipt_long_rounded,
+          label: 'Ticket (Escrow)',
+          onTap: widget.onEscrowTap!,
+        ),
+      );
     }
     return items;
   }
@@ -97,7 +127,8 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
     if (items.isEmpty) return;
 
     final colors = ThemeProvider.getColors(AzamanTheme.light);
-    final renderBox = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox =
+        _anchorKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final anchorPos = renderBox.localToGlobal(Offset.zero);
     final screenHeight = MediaQuery.of(context).size.height;
@@ -129,7 +160,9 @@ class _ChatPlusMenuState extends State<ChatPlusMenu>
               children: [
                 for (int i = 0; i < items.length; i++)
                   Padding(
-                    padding: EdgeInsets.only(bottom: i < items.length - 1 ? 12.0 : 0),
+                    padding: EdgeInsets.only(
+                      bottom: i < items.length - 1 ? 12.0 : 0,
+                    ),
                     child: _StaggeredBubble(
                       controller: _controller,
                       index: i,
@@ -196,7 +229,11 @@ class _MenuItem {
   final String label;
   final VoidCallback onTap;
 
-  const _MenuItem({required this.icon, required this.label, required this.onTap});
+  const _MenuItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 }
 
 /// One bubble in the vertical stack: a small rounded label chip beside a
@@ -230,7 +267,11 @@ class _StaggeredBubble extends StatelessWidget {
     final end = (reverseIndex + 1.4).clamp(0, count) / count;
     final curved = CurvedAnimation(
       parent: controller,
-      curve: Interval(start.clamp(0.0, 1.0), end.clamp(0.0, 1.0), curve: Curves.easeOutBack),
+      curve: Interval(
+        start.clamp(0.0, 1.0),
+        end.clamp(0.0, 1.0),
+        curve: Curves.easeOutBack,
+      ),
     );
 
     return AnimatedBuilder(
@@ -241,7 +282,11 @@ class _StaggeredBubble extends StatelessWidget {
           opacity: t,
           child: Transform.translate(
             offset: Offset(0, 24.0 * (1.0 - t)),
-            child: Transform.scale(scale: 0.6 + (0.4 * t), alignment: Alignment.bottomLeft, child: child),
+            child: Transform.scale(
+              scale: 0.6 + (0.4 * t),
+              alignment: Alignment.bottomLeft,
+              child: child,
+            ),
           ),
         );
       },
@@ -259,7 +304,11 @@ class _StaggeredBubble extends StatelessWidget {
               ),
               child: Text(
                 item.label,
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: colors.textPrimary,
+                ),
               ),
             ),
             const SizedBox(width: 10),
@@ -270,7 +319,11 @@ class _StaggeredBubble extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: colors.surface,
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.18),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: ClipOval(

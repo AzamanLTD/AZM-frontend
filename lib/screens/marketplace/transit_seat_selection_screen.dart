@@ -16,6 +16,7 @@ import 'package:azaman/marketplace/experiences/transit/transit_boarding.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/marketplace/transit_boarding_pass.dart';
 import 'package:azaman/widgets/marketplace/transit/journey_thread.dart';
+import 'package:azaman/widgets/home/money_lock_surface.dart';
 import 'package:azaman/widgets/seat_selector/transit_hold_ring.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
@@ -101,7 +102,10 @@ class _TransitSeatSelectionScreenState
         // and 401/429 get their own retry guidance; a definitive
         // pre-economic 4xx surfaces the backend's own message verbatim.
         final cls = state.failureClass;
-        String message = error.replaceFirst('MarketplaceBookingException: ', '');
+        String message = error.replaceFirst(
+          'MarketplaceBookingException: ',
+          '',
+        );
         if (cls == TransitBookingFailureClass.ambiguousOrUnknown) {
           message =
               'We couldn\'t confirm your booking. Check your bookings first — '
@@ -121,10 +125,7 @@ class _TransitSeatSelectionScreenState
               'your request will be safely reused.';
         }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: colors.danger,
-          ),
+          SnackBar(content: Text(message), backgroundColor: colors.danger),
         );
         return;
       }
@@ -429,7 +430,9 @@ class _TransitSeatSelectionScreenState
                 JourneyThread(
                   model: JourneyThreadModel.fromTrip(
                     trip,
-                    stage: selected.isEmpty ? JourneyStage.seat : JourneyStage.booking,
+                    stage: selected.isEmpty
+                        ? JourneyStage.seat
+                        : JourneyStage.booking,
                     seatLabel: journeySeatLabel(selected),
                   ),
                 ),
@@ -697,17 +700,35 @@ class _BookingDock extends StatelessWidget {
                     label: const Text('Names'),
                   ),
                   const SizedBox(width: 10),
+                  // Owner decision 2026-10-31: the seat map, the fare and the
+                  // selection stay browsable while money is locked, because
+                  // they are catalogue. Reserving and paying are not, so only
+                  // the commitment is gated. The guard replaces the button, so
+                  // a locked tap cannot hold a seat.
                   Expanded(
-                    child: FilledButton.icon(
-                      onPressed: busy ? null : onBook,
-                      icon: busy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.arrow_forward_rounded, size: 18),
-                      label: Text(busy ? 'Booking…' : 'Continue to book'),
+                    child: MoneyLockGate(
+                      compact: true,
+                      message: 'Unlock to book seats',
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: FilledButton.icon(
+                          onPressed: busy ? null : onBook,
+                          icon: busy
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 18,
+                                ),
+                          label: Text(busy ? 'Booking…' : 'Continue to book'),
+                        ),
+                      ),
                     ),
                   ),
                 ],

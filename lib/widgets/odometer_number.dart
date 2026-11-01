@@ -181,8 +181,9 @@ abstract final class OdometerSlots {
       ch.codeUnitAt(0) >= 0x30 && ch.codeUnitAt(0) <= 0x39;
 
   static List<OdometerSlotPlan> plan(String current, String previous) {
-    final slotCount =
-        current.length > previous.length ? current.length : previous.length;
+    final slotCount = current.length > previous.length
+        ? current.length
+        : previous.length;
     final plans = <OdometerSlotPlan>[];
     for (var slot = 0; slot < slotCount; slot++) {
       final curIndex = current.length - 1 - slot;
@@ -355,7 +356,11 @@ class _OdometerNumberState extends State<OdometerNumber> {
     if (plan.currentChar == null) {
       return SizedBox.shrink(key: _cellKey(plan.slot));
     }
-    return Text(plan.currentChar!, key: _cellKey(plan.slot), style: widget.style);
+    return Text(
+      plan.currentChar!,
+      key: _cellKey(plan.slot),
+      style: widget.style,
+    );
   }
 
   /// One slot, one AnimatedSwitcher — see the element-stability header.
@@ -392,7 +397,8 @@ class _OdometerNumberState extends State<OdometerNumber> {
       // value keeps the same key (no transition, no wasted animation).
       child: _OdometerCell(
         key: ValueKey<String>(
-            'slot-${plan.slot}-${plan.currentChar ?? 'empty'}'),
+          'slot-${plan.slot}-${plan.currentChar ?? 'empty'}',
+        ),
         slot: plan.slot,
         char: plan.currentChar,
         motion: _OdometerCell.motionFor(plan),
@@ -507,8 +513,6 @@ class _OdometerNumberState extends State<OdometerNumber> {
   }
 }
 
-
-
 /// How one cell's entry transition moves.
 enum _OdometerCellMotion {
   /// Fades in (separators; also unchanged/deleted cells, where the wrap is
@@ -563,8 +567,8 @@ class _OdometerCell extends StatelessWidget {
         // Separators never slide — they fade in.
         return _OdometerCellMotion.fade;
       case OdometerSlotKind.changedDigit:
-        final rollsUp = plan.currentChar!.codeUnitAt(0) >
-            plan.previousChar!.codeUnitAt(0);
+        final rollsUp =
+            plan.currentChar!.codeUnitAt(0) > plan.previousChar!.codeUnitAt(0);
         return rollsUp
             ? _OdometerCellMotion.slideFromBelow
             : _OdometerCellMotion.slideFromAbove;
@@ -599,11 +603,7 @@ class _OdometerCell extends StatelessWidget {
   /// side). The SAME geometry played in reverse — which is exactly what
   /// AnimatedSwitcher does to retire an entry — rolls the child OUT
   /// toward [sign]: sign +1 exits downward.
-  static Widget slide(
-    Widget child,
-    Animation<double> animation,
-    double sign,
-  ) {
+  static Widget slide(Widget child, Animation<double> animation, double sign) {
     return ClipRect(
       child: SlideTransition(
         position: Tween<Offset>(

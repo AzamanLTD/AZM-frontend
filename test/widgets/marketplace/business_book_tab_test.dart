@@ -61,15 +61,14 @@ CatalogSection _section(BusinessProduct product) {
 Map<String, dynamic> _experience({bool persistentTray = true}) {
   return {
     'preset': 'DINING_JOURNEY',
-    'commit': {
-      'style': 'PAPER_RIP',
-      'persistentTray': persistentTray,
-    },
+    'commit': {'style': 'PAPER_RIP', 'persistentTray': persistentTray},
   };
 }
 
 Future<void> _openFirstMenuPage(WidgetTester tester) async {
-  final bookFinder = find.byWidgetPredicate((widget) => widget.runtimeType.toString() == 'FlipBook');
+  final bookFinder = find.byWidgetPredicate(
+    (widget) => widget.runtimeType.toString() == 'FlipBook',
+  );
   final book = tester.getRect(bookFinder);
   final start = book.bottomRight - const Offset(6, 12);
   final target = book.bottomLeft + const Offset(-40, -12);
@@ -100,47 +99,59 @@ Future<void> _commitAndAdvance(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('persistent dining tray routes dish additions into canonical cart', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final cart = CartNotifier();
-    cart.clearCart();
-    final business = _business();
+  testWidgets(
+    'persistent dining tray routes dish additions into canonical cart',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final cart = CartNotifier();
+      cart.clearCart();
+      final business = _business();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          cartProvider.overrideWith((ref) => cart),
-          storefrontExperienceProvider(business.id).overrideWith((ref) async => _experience()),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: BusinessBookTab(
-              business: business,
-              colors: _colors,
-              onOrderProduct: (_) => fail('legacy ticket path should not run'),
-              menuSections: [_section(_product())],
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            cartProvider.overrideWith((ref) => cart),
+            storefrontExperienceProvider(
+              business.id,
+            ).overrideWith((ref) async => _experience()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: BusinessBookTab(
+                business: business,
+                colors: _colors,
+                onOrderProduct: (_) =>
+                    fail('legacy ticket path should not run'),
+                menuSections: [_section(_product())],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pump();
-    expect(find.text('Jollof Rice'), findsOneWidget);
-    expect(cart.state.itemCount, 0);
+      await tester.pump();
+      expect(find.text('Jollof Rice'), findsOneWidget);
+      expect(cart.state.itemCount, 0);
 
-    await _openFirstMenuPage(tester);
-    await _openDish(tester);
-    expect(find.textContaining('Add to tray'), findsOneWidget);
-    await _commitAndAdvance(tester);
+      await _openFirstMenuPage(tester);
+      await _openDish(tester);
+      expect(find.textContaining('Add to tray'), findsOneWidget);
+      await _commitAndAdvance(tester);
 
-    expect(cart.state.itemCount, 1);
-    expect(cart.state.businessProfileId, business.id);
-    // TASK-013: the FloatingCartBar text probe became the RestaurantTrayRail
-    // collapsed pill, which shows count + subtotal instead of a label.
-    expect(find.byKey(const ValueKey('restaurant-tray-rail-collapsed')), findsOneWidget);
-    expect(find.text('Jollof Rice added to your order tray.'), findsOneWidget);
-  });
+      expect(cart.state.itemCount, 1);
+      expect(cart.state.businessProfileId, business.id);
+      // TASK-013: the FloatingCartBar text probe became the RestaurantTrayRail
+      // collapsed pill, which shows count + subtotal instead of a label.
+      expect(
+        find.byKey(const ValueKey('restaurant-tray-rail-collapsed')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Jollof Rice added to your order tray.'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('disabled dining products do not enter the tray', (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -152,7 +163,9 @@ void main() {
       ProviderScope(
         overrides: [
           cartProvider.overrideWith((ref) => cart),
-          storefrontExperienceProvider(business.id).overrideWith((ref) async => _experience()),
+          storefrontExperienceProvider(
+            business.id,
+          ).overrideWith((ref) async => _experience()),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -177,40 +190,45 @@ void main() {
     expect(find.text('Open order tray'), findsNothing);
   });
 
-  testWidgets('non-persistent dining experience keeps the existing ticket callback', (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final cart = CartNotifier();
-    cart.clearCart();
-    final business = _business();
-    var legacyCallbackCount = 0;
+  testWidgets(
+    'non-persistent dining experience keeps the existing ticket callback',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final cart = CartNotifier();
+      cart.clearCart();
+      final business = _business();
+      var legacyCallbackCount = 0;
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          cartProvider.overrideWith((ref) => cart),
-          storefrontExperienceProvider(business.id).overrideWith((ref) async => _experience(persistentTray: false)),
-        ],
-        child: MaterialApp(
-          home: Scaffold(
-            body: BusinessBookTab(
-              business: business,
-              colors: _colors,
-              onOrderProduct: (_) => legacyCallbackCount++,
-              menuSections: [_section(_product())],
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            cartProvider.overrideWith((ref) => cart),
+            storefrontExperienceProvider(
+              business.id,
+            ).overrideWith((ref) async => _experience(persistentTray: false)),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: BusinessBookTab(
+                business: business,
+                colors: _colors,
+                onOrderProduct: (_) => legacyCallbackCount++,
+                menuSections: [_section(_product())],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pump();
-    await _turnFirstMenuPage(tester);
-    await _openDish(tester);
-    expect(find.textContaining('Add to'), findsOneWidget);
-    await _commitAndAdvance(tester);
+      await tester.pump();
+      await _turnFirstMenuPage(tester);
+      await _openDish(tester);
+      expect(find.textContaining('Add to'), findsOneWidget);
+      await _commitAndAdvance(tester);
 
-    expect(legacyCallbackCount, 1);
-    expect(cart.state.itemCount, 0);
-    expect(find.text('Open order tray'), findsNothing);
-  });
+      expect(legacyCallbackCount, 1);
+      expect(cart.state.itemCount, 0);
+      expect(find.text('Open order tray'), findsNothing);
+    },
+  );
 }

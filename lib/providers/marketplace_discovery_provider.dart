@@ -13,7 +13,9 @@ import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/saved_businesses_provider.dart';
 
 /// Injectable clock. Override in tests to pin "open now" derivations.
-final discoveryClockProvider = Provider<DateTime Function()>((_) => DateTime.now);
+final discoveryClockProvider = Provider<DateTime Function()>(
+  (_) => DateTime.now,
+);
 
 final discoverySnapshotProvider = Provider<DiscoverySnapshot>((ref) {
   final search = ref.watch(businessSearchProvider);

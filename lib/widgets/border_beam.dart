@@ -115,11 +115,7 @@ class _BorderBeamPainter extends CustomPainter {
       final paint = Paint()
         ..color = color.withValues(alpha: alpha * 0.9)
         ..style = PaintingStyle.fill;
-      canvas.drawCircle(
-        tangent.position,
-        strokeWidth * (1 - t * 0.4),
-        paint,
-      );
+      canvas.drawCircle(tangent.position, strokeWidth * (1 - t * 0.4), paint);
     }
   }
 

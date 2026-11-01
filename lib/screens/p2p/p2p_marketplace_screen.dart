@@ -4,7 +4,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
@@ -14,7 +16,6 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/providers/azm_reward_provider.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
-
 
 class P2PMarketplaceScreen extends ConsumerStatefulWidget {
   const P2PMarketplaceScreen({super.key});
@@ -181,14 +182,22 @@ class _CashBalanceCard extends ConsumerWidget {
   // to be a fixed gold-on-carbon card, and the Light theme softened the
   // sheen/gradient. Fixed by hardcoding a permanent brand palette here
   // instead of reading from ref.watch(themeProvider) for anything visual.
-  static const Color _cardAccent = Color(0xFFD4AF37); // permanent card gold — not the theme accent
+  static const Color _cardAccent = Color(
+    0xFFD4AF37,
+  ); // permanent card gold — not the theme accent
   static const Color _gradTopBase = Color(0xFF0E1116);
   static const Color _gradBottom = Color(0xFF05070A);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final balance = ref.watch(hologramBalanceProvider);
-    final visible = ref.watch(balanceVisibleProvider);
+    // The eye toggle is the member's own choice; the privacy lock is not
+    // optional. A public marketplace stays browsable, but the member's own
+    // balance behind it does not: it is money, and it is masked until the
+    // Home trigger unlocks.
+    final visible =
+        ref.watch(balanceVisibleProvider) &&
+        ref.watch(moneyAccessProvider).canViewMoney;
 
     // Premium "bank card" treatment — deep carbon-to-black gradient with a
     // fixed gold sheen (never the app's switchable theme accent), a faint
@@ -226,11 +235,17 @@ class _CashBalanceCard extends ConsumerWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color.alphaBlend(_cardAccent.withValues(alpha: 0.16), _gradTopBase),
+                    Color.alphaBlend(
+                      _cardAccent.withValues(alpha: 0.16),
+                      _gradTopBase,
+                    ),
                     _gradBottom,
                   ],
                 ),
-                border: Border.all(color: _cardAccent.withValues(alpha: 0.22), width: 1),
+                border: Border.all(
+                  color: _cardAccent.withValues(alpha: 0.22),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: _cardAccent.withValues(alpha: 0.14),
@@ -252,7 +267,10 @@ class _CashBalanceCard extends ConsumerWidget {
                 height: 160,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: _cardAccent.withValues(alpha: 0.10), width: 22),
+                  border: Border.all(
+                    color: _cardAccent.withValues(alpha: 0.10),
+                    width: 22,
+                  ),
                 ),
               ),
             ),
@@ -353,6 +371,12 @@ class _CashBalanceCard extends ConsumerWidget {
                         label: 'Add money',
                         onDarkCard: true,
                         onTap: () {
+                          // A locked money action refuses, in place: it never
+                          // navigates to a composer behind the member's back.
+                          if (!ref.read(moneyAccessProvider).canViewMoney) {
+                            blockedMoneyAccessFeedback(ref);
+                            return;
+                          }
                           HapticFeedback.lightImpact();
                           // NEW-A: canonical /deposit route.
                           context.push(AzRoutes.deposit());
@@ -366,6 +390,10 @@ class _CashBalanceCard extends ConsumerWidget {
                         label: 'Withdraw',
                         onDarkCard: true,
                         onTap: () {
+                          if (!ref.read(moneyAccessProvider).canViewMoney) {
+                            blockedMoneyAccessFeedback(ref);
+                            return;
+                          }
                           HapticFeedback.lightImpact();
                           // CANONICAL ROUTE: /withdraw (Workstream C).
                           context.push(AzRoutes.withdraw());
@@ -428,7 +456,9 @@ class _BalancePillState extends State<_BalancePill> {
   @override
   Widget build(BuildContext context) {
     final c = widget.colors;
-    final bgColor = widget.onDarkCard ? Colors.white.withValues(alpha: 0.14) : c.surface;
+    final bgColor = widget.onDarkCard
+        ? Colors.white.withValues(alpha: 0.14)
+        : c.surface;
     final textColor = widget.onDarkCard ? Colors.white : c.textPrimary;
 
     return GestureDetector(
@@ -478,7 +508,8 @@ class _CardSheen extends StatefulWidget {
   State<_CardSheen> createState() => _CardSheenState();
 }
 
-class _CardSheenState extends State<_CardSheen> with SingleTickerProviderStateMixin {
+class _CardSheenState extends State<_CardSheen>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
   @override
@@ -542,13 +573,13 @@ class _AzmProgressBar extends ConsumerStatefulWidget {
   const _AzmProgressBar();
 
   static const List<({double threshold, String label})> _milestones = [
-    (threshold: 50,    label: 'Trader I'),
-    (threshold: 100,   label: 'Trader II'),
-    (threshold: 250,   label: 'Verified Trader'),
-    (threshold: 500,   label: 'Power Trader'),
-    (threshold: 1000,  label: 'Elite Trader'),
-    (threshold: 2500,  label: 'Diamond Trader'),
-    (threshold: 5000,  label: 'AZM Legend'),
+    (threshold: 50, label: 'Trader I'),
+    (threshold: 100, label: 'Trader II'),
+    (threshold: 250, label: 'Verified Trader'),
+    (threshold: 500, label: 'Power Trader'),
+    (threshold: 1000, label: 'Elite Trader'),
+    (threshold: 2500, label: 'Diamond Trader'),
+    (threshold: 5000, label: 'AZM Legend'),
   ];
 
   @override
@@ -567,21 +598,33 @@ class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
     vsync: this,
     duration: const Duration(milliseconds: 900),
   );
-  late Animation<double> _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+  late Animation<double> _anim = CurvedAnimation(
+    parent: _ctrl,
+    curve: Curves.easeOutCubic,
+  );
   double _lastTarget = 0.0;
   bool _primed = false;
 
   ({double threshold, String label}) _nextMilestone(double total) {
     return _AzmProgressBar._milestones.firstWhere(
       (m) => m.threshold > total,
-      orElse: () => (threshold: _AzmProgressBar._milestones.last.threshold, label: 'AZM Legend'),
+      orElse: () => (
+        threshold: _AzmProgressBar._milestones.last.threshold,
+        label: 'AZM Legend',
+      ),
     );
   }
 
   double _computeProgress(double total) {
     final next = _nextMilestone(total);
-    final prevIdx = _AzmProgressBar._milestones.indexWhere((m) => m.threshold == next.threshold) - 1;
-    final prevThreshold = prevIdx >= 0 ? _AzmProgressBar._milestones[prevIdx].threshold : 0.0;
+    final prevIdx =
+        _AzmProgressBar._milestones.indexWhere(
+          (m) => m.threshold == next.threshold,
+        ) -
+        1;
+    final prevThreshold = prevIdx >= 0
+        ? _AzmProgressBar._milestones[prevIdx].threshold
+        : 0.0;
     final band = next.threshold - prevThreshold;
     final earned = (total - prevThreshold).clamp(0.0, band);
     return band > 0 ? earned / band : 1.0;
@@ -605,8 +648,8 @@ class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
 
   @override
   Widget build(BuildContext context) {
-    final colors   = ref.watch(themeProvider).colors;
-    final azmBal   = ref.watch(azmBalanceProvider);
+    final colors = ref.watch(themeProvider).colors;
+    final azmBal = ref.watch(azmBalanceProvider);
 
     // Re-run the fill-up animation whenever the reward summary changes --
     // covers both the initial page-open load and every pull-to-refresh.
@@ -618,12 +661,18 @@ class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
     });
 
     final stateVal = ref.watch(azmRewardProvider);
-    final summary  = stateVal.summary;
-    final total    = summary?.totalEarned ?? azmBal;
+    final summary = stateVal.summary;
+    final total = summary?.totalEarned ?? azmBal;
 
     final next = _nextMilestone(total);
-    final prevIdx = _AzmProgressBar._milestones.indexWhere((m) => m.threshold == next.threshold) - 1;
-    final prevThreshold = prevIdx >= 0 ? _AzmProgressBar._milestones[prevIdx].threshold : 0.0;
+    final prevIdx =
+        _AzmProgressBar._milestones.indexWhere(
+          (m) => m.threshold == next.threshold,
+        ) -
+        1;
+    final prevThreshold = prevIdx >= 0
+        ? _AzmProgressBar._milestones[prevIdx].threshold
+        : 0.0;
     final remaining = (next.threshold - total).clamp(0.0, double.infinity);
     final isMaxed = total >= _AzmProgressBar._milestones.last.threshold;
 
@@ -657,56 +706,91 @@ class _AzmProgressBarState extends ConsumerState<_AzmProgressBar>
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colors.accent.withValues(alpha: 0.22)),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 26, height: 26,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFD4AF37).withValues(alpha: 0.16),
-              ),
-              child: const Center(
-                child: Icon(HugeIconsSolid.flash, size: 13, color: Color(0xFFD4AF37)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFFD4AF37).withValues(alpha: 0.16),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      HugeIconsSolid.flash,
+                      size: 13,
+                      color: Color(0xFFD4AF37),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isMaxed
+                            ? 'AZM Legend — Max Tier!'
+                            : 'Next: ${next.label}',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        isMaxed
+                            ? '${total.toStringAsFixed(0)} AZM earned'
+                            : '${remaining.toStringAsFixed(0)} AZM to go  ·  ${total.toStringAsFixed(0)} earned',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 10.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  HugeIconsSolid.arrowRight01,
+                  size: 14,
+                  color: colors.textTertiary,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            AnimatedBuilder(
+              animation: _anim,
+              builder: (context, _) => ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: _anim.value.clamp(0.0, 1.0),
+                  backgroundColor: colors.divider.withValues(alpha: 0.4),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Color(0xFFD4AF37),
+                  ),
+                  minHeight: 5,
+                ),
               ),
             ),
-            const SizedBox(width: 9),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(
-                isMaxed ? 'AZM Legend — Max Tier!' : 'Next: ${next.label}',
-                style: TextStyle(color: colors.textPrimary,
-                  fontSize: 12.5, fontWeight: FontWeight.w800)),
-              Text(
-                isMaxed
-                  ? '${total.toStringAsFixed(0)} AZM earned'
-                  : '${remaining.toStringAsFixed(0)} AZM to go  ·  ${total.toStringAsFixed(0)} earned',
-                style: TextStyle(color: colors.textSecondary, fontSize: 10.5)),
-            ])),
-            Icon(HugeIconsSolid.arrowRight01, size: 14, color: colors.textTertiary),
-          ]),
-          const SizedBox(height: 10),
-          AnimatedBuilder(
-            animation: _anim,
-            builder: (context, _) => ClipRRect(
-              borderRadius: BorderRadius.circular(3),
-              child: LinearProgressIndicator(
-                value: _anim.value.clamp(0.0, 1.0),
-                backgroundColor: colors.divider.withValues(alpha: 0.4),
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
-                minHeight: 5,
-              ),
+            const SizedBox(height: 5),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${prevThreshold.toStringAsFixed(0)} AZM',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 8.5),
+                ),
+                Text(
+                  '${next.threshold.toStringAsFixed(0)} AZM',
+                  style: TextStyle(color: colors.textTertiary, fontSize: 8.5),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 5),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('${prevThreshold.toStringAsFixed(0)} AZM',
-                style: TextStyle(color: colors.textTertiary, fontSize: 8.5)),
-              Text('${next.threshold.toStringAsFixed(0)} AZM',
-                style: TextStyle(color: colors.textTertiary, fontSize: 8.5)),
-            ],
-          ),
-        ]),
+          ],
+        ),
       ),
     );
   }
@@ -833,8 +917,11 @@ class _FeatureCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                Icon(HugeIconsSolid.arrowRight01,
-                    size: 16, color: colors.textTertiary),
+                Icon(
+                  HugeIconsSolid.arrowRight01,
+                  size: 16,
+                  color: colors.textTertiary,
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -874,4 +961,3 @@ class _ImageBox extends StatelessWidget {
     );
   }
 }
-

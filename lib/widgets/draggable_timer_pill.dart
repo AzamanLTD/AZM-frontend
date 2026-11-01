@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 class DraggableTimerPill extends StatefulWidget {
   final int secondsRemaining;
   final bool isExpired;
@@ -52,7 +51,10 @@ class _DraggableTimerPillState extends State<DraggableTimerPill> {
           decoration: BoxDecoration(
             color: widget.colors.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: accent.withValues(alpha: 0.6), width: 1.5),
+            border: Border.all(
+              color: accent.withValues(alpha: 0.6),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
                 color: accent.withValues(alpha: 0.25),

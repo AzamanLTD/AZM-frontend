@@ -36,10 +36,7 @@ class ReplyPreviewBar extends ConsumerWidget {
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
           border: Border(
-            left: BorderSide(
-              color: theme.colorScheme.primary,
-              width: 3,
-            ),
+            left: BorderSide(color: theme.colorScheme.primary, width: 3),
           ),
         ),
         child: Row(
@@ -59,9 +56,7 @@ class ReplyPreviewBar extends ConsumerWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    replyTarget.text.isNotEmpty
-                        ? replyTarget.text
-                        : '[Media]',
+                    replyTarget.text.isNotEmpty ? replyTarget.text : '[Media]',
                     style: TextStyle(
                       fontSize: 12,
                       color: theme.colorScheme.onSurfaceVariant,

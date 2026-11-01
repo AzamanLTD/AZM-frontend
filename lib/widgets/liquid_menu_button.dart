@@ -99,7 +99,14 @@ List<_SatelliteGeom> _layoutSatellites(List<LiquidMenuItem> items) {
     final dx = radius * math.cos(rad);
     final dy = radius * math.sin(rad);
     final restRotation = (t - 0.5) * 28.0;
-    geoms.add(_SatelliteGeom(item: items[i], dx: dx, dy: dy, restRotation: restRotation));
+    geoms.add(
+      _SatelliteGeom(
+        item: items[i],
+        dx: dx,
+        dy: dy,
+        restRotation: restRotation,
+      ),
+    );
   }
   return geoms;
 }
@@ -160,7 +167,8 @@ class _LiquidMenuButtonState extends State<LiquidMenuButton>
     if (widget.items.isEmpty) return;
 
     final colors = widget.colors;
-    final renderBox = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
+    final renderBox =
+        _anchorKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
     final anchorPos = renderBox.localToGlobal(Offset.zero);
     final anchorSize = renderBox.size;
@@ -316,8 +324,11 @@ class _LiquidOverlay extends StatelessWidget {
               final t = controller.value;
               final triggerScale = t < 0.25
                   ? 1.0 + 0.16 * (t / 0.25)
-                  : _HouseSpringCurve().transform(((t - 0.25) / 0.75).clamp(0.0, 1.0));
-              final iconRotation = _HouseSpringCurve().transform(t.clamp(0.0, 1.0)) * 135.0;
+                  : _HouseSpringCurve().transform(
+                      ((t - 0.25) / 0.75).clamp(0.0, 1.0),
+                    );
+              final iconRotation =
+                  _HouseSpringCurve().transform(t.clamp(0.0, 1.0)) * 135.0;
               return Transform.scale(
                 scale: triggerScale,
                 child: Transform.rotate(
@@ -378,7 +389,9 @@ class _GooPainter extends CustomPainter {
     final triggerScale = t < 0.25
         ? 1.0 + 0.16 * (t / 0.25)
         : _HouseSpringCurve().transform(((t - 0.25) / 0.75).clamp(0.0, 1.0));
-    circles.add(_Circle(center: triggerCenter, radius: (triggerSize / 2) * triggerScale));
+    circles.add(
+      _Circle(center: triggerCenter, radius: (triggerSize / 2) * triggerScale),
+    );
 
     for (int i = 0; i < satellites.length; i++) {
       final sat = satellites[i];
@@ -396,26 +409,52 @@ class _GooPainter extends CustomPainter {
         scale = 0.42 + (1.0 - 0.42) * pop;
       }
 
-      circles.add(_Circle(
-        center: Offset(triggerCenter.dx + sat.dx, triggerCenter.dy + sat.dy),
-        radius: (_satelliteSize / 2) * scale,
-      ));
+      circles.add(
+        _Circle(
+          center: Offset(triggerCenter.dx + sat.dx, triggerCenter.dy + sat.dy),
+          radius: (_satelliteSize / 2) * scale,
+        ),
+      );
     }
 
     final activeAmount = math.min(t * 4, 1.0);
-    final blurSigma = _gooBlurActive * activeAmount + _gooBlurRest * (1 - activeAmount);
+    final blurSigma =
+        _gooBlurActive * activeAmount + _gooBlurRest * (1 - activeAmount);
     final threshold = _gooThresholdOuter * activeAmount;
 
     final thresholdMatrix = <double>[
-      1.0, 0.0, 0.0, 0.0, 0.0,
-      0.0, 1.0, 0.0, 0.0, 0.0,
-      0.0, 0.0, 1.0, 0.0, 0.0,
-      0.0, 0.0, 0.0, 30.0, threshold,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      30.0,
+      threshold,
     ];
 
-    final bounds = Rect.fromCenter(center: triggerCenter, width: 420, height: 420);
+    final bounds = Rect.fromCenter(
+      center: triggerCenter,
+      width: 420,
+      height: 420,
+    );
 
-    canvas.saveLayer(bounds, Paint()..colorFilter = ColorFilter.matrix(thresholdMatrix));
+    canvas.saveLayer(
+      bounds,
+      Paint()..colorFilter = ColorFilter.matrix(thresholdMatrix),
+    );
 
     final circlePaint = Paint()
       ..color = surfaceColor
@@ -496,12 +535,16 @@ class _SatelliteWidget extends StatelessWidget {
         } else {
           final launchT = (localT - 0.32) / 0.68;
           final pop = _PopSpringCurve().transform(launchT);
-          final popLagged = _PopSpringCurve().transform((launchT - 0.06).clamp(0.0, 1.0));
+          final popLagged = _PopSpringCurve().transform(
+            (launchT - 0.06).clamp(0.0, 1.0),
+          );
           scaleY = 0.42 + (1.0 - 0.42) * pop;
           scaleX = 0.42 + (1.0 - 0.42) * popLagged;
         }
 
-        final iconOpacity = localT < 0.36 ? 0.0 : ((localT - 0.36) / 0.15).clamp(0.0, 1.0);
+        final iconOpacity = localT < 0.36
+            ? 0.0
+            : ((localT - 0.36) / 0.15).clamp(0.0, 1.0);
 
         final satCenter = Offset(
           triggerCenter.dx + satellite.dx,
@@ -512,7 +555,9 @@ class _SatelliteWidget extends StatelessWidget {
         final isRight = satellite.dx > 8;
 
         return Positioned(
-          left: satCenter.dx - (isLeft ? 96 : (isRight ? _satelliteSize / 2 : 55)),
+          left:
+              satCenter.dx -
+              (isLeft ? 96 : (isRight ? _satelliteSize / 2 : 55)),
           top: satCenter.dy - _satelliteSize / 2,
           child: SizedBox(
             width: isLeft || isRight ? 118 : 110,
@@ -527,8 +572,9 @@ class _SatelliteWidget extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment:
-                        isLeft ? MainAxisAlignment.end : MainAxisAlignment.start,
+                    mainAxisAlignment: isLeft
+                        ? MainAxisAlignment.end
+                        : MainAxisAlignment.start,
                     children: [
                       if (isLeft) ...[
                         _labelChip(satellite.item.label, colors),
@@ -548,7 +594,11 @@ class _SatelliteWidget extends StatelessWidget {
                             ),
                           ],
                         ),
-                        child: Icon(satellite.item.icon, color: colors.textPrimary, size: 20),
+                        child: Icon(
+                          satellite.item.icon,
+                          color: colors.textPrimary,
+                          size: 20,
+                        ),
                       ),
                       if (!isLeft) ...[
                         const SizedBox(width: 8),

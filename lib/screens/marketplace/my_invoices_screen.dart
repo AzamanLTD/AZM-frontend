@@ -104,21 +104,32 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
         backgroundColor: colors.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
-        title: Text('My Invoices',
-            style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 17,
-                fontWeight: FontWeight.w800)),
+        title: Text(
+          'My Invoices',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabs,
           labelColor: colors.accent,
           unselectedLabelColor: colors.textTertiary,
           indicatorColor: colors.accent,
-          labelStyle:
-              const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+          labelStyle: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+          ),
           tabs: [
-            Tab(text: 'Unpaid  (${state.invoices.where((i) => i.status == InvoiceStatus.sent).length})'),
-            Tab(text: 'Paid  (${state.invoices.where((i) => i.status == InvoiceStatus.paid).length})'),
+            Tab(
+              text:
+                  'Unpaid  (${state.invoices.where((i) => i.status == InvoiceStatus.sent).length})',
+            ),
+            Tab(
+              text:
+                  'Paid  (${state.invoices.where((i) => i.status == InvoiceStatus.paid).length})',
+            ),
             Tab(text: 'All  (${state.invoices.length})'),
           ],
         ),
@@ -126,38 +137,36 @@ class _MyInvoicesScreenState extends ConsumerState<MyInvoicesScreen>
       body: state.isLoading
           ? const SkeletonList(itemHeight: 72, count: 5)
           : invoices.isEmpty
-              ? const AzamanEmptyState(
-                  icon: Icons.receipt_outlined,
-                  title: 'No invoices here',
-                  subtitle: 'Invoices from businesses will appear here.',
-                )
-              : AzPullToRefresh(
-        onRefresh: () =>
-                      ref.read(myInvoicesProvider.notifier).load(),
-        child: ListView.separated(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: invoices.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => StaggeredItem(
-                      index: i,
-                      child: _InvoiceCard(
-                      invoice: invoices[i],
-                      colors: colors,
-                      onTap: () async {
-                        await pushWithVerticalTransition(
-                          context,
-                          InvoiceDetailScreen(
-                              invoiceId: invoices[i].id),
-                        );
-                        if (mounted) {
-                          ref.read(myInvoicesProvider.notifier).load();
-                        }
-                      },
-                    ),
-                    ),
+          ? const AzamanEmptyState(
+              icon: Icons.receipt_outlined,
+              title: 'No invoices here',
+              subtitle: 'Invoices from businesses will appear here.',
+            )
+          : AzPullToRefresh(
+              onRefresh: () => ref.read(myInvoicesProvider.notifier).load(),
+              child: ListView.separated(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.all(16),
+                itemCount: invoices.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (_, i) => StaggeredItem(
+                  index: i,
+                  child: _InvoiceCard(
+                    invoice: invoices[i],
+                    colors: colors,
+                    onTap: () async {
+                      await pushWithVerticalTransition(
+                        context,
+                        InvoiceDetailScreen(invoiceId: invoices[i].id),
+                      );
+                      if (mounted) {
+                        ref.read(myInvoicesProvider.notifier).load();
+                      }
+                    },
                   ),
                 ),
+              ),
+            ),
     );
   }
 }
@@ -209,8 +218,11 @@ class _InvoiceCard extends StatelessWidget {
                 color: colors.accentSurface,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(Icons.receipt_outlined,
-                  color: colors.accent, size: 20),
+              child: Icon(
+                Icons.receipt_outlined,
+                color: colors.accent,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -231,8 +243,7 @@ class _InvoiceCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     invoice.invoiceRef,
-                    style:
-                        TextStyle(color: colors.textTertiary, fontSize: 11),
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
                   ),
                 ],
               ),
@@ -252,8 +263,10 @@ class _InvoiceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: tint.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(6),

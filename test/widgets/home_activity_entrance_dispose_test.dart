@@ -46,7 +46,9 @@ Future<ProviderContainer> _pumpSurface(
 }) async {
   final container = ProviderContainer(
     overrides: [
-      transactionHistoryProvider.overrideWith((ref) => _NoFetchHistoryNotifier()),
+      transactionHistoryProvider.overrideWith(
+        (ref) => _NoFetchHistoryNotifier(),
+      ),
     ],
   );
   addTearDown(container.dispose);

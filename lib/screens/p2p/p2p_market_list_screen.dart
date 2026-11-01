@@ -17,7 +17,6 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:go_router/go_router.dart';
 
-
 const double _kSegmentHeaderHeight = 56.0;
 
 class P2PMarketListScreen extends ConsumerStatefulWidget {
@@ -59,8 +58,11 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: Icon(HugeIconsSolid.arrowLeft01,
-              color: colors.textPrimary, size: 20),
+          icon: Icon(
+            HugeIconsSolid.arrowLeft01,
+            color: colors.textPrimary,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const SizedBox.shrink(),
@@ -72,8 +74,11 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
               return Stack(
                 children: [
                   IconButton(
-                    icon: Icon(HugeIconsSolid.filterHorizontal,
-                        color: colors.textPrimary, size: 20),
+                    icon: Icon(
+                      HugeIconsSolid.filterHorizontal,
+                      color: colors.textPrimary,
+                      size: 20,
+                    ),
                     onPressed: () => P2PFilterSheet.show(context),
                   ),
                   if (count > 0)
@@ -156,7 +161,8 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) => const VendorAdCreator()),
+                            builder: (_) => const VendorAdCreator(),
+                          ),
                         );
                       },
                       onRefresh: _onRefresh,
@@ -181,7 +187,8 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
                           borderRadius: BorderRadius.vertical(
                             top: Radius.circular(i == 0 ? 12 : 0),
                             bottom: Radius.circular(
-                                i == ads.length - 1 ? 12 : 0),
+                              i == ads.length - 1 ? 12 : 0,
+                            ),
                           ),
                         ),
                         child: KeyedSubtree(
@@ -218,7 +225,8 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
     required GlobalKey cardKey,
   }) {
     HapticFeedback.selectionClick();
-    final originRect = _rectFromKey(cardKey) ??
+    final originRect =
+        _rectFromKey(cardKey) ??
         Rect.fromLTWH(
           16,
           MediaQuery.of(ctx).size.height * 0.4,
@@ -229,12 +237,13 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
       context: ctx,
       ad: ad,
       originRect: originRect,
-      onConfirmTrade: ({
-        required double amountFiat,
-        required Map<String, String> buyerDetails,
-      }) async {
-        await _initiateTradeFromFlip(ctx, ad, amountFiat, buyerDetails);
-      },
+      onConfirmTrade:
+          ({
+            required double amountFiat,
+            required Map<String, String> buyerDetails,
+          }) async {
+            await _initiateTradeFromFlip(ctx, ad, amountFiat, buyerDetails);
+          },
     );
   }
 
@@ -254,7 +263,9 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
     Map<String, String> buyerDetails,
   ) async {
     try {
-      final result = await ref.read(adsProvider.notifier).initiateTrade(
+      final result = await ref
+          .read(adsProvider.notifier)
+          .initiateTrade(
             adId: ad.id.toString(),
             amountFiat: amountFiat,
             amountCrypto: amountFiat,
@@ -267,11 +278,13 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
         ScaffoldMessenger.of(ctx).clearSnackBars();
         // NEW-A: canonical /queue route — same parameters as query params,
         // so the waiting room is deep-linkable and swap-safe.
-        ctx.push(AzRoutes.queue(
-          queueId: result.queueId ?? '',
-          position: result.queuePosition ?? 1,
-          adId: result.adId ?? ad.id.toString(),
-        ));
+        ctx.push(
+          AzRoutes.queue(
+            queueId: result.queueId ?? '',
+            position: result.queuePosition ?? 1,
+            adId: result.adId ?? ad.id.toString(),
+          ),
+        );
       } else {
         ScaffoldMessenger.of(ctx).clearSnackBars();
         if (result.tradeId != null && result.tradeId!.isNotEmpty) {
@@ -280,30 +293,31 @@ class _P2PMarketListScreenState extends ConsumerState<P2PMarketListScreen> {
           // display form is derived by the screen, not baked into callers).
           ctx.push(
             AzRoutes.trade(result.tradeId!),
-            extra: {
-              'amount': amountFiat,
-              'paymentMethod': ad.paymentMethod,
-            },
+            extra: {'amount': amountFiat, 'paymentMethod': ad.paymentMethod},
           );
         } else {
           final colors = ref.read(themeProvider).colors;
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-            content: Text(
-              'Trade initiated! Check Active Trades.',
-              style: TextStyle(color: colors.textPrimary),
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Trade initiated! Check Active Trades.',
+                style: TextStyle(color: colors.textPrimary),
+              ),
+              backgroundColor: colors.success,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: colors.success,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 3),
-          ));
+          );
         }
       }
     } catch (e) {
       if (!ctx.mounted) return;
-      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-        content: Text('Trade failed: $e'),
-        backgroundColor: ref.read(themeProvider).colors.danger,
-      ));
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text('Trade failed: $e'),
+          backgroundColor: ref.read(themeProvider).colors.danger,
+        ),
+      );
       rethrow;
     }
   }
@@ -320,7 +334,10 @@ class _SegmentHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     return Container(
       color: colors.surface,
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),

@@ -114,8 +114,7 @@ class ComputedGeometry {
   });
 
   /// All seat slot rects (excludes aisles, doors, etc.).
-  List<SlotRect> get seatRects =>
-      allRects.where((r) => r.slot.isSeat).toList();
+  List<SlotRect> get seatRects => allRects.where((r) => r.slot.isSeat).toList();
 
   /// Find the SlotRect for a given seatId.
   SlotRect? rectForSeat(String seatId) {
@@ -143,8 +142,9 @@ class SeatGeometrySolver {
 
     for (final deck in layout.decks) {
       // Add header for first deck only
-      final deckStartY =
-          deck.deckIndex == 0 ? yOffset + config.headerHeight : yOffset;
+      final deckStartY = deck.deckIndex == 0
+          ? yOffset + config.headerHeight
+          : yOffset;
       if (deck.deckIndex == 0) {
         yOffset += config.headerHeight;
       }

@@ -16,36 +16,133 @@ void main() {
     singleDeckLayout = VehicleLayout(
       id: 'test-single',
       decks: [
-        Deck(deckIndex: 0, grid: [
-          [
-            const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: '1A', tier: SeatTier.vip, fare: 30),
-            const GridSlot(type: SlotType.seat, row: 0, col: 1, seatId: '1B', tier: SeatTier.vip, fare: 30),
-            const GridSlot(type: SlotType.aisle, row: 0, col: 2),
-            const GridSlot(type: SlotType.seat, row: 0, col: 3, seatId: '1C', tier: SeatTier.standard, fare: 18),
-            const GridSlot(type: SlotType.seat, row: 0, col: 4, seatId: '1D', tier: SeatTier.standard, fare: 18),
+        Deck(
+          deckIndex: 0,
+          grid: [
+            [
+              const GridSlot(
+                type: SlotType.seat,
+                row: 0,
+                col: 0,
+                seatId: '1A',
+                tier: SeatTier.vip,
+                fare: 30,
+              ),
+              const GridSlot(
+                type: SlotType.seat,
+                row: 0,
+                col: 1,
+                seatId: '1B',
+                tier: SeatTier.vip,
+                fare: 30,
+              ),
+              const GridSlot(type: SlotType.aisle, row: 0, col: 2),
+              const GridSlot(
+                type: SlotType.seat,
+                row: 0,
+                col: 3,
+                seatId: '1C',
+                tier: SeatTier.standard,
+                fare: 18,
+              ),
+              const GridSlot(
+                type: SlotType.seat,
+                row: 0,
+                col: 4,
+                seatId: '1D',
+                tier: SeatTier.standard,
+                fare: 18,
+              ),
+            ],
+            [
+              const GridSlot(
+                type: SlotType.seat,
+                row: 1,
+                col: 0,
+                seatId: '2A',
+                status: SeatBookStatus.booked,
+                fare: 18,
+              ),
+              const GridSlot(
+                type: SlotType.seat,
+                row: 1,
+                col: 1,
+                seatId: '2B',
+                fare: 18,
+              ),
+              const GridSlot(type: SlotType.aisle, row: 1, col: 2),
+              const GridSlot(
+                type: SlotType.seat,
+                row: 1,
+                col: 3,
+                seatId: '2C',
+                status: SeatBookStatus.blocked,
+                fare: 18,
+              ),
+              const GridSlot(
+                type: SlotType.seat,
+                row: 1,
+                col: 4,
+                seatId: '2D',
+                fare: 18,
+              ),
+            ],
           ],
-          [
-            const GridSlot(type: SlotType.seat, row: 1, col: 0, seatId: '2A', status: SeatBookStatus.booked, fare: 18),
-            const GridSlot(type: SlotType.seat, row: 1, col: 1, seatId: '2B', fare: 18),
-            const GridSlot(type: SlotType.aisle, row: 1, col: 2),
-            const GridSlot(type: SlotType.seat, row: 1, col: 3, seatId: '2C', status: SeatBookStatus.blocked, fare: 18),
-            const GridSlot(type: SlotType.seat, row: 1, col: 4, seatId: '2D', fare: 18),
-          ],
-        ]),
+        ),
       ],
     );
 
     multiDeckLayout = VehicleLayout(
       id: 'test-multi',
       decks: [
-        Deck(deckIndex: 0, label: 'Lower', grid: [
-          [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'L1A', fare: 20)],
-          [const GridSlot(type: SlotType.seat, row: 1, col: 0, seatId: 'L2A', fare: 20)],
-        ]),
-        Deck(deckIndex: 1, label: 'Upper', grid: [
-          [const GridSlot(type: SlotType.seat, row: 0, col: 0, seatId: 'U1A', fare: 25)],
-          [const GridSlot(type: SlotType.seat, row: 1, col: 0, seatId: 'U2A', fare: 25)],
-        ]),
+        Deck(
+          deckIndex: 0,
+          label: 'Lower',
+          grid: [
+            [
+              const GridSlot(
+                type: SlotType.seat,
+                row: 0,
+                col: 0,
+                seatId: 'L1A',
+                fare: 20,
+              ),
+            ],
+            [
+              const GridSlot(
+                type: SlotType.seat,
+                row: 1,
+                col: 0,
+                seatId: 'L2A',
+                fare: 20,
+              ),
+            ],
+          ],
+        ),
+        Deck(
+          deckIndex: 1,
+          label: 'Upper',
+          grid: [
+            [
+              const GridSlot(
+                type: SlotType.seat,
+                row: 0,
+                col: 0,
+                seatId: 'U1A',
+                fare: 25,
+              ),
+            ],
+            [
+              const GridSlot(
+                type: SlotType.seat,
+                row: 1,
+                col: 0,
+                seatId: 'U2A',
+                fare: 25,
+              ),
+            ],
+          ],
+        ),
       ],
     );
   });

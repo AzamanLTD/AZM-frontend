@@ -18,7 +18,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/leaderboard_provider.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class LeaderboardScreen extends ConsumerStatefulWidget {
   const LeaderboardScreen({super.key});
 
@@ -159,20 +158,17 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final entry = lb.entries[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: _RankCard(
-                      entry: entry,
-                      metric: lb.activeMetric,
-                      colors: colors,
-                    ),
-                  );
-                },
-                childCount: lb.entries.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final entry = lb.entries[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _RankCard(
+                    entry: entry,
+                    metric: lb.activeMetric,
+                    colors: colors,
+                  ),
+                );
+              }, childCount: lb.entries.length),
             ),
           ),
         ],
@@ -260,15 +256,15 @@ class _RankCard extends StatelessWidget {
         color: isYou
             ? colors.accent.withValues(alpha: 0.07)
             : isPodium
-                ? colors.surface
-                : colors.card,
+            ? colors.surface
+            : colors.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isYou
               ? colors.accent.withValues(alpha: 0.5)
               : isPodium
-                  ? borderColor.withValues(alpha: 0.5)
-                  : colors.divider,
+              ? borderColor.withValues(alpha: 0.5)
+              : colors.divider,
           width: isYou || isPodium ? 1.5 : 1,
         ),
         boxShadow: isPodium
@@ -309,7 +305,9 @@ class _RankCard extends StatelessWidget {
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 5, vertical: 1),
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: colors.accent.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(4),
@@ -362,10 +360,7 @@ class _RankCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   _metricSubtext(),
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 10,
-                  ),
+                  style: TextStyle(color: colors.textTertiary, fontSize: 10),
                 ),
               ],
             ),
@@ -442,10 +437,7 @@ class _PodiumBadge extends StatelessWidget {
       height: 44,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            color.withValues(alpha: 0.2),
-            color.withValues(alpha: 0.05),
-          ],
+          colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -727,10 +719,7 @@ class _ErrorState extends StatelessWidget {
             Text(
               'Check your connection and try again.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -741,8 +730,10 @@ class _ErrorState extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
               ),
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text(

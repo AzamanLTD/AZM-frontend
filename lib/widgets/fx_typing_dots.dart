@@ -68,8 +68,7 @@ class _FxTypingDotsState extends State<FxTypingDots>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: widget.cycle)
-      ..repeat();
+    _ctrl = AnimationController(vsync: this, duration: widget.cycle)..repeat();
   }
 
   @override

@@ -111,9 +111,13 @@ void main() {
       ]);
 
       final loaded = await service.loadForUser(uid);
-      expect(loaded, hasLength(1),
-          reason: 'six hours later the submitted operation still has a '
-              'way back — money may be moving under it');
+      expect(
+        loaded,
+        hasLength(1),
+        reason:
+            'six hours later the submitted operation still has a '
+            'way back — money may be moving under it',
+      );
       expect(loaded.single.reference, ref);
     });
 
@@ -142,22 +146,28 @@ void main() {
       expect(await service.loadForUser(otherUid), isEmpty);
     });
 
-    test('REVIEW FOLLOW-UP — resolution is OWNER-SCOPED: resolving under a '
-        'different user never removes the initiating owner\'s record',
-        () async {
-      await service.save(uid, ref);
-      // A resolution executed with the WRONG identity (an account
-      // switched before the ledger answered) must not touch the
-      // initiating owner's storage.
-      await service.resolve(otherUid, ref);
-      expect(await service.loadForUser(uid), hasLength(1),
-          reason: "B's resolution must never remove A's stored "
-              'continuation');
+    test(
+      'REVIEW FOLLOW-UP — resolution is OWNER-SCOPED: resolving under a '
+      'different user never removes the initiating owner\'s record',
+      () async {
+        await service.save(uid, ref);
+        // A resolution executed with the WRONG identity (an account
+        // switched before the ledger answered) must not touch the
+        // initiating owner's storage.
+        await service.resolve(otherUid, ref);
+        expect(
+          await service.loadForUser(uid),
+          hasLength(1),
+          reason:
+              "B's resolution must never remove A's stored "
+              'continuation',
+        );
 
-      // Only the initiating owner's own resolution removes their record.
-      await service.resolve(uid, ref);
-      expect(await service.loadForUser(uid), isEmpty);
-    });
+        // Only the initiating owner's own resolution removes their record.
+        await service.resolve(uid, ref);
+        expect(await service.loadForUser(uid), isEmpty);
+      },
+    );
 
     test('resolve is the ONLY deletion path: an unresolved submitted '
         'operation never leaves storage otherwise', () async {
@@ -169,8 +179,10 @@ void main() {
       // Authoritative settlement is the one way out.
       await service.resolve(uid, ref);
       expect(await service.loadForUser(uid), isEmpty);
-      expect(storage.store.containsKey('azm.deposit.continuations.$uid'),
-          isFalse);
+      expect(
+        storage.store.containsKey('azm.deposit.continuations.$uid'),
+        isFalse,
+      );
     });
 
     test('a corrupt blob reads as empty, never throws', () async {
@@ -213,8 +225,11 @@ void main() {
       storage.release();
       await stale;
 
-      expect(controller.state.userId, otherUid,
-          reason: 'the late old-user completion must not steal state');
+      expect(
+        controller.state.userId,
+        otherUid,
+        reason: 'the late old-user completion must not steal state',
+      );
       expect(controller.state.continuations, isEmpty);
     });
 
@@ -232,8 +247,10 @@ void main() {
       expect(controller.state.userId, isNull);
       expect(controller.state.continuations, isEmpty);
       // The storage record SURVIVES the logout.
-      expect(storage.store.containsKey('azm.deposit.continuations.$uid'),
-          isTrue);
+      expect(
+        storage.store.containsKey('azm.deposit.continuations.$uid'),
+        isTrue,
+      );
 
       // The same user signs back in: their outstanding continuation is
       // right there again.
@@ -244,8 +261,11 @@ void main() {
 
       // A different account never sees it.
       await controller.loadForUser(otherUid);
-      expect(controller.state.continuations, isEmpty,
-          reason: 'strict per-user isolation');
+      expect(
+        controller.state.continuations,
+        isEmpty,
+        reason: 'strict per-user isolation',
+      );
     });
 
     test('clearForLogout bumps the generation: a stale in-flight read '
@@ -289,8 +309,10 @@ void main() {
       // interleaving is pinned in the generation-guard test above.)
 
       // A's STORED record is preserved across the switch.
-      expect(storage.store.containsKey('azm.deposit.continuations.$uid'),
-          isTrue);
+      expect(
+        storage.store.containsKey('azm.deposit.continuations.$uid'),
+        isTrue,
+      );
 
       // Switching back to A reloads exactly A's outstanding record.
       await controller.switchToUser(uid);
@@ -303,8 +325,7 @@ void main() {
 
   group('FINAL REVIEW — serialized per-user mutations and terminal '
       'resolution', () {
-    DepositContinuationsService svc(
-        {required _FakeSecureStorage store}) =>
+    DepositContinuationsService svc({required _FakeSecureStorage store}) =>
         DepositContinuationsService(storage: store);
 
     Future<List<String>> refs(DepositContinuationsService s, String u) async =>
@@ -335,14 +356,17 @@ void main() {
       await inFlightSave;
       await settlement;
 
-      expect(await refs(service, 'user-a'), ['DEP-EARLIER'],
-          reason: 'the settled reference must NOT be resurrected by its '
-              'own late write, and the unrelated sibling must survive');
+      expect(
+        await refs(service, 'user-a'),
+        ['DEP-EARLIER'],
+        reason:
+            'the settled reference must NOT be resurrected by its '
+            'own late write, and the unrelated sibling must survive',
+      );
     });
 
     test('a resolution racing an OTP-confirm re-save is terminal in BOTH '
-        'enqueue orders — the stale re-save can never resurrect it',
-        () async {
+        'enqueue orders — the stale re-save can never resurrect it', () async {
       final storage = _FakeSecureStorage();
       final service = svc(store: storage);
       await service.save('user-a', 'DEP-OTP-CONFIRM');
@@ -353,8 +377,11 @@ void main() {
       final resave = service.save('user-a', 'DEP-OTP-CONFIRM');
       await settle;
       await resave;
-      expect(await refs(service, 'user-a'), isEmpty,
-          reason: 'a re-save enqueued AFTER resolution is a no-op');
+      expect(
+        await refs(service, 'user-a'),
+        isEmpty,
+        reason: 'a re-save enqueued AFTER resolution is a no-op',
+      );
 
       // Order 2: the stale re-save enqueues first, the settlement
       // lands behind it — the reference still ends resolved.
@@ -363,32 +390,45 @@ void main() {
       final settle2 = service.resolve('user-a', 'DEP-OTP-CONFIRM-2');
       await resave2;
       await settle2;
-      expect(await refs(service, 'user-a'), isEmpty,
-          reason: 'resolution behind a racing save still wins');
+      expect(
+        await refs(service, 'user-a'),
+        isEmpty,
+        reason: 'resolution behind a racing save still wins',
+      );
     });
 
-    test('a RETRY attempting to save a reference after its authoritative '
-        'resolution is a no-op, and terminality is PER-REFERENCE only',
-        () async {
-      final storage = _FakeSecureStorage();
-      final service = svc(store: storage);
+    test(
+      'a RETRY attempting to save a reference after its authoritative '
+      'resolution is a no-op, and terminality is PER-REFERENCE only',
+      () async {
+        final storage = _FakeSecureStorage();
+        final service = svc(store: storage);
 
-      await service.save('user-a', 'DEP-RESOLVED');
-      await service.resolve('user-a', 'DEP-RESOLVED');
-      expect(await refs(service, 'user-a'), isEmpty);
+        await service.save('user-a', 'DEP-RESOLVED');
+        await service.resolve('user-a', 'DEP-RESOLVED');
+        expect(await refs(service, 'user-a'), isEmpty);
 
-      // The retry (user taps "Save receipt" again) — must not resurrect.
-      await service.save('user-a', 'DEP-RESOLVED');
-      expect(await refs(service, 'user-a'), isEmpty,
-          reason: 'resolution is terminal: a later retry never '
-              'resurrects the reference');
+        // The retry (user taps "Save receipt" again) — must not resurrect.
+        await service.save('user-a', 'DEP-RESOLVED');
+        expect(
+          await refs(service, 'user-a'),
+          isEmpty,
+          reason:
+              'resolution is terminal: a later retry never '
+              'resurrects the reference',
+        );
 
-      // Terminality never bleeds into other, valid operations.
-      await service.save('user-a', 'DEP-NEW-OP');
-      expect(await refs(service, 'user-a'), ['DEP-NEW-OP'],
-          reason: 'an unrelated reference saves normally after another '
-              'one resolved');
-    });
+        // Terminality never bleeds into other, valid operations.
+        await service.save('user-a', 'DEP-NEW-OP');
+        expect(
+          await refs(service, 'user-a'),
+          ['DEP-NEW-OP'],
+          reason:
+              'an unrelated reference saves normally after another '
+              'one resolved',
+        );
+      },
+    );
 
     test('CONCURRENT mutations to separate references of the same user '
         'lose NEITHER record', () async {
@@ -400,11 +440,17 @@ void main() {
       final f3 = service.save('user-a', 'DEP-C');
       await Future.wait([f1, f2, f3]);
 
-      expect(await refs(service, 'user-a'),
-          containsAll(['DEP-A', 'DEP-B', 'DEP-C']));
-      expect((await service.loadForUser('user-a')), hasLength(3),
-          reason: 'unserialized load-modify-write used to let the last '
-              'write drop the siblings');
+      expect(
+        await refs(service, 'user-a'),
+        containsAll(['DEP-A', 'DEP-B', 'DEP-C']),
+      );
+      expect(
+        (await service.loadForUser('user-a')),
+        hasLength(3),
+        reason:
+            'unserialized load-modify-write used to let the last '
+            'write drop the siblings',
+      );
     });
 
     test('a settlement resolving one reference while another is being '
@@ -417,9 +463,13 @@ void main() {
       final fresh = service.save('user-a', 'DEP-FRESH');
       await Future.wait([settle, fresh]);
 
-      expect(await refs(service, 'user-a'), ['DEP-FRESH'],
-          reason: 'the resolved record is gone, the concurrently-saved '
-              'one survives');
+      expect(
+        await refs(service, 'user-a'),
+        ['DEP-FRESH'],
+        reason:
+            'the resolved record is gone, the concurrently-saved '
+            'one survives',
+      );
     });
 
     test('different users never queue behind each other and never bleed '

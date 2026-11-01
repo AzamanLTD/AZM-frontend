@@ -54,7 +54,9 @@ class ChatMediaUploadResult {
       size: json['size'] is int ? json['size'] as int : null,
       filename: json['filename']?.toString(),
       duration: json['duration'] is int ? json['duration'] as int : null,
-      waveformPeaks: waveform is List ? waveform.whereType<int>().toList() : null,
+      waveformPeaks: waveform is List
+          ? waveform.whereType<int>().toList()
+          : null,
     );
   }
 }
@@ -97,14 +99,14 @@ class LinkPreview {
   }
 
   Map<String, dynamic> toJson() => {
-        'url': url,
-        if (title != null) 'title': title,
-        if (description != null) 'description': description,
-        if (image != null) 'image': image,
-        if (favicon != null) 'favicon': favicon,
-        if (siteName != null) 'siteName': siteName,
-        'status': status,
-      };
+    'url': url,
+    if (title != null) 'title': title,
+    if (description != null) 'description': description,
+    if (image != null) 'image': image,
+    if (favicon != null) 'favicon': favicon,
+    if (siteName != null) 'siteName': siteName,
+    'status': status,
+  };
 }
 
 class ChatMediaService {
@@ -124,29 +126,25 @@ class ChatMediaService {
     File file, {
     int? durationSeconds,
     List<int>? waveformPeaks,
-  }) =>
-      _uploadFile(
-        endpoint: '/chat/upload/audio',
-        file: file,
-        extraFields: {
-          if (durationSeconds != null) 'duration': '$durationSeconds',
-          if (waveformPeaks != null) 'waveformPeaks': jsonEncode(waveformPeaks),
-        },
-      );
+  }) => _uploadFile(
+    endpoint: '/chat/upload/audio',
+    file: file,
+    extraFields: {
+      if (durationSeconds != null) 'duration': '$durationSeconds',
+      if (waveformPeaks != null) 'waveformPeaks': jsonEncode(waveformPeaks),
+    },
+  );
 
   /// Upload a video. `duration` (seconds) is optional. The backend caps at
   /// 50MB; longer-than-2-minute clips should be transcoded client-side first.
   Future<ChatMediaUploadResult> uploadVideo(
     File file, {
     int? durationSeconds,
-  }) =>
-      _uploadFile(
-        endpoint: '/chat/upload/video',
-        file: file,
-        extraFields: {
-          if (durationSeconds != null) 'duration': '$durationSeconds',
-        },
-      );
+  }) => _uploadFile(
+    endpoint: '/chat/upload/video',
+    file: file,
+    extraFields: {if (durationSeconds != null) 'duration': '$durationSeconds'},
+  );
 
   /// Upload a document (PDF, Word, Excel, etc.). Backend caps at 25MB.
   Future<ChatMediaUploadResult> uploadDocument(File file) =>
@@ -245,20 +243,23 @@ class ChatMediaService {
         return MediaType('application', 'msword');
       case 'docx':
         return MediaType(
-            'application',
-            'vnd.openxmlformats-officedocument.wordprocessingml.document');
+          'application',
+          'vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
       case 'xls':
         return MediaType('application', 'vnd.ms-excel');
       case 'xlsx':
         return MediaType(
-            'application',
-            'vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          'application',
+          'vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
       case 'ppt':
         return MediaType('application', 'vnd.ms-powerpoint');
       case 'pptx':
         return MediaType(
-            'application',
-            'vnd.openxmlformats-officedocument.presentationml.presentation');
+          'application',
+          'vnd.openxmlformats-officedocument.presentationml.presentation',
+        );
       case 'txt':
         return MediaType('text', 'plain');
       case 'csv':

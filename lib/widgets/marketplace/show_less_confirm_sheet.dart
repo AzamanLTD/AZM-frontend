@@ -50,7 +50,8 @@ class _ShowLessConfirmDialog extends ConsumerStatefulWidget {
       _ShowLessConfirmDialogState();
 }
 
-class _ShowLessConfirmDialogState extends ConsumerState<_ShowLessConfirmDialog> {
+class _ShowLessConfirmDialogState
+    extends ConsumerState<_ShowLessConfirmDialog> {
   // null = unknown (check in flight); true = SHOW_LESS applied.
   bool? _applied;
   bool _checkFailed = false;
@@ -71,10 +72,9 @@ class _ShowLessConfirmDialogState extends ConsumerState<_ShowLessConfirmDialog> 
       _busy = true;
     });
     try {
-      final applied =
-          await ref.read(recommendationFeedbackServiceProvider).check(
-                _canonicalId,
-              );
+      final applied = await ref
+          .read(recommendationFeedbackServiceProvider)
+          .check(_canonicalId);
       if (!mounted) return;
       setState(() {
         _applied = applied;
@@ -154,7 +154,9 @@ class _ShowLessConfirmDialogState extends ConsumerState<_ShowLessConfirmDialog> 
         size: 28,
       ),
       title: Text(
-        applied == true ? 'Stop showing less like "$name"?' : 'Show less like "$name"?',
+        applied == true
+            ? 'Stop showing less like "$name"?'
+            : 'Show less like "$name"?',
         style: TextStyle(
           fontSize: 17,
           fontWeight: FontWeight.w800,
@@ -164,12 +166,12 @@ class _ShowLessConfirmDialogState extends ConsumerState<_ShowLessConfirmDialog> 
       content: Text(
         _checkFailed
             ? 'Could not reach your preferences right now. Nothing has '
-                'changed — try again later.'
+                  'changed — try again later.'
             : applied == true
-                ? 'You already show fewer recommendations like this '
-                    'business. Undoing restores it in your results.'
-                : 'You\'ll see fewer recommendations like this business. '
-                    'You can undo this anytime.',
+            ? 'You already show fewer recommendations like this '
+                  'business. Undoing restores it in your results.'
+            : 'You\'ll see fewer recommendations like this business. '
+                  'You can undo this anytime.',
         style: TextStyle(fontSize: 13.5, color: colors.textSecondary),
       ),
       actions: [
@@ -197,7 +199,9 @@ class _ShowLessConfirmDialogState extends ConsumerState<_ShowLessConfirmDialog> 
         else
           FilledButton(
             key: ValueKey(
-              applied ? 'joystick-show-less-undo' : 'joystick-show-less-confirm-apply',
+              applied
+                  ? 'joystick-show-less-undo'
+                  : 'joystick-show-less-confirm-apply',
             ),
             onPressed: _busy ? null : (applied ? _undo : _apply),
             child: Text(applied ? 'Undo' : 'Show less'),

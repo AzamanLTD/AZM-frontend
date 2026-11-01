@@ -45,9 +45,10 @@ class _StoryInteractionBarState extends ConsumerState<StoryInteractionBar> {
   final _focus = FocusNode();
   bool _sending = false;
 
-  bool get _canReply =>
-      ref.read(storyGatewayProvider).capabilities
-          .contains(StoryCapability.reply);
+  bool get _canReply => ref
+      .read(storyGatewayProvider)
+      .capabilities
+      .contains(StoryCapability.reply);
 
   @override
   void initState() {
@@ -70,8 +71,9 @@ class _StoryInteractionBarState extends ConsumerState<StoryInteractionBar> {
     if (message.isEmpty || _sending) return;
     setState(() => _sending = true);
     AzamanHaptics.selection();
-    final result =
-        await ref.read(storyGatewayProvider).reply(widget.story.id, message);
+    final result = await ref
+        .read(storyGatewayProvider)
+        .reply(widget.story.id, message);
     if (!mounted) return;
     setState(() => _sending = false);
     switch (result) {
@@ -100,7 +102,12 @@ class _StoryInteractionBarState extends ConsumerState<StoryInteractionBar> {
     return SafeArea(
       top: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(AzSpace.lg, 0, AzSpace.lg, AzSpace.md),
+        padding: const EdgeInsets.fromLTRB(
+          AzSpace.lg,
+          0,
+          AzSpace.lg,
+          AzSpace.md,
+        ),
         child: Row(
           children: [
             Expanded(
@@ -110,28 +117,34 @@ class _StoryInteractionBarState extends ConsumerState<StoryInteractionBar> {
                   color: Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AzRadius.pill),
                   border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.15), width: 0.5),
+                    color: Colors.white.withValues(alpha: 0.15),
+                    width: 0.5,
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.chat_bubble_outline,
-                        color: Colors.white.withValues(alpha: 0.6), size: 20),
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      size: 20,
+                    ),
                     const SizedBox(width: AzSpace.sm),
                     Expanded(
                       child: TextField(
                         controller: _replyController,
                         focusNode: _focus,
-                        style:
-                            AzText.body.copyWith(color: Colors.white),
+                        style: AzText.body.copyWith(color: Colors.white),
                         decoration: InputDecoration(
                           hintText: 'Reply to story…',
-                          hintStyle: AzText.body
-                              .copyWith(color: Colors.white.withValues(alpha: 0.4)),
+                          hintStyle: AzText.body.copyWith(
+                            color: Colors.white.withValues(alpha: 0.4),
+                          ),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 12),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 12,
+                          ),
                         ),
                         onSubmitted: (_) => _sendReply(),
                       ),
@@ -155,8 +168,9 @@ class _StoryInteractionBarState extends ConsumerState<StoryInteractionBar> {
                         : colors.primary,
                     shape: BoxShape.circle,
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        width: 0.5),
+                      color: Colors.white.withValues(alpha: 0.15),
+                      width: 0.5,
+                    ),
                   ),
                   alignment: Alignment.center,
                   child: _sending
@@ -164,12 +178,17 @@ class _StoryInteractionBarState extends ConsumerState<StoryInteractionBar> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.black))
-                      : Icon(Icons.send,
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : Icon(
+                          Icons.send,
                           color: value.text.trim().isEmpty
                               ? Colors.white.withValues(alpha: 0.7)
                               : Colors.black,
-                          size: 18),
+                          size: 18,
+                        ),
                 ),
               ),
             ),

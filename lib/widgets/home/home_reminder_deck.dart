@@ -99,12 +99,14 @@ class HomeReminderCardData {
 // surfaces can never drift apart.
 /// §4 data: existing signals only.─────────────────────────────────────
 
-List<HomeReminderCardData> homeReminderCards(WidgetRef ref, BuildContext context) {
+List<HomeReminderCardData> homeReminderCards(
+  WidgetRef ref,
+  BuildContext context,
+) {
   final list = <HomeReminderCardData>[];
 
   // 1. The soonest pending Susu cycle across the caller's ACTIVE Susus.
-  final mine =
-      ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];
+  final mine = ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];
   SusuSummary? due;
   for (final s in mine) {
     if (s.status != SusuStatus.active) continue;
@@ -146,9 +148,7 @@ List<HomeReminderCardData> homeReminderCards(WidgetRef ref, BuildContext context
         subtitle: intent.subtitle,
         icon: isCart ? HugeIconsSolid.shoppingCart01 : HugeIconsSolid.store01,
         onTap: () => context.push(
-          intent.kind == ResumeKind.cart
-              ? AzRoutes.cart
-              : AzRoutes.marketplace,
+          intent.kind == ResumeKind.cart ? AzRoutes.cart : AzRoutes.marketplace,
         ),
       ),
     );
@@ -179,7 +179,6 @@ List<HomeReminderCardData> homeReminderCards(WidgetRef ref, BuildContext context
   return list;
 }
 
-
 const _homeReminderMonths = [
   'Jan',
   'Feb',
@@ -194,7 +193,6 @@ const _homeReminderMonths = [
   'Nov',
   'Dec',
 ];
-
 
 /// DEMO SEEDS (§4 honesty preserved: DemoGuard-gated) ──────────────────
 //
@@ -230,7 +228,6 @@ List<HomeReminderCardData> _demoReminderCards(BuildContext context) => [
     onTap: () => context.push(AzRoutes.marketplace),
   ),
 ];
-
 
 class HomeReminderDeck extends ConsumerStatefulWidget {
   /// The measured FILL height (owner direction, 2026-10-05): Home hands
@@ -323,9 +320,6 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
     super.dispose();
   }
 
-
-
-
   // ── §5 trajectory ───────────────────────────────────────────────────────
 
   void _onDragStart(DragStartDetails d) {
@@ -391,11 +385,9 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
   /// quiet-depth controller recesses the secondary Home controls until
   /// the deck is exited (terminal tap, or a tap outside the deck).
   void _enterReminderFocus() {
-    QuietDepthScope.maybeOf(context)?.enterFocus(
-          'reminder-deck',
-          context: context,
-          exitOnOutsideTap: true,
-        );
+    QuietDepthScope.maybeOf(
+      context,
+    )?.enterFocus('reminder-deck', context: context, exitOnOutsideTap: true);
   }
 
   /// The deck's card list: real signals, demo seeds in a demo build with
@@ -421,15 +413,15 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
   /// Honest completion copy: seeing every card is exactly that — it never
   /// claims an outstanding contribution or action was completed.
   HomeReminderCardData _terminalCard() => HomeReminderCardData(
-        id: _terminalId,
-        eyebrow: 'REMINDERS',
-        title: "You've seen all your reminders",
-        subtitle: _celebrated
-            ? "That's the full deck for now"
-            : 'Tap to head back to your actions',
-        icon: HugeIconsSolid.checkmarkCircle01,
-        onTap: _onTerminalTap,
-      );
+    id: _terminalId,
+    eyebrow: 'REMINDERS',
+    title: "You've seen all your reminders",
+    subtitle: _celebrated
+        ? "That's the full deck for now"
+        : 'Tap to head back to your actions',
+    icon: HugeIconsSolid.checkmarkCircle01,
+    onTap: _onTerminalTap,
+  );
 
   void _onTerminalTap() {
     AzamanHaptics.confirm();
@@ -640,14 +632,14 @@ class _HomeReminderDeckState extends ConsumerState<HomeReminderDeck>
           onHorizontalDragUpdate: swipable ? _onDragUpdate : null,
           onHorizontalDragEnd: swipable ? _onDragEnd : null,
           child: _frontTransformed(
-          HomeReminderTicketFace(
-            card: frontData,
-            colors: colors,
-            height: _cardH,
-            toneIndex: toneOf[frontData.id] ?? 0,
-          ),
-          t,
-          n,
+            HomeReminderTicketFace(
+              card: frontData,
+              colors: colors,
+              height: _cardH,
+              toneIndex: toneOf[frontData.id] ?? 0,
+            ),
+            t,
+            n,
           ),
         ),
       ),
@@ -989,7 +981,6 @@ class _PositionDots extends StatelessWidget {
   }
 }
 
-
 // ── ONE-SHOT CELEBRATION (Quiet Depth pilot) ───────────────────────────────
 //
 // A small, restrained confetti burst over the deck when the terminal card
@@ -1022,8 +1013,10 @@ class _ReminderConfettiState extends State<_ReminderConfetti>
   // seed. paint(t) is then a PURE function of t: every frame renders
   // the same immutable particles along stable, smooth trajectories —
   // no per-frame randomness, no jitter, fully capture-deterministic.
-  final List<ConfettiParticle> particles =
-      ConfettiSystem.generate(seed: 7341, count: 26);
+  final List<ConfettiParticle> particles = ConfettiSystem.generate(
+    seed: 7341,
+    count: 26,
+  );
 
   @override
   void initState() {
@@ -1060,8 +1053,7 @@ class _ReminderConfettiState extends State<_ReminderConfetti>
 /// section's top edge. Exposed for the geometry contract test: the burst
 /// must originate at the header, never from the deck card.
 @visibleForTesting
-Offset reminderConfettiHeaderOrigin(Size size) =>
-    Offset(size.width / 2, 10);
+Offset reminderConfettiHeaderOrigin(Size size) => Offset(size.width / 2, 10);
 
 /// One immutable confetti piece. All trajectory parameters are fixed at
 /// generation; only time moves a piece.
@@ -1147,10 +1139,12 @@ class _ConfettiPainter extends CustomPainter {
       // particle parameters never change between frames, so each piece
       // follows one smooth trajectory.
       final dx = math.cos(p.angle) * p.speed * progress * size.width * 0.9;
-      final dy = math.sin(p.angle) * p.speed * progress * size.height +
+      final dy =
+          math.sin(p.angle) * p.speed * progress * size.height +
           gravity * size.height * 0.5;
-      final color =
-          palette[p.colorIndex % palette.length].withValues(alpha: fade);
+      final color = palette[p.colorIndex % palette.length].withValues(
+        alpha: fade,
+      );
       final rotation = p.spin + t * 9;
       final paint = Paint()..color = color;
       canvas.save();

@@ -64,8 +64,7 @@ void main() {
   });
 
   // ── 2. Missing / stale rate: never fabricated ─────────────────────────────
-  test('no snapshot → native amount stands, equivalence NAMED unavailable',
-      () {
+  test('no snapshot → native amount stands, equivalence NAMED unavailable', () {
     final r = resolveNativeAmount(
       amountUsdc: 5,
       preference: DisplayCurrency.ghs,
@@ -84,8 +83,9 @@ void main() {
       lastSync: DateTime.now().toUtc(),
       fetchedAt: DateTime.now().toUtc(),
       serverFresh: true,
-      lastExternalSync:
-          DateTime.now().toUtc().subtract(const Duration(minutes: 10)),
+      lastExternalSync: DateTime.now().toUtc().subtract(
+        const Duration(minutes: 10),
+      ),
       externalRateAgeSeconds: 600,
       rateFreshnessMaxAgeSeconds: 60,
     );
@@ -99,25 +99,27 @@ void main() {
     expect(r.secondary, 'GHS equivalent unavailable');
   });
 
-  test('non-positive rate is refused even when the snapshot claims freshness',
-      () {
-    final bad = FxRateSnapshot(
-      ghsPerUsdc: 0,
-      source: 'KOTANI',
-      lastSync: DateTime.now().toUtc(),
-      fetchedAt: DateTime.now().toUtc(),
-      serverFresh: true,
-      lastExternalSync: DateTime.now().toUtc(),
-      externalRateAgeSeconds: 0,
-      rateFreshnessMaxAgeSeconds: 60,
-    );
-    final r = resolveNativeAmount(
-      amountUsdc: 5,
-      preference: DisplayCurrency.ghs,
-      snapshot: bad,
-    );
-    expect(r.kind, EquivalenceKind.unavailable);
-  });
+  test(
+    'non-positive rate is refused even when the snapshot claims freshness',
+    () {
+      final bad = FxRateSnapshot(
+        ghsPerUsdc: 0,
+        source: 'KOTANI',
+        lastSync: DateTime.now().toUtc(),
+        fetchedAt: DateTime.now().toUtc(),
+        serverFresh: true,
+        lastExternalSync: DateTime.now().toUtc(),
+        externalRateAgeSeconds: 0,
+        rateFreshnessMaxAgeSeconds: 60,
+      );
+      final r = resolveNativeAmount(
+        amountUsdc: 5,
+        preference: DisplayCurrency.ghs,
+        snapshot: bad,
+      );
+      expect(r.kind, EquivalenceKind.unavailable);
+    },
+  );
 
   // ── 3. Recorded history: a historical equivalent, never a principal and
   //      never an estimate; its figure GENUINELY differs from today's
@@ -138,22 +140,24 @@ void main() {
     expect(r.primary, isNot(contains('estimate')));
   });
 
-  test('recorded equivalent keeps the native USDC amount visible and labelled',
-      () {
-    final r = resolveNativeAmount(
-      amountUsdc: 5,
-      preference: DisplayCurrency.usdc,
-      snapshot: _fresh(15.38),
-      recordedGhs: 69.00,
-    );
-    expect(r.kind, EquivalenceKind.recorded);
-    expect(r.primary, '5.00 USDC');
-    expect(r.secondary, contains('GH₵${kNb}69.00'));
-    expect(r.secondary, contains('recorded equivalent'));
-    expect(r.secondary, isNot(contains('estimate')));
-    expect(r.inlineLead, '5.00 USDC');
-    expect(r.inlineTail, 'GH₵${kNb}69.00 (recorded equivalent)');
-  });
+  test(
+    'recorded equivalent keeps the native USDC amount visible and labelled',
+    () {
+      final r = resolveNativeAmount(
+        amountUsdc: 5,
+        preference: DisplayCurrency.usdc,
+        snapshot: _fresh(15.38),
+        recordedGhs: 69.00,
+      );
+      expect(r.kind, EquivalenceKind.recorded);
+      expect(r.primary, '5.00 USDC');
+      expect(r.secondary, contains('GH₵${kNb}69.00'));
+      expect(r.secondary, contains('recorded equivalent'));
+      expect(r.secondary, isNot(contains('estimate')));
+      expect(r.inlineLead, '5.00 USDC');
+      expect(r.inlineTail, 'GH₵${kNb}69.00 (recorded equivalent)');
+    },
+  );
 
   test('a recorded value is never presented as today\'s live estimate', () {
     final r = resolveNativeAmount(
@@ -163,8 +167,7 @@ void main() {
       recordedGhs: 69.00,
     );
     expect(r.semanticsLabel.toLowerCase(), contains('recorded'));
-    expect(
-        r.semanticsLabel.toLowerCase(), isNot(contains('current estimate')));
+    expect(r.semanticsLabel.toLowerCase(), isNot(contains('current estimate')));
     expect(r.inlineLead, 'GH₵${kNb}69.00 (recorded equivalent)');
   });
 
@@ -259,18 +262,20 @@ void main() {
     expect(r.inlineTail, 'GHS equivalent unavailable');
   });
 
-  test('forceNative keeps a comparison slot same-unit under GHS preference',
-      () {
-    final r = resolveNativeAmount(
-      amountUsdc: 5,
-      preference: DisplayCurrency.ghs,
-      snapshot: _fresh(15.38),
-      forceNative: true,
-    );
-    expect(r.primary, '5.00 USDC');
-    expect(r.inlineLead, '5.00 USDC');
-    expect(r.inlineTail, '≈ GH₵${kNb}76.90 (estimate)');
-  });
+  test(
+    'forceNative keeps a comparison slot same-unit under GHS preference',
+    () {
+      final r = resolveNativeAmount(
+        amountUsdc: 5,
+        preference: DisplayCurrency.ghs,
+        snapshot: _fresh(15.38),
+        forceNative: true,
+      );
+      expect(r.primary, '5.00 USDC');
+      expect(r.inlineLead, '5.00 USDC');
+      expect(r.inlineTail, '≈ GH₵${kNb}76.90 (estimate)');
+    },
+  );
 
   // ── 6. Formatting parity ─────────────────────────────────────────────────
   test('formatting goes through AzMoney (grouping, cedi glyph)', () {
@@ -307,15 +312,16 @@ void main() {
             span.children?.forEach(walk);
           }
         }
+
         walk(rich.text);
       }
       return parts.join(' ');
     }
 
     Widget narrowBody(Widget child) => Padding(
-          padding: const EdgeInsets.all(16),
-          child: Align(alignment: Alignment.topLeft, child: child),
-        );
+      padding: const EdgeInsets.all(16),
+      child: Align(alignment: Alignment.topLeft, child: child),
+    );
 
     Future<void> pumpBody(
       WidgetTester tester, {
@@ -341,37 +347,42 @@ void main() {
     for (final width in [320.0, 360.0]) {
       for (final pref in DisplayCurrency.values) {
         testWidgets(
-            'large amount at ${width.toInt()}dp, ${pref.name} preference: '
-            'native amount AND estimate survive verbatim',
-            (tester) async {
-          await pumpBody(tester,
+          'large amount at ${width.toInt()}dp, ${pref.name} preference: '
+          'native amount AND estimate survive verbatim',
+          (tester) async {
+            await pumpBody(
+              tester,
               width: width,
               pref: pref,
               child: NativeAmountText(
                 amountUsdc: 1234567.89,
                 snapshotOverride: _fresh(15.38),
-              ));
-          final text = allText(tester);
-          // The amount of record, verbatim and complete.
-          expect(text, contains('1,234,567.89'));
-          expect(text, contains('USDC'));
-          // The GHS figure, verbatim, and its caveat, never truncated.
-          expect(text, contains('GH\u20b5'));
-          expect(text, contains('18,987,654.15'));
-          expect(text, contains('estimate'));
-          // Nothing was ellipsized away.
-          expect(text, isNot(contains('\u2026')));
-          expect(tester.takeException(), isNull);
-        });
+              ),
+            );
+            final text = allText(tester);
+            // The amount of record, verbatim and complete.
+            expect(text, contains('1,234,567.89'));
+            expect(text, contains('USDC'));
+            // The GHS figure, verbatim, and its caveat, never truncated.
+            expect(text, contains('GH\u20b5'));
+            expect(text, contains('18,987,654.15'));
+            expect(text, contains('estimate'));
+            // Nothing was ellipsized away.
+            expect(text, isNot(contains('\u2026')));
+            expect(tester.takeException(), isNull);
+          },
+        );
       }
     }
 
     testWidgets('stale rate at 320dp: the unavailable notice is never '
         'truncated', (tester) async {
-      await pumpBody(tester,
-          width: 320,
-          pref: DisplayCurrency.ghs,
-          child: const NativeAmountText(amountUsdc: 1234567.89));
+      await pumpBody(
+        tester,
+        width: 320,
+        pref: DisplayCurrency.ghs,
+        child: const NativeAmountText(amountUsdc: 1234567.89),
+      );
       final text = allText(tester);
       expect(text, contains('1,234,567.89 USDC'));
       expect(text, contains('GHS equivalent unavailable'));
@@ -381,14 +392,16 @@ void main() {
 
     testWidgets('recorded equivalent at 320dp: both figures and the label '
         'survive', (tester) async {
-      await pumpBody(tester,
-          width: 320,
-          pref: DisplayCurrency.ghs,
-          child: NativeAmountText(
-            amountUsdc: 1234567.89,
-            recordedGhs: 15333876.90,
-            snapshotOverride: _fresh(15.38),
-          ));
+      await pumpBody(
+        tester,
+        width: 320,
+        pref: DisplayCurrency.ghs,
+        child: NativeAmountText(
+          amountUsdc: 1234567.89,
+          recordedGhs: 15333876.90,
+          snapshotOverride: _fresh(15.38),
+        ),
+      );
       final text = allText(tester);
       expect(text, contains('15,333,876.90'));
       expect(text, contains('recorded equivalent'));
@@ -397,20 +410,23 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('normal amount that fits keeps the designed single line',
-        (tester) async {
+    testWidgets('normal amount that fits keeps the designed single line', (
+      tester,
+    ) async {
       // The Ahem test font is wider than production Inter, so a short
       // amount in a small style is used to prove the SINGLE-LINE path is
       // kept when the composed line fits — the wrap is a fallback, not a
       // default.
-      await pumpBody(tester,
-          width: 390,
-          pref: DisplayCurrency.ghs,
-          child: NativeAmountText(
-            amountUsdc: 0.5,
-            snapshotOverride: _fresh(15.38),
-            style: const TextStyle(fontSize: 8),
-          ));
+      await pumpBody(
+        tester,
+        width: 390,
+        pref: DisplayCurrency.ghs,
+        child: NativeAmountText(
+          amountUsdc: 0.5,
+          snapshotOverride: _fresh(15.38),
+          style: const TextStyle(fontSize: 8),
+        ),
+      );
       final text = allText(tester);
       expect(text, contains('\u00b7'));
       expect(tester.takeException(), isNull);

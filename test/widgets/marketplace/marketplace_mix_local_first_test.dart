@@ -123,17 +123,17 @@ class _PromptLedger {
 }
 
 Position _position(double lat, double lng) => Position(
-      longitude: lng,
-      latitude: lat,
-      timestamp: DateTime.now(),
-      accuracy: 10,
-      altitude: 10,
-      altitudeAccuracy: 0,
-      heading: 0,
-      headingAccuracy: 0,
-      speed: 0,
-      speedAccuracy: 0,
-    );
+  longitude: lng,
+  latitude: lat,
+  timestamp: DateTime.now(),
+  accuracy: 10,
+  altitude: 10,
+  altitudeAccuracy: 0,
+  heading: 0,
+  headingAccuracy: 0,
+  speed: 0,
+  speedAccuracy: 0,
+);
 
 BusinessLocation _nearbyRow(String id, String name, {double? distanceKm}) =>
     BusinessLocation.fromJson({
@@ -166,7 +166,9 @@ Future<_FakeNearbyNotifier> _pumpHome(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        businessSearchProvider.overrideWith((ref) => _RecordingSearchNotifier()),
+        businessSearchProvider.overrideWith(
+          (ref) => _RecordingSearchNotifier(),
+        ),
         nearbySearchProvider.overrideWith((ref) => nearby),
       ],
       child: MaterialApp(
@@ -187,8 +189,9 @@ Future<void> _enterMix(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('H1 — pressing Mix NEVER touches the prompting resolver',
-      (tester) async {
+  testWidgets('H1 — pressing Mix NEVER touches the prompting resolver', (
+    tester,
+  ) async {
     final ledger = _PromptLedger();
     final nearby = await _pumpHome(
       tester,
@@ -197,15 +200,22 @@ void main() {
 
     await _enterMix(tester);
 
-    expect(ledger.explicitResolveCalls, 0,
-        reason: 'the Mix path must never prompt — only the silent seam');
-    expect(nearby.searchNearbyCalls, 1,
-        reason: 'a position was silently available — exactly one fire');
+    expect(
+      ledger.explicitResolveCalls,
+      0,
+      reason: 'the Mix path must never prompt — only the silent seam',
+    );
+    expect(
+      nearby.searchNearbyCalls,
+      1,
+      reason: 'a position was silently available — exactly one fire',
+    );
     await tester.pump(const Duration(milliseconds: 600));
   });
 
-  testWidgets('H2 — a valid position co-activates the proximity feed once',
-      (tester) async {
+  testWidgets('H2 — a valid position co-activates the proximity feed once', (
+    tester,
+  ) async {
     final ledger = _PromptLedger();
     final nearby = await _pumpHome(
       tester,
@@ -217,13 +227,17 @@ void main() {
     expect(nearby.searchNearbyCalls, 1, reason: 'no duplicate fires');
     expect(nearby.lastLat, 5.603);
     expect(nearby.lastLng, -0.187);
-    expect(find.byKey(const ValueKey('mix_proximity_strip')), findsOneWidget,
-        reason: 'the proximity indication is visible in Mix');
+    expect(
+      find.byKey(const ValueKey('mix_proximity_strip')),
+      findsOneWidget,
+      reason: 'the proximity indication is visible in Mix',
+    );
     await tester.pump(const Duration(milliseconds: 600));
   });
 
-  testWidgets('H3 — no location: the honest OFF state, no prompt',
-      (tester) async {
+  testWidgets('H3 — no location: the honest OFF state, no prompt', (
+    tester,
+  ) async {
     final ledger = _PromptLedger();
     final nearby = await _pumpHome(
       tester,
@@ -234,14 +248,18 @@ void main() {
 
     expect(ledger.silentResolveCalls, 1);
     expect(nearby.searchNearbyCalls, 0, reason: 'no position — no fire');
-    expect(find.byKey(const ValueKey('mix_proximity_strip')), findsNothing,
-        reason: 'no proximity claim without proximity data');
+    expect(
+      find.byKey(const ValueKey('mix_proximity_strip')),
+      findsNothing,
+      reason: 'no proximity claim without proximity data',
+    );
     expect(find.byKey(const ValueKey('mix_local_first_rails')), findsNothing);
     await tester.pump(const Duration(milliseconds: 600));
   });
 
-  testWidgets('H4 — a dial category re-fires the nearby feed in Mix',
-      (tester) async {
+  testWidgets('H4 — a dial category re-fires the nearby feed in Mix', (
+    tester,
+  ) async {
     final ledger = _PromptLedger();
     final nearby = await _pumpHome(
       tester,
@@ -257,13 +275,17 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     // H4 re-fire: the SAME nearby feed re-fires with the dial wire.
-    expect(nearby.searchNearbyCalls, 1,
-        reason: 'fan only OPENED — nothing re-fired yet');
+    expect(
+      nearby.searchNearbyCalls,
+      1,
+      reason: 'fan only OPENED — nothing re-fired yet',
+    );
     await tester.pump(const Duration(milliseconds: 600));
   });
 
-  testWidgets('H5 — exiting Mix restores the pre-Mix state exactly',
-      (tester) async {
+  testWidgets('H5 — exiting Mix restores the pre-Mix state exactly', (
+    tester,
+  ) async {
     final ledger = _PromptLedger();
     final nearby = await _pumpHome(
       tester,
@@ -277,15 +299,21 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('marketplace-mix-entry')));
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(find.byKey(const ValueKey('mix_proximity_strip')), findsNothing,
-        reason: 'mix owned the proximity feed — it leaves with Mix');
-    expect(find.byKey(const ValueKey('marketplace-near-you-active')),
-        findsNothing);
+    expect(
+      find.byKey(const ValueKey('mix_proximity_strip')),
+      findsNothing,
+      reason: 'mix owned the proximity feed — it leaves with Mix',
+    );
+    expect(
+      find.byKey(const ValueKey('marketplace-near-you-active')),
+      findsNothing,
+    );
     await tester.pump(const Duration(milliseconds: 600));
   });
 
-  testWidgets('H6 — after a silent failure the explicit pill still recovers',
-      (tester) async {
+  testWidgets('H6 — after a silent failure the explicit pill still recovers', (
+    tester,
+  ) async {
     final ledger = _PromptLedger();
     final nearby = await _pumpHome(
       tester,
@@ -299,13 +327,17 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('marketplace-near-you')));
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(ledger.explicitResolveCalls, 1,
-        reason: 'the EXPLICIT control owns the prompting ask');
+    expect(
+      ledger.explicitResolveCalls,
+      1,
+      reason: 'the EXPLICIT control owns the prompting ask',
+    );
     await tester.pump(const Duration(milliseconds: 600));
   });
 
-  testWidgets('H7 — rails render only real data; coordinates never render',
-      (tester) async {
+  testWidgets('H7 — rails render only real data; coordinates never render', (
+    tester,
+  ) async {
     final ledger = _PromptLedger();
     final nearby = await _pumpHome(
       tester,
@@ -320,9 +352,11 @@ void main() {
     ]);
     await tester.pump(const Duration(milliseconds: 400));
 
-    expect(find.byKey(const ValueKey('mix_local_first_rails')),
-        findsOneWidget,
-        reason: 'real nearby rows render the rail');
+    expect(
+      find.byKey(const ValueKey('mix_local_first_rails')),
+      findsOneWidget,
+      reason: 'real nearby rows render the rail',
+    );
     expect(find.text('Corner Kiosk'), findsWidgets);
     expect(find.text('Osu Mini Mart'), findsWidgets);
     // Coordinates are proximity FACTS, never rendered content.
@@ -332,8 +366,10 @@ void main() {
     // And with no real data at all, no rails — the honest absence.
     nearby.injectLocations([]);
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.byKey(const ValueKey('mix_local_first_rails_empty')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('mix_local_first_rails_empty')),
+      findsOneWidget,
+    );
     await tester.pump(const Duration(milliseconds: 600));
   });
 }

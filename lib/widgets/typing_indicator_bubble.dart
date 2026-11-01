@@ -19,11 +19,16 @@ class _TypingState extends ConsumerState<TypingBubble>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900))
-      ..repeat();
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
   }
 
-  @override void dispose() { _ctrl.dispose(); super.dispose(); }
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,28 +41,37 @@ class _TypingState extends ConsumerState<TypingBubble>
         decoration: BoxDecoration(
           color: c.card,
           borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(18), topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(4), bottomRight: Radius.circular(18))
+            topLeft: Radius.circular(18),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(4),
+            bottomRight: Radius.circular(18),
           ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: List.generate(3, (i) {
-          return AnimatedBuilder(
-            animation: _ctrl,
-            builder: (_, __) {
-              final phase = (_ctrl.value + i * 0.15) % 1.0;
-              final y = -math.sin(phase * math.pi * 2).clamp(-1.0, 0.0) * 5.0;
-              return Transform.translate(
-                offset: Offset(0, y),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  width: 7, height: 7,
-                  decoration: BoxDecoration(
-                    color: c.textTertiary.withValues(alpha: 0.5),
-                    shape: BoxShape.circle)),
-              );
-            });
-        })),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            return AnimatedBuilder(
+              animation: _ctrl,
+              builder: (_, __) {
+                final phase = (_ctrl.value + i * 0.15) % 1.0;
+                final y = -math.sin(phase * math.pi * 2).clamp(-1.0, 0.0) * 5.0;
+                return Transform.translate(
+                  offset: Offset(0, y),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: c.textTertiary.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ),
       ),
     );
   }
 }
-

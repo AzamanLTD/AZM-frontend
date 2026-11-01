@@ -12,14 +12,26 @@ class FallbackWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.error.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.error.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.error.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.extension, size: 32, color: Theme.of(context).colorScheme.error.withValues(alpha: 0.4)),
+          Icon(
+            Icons.extension,
+            size: 32,
+            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.4),
+          ),
           const SizedBox(height: 8),
-          Text('Unknown widget: $widgetType', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.error.withValues(alpha: 0.6))),
+          Text(
+            'Unknown widget: $widgetType',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.error.withValues(alpha: 0.6),
+            ),
+          ),
         ],
       ),
     );

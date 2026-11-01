@@ -33,8 +33,9 @@ class OfflineHairline extends StatelessWidget {
     final Color foreground = offline
         ? const Color(0xFF7A5B00)
         : const Color(0xFF0B5B33);
-    final String label =
-        offline ? 'Offline — showing your last update' : 'Back online';
+    final String label = offline
+        ? 'Offline — showing your last update'
+        : 'Back online';
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),

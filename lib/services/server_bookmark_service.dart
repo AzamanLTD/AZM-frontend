@@ -59,7 +59,8 @@ class ServerBookmark {
       category: json['category']?.toString() ?? '',
       isVerified: json['isVerified'] as bool? ?? false,
       averageRating: (json['averageRating'] as num?)?.toDouble(),
-      savedAt: DateTime.tryParse(json['savedAt']?.toString() ?? '') ??
+      savedAt:
+          DateTime.tryParse(json['savedAt']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
@@ -67,13 +68,12 @@ class ServerBookmark {
   /// Optimistic placeholder used between the local toggle and the
   /// server's confirmation — display fields are unknown until the
   /// next hydrate, which the UI must never present as fact.
-  static ServerBookmark placeholder(String businessProfileId) =>
-      ServerBookmark(
-        businessProfileId: businessProfileId,
-        businessName: '',
-        category: '',
-        savedAt: DateTime.now(),
-      );
+  static ServerBookmark placeholder(String businessProfileId) => ServerBookmark(
+    businessProfileId: businessProfileId,
+    businessName: '',
+    category: '',
+    savedAt: DateTime.now(),
+  );
 }
 
 class BookmarkSaveResult {
@@ -96,11 +96,14 @@ class BookmarkRemoveResult {
   /// The durable end state is NOT_BOOKMARKED on ANY 200 (removed:true
   /// or the idempotent removed:false).
   final bool notBookmarked;
+
   /// Whether the server actually removed a row this call.
   final bool removed;
 
-  const BookmarkRemoveResult(
-      {required this.notBookmarked, required this.removed});
+  const BookmarkRemoveResult({
+    required this.notBookmarked,
+    required this.removed,
+  });
 }
 
 class ServerBookmarkPage {
@@ -141,10 +144,9 @@ class ServerBookmarkService {
   /// POST /api/bookmarks — save a business. Idempotent: a repeat save
   /// for an already-bookmarked business returns 200 (not an error).
   Future<BookmarkSaveResult> save(String businessProfileId) async {
-    final r = await _api.post(
-      '/bookmarks',
-      {'businessProfileId': businessProfileId},
-    );
+    final r = await _api.post('/bookmarks', {
+      'businessProfileId': businessProfileId,
+    });
     final body = _decode(r);
     final bookmark = (body['bookmark'] as Map<String, dynamic>?) ?? {};
     final state = body['state']?.toString() ?? '';
@@ -164,8 +166,7 @@ class ServerBookmarkService {
   /// durable end state is NOT_BOOKMARKED; only transport/5xx errors
   /// (thrown) leave the previous state standing.
   Future<BookmarkRemoveResult> remove(String businessProfileId) async {
-    final r =
-        await _api.delete('/bookmarks/$businessProfileId');
+    final r = await _api.delete('/bookmarks/$businessProfileId');
     final body = _decode(r);
     final state = body['state']?.toString() ?? '';
     return BookmarkRemoveResult(
@@ -186,8 +187,7 @@ class ServerBookmarkService {
   /// GET /api/bookmarks — the caller's full bookmark list, newest
   /// first. Contains ONLY the caller's bookmarks.
   Future<ServerBookmarkPage> list({int limit = 50, int offset = 0}) async {
-    final r =
-        await _api.get('/bookmarks?limit=$limit&offset=$offset');
+    final r = await _api.get('/bookmarks?limit=$limit&offset=$offset');
     final body = _decode(r);
     final items = (body['bookmarks'] as List<dynamic>? ?? [])
         .map((e) => ServerBookmark.fromJson(e as Map<String, dynamic>))

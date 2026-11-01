@@ -61,27 +61,39 @@ abstract final class AzSpace {
   static const EdgeInsets pageH = EdgeInsets.symmetric(horizontal: lg);
 
   /// Screen gutter horizontally, `md` vertically.
-  static const EdgeInsets page = EdgeInsets.symmetric(horizontal: lg, vertical: md);
+  static const EdgeInsets page = EdgeInsets.symmetric(
+    horizontal: lg,
+    vertical: md,
+  );
 
   /// Screen gutter horizontally, `xxl` at the top (for a scrolling page that
   /// sits under a floating header).
-  static const EdgeInsets pageTop =
-      EdgeInsets.only(left: lg, right: lg, top: xxl);
+  static const EdgeInsets pageTop = EdgeInsets.only(
+    left: lg,
+    right: lg,
+    top: xxl,
+  );
 
   /// Standard card interior.
   static const EdgeInsets cardInset = EdgeInsets.all(lg);
 
   /// Compact card interior (list rows, dense tiles).
-  static const EdgeInsets cardInsetCompact =
-      EdgeInsets.symmetric(horizontal: lg, vertical: md);
+  static const EdgeInsets cardInsetCompact = EdgeInsets.symmetric(
+    horizontal: lg,
+    vertical: md,
+  );
 
   /// Pill / chip interior.
-  static const EdgeInsets chip =
-      EdgeInsets.symmetric(horizontal: md, vertical: sm);
+  static const EdgeInsets chip = EdgeInsets.symmetric(
+    horizontal: md,
+    vertical: sm,
+  );
 
   /// Small pill / tag interior.
-  static const EdgeInsets tag =
-      EdgeInsets.symmetric(horizontal: sm, vertical: xs);
+  static const EdgeInsets tag = EdgeInsets.symmetric(
+    horizontal: sm,
+    vertical: xs,
+  );
 
   /// Bottom padding that clears the floating nav pill.
   ///
@@ -99,13 +111,15 @@ abstract final class AzSpace {
   static const double navClearanceHeight = 106;
 
   /// Ready-to-use inset form of [navClearanceHeight].
-  static const EdgeInsets navClearance =
-      EdgeInsets.only(bottom: navClearanceHeight);
+  static const EdgeInsets navClearance = EdgeInsets.only(
+    bottom: navClearanceHeight,
+  );
 
   // â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   /// Uniform inset by [v].
   static EdgeInsets all(double v) => EdgeInsets.all(v);
 
   /// Horizontal [h], vertical [v].
-  static EdgeInsets xy(double h, double v) => EdgeInsets.symmetric(horizontal: h, vertical: v);
+  static EdgeInsets xy(double h, double v) =>
+      EdgeInsets.symmetric(horizontal: h, vertical: v);
 }

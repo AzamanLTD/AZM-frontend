@@ -37,13 +37,17 @@ void main() {
     socket.onBizNotification((_) => calls++);
 
     expect(socket.hasBizNotificationListener, isTrue);
-    socket.dispatchTestEvent('biz_notification', {'notificationId': 'notification-1'});
+    socket.dispatchTestEvent('biz_notification', {
+      'notificationId': 'notification-1',
+    });
     expect(calls, 1);
 
     socket.removeBizNotificationListener();
 
     expect(socket.hasBizNotificationListener, isFalse);
-    socket.dispatchTestEvent('biz_notification', {'notificationId': 'notification-2'});
+    socket.dispatchTestEvent('biz_notification', {
+      'notificationId': 'notification-2',
+    });
     expect(calls, 1);
   });
 

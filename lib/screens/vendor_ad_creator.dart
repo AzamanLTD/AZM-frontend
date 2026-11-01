@@ -10,7 +10,6 @@ import 'package:azaman/services/api_client.dart';
 import 'dart:convert';
 import 'package:azaman/widgets/nav_transitions.dart';
 
-
 class VendorAdCreator extends ConsumerStatefulWidget {
   const VendorAdCreator({super.key});
 
@@ -20,18 +19,22 @@ class VendorAdCreator extends ConsumerStatefulWidget {
 
 class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
   int _currentStep = 0;
-  
-  String adType = "SELL"; 
-  String selectedAsset = "USDC"; 
-  
-  final TextEditingController _minLimitController = TextEditingController(text: "100");
-  final TextEditingController _maxLimitController = TextEditingController(text: "5000");
+
+  String adType = "SELL";
+  String selectedAsset = "USDC";
+
+  final TextEditingController _minLimitController = TextEditingController(
+    text: "100",
+  );
+  final TextEditingController _maxLimitController = TextEditingController(
+    text: "5000",
+  );
   final TextEditingController _termsController = TextEditingController();
 
   // Phase F2: Trade account selection replaces fiat account multi-select
   TradeAccount? _selectedTradeAccount;
   List<TradeAccount> _approvedAccounts = [];
-  
+
   double _availableBalance = 0.0;
   double _minCollateral = 500.0;
   bool _isLoadingData = true;
@@ -52,7 +55,7 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
   @override
   void initState() {
     super.initState();
-    _fetchVendorData(); 
+    _fetchVendorData();
   }
 
   Future<void> _fetchVendorData() async {
@@ -68,7 +71,10 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
       // Fetch vendor min collateral from global settings
       double minCollateral = 500.0; // fallback
       try {
-        final settingsRes = await apiClient.get('/users/dashboard', requireAuth: true);
+        final settingsRes = await apiClient.get(
+          '/users/dashboard',
+          requireAuth: true,
+        );
         if (settingsRes.statusCode == 200) {
           final settingsBody = jsonDecode(settingsRes.body);
           // The dashboard endpoint doesn't expose vendorMinCollateral yet,
@@ -85,9 +91,13 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
             // API returns { success, data: {...} } — unwrap the data key
             final userData = body['data'] ?? body['user'] ?? body;
             // Use vendorUnallocatedBalance (trading pool) as the liquidity source for ads
-            _availableBalance = double.tryParse(userData['vendorUnallocatedBalance']?.toString() ?? '0') ?? 0.0;
+            _availableBalance =
+                double.tryParse(
+                  userData['vendorUnallocatedBalance']?.toString() ?? '0',
+                ) ??
+                0.0;
           }
-          
+
           _approvedAccounts = approved;
           _minCollateral = minCollateral;
           _isLoadingData = false;
@@ -131,11 +141,11 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
       _showSnackBar("Select a verified trade account.", isError: true);
       return;
     }
-    
+
     final auth = ref.read(authProvider);
     final trade = ref.read(tradeProvider);
     final token = auth.user?.token ?? auth.token;
-    
+
     if (token == null) {
       _showSnackBar("Authentication error. Please re-login.", isError: true);
       return;
@@ -180,11 +190,15 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
   }
 
   void _showSnackBar(String msg, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? const Color(0xFFF6465D) : const Color(0xFF02C076),
-      behavior: SnackBarBehavior.floating,
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: isError
+            ? const Color(0xFFF6465D)
+            : const Color(0xFF02C076),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -204,28 +218,38 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text("Post Ad", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: colors.textPrimary)),
-        leading: IconButton(icon: Icon(Icons.cancel_outlined, color: colors.textPrimary), onPressed: () => Navigator.pop(context)),
+        title: Text(
+          "Post Ad",
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: colors.textPrimary,
+          ),
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.cancel_outlined, color: colors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
-      body: _isLoadingData 
-        ? Center(child: CircularProgressIndicator(color: colors.accent))
-        : Column(
-            children: [
-              _buildTypeToggle(), 
-              _buildStepIndicator(colors.accent),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: SingleChildScrollView(
-                    key: ValueKey<int>(_currentStep),
-                    padding: const EdgeInsets.all(20),
-                    child: _buildCurrentStepContent(),
+      body: _isLoadingData
+          ? Center(child: CircularProgressIndicator(color: colors.accent))
+          : Column(
+              children: [
+                _buildTypeToggle(),
+                _buildStepIndicator(colors.accent),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: SingleChildScrollView(
+                      key: ValueKey<int>(_currentStep),
+                      padding: const EdgeInsets.all(20),
+                      child: _buildCurrentStepContent(),
+                    ),
                   ),
                 ),
-              ),
-              _buildBottomNavigation(colors.accent),
-            ],
-          ),
+                _buildBottomNavigation(colors.accent),
+              ],
+            ),
     );
   }
 
@@ -246,10 +270,19 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
               child: Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: adType == "SELL" ? const Color(0xFFF6465D) : Colors.transparent,
+                  color: adType == "SELL"
+                      ? const Color(0xFFF6465D)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text("SELL Crypto", style: TextStyle(color: adType == "SELL" ? Colors.white : Colors.white54, fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Text(
+                  "SELL Crypto",
+                  style: TextStyle(
+                    color: adType == "SELL" ? Colors.white : Colors.white54,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ),
           ),
@@ -259,10 +292,19 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
               child: Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: adType == "BUY" ? const Color(0xFF02C076) : Colors.transparent,
+                  color: adType == "BUY"
+                      ? const Color(0xFF02C076)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text("BUY Crypto", style: TextStyle(color: adType == "BUY" ? Colors.white : Colors.white54, fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Text(
+                  "BUY Crypto",
+                  style: TextStyle(
+                    color: adType == "BUY" ? Colors.white : Colors.white54,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
               ),
             ),
           ),
@@ -278,34 +320,60 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         _sectionLabel("Asset"),
         _buildAssetDropdown(),
         const SizedBox(height: 35),
-        
+
         _sectionLabel("Your Margin"),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: ref.read(themeProvider).colors.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ref.read(themeProvider).colors.accent.withValues(alpha: 0.3)),
+            border: Border.all(
+              color: ref
+                  .read(themeProvider)
+                  .colors
+                  .accent
+                  .withValues(alpha: 0.3),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.analytics_outlined, color: ref.read(themeProvider).colors.accent, size: 18),
+                  Icon(
+                    Icons.analytics_outlined,
+                    color: ref.read(themeProvider).colors.accent,
+                    size: 18,
+                  ),
                   const SizedBox(width: 8),
-                  Text("+${_marginPercent.toStringAsFixed(1)}%",
-                      style: TextStyle(color: ref.read(themeProvider).colors.accent, fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text(
+                    "+${_marginPercent.toStringAsFixed(1)}%",
+                    style: TextStyle(
+                      color: ref.read(themeProvider).colors.accent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
                 ],
               ),
               SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   activeTrackColor: ref.read(themeProvider).colors.accent,
-                  inactiveTrackColor: ref.read(themeProvider).colors.accent.withValues(alpha: 0.2),
+                  inactiveTrackColor: ref
+                      .read(themeProvider)
+                      .colors
+                      .accent
+                      .withValues(alpha: 0.2),
                   thumbColor: ref.read(themeProvider).colors.accent,
-                  overlayColor: ref.read(themeProvider).colors.accent.withValues(alpha: 0.1),
+                  overlayColor: ref
+                      .read(themeProvider)
+                      .colors
+                      .accent
+                      .withValues(alpha: 0.1),
                   trackHeight: 4,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                  thumbShape: const RoundSliderThumbShape(
+                    enabledThumbRadius: 10,
+                  ),
                 ),
                 child: Slider(
                   value: _marginPercent,
@@ -320,7 +388,11 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                 "At +${_marginPercent.toStringAsFixed(1)}%, "
                 "you make \$${(_marginPercent * 0.5).toStringAsFixed(2)} profit on "
                 "a \$50 trade, \$${(_marginPercent * 5).toStringAsFixed(2)} on \$500",
-                style: const TextStyle(color: Colors.white54, fontSize: 11, height: 1.4),
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -331,9 +403,15 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: ref.read(themeProvider).colors.card, 
+            color: ref.read(themeProvider).colors.card,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: ref.read(themeProvider).colors.accent.withValues(alpha: 0.3))
+            border: Border.all(
+              color: ref
+                  .read(themeProvider)
+                  .colors
+                  .accent
+                  .withValues(alpha: 0.3),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,14 +420,25 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                 children: [
                   Icon(Icons.percent, color: Color(0xFFF0B90B), size: 20),
                   SizedBox(width: 10),
-                  Text("Flat 2% Platform Fee", style: TextStyle(color: Color(0xFFF0B90B), fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(
+                    "Flat 2% Platform Fee",
+                    style: TextStyle(
+                      color: Color(0xFFF0B90B),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 15),
               const Text(
                 "All P2P trades have a flat 2% USDC fee applied at settlement. "
                 "Trades are priced in USD (1:1 with USDC). Your margin is on top of this.",
-                style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.5),
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  height: 1.5,
+                ),
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 15),
@@ -358,29 +447,61 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Trades < \$1,000:", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  const Text(
+                    "Trades < \$1,000:",
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFF02C076).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                    child: const Text("60% Admin / 40% Vendor", style: TextStyle(color: Color(0xFF02C076), fontWeight: FontWeight.bold, fontSize: 11)),
-                  )
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF02C076).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      "60% Admin / 40% Vendor",
+                      style: TextStyle(
+                        color: Color(0xFF02C076),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Trades > \$1,000:", style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  const Text(
+                    "Trades > \$1,000:",
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFF02C076).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                    child: const Text("50% Admin / 50% Vendor", style: TextStyle(color: Color(0xFF02C076), fontWeight: FontWeight.bold, fontSize: 11)),
-                  )
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF02C076).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      "50% Admin / 50% Vendor",
+                      style: TextStyle(
+                        color: Color(0xFF02C076),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
           ),
-        )
+        ),
       ],
     );
   }
@@ -394,35 +515,69 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         _sectionLabel("Total Available Liquidity"),
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: ref.read(themeProvider).colors.card, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: ref.read(themeProvider).colors.card,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("${_availableBalance.toStringAsFixed(2)} $selectedAsset", style: TextStyle(color: hasCollateral ? Colors.white : const Color(0xFFF6465D), fontSize: 24, fontWeight: FontWeight.bold)),
+              Text(
+                "${_availableBalance.toStringAsFixed(2)} $selectedAsset",
+                style: TextStyle(
+                  color: hasCollateral ? Colors.white : const Color(0xFFF6465D),
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               GestureDetector(
                 onTap: _showDepositModal,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: ref.read(themeProvider).colors.accent, borderRadius: BorderRadius.circular(6)),
-                  child: const Text("+ Deposit", style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: ref.read(themeProvider).colors.accent,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    "+ Deposit",
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              )
+              ),
             ],
           ),
         ),
-        
+
         const SizedBox(height: 10),
 
         if (!hasCollateral)
           Container(
             margin: const EdgeInsets.only(bottom: 20),
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: const Color(0xFFF6465D).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFF6465D).withValues(alpha: 0.3))),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF6465D).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: const Color(0xFFF6465D).withValues(alpha: 0.3),
+              ),
+            ),
             child: const Row(
               children: [
                 Icon(Icons.error_outline, color: Color(0xFFF6465D), size: 16),
                 SizedBox(width: 8),
-                Expanded(child: Text("Minimum \$500 collateral required to post an ad.", style: TextStyle(color: Color(0xFFF6465D), fontSize: 11))),
+                Expanded(
+                  child: Text(
+                    "Minimum \$500 collateral required to post an ad.",
+                    style: TextStyle(color: Color(0xFFF6465D), fontSize: 11),
+                  ),
+                ),
               ],
             ),
           ),
@@ -430,9 +585,21 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         const SizedBox(height: 15),
         Row(
           children: [
-            Expanded(child: _buildStyledTextField(label: "Min Limit ($selectedAsset)", controller: _minLimitController, suffixText: "\$")),
+            Expanded(
+              child: _buildStyledTextField(
+                label: "Min Limit ($selectedAsset)",
+                controller: _minLimitController,
+                suffixText: "\$",
+              ),
+            ),
             const SizedBox(width: 15),
-            Expanded(child: _buildStyledTextField(label: "Max Limit ($selectedAsset)", controller: _maxLimitController, suffixText: "\$")),
+            Expanded(
+              child: _buildStyledTextField(
+                label: "Max Limit ($selectedAsset)",
+                controller: _maxLimitController,
+                suffixText: "\$",
+              ),
+            ),
           ],
         ),
 
@@ -443,9 +610,21 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _buildTimePicker("Start", _activeHoursStart, (t) => setState(() => _activeHoursStart = t))),
+            Expanded(
+              child: _buildTimePicker(
+                "Start",
+                _activeHoursStart,
+                (t) => setState(() => _activeHoursStart = t),
+              ),
+            ),
             const SizedBox(width: 15),
-            Expanded(child: _buildTimePicker("End", _activeHoursEnd, (t) => setState(() => _activeHoursEnd = t))),
+            Expanded(
+              child: _buildTimePicker(
+                "End",
+                _activeHoursEnd,
+                (t) => setState(() => _activeHoursEnd = t),
+              ),
+            ),
           ],
         ),
 
@@ -465,27 +644,59 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text("Select Payment Account", style: TextStyle(color: ref.read(themeProvider).colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(
+              "Select Payment Account",
+              style: TextStyle(
+                color: ref.read(themeProvider).colors.textPrimary,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
             GestureDetector(
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Go to Settings → Trade Accounts to add new accounts."))),
-              child: Text("+ Add New", style: TextStyle(color: ref.read(themeProvider).colors.accent, fontSize: 12, fontWeight: FontWeight.bold)),
-            )
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    "Go to Settings → Trade Accounts to add new accounts.",
+                  ),
+                ),
+              ),
+              child: Text(
+                "+ Add New",
+                style: TextStyle(
+                  color: ref.read(themeProvider).colors.accent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
-        const Text("Choose the verified account where buyers will send fiat (or receive fiat for BUY ads).", style: TextStyle(color: Colors.white54, fontSize: 11)),
+        const Text(
+          "Choose the verified account where buyers will send fiat (or receive fiat for BUY ads).",
+          style: TextStyle(color: Colors.white54, fontSize: 11),
+        ),
         const SizedBox(height: 20),
-        
+
         if (_approvedAccounts.isEmpty)
-           Container(
-             padding: const EdgeInsets.all(20),
-             decoration: BoxDecoration(color: ref.read(themeProvider).colors.card, borderRadius: BorderRadius.circular(12)),
-             child: const Center(child: Text("No verified Trade Accounts found.\nSubmit accounts in Settings → Trade Accounts\nand wait for admin approval.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 12))),
-           )
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: ref.read(themeProvider).colors.card,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Center(
+              child: Text(
+                "No verified Trade Accounts found.\nSubmit accounts in Settings → Trade Accounts\nand wait for admin approval.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ),
+          )
         else
           ..._approvedAccounts.map((account) {
             final bool isSelected = _selectedTradeAccount?.id == account.id;
-            
+
             return GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
@@ -496,25 +707,56 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
-                  color: isSelected ? ref.read(themeProvider).colors.accent.withValues(alpha: 0.1) : ref.read(themeProvider).colors.card,
+                  color: isSelected
+                      ? ref
+                            .read(themeProvider)
+                            .colors
+                            .accent
+                            .withValues(alpha: 0.1)
+                      : ref.read(themeProvider).colors.card,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isSelected ? ref.read(themeProvider).colors.accent : Colors.transparent, width: 1.5),
+                  border: Border.all(
+                    color: isSelected
+                        ? ref.read(themeProvider).colors.accent
+                        : Colors.transparent,
+                    width: 1.5,
+                  ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      isSelected ? Icons.check_circle_outline : Icons.circle_outlined,
-                      color: isSelected ? ref.read(themeProvider).colors.accent : Colors.white24,
+                      isSelected
+                          ? Icons.check_circle_outline
+                          : Icons.circle_outlined,
+                      color: isSelected
+                          ? ref.read(themeProvider).colors.accent
+                          : Colors.white24,
                       size: 20,
                     ),
                     const SizedBox(width: 15),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(SupportedMethod.displayName(account.methodType), style: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontWeight: FontWeight.bold, fontSize: 14)),
-                        Text(account.displayLabel, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                        Text(
+                          SupportedMethod.displayName(account.methodType),
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white70,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          account.displayLabel,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -522,14 +764,21 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
               ),
             );
           }),
-        
+
         const SizedBox(height: 30),
         const Divider(color: Colors.white10),
         const SizedBox(height: 15),
 
-        Text("Terms of Trade", style: TextStyle(color: ref.read(themeProvider).colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(
+          "Terms of Trade",
+          style: TextStyle(
+            color: ref.read(themeProvider).colors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
         const SizedBox(height: 10),
-        
+
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -539,7 +788,10 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
                 child: ActionChip(
                   label: const Text("Use Template"),
                   backgroundColor: ref.read(themeProvider).colors.card,
-                  labelStyle: TextStyle(color: ref.read(themeProvider).colors.accent, fontSize: 10),
+                  labelStyle: TextStyle(
+                    color: ref.read(themeProvider).colors.accent,
+                    fontSize: 10,
+                  ),
                   onPressed: () {
                     setState(() {
                       _termsController.text = template;
@@ -550,18 +802,24 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
             }).toList(),
           ),
         ),
-        
+
         const SizedBox(height: 12),
         TextField(
           controller: _termsController,
           maxLines: 4,
-          style: TextStyle(color: ref.read(themeProvider).colors.textPrimary, fontSize: 13),
+          style: TextStyle(
+            color: ref.read(themeProvider).colors.textPrimary,
+            fontSize: 13,
+          ),
           decoration: InputDecoration(
             hintText: "Enter your terms here...",
             hintStyle: const TextStyle(color: Colors.white24),
-            filled: true, 
+            filled: true,
             fillColor: ref.read(themeProvider).colors.card,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
         const SizedBox(height: 30),
@@ -573,18 +831,38 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 40),
       child: Row(
-        children: List.generate(3, (i) => Expanded(
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 12,
-                backgroundColor: _currentStep >= i ? gold : ref.read(themeProvider).colors.card,
-                child: Text("${i + 1}", style: TextStyle(color: _currentStep >= i ? Colors.black : Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
-              ),
-              if (i < 2) Expanded(child: Container(height: 2, color: _currentStep > i ? gold : ref.read(themeProvider).colors.card)),
-            ],
+        children: List.generate(
+          3,
+          (i) => Expanded(
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: _currentStep >= i
+                      ? gold
+                      : ref.read(themeProvider).colors.card,
+                  child: Text(
+                    "${i + 1}",
+                    style: TextStyle(
+                      color: _currentStep >= i ? Colors.black : Colors.white54,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (i < 2)
+                  Expanded(
+                    child: Container(
+                      height: 2,
+                      color: _currentStep > i
+                          ? gold
+                          : ref.read(themeProvider).colors.card,
+                    ),
+                  ),
+              ],
+            ),
           ),
-        )),
+        ),
       ),
     );
   }
@@ -592,21 +870,35 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
   Widget _buildAssetDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(color: ref.read(themeProvider).colors.card, borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+        color: ref.read(themeProvider).colors.card,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: selectedAsset,
           dropdownColor: ref.read(themeProvider).colors.card,
           isExpanded: true,
-          style: TextStyle(color: ref.read(themeProvider).colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
-          items: ["USDT", "USDC"].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+          style: TextStyle(
+            color: ref.read(themeProvider).colors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+          items: [
+            "USDT",
+            "USDC",
+          ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
           onChanged: (v) => setState(() => selectedAsset = v!),
         ),
       ),
     );
   }
 
-  Widget _buildTimePicker(String label, TimeOfDay time, ValueChanged<TimeOfDay> onPicked) {
+  Widget _buildTimePicker(
+    String label,
+    TimeOfDay time,
+    ValueChanged<TimeOfDay> onPicked,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -638,11 +930,19 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
             ),
             child: Row(
               children: [
-                Icon(Icons.access_time, color: ref.read(themeProvider).colors.accent, size: 18),
+                Icon(
+                  Icons.access_time,
+                  color: ref.read(themeProvider).colors.accent,
+                  size: 18,
+                ),
                 const SizedBox(width: 12),
                 Text(
                   time.format(context),
-                  style: TextStyle(color: ref.read(themeProvider).colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+                  style: TextStyle(
+                    color: ref.read(themeProvider).colors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
               ],
             ),
@@ -665,7 +965,11 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
           value: _maxPaymentWindow,
           isExpanded: true,
           dropdownColor: ref.read(themeProvider).colors.card,
-          style: TextStyle(color: ref.read(themeProvider).colors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+          style: TextStyle(
+            color: ref.read(themeProvider).colors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
           items: options.map((m) {
             final label = m < 60 ? "${m}m" : "1h";
             return DropdownMenuItem(value: m, child: Text(label));
@@ -678,7 +982,11 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
     );
   }
 
-  Widget _buildStyledTextField({required String label, required TextEditingController controller, required String suffixText}) {
+  Widget _buildStyledTextField({
+    required String label,
+    required TextEditingController controller,
+    required String suffixText,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -686,12 +994,21 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
         TextField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: TextStyle(color: ref.read(themeProvider).colors.textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: ref.read(themeProvider).colors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
           decoration: InputDecoration(
-            filled: true, fillColor: ref.read(themeProvider).colors.card,
+            filled: true,
+            fillColor: ref.read(themeProvider).colors.card,
             suffixText: suffixText,
-            suffixStyle: TextStyle(color: ref.read(themeProvider).colors.accent),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            suffixStyle: TextStyle(
+              color: ref.read(themeProvider).colors.accent,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
       ],
@@ -700,7 +1017,10 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
 
   Widget _sectionLabel(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8.0),
-    child: Text(text, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+    child: Text(
+      text,
+      style: const TextStyle(color: Colors.white54, fontSize: 12),
+    ),
   );
 
   Widget _buildBottomNavigation(Color gold) {
@@ -708,63 +1028,112 @@ class _VendorAdCreatorState extends ConsumerState<VendorAdCreator> {
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          if (_currentStep > 0) 
-            Expanded(child: TextButton(onPressed: () => setState(() => _currentStep--), child: const Text("Back", style: TextStyle(color: Colors.white54)))),
+          if (_currentStep > 0)
+            Expanded(
+              child: TextButton(
+                onPressed: () => setState(() => _currentStep--),
+                child: const Text(
+                  "Back",
+                  style: TextStyle(color: Colors.white54),
+                ),
+              ),
+            ),
           Expanded(
             flex: 2,
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: gold, padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: _isPublishing ? null : () {
-                
-                if (_currentStep == 1) {
-                  double maxLimit = double.tryParse(_maxLimitController.text) ?? 0.0;
-                  double minLimit = double.tryParse(_minLimitController.text) ?? 0.0;
-                  
-                  if (_availableBalance < _minCollateral) {
-                    _showSnackBar("You need at least \$${_minCollateral.toStringAsFixed(0)} in your trading pool to post.", isError: true);
-                    return;
-                  }
-                  // Allow max limit up to the full trading pool (with small tolerance for floating point)
-                  if (maxLimit > _availableBalance + 0.01) {
-                    _showSnackBar("Max limit cannot exceed your trading pool (\$${_availableBalance.toStringAsFixed(2)}).", isError: true);
-                    return;
-                  }
-                  if (minLimit > maxLimit) {
-                    _showSnackBar("Min limit cannot be greater than max limit.", isError: true);
-                    return;
-                  }
-                  // Phase H10 BUGFIX: validate active hours so a vendor
-                  // can't accidentally post an ad with start == end (a
-                  // zero-length active window, ad never matches a buyer)
-                  // or with end before start (which the BE may quietly
-                  // accept and produce a never-active ad).
-                  final startMin = _activeHoursStart.hour * 60 + _activeHoursStart.minute;
-                  final endMin = _activeHoursEnd.hour * 60 + _activeHoursEnd.minute;
-                  if (startMin == endMin) {
-                    _showSnackBar("Active-hours start and end can't be the same.", isError: true);
-                    return;
-                  }
-                }
+              style: ElevatedButton.styleFrom(
+                backgroundColor: gold,
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: _isPublishing
+                  ? null
+                  : () {
+                      if (_currentStep == 1) {
+                        double maxLimit =
+                            double.tryParse(_maxLimitController.text) ?? 0.0;
+                        double minLimit =
+                            double.tryParse(_minLimitController.text) ?? 0.0;
 
-                // Phase H10 BUGFIX: validate Step 2 (publish) at the
-                // step boundary instead of inside _publishAd, so the
-                // "Publish" button disables visibly when no account is
-                // selected and the user gets feedback BEFORE the
-                // submit-and-rollback flow.
-                if (_currentStep == 2 && _selectedTradeAccount == null) {
-                  _showSnackBar("Select a verified trade account to continue.", isError: true);
-                  return;
-                }
+                        if (_availableBalance < _minCollateral) {
+                          _showSnackBar(
+                            "You need at least \$${_minCollateral.toStringAsFixed(0)} in your trading pool to post.",
+                            isError: true,
+                          );
+                          return;
+                        }
+                        // Allow max limit up to the full trading pool (with small tolerance for floating point)
+                        if (maxLimit > _availableBalance + 0.01) {
+                          _showSnackBar(
+                            "Max limit cannot exceed your trading pool (\$${_availableBalance.toStringAsFixed(2)}).",
+                            isError: true,
+                          );
+                          return;
+                        }
+                        if (minLimit > maxLimit) {
+                          _showSnackBar(
+                            "Min limit cannot be greater than max limit.",
+                            isError: true,
+                          );
+                          return;
+                        }
+                        // Phase H10 BUGFIX: validate active hours so a vendor
+                        // can't accidentally post an ad with start == end (a
+                        // zero-length active window, ad never matches a buyer)
+                        // or with end before start (which the BE may quietly
+                        // accept and produce a never-active ad).
+                        final startMin =
+                            _activeHoursStart.hour * 60 +
+                            _activeHoursStart.minute;
+                        final endMin =
+                            _activeHoursEnd.hour * 60 + _activeHoursEnd.minute;
+                        if (startMin == endMin) {
+                          _showSnackBar(
+                            "Active-hours start and end can't be the same.",
+                            isError: true,
+                          );
+                          return;
+                        }
+                      }
 
-                if (_currentStep < 2) {
-                  setState(() => _currentStep++);
-                } else {
-                  _publishAd();
-                }
-              },
-              child: _isPublishing 
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 
-                : Text(_currentStep == 2 ? "Publish Ad" : "Next", style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                      // Phase H10 BUGFIX: validate Step 2 (publish) at the
+                      // step boundary instead of inside _publishAd, so the
+                      // "Publish" button disables visibly when no account is
+                      // selected and the user gets feedback BEFORE the
+                      // submit-and-rollback flow.
+                      if (_currentStep == 2 && _selectedTradeAccount == null) {
+                        _showSnackBar(
+                          "Select a verified trade account to continue.",
+                          isError: true,
+                        );
+                        return;
+                      }
+
+                      if (_currentStep < 2) {
+                        setState(() => _currentStep++);
+                      } else {
+                        _publishAd();
+                      }
+                    },
+              child: _isPublishing
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.black,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      _currentStep == 2 ? "Publish Ad" : "Next",
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
             ),
           ),
         ],

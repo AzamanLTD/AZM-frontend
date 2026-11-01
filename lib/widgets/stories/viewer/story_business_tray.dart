@@ -30,18 +30,16 @@ import 'package:azaman/widgets/chat_avatar.dart';
 /// search results is used as-is; otherwise the public GET /business/:bizId
 /// (BusinessService.getBusinessByBizId) loads it. Unresolvable → null → the
 /// tray stays hidden (no placeholder chip pretending a store exists).
-final linkedBusinessProvider =
-    FutureProvider.autoDispose.family<BusinessProfile?, String>(
-  (ref, bizId) async {
-    final cached = ref
-        .read(businessSearchProvider)
-        .results
-        .where((b) => b.bizId == bizId || b.id == bizId)
-        .firstOrNull;
-    if (cached != null) return cached;
-    return BusinessService().getBusinessByBizId(bizId);
-  },
-);
+final linkedBusinessProvider = FutureProvider.autoDispose
+    .family<BusinessProfile?, String>((ref, bizId) async {
+      final cached = ref
+          .read(businessSearchProvider)
+          .results
+          .where((b) => b.bizId == bizId || b.id == bizId)
+          .firstOrNull;
+      if (cached != null) return cached;
+      return BusinessService().getBusinessByBizId(bizId);
+    });
 
 class StoryBusinessTray extends ConsumerWidget {
   const StoryBusinessTray({
@@ -89,21 +87,26 @@ class StoryBusinessTray extends ConsumerWidget {
                 // stay paused forever. Push imperatively with the same page
                 // the /business/:bizId route builds (app_router.dart:528).
                 Navigator.of(context)
-                    .push(MaterialPageRoute(
-                      builder: (_) => BusinessProfileScreen(bizId: biz.bizId),
-                    ))
+                    .push(
+                      MaterialPageRoute(
+                        builder: (_) => BusinessProfileScreen(bizId: biz.bizId),
+                      ),
+                    )
                     .whenComplete(onResume);
               },
               child: Padding(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: AzSpace.md, vertical: AzSpace.sm),
+                  horizontal: AzSpace.md,
+                  vertical: AzSpace.sm,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     ChatAvatar(
-                        imageUrl: biz.logoUrl,
-                        name: biz.businessName,
-                        size: 28),
+                      imageUrl: biz.logoUrl,
+                      name: biz.businessName,
+                      size: 28,
+                    ),
                     const SizedBox(width: AzSpace.sm),
                     Flexible(
                       child: Text(
@@ -116,8 +119,7 @@ class StoryBusinessTray extends ConsumerWidget {
                     const SizedBox(width: AzSpace.sm),
                     Text(
                       profile.primaryActionLabel,
-                      style:
-                          AzText.label.copyWith(color: Colors.amberAccent),
+                      style: AzText.label.copyWith(color: Colors.amberAccent),
                     ),
                   ],
                 ),

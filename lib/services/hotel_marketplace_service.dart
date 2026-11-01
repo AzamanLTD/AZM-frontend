@@ -50,7 +50,7 @@ class HotelBusinessDetail {
 
 class HotelMarketplaceService {
   HotelMarketplaceService({ApiClient? apiClient})
-      : _client = apiClient ?? ApiClient();
+    : _client = apiClient ?? ApiClient();
   final ApiClient _client;
 
   Future<HotelBusinessDetail> fetchHotel(String bizId) async {
@@ -131,9 +131,10 @@ class HotelMarketplaceService {
     // and BEFORE any durable record is created: the pair is inseparable.
     if (ref == null) {
       throw ArgumentError(
-          'HotelMarketplaceService.reserve: operationType and ref must be '
-          'supplied together — the durable path requires a ref as the '
-          'lifecycle owner of the operation instance.');
+        'HotelMarketplaceService.reserve: operationType and ref must be '
+        'supplied together — the durable path requires a ref as the '
+        'lifecycle owner of the operation instance.',
+      );
     }
 
     // Demo mode short-circuits before economics (the SAME policy as
@@ -152,10 +153,17 @@ class HotelMarketplaceService {
     // begin a genuinely new one otherwise, and arm the caller's ref
     // BEFORE the request leaves the device.
     final op = await _resolveOperation(
-        type: operationType, endpoint: endpoint, request: body, ref: ref);
+      type: operationType,
+      endpoint: endpoint,
+      request: body,
+      ref: ref,
+    );
     try {
-      final response =
-          await _client.post(endpoint, body, headers: {'Idempotency-Key': op.key});
+      final response = await _client.post(
+        endpoint,
+        body,
+        headers: {'Idempotency-Key': op.key},
+      );
       // Malformed-success guard (parity with checkoutCart / bookSeats): an
       // answered 2xx without an AUTHORITATIVE reservation is an UNKNOWN
       // economic state — never success, never definitive. The
@@ -164,8 +172,9 @@ class HotelMarketplaceService {
       // classifyHotelReservationFailure maps it to ambiguousOrUnknown.
       if (!_carriesAuthoritativeReservation(response.body)) {
         throw const FormatException(
-            'Reservation response was successful but carried no '
-            'authoritative reservation (id).');
+          'Reservation response was successful but carried no '
+          'authoritative reservation (id).',
+        );
       }
       // Answered success — this reservation instance is complete.
       await _releaseOperation(ref);
@@ -184,7 +193,9 @@ class HotelMarketplaceService {
   }
 
   Future<Map<String, dynamic>> _reserveLegacy(
-      String endpoint, Map<String, dynamic> body) async {
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     final response = await _client.post(endpoint, body);
     return _parseReservation(response.body, statusCode: response.statusCode);
   }
@@ -202,7 +213,9 @@ class HotelMarketplaceService {
     }
     final reservation = (body['reservation'] as Map?)?.cast<String, dynamic>();
     if (reservation == null) {
-      throw const HotelMarketplaceException('Booking completed without a reservation response.');
+      throw const HotelMarketplaceException(
+        'Booking completed without a reservation response.',
+      );
     }
     return reservation;
   }
@@ -237,15 +250,22 @@ class HotelMarketplaceService {
     final retryId = ref?.operationId;
     if (retryId != null) {
       try {
-        return await DurableOperationRegistry.retry(retryId,
-            account: account, request: request);
+        return await DurableOperationRegistry.retry(
+          retryId,
+          account: account,
+          request: request,
+        );
       } on DurableOperationException {
         // Not retryable as that instance (terminal, or a materially
         // different request): a genuinely new action.
       }
     }
     final op = await DurableOperationRegistry.begin(
-        account: account, type: type, endpoint: endpoint, request: request);
+      account: account,
+      type: type,
+      endpoint: endpoint,
+      request: request,
+    );
     if (ref != null) ref.operationId = op.operationId;
     return op;
   }
@@ -255,8 +275,10 @@ class HotelMarketplaceService {
   Future<void> _releaseOperation(FinancialOperationRef? ref) async {
     final id = ref?.operationId;
     if (id == null) return;
-    await DurableOperationRegistry.retire(id,
-        account: await _client.operationAccount(failClosed: true));
+    await DurableOperationRegistry.retire(
+      id,
+      account: await _client.operationAccount(failClosed: true),
+    );
     if (ref != null) ref.operationId = null;
   }
 
@@ -278,13 +300,15 @@ class HotelMarketplaceService {
   /// class. Pure projection: reuses the SAME definitive predicate as the
   /// disposition, so classification can never contradict the lifecycle.
   static HotelBookingFailureClass classifyHotelReservationFailure(
-      Object error) {
+    Object error,
+  ) {
     if (error is ApiException) {
       if (error.statusCode == 401) {
         return HotelBookingFailureClass.authenticationRequired;
       }
       if (error.statusCode == 429) return HotelBookingFailureClass.rateLimited;
-      if (error.statusCode == 409) return HotelBookingFailureClass.domainConflict;
+      if (error.statusCode == 409)
+        return HotelBookingFailureClass.domainConflict;
       if (_isDefinitivePreEconomic(error.statusCode)) {
         return HotelBookingFailureClass.definitivePreEconomic;
       }

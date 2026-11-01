@@ -34,7 +34,11 @@ class _StarredMessagesScreenState extends ConsumerState<StarredMessagesScreen> {
   void _loadStarred() async {
     try {
       final results = await MessageActionService.getStarredMessages();
-      if (mounted) setState(() { _starred = results; _isLoading = false; });
+      if (mounted)
+        setState(() {
+          _starred = results;
+          _isLoading = false;
+        });
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -67,35 +71,42 @@ class _StarredMessagesScreenState extends ConsumerState<StarredMessagesScreen> {
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : _starred.isEmpty
-                ? ListView(
-                    children: [
-                      const SizedBox(height: 120),
-                      Center(
-                        child: Column(
-                          children: [
-                            Icon(Icons.star_border_rounded,
-                                size: 64, color: Theme.of(context).disabledColor),
-                            const SizedBox(height: 16),
-                            Text('No starred messages',
-                                style: Theme.of(context).textTheme.titleMedium),
-                            const SizedBox(height: 4),
-                            Text('Long-press a message to star it',
-                                style: Theme.of(context).textTheme.bodySmall),
-                          ],
+            ? ListView(
+                children: [
+                  const SizedBox(height: 120),
+                  Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.star_border_rounded,
+                          size: 64,
+                          color: Theme.of(context).disabledColor,
                         ),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    itemCount: _starred.length,
-                    itemBuilder: (context, index) {
-                      final msg = _starred[index];
-                      return _StarredItem(
-                        message: msg,
-                        onUnstar: () => _unstar(index),
-                      );
-                    },
+                        const SizedBox(height: 16),
+                        Text(
+                          'No starred messages',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Long-press a message to star it',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
                   ),
+                ],
+              )
+            : ListView.builder(
+                itemCount: _starred.length,
+                itemBuilder: (context, index) {
+                  final msg = _starred[index];
+                  return _StarredItem(
+                    message: msg,
+                    onUnstar: () => _unstar(index),
+                  );
+                },
+              ),
       ),
     );
   }
@@ -118,33 +129,53 @@ class _StarredItem extends StatelessWidget {
     final isMedia = messageType != 'TEXT' || mediaUrl != null;
 
     return ListTile(
-      leading: AzAvatar(
-        circular: true,
-        name: senderName,
-        size: 40,
-      ),
+      leading: AzAvatar(circular: true, name: senderName, size: 40),
       title: Row(
         children: [
-          Expanded(child: Text(senderName, style: const TextStyle(fontWeight: FontWeight.w600))),
-          Icon(Icons.star_rounded, size: 16, color: Theme.of(context).colorScheme.primary),
+          Expanded(
+            child: Text(
+              senderName,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Icon(
+            Icons.star_rounded,
+            size: 16,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ],
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (isMedia && content.isEmpty)
-            const Row(children: [Icon(Icons.image, size: 16), SizedBox(width: 4), Text('Photo')])
+            const Row(
+              children: [
+                Icon(Icons.image, size: 16),
+                SizedBox(width: 4),
+                Text('Photo'),
+              ],
+            )
           else
             Text(content, maxLines: 2, overflow: TextOverflow.ellipsis),
           if (groupName != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(groupName, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary)),
+              child: Text(
+                groupName,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
             ),
         ],
       ),
       trailing: createdAt != null
-          ? Text(_formatDate(createdAt), style: Theme.of(context).textTheme.bodySmall)
+          ? Text(
+              _formatDate(createdAt),
+              style: Theme.of(context).textTheme.bodySmall,
+            )
           : null,
       onLongPress: onUnstar,
     );
@@ -155,8 +186,11 @@ class _StarredItem extends StatelessWidget {
     final diff = now.difference(dt);
     if (diff.inDays == 0) {
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } else if (diff.inDays == 1) return 'Yesterday';
-    else if (diff.inDays < 7) return '${diff.inDays}d';
-    else return '${dt.day}/${dt.month}';
+    } else if (diff.inDays == 1)
+      return 'Yesterday';
+    else if (diff.inDays < 7)
+      return '${diff.inDays}d';
+    else
+      return '${dt.day}/${dt.month}';
   }
 }

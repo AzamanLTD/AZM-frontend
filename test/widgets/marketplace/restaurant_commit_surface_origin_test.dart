@@ -5,7 +5,9 @@ import 'package:azaman/marketplace/experiences/marketplace_experience_blueprint.
 import 'package:azaman/widgets/marketplace/restaurant_commit_surface.dart';
 
 void main() {
-  testWidgets('paper-rip starts from the customer commit touch point', (tester) async {
+  testWidgets('paper-rip starts from the customer commit touch point', (
+    tester,
+  ) async {
     var committed = false;
     await tester.pumpWidget(
       MaterialApp(

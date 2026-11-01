@@ -29,132 +29,173 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-const _storageChannel = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+const _storageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
 
 User _sessionUser() => User.fromJson({
-      'id': 'u1',
-      'username': 'u',
-      'email': 'u@example.com',
-      'token': 'tok',
-      'role': 'USER',
-    });
+  'id': 'u1',
+  'username': 'u',
+  'email': 'u@example.com',
+  'token': 'tok',
+  'role': 'USER',
+});
 
 ApiClient _apiFor(http.Client client) => ApiClient(client: client);
 
 void _mockSecureStorage(List<String> deletedKeys) {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
-    switch (call.method) {
-      case 'read':
-        final key = call.arguments['key'];
-        return key == 'auth_token' || key == 'user_id' ? 'mock' : null;
-      case 'delete':
-        deletedKeys.add(call.arguments['key']?.toString() ?? '');
-        return null;
-      default:
-        return null;
-    }
-  });
+        switch (call.method) {
+          case 'read':
+            final key = call.arguments['key'];
+            return key == 'auth_token' || key == 'user_id' ? 'mock' : null;
+          case 'delete':
+            deletedKeys.add(call.arguments['key']?.toString() ?? '');
+            return null;
+          default:
+            return null;
+        }
+      });
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test(
-      'authenticated state + transient 5xx from /auth/me does NOT clear '
+  test('authenticated state + transient 5xx from /auth/me does NOT clear '
       'authentication (no redirect to / possible)', () async {
     final deletedKeys = <String>[];
     _mockSecureStorage(deletedKeys);
 
-    final api = _apiFor(MockClient((request) async => http.Response(
-        jsonEncode({'message': 'boom'}), 500)));
+    final api = _apiFor(
+      MockClient(
+        (request) async => http.Response(jsonEncode({'message': 'boom'}), 500),
+      ),
+    );
 
     final auth = AuthProvider(client: api);
     AuthGuard.isAuthenticated = false;
     await auth.setSessionFromLogin(_sessionUser());
 
     // §7 contract: session survives a transient server error.
-    expect(auth.status, AuthStatus.authenticated,
-        reason: 'a transient 5xx must not demote an authenticated session');
-    expect(AuthGuard.isAuthenticated, isTrue,
-        reason: 'the router redirect reads this flag; flipping it on a '
-            'transient failure kicked live users back to "/"');
+    expect(
+      auth.status,
+      AuthStatus.authenticated,
+      reason: 'a transient 5xx must not demote an authenticated session',
+    );
+    expect(
+      AuthGuard.isAuthenticated,
+      isTrue,
+      reason:
+          'the router redirect reads this flag; flipping it on a '
+          'transient failure kicked live users back to "/"',
+    );
     expect(auth.user?.id, 'u1');
-    expect(deletedKeys, isEmpty,
-        reason: 'a transient failure must not clear stored credentials');
+    expect(
+      deletedKeys,
+      isEmpty,
+      reason: 'a transient failure must not clear stored credentials',
+    );
 
     AuthGuard.isAuthenticated = false;
   });
 
-  test(
-      'authenticated state + network-level failure (ClientException) does '
+  test('authenticated state + network-level failure (ClientException) does '
       'NOT clear authentication', () async {
     final deletedKeys = <String>[];
     _mockSecureStorage(deletedKeys);
 
-    final api = _apiFor(MockClient((request) async =>
-        throw http.ClientException('Server unreachable')));
+    final api = _apiFor(
+      MockClient(
+        (request) async => throw http.ClientException('Server unreachable'),
+      ),
+    );
 
     final auth = AuthProvider(client: api);
     AuthGuard.isAuthenticated = false;
     await auth.setSessionFromLogin(_sessionUser());
 
-    expect(auth.status, AuthStatus.authenticated,
-        reason: 'a dropped connection must keep the session intact');
+    expect(
+      auth.status,
+      AuthStatus.authenticated,
+      reason: 'a dropped connection must keep the session intact',
+    );
     expect(AuthGuard.isAuthenticated, isTrue);
     expect(auth.user, isNotNull);
 
     AuthGuard.isAuthenticated = false;
   });
 
-  test('an authoritative 401 from /auth/me STILL invalidates the session',
-      () async {
-    final deletedKeys = <String>[];
-    _mockSecureStorage(deletedKeys);
+  test(
+    'an authoritative 401 from /auth/me STILL invalidates the session',
+    () async {
+      final deletedKeys = <String>[];
+      _mockSecureStorage(deletedKeys);
 
-    final api = _apiFor(MockClient((request) async => http.Response(
-        jsonEncode({'message': 'jwt expired'}), 401)));
+      final api = _apiFor(
+        MockClient(
+          (request) async =>
+              http.Response(jsonEncode({'message': 'jwt expired'}), 401),
+        ),
+      );
 
-    final auth = AuthProvider(client: api);
-    AuthGuard.isAuthenticated = false;
-    await auth.setSessionFromLogin(_sessionUser());
+      final auth = AuthProvider(client: api);
+      AuthGuard.isAuthenticated = false;
+      await auth.setSessionFromLogin(_sessionUser());
 
-    expect(auth.status, AuthStatus.unauthenticated);
-    expect(AuthGuard.isAuthenticated, isFalse,
-        reason: 'a rejected JWT must keep invalidating — the fix only '
-            'covers TRANSIENT failures');
-    expect(auth.user, isNull);
-    expect(deletedKeys, containsAll(['auth_token', 'user_id']),
-        reason: 'the 401 path must still clear stored credentials');
+      expect(auth.status, AuthStatus.unauthenticated);
+      expect(
+        AuthGuard.isAuthenticated,
+        isFalse,
+        reason:
+            'a rejected JWT must keep invalidating — the fix only '
+            'covers TRANSIENT failures',
+      );
+      expect(auth.user, isNull);
+      expect(
+        deletedKeys,
+        containsAll(['auth_token', 'user_id']),
+        reason: 'the 401 path must still clear stored credentials',
+      );
 
-    AuthGuard.isAuthenticated = false;
-  });
+      AuthGuard.isAuthenticated = false;
+    },
+  );
 
-  test('a 404 profile miss still routes to the setup flow (profileNotFound)',
-      () async {
-    final deletedKeys = <String>[];
-    _mockSecureStorage(deletedKeys);
+  test(
+    'a 404 profile miss still routes to the setup flow (profileNotFound)',
+    () async {
+      final deletedKeys = <String>[];
+      _mockSecureStorage(deletedKeys);
 
-    final api = _apiFor(MockClient((request) async =>
-        http.Response(jsonEncode({'message': 'not found'}), 404)));
+      final api = _apiFor(
+        MockClient(
+          (request) async =>
+              http.Response(jsonEncode({'message': 'not found'}), 404),
+        ),
+      );
 
-    final auth = AuthProvider(client: api);
-    AuthGuard.isAuthenticated = false;
-    await auth.setSessionFromLogin(_sessionUser());
+      final auth = AuthProvider(client: api);
+      AuthGuard.isAuthenticated = false;
+      await auth.setSessionFromLogin(_sessionUser());
 
-    expect(auth.status, AuthStatus.profileNotFound);
-    expect(AuthGuard.isAuthenticated, isFalse);
-    expect(auth.user, isNull);
+      expect(auth.status, AuthStatus.profileNotFound);
+      expect(AuthGuard.isAuthenticated, isFalse);
+      expect(auth.user, isNull);
 
-    AuthGuard.isAuthenticated = false;
-  });
+      AuthGuard.isAuthenticated = false;
+    },
+  );
 
   test('explicit logout still invalidates', () async {
     final deletedKeys = <String>[];
     _mockSecureStorage(deletedKeys);
 
-    final api = _apiFor(MockClient((request) async =>
-        throw http.ClientException('offline during logout')));
+    final api = _apiFor(
+      MockClient(
+        (request) async => throw http.ClientException('offline during logout'),
+      ),
+    );
 
     final auth = AuthProvider(client: api);
     AuthGuard.isAuthenticated = true;

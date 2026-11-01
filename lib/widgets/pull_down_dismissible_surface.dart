@@ -38,8 +38,7 @@ class PullDownDismissibleSurface extends StatefulWidget {
       _PullDownDismissibleSurfaceState();
 }
 
-class _PullDownDismissibleSurfaceState
-    extends State<PullDownDismissibleSurface>
+class _PullDownDismissibleSurfaceState extends State<PullDownDismissibleSurface>
     with SingleTickerProviderStateMixin {
   double _dragDy = 0;
   double _settleFrom = 0;

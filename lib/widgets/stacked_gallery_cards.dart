@@ -19,7 +19,8 @@ class StackedGalleryCards extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<StackedGalleryCards> createState() => _StackedGalleryCardsState();
+  ConsumerState<StackedGalleryCards> createState() =>
+      _StackedGalleryCardsState();
 }
 
 class _StackedGalleryCardsState extends ConsumerState<StackedGalleryCards> {
@@ -79,7 +80,9 @@ class _StackedGalleryCardsState extends ConsumerState<StackedGalleryCards> {
               child: GestureDetector(
                 onTap: i == 0
                     ? _openLightbox
-                    : () => _bringToFront(i), // tap a peeking card -> bring it forward
+                    : () => _bringToFront(
+                        i,
+                      ), // tap a peeking card -> bring it forward
                 onHorizontalDragUpdate: i == 0
                     ? (d) => setState(() => _dragDx += d.delta.dx)
                     : null,
@@ -104,7 +107,10 @@ class _StackedGalleryCardsState extends ConsumerState<StackedGalleryCards> {
                         borderRadius: BorderRadius.circular(14),
                         child: Container(
                           decoration: BoxDecoration(
-                            border: Border.all(color: colors.divider, width: 0.6),
+                            border: Border.all(
+                              color: colors.divider,
+                              width: 0.6,
+                            ),
                           ),
                           child: AzamanNetworkImage(
                             imageUrl: _order[i],
@@ -112,11 +118,13 @@ class _StackedGalleryCardsState extends ConsumerState<StackedGalleryCards> {
                             height: widget.height,
                             fit: BoxFit.cover,
                             placeholder: (_, __) => Container(
-                              width: widget.width, height: widget.height,
+                              width: widget.width,
+                              height: widget.height,
                               color: colors.softSurface,
                             ),
                             errorWidget: (_, __, ___) => Container(
-                              width: widget.width, height: widget.height,
+                              width: widget.width,
+                              height: widget.height,
                               color: colors.softSurface,
                             ),
                           ),
@@ -129,7 +137,8 @@ class _StackedGalleryCardsState extends ConsumerState<StackedGalleryCards> {
             ),
           if (widget.urls.length > _maxVisibleStack)
             Positioned(
-              right: 0, top: 0,
+              right: 0,
+              top: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
@@ -137,8 +146,14 @@ class _StackedGalleryCardsState extends ConsumerState<StackedGalleryCards> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: colors.divider, width: 0.6),
                 ),
-                child: Text('+${widget.urls.length - _maxVisibleStack + 1}',
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: colors.textSecondary)),
+                child: Text(
+                  '+${widget.urls.length - _maxVisibleStack + 1}',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: colors.textSecondary,
+                  ),
+                ),
               ),
             ),
         ],

@@ -68,15 +68,17 @@ class SocialProofUnavailable implements Exception {
 class ServerSocialProofService {
   final ApiClient _client;
   ServerSocialProofService({ApiClient? client})
-      : _client = client ?? ApiClient();
+    : _client = client ?? ApiClient();
 
   /// Single-business proof. A 404 means the business id is unknown to
   /// the contract — honest absence, no retry, no local guess.
   Future<ServerSocialProof> fetch(String businessProfileId) async {
     final http.Response r;
     try {
-      r = await _client
-          .get('/social-proof/$businessProfileId', requireAuth: true);
+      r = await _client.get(
+        '/social-proof/$businessProfileId',
+        requireAuth: true,
+      );
     } catch (_) {
       throw SocialProofUnavailable();
     }
@@ -90,16 +92,15 @@ class ServerSocialProofService {
   /// returned map have no data — the caller must not read absence as
   /// zero friends.
   Future<Map<String, ServerSocialProof>> fetchBatch(
-      List<String> businessProfileIds) async {
+    List<String> businessProfileIds,
+  ) async {
     if (businessProfileIds.isEmpty) return const {};
     final ids = businessProfileIds.take(50).toList(growable: false);
     final http.Response r;
     try {
-      r = await _client.post(
-        '/social-proof',
-        {'businessProfileIds': ids},
-        requireAuth: true,
-      );
+      r = await _client.post('/social-proof', {
+        'businessProfileIds': ids,
+      }, requireAuth: true);
     } catch (_) {
       throw SocialProofUnavailable();
     }

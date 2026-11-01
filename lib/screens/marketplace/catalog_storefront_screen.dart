@@ -25,7 +25,8 @@ class CatalogStorefrontScreen extends StatefulWidget {
   });
 
   @override
-  State<CatalogStorefrontScreen> createState() => _CatalogStorefrontScreenState();
+  State<CatalogStorefrontScreen> createState() =>
+      _CatalogStorefrontScreenState();
 }
 
 class _CatalogStorefrontScreenState extends State<CatalogStorefrontScreen> {
@@ -61,7 +62,8 @@ class _CatalogStorefrontScreenState extends State<CatalogStorefrontScreen> {
         MediaQuery.of(context).padding.top + 56 + _kCategoryBarHeight + 8;
     int newIndex = _activeIndex;
     for (int i = 0; i < _sectionKeys.length; i++) {
-      final box = _sectionKeys[i].currentContext?.findRenderObject() as RenderBox?;
+      final box =
+          _sectionKeys[i].currentContext?.findRenderObject() as RenderBox?;
       if (box == null || !box.attached) continue;
       final y = box.localToGlobal(Offset.zero).dy;
       if (y <= threshold) newIndex = i;
@@ -83,11 +85,16 @@ class _CatalogStorefrontScreenState extends State<CatalogStorefrontScreen> {
       alignment: 0.0,
     );
     if (_scrollCtrl.hasClients) {
-      final target = (_scrollCtrl.offset - _kCategoryBarHeight)
-          .clamp(0.0, _scrollCtrl.position.maxScrollExtent);
+      final target = (_scrollCtrl.offset - _kCategoryBarHeight).clamp(
+        0.0,
+        _scrollCtrl.position.maxScrollExtent,
+      );
       if ((target - _scrollCtrl.offset).abs() > 1) {
-        _scrollCtrl.animateTo(target,
-            duration: const Duration(milliseconds: 160), curve: Curves.easeOut);
+        _scrollCtrl.animateTo(
+          target,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+        );
       }
     }
   }
@@ -96,8 +103,9 @@ class _CatalogStorefrontScreenState extends State<CatalogStorefrontScreen> {
   Widget build(BuildContext context) {
     final colors = widget.colors;
     final business = widget.business;
-    final heroImage =
-        business.showcaseUrls.isNotEmpty ? business.showcaseUrls.first : business.logoUrl;
+    final heroImage = business.showcaseUrls.isNotEmpty
+        ? business.showcaseUrls.first
+        : business.logoUrl;
     final heroMinExtent = 56 + MediaQuery.of(context).padding.top;
 
     return Scaffold(
@@ -125,7 +133,10 @@ class _CatalogStorefrontScreenState extends State<CatalogStorefrontScreen> {
                   color: colors.surface,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 7,
+                    ),
                     itemCount: _categoryNames.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (context, i) {
@@ -144,8 +155,12 @@ class _CatalogStorefrontScreenState extends State<CatalogStorefrontScreen> {
                           child: Text(
                             _categoryNames[i],
                             style: TextStyle(
-                              color: active ? Colors.white : colors.textSecondary,
-                              fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                              color: active
+                                  ? Colors.white
+                                  : colors.textSecondary,
+                              fontWeight: active
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
                               fontSize: 13,
                             ),
                           ),
@@ -176,7 +191,11 @@ class _CatalogStorefrontScreenState extends State<CatalogStorefrontScreen> {
                     key: _sectionKeys[widget.sections.length],
                     padding: const EdgeInsets.only(bottom: 20),
                     child: _sectionBlock(
-                        'Other Items', null, widget.uncategorisedProducts, colors),
+                      'Other Items',
+                      null,
+                      widget.uncategorisedProducts,
+                      colors,
+                    ),
                   ),
               ]),
             ),
@@ -186,19 +205,30 @@ class _CatalogStorefrontScreenState extends State<CatalogStorefrontScreen> {
     );
   }
 
-  Widget _sectionBlock(String name, String? description,
-      List<BusinessProduct> products, AzamanColors colors) {
+  Widget _sectionBlock(
+    String name,
+    String? description,
+    List<BusinessProduct> products,
+    AzamanColors colors,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(name,
-            style: TextStyle(
-                color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800)),
+        Text(
+          name,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         if (description != null && description.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Text(description,
-                style: TextStyle(color: colors.textTertiary, fontSize: 12.5)),
+            child: Text(
+              description,
+              style: TextStyle(color: colors.textTertiary, fontSize: 12.5),
+            ),
           ),
         const SizedBox(height: 10),
         ...products.map((p) => widget.productRowBuilder(p)),
@@ -220,7 +250,11 @@ class _StorefrontCategoryBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => height;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => child;
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => child;
 
   @override
   bool shouldRebuild(_StorefrontCategoryBarDelegate oldDelegate) =>

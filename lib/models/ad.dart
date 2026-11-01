@@ -5,13 +5,13 @@
 
 class Ad {
   final String id;
-  final String adType;           // "SELL" | "BUY"
-  final double pricePerUSD;      // informational display rate
+  final String adType; // "SELL" | "BUY"
+  final double pricePerUSD; // informational display rate
   final double baseMargin;
   final double vendorMargin;
   final int maxConcurrentTrades;
   final String paymentMethod;
-  final String? tradeAccountId;  // Phase F2: FK to TradeAccount
+  final String? tradeAccountId; // Phase F2: FK to TradeAccount
   final String? terms;
 
   Ad({

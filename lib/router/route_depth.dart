@@ -55,10 +55,12 @@ int routePatternDepth(RouteBase route) {
   final pattern = route is GoRoute ? route.path : '';
   return pattern
       .split('/')
-      .where((segment) =>
-          segment.isNotEmpty &&
-          !segment.startsWith(':') &&
-          !segment.startsWith('{'))
+      .where(
+        (segment) =>
+            segment.isNotEmpty &&
+            !segment.startsWith(':') &&
+            !segment.startsWith('{'),
+      )
       .length;
 }
 
@@ -158,10 +160,12 @@ class RouteDepthTrackerHost extends InheritedWidget {
   final RouteDepthTracker tracker;
 
   static RouteDepthTracker of(BuildContext context) {
-    final host =
-        context.dependOnInheritedWidgetOfExactType<RouteDepthTrackerHost>();
-    assert(host != null,
-        'No RouteDepthTrackerHost above this widget — main.dart hosts one.');
+    final host = context
+        .dependOnInheritedWidgetOfExactType<RouteDepthTrackerHost>();
+    assert(
+      host != null,
+      'No RouteDepthTrackerHost above this widget — main.dart hosts one.',
+    );
     return host!.tracker;
   }
 

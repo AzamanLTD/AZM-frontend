@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:azaman/providers/theme_provider.dart' as theme_pkg;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 class RoutedTabSurface extends ConsumerWidget {
   final String title;
   final Widget body;
@@ -32,8 +31,7 @@ class RoutedTabSurface extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back,
-              color: colors.textPrimary, size: 18),
+          icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(

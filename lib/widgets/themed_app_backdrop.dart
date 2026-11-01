@@ -73,7 +73,9 @@ class ThemedAppBackdrop extends ConsumerWidget {
                   center: const Alignment(0.95, 1.0),
                   radius: 1.2,
                   colors: [
-                    colors.accentSecondary.withValues(alpha: colors.isDark ? 0.12 : 0.06),
+                    colors.accentSecondary.withValues(
+                      alpha: colors.isDark ? 0.12 : 0.06,
+                    ),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 1.0],

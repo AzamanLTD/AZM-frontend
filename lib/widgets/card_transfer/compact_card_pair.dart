@@ -8,9 +8,17 @@
 // surface can give its vertical priority to the amount, keypad, review
 // summary and action area instead of two 165px physical cards.
 //
-// • Both previews share the physical-card material the Home cards wear
-//   ([PremiumCardFrame] — carbon body + the shared metallic rim), so the
-//   pair reads as the same two cards, in miniature, not a new invention.
+// • THE TWO TILES ARE DIFFERENT PRODUCTS (owner-reported defect fixed
+//   2026-10-28). Both used to wear the same [PremiumCardFrame] chrome, so
+//   the pair read as two Visa-ish cards. Now:
+//     – the BALANCE tile paints the real Azaman balance card face through
+//       the shared [AzamanCardPainter] in the user's APPLIED colourway,
+//       with the Azaman mark and wordmark; and
+//     – the VISA tile keeps the network's own identity (Visa navy body,
+//       VISA wordmark on a light plate) and never borrows the balance
+//       palette, mark or chip.
+//   A transfer screen has to show WHICH card money leaves and WHICH card it
+//   lands on; identical chrome defeats the whole point.
 // • The pair is STATIC: no gestures, no PIN gate, no sheen of its own
 //   beyond the frame material — every Home interaction stays on Home.
 // • ONE [DirectionalMoneyFlow] lane runs BETWEEN the two previews,
@@ -34,9 +42,11 @@ import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/providers/currency_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/az_money.dart';
-import 'package:azaman/widgets/premium_card_surface.dart';
+import 'package:azaman/widgets/home/azaman_card_face.dart';
+import 'package:azaman/widgets/home/azm_visa_card.dart';
 
 /// The compact pair's fixed tile height — drawn for this footprint.
 const double kCompactCardHeight = 96.0;
@@ -177,11 +187,7 @@ class _FlowPainter extends CustomPainter {
       ..color = accent.withValues(alpha: animate ? 0.18 : 0.3)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(
-      Offset(4, cy),
-      Offset(size.width - 4, cy),
-      lane,
-    );
+    canvas.drawLine(Offset(4, cy), Offset(size.width - 4, cy), lane);
 
     if (!animate) {
       // Reduced motion: static arrowheads carry the direction.
@@ -197,8 +203,9 @@ class _FlowPainter extends CustomPainter {
       final t = toVisa ? phase : 1 - phase;
       final x = 4 + (size.width - 8) * t;
       final dotPaint = Paint()
-        ..color = accent
-            .withValues(alpha: 0.25 + 0.45 * (1 - (t - 0.5).abs() * 2));
+        ..color = accent.withValues(
+          alpha: 0.25 + 0.45 * (1 - (t - 0.5).abs() * 2),
+        );
       canvas.drawCircle(Offset(x, cy), 3.2, dotPaint);
     }
   }
@@ -243,7 +250,18 @@ class CompactBalancePreview extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
+    final theme = ref.watch(themeProvider);
+    // CARD TRANSFER ROOT-CAUSE FIX (2026-10-28).
+    //
+    // This tile used to be a generic [PremiumCardFrame] with an "AZM" text
+    // label — visually the SAME product chrome as the Visa tile beside it,
+    // so the pair read as two Visa-ish cards. It now paints the actual
+    // balance-card face through [AzamanCardPainter] using the APPLIED
+    // variant, so it is unmistakably an Azaman balance card and it follows
+    // the card the user actually chose.
+    final variant = theme.cardVariant;
+    final palette = kCardPalettes[variant]!;
+
     final balance = ref.watch(balanceDataProvider);
     final pref = ref.watch(currencyProvider);
     final ghsFirst = pref == DisplayCurrency.ghs;
@@ -255,93 +273,116 @@ class CompactBalancePreview extends ConsumerWidget {
         : AzMoney.usdcFirst(balance.availableBalance);
     final secondary = usable
         ? (ghsFirst
-            ? AzMoney.usdcFirst(balance.availableBalance)
-            : AzMoney.ghs(ghsValue))
+              ? AzMoney.usdcFirst(balance.availableBalance)
+              : AzMoney.ghs(ghsValue))
         : 'GH₵ unavailable';
 
     return Semantics(
-      label: 'AZM balance card preview',
+      label: 'Azaman balance card preview, ${variant.label} card',
       excludeSemantics: true,
-      child: PremiumCardFrame(
+      child: ClipRRect(
         key: const ValueKey('card-transfer-compact-balance'),
-        radius: 16,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    'AZM',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
+        borderRadius: BorderRadius.circular(16),
+        child: LayoutBuilder(
+          builder: (context, c) {
+            final w = c.maxWidth;
+            final h = c.maxHeight.isFinite ? c.maxHeight : 118.0;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                // THE SKIN: one shared painter, the applied colourway.
+                CustomPaint(
+                  painter: AzamanCardPainter(palette: palette, radius: 16),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(w * 0.055, h * 0.10, 10, 8),
+                  // The tile is small and the money text must never clip:
+                  // the whole column scales down to the space it is given
+                  // (large text scale, short tile) instead of overflowing.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: w - (w * 0.055) - 10,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // The tile is ~110dp wide at 320dp screens: the brand
+                          // block scales down rather than overflowing, keeping
+                          // the mark and wordmark on one line at every width.
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: AzamanCardBrandBlock(
+                              glyphHeight: h * 0.17,
+                              wordmarkSize: h * 0.105,
+                              palette: palette,
+                            ),
+                          ),
+                          SizedBox(height: h * 0.10),
+                          Text(
+                            'AZM balance card',
+                            style: TextStyle(
+                              color: palette.inkSecondary,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.7,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              primary,
+                              key: const ValueKey(
+                                'card-transfer-compact-balance-amount',
+                              ),
+                              maxLines: 1,
+                              style: TextStyle(
+                                color: palette.inkPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              secondary,
+                              maxLines: 1,
+                              style: TextStyle(
+                                color: palette.inkTertiary,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const Spacer(),
-                  Icon(Icons.account_balance_wallet_outlined,
-                      size: 13, color: colors.accent.withValues(alpha: 0.9)),
-                ],
-              ),
-              const Spacer(),
-              const Text(
-                'Balance',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
                 ),
-              ),
-              const SizedBox(height: 2),
-              // The amount must never clip or elide: it scales down to fit
-              // whatever the tile's width and the text scale allow.
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  primary,
-                  key: const ValueKey('card-transfer-compact-balance-amount'),
-                  maxLines: 1,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  secondary,
-                  maxLines: 1,
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THE VISA TILE — the compact sample-card preview.
-// ─────────────────────────────────────────────────────────────────────────────
+/// VISA PRODUCT IDENTITY — deliberately its own thing.
+///
+/// The Visa tile keeps the network's own presentation: the deep Visa navy
+/// (#1A1F71 family) card body, the italic VISA wordmark on a light plate and
+/// the card number/holder. It must NEVER inherit the balance card's mark,
+/// chip, palette or contour work just because the two are shown together.
+const Color kVisCardNavy = Color(0xFF1A1F71);
+const Color kVisCardNavyDeep = Color(0xFF0B0F3A);
 
-/// The compact Visa preview. Presentation-only: every datum comes from
-/// the card-programme seam ([AzmCardProgramme]); the SAMPLE disclosure is
-/// permanent, exactly as on the Home card.
 class CompactVisaPreview extends ConsumerWidget {
   const CompactVisaPreview({
     super.key,
@@ -349,107 +390,40 @@ class CompactVisaPreview extends ConsumerWidget {
     required this.cardholderLabel,
   });
 
+  /// Kept for the caller's contract and semantics; the face itself reads the
+  /// card programme, exactly like the Home deck does.
   final String maskedCardNumber;
   final String cardholderLabel;
 
+  /// The Home deck card's design box. The transfer tile renders the SAME
+  /// widget at this size and scales it to the tile, so the two surfaces can
+  /// never drift apart again.
+  static const Size designSize = Size(344, 180);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // OWNER-CORRECTED 2026-10-29: this tile used to be a hand-built miniature
+    // — a navy gradient body with its own stacked SAMPLE plate and VISA mark —
+    // which is NOT the card the user sees on Home. The transfer surface is
+    // supposed to show the same two physical cards the deck holds: the real
+    // balance face and the real Visa face. So it now renders [AzmVisaCard]
+    // itself, uniformly scaled: same frame material, same marks, same number,
+    // same "powered by Flutterwave" footer, one source of truth.
     return Semantics(
       label: 'AZM Visa sample card preview',
       excludeSemantics: true,
-      child: PremiumCardFrame(
+      child: ClipRRect(
         key: const ValueKey('card-transfer-compact-visa'),
-        radius: 16,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // The tile's footprint is ~110px wide: the disclosure chip
-              // and the network mark sit on TWO stacked lines — never a
-              // single overflowing row at 320dp.
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: const Text(
-                      'SAMPLE',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  // SAMPLE network mark — Visa-concept visual only.
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: const Text(
-                      'VISA',
-                      style: TextStyle(
-                        color: Color(0xFF1A1F71),
-                        fontWeight: FontWeight.w900,
-                        fontStyle: FontStyle.italic,
-                        fontSize: 10,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  maskedCardNumber,
-                  key: const ValueKey('card-transfer-compact-visa-number'),
-                  maxLines: 1,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 3),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  cardholderLabel,
-                  maxLines: 1,
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 7.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ],
+        borderRadius: BorderRadius.circular(16),
+        child: FittedBox(
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+          child: SizedBox(
+            width: designSize.width,
+            height: designSize.height,
+            // Static: this surface has no loop of its own (the pair is
+            // contractually motionless), but it is the SAME card as Home.
+            child: const AzmVisaCard(sheen: false),
           ),
         ),
       ),
@@ -457,13 +431,6 @@ class CompactVisaPreview extends ConsumerWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THE PAIR — both tiles side by side with the flow lane between them.
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// The compact side-by-side pair: balance tile | flow lane | Visa tile.
-/// One composition, fixed grammar — the stage content below owns the
-/// rest of the viewport.
 class CompactCardPair extends StatelessWidget {
   const CompactCardPair({
     super.key,
@@ -491,12 +458,9 @@ class CompactCardPair extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: CompactBalancePreview(rate: rate),
-          ),
+          Expanded(child: CompactBalancePreview(rate: rate)),
           DirectionalMoneyFlow(
-            key: ValueKey(
-                'card-transfer-flow-${toVisa ? 'to' : 'from'}-visa'),
+            key: ValueKey('card-transfer-flow-${toVisa ? 'to' : 'from'}-visa'),
             toVisa: toVisa,
             colors: colors,
             reduceMotion: reduceMotion,
@@ -550,8 +514,10 @@ class CardTransferEntranceState extends State<CardTransferEntrance>
     duration: MotionTokens.emphasized,
   );
 
-  late final CurvedAnimation _curve =
-      CurvedAnimation(parent: _entrance, curve: MotionTokens.enter);
+  late final CurvedAnimation _curve = CurvedAnimation(
+    parent: _entrance,
+    curve: MotionTokens.enter,
+  );
 
   @override
   void initState() {
@@ -593,10 +559,7 @@ class CardTransferEntranceState extends State<CardTransferEntrance>
           opacity: t,
           child: Transform.translate(
             offset: Offset(0, 28 * (1 - t)),
-            child: Transform.scale(
-              scale: 0.96 + 0.04 * t,
-              child: child,
-            ),
+            child: Transform.scale(scale: 0.96 + 0.04 * t, child: child),
           ),
         );
       },

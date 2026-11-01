@@ -88,8 +88,7 @@ class FiatPoolSnapshot {
 /// Failures (network, non-2xx, malformed body) collapse silently into
 /// `FiatPoolSnapshot.unknown` so the withdrawal screen never gates the user
 /// out on a backend hiccup — the banner simply won't render.
-final fiatPoolStatusProvider =
-    FutureProvider<FiatPoolSnapshot>((ref) async {
+final fiatPoolStatusProvider = FutureProvider<FiatPoolSnapshot>((ref) async {
   try {
     final response = await apiClient.get(
       '/finance/fiat-pool-status',

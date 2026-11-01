@@ -46,27 +46,31 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
     String? heroTag,
   }) {
     final duration = AzMotion.duration(context, MotionTokens.emphasized);
-    return Navigator.of(context).push(PageRouteBuilder(
-      transitionDuration: duration,
-      reverseTransitionDuration: duration,
-      opaque: true,
-      pageBuilder: (_, __, ___) => StoryViewerScreen(
-        groups: groups,
-        initialGroupIndex: initialGroupIndex,
-        heroTag: heroTag,
+    return Navigator.of(context).push(
+      PageRouteBuilder(
+        transitionDuration: duration,
+        reverseTransitionDuration: duration,
+        opaque: true,
+        pageBuilder: (_, __, ___) => StoryViewerScreen(
+          groups: groups,
+          initialGroupIndex: initialGroupIndex,
+          heroTag: heroTag,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: MotionTokens.enter,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween(begin: 0.92, end: 1.0).animate(curved),
+              child: child,
+            ),
+          );
+        },
       ),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final curved =
-            CurvedAnimation(parent: animation, curve: MotionTokens.enter);
-        return FadeTransition(
-          opacity: curved,
-          child: ScaleTransition(
-            scale: Tween(begin: 0.92, end: 1.0).animate(curved),
-            child: child,
-          ),
-        );
-      },
-    ));
+    );
   }
 
   @override
@@ -75,8 +79,9 @@ class StoryViewerScreen extends ConsumerStatefulWidget {
 
 class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
     with SingleTickerProviderStateMixin {
-  late final PageController _pages =
-      PageController(initialPage: widget.initialGroupIndex);
+  late final PageController _pages = PageController(
+    initialPage: widget.initialGroupIndex,
+  );
   final ValueNotifier<int> _active = ValueNotifier(0);
   final ValueNotifier<double> _dismiss = ValueNotifier(0); // 0..1
   final Map<int, StoryPageHandle> _pageHandles = {};
@@ -197,8 +202,7 @@ class _StoryViewerScreenState extends ConsumerState<StoryViewerScreen>
             onHoldEnd: () => _pageHandles[_active.value]?.holdEnd(),
             onVerticalUpdate: _verticalUpdate,
             onVerticalEnd: _verticalEnd,
-            onPinchScale: (scale) =>
-                _pageHandles[_active.value]?.pinch(scale),
+            onPinchScale: (scale) => _pageHandles[_active.value]?.pinch(scale),
             onPinchEnd: () => _pageHandles[_active.value]?.pinchEnd(),
           ),
           child: PageView.builder(

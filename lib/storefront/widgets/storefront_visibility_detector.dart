@@ -29,10 +29,12 @@ class StorefrontVisibilityDetector extends StatefulWidget {
   });
 
   @override
-  State<StorefrontVisibilityDetector> createState() => _StorefrontVisibilityDetectorState();
+  State<StorefrontVisibilityDetector> createState() =>
+      _StorefrontVisibilityDetectorState();
 }
 
-class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetector> {
+class _StorefrontVisibilityDetectorState
+    extends State<StorefrontVisibilityDetector> {
   bool _isVisible = false;
   ScrollableState? _scrollable;
 
@@ -80,8 +82,10 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
       final size = renderBox.size;
       final mediaSize = MediaQuery.sizeOf(context);
 
-      final isVerticallyVisible = position.dy + size.height > 0 && position.dy < mediaSize.height;
-      final isHorizontallyVisible = position.dx + size.width > 0 && position.dx < mediaSize.width;
+      final isVerticallyVisible =
+          position.dy + size.height > 0 && position.dy < mediaSize.height;
+      final isHorizontallyVisible =
+          position.dx + size.width > 0 && position.dx < mediaSize.width;
       final currentlyVisible = isVerticallyVisible && isHorizontallyVisible;
 
       if (currentlyVisible && !_isVisible) {
@@ -96,15 +100,12 @@ class _StorefrontVisibilityDetectorState extends State<StorefrontVisibilityDetec
   }
 
   void _fireViewEvent() {
-    StorefrontTrackingService.instance.trackEvent(
-      widget.businessProfileId,
-      'widget_view',
-      {
-        'tileId': widget.tileId,
-        'widgetType': widget.widgetType,
-        'widgetIndex': widget.widgetIndex,
-      },
-    );
+    StorefrontTrackingService.instance
+        .trackEvent(widget.businessProfileId, 'widget_view', {
+          'tileId': widget.tileId,
+          'widgetType': widget.widgetType,
+          'widgetIndex': widget.widgetIndex,
+        });
   }
 
   @override

@@ -24,10 +24,25 @@ void main() {
     HotelRoom? selected;
     // The room image uses the canonical AzamanNetworkImage, which resolves
     // the theme via riverpod, so the harness needs a ProviderScope.
-    await tester.pumpWidget(ProviderScope(child: MaterialApp(home: Scaffold(body: HotelRoomExplorer(
-      rooms: const [HotelRoom(id: 'r1', name: 'Ocean Suite', nightlyRate: 850, currency: 'GHS')],
-      onRoomSelected: (room) => selected = room,
-    )))));
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: HotelRoomExplorer(
+              rooms: const [
+                HotelRoom(
+                  id: 'r1',
+                  name: 'Ocean Suite',
+                  nightlyRate: 850,
+                  currency: 'GHS',
+                ),
+              ],
+              onRoomSelected: (room) => selected = room,
+            ),
+          ),
+        ),
+      ),
+    );
     expect(find.text('Ocean Suite'), findsOneWidget);
     await tester.tap(find.text('Ocean Suite'));
     expect(selected?.id, 'r1');

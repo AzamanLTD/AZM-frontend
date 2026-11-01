@@ -24,11 +24,18 @@ void main() {
         rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
       ).compute();
 
-      expect(v.availableGhsValue, 100,
-          reason: 'the headline is the native-GHS balance verbatim — '
-              'NOT 100 + 50 × 12.03');
-      expect(v.availableUsdcEquivalent, closeTo(100 / 12.03, 1e-9),
-          reason: 'the equivalent is converted FROM the GHS balance');
+      expect(
+        v.availableGhsValue,
+        100,
+        reason:
+            'the headline is the native-GHS balance verbatim — '
+            'NOT 100 + 50 × 12.03',
+      );
+      expect(
+        v.availableUsdcEquivalent,
+        closeTo(100 / 12.03, 1e-9),
+        reason: 'the equivalent is converted FROM the GHS balance',
+      );
     });
 
     test('REGRESSION: changing actual USDC held NEVER changes the GHS '
@@ -53,10 +60,16 @@ void main() {
       ).compute();
 
       expect(noUsdc.availableGhsValue, 100);
-      expect(someUsdc.availableGhsValue, 100,
-          reason: '50 USDC held must not move the GHS headline');
-      expect(lotsOfUsdc.availableGhsValue, 100,
-          reason: '5000 USDC held must not move the GHS headline');
+      expect(
+        someUsdc.availableGhsValue,
+        100,
+        reason: '50 USDC held must not move the GHS headline',
+      );
+      expect(
+        lotsOfUsdc.availableGhsValue,
+        100,
+        reason: '5000 USDC held must not move the GHS headline',
+      );
       // ...but the USDC holding passes through untouched as its own fact.
       expect(noUsdc.availableUsdc, 0);
       expect(lotsOfUsdc.availableUsdc, 5000);
@@ -71,8 +84,11 @@ void main() {
         rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
       ).compute();
 
-      expect(v.availableUsdcEquivalent, closeTo(240.60 / 12.03, 1e-9),
-          reason: 'the estimate is GHS ÷ rate — NOT 500 USDC relabelled');
+      expect(
+        v.availableUsdcEquivalent,
+        closeTo(240.60 / 12.03, 1e-9),
+        reason: 'the estimate is GHS ÷ rate — NOT 500 USDC relabelled',
+      );
       expect(
         v.availableUsdcEquivalent == v.availableUsdc,
         isFalse,
@@ -86,8 +102,10 @@ void main() {
         balanceConfirmed: true,
         rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
       ).compute();
-      expect(half.availableUsdcEquivalent,
-          closeTo(v.availableUsdcEquivalent! / 2, 1e-9));
+      expect(
+        half.availableUsdcEquivalent,
+        closeTo(v.availableUsdcEquivalent! / 2, 1e-9),
+      );
     });
 
     test('a GHS balance needs NO rate: the headline is known without FX; '
@@ -131,15 +149,17 @@ void main() {
         rate: FxRateView(ghsPerUsdc: 12.03, kind: FxRateKind.fresh),
       ).compute();
 
-      expect(v.availableGhsValue, isNull,
-          reason: '500 USDC × 12.03 must NOT become a GHS figure');
+      expect(
+        v.availableGhsValue,
+        isNull,
+        reason: '500 USDC × 12.03 must NOT become a GHS figure',
+      );
       expect(v.availableUsdcEquivalent, isNull);
       expect(v.headlineKnown, isFalse);
     });
 
     test('a zero-zero wallet without a rate keeps an honest null '
-        'equivalent — zero GHS converts to zero USDC only under a rate',
-        () {
+        'equivalent — zero GHS converts to zero USDC only under a rate', () {
       final v = const BalanceCardValuation(
         nativeGhsAvailable: 0,
         availableUsdc: 0,
@@ -178,8 +198,7 @@ void main() {
       expect(
         withLocks.availableGhsValue,
         base.availableGhsValue,
-        reason:
-            'only the authoritative native-GHS balance is the headline',
+        reason: 'only the authoritative native-GHS balance is the headline',
       );
     });
 
@@ -196,10 +215,16 @@ void main() {
       // The GHS-denominated savings value is preserved exactly: no rate
       // is ever applied to it, and it never appears as a USDC amount.
       expect(v.savingsLockedGhs, 75.50);
-      expect(v.availableGhsValue, 40,
-          reason: 'savings is locked, never in the headline');
-      expect(v.availableUsdcEquivalent, 40 / 12.03,
-          reason: 'the equivalent covers headline funds only');
+      expect(
+        v.availableGhsValue,
+        40,
+        reason: 'savings is locked, never in the headline',
+      );
+      expect(
+        v.availableUsdcEquivalent,
+        40 / 12.03,
+        reason: 'the equivalent covers headline funds only',
+      );
     });
   });
 
@@ -225,8 +250,11 @@ void main() {
       expect(b.escrowLocked, a.escrowLocked);
       expect(b.savingsLockedGhs, a.savingsLockedGhs);
       // ...the GHS headline is IDENTICAL (it is not a conversion)...
-      expect(b.availableGhsValue, a.availableGhsValue,
-          reason: 'the native-GHS balance does not move with the rate');
+      expect(
+        b.availableGhsValue,
+        a.availableGhsValue,
+        reason: 'the native-GHS balance does not move with the rate',
+      );
       // ...and only the USDC equivalent estimate moved.
       expect(
         b.availableUsdcEquivalent! / a.availableUsdcEquivalent!,

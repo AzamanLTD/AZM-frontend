@@ -38,7 +38,8 @@ double restaurantBuildProgress({
 }) {
   final total = (hasVariants ? 1 : 0) + requiredGroupsSatisfied.length;
   if (total == 0) return 1;
-  final done = (hasVariants && sizeChosen ? 1 : 0) +
+  final done =
+      (hasVariants && sizeChosen ? 1 : 0) +
       requiredGroupsSatisfied.where((satisfied) => satisfied).length;
   return done / total;
 }

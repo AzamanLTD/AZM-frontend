@@ -60,7 +60,8 @@ Finder _odometerText(String ch) =>
     find.descendant(of: find.byType(OdometerNumber), matching: find.text(ch));
 
 /// The cell that owns right-keyed slot N (the switcher carries this key).
-Finder _slotCell(int slot) => find.byKey(ValueKey<String>('odometer-slot-$slot'));
+Finder _slotCell(int slot) =>
+    find.byKey(ValueKey<String>('odometer-slot-$slot'));
 
 void main() {
   // ── PURE SLOT PLAN (identity rules, no widgets) ──────────────────────────
@@ -78,8 +79,7 @@ void main() {
       expect(plan[2].previousChar, isNull);
     });
 
-    test('comma insertion does not re-roll unchanged digits (999 → 9,990)',
-        () {
+    test('comma insertion does not re-roll unchanged digits (999 → 9,990)', () {
       final plan = OdometerSlots.plan('9,990', '999');
       // The two '9's at slots 1 and 2 are UNCHANGED — they stay still.
       expect(plan[1].kind, OdometerSlotKind.unchanged);
@@ -150,7 +150,9 @@ void main() {
     testWidgets('a typed digit rolls: old and new are both on screen '
         'mid-roll', (tester) async {
       await tester.pumpWidget(const _OdometerHost(initial: '0'));
-      final state = tester.state<_OdometerHostState>(find.byType(_OdometerHost));
+      final state = tester.state<_OdometerHostState>(
+        find.byType(_OdometerHost),
+      );
 
       state.set('5');
       await tester.pump(const Duration(milliseconds: 80)); // mid-roll
@@ -167,7 +169,9 @@ void main() {
     testWidgets('backspace: the deleted digit rolls out downward '
         '(does not vanish)', (tester) async {
       await tester.pumpWidget(const _OdometerHost(initial: '12'));
-      final state = tester.state<_OdometerHostState>(find.byType(_OdometerHost));
+      final state = tester.state<_OdometerHostState>(
+        find.byType(_OdometerHost),
+      );
       await tester.pump(const Duration(milliseconds: 400));
 
       state.set('1');
@@ -187,7 +191,9 @@ void main() {
     testWidgets('comma insertion keeps the unchanged digits still '
         '(999 → 9,990)', (tester) async {
       await tester.pumpWidget(const _OdometerHost(initial: '999'));
-      final state = tester.state<_OdometerHostState>(find.byType(_OdometerHost));
+      final state = tester.state<_OdometerHostState>(
+        find.byType(_OdometerHost),
+      );
       await tester.pump(const Duration(milliseconds: 400));
 
       state.set('9,990');
@@ -225,7 +231,9 @@ void main() {
     testWidgets('the acceptance sequence 1 → 12 → 123 → 1,234 → 12,345 '
         'rolls and never drops a glyph', (tester) async {
       await tester.pumpWidget(const _OdometerHost(initial: '1'));
-      final state = tester.state<_OdometerHostState>(find.byType(_OdometerHost));
+      final state = tester.state<_OdometerHostState>(
+        find.byType(_OdometerHost),
+      );
       await tester.pump(const Duration(milliseconds: 400));
 
       for (final v in ['12', '123', '1,234', '12,345']) {
@@ -239,8 +247,9 @@ void main() {
       }
     });
 
-    testWidgets('reduced motion renders the value instantly, no switchers',
-        (tester) async {
+    testWidgets('reduced motion renders the value instantly, no switchers', (
+      tester,
+    ) async {
       // disableAnimations wraps MediaQuery for us.
       await tester.pumpWidget(
         const MediaQuery(
@@ -248,7 +257,9 @@ void main() {
           child: _OdometerHost(initial: '0'),
         ),
       );
-      final state = tester.state<_OdometerHostState>(find.byType(_OdometerHost));
+      final state = tester.state<_OdometerHostState>(
+        find.byType(_OdometerHost),
+      );
       await tester.pump(const Duration(milliseconds: 400));
 
       state.set('500');
@@ -265,8 +276,9 @@ void main() {
       );
     });
 
-    testWidgets('the amount width is animated (AnimatedSize present)',
-        (tester) async {
+    testWidgets('the amount width is animated (AnimatedSize present)', (
+      tester,
+    ) async {
       await tester.pumpWidget(const _OdometerHost(initial: '0'));
       expect(
         find.descendant(

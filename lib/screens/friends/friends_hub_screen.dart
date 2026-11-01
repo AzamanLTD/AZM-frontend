@@ -658,7 +658,12 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       key: const ValueKey('friends_search_results_list'),
       // Live band clearance (see lib/theme/nav_band_clearance.dart) plus
       // breathing room — replaces the previous hardcoded 120.
-      padding: EdgeInsets.fromLTRB(20, 8, 20, navBandClearance(context) + kNavBandGap),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        navBandClearance(context) + kNavBandGap,
+      ),
       itemCount: provider.searchResults.length,
       itemBuilder: (context, index) {
         final user = provider.searchResults[index];

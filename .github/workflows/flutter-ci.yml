@@ -1,16 +1,20 @@
 name: Flutter Quality
 
+# One job, one check. It installs dependencies, runs the analyzer and runs the
+# complete normal test suite with coverage against the CHECKED-IN golden images.
+#
+# Golden maintenance is deliberately not part of this workflow. When a change
+# intentionally alters a capture, regenerate it locally with the pinned Flutter
+# version below, inspect the produced pictures, commit the corrected PNGs, and
+# let this job validate the committed files. The pinned SDK produces
+# byte-identical output locally and on the runner (verified by sha256 on a
+# gradient-heavy capture), so no CI-side recording step is needed or wanted.
+
 on:
   pull_request:
     branches: [main]
   merge_group:
   workflow_dispatch:
-    inputs:
-      update_goldens:
-        description: 'Regenerate the native_amount goldens on this runner and upload them as an artifact (the runner image glyph rasterisation differs from dev machines — goldens must be regenerated ON CI, never locally)'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -33,10 +37,9 @@ jobs:
           # Pinned to the project's intentional baseline (recorded in
           # AZAMAN_PREMIUM_BUILD_BRIEF.md). The golden-image set is rasterised
           # by the engine's text and gradient paths, so an engine version
-          # difference is a real, measurable rendering difference — the
-          # "Flutter/Dart version" note on `matchesGoldenFile` warns about
-          # exactly this. Bumping this pin requires a deliberate reviewable
-          # golden regeneration, never a silent drift.
+          # difference is a real, measurable rendering difference. Bumping this
+          # pin requires a deliberate, reviewable golden update in the same
+          # change, never a silent drift.
           flutter-version: '3.47.5'
           channel: stable
           cache: true
@@ -51,19 +54,7 @@ jobs:
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Test with coverage
-        if: ${{ !inputs.update_goldens }}
         run: flutter test --coverage
-
-      - name: Regenerate native_amount goldens on the runner
-        if: ${{ inputs.update_goldens }}
-        run: flutter test --update-goldens test/widgets/native_amount_captures_test.dart
-
-      - name: Upload regenerated goldens
-        if: ${{ inputs.update_goldens }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: native-amount-goldens
-          path: test/goldens/native_amount/
 
       - name: Upload coverage
         if: always()
@@ -73,5 +64,5 @@ jobs:
           path: coverage/lcov.info
           if-no-files-found: ignore
 
-      # Android compilation is intentionally kept out of the PR feedback loop.
-      # Run the dedicated integration workflow when a coherent batch is ready.
+      # Android compilation is intentionally kept out of this job. It runs in
+      # the dedicated Android Integration workflow.

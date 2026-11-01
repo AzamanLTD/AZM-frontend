@@ -51,7 +51,8 @@ class RateAlert {
           ? DateTime.tryParse(json['triggeredAt'].toString())
           : null,
       triggeredRate: (json['triggeredRate'] as num?)?.toDouble(),
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+      createdAt:
+          DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
           DateTime.now(),
     );
   }
@@ -75,15 +76,11 @@ class RateAlertService {
     required String direction,
     String? note,
   }) async {
-    final response = await apiClient.post(
-      '/oracle/alerts',
-      {
-        'targetRate': targetRate,
-        'direction': direction,
-        if (note != null && note.isNotEmpty) 'note': note,
-      },
-      requireAuth: true,
-    );
+    final response = await apiClient.post('/oracle/alerts', {
+      'targetRate': targetRate,
+      'direction': direction,
+      if (note != null && note.isNotEmpty) 'note': note,
+    }, requireAuth: true);
 
     final body = jsonDecode(response.body);
     if (body['success'] == true && body['data'] != null) {
@@ -93,15 +90,13 @@ class RateAlertService {
   }
 
   Future<RateAlertListResponse> listAlerts() async {
-    final response = await apiClient.get(
-      '/oracle/alerts',
-      requireAuth: true,
-    );
+    final response = await apiClient.get('/oracle/alerts', requireAuth: true);
 
     final body = jsonDecode(response.body);
     if (body['success'] == true && body['data'] != null) {
       final data = body['data'] as Map<String, dynamic>;
-      final alertsList = (data['alerts'] as List<dynamic>?)
+      final alertsList =
+          (data['alerts'] as List<dynamic>?)
               ?.map((e) => RateAlert.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [];
@@ -116,10 +111,7 @@ class RateAlertService {
 
   Future<void> deleteAlert(String alertId) async {
     try {
-      await apiClient.delete(
-        '/oracle/alerts/$alertId',
-        requireAuth: true,
-      );
+      await apiClient.delete('/oracle/alerts/$alertId', requireAuth: true);
     } catch (e) {
       debugPrint('[RateAlertService] deleteAlert error: $e');
       rethrow;

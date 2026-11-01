@@ -11,36 +11,41 @@ import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/widgets/stories/viewer/story_business_tray.dart';
 
 BusinessProfile _hotel() => BusinessProfile(
-      id: 'bp-1',
-      bizId: 'BIZ-1',
-      businessName: 'Coast Lodge',
-      category: 'HOSPITALITY',
-      isVerified: true,
-      isSuspended: false,
-      kybStatus: 'VERIFIED',
-      totalEscrows: 0,
-      completedEscrows: 0,
-      userId: 1,
-      totalVolume: 0,
-      averageRating: 4.7,
-      username: 'coast-lodge',
-      products: const [],
-    );
+  id: 'bp-1',
+  bizId: 'BIZ-1',
+  businessName: 'Coast Lodge',
+  category: 'HOSPITALITY',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 0,
+  completedEscrows: 0,
+  userId: 1,
+  totalVolume: 0,
+  averageRating: 4.7,
+  username: 'coast-lodge',
+  products: const [],
+);
 
-Widget _host(BusinessProfile? resolved, {required VoidCallback onPause, required VoidCallback onResume}) =>
-    ProviderScope(
-      overrides: [
-        linkedBusinessProvider('BIZ-1').overrideWith((ref) async {
-          if (resolved == null) return null;
-          return resolved;
-        }),
-      ],
-      child: MaterialApp.router(
-        routerConfig: GoRouter(routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, state) => Scaffold(
-              body: Stack(children: [
+Widget _host(
+  BusinessProfile? resolved, {
+  required VoidCallback onPause,
+  required VoidCallback onResume,
+}) => ProviderScope(
+  overrides: [
+    linkedBusinessProvider('BIZ-1').overrideWith((ref) async {
+      if (resolved == null) return null;
+      return resolved;
+    }),
+  ],
+  child: MaterialApp.router(
+    routerConfig: GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: Stack(
+              children: [
                 const SizedBox.expand(),
                 Align(
                   alignment: Alignment.bottomCenter,
@@ -50,36 +55,40 @@ Widget _host(BusinessProfile? resolved, {required VoidCallback onPause, required
                     onResume: onResume,
                   ),
                 ),
-              ]),
+              ],
             ),
           ),
-          GoRoute(
-            path: '/business/:bizId',
-            builder: (context, state) => Scaffold(
-              appBar: AppBar(title: const Text('PROFILE ROUTE')),
-            ),
-          ),
-        ]),
-      ),
-    );
+        ),
+        GoRoute(
+          path: '/business/:bizId',
+          builder: (context, state) =>
+              Scaffold(appBar: AppBar(title: const Text('PROFILE ROUTE'))),
+        ),
+      ],
+    ),
+  ),
+);
 
 void main() {
-  testWidgets('hidden entirely when the business does not resolve',
-      (tester) async {
+  testWidgets('hidden entirely when the business does not resolve', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(null, onPause: () {}, onResume: () {}));
     await tester.pump();
     expect(find.byType(StoryBusinessTray), findsOneWidget);
     expect(
       find.descendant(
-          of: find.byType(StoryBusinessTray),
-          matching: find.byType(Text)),
+        of: find.byType(StoryBusinessTray),
+        matching: find.byType(Text),
+      ),
       findsNothing,
       reason: 'no placeholder chip pretending a store exists',
     );
   });
 
-  testWidgets('renders the business name and the vertical action label',
-      (tester) async {
+  testWidgets('renders the business name and the vertical action label', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_hotel(), onPause: () {}, onResume: () {}));
     await tester.pump();
     expect(find.text('Coast Lodge'), findsOneWidget);
@@ -102,55 +111,67 @@ void main() {
   // paused forever. The tray must push imperatively like the viewer itself.
 
   testWidgets(
-      'tap from a viewer pushed imperatively opens the profile ABOVE it',
-      (tester) async {
-    var pauses = 0;
-    var resumes = 0;
-    final router = GoRouter(routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => Scaffold(
-                  body: StoryBusinessTray(
-                    bizId: 'BIZ-1',
-                    onPause: () => pauses++,
-                    onResume: () => resumes++,
+    'tap from a viewer pushed imperatively opens the profile ABOVE it',
+    (tester) async {
+      var pauses = 0;
+      var resumes = 0;
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => Scaffold(
+                        body: StoryBusinessTray(
+                          bizId: 'BIZ-1',
+                          onPause: () => pauses++,
+                          onResume: () => resumes++,
+                        ),
+                      ),
+                    ),
                   ),
+                  child: const Text('OPEN VIEWER'),
                 ),
-              )),
-              child: const Text('OPEN VIEWER'),
+              ),
             ),
           ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            linkedBusinessProvider(
+              'BIZ-1',
+            ).overrideWith((ref) async => _hotel()),
+          ],
+          child: MaterialApp.router(routerConfig: router),
         ),
-      ),
-    ]);
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        linkedBusinessProvider('BIZ-1')
-            .overrideWith((ref) async => _hotel()),
-      ],
-      child: MaterialApp.router(routerConfig: router),
-    ));
-    await tester.pump();
-    await tester.tap(find.text('OPEN VIEWER'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.text('Coast Lodge'), findsOneWidget);
+      );
+      await tester.pump();
+      await tester.tap(find.text('OPEN VIEWER'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('Coast Lodge'), findsOneWidget);
 
-    await tester.tap(find.text('Coast Lodge'));
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(find.byType(BusinessProfileScreen), findsOneWidget,
-        reason: 'the profile must land ON TOP of the imperative viewer, '
-            'not inside the go_router stack beneath it');
-    expect(pauses, 1);
+      await tester.tap(find.text('Coast Lodge'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        find.byType(BusinessProfileScreen),
+        findsOneWidget,
+        reason:
+            'the profile must land ON TOP of the imperative viewer, '
+            'not inside the go_router stack beneath it',
+      );
+      expect(pauses, 1);
 
-    await tester.binding.handlePopRoute();
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(resumes, 1, reason: 'playback resumes when the profile closes');
-  });
+      await tester.binding.handlePopRoute();
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(resumes, 1, reason: 'playback resumes when the profile closes');
+    },
+  );
 }

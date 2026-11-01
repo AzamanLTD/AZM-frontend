@@ -62,31 +62,42 @@ Future<void> _pumpWithFailure(
 }
 
 ProviderContainer _containerFor(Object error) {
-  final container = ProviderContainer(overrides: [
-    storefrontServiceProvider.overrideWithValue(_FailingCheckoutService(error)),
-  ]);
+  final container = ProviderContainer(
+    overrides: [
+      storefrontServiceProvider.overrideWithValue(
+        _FailingCheckoutService(error),
+      ),
+    ],
+  );
   addTearDown(container.dispose);
   // Seed a live production-shaped cart: one item, one business.
   final cart = container.read(cartProvider.notifier);
   cart.startNewCart(businessProfileId: 'biz-001', businessName: 'Test Store');
   cart.addItem(
-      businessProfileId: 'biz-001',
-      businessName: 'Test Store',
-      productId: 'p1',
-      name: 'Test Product',
-      unitPrice: 9.99);
+    businessProfileId: 'biz-001',
+    businessName: 'Test Store',
+    productId: 'p1',
+    name: 'Test Product',
+    unitPrice: 9.99,
+  );
   _lastContainer = container;
   return container;
 }
 
 Finder _checkoutButton(WidgetTester tester) {
-  expect(find.byType(FilledButton), findsOneWidget,
-      reason: 'the checkout bar owns the screen\'s single filled button');
+  expect(
+    find.byType(FilledButton),
+    findsOneWidget,
+    reason: 'the checkout bar owns the screen\'s single filled button',
+  );
   return find.byType(FilledButton);
 }
 
-Future<void> _placeOrderExpectingFailure(WidgetTester tester,
-    {required ProviderContainer container, required String expected}) async {
+Future<void> _placeOrderExpectingFailure(
+  WidgetTester tester, {
+  required ProviderContainer container,
+  required String expected,
+}) async {
   await _pumpWithFailure(tester, container);
 
   await tester.tap(_checkoutButton(tester));
@@ -103,25 +114,34 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('definitive 4xx is actionable, carries the backend message, and never claims uncertainty',
-      (tester) async {
-    await _placeOrderExpectingFailure(
-      tester,
-      container: _containerFor(ApiException(
-          message: 'This business is currently not accepting orders.',
-          statusCode: 400)),
-      expected:
-          'Order not placed: This business is currently not accepting orders.',
-    );
-    expect(find.textContaining('may have gone through'), findsNothing);
-    // The definitive failure did NOT clear the cart — the user corrects and retries.
-    expect(_lastContainer!.read(cartProvider).items, hasLength(1));
-  });
+  testWidgets(
+    'definitive 4xx is actionable, carries the backend message, and never claims uncertainty',
+    (tester) async {
+      await _placeOrderExpectingFailure(
+        tester,
+        container: _containerFor(
+          ApiException(
+            message: 'This business is currently not accepting orders.',
+            statusCode: 400,
+          ),
+        ),
+        expected:
+            'Order not placed: This business is currently not accepting orders.',
+      );
+      expect(find.textContaining('may have gone through'), findsNothing);
+      // The definitive failure did NOT clear the cart — the user corrects and retries.
+      expect(_lastContainer!.read(cartProvider).items, hasLength(1));
+    },
+  );
 
-  testWidgets('unconfirmed outcome is never worded as a definite failure', (tester) async {
+  testWidgets('unconfirmed outcome is never worded as a definite failure', (
+    tester,
+  ) async {
     await _placeOrderExpectingFailure(
       tester,
-      container: _containerFor(http.ClientException('connection lost mid-flight')),
+      container: _containerFor(
+        http.ClientException('connection lost mid-flight'),
+      ),
       expected: 'We could not confirm your order.',
     );
     expect(find.textContaining('may have gone through'), findsOneWidget);
@@ -132,20 +152,31 @@ void main() {
     expect(_lastContainer!.read(cartProvider).items, hasLength(1));
   });
 
-  testWidgets('rate limiting gets its own message, not the generic failure', (tester) async {
+  testWidgets('rate limiting gets its own message, not the generic failure', (
+    tester,
+  ) async {
     await _placeOrderExpectingFailure(
       tester,
-      container: _containerFor(ApiException(message: 'Too many requests', statusCode: 429)),
+      container: _containerFor(
+        ApiException(message: 'Too many requests', statusCode: 429),
+      ),
       expected: 'Too many attempts.',
     );
     expect(find.textContaining('Order failed'), findsNothing);
   });
 
-  testWidgets('authentication failure asks for sign-in, not a blind retry', (tester) async {
+  testWidgets('authentication failure asks for sign-in, not a blind retry', (
+    tester,
+  ) async {
     await _placeOrderExpectingFailure(
       tester,
       container: _containerFor(
-          ApiException(message: 'Not authorized', statusCode: 401, code: 'TOKEN_EXPIRED')),
+        ApiException(
+          message: 'Not authorized',
+          statusCode: 401,
+          code: 'TOKEN_EXPIRED',
+        ),
+      ),
       expected: 'Please sign in again to place your order.',
     );
     expect(find.textContaining('Order failed'), findsNothing);

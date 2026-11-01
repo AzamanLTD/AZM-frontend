@@ -40,11 +40,7 @@ class MediaViewerItem {
   final String type; // IMAGE | VIDEO
   final String? caption;
 
-  const MediaViewerItem({
-    required this.url,
-    required this.type,
-    this.caption,
-  });
+  const MediaViewerItem({required this.url, required this.type, this.caption});
 }
 
 class _MediaViewerScreenState extends State<MediaViewerScreen> {
@@ -89,7 +85,9 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
 
       final ext = item.type == 'VIDEO' ? 'mp4' : 'png';
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/azaman_media_${DateTime.now().millisecondsSinceEpoch}.$ext');
+      final file = File(
+        '${dir.path}/azaman_media_${DateTime.now().millisecondsSinceEpoch}.$ext',
+      );
       await file.writeAsBytes(res.bodyBytes);
 
       if (mounted) {
@@ -103,7 +101,10 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e'), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text('Save failed: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } finally {
@@ -121,17 +122,19 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
 
       final ext = item.type == 'VIDEO' ? 'mp4' : 'png';
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/azaman_share_${DateTime.now().millisecondsSinceEpoch}.$ext');
+      final file = File(
+        '${dir.path}/azaman_share_${DateTime.now().millisecondsSinceEpoch}.$ext',
+      );
       await file.writeAsBytes(res.bodyBytes);
 
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: item.caption,
-      );
+      await Share.shareXFiles([XFile(file.path)], text: item.caption);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share failed: $e'), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text('Share failed: $e'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }
@@ -179,7 +182,10 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.black.withValues(alpha: 0.7), Colors.transparent],
+                    colors: [
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.transparent,
+                    ],
                   ),
                 ),
                 padding: EdgeInsets.only(
@@ -191,7 +197,11 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 26),
+                      icon: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 26,
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     if (widget.items.length > 1) ...[
@@ -209,14 +219,26 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                     IconButton(
                       icon: _isSaving
                           ? const SizedBox(
-                              width: 20, height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
-                          : const Icon(Icons.download_rounded, color: Colors.white, size: 24),
+                          : const Icon(
+                              Icons.download_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                       onPressed: _saveMedia,
                     ),
                     IconButton(
-                      icon: const Icon(Icons.share_rounded, color: Colors.white, size: 24),
+                      icon: const Icon(
+                        Icons.share_rounded,
+                        color: Colors.white,
+                        size: 24,
+                      ),
                       onPressed: _shareMedia,
                     ),
                   ],
@@ -237,7 +259,10 @@ class _MediaViewerScreenState extends State<MediaViewerScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.bottomCenter,
                       end: Alignment.topCenter,
-                      colors: [Colors.black.withValues(alpha: 0.8), Colors.transparent],
+                      colors: [
+                        Colors.black.withValues(alpha: 0.8),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
                   padding: EdgeInsets.only(
@@ -283,7 +308,11 @@ class _ImageViewer extends StatelessWidget {
         child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2),
       ),
       errorWidget: (_, __, ___) => const Center(
-        child: Icon(Icons.broken_image_rounded, color: Colors.white38, size: 48),
+        child: Icon(
+          Icons.broken_image_rounded,
+          color: Colors.white38,
+          size: 48,
+        ),
       ),
     );
 
@@ -331,19 +360,22 @@ class _VideoViewerState extends State<_VideoViewer> {
 
   void _initController() {
     _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
-    _controller!.initialize().then((_) {
-      if (mounted) {
-        setState(() => _isInitialized = true);
-        _controller!.play();
-        _controller!.setLooping(true);
-        _isPlaying = true;
-        _controller!.addListener(_listener);
-      }
-    }).catchError((e) {
-      if (mounted) {
-        setState(() => _isInitialized = false);
-      }
-    });
+    _controller!
+        .initialize()
+        .then((_) {
+          if (mounted) {
+            setState(() => _isInitialized = true);
+            _controller!.play();
+            _controller!.setLooping(true);
+            _isPlaying = true;
+            _controller!.addListener(_listener);
+          }
+        })
+        .catchError((e) {
+          if (mounted) {
+            setState(() => _isInitialized = false);
+          }
+        });
   }
 
   void _listener() {
@@ -426,7 +458,12 @@ class _VideoViewerState extends State<_VideoViewer> {
                 bufferedColor: Colors.white24,
                 backgroundColor: Colors.white12,
               ),
-              padding: const EdgeInsets.only(top: 24, left: 8, right: 8, bottom: 8),
+              padding: const EdgeInsets.only(
+                top: 24,
+                left: 8,
+                right: 8,
+                bottom: 8,
+              ),
             ),
           ),
       ],

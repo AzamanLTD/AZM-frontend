@@ -56,7 +56,8 @@ class _Recorder {
   });
 }
 
-http.Client _throwingClient(List<http.Request> sink) => MockClient((request) async {
+http.Client _throwingClient(List<http.Request> sink) =>
+    MockClient((request) async {
       sink.add(request);
       throw http.ClientException('Server unreachable');
     });
@@ -81,12 +82,17 @@ void main() {
     final rec = _Recorder();
     final api = ApiClient(client: rec.client);
 
-    await api.postFinancial('/trades/initiate', {
-      'adId': 'ad_123',
-      'amountCrypto': 5.0,
-      'amountFiat': 100.0,
-      'paymentMethod': 'MOMO',
-    }, operationType: 'test.trade.initiate', requireAuth: false);
+    await api.postFinancial(
+      '/trades/initiate',
+      {
+        'adId': 'ad_123',
+        'amountCrypto': 5.0,
+        'amountFiat': 100.0,
+        'paymentMethod': 'MOMO',
+      },
+      operationType: 'test.trade.initiate',
+      requireAuth: false,
+    );
 
     expect(rec.requests, hasLength(1));
     final key = rec.requests.single.headers['Idempotency-Key'];
@@ -100,11 +106,12 @@ void main() {
     final rec = _Recorder();
     final api = ApiClient(client: rec.client);
 
-    await api.postFinancial('/wallet/withdraw', {
-      'amount': 50.0,
-      'destination': '+233200000000',
-      'networkPref': 'MOMO',
-    }, operationType: 'test.wallet.withdraw', requireAuth: false);
+    await api.postFinancial(
+      '/wallet/withdraw',
+      {'amount': 50.0, 'destination': '+233200000000', 'networkPref': 'MOMO'},
+      operationType: 'test.wallet.withdraw',
+      requireAuth: false,
+    );
 
     expect(rec.requests.single.headers['Idempotency-Key'], isNotEmpty);
     expect(rec.requests.single.url.path, endsWith('/api/wallet/withdraw'));
@@ -118,10 +125,12 @@ void main() {
     // The exact pattern savings_goal_sheet._deposit uses: the legacy
     // Phase H12 clientRequestId placeholder is OVERWRITTEN by
     // postFinancial with the durable instance key.
-    await api.postFinancial('/savings/goals/goal_9/deposit', {
-      'amountGhs': 25.0,
-      'clientRequestId': '',
-    }, operationType: 'test.savings.deposit', requireAuth: false);
+    await api.postFinancial(
+      '/savings/goals/goal_9/deposit',
+      {'amountGhs': 25.0, 'clientRequestId': ''},
+      operationType: 'test.savings.deposit',
+      requireAuth: false,
+    );
 
     final req = rec.requests.single;
     final headerKey = req.headers['Idempotency-Key'];
@@ -132,8 +141,7 @@ void main() {
   });
 
   test('a retry of the same operation INSTANCE (through its ref) reuses '
-      'the same key — even across a full simulated process restart',
-      () async {
+      'the same key — even across a full simulated process restart', () async {
     final ref = FinancialOperationRef();
 
     // First process lifetime: send, network error (no server answer —
@@ -142,11 +150,15 @@ void main() {
     final api1 = ApiClient(client: _throwingClient(rec1Requests));
     final body = {'tradeId': 'trade_77'};
     await expectLater(
-        api1.postFinancial('/trades/accept', body,
-            operationType: 'test.trade.accept.restart',
-            ref: ref,
-            requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/trades/accept',
+        body,
+        operationType: 'test.trade.accept.restart',
+        ref: ref,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final firstKey = rec1Requests.single.headers['Idempotency-Key'];
 
     // "Process death": a brand-new ApiClient AND a re-seeded registry —
@@ -167,42 +179,64 @@ void main() {
     // contract that replaced the withdrawn newest-adoption rule).
     final account = await api2.operationAccount();
     final match = await DurableOperationRegistry.recoverExact(
-        account: account,
-        type: 'test.trade.accept.restart',
-        request: body);
-    expect(match, isA<DurableRecoveryUnique>(),
-        reason: 'exactly one unfinished instance matches the body');
+      account: account,
+      type: 'test.trade.accept.restart',
+      request: body,
+    );
+    expect(
+      match,
+      isA<DurableRecoveryUnique>(),
+      reason: 'exactly one unfinished instance matches the body',
+    );
     ref.operationId = (match as DurableRecoveryUnique).operation.operationId;
 
-    await api2.postFinancial('/trades/accept', body,
-        operationType: 'test.trade.accept.restart',
-        ref: ref,
-        requireAuth: false);
+    await api2.postFinancial(
+      '/trades/accept',
+      body,
+      operationType: 'test.trade.accept.restart',
+      ref: ref,
+      requireAuth: false,
+    );
 
-    expect(rec2.requests.single.headers['Idempotency-Key'], firstKey,
-        reason: 'the durable pending instance must survive process death');
+    expect(
+      rec2.requests.single.headers['Idempotency-Key'],
+      firstKey,
+      reason: 'the durable pending instance must survive process death',
+    );
     // And the body is byte-identical too, so the backend fingerprint matches.
     expect(rec1Requests.single.body, rec2.requests.single.body);
   });
 
-  test('a genuinely new operation instance gets a new key (ref cleared '
-      'after 2xx — the next action of the same type is a new instance)',
-      () async {
-    final rec = _Recorder();
-    final api = ApiClient(client: rec.client);
-    final ref = FinancialOperationRef();
+  test(
+    'a genuinely new operation instance gets a new key (ref cleared '
+    'after 2xx — the next action of the same type is a new instance)',
+    () async {
+      final rec = _Recorder();
+      final api = ApiClient(client: rec.client);
+      final ref = FinancialOperationRef();
 
-    await api.postFinancial('/wallet/withdraw', {'amount': 50.0},
-        operationType: 'test.wallet.repeat', ref: ref, requireAuth: false);
-    final k1 = rec.requests[0].headers['Idempotency-Key'];
+      await api.postFinancial(
+        '/wallet/withdraw',
+        {'amount': 50.0},
+        operationType: 'test.wallet.repeat',
+        ref: ref,
+        requireAuth: false,
+      );
+      final k1 = rec.requests[0].headers['Idempotency-Key'];
 
-    // 2xx retired the instance and cleared the ref: a resubmit through the
-    // same ref is a GENUINELY NEW action → fresh key.
-    await api.postFinancial('/wallet/withdraw', {'amount': 50.0},
-        operationType: 'test.wallet.repeat', ref: ref, requireAuth: false);
-    final k2 = rec.requests[1].headers['Idempotency-Key'];
-    expect(k1, isNot(equals(k2)));
-  });
+      // 2xx retired the instance and cleared the ref: a resubmit through the
+      // same ref is a GENUINELY NEW action → fresh key.
+      await api.postFinancial(
+        '/wallet/withdraw',
+        {'amount': 50.0},
+        operationType: 'test.wallet.repeat',
+        ref: ref,
+        requireAuth: false,
+      );
+      final k2 = rec.requests[1].headers['Idempotency-Key'];
+      expect(k1, isNot(equals(k2)));
+    },
+  );
 
   test('REVIEWER SCENARIO: A=withdrawal 50 times out, B=withdrawal 75 '
       'begins, then A is retried — the retry sends A\'s ORIGINAL key '
@@ -215,11 +249,15 @@ void main() {
     final apiA = ApiClient(client: _throwingClient(aRequests));
     final bodyA = {'amount': 50.0, 'destination': '+233200000000'};
     await expectLater(
-        apiA.postFinancial('/withdraw/fiat', bodyA,
-            operationType: 'test.scenario.withdraw.fiat',
-            ref: refA,
-            requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      apiA.postFinancial(
+        '/withdraw/fiat',
+        bodyA,
+        operationType: 'test.scenario.withdraw.fiat',
+        ref: refA,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final keyA = aRequests.single.headers['Idempotency-Key'];
 
     // B: a genuinely new withdrawal of 75 — independent instance.
@@ -227,63 +265,102 @@ void main() {
     final apiB = ApiClient(client: _throwingClient(bRequests));
     final bodyB = {'amount': 75.0, 'destination': '+233200000000'};
     await expectLater(
-        apiB.postFinancial('/withdraw/fiat', bodyB,
-            operationType: 'test.scenario.withdraw.fiat',
-            ref: refB,
-            requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      apiB.postFinancial(
+        '/withdraw/fiat',
+        bodyB,
+        operationType: 'test.scenario.withdraw.fiat',
+        ref: refB,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final keyB = bRequests.single.headers['Idempotency-Key'];
     expect(keyA, isNot(equals(keyB)));
 
     // The retry of A sends A's ORIGINAL key.
     final recA2 = _Recorder();
     final apiA2 = ApiClient(client: recA2.client);
-    await apiA2.postFinancial('/withdraw/fiat', bodyA,
-        operationType: 'test.scenario.withdraw.fiat',
-        ref: refA,
-        requireAuth: false);
-    expect(recA2.requests.single.headers['Idempotency-Key'], keyA,
-        reason: 'the retry of A must reuse A\'s original key');
-    expect(recA2.requests.single.headers['Idempotency-Key'],
-        isNot(equals(keyB)),
-        reason: 'the retry of A must never send B\'s key');
+    await apiA2.postFinancial(
+      '/withdraw/fiat',
+      bodyA,
+      operationType: 'test.scenario.withdraw.fiat',
+      ref: refA,
+      requireAuth: false,
+    );
+    expect(
+      recA2.requests.single.headers['Idempotency-Key'],
+      keyA,
+      reason: 'the retry of A must reuse A\'s original key',
+    );
+    expect(
+      recA2.requests.single.headers['Idempotency-Key'],
+      isNot(equals(keyB)),
+      reason: 'the retry of A must never send B\'s key',
+    );
 
     // And B is still recoverable, independent, untouched.
     final account = await apiA2.operationAccount();
     final pending = await DurableOperationRegistry.pending(
-        account: account, type: 'test.scenario.withdraw.fiat');
-    expect(pending, hasLength(1),
-        reason: 'A answered (2xx → retired); B remains recoverable');
+      account: account,
+      type: 'test.scenario.withdraw.fiat',
+    );
+    expect(
+      pending,
+      hasLength(1),
+      reason: 'A answered (2xx → retired); B remains recoverable',
+    );
     expect(pending.single.key, keyB);
   });
 
-  test('disposition: answered 2xx retires the instance and clears the ref',
-      () async {
-    final rec = _Recorder();
-    final api = ApiClient(client: rec.client);
-    final ref = FinancialOperationRef();
+  test(
+    'disposition: answered 2xx retires the instance and clears the ref',
+    () async {
+      final rec = _Recorder();
+      final api = ApiClient(client: rec.client);
+      final ref = FinancialOperationRef();
 
-    await api.postFinancial('/vaults/v1/deposit', {'amountUsdc': 5},
-        operationType: 'test.disposition.ok', ref: ref, requireAuth: false);
+      await api.postFinancial(
+        '/vaults/v1/deposit',
+        {'amountUsdc': 5},
+        operationType: 'test.disposition.ok',
+        ref: ref,
+        requireAuth: false,
+      );
 
-    expect(ref.operationId, isNull, reason: 'terminal completion clears the ref');
-    final account = await api.operationAccount();
-    expect(await DurableOperationRegistry.pending(account: account), isEmpty);
-  });
+      expect(
+        ref.operationId,
+        isNull,
+        reason: 'terminal completion clears the ref',
+      );
+      final account = await api.operationAccount();
+      expect(await DurableOperationRegistry.pending(account: account), isEmpty);
+    },
+  );
 
   test('disposition: definitive pre-economic 4xx (400) retires the '
       'instance — a corrected retry is a genuinely new action', () async {
     final rec = _Recorder(
-        reply: http.Response(jsonEncode({'error': 'bad request'}), 400));
+      reply: http.Response(jsonEncode({'error': 'bad request'}), 400),
+    );
     final api = ApiClient(client: rec.client);
     final ref = FinancialOperationRef();
 
     await expectLater(
-        api.postFinancial('/vaults/v1/deposit', {'amountUsdc': 5},
-            operationType: 'test.disposition.400', ref: ref, requireAuth: false),
-        throwsA(isA<ApiException>()));
+      api.postFinancial(
+        '/vaults/v1/deposit',
+        {'amountUsdc': 5},
+        operationType: 'test.disposition.400',
+        ref: ref,
+        requireAuth: false,
+      ),
+      throwsA(isA<ApiException>()),
+    );
 
-    expect(ref.operationId, isNull, reason: 'pre-economic rejection released the claim');
+    expect(
+      ref.operationId,
+      isNull,
+      reason: 'pre-economic rejection released the claim',
+    );
     final account = await api.operationAccount();
     expect(await DurableOperationRegistry.pending(account: account), isEmpty);
   });
@@ -291,44 +368,78 @@ void main() {
   test('disposition: 409 idempotency replay KEEPS the instance armed — '
       'the retry converges on the same server-side operation', () async {
     final rec = _Recorder(
-        reply: http.Response(
-            jsonEncode({'error': {'code': 'IDEMPOTENCY_IN_FLIGHT'}}), 409));
+      reply: http.Response(
+        jsonEncode({
+          'error': {'code': 'IDEMPOTENCY_IN_FLIGHT'},
+        }),
+        409,
+      ),
+    );
     final api = ApiClient(client: rec.client);
     final ref = FinancialOperationRef();
 
     await expectLater(
-        api.postFinancial('/trades/accept', {'tradeId': 'trade_9'},
-            operationType: 'test.disposition.409', ref: ref, requireAuth: false),
-        throwsA(isA<ApiException>()));
+      api.postFinancial(
+        '/trades/accept',
+        {'tradeId': 'trade_9'},
+        operationType: 'test.disposition.409',
+        ref: ref,
+        requireAuth: false,
+      ),
+      throwsA(isA<ApiException>()),
+    );
     expect(ref.operationId, isNotNull, reason: '409 keeps the claim armed');
 
     // Same instance: the next attempt through the ref reuses the SAME key.
     final key1 = rec.requests[0].headers['Idempotency-Key'];
     await expectLater(
-        api.postFinancial('/trades/accept', {'tradeId': 'trade_9'},
-            operationType: 'test.disposition.409', ref: ref, requireAuth: false),
-        throwsA(isA<ApiException>()));
+      api.postFinancial(
+        '/trades/accept',
+        {'tradeId': 'trade_9'},
+        operationType: 'test.disposition.409',
+        ref: ref,
+        requireAuth: false,
+      ),
+      throwsA(isA<ApiException>()),
+    );
     expect(rec.requests[1].headers['Idempotency-Key'], key1);
   });
 
   test('disposition: 5xx KEEPS the instance armed — the server may have '
       'committed; the retry MUST reuse the same key', () async {
     final rec = _Recorder(
-        reply: http.Response(jsonEncode({'error': 'boom'}), 500));
+      reply: http.Response(jsonEncode({'error': 'boom'}), 500),
+    );
     final api = ApiClient(client: rec.client);
     final ref = FinancialOperationRef();
 
     await expectLater(
-        api.postFinancial('/trades/accept', {'tradeId': 'trade_9'},
-            operationType: 'test.disposition.5xx', ref: ref, requireAuth: false),
-        throwsA(isA<ApiException>()));
-    expect(ref.operationId, isNotNull, reason: 'unknown server state retains the claim');
+      api.postFinancial(
+        '/trades/accept',
+        {'tradeId': 'trade_9'},
+        operationType: 'test.disposition.5xx',
+        ref: ref,
+        requireAuth: false,
+      ),
+      throwsA(isA<ApiException>()),
+    );
+    expect(
+      ref.operationId,
+      isNotNull,
+      reason: 'unknown server state retains the claim',
+    );
 
     final key1 = rec.requests[0].headers['Idempotency-Key'];
     await expectLater(
-        api.postFinancial('/trades/accept', {'tradeId': 'trade_9'},
-            operationType: 'test.disposition.5xx', ref: ref, requireAuth: false),
-        throwsA(isA<ApiException>()));
+      api.postFinancial(
+        '/trades/accept',
+        {'tradeId': 'trade_9'},
+        operationType: 'test.disposition.5xx',
+        ref: ref,
+        requireAuth: false,
+      ),
+      throwsA(isA<ApiException>()),
+    );
     expect(rec.requests[1].headers['Idempotency-Key'], key1);
   });
 
@@ -339,17 +450,28 @@ void main() {
     final api = ApiClient(client: _throwingClient(aRequests));
     final ref = FinancialOperationRef();
     await expectLater(
-        api.postFinancial('/withdraw/fiat', {'amount': 50.0},
-            operationType: 'test.changed.body', ref: ref, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api.postFinancial(
+        '/withdraw/fiat',
+        {'amount': 50.0},
+        operationType: 'test.changed.body',
+        ref: ref,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final keyA = aRequests.single.headers['Idempotency-Key'];
 
     // The same flow ref, but a materially different body: a genuinely new
     // action — a fresh instance with a fresh key.
     final rec2 = _Recorder();
     final api2 = ApiClient(client: rec2.client);
-    await api2.postFinancial('/withdraw/fiat', {'amount': 99.0},
-        operationType: 'test.changed.body', ref: ref, requireAuth: false);
+    await api2.postFinancial(
+      '/withdraw/fiat',
+      {'amount': 99.0},
+      operationType: 'test.changed.body',
+      ref: ref,
+      requireAuth: false,
+    );
     final keyB = rec2.requests.single.headers['Idempotency-Key'];
     expect(keyB, isNot(equals(keyA)));
 
@@ -357,10 +479,15 @@ void main() {
     // its own key, recoverable by id.
     final account = await api2.operationAccount();
     final pending = await DurableOperationRegistry.pending(
-        account: account, type: 'test.changed.body');
+      account: account,
+      type: 'test.changed.body',
+    );
     expect(pending, hasLength(1));
-    expect(pending.single.key, keyA,
-        reason: 'the unfinished 50-withdrawal keeps its identity');
+    expect(
+      pending.single.key,
+      keyA,
+      reason: 'the unfinished 50-withdrawal keeps its identity',
+    );
   });
 
   test('persistence invariant: a durable-record write failure blocks the '
@@ -372,12 +499,21 @@ void main() {
     };
 
     await expectLater(
-        api.postFinancial('/wallet/withdraw', {'amount': 50.0},
-            operationType: 'test.persist.fail', requireAuth: false),
-        throwsA(isA<Exception>()));
-    expect(rec.requests, isEmpty,
-        reason: 'the record must exist before the first request may leave '
-            'the device');
+      api.postFinancial(
+        '/wallet/withdraw',
+        {'amount': 50.0},
+        operationType: 'test.persist.fail',
+        requireAuth: false,
+      ),
+      throwsA(isA<Exception>()),
+    );
+    expect(
+      rec.requests,
+      isEmpty,
+      reason:
+          'the record must exist before the first request may leave '
+          'the device',
+    );
   });
 
   test('POST /wallet/saved keeps working WITHOUT an Idempotency-Key '
@@ -404,19 +540,27 @@ void main() {
     final api = ApiClient(client: rec.client);
 
     expect(
-        () => api.postFinancial('/wallet/withdraw', {'amount': 1.0},
-            operationType: '  ', requireAuth: false),
-        throwsArgumentError);
-    expect(rec.requests, isEmpty,
-        reason: 'nothing may reach the wire without a durable identity');
+      () => api.postFinancial(
+        '/wallet/withdraw',
+        {'amount': 1.0},
+        operationType: '  ',
+        requireAuth: false,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      rec.requests,
+      isEmpty,
+      reason: 'nothing may reach the wire without a durable identity',
+    );
   });
 
-// =============================================================================
-// r42 CLOSE-OUT REVIEW (2026-09-27) — the application-level post-death
-// recovery regression. The earlier A/B test kept refs alive in memory; the
-// reviewer required proving that A SPECIFICALLY is recoverable after full
-// process death while a NEWER unfinished B of the same type also exists.
-// =============================================================================
+  // =============================================================================
+  // r42 CLOSE-OUT REVIEW (2026-09-27) — the application-level post-death
+  // recovery regression. The earlier A/B test kept refs alive in memory; the
+  // reviewer required proving that A SPECIFICALLY is recoverable after full
+  // process death while a NEWER unfinished B of the same type also exists.
+  // =============================================================================
 
   test('CLOSE-OUT REGRESSION: A=50 and B=75 both lose their responses; '
       'process dies; reconstructing A recovers A (NOT the newer B), the '
@@ -430,13 +574,23 @@ void main() {
     final sent1 = <http.Request>[];
     final api1 = ApiClient(client: _throwingClient(sent1));
     await expectLater(
-        api1.postFinancial('/withdraw/fiat', bodyA,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/withdraw/fiat',
+        bodyA,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     await expectLater(
-        api1.postFinancial('/withdraw/fiat', bodyB,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/withdraw/fiat',
+        bodyB,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final k1 = sent1[0].headers['Idempotency-Key'];
     final k2 = sent1[1].headers['Idempotency-Key'];
     expect(k1, isNot(equals(k2)));
@@ -453,34 +607,52 @@ void main() {
     final api2 = ApiClient(client: _Recorder().client);
     final account = await api2.operationAccount();
     final matchA = await DurableOperationRegistry.recoverExact(
-        account: account, type: type, request: bodyA);
-    expect(matchA, isA<DurableRecoveryUnique>(),
-        reason: 'recovery must find A specifically — not B because B is newer');
+      account: account,
+      type: type,
+      request: bodyA,
+    );
+    expect(
+      matchA,
+      isA<DurableRecoveryUnique>(),
+      reason: 'recovery must find A specifically — not B because B is newer',
+    );
     final opA = (matchA as DurableRecoveryUnique).operation;
     expect(opA.key, k1);
 
     final recA = _Recorder();
     final apiA = ApiClient(client: recA.client);
-    await apiA.postFinancial('/withdraw/fiat', bodyA,
-        operationType: type,
-        ref: FinancialOperationRef(operationId: opA.operationId),
-        requireAuth: false);
-    expect(recA.requests.single.headers['Idempotency-Key'], k1,
-        reason: 'the recovered A retry MUST send A\'s original key');
+    await apiA.postFinancial(
+      '/withdraw/fiat',
+      bodyA,
+      operationType: type,
+      ref: FinancialOperationRef(operationId: opA.operationId),
+      requireAuth: false,
+    );
+    expect(
+      recA.requests.single.headers['Idempotency-Key'],
+      k1,
+      reason: 'the recovered A retry MUST send A\'s original key',
+    );
 
     // B is untouched and independently recoverable with K2.
     final matchB = await DurableOperationRegistry.recoverExact(
-        account: account, type: type, request: bodyB);
+      account: account,
+      type: type,
+      request: bodyB,
+    );
     expect(matchB, isA<DurableRecoveryUnique>());
     final opB = (matchB as DurableRecoveryUnique).operation;
     expect(opB.key, k2);
 
     final recB = _Recorder();
     final apiB = ApiClient(client: recB.client);
-    await apiB.postFinancial('/withdraw/fiat', bodyB,
-        operationType: type,
-        ref: FinancialOperationRef(operationId: opB.operationId),
-        requireAuth: false);
+    await apiB.postFinancial(
+      '/withdraw/fiat',
+      bodyB,
+      operationType: type,
+      ref: FinancialOperationRef(operationId: opB.operationId),
+      requireAuth: false,
+    );
     expect(recB.requests.single.headers['Idempotency-Key'], k2);
 
     // Nothing was orphaned or tripled: across the ENTIRE wire history —
@@ -491,16 +663,23 @@ void main() {
       ...recA.requests.map((r) => r.headers['Idempotency-Key']),
       ...recB.requests.map((r) => r.headers['Idempotency-Key']),
     };
-    expect(sentKeys, {k1, k2},
-        reason: 'no third key may ever be minted or sent');
+    expect(sentKeys, {
+      k1,
+      k2,
+    }, reason: 'no third key may ever be minted or sent');
 
     // Both recovered retries were answered 2xx, so each instance reached
     // its terminal state through its OWN retry — nothing was replaced,
     // orphaned, or left dangling.
-    final pending =
-        await DurableOperationRegistry.pending(account: account, type: type);
-    expect(pending, isEmpty,
-        reason: 'each instance retired only through its own resolution');
+    final pending = await DurableOperationRegistry.pending(
+      account: account,
+      type: type,
+    );
+    expect(
+      pending,
+      isEmpty,
+      reason: 'each instance retired only through its own resolution',
+    );
   });
 
   test('CLOSE-OUT: identical bodies both lost → recovery is AMBIGUOUS and '
@@ -512,13 +691,23 @@ void main() {
     final sent1 = <http.Request>[];
     final api1 = ApiClient(client: _throwingClient(sent1));
     await expectLater(
-        api1.postFinancial('/savings/deposit', body,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/savings/deposit',
+        body,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     await expectLater(
-        api1.postFinancial('/savings/deposit', body,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/savings/deposit',
+        body,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
 
     // Process death.
     final store = await SharedPreferences.getInstance();
@@ -531,10 +720,17 @@ void main() {
     final api2 = ApiClient(client: _Recorder().client);
     final account = await api2.operationAccount();
     final match = await DurableOperationRegistry.recoverExact(
-        account: account, type: type, request: body);
-    expect(match, isA<DurableRecoveryAmbiguous>(),
-        reason: 'the recovery contract must not guess between two '
-            'identical unfinished operations');
+      account: account,
+      type: type,
+      request: body,
+    );
+    expect(
+      match,
+      isA<DurableRecoveryAmbiguous>(),
+      reason:
+          'the recovery contract must not guess between two '
+          'identical unfinished operations',
+    );
     expect((match as DurableRecoveryAmbiguous).candidates.length, 2);
   });
 
@@ -547,9 +743,14 @@ void main() {
     final sent1 = <http.Request>[];
     final api1 = ApiClient(client: _throwingClient(sent1));
     await expectLater(
-        api1.postFinancial('/withdraw/fiat', body,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/withdraw/fiat',
+        body,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final originalKey = sent1.single.headers['Idempotency-Key'];
 
     // Process death.
@@ -561,23 +762,30 @@ void main() {
     SharedPreferences.setMockInitialValues(carried);
 
     // The user explicitly resumes the listed instance.
-    final account = await ApiClient(client: _Recorder().client).operationAccount();
-    final ops = await DurableOperationRegistry.pending(account: account, type: type);
+    final account = await ApiClient(
+      client: _Recorder().client,
+    ).operationAccount();
+    final ops = await DurableOperationRegistry.pending(
+      account: account,
+      type: type,
+    );
     expect(ops.length, 1);
 
     final rec = _Recorder();
     final api2 = ApiClient(client: rec.client);
     await api2.retryRecovered(ops.single, requireAuth: false);
 
-    expect(rec.requests.single.headers['Idempotency-Key'], originalKey,
-        reason: 'the replay must reuse the ORIGINAL instance key');
+    expect(
+      rec.requests.single.headers['Idempotency-Key'],
+      originalKey,
+      reason: 'the replay must reuse the ORIGINAL instance key',
+    );
     expect(jsonDecode(rec.requests.single.body)['amount'], 42);
   });
 
-
-// =============================================================================
-// PASS 2 (close-out review 2) — exact-only recovery wire proofs C–J.
-// =============================================================================
+  // =============================================================================
+  // PASS 2 (close-out review 2) — exact-only recovery wire proofs C–J.
+  // =============================================================================
 
   test('PASS 2 C+D: EXACT-ONLY recovery — the record retires (stale race) '
       'or the request mismatches → FAIL CLOSED, ZERO new keys on the wire, '
@@ -588,9 +796,14 @@ void main() {
     final sent1 = <http.Request>[];
     final api1 = ApiClient(client: _throwingClient(sent1));
     await expectLater(
-        api1.postFinancial('/withdraw/fiat', body,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/withdraw/fiat',
+        body,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final k1 = sent1.single.headers['Idempotency-Key'];
 
     // Process death.
@@ -600,11 +813,14 @@ void main() {
         if (store.get(k) != null) k: store.get(k)! as Object,
     };
     SharedPreferences.setMockInitialValues(carried);
-    final account =
-        await ApiClient(client: _Recorder().client).operationAccount();
+    final account = await ApiClient(
+      client: _Recorder().client,
+    ).operationAccount();
 
     final ops = await DurableOperationRegistry.pending(
-        account: account, type: type);
+      account: account,
+      type: type,
+    );
     expect(ops.length, 1);
     final op = ops.single;
 
@@ -612,24 +828,33 @@ void main() {
     await DurableOperationRegistry.retire(op.operationId, account: account);
     final recC = _Recorder();
     await expectLater(
-        ApiClient(client: recC.client)
-            .retryRecovered(op, requireAuth: false),
-        throwsA(isA<DurableOperationNotFoundException>()));
-    expect(recC.requests, isEmpty,
-        reason: 'stale recovery must fail CLOSED — zero wire requests');
-    final afterC =
-        await DurableOperationRegistry.pending(account: account, type: type);
-    expect(afterC, isEmpty,
-        reason: 'no substitute instance may be silently begun');
+      ApiClient(client: recC.client).retryRecovered(op, requireAuth: false),
+      throwsA(isA<DurableOperationNotFoundException>()),
+    );
+    expect(
+      recC.requests,
+      isEmpty,
+      reason: 'stale recovery must fail CLOSED — zero wire requests',
+    );
+    final afterC = await DurableOperationRegistry.pending(
+      account: account,
+      type: type,
+    );
+    expect(
+      afterC,
+      isEmpty,
+      reason: 'no substitute instance may be silently begun',
+    );
 
     // D: fingerprint mismatch on the exact-only path (a tampered replay).
     // A FRESH instance: the C-case instance is retired, and retry() fails
     // closed on NotFound before any fingerprint comparison.
     final pendingD = await DurableOperationRegistry.begin(
-        account: account,
-        type: type,
-        endpoint: '/withdraw/fiat',
-        request: {'amount': 50, 'recipientPhone': '+233200000000'});
+      account: account,
+      type: type,
+      endpoint: '/withdraw/fiat',
+      request: {'amount': 50, 'recipientPhone': '+233200000000'},
+    );
     final tampered = DurableOperation(
       operationId: pendingD.operationId,
       type: pendingD.type,
@@ -644,16 +869,20 @@ void main() {
     );
     final recD = _Recorder();
     await expectLater(
-        ApiClient(client: recD.client)
-            .retryRecovered(tampered, requireAuth: false),
-        throwsA(isA<DurableOperationFingerprintMismatchException>()));
-    expect(recD.requests, isEmpty,
-        reason: 'a mismatched replay must fail CLOSED — zero wire');
+      ApiClient(
+        client: recD.client,
+      ).retryRecovered(tampered, requireAuth: false),
+      throwsA(isA<DurableOperationFingerprintMismatchException>()),
+    );
+    expect(
+      recD.requests,
+      isEmpty,
+      reason: 'a mismatched replay must fail CLOSED — zero wire',
+    );
   });
 
   test('PASS 2 F: account-namespace failure fails CLOSED — nothing is '
-      'begun, nothing reaches the wire, the journal is untouched',
-      () async {
+      'begun, nothing reaches the wire, the journal is untouched', () async {
     const type = 'test.pass2.account.failure';
     final body = {'amount': 50, 'recipientPhone': '+233200000000'};
 
@@ -661,37 +890,53 @@ void main() {
     final sent1 = <http.Request>[];
     final api1 = ApiClient(client: _throwingClient(sent1));
     await expectLater(
-        api1.postFinancial('/withdraw/fiat', body,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/withdraw/fiat',
+        body,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
 
     // The pending instance is listed through the REAL (anon,
     // unauthenticated) test namespace BEFORE the failure override is armed,
     // proving the fail-closed behavior is purely the unestablishable
     // AUTHENTICATED namespace.
     final ops = await DurableOperationRegistry.pending(
-        account: await ApiClient(client: _Recorder().client)
-            .operationAccount(failClosed: false),
-        type: type);
+      account: await ApiClient(
+        client: _Recorder().client,
+      ).operationAccount(failClosed: false),
+      type: type,
+    );
     expect(ops.length, 1, reason: 'K1 is pending before the failure');
 
     // Now simulate the storage engine failing for account resolution.
     final rec = _Recorder();
-    ApiClient.operationAccountOverride =
-        () => throw const FinancialAccountUnavailableException();
+    ApiClient.operationAccountOverride = () =>
+        throw const FinancialAccountUnavailableException();
     final failing = ApiClient(client: rec.client);
     await expectLater(
-        failing.postFinancial('/withdraw/fiat', body,
-            operationType: type, requireAuth: true),
-        throwsA(isA<FinancialAccountUnavailableException>()));
-    expect(rec.requests, isEmpty,
-        reason: 'an unestablishable namespace must block the send entirely');
+      failing.postFinancial(
+        '/withdraw/fiat',
+        body,
+        operationType: type,
+        requireAuth: true,
+      ),
+      throwsA(isA<FinancialAccountUnavailableException>()),
+    );
+    expect(
+      rec.requests,
+      isEmpty,
+      reason: 'an unestablishable namespace must block the send entirely',
+    );
     // And the exact-only path fails closed the same way.
     final failingRec = _Recorder();
     final failing2 = ApiClient(client: failingRec.client);
     await expectLater(
-        failing2.retryRecovered(ops.single, requireAuth: true),
-        throwsA(isA<FinancialAccountUnavailableException>()));
+      failing2.retryRecovered(ops.single, requireAuth: true),
+      throwsA(isA<FinancialAccountUnavailableException>()),
+    );
     expect(failingRec.requests, isEmpty);
     ApiClient.operationAccountOverride = null;
   });
@@ -709,17 +954,25 @@ void main() {
     final sent1 = <http.Request>[];
     final api1 = ApiClient(client: _throwingClient(sent1));
     await expectLater(
-        api1.postFinancial('/escrow/fund', wireBody,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/escrow/fund',
+        wireBody,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final k1 = sent1.single.headers['Idempotency-Key'];
 
     // The persisted record contains NO secret values.
     final store = await SharedPreferences.getInstance();
     for (final key in store.getKeys()) {
       final v = store.getString(key) ?? '';
-      expect(v.contains('first-attempt'), isFalse,
-          reason: 'password must never persist');
+      expect(
+        v.contains('first-attempt'),
+        isFalse,
+        reason: 'password must never persist',
+      );
       expect(v.contains('111111'), isFalse, reason: 'TOTP must never persist');
     }
 
@@ -729,44 +982,56 @@ void main() {
         if (store.get(k) != null) k: store.get(k)! as Object,
     };
     SharedPreferences.setMockInitialValues(carried);
-    final account =
-        await ApiClient(client: _Recorder().client).operationAccount();
+    final account = await ApiClient(
+      client: _Recorder().client,
+    ).operationAccount();
     final ops = await DurableOperationRegistry.pending(
-        account: account, type: type);
+      account: account,
+      type: type,
+    );
     expect(ops.single.secretFields, containsAll(['password', 'totpToken']));
 
     // Recovery without fresh credentials FAILS CLOSED.
     final recNoCreds = _Recorder();
     await expectLater(
-        ApiClient(client: recNoCreds.client)
-            .retryRecovered(ops.single, requireAuth: false),
-        throwsA(isA<ArgumentError>()));
+      ApiClient(
+        client: recNoCreds.client,
+      ).retryRecovered(ops.single, requireAuth: false),
+      throwsA(isA<ArgumentError>()),
+    );
     expect(recNoCreds.requests, isEmpty);
 
     // Recovery WITH fresh credentials reuses the ORIGINAL key.
     final sentOnWire = <String, dynamic>{};
     final api2 = ApiClient(
-        client: MockClient((req) async {
-      sentOnWire.addAll(jsonDecode(req.body) as Map<String, dynamic>);
-      return http.Response('{"success":true}', 200);
-    }));
-    await api2.retryRecovered(ops.single,
-        freshSecrets: {'totpToken': '222222', 'password': 'fresh'},
-        requireAuth: false);
+      client: MockClient((req) async {
+        sentOnWire.addAll(jsonDecode(req.body) as Map<String, dynamic>);
+        return http.Response('{"success":true}', 200);
+      }),
+    );
+    await api2.retryRecovered(
+      ops.single,
+      freshSecrets: {'totpToken': '222222', 'password': 'fresh'},
+      requireAuth: false,
+    );
     expect(sentOnWire['escrowId'], 'esc_9');
-    expect(sentOnWire['totpToken'], '222222',
-        reason: 'FRESH credentials go to the wire — never the stored ones');
+    expect(
+      sentOnWire['totpToken'],
+      '222222',
+      reason: 'FRESH credentials go to the wire — never the stored ones',
+    );
     expect(sentOnWire['password'], 'fresh');
     // 2xx retired the instance: the operation is terminally resolved.
     final after = await DurableOperationRegistry.pending(
-        account: account, type: type);
+      account: account,
+      type: type,
+    );
     expect(after, isEmpty);
     expect(sent1.single.headers['Idempotency-Key'], k1);
   });
 
   test('PASS 2 I: escrow dispute replay reproduces the EXACT original '
-      'request (reason + evidence preserved) under the ORIGINAL key',
-      () async {
+      'request (reason + evidence preserved) under the ORIGINAL key', () async {
     const type = 'test.pass2.escrow.dispute';
     final body = {
       'escrowId': 'esc_5',
@@ -776,9 +1041,14 @@ void main() {
     final sent1 = <http.Request>[];
     final api1 = ApiClient(client: _throwingClient(sent1));
     await expectLater(
-        api1.postFinancial('/escrow/dispute', body,
-            operationType: type, requireAuth: false),
-        throwsA(isA<http.ClientException>()));
+      api1.postFinancial(
+        '/escrow/dispute',
+        body,
+        operationType: type,
+        requireAuth: false,
+      ),
+      throwsA(isA<http.ClientException>()),
+    );
     final k1 = sent1.single.headers['Idempotency-Key'];
     final sentOriginal = jsonDecode(sent1.single.body) as Map<String, dynamic>;
 
@@ -789,10 +1059,13 @@ void main() {
         if (store.get(k) != null) k: store.get(k)! as Object,
     };
     SharedPreferences.setMockInitialValues(carried);
-    final account =
-        await ApiClient(client: _Recorder().client).operationAccount();
+    final account = await ApiClient(
+      client: _Recorder().client,
+    ).operationAccount();
     final ops = await DurableOperationRegistry.pending(
-        account: account, type: type);
+      account: account,
+      type: type,
+    );
     expect(ops.single.request['reason'], 'Item never arrived');
     expect(ops.single.request['evidenceUrls'], isNotNull);
 
@@ -800,46 +1073,56 @@ void main() {
     var replayedKey;
     var replayedBody;
     final api2 = ApiClient(
-        client: MockClient((req) async {
-      replayedKey = req.headers['Idempotency-Key'];
-      replayedBody = jsonDecode(req.body);
-      return http.Response('{"success":true}', 200);
-    }));
+      client: MockClient((req) async {
+        replayedKey = req.headers['Idempotency-Key'];
+        replayedBody = jsonDecode(req.body);
+        return http.Response('{"success":true}', 200);
+      }),
+    );
     await api2.retryRecovered(ops.single, requireAuth: false);
     expect(replayedKey, k1);
-    expect(replayedBody, sentOriginal,
-        reason: 'the recovered replay must reproduce the original request');
+    expect(
+      replayedBody,
+      sentOriginal,
+      reason: 'the recovered replay must reproduce the original request',
+    );
   });
 
   test('PASS 2 J: a replaySafe:false synthetic snapshot can NEVER be '
       'generically replayed — throws, zero wire', () async {
     const type = 'test.pass2.synthetic';
-    final account = await ApiClient(client: _Recorder().client).operationAccount();
+    final account = await ApiClient(
+      client: _Recorder().client,
+    ).operationAccount();
     final op = await DurableOperationRegistry.begin(
-        account: account,
-        type: type,
-        endpoint: '/storefront/checkout',
-        request: const {'lines': [
-          {'id': 'p1', 'qty': 2}
-        ]},
-        replaySafe: false);
+      account: account,
+      type: type,
+      endpoint: '/storefront/checkout',
+      request: const {
+        'lines': [
+          {'id': 'p1', 'qty': 2},
+        ],
+      },
+      replaySafe: false,
+    );
     final rec = _Recorder();
     await expectLater(
-        ApiClient(client: rec.client).retryRecovered(op, requireAuth: false),
-        throwsA(isA<DurableOperationNotReplayableException>()));
+      ApiClient(client: rec.client).retryRecovered(op, requireAuth: false),
+      throwsA(isA<DurableOperationNotReplayableException>()),
+    );
     expect(rec.requests, isEmpty);
   });
 
-// =============================================================================
-// PASS 3 (independent audit pass 3) — caller snapshot exactness.
-//
-// The audit demanded wire proofs for the custom durable callers whose
-// snapshots carry identity-field placeholders: FriendService.requestFunds
-// (clientRequestId) and StorefrontService.checkoutCart (idempotencyKey in
-// the body, plus the :businessProfileId ROUTE PARAMETER in the endpoint).
-// A recovered replay must reproduce the ORIGINAL wire request exactly —
-// route, body, and key — never a materially different request.
-// =============================================================================
+  // =============================================================================
+  // PASS 3 (independent audit pass 3) — caller snapshot exactness.
+  //
+  // The audit demanded wire proofs for the custom durable callers whose
+  // snapshots carry identity-field placeholders: FriendService.requestFunds
+  // (clientRequestId) and StorefrontService.checkoutCart (idempotencyKey in
+  // the body, plus the :businessProfileId ROUTE PARAMETER in the endpoint).
+  // A recovered replay must reproduce the ORIGINAL wire request exactly —
+  // route, body, and key — never a materially different request.
+  // =============================================================================
 
   test('PASS 3: friend requestFunds semantics — the recovered replay '
       'reproduces the ORIGINAL wire request (route + body + clientRequestId '
@@ -855,25 +1138,27 @@ void main() {
       'clientRequestId': '',
     };
 
-    final account = await ApiClient(client: _Recorder().client).operationAccount();
+    final account = await ApiClient(
+      client: _Recorder().client,
+    ).operationAccount();
     final op = await DurableOperationRegistry.begin(
-        account: account,
-        type: type,
-        endpoint: '/friends/transfer/request',
-        request: snapshot);
+      account: account,
+      type: type,
+      endpoint: '/friends/transfer/request',
+      request: snapshot,
+    );
 
     // The ORIGINAL wire request FriendService sends: the same economic
     // fields with clientRequestId = the durable key (plain post).
     final recOriginal = _Recorder();
-    await ApiClient(client: recOriginal.client).post(
-        '/friends/transfer/request',
-        {
-          'friendshipId': 101,
-          'amount': 25.0,
-          'reference': 'lunch money',
-          'clientRequestId': op.key,
-        },
-        requireAuth: false);
+    await ApiClient(
+      client: recOriginal.client,
+    ).post('/friends/transfer/request', {
+      'friendshipId': 101,
+      'amount': 25.0,
+      'reference': 'lunch money',
+      'clientRequestId': op.key,
+    }, requireAuth: false);
     final original = recOriginal.requests.single;
 
     // Process death.
@@ -884,92 +1169,131 @@ void main() {
     };
     SharedPreferences.setMockInitialValues(carried);
 
-    final ops = await DurableOperationRegistry.pending(account: account, type: type);
+    final ops = await DurableOperationRegistry.pending(
+      account: account,
+      type: type,
+    );
     expect(ops, hasLength(1));
 
     final rec = _Recorder();
-    await ApiClient(client: rec.client)
-        .retryRecovered(ops.single, requireAuth: false);
+    await ApiClient(
+      client: rec.client,
+    ).retryRecovered(ops.single, requireAuth: false);
 
     final replay = rec.requests.single;
-    expect(replay.url.path, original.url.path,
-        reason: 'the recovered replay must hit the SAME route');
-    expect(jsonDecode(replay.body), jsonDecode(original.body),
-        reason: 'the recovered replay must be byte-identical to the '
-            'original wire request — clientRequestId rewritten to the '
-            'ORIGINAL key');
+    expect(
+      replay.url.path,
+      original.url.path,
+      reason: 'the recovered replay must hit the SAME route',
+    );
+    expect(
+      jsonDecode(replay.body),
+      jsonDecode(original.body),
+      reason:
+          'the recovered replay must be byte-identical to the '
+          'original wire request — clientRequestId rewritten to the '
+          'ORIGINAL key',
+    );
     expect(jsonDecode(replay.body)['clientRequestId'], op.key);
-    expect(replay.headers['Idempotency-Key'], op.key,
-        reason: 'the replay carries the ORIGINAL key everywhere');
+    expect(
+      replay.headers['Idempotency-Key'],
+      op.key,
+      reason: 'the replay carries the ORIGINAL key everywhere',
+    );
   });
 
-  test('PASS 3: storefront checkoutCart route/body exactness — the '
-      'recovered replay preserves the :businessProfileId ROUTE PARAMETER '
-      'and reproduces the ORIGINAL body with idempotencyKey = ORIGINAL key',
-      () async {
-    const type = 'test.pass3.storefront.checkout';
-    // The EXACT snapshot StorefrontService.checkoutCart stores: the cart
-    // body plus the idempotencyKey placeholder the exact-only path
-    // rewrites to the instance's key. The endpoint CARRIES the route
-    // parameter — the backend fingerprint includes params + body.
-    final snapshot = {
-      'items': [
-        {'productId': 'p1', 'quantity': 2},
-        {'productId': 'p2', 'quantity': 1, 'variants': {'Size': 'Large'}},
-      ],
-      'paymentMode': 'DIRECT',
-      'idempotencyKey': '',
-    };
+  test(
+    'PASS 3: storefront checkoutCart route/body exactness — the '
+    'recovered replay preserves the :businessProfileId ROUTE PARAMETER '
+    'and reproduces the ORIGINAL body with idempotencyKey = ORIGINAL key',
+    () async {
+      const type = 'test.pass3.storefront.checkout';
+      // The EXACT snapshot StorefrontService.checkoutCart stores: the cart
+      // body plus the idempotencyKey placeholder the exact-only path
+      // rewrites to the instance's key. The endpoint CARRIES the route
+      // parameter — the backend fingerprint includes params + body.
+      final snapshot = {
+        'items': [
+          {'productId': 'p1', 'quantity': 2},
+          {
+            'productId': 'p2',
+            'quantity': 1,
+            'variants': {'Size': 'Large'},
+          },
+        ],
+        'paymentMode': 'DIRECT',
+        'idempotencyKey': '',
+      };
 
-    final account = await ApiClient(client: _Recorder().client).operationAccount();
-    final op = await DurableOperationRegistry.begin(
+      final account = await ApiClient(
+        client: _Recorder().client,
+      ).operationAccount();
+      final op = await DurableOperationRegistry.begin(
         account: account,
         type: type,
         endpoint: '/storefront/biz-001/checkout',
-        request: snapshot);
+        request: snapshot,
+      );
 
-    // The ORIGINAL wire request StorefrontService sends: the same cart
-    // body with the durable key in the legacy idempotencyKey field.
-    final recOriginal = _Recorder();
-    await ApiClient(client: recOriginal.client).post(
+      // The ORIGINAL wire request StorefrontService sends: the same cart
+      // body with the durable key in the legacy idempotencyKey field.
+      final recOriginal = _Recorder();
+      await ApiClient(client: recOriginal.client).post(
         '/storefront/biz-001/checkout',
         {
           'items': [
             {'productId': 'p1', 'quantity': 2},
-            {'productId': 'p2', 'quantity': 1, 'variants': {'Size': 'Large'}},
+            {
+              'productId': 'p2',
+              'quantity': 1,
+              'variants': {'Size': 'Large'},
+            },
           ],
           'paymentMode': 'DIRECT',
           'idempotencyKey': op.key,
         },
-        requireAuth: false);
-    final original = recOriginal.requests.single;
+        requireAuth: false,
+      );
+      final original = recOriginal.requests.single;
 
-    // Process death.
-    final store = await SharedPreferences.getInstance();
-    final carried = <String, Object>{
-      for (final k in store.getKeys())
-        if (store.get(k) != null) k: store.get(k)! as Object,
-    };
-    SharedPreferences.setMockInitialValues(carried);
+      // Process death.
+      final store = await SharedPreferences.getInstance();
+      final carried = <String, Object>{
+        for (final k in store.getKeys())
+          if (store.get(k) != null) k: store.get(k)! as Object,
+      };
+      SharedPreferences.setMockInitialValues(carried);
 
-    final ops = await DurableOperationRegistry.pending(account: account, type: type);
-    expect(ops, hasLength(1));
+      final ops = await DurableOperationRegistry.pending(
+        account: account,
+        type: type,
+      );
+      expect(ops, hasLength(1));
 
-    final rec = _Recorder();
-    await ApiClient(client: rec.client)
-        .retryRecovered(ops.single, requireAuth: false);
+      final rec = _Recorder();
+      await ApiClient(
+        client: rec.client,
+      ).retryRecovered(ops.single, requireAuth: false);
 
-    final replay = rec.requests.single;
-    expect(replay.url.path, original.url.path,
-        reason: 'the recovered replay must preserve the ROUTE PARAMETER '
+      final replay = rec.requests.single;
+      expect(
+        replay.url.path,
+        original.url.path,
+        reason:
+            'the recovered replay must preserve the ROUTE PARAMETER '
             '(businessProfileId) — a different route is a materially '
-            'different request');
-    expect(replay.url.path, endsWith('/api/storefront/biz-001/checkout'));
-    expect(jsonDecode(replay.body), jsonDecode(original.body),
-        reason: 'the recovered replay must be byte-identical to the '
-            'original wire request');
-    expect(jsonDecode(replay.body)['idempotencyKey'], op.key);
-    expect(replay.headers['Idempotency-Key'], op.key);
-  });
-
+            'different request',
+      );
+      expect(replay.url.path, endsWith('/api/storefront/biz-001/checkout'));
+      expect(
+        jsonDecode(replay.body),
+        jsonDecode(original.body),
+        reason:
+            'the recovered replay must be byte-identical to the '
+            'original wire request',
+      );
+      expect(jsonDecode(replay.body)['idempotencyKey'], op.key);
+      expect(replay.headers['Idempotency-Key'], op.key);
+    },
+  );
 }

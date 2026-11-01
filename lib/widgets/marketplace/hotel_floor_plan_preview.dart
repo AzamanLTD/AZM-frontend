@@ -33,8 +33,10 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
   Map<int, List<BusinessProduct>> get _roomsByFloor {
     final floors = <int, List<BusinessProduct>>{};
     for (final product in widget.products) {
-      final match = RegExp(r'Room\s+(\d+)', caseSensitive: false)
-          .firstMatch(product.name);
+      final match = RegExp(
+        r'Room\s+(\d+)',
+        caseSensitive: false,
+      ).firstMatch(product.name);
       final roomNumber = int.tryParse(match?.group(1) ?? '');
       final floor = roomNumber == null
           ? 1
@@ -88,8 +90,7 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
             roomsByFloor: floors,
             activeFloor: activeFloor,
             colors: widget.colors,
-            onFloorSelected: (floor) =>
-                setState(() => _selectedFloor = floor),
+            onFloorSelected: (floor) => setState(() => _selectedFloor = floor),
           ),
           const SizedBox(height: 12),
           Container(
@@ -123,15 +124,21 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      Icon(Icons.elevator_outlined,
-                          size: 16, color: widget.colors.textTertiary),
+                      Icon(
+                        Icons.elevator_outlined,
+                        size: 16,
+                        color: widget.colors.textTertiary,
+                      ),
                       Container(
                         width: 1,
                         height: 42,
                         color: widget.colors.divider,
                       ),
-                      Icon(Icons.stairs_outlined,
-                          size: 16, color: widget.colors.textTertiary),
+                      Icon(
+                        Icons.stairs_outlined,
+                        size: 16,
+                        color: widget.colors.textTertiary,
+                      ),
                     ],
                   ),
                 ),
@@ -149,10 +156,7 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
           const SizedBox(height: 10),
           Text(
             'Select an available room to continue in the full booking flow.',
-            style: TextStyle(
-              color: widget.colors.textTertiary,
-              fontSize: 11.5,
-            ),
+            style: TextStyle(color: widget.colors.textTertiary, fontSize: 11.5),
           ),
         ],
       ),
@@ -233,8 +237,11 @@ class _HotelFloorPlanPreviewState extends State<HotelFloorPlanPreview> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.hotel_outlined,
-                size: 36, color: widget.colors.textTertiary),
+            Icon(
+              Icons.hotel_outlined,
+              size: 36,
+              color: widget.colors.textTertiary,
+            ),
             const SizedBox(height: 8),
             Text(
               'Room inventory is not available yet.',
@@ -298,10 +305,7 @@ class _BuildingOverview extends StatelessWidget {
               const Spacer(),
               Text(
                 '${floors.length} floor${floors.length == 1 ? '' : 's'}',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 10.5,
-                ),
+                style: TextStyle(color: colors.textTertiary, fontSize: 10.5),
               ),
             ],
           ),
@@ -317,11 +321,7 @@ class _BuildingOverview extends StatelessWidget {
                   onTap: () => onFloorSelected(floor),
                 ),
                 if (floor != visualFloors.last)
-                  Container(
-                    width: 1,
-                    height: 5,
-                    color: colors.divider,
-                  ),
+                  Container(width: 1, height: 5, color: colors.divider),
               ],
             ],
           ),
@@ -361,7 +361,9 @@ class _FloorStrip extends StatelessWidget {
           curve: Curves.easeOutCubic,
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: selected ? colors.accent.withValues(alpha: 0.13) : colors.surface,
+            color: selected
+                ? colors.accent.withValues(alpha: 0.13)
+                : colors.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? colors.accent : colors.divider,

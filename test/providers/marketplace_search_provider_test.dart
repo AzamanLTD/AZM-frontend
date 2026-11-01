@@ -11,8 +11,12 @@ class _RecordingSearch extends BusinessSearchNotifier {
   final List<(String, String?)> calls = [];
 
   @override
-  Future<void> search(String query,
-      {String? category, bool? verified, String? subcategory}) async {
+  Future<void> search(
+    String query, {
+    String? category,
+    bool? verified,
+    String? subcategory,
+  }) async {
     calls.add((query, category));
   }
 }
@@ -24,14 +28,15 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     backend = _RecordingSearch();
-    container = ProviderContainer(overrides: [
-      businessSearchProvider.overrideWith((_) => backend),
-    ]);
+    container = ProviderContainer(
+      overrides: [businessSearchProvider.overrideWith((_) => backend)],
+    );
   });
 
   tearDown(() => container.dispose());
 
-  MarketplaceSearchNotifier n() => container.read(marketplaceSearchProvider.notifier);
+  MarketplaceSearchNotifier n() =>
+      container.read(marketplaceSearchProvider.notifier);
   MarketplaceSearchState s() => container.read(marketplaceSearchProvider);
 
   test('starts idle in marketplace scope', () {
@@ -48,33 +53,45 @@ void main() {
     expect(s().isActive, isTrue);
   });
 
-  test('submit records the recent search (newest first, deduped, capped at 8)', () async {
-    for (final q in ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'a']) {
-      n().changed(q);
+  test(
+    'submit records the recent search (newest first, deduped, capped at 8)',
+    () async {
+      for (final q in ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'a']) {
+        n().changed(q);
+        await n().submit();
+      }
+      expect(s().recent.first, 'a');
+      expect(s().recent.length, MarketplaceSearchNotifier.kMaxRecent);
+      expect(s().recent.where((r) => r == 'a').length, 1);
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getStringList(MarketplaceSearchNotifier.kRecentKey),
+        s().recent,
+      );
+    },
+  );
+
+  test(
+    'submit fetches through businessSearchProvider with the world as category',
+    () async {
+      n().setScope(MarketplaceSearchScope.world, worldWire: 'FOOD_BEVERAGE');
+      n().changed('waakye');
       await n().submit();
-    }
-    expect(s().recent.first, 'a');
-    expect(s().recent.length, MarketplaceSearchNotifier.kMaxRecent);
-    expect(s().recent.where((r) => r == 'a').length, 1);
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getStringList(MarketplaceSearchNotifier.kRecentKey), s().recent);
-  });
+      expect(backend.calls, [('waakye', 'FOOD_BEVERAGE')]);
+    },
+  );
 
-  test('submit fetches through businessSearchProvider with the world as category', () async {
-    n().setScope(MarketplaceSearchScope.world, worldWire: 'FOOD_BEVERAGE');
-    n().changed('waakye');
-    await n().submit();
-    expect(backend.calls, [('waakye', 'FOOD_BEVERAGE')]);
-  });
-
-  test('submit keeps the committed scope if scope changes during persistence', () async {
-    n().setScope(MarketplaceSearchScope.world, worldWire: 'FOOD_BEVERAGE');
-    n().changed('waakye');
-    final submitting = n().submit();
-    n().setScope(MarketplaceSearchScope.world, worldWire: 'RETAIL');
-    await submitting;
-    expect(backend.calls, [('waakye', 'FOOD_BEVERAGE')]);
-  });
+  test(
+    'submit keeps the committed scope if scope changes during persistence',
+    () async {
+      n().setScope(MarketplaceSearchScope.world, worldWire: 'FOOD_BEVERAGE');
+      n().changed('waakye');
+      final submitting = n().submit();
+      n().setScope(MarketplaceSearchScope.world, worldWire: 'RETAIL');
+      await submitting;
+      expect(backend.calls, [('waakye', 'FOOD_BEVERAGE')]);
+    },
+  );
 
   test('submit(fetch: false) only does the bookkeeping', () async {
     n().changed('waakye');
@@ -85,7 +102,11 @@ void main() {
   });
 
   test('store scope never fetches', () async {
-    n().setScope(MarketplaceSearchScope.store, worldWire: 'RETAIL', storeBizId: 'BIZ-1');
+    n().setScope(
+      MarketplaceSearchScope.store,
+      worldWire: 'RETAIL',
+      storeBizId: 'BIZ-1',
+    );
     n().changed('shoes');
     await n().submit();
     expect(backend.calls, isEmpty);
@@ -117,22 +138,27 @@ void main() {
     expect(s().worldWire, 'RETAIL');
   });
 
-  test('suggestions: short text → recents, longer text → matching categories', () async {
-    n().changed('hotel');
-    await n().submit();
-    n().changed('h');
-    expect(s().suggestions, ['hotel']);
-    n().changed('rest');
-    expect(s().suggestions, contains('Restaurants'));
-  });
+  test(
+    'suggestions: short text → recents, longer text → matching categories',
+    () async {
+      n().changed('hotel');
+      await n().submit();
+      n().changed('h');
+      expect(s().suggestions, ['hotel']);
+      n().changed('rest');
+      expect(s().suggestions, contains('Restaurants'));
+    },
+  );
 
   test('loads persisted recents on construction', () async {
     SharedPreferences.setMockInitialValues({
       MarketplaceSearchNotifier.kRecentKey: ['kelewele'],
     });
-    final c = ProviderContainer(overrides: [
-      businessSearchProvider.overrideWith((_) => _RecordingSearch()),
-    ]);
+    final c = ProviderContainer(
+      overrides: [
+        businessSearchProvider.overrideWith((_) => _RecordingSearch()),
+      ],
+    );
     addTearDown(c.dispose);
     c.read(marketplaceSearchProvider);
     await Future<void>.delayed(Duration.zero);

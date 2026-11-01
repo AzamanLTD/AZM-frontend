@@ -71,8 +71,7 @@ class StoryRing extends ConsumerWidget {
     this.size = 64,
   });
 
-  bool get _hasAnyStory =>
-      counts.unviewedTotal > 0 || counts.viewedCount > 0;
+  bool get _hasAnyStory => counts.unviewedTotal > 0 || counts.viewedCount > 0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -134,8 +133,11 @@ class StoryRing extends ConsumerWidget {
                   color: colors.accent,
                   border: Border.all(color: colors.surface, width: 2),
                 ),
-                child: Icon(Icons.check,
-                    size: size * 0.13, color: colors.surface),
+                child: Icon(
+                  Icons.check,
+                  size: size * 0.13,
+                  color: colors.surface,
+                ),
               ),
             ),
         ],
@@ -144,10 +146,9 @@ class StoryRing extends ConsumerWidget {
   }
 
   Widget _placeholder(AzamanColors colors) => Container(
-        color: colors.softSurface,
-        child:
-            Icon(Icons.person, color: colors.textTertiary, size: size * 0.42),
-      );
+    color: colors.softSurface,
+    child: Icon(Icons.person, color: colors.textTertiary, size: size * 0.42),
+  );
 }
 
 // ── Real-data adapter ────────────────────────────────────────────────────────
@@ -216,11 +217,10 @@ class StoryRingCounts {
   });
 
   const StoryRingCounts.empty()
-      : this(unviewedSilentCount: 0, unviewedSoundCount: 0, viewedCount: 0);
+    : this(unviewedSilentCount: 0, unviewedSoundCount: 0, viewedCount: 0);
 
   /// No stories at all — and no known-to-exist unviewed story either.
-  bool get isEmpty =>
-      unviewedTotal == 0 && viewedCount == 0 && !hasUnviewed;
+  bool get isEmpty => unviewedTotal == 0 && viewedCount == 0 && !hasUnviewed;
 
   int get unviewedTotal => unviewedSilentCount + unviewedSoundCount;
 
@@ -254,12 +254,11 @@ class StoryRingCounts {
   /// [unviewedTotal] stays 0 and the numeric badge stays suppressed.
   /// The unviewed dash still renders (one presence dash), driven by the
   /// flag, not by a fake number.
-  factory StoryRingCounts.fromUnseenFlag(bool hasUnseen) =>
-      StoryRingCounts(
-        hasUnviewed: hasUnseen,
-        unviewedCountKnown: false,
-        unviewedBadgeVisible: false,
-      );
+  factory StoryRingCounts.fromUnseenFlag(bool hasUnseen) => StoryRingCounts(
+    hasUnviewed: hasUnseen,
+    unviewedCountKnown: false,
+    unviewedBadgeVisible: false,
+  );
 }
 
 // ── Pure layout grammar (testable without a canvas) ──────────────────────────
@@ -275,8 +274,12 @@ class StoryDashSpec {
   final StoryDashTexture texture;
   final bool isSound;
 
-  const StoryDashSpec(this.centerHour, this.sweepHours, this.texture,
-      {required this.isSound});
+  const StoryDashSpec(
+    this.centerHour,
+    this.sweepHours,
+    this.texture, {
+    required this.isSound,
+  });
 }
 
 /// TOP grammar: at most one dash per sound state present.
@@ -437,8 +440,7 @@ class _StoryRingPainter extends CustomPainter {
     final dotRadius = 2.6 * scale;
 
     for (final h in storyRingViewedDotHours(counts.viewedCount)) {
-      canvas.drawCircle(
-          _pointOnCircle(center, radius, h), dotRadius, dotPaint);
+      canvas.drawCircle(_pointOnCircle(center, radius, h), dotRadius, dotPaint);
     }
 
     if (counts.viewedCount > StoryRing.viewedDotCap) {
@@ -461,7 +463,9 @@ class _StoryRingPainter extends CustomPainter {
   Offset _pointOnCircle(Offset center, double radius, double hour) {
     final a = _clock(hour);
     return Offset(
-        center.dx + radius * math.cos(a), center.dy + radius * math.sin(a));
+      center.dx + radius * math.cos(a),
+      center.dy + radius * math.sin(a),
+    );
   }
 
   void _drawDash(Canvas canvas, Rect rect, StoryDashSpec dash) {
@@ -487,10 +491,14 @@ class _StoryRingPainter extends CustomPainter {
       // colour-independent cue. Same angular footprint as the solid dash so
       // the two read as the same "size" of element.
       final radius = rect.width / 2;
-      final inner =
-          Rect.fromCircle(center: rect.center, radius: radius - 1.6 * scale);
-      final outer =
-          Rect.fromCircle(center: rect.center, radius: radius + 1.6 * scale);
+      final inner = Rect.fromCircle(
+        center: rect.center,
+        radius: radius - 1.6 * scale,
+      );
+      final outer = Rect.fromCircle(
+        center: rect.center,
+        radius: radius + 1.6 * scale,
+      );
       final paint = Paint()
         ..color = color
         ..style = PaintingStyle.stroke

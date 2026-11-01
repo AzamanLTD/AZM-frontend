@@ -16,9 +16,13 @@ class ChatContextParams {
   final ChatContext context;
   final String contextId; // friendshipId | tradeId | groupId | ticketId
   const ChatContextParams({required this.context, required this.contextId});
-  @override bool operator ==(Object o) =>
-    o is ChatContextParams && o.context == context && o.contextId == contextId;
-  @override int get hashCode => Object.hash(context, contextId);
+  @override
+  bool operator ==(Object o) =>
+      o is ChatContextParams &&
+      o.context == context &&
+      o.contextId == contextId;
+  @override
+  int get hashCode => Object.hash(context, contextId);
 }
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -29,7 +33,8 @@ class PremiumChatState {
   final bool isSending;
   final String? errorMessage;
   final Set<String> typingUserIds; // users currently typing
-  final Map<int,String> groupMemberNames; // userId -> username for group avatar labels
+  final Map<int, String>
+  groupMemberNames; // userId -> username for group avatar labels
 
   /// Disappearing message timer (seconds). null = off. When set, all new
   /// outgoing messages include this in the socket payload so the backend
@@ -58,10 +63,15 @@ class PremiumChatState {
   }
 
   PremiumChatState copyWith({
-    List<ChatMessage>? messages, bool? isLoading, bool? hasMore,
-    bool? isSending, String? errorMessage,
-    Set<String>? typingUserIds, Map<int,String>? groupMemberNames,
-    int? disappearAfterSeconds, bool clearDisappear = false,
+    List<ChatMessage>? messages,
+    bool? isLoading,
+    bool? hasMore,
+    bool? isSending,
+    String? errorMessage,
+    Set<String>? typingUserIds,
+    Map<int, String>? groupMemberNames,
+    int? disappearAfterSeconds,
+    bool clearDisappear = false,
   }) => PremiumChatState(
     messages: messages ?? this.messages,
     isLoading: isLoading ?? this.isLoading,
@@ -70,15 +80,17 @@ class PremiumChatState {
     errorMessage: errorMessage,
     typingUserIds: typingUserIds ?? this.typingUserIds,
     groupMemberNames: groupMemberNames ?? this.groupMemberNames,
-    disappearAfterSeconds: clearDisappear ? null : (disappearAfterSeconds ?? this.disappearAfterSeconds),
+    disappearAfterSeconds: clearDisappear
+        ? null
+        : (disappearAfterSeconds ?? this.disappearAfterSeconds),
   );
 }
 
 // ── Riverpod Provider ─────────────────────────────────────────────────────
-final premiumChatProvider = StateNotifierProvider.autoDispose.family<
-  PremiumChatNotifier, PremiumChatState, ChatContextParams>(
-  (ref, params) => PremiumChatNotifier(ref, params),
-);
+final premiumChatProvider = StateNotifierProvider.autoDispose
+    .family<PremiumChatNotifier, PremiumChatState, ChatContextParams>(
+      (ref, params) => PremiumChatNotifier(ref, params),
+    );
 
 // ── Notifier ──────────────────────────────────────────────────────────────
 class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
@@ -102,7 +114,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   // regression suite. The room's participant id never changes mid-chat,
   // so a construction-time capture is both safe and honest.
   late final String _cachedUserId =
-    _ref.read(authProvider).user?.id.toString() ?? '';
+      _ref.read(authProvider).user?.id.toString() ?? '';
 
   // PR #165 review finding 3 — SCOPED socket lifecycle, notifier side.
   // _subscribeToSocket registers through _onSocket, which KEEPS the
@@ -194,15 +206,22 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     state = state.copyWith(isLoading: true);
     try {
       final before = loadMore && state.messages.isNotEmpty
-        ? state.messages.last.id : null;
+          ? state.messages.last.id
+          : null;
       final endpoint = _messagesEndpoint(before: before);
       final res = await apiClient.get(endpoint);
       if (res.statusCode != 200) throw Exception('Load failed');
-      final body = jsonDecode(res.body) as Map<String,dynamic>;
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
       final rawList = (body['messages'] ?? body['data'] ?? []) as List;
-      final loaded = rawList.map((j) =>
-        ChatMessage.fromJson(j as Map<String,dynamic>, myUserId: _myUserId,
-          initialStatus: MessageStatus.read)).toList();
+      final loaded = rawList
+          .map(
+            (j) => ChatMessage.fromJson(
+              j as Map<String, dynamic>,
+              myUserId: _myUserId,
+              initialStatus: MessageStatus.read,
+            ),
+          )
+          .toList();
       // Always sort newest-first so the reverse:true ListView shows messages
       // in the correct order regardless of the order returned by the server.
       // (friend-chat endpoint returns chronological; group-chat returns DESC.)
@@ -216,7 +235,11 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, hasMore: false, errorMessage: e.toString());
+      state = state.copyWith(
+        isLoading: false,
+        hasMore: false,
+        errorMessage: e.toString(),
+      );
     }
   }
 
@@ -238,8 +261,11 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   // Creates a local placeholder immediately, then sends over socket.
   // On message_ack, placeholder is upgraded with the server ID.
   // On message_error, placeholder is marked failed (retry button shows).
-  Future<void> sendTextMessage(String text, {
-    String? replyToId, String? replyToText, String? replyToSenderName,
+  Future<void> sendTextMessage(
+    String text, {
+    String? replyToId,
+    String? replyToText,
+    String? replyToSenderName,
   }) async {
     if (text.trim().isEmpty) return;
     final localId = _uuid.v4();
@@ -256,7 +282,10 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     );
     // Prepend to list (newest first)
     state = state.copyWith(messages: [optimistic, ...state.messages]);
-    _emitSendEvent(localId, text.trim(), 'TEXT',
+    _emitSendEvent(
+      localId,
+      text.trim(),
+      'TEXT',
       replyToId: replyToId,
       replyToText: replyToText,
       replyToSenderName: replyToSenderName,
@@ -301,23 +330,38 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         'status': preview.status,
       },
     );
-    state = state.copyWith(messages: [...messages.sublist(0, idx), updated, ...messages.sublist(idx + 1)]);
+    state = state.copyWith(
+      messages: [
+        ...messages.sublist(0, idx),
+        updated,
+        ...messages.sublist(idx + 1),
+      ],
+    );
 
     // Also persist the link preview to the backend via REST (fire-and-forget)
     _persistLinkPreview(localId, updated.linkPreview!);
   }
 
   /// Persists the link preview to the message on the backend.
-  Future<void> _persistLinkPreview(String localId, Map<String, dynamic> linkPreview) async {
+  Future<void> _persistLinkPreview(
+    String localId,
+    Map<String, dynamic> linkPreview,
+  ) async {
     try {
       ChatMessage? msg;
       for (final m in state.messages) {
-        if (m.localId == localId) { msg = m; break; }
+        if (m.localId == localId) {
+          msg = m;
+          break;
+        }
       }
       if (msg?.id == null) return;
-      await _ref.read(apiClientProvider).patch('/friends/chat/messages/${msg!.id}/link-preview', body: {
-        'linkPreview': linkPreview,
-      });
+      await _ref
+          .read(apiClientProvider)
+          .patch(
+            '/friends/chat/messages/${msg!.id}/link-preview',
+            body: {'linkPreview': linkPreview},
+          );
     } catch (_) {
       // Non-critical — the preview is already shown in the UI.
     }
@@ -327,15 +371,18 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     required String mediaUrl,
     required String mediaType,
     required String messageType,
-    String? mimeType, int? size, int? duration,
+    String? mimeType,
+    int? size,
+    int? duration,
     List<int>? waveformPeaks,
-    Map<String,dynamic>? linkPreview,
+    Map<String, dynamic>? linkPreview,
     String? caption,
   }) async {
     final localId = _uuid.v4();
     final kind = MessageKind.values.firstWhere(
       (k) => k.name.toUpperCase() == messageType.toUpperCase(),
-      orElse: () => MessageKind.image);
+      orElse: () => MessageKind.image,
+    );
     final optimistic = ChatMessage.optimistic(
       localId: localId,
       senderId: _myUserId,
@@ -347,46 +394,84 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       waveformPeaks: waveformPeaks,
     );
     state = state.copyWith(messages: [optimistic, ...state.messages]);
-    _emitSendEvent(localId, caption ?? '', messageType,
-      mediaUrl: mediaUrl, mediaType: mediaType,
-      mediaMimeType: mimeType, mediaSize: size,
-      mediaDuration: duration, waveformPeaks: waveformPeaks,
+    _emitSendEvent(
+      localId,
+      caption ?? '',
+      messageType,
+      mediaUrl: mediaUrl,
+      mediaType: mediaType,
+      mediaMimeType: mimeType,
+      mediaSize: size,
+      mediaDuration: duration,
+      waveformPeaks: waveformPeaks,
       linkPreview: linkPreview,
     );
   }
 
-  void _emitSendEvent(String localId, String content, String messageType, {
-    String? replyToId, String? replyToText, String? replyToSenderName,
-    String? mediaUrl, String? mediaType, String? mediaMimeType,
-    int? mediaSize, int? mediaDuration, List<int>? waveformPeaks,
-    Map<String,dynamic>? linkPreview,
+  void _emitSendEvent(
+    String localId,
+    String content,
+    String messageType, {
+    String? replyToId,
+    String? replyToText,
+    String? replyToSenderName,
+    String? mediaUrl,
+    String? mediaType,
+    String? mediaMimeType,
+    int? mediaSize,
+    int? mediaDuration,
+    List<int>? waveformPeaks,
+    Map<String, dynamic>? linkPreview,
     int? disappearAfterSeconds,
   }) {
     // Ticket chat has NO socket send handler on the backend by design --
     // authoritative writes are REST-only. Skip straight to HTTP.
     if (_params.context == ChatContext.ticket) {
-      _sendViaHttp(localId, content, messageType, replyToId: replyToId,
-        replyToText: replyToText, replyToSenderName: replyToSenderName,
-        mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
-        mediaSize: mediaSize, mediaDuration: mediaDuration,
-        waveformPeaks: waveformPeaks, linkPreview: linkPreview,
-        disappearAfterSeconds: disappearAfterSeconds);
+      _sendViaHttp(
+        localId,
+        content,
+        messageType,
+        replyToId: replyToId,
+        replyToText: replyToText,
+        replyToSenderName: replyToSenderName,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
+        mediaMimeType: mediaMimeType,
+        mediaSize: mediaSize,
+        mediaDuration: mediaDuration,
+        waveformPeaks: waveformPeaks,
+        linkPreview: linkPreview,
+        disappearAfterSeconds: disappearAfterSeconds,
+      );
       return;
     }
 
     final socket = SocketService.instance.rawSocket;
     if (socket == null) {
-      _sendViaHttp(localId, content, messageType, replyToId: replyToId,
-        replyToText: replyToText, replyToSenderName: replyToSenderName,
-        mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
-        mediaSize: mediaSize, mediaDuration: mediaDuration,
-        waveformPeaks: waveformPeaks, linkPreview: linkPreview,
-        disappearAfterSeconds: disappearAfterSeconds);
+      _sendViaHttp(
+        localId,
+        content,
+        messageType,
+        replyToId: replyToId,
+        replyToText: replyToText,
+        replyToSenderName: replyToSenderName,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
+        mediaMimeType: mediaMimeType,
+        mediaSize: mediaSize,
+        mediaDuration: mediaDuration,
+        waveformPeaks: waveformPeaks,
+        linkPreview: linkPreview,
+        disappearAfterSeconds: disappearAfterSeconds,
+      );
       return;
     }
 
     final base = {
-      'localId': localId, 'senderId': _myUserId, 'content': content, 'messageType': messageType,
+      'localId': localId,
+      'senderId': _myUserId,
+      'content': content,
+      'messageType': messageType,
       if (replyToId != null) 'replyToId': replyToId,
       if (replyToText != null) 'replyToText': replyToText,
       if (replyToSenderName != null) 'replyToSenderName': replyToSenderName,
@@ -397,23 +482,29 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       if (mediaDuration != null) 'mediaDuration': mediaDuration,
       if (waveformPeaks != null) 'mediaWaveformPeaks': waveformPeaks,
       if (linkPreview != null) 'linkPreview': linkPreview,
-      if (disappearAfterSeconds != null) 'disappearAfterSeconds': disappearAfterSeconds,
+      if (disappearAfterSeconds != null)
+        'disappearAfterSeconds': disappearAfterSeconds,
     };
 
     switch (_params.context) {
       case ChatContext.friend:
         socket.emit('send_friend_message_v2', {
-          ...base, 'friendshipId': _params.contextId, 'tempId': localId,
+          ...base,
+          'friendshipId': _params.contextId,
+          'tempId': localId,
         });
         break;
       case ChatContext.trade:
         socket.emit('send_trade_message', {
-          ...base, 'tradeId': _params.contextId,
+          ...base,
+          'tradeId': _params.contextId,
         });
         break;
       case ChatContext.group:
         socket.emit('send_group_message', {
-          ...base, 'groupId': _params.contextId, 'type': messageType,
+          ...base,
+          'groupId': _params.contextId,
+          'type': messageType,
         });
         break;
       case ChatContext.ticket:
@@ -427,14 +518,25 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     _ackTimers[localId] = Timer(_ackTimeout, () {
       _ackTimers.remove(localId);
       final stillPending = state.messages.any(
-        (m) => m.localId == localId && m.status == MessageStatus.sending);
+        (m) => m.localId == localId && m.status == MessageStatus.sending,
+      );
       if (stillPending) {
-        _sendViaHttp(localId, content, messageType, replyToId: replyToId,
-          replyToText: replyToText, replyToSenderName: replyToSenderName,
-          mediaUrl: mediaUrl, mediaType: mediaType, mediaMimeType: mediaMimeType,
-          mediaSize: mediaSize, mediaDuration: mediaDuration,
-          waveformPeaks: waveformPeaks, linkPreview: linkPreview,
-          disappearAfterSeconds: disappearAfterSeconds);
+        _sendViaHttp(
+          localId,
+          content,
+          messageType,
+          replyToId: replyToId,
+          replyToText: replyToText,
+          replyToSenderName: replyToSenderName,
+          mediaUrl: mediaUrl,
+          mediaType: mediaType,
+          mediaMimeType: mediaMimeType,
+          mediaSize: mediaSize,
+          mediaDuration: mediaDuration,
+          waveformPeaks: waveformPeaks,
+          linkPreview: linkPreview,
+          disappearAfterSeconds: disappearAfterSeconds,
+        );
       }
     });
   }
@@ -444,36 +546,53 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     _ackTimers.remove(localId);
   }
 
-  Future<void> _sendViaHttp(String localId, String content, String messageType, {
-    String? replyToId, String? replyToText, String? replyToSenderName,
-    String? mediaUrl, String? mediaType, String? mediaMimeType,
-    int? mediaSize, int? mediaDuration, List<int>? waveformPeaks,
-    Map<String,dynamic>? linkPreview,
+  Future<void> _sendViaHttp(
+    String localId,
+    String content,
+    String messageType, {
+    String? replyToId,
+    String? replyToText,
+    String? replyToSenderName,
+    String? mediaUrl,
+    String? mediaType,
+    String? mediaMimeType,
+    int? mediaSize,
+    int? mediaDuration,
+    List<int>? waveformPeaks,
+    Map<String, dynamic>? linkPreview,
     int? disappearAfterSeconds,
   }) async {
     final endpoint = _httpSendEndpoint();
-    if (endpoint == null) { _markFailed(localId); return; }
+    if (endpoint == null) {
+      _markFailed(localId);
+      return;
+    }
 
     final Map<String, dynamic> bodyMap;
     if (_params.context == ChatContext.group) {
       bodyMap = {
-        'type': messageType, 'content': content,
+        'type': messageType,
+        'content': content,
         if (replyToId != null) 'replyToId': replyToId,
         if (replyToText != null) 'replyToText': replyToText,
         if (replyToSenderName != null) 'replyToSenderName': replyToSenderName,
-        if (mediaUrl != null) 'media': {
-          'url': mediaUrl, 'type': mediaType,
-          if (mediaMimeType != null) 'mimeType': mediaMimeType,
-          if (mediaSize != null) 'size': mediaSize,
-          if (mediaDuration != null) 'duration': mediaDuration,
-          if (waveformPeaks != null) 'waveformPeaks': waveformPeaks,
-          if (linkPreview != null) 'linkPreview': linkPreview,
-        },
-        if (disappearAfterSeconds != null) 'disappearAfterSeconds': disappearAfterSeconds,
+        if (mediaUrl != null)
+          'media': {
+            'url': mediaUrl,
+            'type': mediaType,
+            if (mediaMimeType != null) 'mimeType': mediaMimeType,
+            if (mediaSize != null) 'size': mediaSize,
+            if (mediaDuration != null) 'duration': mediaDuration,
+            if (waveformPeaks != null) 'waveformPeaks': waveformPeaks,
+            if (linkPreview != null) 'linkPreview': linkPreview,
+          },
+        if (disappearAfterSeconds != null)
+          'disappearAfterSeconds': disappearAfterSeconds,
       };
     } else {
       bodyMap = {
-        'content': content, 'messageType': messageType,
+        'content': content,
+        'messageType': messageType,
         if (replyToId != null) 'replyToId': replyToId,
         if (replyToText != null) 'replyToText': replyToText,
         if (replyToSenderName != null) 'replyToSenderName': replyToSenderName,
@@ -484,33 +603,52 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
         if (mediaDuration != null) 'mediaDuration': mediaDuration,
         if (waveformPeaks != null) 'mediaWaveformPeaks': waveformPeaks,
         if (linkPreview != null) 'linkPreview': linkPreview,
-        if (disappearAfterSeconds != null) 'disappearAfterSeconds': disappearAfterSeconds,
+        if (disappearAfterSeconds != null)
+          'disappearAfterSeconds': disappearAfterSeconds,
       };
     }
 
     try {
       final res = await apiClient.post(endpoint, bodyMap);
-      if (res.statusCode != 200 && res.statusCode != 201) { _markFailed(localId); return; }
+      if (res.statusCode != 200 && res.statusCode != 201) {
+        _markFailed(localId);
+        return;
+      }
       final decoded = jsonDecode(res.body);
-      if (decoded is! Map<String, dynamic>) { _markFailed(localId); return; }
+      if (decoded is! Map<String, dynamic>) {
+        _markFailed(localId);
+        return;
+      }
       final serverMsg = decoded['message'];
       if (serverMsg is Map<String, dynamic>) {
         final serverId = serverMsg['id']?.toString() ?? '';
         final rawTs = serverMsg['createdAt'];
-        final ts = rawTs != null ? (DateTime.tryParse(rawTs.toString())?.toLocal() ?? DateTime.now()) : DateTime.now();
+        final ts = rawTs != null
+            ? (DateTime.tryParse(rawTs.toString())?.toLocal() ?? DateTime.now())
+            : DateTime.now();
         if (serverId.isNotEmpty) {
           _updateMessage(localId, (m) => m.upgradeWithAck(serverId, ts));
-        } else { _markFailed(localId); }
-      } else { _markFailed(localId); }
-    } catch (_) { _markFailed(localId); }
+        } else {
+          _markFailed(localId);
+        }
+      } else {
+        _markFailed(localId);
+      }
+    } catch (_) {
+      _markFailed(localId);
+    }
   }
 
   String? _httpSendEndpoint() {
     switch (_params.context) {
-      case ChatContext.friend: return '/friends/chat/${_params.contextId}/messages';
-      case ChatContext.group:  return '/group-chats/${_params.contextId}/messages';
-      case ChatContext.ticket: return '/tickets/${_params.contextId}/messages';
-      case ChatContext.trade:  return null;
+      case ChatContext.friend:
+        return '/friends/chat/${_params.contextId}/messages';
+      case ChatContext.group:
+        return '/group-chats/${_params.contextId}/messages';
+      case ChatContext.ticket:
+        return '/tickets/${_params.contextId}/messages';
+      case ChatContext.trade:
+        return null;
     }
   }
 
@@ -518,10 +656,18 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     final idx = state.messages.indexWhere((m) => m.localId == localId);
     if (idx == -1) return;
     final msg = state.messages[idx];
-    _updateMessage(localId, (m) { m.status = MessageStatus.sending; return m; });
-    _emitSendEvent(localId, msg.text, msg.kind.name.toUpperCase(),
-      mediaUrl: msg.mediaUrl, mediaType: msg.mediaType,
-      replyToId: msg.replyToId, replyToText: msg.replyToText,
+    _updateMessage(localId, (m) {
+      m.status = MessageStatus.sending;
+      return m;
+    });
+    _emitSendEvent(
+      localId,
+      msg.text,
+      msg.kind.name.toUpperCase(),
+      mediaUrl: msg.mediaUrl,
+      mediaType: msg.mediaType,
+      replyToId: msg.replyToId,
+      replyToText: msg.replyToText,
       replyToSenderName: msg.replyToSenderName,
     );
   }
@@ -534,12 +680,12 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     // message_ack — optimistic bubble transitions sending→sent
     _onSocket('message_ack', (data) {
       if (data is! Map) return;
-      final localId  = data['localId']?.toString() ?? '';
+      final localId = data['localId']?.toString() ?? '';
       final serverId = data['id']?.toString() ?? '';
-      final ts       = data['createdAt'];
+      final ts = data['createdAt'];
       final serverTs = ts != null
-        ? DateTime.tryParse(ts.toString())?.toLocal() ?? DateTime.now()
-        : DateTime.now();
+          ? DateTime.tryParse(ts.toString())?.toLocal() ?? DateTime.now()
+          : DateTime.now();
       _cancelAckTimer(localId);
       _updateMessage(localId, (m) => m.upgradeWithAck(serverId, serverTs));
     });
@@ -547,12 +693,12 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     // legacy friend_message_saved
     _onSocket('friend_message_saved', (data) {
       if (data is! Map) return;
-      final localId  = data['tempId']?.toString() ?? '';
+      final localId = data['tempId']?.toString() ?? '';
       final serverId = data['id']?.toString() ?? '';
-      final ts       = data['createdAt'];
+      final ts = data['createdAt'];
       final serverTs = ts != null
-        ? DateTime.tryParse(ts.toString())?.toLocal() ?? DateTime.now()
-        : DateTime.now();
+          ? DateTime.tryParse(ts.toString())?.toLocal() ?? DateTime.now()
+          : DateTime.now();
       _cancelAckTimer(localId);
       _updateMessage(localId, (m) => m.upgradeWithAck(serverId, serverTs));
     });
@@ -562,7 +708,8 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       if (data is! Map) return;
       final id = data['id']?.toString() ?? '';
       _updateMessageById(id, (m) {
-        m.status = MessageStatus.delivered; return m;
+        m.status = MessageStatus.delivered;
+        return m;
       });
     });
 
@@ -582,7 +729,10 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     _onSocket('message_read', (data) {
       if (data is! Map) return;
       final id = data['id']?.toString() ?? '';
-      _updateMessageById(id, (m) { m.status = MessageStatus.read; return m; });
+      _updateMessageById(id, (m) {
+        m.status = MessageStatus.read;
+        return m;
+      });
     });
 
     // message_error — mark optimistic as failed
@@ -597,14 +747,16 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
       _onSocket(ev, (data) {
         if (data is! Map) return;
         final incoming = ChatMessage.fromJson(
-          Map<String,dynamic>.from(data),
+          Map<String, dynamic>.from(data),
           myUserId: _myUserId,
           initialStatus: MessageStatus.sent,
         );
         // De-dupe: if we already have this localId (our own optimistic echo), skip
         final localId = incoming.localId;
         if (localId.isNotEmpty) _cancelAckTimer(localId);
-        if (localId.isNotEmpty && state.messages.any((m) => m.localId == localId)) return;
+        if (localId.isNotEmpty &&
+            state.messages.any((m) => m.localId == localId))
+          return;
         state = state.copyWith(messages: [incoming, ...state.messages]);
         // Auto-mark as read if this is our own chat screen
         _markRead();
@@ -627,10 +779,12 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     // message_edited
     _onSocket('message_edited', (data) {
       if (data is! Map) return;
-      final msgId  = data['messageId']?.toString() ?? '';
+      final msgId = data['messageId']?.toString() ?? '';
       final newTxt = data['newContent']?.toString() ?? '';
-      _updateMessageById(msgId, (m) =>
-        m.copyWith(text: newTxt, isEdited: true));
+      _updateMessageById(
+        msgId,
+        (m) => m.copyWith(text: newTxt, isEdited: true),
+      );
     });
 
     // message_deleted
@@ -656,10 +810,16 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     });
     // backward-compat typing aliases
     _onSocket('user_typing_personal', (d) => _handleLegacyTyping(d));
-    _onSocket('user_typing_trade',    (d) => _handleLegacyTyping(d));
-    _onSocket('friend_typing',        (d) => _handleLegacyTyping(d));
-    _onSocket('group_typing_started', (d) => _handleLegacyTyping(d, isTyping: true));
-    _onSocket('group_typing_stopped', (d) => _handleLegacyTyping(d, isTyping: false));
+    _onSocket('user_typing_trade', (d) => _handleLegacyTyping(d));
+    _onSocket('friend_typing', (d) => _handleLegacyTyping(d));
+    _onSocket(
+      'group_typing_started',
+      (d) => _handleLegacyTyping(d, isTyping: true),
+    );
+    _onSocket(
+      'group_typing_stopped',
+      (d) => _handleLegacyTyping(d, isTyping: false),
+    );
   }
 
   void _handleLegacyTyping(dynamic d, {bool? isTyping}) {
@@ -686,10 +846,14 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
 
   List<String> _incomingEventNames() {
     switch (_params.context) {
-      case ChatContext.friend:  return ['friend_message'];
-      case ChatContext.trade:   return ['new_trade_message','new_message'];
-      case ChatContext.group:   return ['new_group_message'];
-      case ChatContext.ticket:  return ['ticket_message'];
+      case ChatContext.friend:
+        return ['friend_message'];
+      case ChatContext.trade:
+        return ['new_trade_message', 'new_message'];
+      case ChatContext.group:
+        return ['new_group_message'];
+      case ChatContext.ticket:
+        return ['ticket_message'];
     }
   }
 
@@ -745,7 +909,8 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     final socket = SocketService.instance.rawSocket;
     if (socket == null) return;
     socket.emit('edit_message', {
-      'messageId': messageId, 'newContent': newContent,
+      'messageId': messageId,
+      'newContent': newContent,
       'userId': _myUserId,
       'context': _params.context.name,
       'contextId': _params.contextId,
@@ -757,12 +922,12 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
     final socket = SocketService.instance.rawSocket;
     if (socket == null) return;
     socket.emit('delete_message', {
-      'messageId': messageId, 'userId': _myUserId,
+      'messageId': messageId,
+      'userId': _myUserId,
       'context': _params.context.name,
       'contextId': _params.contextId,
     });
   }
-
 
   // ── INTERNAL HELPERS ─────────────────────────────────────────────────────
   void _updateMessage(String localId, ChatMessage Function(ChatMessage) fn) {
@@ -775,8 +940,7 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
 
   void _updateMessageById(String id, ChatMessage Function(ChatMessage) fn) {
     if (id.isEmpty) return;
-    final idx = state.messages.indexWhere(
-      (m) => m.id == id || m.localId == id);
+    final idx = state.messages.indexWhere((m) => m.id == id || m.localId == id);
     if (idx == -1) return;
     final list = List<ChatMessage>.from(state.messages);
     list[idx] = fn(list[idx]);
@@ -784,7 +948,9 @@ class PremiumChatNotifier extends StateNotifier<PremiumChatState> {
   }
 
   void _markFailed(String localId) {
-    _updateMessage(localId, (m) { m.status = MessageStatus.failed; return m; });
+    _updateMessage(localId, (m) {
+      m.status = MessageStatus.failed;
+      return m;
+    });
   }
 }
-

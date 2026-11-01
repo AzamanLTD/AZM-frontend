@@ -37,8 +37,10 @@ class FriendService {
   // a fresh durable INSTANCE; the per-flow refs are the retry handles — a
   // re-call after a lost response RETRIES THE SAME INSTANCE (same key),
   // and transfers to different friends stay independent.
-  String _sendAction(String friendshipId) => 'friend.transfer.send.$friendshipId';
-  String _requestAction(String friendshipId) => 'friend.transfer.request.$friendshipId';
+  String _sendAction(String friendshipId) =>
+      'friend.transfer.send.$friendshipId';
+  String _requestAction(String friendshipId) =>
+      'friend.transfer.request.$friendshipId';
   final Map<String, FinancialOperationRef> _flowRefs = {};
 
   // ===========================================================================
@@ -47,7 +49,9 @@ class FriendService {
 
   /// Search users by username or user ID
   Future<List<Map<String, dynamic>>> searchUsers(
-      String query, String token) async {
+    String query,
+    String token,
+  ) async {
     final response = await _api.get('/friends/search?q=$query');
 
     if (response.statusCode == 200) {
@@ -63,7 +67,10 @@ class FriendService {
 
   /// Send a friend request to another user
   Future<Map<String, dynamic>> sendFriendRequest(
-      int addresseeId, String message, String token) async {
+    int addresseeId,
+    String message,
+    String token,
+  ) async {
     final response = await _api.post('/friends/request', {
       'addresseeId': addresseeId,
       'message': message,
@@ -88,7 +95,9 @@ class FriendService {
 
   /// Accept a friend request
   Future<Map<String, dynamic>> acceptFriendRequest(
-      String id, String token) async {
+    String id,
+    String token,
+  ) async {
     final response = await _api.put('/friends/request/$id/accept', {});
 
     if (response.statusCode == 200) {
@@ -99,7 +108,9 @@ class FriendService {
 
   /// Reject a friend request
   Future<Map<String, dynamic>> rejectFriendRequest(
-      String id, String token) async {
+    String id,
+    String token,
+  ) async {
     final response = await _api.put('/friends/request/$id/reject', {});
 
     if (response.statusCode == 200) {
@@ -135,10 +146,13 @@ class FriendService {
 
   /// Get messages for a friendship conversation
   Future<Map<String, dynamic>> getMessages(
-      String friendshipId, String token,
-      {int page = 1}) async {
+    String friendshipId,
+    String token, {
+    int page = 1,
+  }) async {
     final response = await _api.get(
-        '/friends/chat/$friendshipId/messages?page=$page');
+      '/friends/chat/$friendshipId/messages?page=$page',
+    );
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -173,8 +187,7 @@ class FriendService {
       if (mediaMimeType != null) 'mediaMimeType': mediaMimeType,
       if (mediaSize != null) 'mediaSize': mediaSize,
       if (mediaDuration != null) 'mediaDuration': mediaDuration,
-      if (mediaWaveformPeaks != null)
-        'mediaWaveformPeaks': mediaWaveformPeaks,
+      if (mediaWaveformPeaks != null) 'mediaWaveformPeaks': mediaWaveformPeaks,
       if (linkPreview != null) 'linkPreview': linkPreview,
     };
     final response = await _api.post(
@@ -223,28 +236,38 @@ class FriendService {
   /// so other money-moving endpoints (savings deposit, etc.) can share
   /// the same generator.
   Future<Map<String, dynamic>> sendFunds(
-      String friendshipId, double amount, String? reference, String token) async {
+    String friendshipId,
+    double amount,
+    String? reference,
+    String token,
+  ) async {
     // r42: one logical transfer, one DURABLE identity — postFinancial arms
     // the registry key (surviving app restart) and overwrites the legacy
     // Phase H12 clientRequestId with it, so the header and the body carry
     // the same identity and the backend's legacy txHash derivation stays
     // consistent. Lifecycle (retire on answered outcomes, retain on 409 /
     // network loss) is owned by the helper.
-    final response = await _api.postFinancial('/friends/transfer/send', {
-      'friendshipId': friendshipId,
-      'amount': amount,
-      if (reference != null && reference.isNotEmpty) 'reference': reference,
-      'clientRequestId': '', // auto-filled from the durable registry
-    }, operationType: _sendAction(friendshipId),
-        ref: _flowRefs.putIfAbsent(
-            'send.$friendshipId', () => FinancialOperationRef()),
-        // PR #165 review finding 2: an unresolved send of THIS friendship
-        // must never be silently replaced by a materially different send
-        // while the prior outcome is unknown. A changed request while the
-        // flow ref holds a pending instance fails CLOSED here (zero wire);
-        // the caller shows the honest resolution path. Other operation
-        // types keep the legacy begin-a-new-instance semantics.
-        failClosedOnPendingFingerprintChange: true);
+    final response = await _api.postFinancial(
+      '/friends/transfer/send',
+      {
+        'friendshipId': friendshipId,
+        'amount': amount,
+        if (reference != null && reference.isNotEmpty) 'reference': reference,
+        'clientRequestId': '', // auto-filled from the durable registry
+      },
+      operationType: _sendAction(friendshipId),
+      ref: _flowRefs.putIfAbsent(
+        'send.$friendshipId',
+        () => FinancialOperationRef(),
+      ),
+      // PR #165 review finding 2: an unresolved send of THIS friendship
+      // must never be silently replaced by a materially different send
+      // while the prior outcome is unknown. A changed request while the
+      // flow ref holds a pending instance fails CLOSED here (zero wire);
+      // the caller shows the honest resolution path. Other operation
+      // types keep the legacy begin-a-new-instance semantics.
+      failClosedOnPendingFingerprintChange: true,
+    );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
@@ -256,7 +279,11 @@ class FriendService {
   /// [sendFunds] — a request retry should be a no-op rather than a
   /// duplicate ask.
   Future<Map<String, dynamic>> requestFunds(
-      String friendshipId, double amount, String? reference, String token) async {
+    String friendshipId,
+    double amount,
+    String? reference,
+    String token,
+  ) async {
     // Not an r42-mounted route (plain POST), but the same duplicate-protection
     // rationale: one durable identity per logical ask, so a retry of an
     // unfinished ask is the same ask. Retired on any ANSWERED outcome.
@@ -265,40 +292,48 @@ class FriendService {
     // unchanged; a materially different ask begins a genuinely new
     // instance and the old record stays recoverable).
     final requestRef = _flowRefs.putIfAbsent(
-        'request.$friendshipId', () => FinancialOperationRef());
+      'request.$friendshipId',
+      () => FinancialOperationRef(),
+    );
     final account = await _api.operationAccount(failClosed: true);
     DurableOperation op;
     final retryId = requestRef.operationId;
     if (retryId != null) {
       try {
-        op = await DurableOperationRegistry.retry(retryId, account: account,
-            request: {
-              'friendshipId': friendshipId,
-              'amount': amount,
-              if (reference != null && reference.isNotEmpty) 'reference': reference,
-              // close-out review 2, finding 3: the wire request carries
-              // clientRequestId (= the durable key). The stored snapshot
-              // carries the SAME FIELD as a placeholder so a recovered
-              // replay is byte-identical to the original wire request;
-              // the exact-only path rewrites it to the instance's key.
-              'clientRequestId': '',
-            });
+        op = await DurableOperationRegistry.retry(
+          retryId,
+          account: account,
+          request: {
+            'friendshipId': friendshipId,
+            'amount': amount,
+            if (reference != null && reference.isNotEmpty)
+              'reference': reference,
+            // close-out review 2, finding 3: the wire request carries
+            // clientRequestId (= the durable key). The stored snapshot
+            // carries the SAME FIELD as a placeholder so a recovered
+            // replay is byte-identical to the original wire request;
+            // the exact-only path rewrites it to the instance's key.
+            'clientRequestId': '',
+          },
+        );
       } on DurableOperationException {
         op = await DurableOperationRegistry.begin(
-            account: account,
-            type: _requestAction(friendshipId),
-            endpoint: '/friends/transfer/request',
-            request: {
-              'friendshipId': friendshipId,
-              'amount': amount,
-              if (reference != null && reference.isNotEmpty) 'reference': reference,
-              // close-out review 2, finding 3: the wire request carries
-              // clientRequestId (= the durable key). The stored snapshot
-              // carries the SAME FIELD as a placeholder so a recovered
-              // replay is byte-identical to the original wire request;
-              // the exact-only path rewrites it to the instance's key.
-              'clientRequestId': '',
-            });
+          account: account,
+          type: _requestAction(friendshipId),
+          endpoint: '/friends/transfer/request',
+          request: {
+            'friendshipId': friendshipId,
+            'amount': amount,
+            if (reference != null && reference.isNotEmpty)
+              'reference': reference,
+            // close-out review 2, finding 3: the wire request carries
+            // clientRequestId (= the durable key). The stored snapshot
+            // carries the SAME FIELD as a placeholder so a recovered
+            // replay is byte-identical to the original wire request;
+            // the exact-only path rewrites it to the instance's key.
+            'clientRequestId': '',
+          },
+        );
       }
     } else {
       // The snapshot must be byte-identical to the wire request the way the
@@ -308,15 +343,16 @@ class FriendService {
       // instance's key — a recovered replay without the field would be a
       // materially different request.
       op = await DurableOperationRegistry.begin(
-          account: account,
-          type: _requestAction(friendshipId),
-          endpoint: '/friends/transfer/request',
-          request: {
-            'friendshipId': friendshipId,
-            'amount': amount,
-            if (reference != null && reference.isNotEmpty) 'reference': reference,
-            'clientRequestId': '',
-          });
+        account: account,
+        type: _requestAction(friendshipId),
+        endpoint: '/friends/transfer/request',
+        request: {
+          'friendshipId': friendshipId,
+          'amount': amount,
+          if (reference != null && reference.isNotEmpty) 'reference': reference,
+          'clientRequestId': '',
+        },
+      );
     }
     requestRef.operationId = op.operationId;
     final requestId = op.key;
@@ -333,14 +369,19 @@ class FriendService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body);
     }
-    
+
     throw Exception('Failed to request funds: ${response.body}');
   }
 
   /// Fulfill a pending transfer request (pay it)
   Future<Map<String, dynamic>> fulfillTransfer(
-      String transferId, String token) async {
-    final response = await _api.put('/friends/transfer/$transferId/fulfill', {});
+    String transferId,
+    String token,
+  ) async {
+    final response = await _api.put(
+      '/friends/transfer/$transferId/fulfill',
+      {},
+    );
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -350,8 +391,13 @@ class FriendService {
 
   /// Decline a pending transfer request
   Future<Map<String, dynamic>> declineTransfer(
-      String transferId, String token) async {
-    final response = await _api.put('/friends/transfer/$transferId/decline', {});
+    String transferId,
+    String token,
+  ) async {
+    final response = await _api.put(
+      '/friends/transfer/$transferId/decline',
+      {},
+    );
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -361,7 +407,9 @@ class FriendService {
 
   /// Get details of a specific transfer
   Future<Map<String, dynamic>> getTransferDetails(
-      String transferId, String token) async {
+    String transferId,
+    String token,
+  ) async {
     final response = await _api.get('/friends/transfer/$transferId');
 
     if (response.statusCode == 200) {

@@ -46,14 +46,13 @@ void main() {
       expect(
         chainedCalls,
         [error],
-        reason: 'the previously installed handler (Sentry in production) '
+        reason:
+            'the previously installed handler (Sentry in production) '
             'MUST receive the error — the old code clobbered it',
       );
-      expect(
-        recordedErrors,
-        [error],
-        reason: 'the app-local error record must also receive it',
-      );
+      expect(recordedErrors, [
+        error,
+      ], reason: 'the app-local error record must also receive it');
     } finally {
       FlutterError.onError = originalOnError;
     }

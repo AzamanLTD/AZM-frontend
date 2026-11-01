@@ -25,14 +25,29 @@ void main() {
 
   test('stepFor walks Dates → Room → Review → Confirmed', () {
     expect(const StayDecision().stepFor(confirmed: false), StayStep.dates);
-    expect(StayDecision(checkIn: d1, checkOut: d3).stepFor(confirmed: false), StayStep.room);
-    expect(StayDecision(checkIn: d1, checkOut: d3, roomId: 'r').stepFor(confirmed: false), StayStep.review);
+    expect(
+      StayDecision(checkIn: d1, checkOut: d3).stepFor(confirmed: false),
+      StayStep.room,
+    );
+    expect(
+      StayDecision(
+        checkIn: d1,
+        checkOut: d3,
+        roomId: 'r',
+      ).stepFor(confirmed: false),
+      StayStep.review,
+    );
     expect(const StayDecision().stepFor(confirmed: true), StayStep.confirmed);
     expect(StayStep.review.label, 'Review');
   });
 
   test('copyWith clears explicitly and is value-equal', () {
-    final full = StayDecision(checkIn: d1, checkOut: d3, guests: 2, roomId: 'r');
+    final full = StayDecision(
+      checkIn: d1,
+      checkOut: d3,
+      guests: 2,
+      roomId: 'r',
+    );
     expect(full.copyWith(clearRoom: true).roomId, isNull);
     expect(full.copyWith(clearDates: true).nights, isNull);
     expect(full.copyWith(), equals(full));

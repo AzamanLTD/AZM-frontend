@@ -14,23 +14,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _StaticSavings extends SavingsOverviewNotifier {
   @override
   Future<SavingsOverview> build() async => const SavingsOverview({
-        'totalSavedGhs': 3200.0,
-        'goals': [
-          {
-            'id': 'g1',
-            'name': 'New',
-            'currentAmountGhs': 510,
-            'targetAmountGhs': 1000,
-          },
-        ],
-      });
+    'totalSavedGhs': 3200.0,
+    'goals': [
+      {
+        'id': 'g1',
+        'name': 'New',
+        'currentAmountGhs': 510,
+        'targetAmountGhs': 1000,
+      },
+    ],
+  });
 }
 
 void main() {
-  testWidgets(
-      'SavingsScreen mounted bare (as the /savings route does) has a '
-      'Material host: no debug underline, no monospace fallback',
-      (tester) async {
+  testWidgets('SavingsScreen mounted bare (as the /savings route does) has a '
+      'Material host: no debug underline, no monospace fallback', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({'azaman_theme': 0});
     final container = ProviderContainer(
       overrides: [
@@ -80,11 +80,15 @@ void main() {
       expect(
         style.decoration == null || style.decoration == TextDecoration.none,
         isTrue,
-        reason: 'Text "${t.data}" resolved decoration ${style.decoration} '
+        reason:
+            'Text "${t.data}" resolved decoration ${style.decoration} '
             '(missing-Material debug underline)',
       );
-      expect(style.fontFamily, isNot('monospace'),
-          reason: 'Text "${t.data}" fell back to monospace');
+      expect(
+        style.fontFamily,
+        isNot('monospace'),
+        reason: 'Text "${t.data}" fell back to monospace',
+      );
     }
   });
 }

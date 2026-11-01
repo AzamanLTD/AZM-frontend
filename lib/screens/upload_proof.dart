@@ -10,7 +10,6 @@ import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 
-
 class UploadProofScreen extends ConsumerStatefulWidget {
   final String orderId;
 
@@ -31,7 +30,10 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
   Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
-      final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
 
       if (pickedFile != null) {
         setState(() {
@@ -52,12 +54,14 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
     try {
       // 1. Prepare Multipart Request using ApiClient.baseUrl
       var request = http.MultipartRequest(
-        'POST', 
-        Uri.parse('${ApiClient.baseUrl}/trades/upload-proof')
+        'POST',
+        Uri.parse('${ApiClient.baseUrl}/trades/upload-proof'),
       );
 
       request.fields['tradeId'] = widget.orderId.replaceAll('#', '');
-      request.files.add(await http.MultipartFile.fromPath('proof', _imageFile!.path));
+      request.files.add(
+        await http.MultipartFile.fromPath('proof', _imageFile!.path),
+      );
 
       // 2. Send via apiClient (handles auth headers automatically)
       var response = await apiClient.multipart('/trades/upload-proof', request);
@@ -78,7 +82,9 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
 
   void _showError(String msg) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
     }
   }
 
@@ -98,7 +104,10 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: colors.surface,
-        title: Text("Order ${widget.orderId}", style: TextStyle(fontSize: 14, color: colors.textPrimary)),
+        title: Text(
+          "Order ${widget.orderId}",
+          style: TextStyle(fontSize: 14, color: colors.textPrimary),
+        ),
         iconTheme: IconThemeData(color: colors.textPrimary),
         elevation: 0,
       ),
@@ -108,7 +117,14 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text("Upload Proof", style: TextStyle(color: colors.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
+              child: Text(
+                "Upload Proof",
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             const SizedBox(height: 30),
             Stack(
@@ -121,14 +137,32 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
                     decoration: BoxDecoration(
                       color: colors.surface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _imageFile != null ? colors.accent : colors.textTertiary.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: _imageFile != null
+                            ? colors.accent
+                            : colors.textTertiary.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: _imageFile == null
-                        ? Center(child: Icon(Icons.camera_alt_outlined, color: colors.accent, size: 40))
-                        : ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.file(_imageFile!, fit: BoxFit.cover)),
+                        ? Center(
+                            child: Icon(
+                              Icons.camera_alt_outlined,
+                              color: colors.accent,
+                              size: 40,
+                            ),
+                          )
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(_imageFile!, fit: BoxFit.cover),
+                          ),
                   ),
                 ),
-                if (_imageFile != null) Positioned(top: 10, right: 10, child: _buildRetakeButton(colors)),
+                if (_imageFile != null)
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: _buildRetakeButton(colors),
+                  ),
               ],
             ),
             const Spacer(),
@@ -176,8 +210,20 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
       onTap: _pickImage,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(20)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.refresh, color: colors.textPrimary, size: 14), Text(" Change", style: TextStyle(color: colors.textPrimary, fontSize: 12))]),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.refresh, color: colors.textPrimary, size: 14),
+            Text(
+              " Change",
+              style: TextStyle(color: colors.textPrimary, fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -192,11 +238,12 @@ class _UploadProofScreenState extends ConsumerState<UploadProofScreen> {
 // instead of hardcoded hex values.
 class _ReleaseTimerDialog extends ConsumerStatefulWidget {
   @override
-  ConsumerState<_ReleaseTimerDialog> createState() => _ReleaseTimerDialogState();
+  ConsumerState<_ReleaseTimerDialog> createState() =>
+      _ReleaseTimerDialogState();
 }
 
 class _ReleaseTimerDialogState extends ConsumerState<_ReleaseTimerDialog> {
-  int _secondsRemaining = 300; 
+  int _secondsRemaining = 300;
   Timer? _timer;
 
   @override
@@ -232,16 +279,32 @@ class _ReleaseTimerDialogState extends ConsumerState<_ReleaseTimerDialog> {
         children: [
           Icon(Icons.hourglass_empty, color: colors.accent, size: 50),
           const SizedBox(height: 20),
-          Text("Awaiting Vendor Release", style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.bold)),
+          Text(
+            "Awaiting Vendor Release",
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 10),
-          Text("$minutes:$seconds", style: TextStyle(color: colors.accent, fontSize: 32, fontWeight: FontWeight.bold)),
-          Text("Average release time: 04:30", style: TextStyle(color: colors.textTertiary, fontSize: 11)),
+          Text(
+            "$minutes:$seconds",
+            style: TextStyle(
+              color: colors.accent,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            "Average release time: 04:30",
+            style: TextStyle(color: colors.textTertiary, fontSize: 11),
+          ),
           const SizedBox(height: 20),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: colors.accent),
             onPressed: () {
-                // When they click close, pop back all the way to the dashboard
-                Navigator.of(context).popUntil((route) => route.isFirst);
+              // When they click close, pop back all the way to the dashboard
+              Navigator.of(context).popUntil((route) => route.isFirst);
             },
             child: const Text("CLOSE", style: TextStyle(color: Colors.black)),
           ),
@@ -249,5 +312,4 @@ class _ReleaseTimerDialogState extends ConsumerState<_ReleaseTimerDialog> {
       ),
     );
   }
-
 }

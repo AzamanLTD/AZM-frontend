@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 class TradeDisclaimer extends ConsumerWidget {
   final bool compact;
 
@@ -13,7 +12,9 @@ class TradeDisclaimer extends ConsumerWidget {
     final colors = ref.watch(themeProvider).colors;
     return Container(
       width: double.infinity,
-      margin: compact ? EdgeInsets.zero : const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      margin: compact
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(16, 4, 16, 12),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: colors.warning.withValues(alpha: 0.1),
@@ -24,7 +25,11 @@ class TradeDisclaimer extends ConsumerWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, color: colors.warning, size: compact ? 14 : 16),
+          Icon(
+            Icons.info_outline,
+            color: colors.warning,
+            size: compact ? 14 : 16,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

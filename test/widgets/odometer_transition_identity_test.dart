@@ -52,12 +52,12 @@ Widget _host(String value, {bool disableAnimations = false}) {
 /// odometer's subtree: the material page route's own transition slide (and
 /// its framework ancestors) must never be picked up.
 Finder _slideOf(String text) => find.descendant(
-      of: find.byType(OdometerNumber),
-      matching: find.ancestor(
-        of: find.text(text),
-        matching: find.byType(SlideTransition),
-      ),
-    );
+  of: find.byType(OdometerNumber),
+  matching: find.ancestor(
+    of: find.text(text),
+    matching: find.byType(SlideTransition),
+  ),
+);
 
 void main() {
   group('transition identity across rapid updates', () {
@@ -83,8 +83,11 @@ void main() {
 
         final slide = _slideOf('5');
         expect(slide, findsOneWidget);
-        final dy0 =
-            tester.widget<SlideTransition>(slide.first).position.value.dy;
+        final dy0 = tester
+            .widget<SlideTransition>(slide.first)
+            .position
+            .value
+            .dy;
 
         // Buggy builder: the outgoing '5' is re-wrapped with the new plan's
         // sign (-1) at the SAME animation value — dy0 flips negative
@@ -99,7 +102,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           find.descendant(
-              of: find.byType(OdometerNumber), matching: find.text('5')),
+            of: find.byType(OdometerNumber),
+            matching: find.text('5'),
+          ),
           findsNothing,
         );
         expect(find.text('0'), findsOneWidget);
@@ -133,8 +138,11 @@ void main() {
 
         final slide = _slideOf('5');
         expect(slide, findsOneWidget);
-        final dy =
-            tester.widget<SlideTransition>(slide.first).position.value.dy;
+        final dy = tester
+            .widget<SlideTransition>(slide.first)
+            .position
+            .value
+            .dy;
         // Still on its entry path from below (0 = arrived, 1 = below).
         expect(dy, greaterThan(0.0));
         expect(dy, lessThan(1.0));
@@ -151,55 +159,54 @@ void main() {
   });
 
   group('deleted digits roll DOWN out of the slot', () {
-    testWidgets(
-      'a settled mount-created digit deleted by a backspace slides '
-      'downward, not a fade',
-      (tester) async {
-        await tester.pumpWidget(_host('15'));
-        await tester.pumpAndSettle();
+    testWidgets('a settled mount-created digit deleted by a backspace slides '
+        'downward, not a fade', (tester) async {
+      await tester.pumpWidget(_host('15'));
+      await tester.pumpAndSettle();
 
-        // Backspace: '15' → '5' deletes slot 1's '1'. That digit was
-        // created at mount — it never slid, its baked entry transition
-        // is a fade — so under frozen-entry semantics alone its exit
-        // would be a FADE (it would just vanish). The deletion exit must
-        // instead roll it DOWN: mid-transition the digit sits inside a
-        // real SlideTransition with positive, growing dy.
-        await tester.pumpWidget(_host('5'));
-        await tester.pump(const Duration(milliseconds: 40)); // mid-exit
+      // Backspace: '15' → '5' deletes slot 1's '1'. That digit was
+      // created at mount — it never slid, its baked entry transition
+      // is a fade — so under frozen-entry semantics alone its exit
+      // would be a FADE (it would just vanish). The deletion exit must
+      // instead roll it DOWN: mid-transition the digit sits inside a
+      // real SlideTransition with positive, growing dy.
+      await tester.pumpWidget(_host('5'));
+      await tester.pump(const Duration(milliseconds: 40)); // mid-exit
 
-        expect(_slideOf('1'), findsOneWidget);
-        final dy = tester
-            .widget<SlideTransition>(_slideOf('1').first)
-            .position
-            .value
-            .dy;
-        // Geometry, not visibility: travelling downward through the slot.
-        expect(dy, greaterThan(0.0));
-        expect(dy, lessThan(1.0));
-        // And it is not a fade: no FadeTransition wraps the outgoing
-        // digit inside the odometer.
-        expect(
-          find.descendant(
-            of: find.byType(OdometerNumber),
-            matching: find.ancestor(
-              of: find.text('1'),
-              matching: find.byType(FadeTransition),
-            ),
+      expect(_slideOf('1'), findsOneWidget);
+      final dy = tester
+          .widget<SlideTransition>(_slideOf('1').first)
+          .position
+          .value
+          .dy;
+      // Geometry, not visibility: travelling downward through the slot.
+      expect(dy, greaterThan(0.0));
+      expect(dy, lessThan(1.0));
+      // And it is not a fade: no FadeTransition wraps the outgoing
+      // digit inside the odometer.
+      expect(
+        find.descendant(
+          of: find.byType(OdometerNumber),
+          matching: find.ancestor(
+            of: find.text('1'),
+            matching: find.byType(FadeTransition),
           ),
-          findsNothing,
-        );
+        ),
+        findsNothing,
+      );
 
-        // The roll completes: the digit departs and the figure shows
-        // exactly the new value.
-        await tester.pumpAndSettle();
-        expect(
-          find.descendant(
-              of: find.byType(OdometerNumber), matching: find.text('1')),
-          findsNothing,
-        );
-        expect(find.text('5'), findsOneWidget);
-      },
-    );
+      // The roll completes: the digit departs and the figure shows
+      // exactly the new value.
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byType(OdometerNumber),
+          matching: find.text('1'),
+        ),
+        findsNothing,
+      );
+      expect(find.text('5'), findsOneWidget);
+    });
 
     testWidgets(
       'a deleted digit rolls downward even when it entered from above',
@@ -231,7 +238,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           find.descendant(
-              of: find.byType(OdometerNumber), matching: find.text('1')),
+            of: find.byType(OdometerNumber),
+            matching: find.text('1'),
+          ),
           findsNothing,
         );
         expect(find.text('6'), findsOneWidget);
@@ -277,7 +286,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(
           find.descendant(
-              of: find.byType(OdometerNumber), matching: find.text('1')),
+            of: find.byType(OdometerNumber),
+            matching: find.text('1'),
+          ),
           findsNothing,
         );
         // The retyped digit arrived at the vacated slot.
@@ -288,35 +299,32 @@ void main() {
   });
 
   group('reduced motion — final geometry on the first frame', () {
-    testWidgets(
-      'a slot-count change reaches the final width immediately '
-      '(no width animation under disableAnimations)',
-      (tester) async {
-        // Reference: the fully-settled geometry of the longer figure,
-        // measured on its own mount (a mount never animates).
-        await tester.pumpWidget(_host('9,999', disableAnimations: true));
-        await tester.pumpAndSettle();
-        final reference = tester.getSize(find.byType(OdometerNumber));
+    testWidgets('a slot-count change reaches the final width immediately '
+        '(no width animation under disableAnimations)', (tester) async {
+      // Reference: the fully-settled geometry of the longer figure,
+      // measured on its own mount (a mount never animates).
+      await tester.pumpWidget(_host('9,999', disableAnimations: true));
+      await tester.pumpAndSettle();
+      final reference = tester.getSize(find.byType(OdometerNumber));
 
-        // Start from the shorter figure, then grow it: '99' → '9,999'
-        // adds a separator and two slots, so the figure wants a much
-        // wider layout.
-        await tester.pumpWidget(_host('99', disableAnimations: true));
-        await tester.pumpAndSettle();
-        final before = tester.getSize(find.byType(OdometerNumber));
-        expect(before.width, lessThan(reference.width));
+      // Start from the shorter figure, then grow it: '99' → '9,999'
+      // adds a separator and two slots, so the figure wants a much
+      // wider layout.
+      await tester.pumpWidget(_host('99', disableAnimations: true));
+      await tester.pumpAndSettle();
+      final before = tester.getSize(find.byType(OdometerNumber));
+      expect(before.width, lessThan(reference.width));
 
-        await tester.pumpWidget(_host('9,999', disableAnimations: true));
-        // Exactly one frame of elapsed time — NO settling. If the outer
-        // width still animated under reduced motion, the geometry would
-        // still be at the OLD size here, lagging the content by up to one
-        // full animation duration.
-        await tester.pump(const Duration(milliseconds: 1));
+      await tester.pumpWidget(_host('9,999', disableAnimations: true));
+      // Exactly one frame of elapsed time — NO settling. If the outer
+      // width still animated under reduced motion, the geometry would
+      // still be at the OLD size here, lagging the content by up to one
+      // full animation duration.
+      await tester.pump(const Duration(milliseconds: 1));
 
-        final after = tester.getSize(find.byType(OdometerNumber));
-        expect(after.width, reference.width);
-        expect(after.height, reference.height);
-      },
-    );
+      final after = tester.getSize(find.byType(OdometerNumber));
+      expect(after.width, reference.width);
+      expect(after.height, reference.height);
+    });
   });
 }

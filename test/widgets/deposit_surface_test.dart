@@ -281,38 +281,41 @@ void main() {
   });
 
   group('I — Receive / Request resting-state interaction', () {
-    testWidgets('Request button snaps to the selected header and toggles back',
-        (tester) async {
-      _phoneSize(tester);
-      await tester.pumpWidget(_app());
-      await _openReceive(tester);
+    testWidgets(
+      'Request button snaps to the selected header and toggles back',
+      (tester) async {
+        _phoneSize(tester);
+        await tester.pumpWidget(_app());
+        await _openReceive(tester);
 
-      final toggle = find.byKey(const ValueKey('receive-request-toggle'));
-      // Semantics assertions need the semantics tree attached.
-      final semantics = tester.ensureSemantics();
-      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+        final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+        // Semantics assertions need the semantics tree attached.
+        final semantics = tester.ensureSemantics();
+        expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
 
-      await tester.tap(toggle);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 650));
+        await tester.tap(toggle);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 650));
 
-      expect(
-        find.bySemanticsLabel(
-          'Request section, selected. Tap to return to Receive.',
-        ),
-        findsOneWidget,
-      );
+        expect(
+          find.bySemanticsLabel(
+            'Request section, selected. Tap to return to Receive.',
+          ),
+          findsOneWidget,
+        );
 
-      await tester.tap(toggle);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 650));
+        await tester.tap(toggle);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 650));
 
-      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
-      semantics.dispose();
-    });
+        expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+        semantics.dispose();
+      },
+    );
 
-    testWidgets('downward pull from Request returns to Receive before close',
-        (tester) async {
+    testWidgets('downward pull from Request returns to Receive before close', (
+      tester,
+    ) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openReceive(tester);
@@ -341,44 +344,46 @@ void main() {
       expect(find.text('receive-sentinel'), findsNothing);
     });
 
-    testWidgets('an intentional pull snaps into Request; a short pull returns',
-        (tester) async {
-      _phoneSize(tester);
-      await tester.pumpWidget(_app());
-      await _openReceive(tester);
+    testWidgets(
+      'an intentional pull snaps into Request; a short pull returns',
+      (tester) async {
+        _phoneSize(tester);
+        await tester.pumpWidget(_app());
+        await _openReceive(tester);
 
-      final toggle = find.byKey(const ValueKey('receive-request-toggle'));
-      final center = tester.getCenter(toggle);
-      final short = await tester.startGesture(center);
-      // Real pointers stream many small moves; a single large hop can lose
-      // the gesture arena to the scrollable behind the bubble.
-      for (var i = 0; i < 4; i++) {
-        await short.moveBy(const Offset(0, -18));
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-      await short.up();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 650));
-      final semantics = tester.ensureSemantics();
-      expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
+        final toggle = find.byKey(const ValueKey('receive-request-toggle'));
+        final center = tester.getCenter(toggle);
+        final short = await tester.startGesture(center);
+        // Real pointers stream many small moves; a single large hop can lose
+        // the gesture arena to the scrollable behind the bubble.
+        for (var i = 0; i < 4; i++) {
+          await short.moveBy(const Offset(0, -18));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await short.up();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 650));
+        final semantics = tester.ensureSemantics();
+        expect(find.bySemanticsLabel('Open Request section'), findsOneWidget);
 
-      final origin = tester.getCenter(toggle);
-      final committed = await tester.startGesture(origin);
-      for (var i = 0; i < 11; i++) {
-        await committed.moveBy(const Offset(0, -20));
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-      await committed.up();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 650));
-      expect(
-        find.bySemanticsLabel(
-          'Request section, selected. Tap to return to Receive.',
-        ),
-        findsOneWidget,
-      );
-      semantics.dispose();
-    });
+        final origin = tester.getCenter(toggle);
+        final committed = await tester.startGesture(origin);
+        for (var i = 0; i < 11; i++) {
+          await committed.moveBy(const Offset(0, -20));
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await committed.up();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 650));
+        expect(
+          find.bySemanticsLabel(
+            'Request section, selected. Tap to return to Receive.',
+          ),
+          findsOneWidget,
+        );
+        semantics.dispose();
+      },
+    );
   });
 }
 

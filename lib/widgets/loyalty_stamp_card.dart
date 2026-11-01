@@ -23,11 +23,7 @@ class LoyaltyStampCard extends ConsumerWidget {
   final UserLoyaltyCard card;
   final VoidCallback? onTap;
 
-  const LoyaltyStampCard({
-    super.key,
-    required this.card,
-    this.onTap,
-  });
+  const LoyaltyStampCard({super.key, required this.card, this.onTap});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,7 +49,9 @@ class LoyaltyStampCard extends ConsumerWidget {
           ),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: card.isComplete ? colors.accent.withValues(alpha: 0.4) : colors.accent.withValues(alpha: 0.15),
+            color: card.isComplete
+                ? colors.accent.withValues(alpha: 0.4)
+                : colors.accent.withValues(alpha: 0.15),
             width: card.isComplete ? 1.5 : 0.5,
           ),
         ),
@@ -64,7 +62,8 @@ class LoyaltyStampCard extends ConsumerWidget {
             Row(
               children: [
                 Container(
-                  width: 40, height: 40,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: colors.accent.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
@@ -102,23 +101,28 @@ class LoyaltyStampCard extends ConsumerWidget {
                 ),
                 if (card.isComplete)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: colors.accent,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Ready to redeem!',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Ready to redeem!',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .shimmer(
+                        duration: 1500.ms,
+                        color: Colors.white.withValues(alpha: 0.3),
                       ),
-                    ),
-                  ).animate(onPlay: (c) => c.repeat(reverse: true)).shimmer(
-                    duration: 1500.ms,
-                    color: Colors.white.withValues(alpha: 0.3),
-                  ),
               ],
             ),
 
@@ -138,9 +142,13 @@ class LoyaltyStampCard extends ConsumerWidget {
                         ? 'Your reward is ready: ${card.rewardDescription}'
                         : '${card.stampsRemaining} more stamp${card.stampsRemaining == 1 ? '' : 's'} until ${card.rewardDescription}',
                     style: TextStyle(
-                      color: card.isComplete ? colors.accent : colors.textSecondary,
+                      color: card.isComplete
+                          ? colors.accent
+                          : colors.textSecondary,
                       fontSize: 13,
-                      fontWeight: card.isComplete ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: card.isComplete
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                     ),
                   ),
                 ),
@@ -162,33 +170,37 @@ class LoyaltyStampCard extends ConsumerWidget {
       children: List.generate(stamps, (index) {
         final isFilled = index < filled;
         return Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: isFilled ? colors.accent : colors.softSurface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isFilled ? colors.accent : colors.divider,
-              width: isFilled ? 0 : 1,
-            ),
-            boxShadow: isFilled
-                ? [
-                    BoxShadow(
-                      color: colors.accent.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      spreadRadius: 1,
-                    ),
-                  ]
-                : null,
-          ),
-          child: Icon(
-            HugeIconsSolid.star,
-            size: 18,
-            color: isFilled ? Colors.white : colors.textTertiary,
-          ),
-        ).animate(delay: (index * 50).ms).fadeIn(duration: 200.ms).scale(
-          begin: isFilled ? const Offset(0.8, 0.8) : const Offset(1.0, 1.0),
-          end: const Offset(1.0, 1.0),
-        );
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isFilled ? colors.accent : colors.softSurface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isFilled ? colors.accent : colors.divider,
+                  width: isFilled ? 0 : 1,
+                ),
+                boxShadow: isFilled
+                    ? [
+                        BoxShadow(
+                          color: colors.accent.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Icon(
+                HugeIconsSolid.star,
+                size: 18,
+                color: isFilled ? Colors.white : colors.textTertiary,
+              ),
+            )
+            .animate(delay: (index * 50).ms)
+            .fadeIn(duration: 200.ms)
+            .scale(
+              begin: isFilled ? const Offset(0.8, 0.8) : const Offset(1.0, 1.0),
+              end: const Offset(1.0, 1.0),
+            );
       }),
     );
   }

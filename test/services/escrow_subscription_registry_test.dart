@@ -86,20 +86,20 @@ void main() {
     expect(sourceListeners, isEmpty);
   });
 
-  test('invalid ticket ids are rejected without attaching a source listener', () {
-    expect(
-      () => registry.subscribe(ticketId: '  ', onEvent: (_, __) {}),
-      throwsArgumentError,
-    );
-    expect(sourceListeners, isEmpty);
-  });
+  test(
+    'invalid ticket ids are rejected without attaching a source listener',
+    () {
+      expect(
+        () => registry.subscribe(ticketId: '  ', onEvent: (_, __) {}),
+        throwsArgumentError,
+      );
+      expect(sourceListeners, isEmpty);
+    },
+  );
 
   test('missing ticket ids and unsupported events are ignored safely', () {
     var calls = 0;
-    registry.subscribe(
-      ticketId: 'ticket-a',
-      onEvent: (_, __) => calls++,
-    );
+    registry.subscribe(ticketId: 'ticket-a', onEvent: (_, __) => calls++);
 
     final source = sourceListeners.single;
     source(<String, dynamic>{}, 'escrow_settled');
@@ -126,10 +126,7 @@ void main() {
 
   test('normalizes surrounding ticket whitespace before matching', () {
     var calls = 0;
-    registry.subscribe(
-      ticketId: ' ticket-a ',
-      onEvent: (_, __) => calls++,
-    );
+    registry.subscribe(ticketId: ' ticket-a ', onEvent: (_, __) => calls++);
 
     emit('ticket-a', 'escrow_terms_updated');
 

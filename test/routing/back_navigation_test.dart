@@ -58,10 +58,8 @@ class _ListPageState extends State<_ListPage> {
       body: ListView.builder(
         controller: _controller,
         itemCount: 120,
-        itemBuilder: (_, i) => ListTile(
-          key: Key('list-row-$i'),
-          title: Text('ROW $i'),
-        ),
+        itemBuilder: (_, i) =>
+            ListTile(key: Key('list-row-$i'), title: Text('ROW $i')),
       ),
     );
   }
@@ -148,46 +146,50 @@ double _listOffset(WidgetTester tester) {
 
 void main() {
   testWidgets(
-      'a dialog on top is dismissed alone — the underlying page survives',
-      (tester) async {
-    var detailPushed = false;
-    await _pumpApp(tester, onDetailTapped: () => detailPushed = true);
+    'a dialog on top is dismissed alone — the underlying page survives',
+    (tester) async {
+      var detailPushed = false;
+      await _pumpApp(tester, onDetailTapped: () => detailPushed = true);
 
-    // Scroll the list, then cover the page with a dialog.
-    await tester.drag(find.byType(ListView), const Offset(0, -240));
-    await tester.pumpAndSettle();
-    final offsetBefore = _listOffset(tester);
-    expect(offsetBefore, greaterThan(0));
+      // Scroll the list, then cover the page with a dialog.
+      await tester.drag(find.byType(ListView), const Offset(0, -240));
+      await tester.pumpAndSettle();
+      final offsetBefore = _listOffset(tester);
+      expect(offsetBefore, greaterThan(0));
 
-    Navigator.of(
-      tester.element(find.byKey(const Key('list-scaffold'))),
-      rootNavigator: true,
-    ).push(DialogRoute<void>(
-      context: tester.element(find.byKey(const Key('list-scaffold'))),
-      builder: (_) => const AlertDialog(
-        key: Key('test-dialog'),
-        content: Text('DIALOG BODY'),
-      ),
-    ));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('test-dialog')), findsOneWidget);
-    expect(topRouteObserver.topRouteIsRouterPage, isFalse);
+      Navigator.of(
+        tester.element(find.byKey(const Key('list-scaffold'))),
+        rootNavigator: true,
+      ).push(
+        DialogRoute<void>(
+          context: tester.element(find.byKey(const Key('list-scaffold'))),
+          builder: (_) => const AlertDialog(
+            key: Key('test-dialog'),
+            content: Text('DIALOG BODY'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('test-dialog')), findsOneWidget);
+      expect(topRouteObserver.topRouteIsRouterPage, isFalse);
 
-    // ONE back action: the dialog pops, nothing else does.
-    await _runBack(tester, const Key('list-scaffold'));
-    await tester.pumpAndSettle();
+      // ONE back action: the dialog pops, nothing else does.
+      await _runBack(tester, const Key('list-scaffold'));
+      await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('test-dialog')), findsNothing);
-    expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
-    expect(_listOffset(tester), offsetBefore, // scroll survived intact
-        reason: 'the back action must not touch the underlying screen');
-    expect(detailPushed, isFalse);
-  });
+      expect(find.byKey(const Key('test-dialog')), findsNothing);
+      expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
+      expect(
+        _listOffset(tester),
+        offsetBefore, // scroll survived intact
+        reason: 'the back action must not touch the underlying screen',
+      );
+      expect(detailPushed, isFalse);
+    },
+  );
 
-  testWidgets(
-      'an imperative route on top is popped via the root navigator, '
-      'preserving the underlying router page scroll',
-      (tester) async {
+  testWidgets('an imperative route on top is popped via the root navigator, '
+      'preserving the underlying router page scroll', (tester) async {
     await _pumpApp(tester);
 
     await tester.drag(find.byType(ListView), const Offset(0, -480));
@@ -198,12 +200,14 @@ void main() {
     Navigator.of(
       tester.element(find.byKey(const Key('list-scaffold'))),
       rootNavigator: true,
-    ).push(MaterialPageRoute<void>(
-      builder: (_) => const Scaffold(
-        key: Key('imperative-detail'),
-        body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+    ).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(
+          key: Key('imperative-detail'),
+          body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('imperative-detail')), findsOneWidget);
 
@@ -212,12 +216,16 @@ void main() {
 
     expect(find.byKey(const Key('imperative-detail')), findsNothing);
     expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
-    expect(_listOffset(tester), offsetBefore,
-        reason: 'imperative back must preserve the list position');
+    expect(
+      _listOffset(tester),
+      offsetBefore,
+      reason: 'imperative back must preserve the list position',
+    );
   });
 
-  testWidgets('a router page on top pops exactly one router page',
-      (tester) async {
+  testWidgets('a router page on top pops exactly one router page', (
+    tester,
+  ) async {
     var pushes = 0;
     await _pumpApp(tester, onDetailTapped: () => pushes++);
 
@@ -235,44 +243,50 @@ void main() {
   });
 
   testWidgets(
-      'detail → list back preserves the list scroll position (router route)',
-      (tester) async {
-    await _pumpApp(tester);
+    'detail → list back preserves the list scroll position (router route)',
+    (tester) async {
+      await _pumpApp(tester);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -480));
-    await tester.pumpAndSettle();
-    final offsetBefore = _listOffset(tester);
+      await tester.drag(find.byType(ListView), const Offset(0, -480));
+      await tester.pumpAndSettle();
+      final offsetBefore = _listOffset(tester);
 
-    await tester.tap(find.byKey(const Key('open-detail-fab')));
-    await tester.pumpAndSettle();
-    expect(find.text('DETAIL ROUTER PAGE'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('open-detail-fab')));
+      await tester.pumpAndSettle();
+      expect(find.text('DETAIL ROUTER PAGE'), findsOneWidget);
 
-    await _runBack(tester, const Key('detail-scaffold'));
-    await tester.pumpAndSettle();
+      await _runBack(tester, const Key('detail-scaffold'));
+      await tester.pumpAndSettle();
 
-    expect(_listOffset(tester), offsetBefore,
-        reason: 'returning from a detail page must not reset the list');
-  });
+      expect(
+        _listOffset(tester),
+        offsetBefore,
+        reason: 'returning from a detail page must not reset the list',
+      );
+    },
+  );
 
   testWidgets(
-      'a deep-link-style stack (nothing to pop) backs out to the honest root',
-      (tester) async {
-    // Cold stack: the list page IS the base — nothing under it.
-    await _pumpApp(tester);
+    'a deep-link-style stack (nothing to pop) backs out to the honest root',
+    (tester) async {
+      // Cold stack: the list page IS the base — nothing under it.
+      await _pumpApp(tester);
 
-    await _runBack(tester, const Key('list-scaffold'));
-    await tester.pumpAndSettle();
+      await _runBack(tester, const Key('list-scaffold'));
+      await tester.pumpAndSettle();
 
-    // No phantom pop, no crash: the fallback targets the CANONICAL home
-    // route — the honest root, replacing the deep-link stack.
-    final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
-    expect(nav.widget.pages.length, 1);
-    expect(find.byKey(const Key('home-scaffold')), findsOneWidget);
-    expect(find.byKey(const Key('list-scaffold')), findsNothing);
-  });
+      // No phantom pop, no crash: the fallback targets the CANONICAL home
+      // route — the honest root, replacing the deep-link stack.
+      final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
+      expect(nav.widget.pages.length, 1);
+      expect(find.byKey(const Key('home-scaffold')), findsOneWidget);
+      expect(find.byKey(const Key('list-scaffold')), findsNothing);
+    },
+  );
 
-  testWidgets('rapid repeated back actions consume one level each',
-      (tester) async {
+  testWidgets('rapid repeated back actions consume one level each', (
+    tester,
+  ) async {
     var detailTaps = 0;
     await _pumpApp(tester, onDetailTapped: () => detailTaps++);
 
@@ -283,12 +297,14 @@ void main() {
     Navigator.of(
       tester.element(find.byKey(const Key('list-scaffold'))),
       rootNavigator: true,
-    ).push(MaterialPageRoute<void>(
-      builder: (_) => const Scaffold(
-        key: Key('imperative-detail'),
-        body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+    ).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(
+          key: Key('imperative-detail'),
+          body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     // Back, back — no settle between them. The FIRST press consumes
@@ -299,14 +315,20 @@ void main() {
     // without crashing or double-consuming.
     await _runBack(tester, const Key('imperative-detail'));
     await tester.pump(const Duration(milliseconds: 50));
-    expect(topRouteObserver.topRouteIsRouterPage, isTrue,
-        reason: 'press one consumed exactly the imperative route');
+    expect(
+      topRouteObserver.topRouteIsRouterPage,
+      isTrue,
+      reason: 'press one consumed exactly the imperative route',
+    );
     expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
 
     await _runBack(tester, const Key('list-scaffold'));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('home-scaffold')), findsOneWidget,
-        reason: 'press two fell through to the honest root fallback');
+    expect(
+      find.byKey(const Key('home-scaffold')),
+      findsOneWidget,
+      reason: 'press two fell through to the honest root fallback',
+    );
     expect(detailTaps, 0); // nothing else was touched
   });
 
@@ -323,8 +345,7 @@ void main() {
   // a limitation, not assumed away.
   // ─────────────────────────────────────────────────────────────────────
 
-  testWidgets(
-      'PLATFORM back: a dialog on top is dismissed alone, the page and '
+  testWidgets('PLATFORM back: a dialog on top is dismissed alone, the page and '
       'its scroll survive', (tester) async {
     await _pumpApp(tester);
 
@@ -335,13 +356,15 @@ void main() {
     Navigator.of(
       tester.element(find.byKey(const Key('list-scaffold'))),
       rootNavigator: true,
-    ).push(DialogRoute<void>(
-      context: tester.element(find.byKey(const Key('list-scaffold'))),
-      builder: (_) => const AlertDialog(
-        key: Key('test-dialog'),
-        content: Text('DIALOG BODY'),
+    ).push(
+      DialogRoute<void>(
+        context: tester.element(find.byKey(const Key('list-scaffold'))),
+        builder: (_) => const AlertDialog(
+          key: Key('test-dialog'),
+          content: Text('DIALOG BODY'),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     // The REAL platform dispatch: handled == true means the app consumed
@@ -352,12 +375,14 @@ void main() {
     expect(handled, isTrue, reason: 'the platform back was consumed in-app');
     expect(find.byKey(const Key('test-dialog')), findsNothing);
     expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
-    expect(_listOffset(tester), offsetBefore,
-        reason: 'the platform back must not touch the underlying screen');
+    expect(
+      _listOffset(tester),
+      offsetBefore,
+      reason: 'the platform back must not touch the underlying screen',
+    );
   });
 
-  testWidgets(
-      'PLATFORM back: an imperative route is popped, the router page '
+  testWidgets('PLATFORM back: an imperative route is popped, the router page '
       'keeps its scroll', (tester) async {
     await _pumpApp(tester);
 
@@ -368,12 +393,14 @@ void main() {
     Navigator.of(
       tester.element(find.byKey(const Key('list-scaffold'))),
       rootNavigator: true,
-    ).push(MaterialPageRoute<void>(
-      builder: (_) => const Scaffold(
-        key: Key('imperative-detail'),
-        body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+    ).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(
+          key: Key('imperative-detail'),
+          body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     final handled = await tester.binding.handlePopRoute();
@@ -382,30 +409,36 @@ void main() {
     expect(handled, isTrue);
     expect(find.byKey(const Key('imperative-detail')), findsNothing);
     expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
-    expect(_listOffset(tester), offsetBefore,
-        reason: 'platform back must preserve the list position');
+    expect(
+      _listOffset(tester),
+      offsetBefore,
+      reason: 'platform back must preserve the list position',
+    );
   });
 
   testWidgets(
-      'PLATFORM back: a router page on top pops exactly one router page',
-      (tester) async {
-    await _pumpApp(tester);
+    'PLATFORM back: a router page on top pops exactly one router page',
+    (tester) async {
+      await _pumpApp(tester);
 
-    await tester.tap(find.byKey(const Key('open-detail-fab')));
-    await tester.pumpAndSettle();
-    expect(find.text('DETAIL ROUTER PAGE'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('open-detail-fab')));
+      await tester.pumpAndSettle();
+      expect(find.text('DETAIL ROUTER PAGE'), findsOneWidget);
 
-    final handled = await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
+      final handled = await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
 
-    expect(handled, isTrue);
-    expect(find.text('DETAIL ROUTER PAGE'), findsNothing);
-    expect(find.byKey(const Key('list-scaffold')), findsOneWidget,
-        reason: 'exactly ONE router page popped — the list below survived');
-  });
+      expect(handled, isTrue);
+      expect(find.text('DETAIL ROUTER PAGE'), findsNothing);
+      expect(
+        find.byKey(const Key('list-scaffold')),
+        findsOneWidget,
+        reason: 'exactly ONE router page popped — the list below survived',
+      );
+    },
+  );
 
-  testWidgets(
-      'PLATFORM back: rapid repeated backs consume one level each '
+  testWidgets('PLATFORM back: rapid repeated backs consume one level each '
       '(dialog then its page)', (tester) async {
     await _pumpApp(tester);
 
@@ -413,31 +446,38 @@ void main() {
     Navigator.of(
       tester.element(find.byKey(const Key('list-scaffold'))),
       rootNavigator: true,
-    ).push(MaterialPageRoute<void>(
-      builder: (_) => const Scaffold(
-        key: Key('imperative-detail'),
-        body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+    ).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(
+          key: Key('imperative-detail'),
+          body: Center(child: Text('DETAIL IMPERATIVE PAGE')),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     Navigator.of(
       tester.element(find.byKey(const Key('imperative-detail'))),
       rootNavigator: true,
-    ).push(DialogRoute<void>(
-      context: tester.element(find.byKey(const Key('imperative-detail'))),
-      builder: (_) => const AlertDialog(
-        key: Key('test-dialog'),
-        content: Text('DIALOG BODY'),
+    ).push(
+      DialogRoute<void>(
+        context: tester.element(find.byKey(const Key('imperative-detail'))),
+        builder: (_) => const AlertDialog(
+          key: Key('test-dialog'),
+          content: Text('DIALOG BODY'),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     // ONE platform back: the dialog ONLY — the page under it survives.
     expect(await tester.binding.handlePopRoute(), isTrue);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('test-dialog')), findsNothing);
-    expect(find.byKey(const Key('imperative-detail')), findsOneWidget,
-        reason: 'a single back gesture must not double-apply');
+    expect(
+      find.byKey(const Key('imperative-detail')),
+      findsOneWidget,
+      reason: 'a single back gesture must not double-apply',
+    );
 
     // The next platform back pops the imperative page.
     expect(await tester.binding.handlePopRoute(), isTrue);
@@ -446,10 +486,8 @@ void main() {
     expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
   });
 
-  testWidgets(
-      'PLATFORM back on a cold deep-link stack is honestly unhandled '
-      '(the OS keeps its exit behavior — no fabricated route)',
-      (tester) async {
+  testWidgets('PLATFORM back on a cold deep-link stack is honestly unhandled '
+      '(the OS keeps its exit behavior — no fabricated route)', (tester) async {
     await _pumpApp(tester);
     // The list page IS the base of the stack — nothing under it.
 
@@ -461,12 +499,19 @@ void main() {
     final handled = await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(handled, isFalse,
-        reason: 'a cold stack has nowhere to return: the platform back '
-            'stays with the platform, and no route is invented');
+    expect(
+      handled,
+      isFalse,
+      reason:
+          'a cold stack has nowhere to return: the platform back '
+          'stays with the platform, and no route is invented',
+    );
     expect(find.byKey(const Key('list-scaffold')), findsOneWidget);
     final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
-    expect(nav.widget.pages.length, 1,
-        reason: 'the stack was not rewritten or fabricated');
+    expect(
+      nav.widget.pages.length,
+      1,
+      reason: 'the stack was not rewritten or fabricated',
+    );
   });
 }

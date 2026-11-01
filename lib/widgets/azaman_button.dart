@@ -96,7 +96,12 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
         color: disabled ? _disabledFill(colors) : null,
         borderRadius: BorderRadius.circular(_radiusForSize()),
         border: ringColor != null
-            ? Border.all(color: ringColor, width: widget.variant == AzamanButtonVariant.secondary ? 1.4 : 0.8)
+            ? Border.all(
+                color: ringColor,
+                width: widget.variant == AzamanButtonVariant.secondary
+                    ? 1.4
+                    : 0.8,
+              )
             : null,
         boxShadow: shadowColor != null && !disabled
             ? [
@@ -117,10 +122,7 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
             SizedBox(
               width: spec.iconSize,
               height: spec.iconSize,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: fg,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: fg),
             )
           else if (widget.icon != null) ...[
             Icon(widget.icon, size: spec.iconSize, color: fg),
@@ -171,23 +173,23 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
     // Primary buttons get a one-shot shimmer on mount so the CTA reads
     // as alive without continuous animation hammering the GPU.
     if (widget.variant == AzamanButtonVariant.primary && !disabled) {
-      body = body
-          .animate()
-          .shimmer(
-            delay: 250.ms,
-            duration: 1500.ms,
-            color: Colors.white.withValues(alpha: 0.30),
-          );
+      body = body.animate().shimmer(
+        delay: 250.ms,
+        duration: 1500.ms,
+        color: Colors.white.withValues(alpha: 0.30),
+      );
     }
 
-    return widget.fullWidth ? SizedBox(width: double.infinity, child: body) : body;
+    return widget.fullWidth
+        ? SizedBox(width: double.infinity, child: body)
+        : body;
   }
 
   double _radiusForSize() => switch (widget.size) {
-        AzamanButtonSize.small => 10,
-        AzamanButtonSize.medium => 12,
-        AzamanButtonSize.large => 14,
-      };
+    AzamanButtonSize.small => 10,
+    AzamanButtonSize.medium => 12,
+    AzamanButtonSize.large => 14,
+  };
 
   Color _disabledFill(AzamanColors colors) {
     switch (widget.variant) {
@@ -206,7 +208,7 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
   /// the selected variant. Designed so each variant looks the same in
   /// every theme without manually overriding per-screen.
   (Gradient bgGradient, Color fg, Color? ringColor, Color? shadowColor)
-      _resolveStyles(AzamanColors colors) {
+  _resolveStyles(AzamanColors colors) {
     switch (widget.variant) {
       case AzamanButtonVariant.primary:
         // Gradient ensures even white themes get a proper coloured fill,
@@ -262,7 +264,9 @@ class _AzamanButtonState extends ConsumerState<AzamanButton> {
         );
       case AzamanButtonVariant.ghost:
         return (
-          const LinearGradient(colors: [Colors.transparent, Colors.transparent]),
+          const LinearGradient(
+            colors: [Colors.transparent, Colors.transparent],
+          ),
           colors.accent,
           null,
           null,

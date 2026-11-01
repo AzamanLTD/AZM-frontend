@@ -63,10 +63,16 @@ class AzSkeletonListItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AzSkeleton(width: MediaQuery.of(context).size.width * 0.4, height: 14),
+                AzSkeleton(
+                  width: MediaQuery.of(context).size.width * 0.4,
+                  height: 14,
+                ),
                 if (hasSubtitle) ...[
                   const SizedBox(height: 6),
-                  AzSkeleton(width: MediaQuery.of(context).size.width * 0.6, height: 12),
+                  AzSkeleton(
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    height: 12,
+                  ),
                 ],
               ],
             ),
@@ -97,7 +103,6 @@ class AzSkeletonList extends StatelessWidget {
     return ListView.builder(
       itemCount: itemCount,
       itemBuilder: (_, i) => const AzSkeletonListItem(),
-
     );
   }
 }

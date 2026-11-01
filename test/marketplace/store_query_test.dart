@@ -10,9 +10,23 @@ void main() {
 
   test('case-insensitive substring over name, description, tags', () {
     expect(matchesStoreQuery('JOL', name: 'Jollof rice'), isTrue);
-    expect(matchesStoreQuery('spicy', name: 'Jollof', description: 'Very Spicy'), isTrue);
-    expect(matchesStoreQuery('vegan', name: 'Jollof', tags: ['Vegan', 'rice']), isTrue);
-    expect(matchesStoreQuery('pizza', name: 'Jollof', description: 'rice', tags: ['vegan']), isFalse);
+    expect(
+      matchesStoreQuery('spicy', name: 'Jollof', description: 'Very Spicy'),
+      isTrue,
+    );
+    expect(
+      matchesStoreQuery('vegan', name: 'Jollof', tags: ['Vegan', 'rice']),
+      isTrue,
+    );
+    expect(
+      matchesStoreQuery(
+        'pizza',
+        name: 'Jollof',
+        description: 'rice',
+        tags: ['vegan'],
+      ),
+      isFalse,
+    );
   });
 
   test('null description is not an error', () {

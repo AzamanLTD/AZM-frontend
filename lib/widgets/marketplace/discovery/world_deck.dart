@@ -50,7 +50,8 @@ class WorldCardModel {
 
 bool _inWorld(BusinessProfile b, String wire) {
   final cat = b.category.toUpperCase();
-  if (wire == 'HOSPITALITY') return cat == 'HOSPITALITY' || cat == 'REAL_ESTATE';
+  if (wire == 'HOSPITALITY')
+    return cat == 'HOSPITALITY' || cat == 'REAL_ESTATE';
   return cat == wire;
 }
 
@@ -63,15 +64,22 @@ List<WorldCardModel> buildWorldCards(
     final open = supported.contains(DiscoverySignal.openNow)
         ? members.where((b) => b.openStateAt(s.now) == OpenState.open).length
         : null;
-    final near = (supported.contains(DiscoverySignal.nearby) && s.distanceKmByBusinessId != null)
-        ? members.where((b) => (s.distanceOf(b) ?? double.infinity) <= 1.0).length
+    final near =
+        (supported.contains(DiscoverySignal.nearby) &&
+            s.distanceKmByBusinessId != null)
+        ? members
+              .where((b) => (s.distanceOf(b) ?? double.infinity) <= 1.0)
+              .length
         : null;
     final sorted = List<BusinessProfile>.from(members)
       ..sort((a, b) => b.averageRating.compareTo(a.averageRating));
     return WorldCardModel(
       category: cat,
       count: members.length,
-      promise: MarketplaceExperienceBlueprint.fromJson(null, cat.wire).worldPromise,
+      promise: MarketplaceExperienceBlueprint.fromJson(
+        null,
+        cat.wire,
+      ).worldPromise,
       openNow: open,
       withinKm: near,
       enabled: members.isNotEmpty || s.catalog.isEmpty,
@@ -89,7 +97,12 @@ class WorldDeck extends StatelessWidget {
   final List<WorldCardModel> cards;
   final AzamanColors colors;
   final void Function(String wire) onEnter;
-  const WorldDeck({super.key, required this.cards, required this.colors, required this.onEnter});
+  const WorldDeck({
+    super.key,
+    required this.cards,
+    required this.colors,
+    required this.onEnter,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -97,10 +110,17 @@ class WorldDeck extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(AzSpace.lg, AzSpace.lg, AzSpace.lg, AzSpace.sm),
-          child: Text('Choose your world',
-              key: const ValueKey('marketplace_worlds_header'),
-              style: AzText.title.copyWith(color: colors.textPrimary)),
+          padding: const EdgeInsets.fromLTRB(
+            AzSpace.lg,
+            AzSpace.lg,
+            AzSpace.lg,
+            AzSpace.sm,
+          ),
+          child: Text(
+            'Choose your world',
+            key: const ValueKey('marketplace_worlds_header'),
+            style: AzText.title.copyWith(color: colors.textPrimary),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg),
@@ -186,31 +206,44 @@ class _WorldCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [
-                  Icon(cat.icon, color: Colors.white, size: 15),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(cat.label,
+                Row(
+                  children: [
+                    Icon(cat.icon, color: Colors.white, size: 15),
+                    const SizedBox(width: 5),
+                    Flexible(
+                      child: Text(
+                        cat.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AzText.title.copyWith(color: Colors.white)),
-                  ),
-                ]),
+                        style: AzText.title.copyWith(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 2),
-                Text(model.promise,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AzText.caption.copyWith(color: Colors.white.withValues(alpha: 0.85))),
+                Text(
+                  model.promise,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AzText.caption.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
+                ),
                 const SizedBox(height: AzSpace.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: AzSpace.sm, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AzSpace.sm,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(AzRadius.pill),
                   ),
-                  child: Text(model.signalLine,
-                      key: ValueKey('marketplace_world_count_${cat.wire}'),
-                      style: AzText.caption.copyWith(color: Colors.white)),
+                  child: Text(
+                    model.signalLine,
+                    key: ValueKey('marketplace_world_count_${cat.wire}'),
+                    style: AzText.caption.copyWith(color: Colors.white),
+                  ),
                 ),
               ],
             ),

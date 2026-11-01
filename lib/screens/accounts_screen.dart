@@ -2,15 +2,16 @@
 // AZAMAN — ACCOUNTS  (the single home for saved money endpoints)
 //
 // The settings IA keeps ONE entry: "Accounts". Deposit sources (MoMo
-// STK-push) and payout destinations live together here as two clean
-// rows, exactly as the approved mockup drew it — no split entries in
-// the settings IA, no icon boxes.
+// STK-push), payout destinations and saved bill references live together here as
+// three clean rows — no split entries in the settings IA, no icon boxes. The
+// bills row is a saved-reference list, deliberately not a payment surface.
 // =============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/bills/bills_saved_accounts_screen.dart';
 import 'package:azaman/screens/saved_momo_accounts_screen.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -63,9 +64,22 @@ class AccountsScreen extends ConsumerWidget {
             iconColor: colors.accent,
             title: 'Payout destinations',
             subtitle: 'Where withdrawals land',
+            onTap: () =>
+                pushWithVerticalTransition(context, const SavedWalletsScreen()),
+          ),
+          const SizedBox(height: 10),
+          // Third category: bills the member has saved a reference for. It is
+          // its own screen over the Bills saved-account contract, not a MoMo or
+          // wallet account, and it carries no Pay action.
+          _AccountsRow(
+            colors: colors,
+            icon: Icons.receipt_long_outlined,
+            iconColor: colors.accent,
+            title: 'Saved bill accounts',
+            subtitle: 'Meter, smartcard and account references',
             onTap: () => pushWithVerticalTransition(
               context,
-              const SavedWalletsScreen(),
+              const BillsSavedAccountsScreen(),
             ),
           ),
         ],
@@ -146,11 +160,7 @@ class _AccountsRow extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward,
-              color: colors.textTertiary,
-              size: 18,
-            ),
+            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
           ],
         ),
       ),

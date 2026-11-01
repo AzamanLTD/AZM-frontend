@@ -10,7 +10,10 @@ class RiskTag extends ConsumerWidget {
   String get _riskLabel {
     final m = method.toLowerCase();
     if (m.contains('bank') || m.contains('wire')) return 'Low Risk';
-    if (m.contains('momo') || m.contains('mtn') || m.contains('mobile') || m.contains('airtel')) {
+    if (m.contains('momo') ||
+        m.contains('mtn') ||
+        m.contains('mobile') ||
+        m.contains('airtel')) {
       return 'Medium Risk';
     }
     return 'High Risk';
@@ -19,7 +22,10 @@ class RiskTag extends ConsumerWidget {
   Color _riskColor(AzamanColors colors) {
     final m = method.toLowerCase();
     if (m.contains('bank') || m.contains('wire')) return colors.success;
-    if (m.contains('momo') || m.contains('mtn') || m.contains('mobile') || m.contains('airtel')) {
+    if (m.contains('momo') ||
+        m.contains('mtn') ||
+        m.contains('mobile') ||
+        m.contains('airtel')) {
       return colors.warning;
     }
     return colors.danger;
@@ -35,10 +41,7 @@ class RiskTag extends ConsumerWidget {
       decoration: BoxDecoration(
         color: rc.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: rc.withValues(alpha: 0.35),
-          width: 0.8,
-        ),
+        border: Border.all(color: rc.withValues(alpha: 0.35), width: 0.8),
         boxShadow: [
           BoxShadow(
             color: rc.withValues(alpha: 0.06),
@@ -51,7 +54,8 @@ class RiskTag extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 5, height: 5,
+            width: 5,
+            height: 5,
             decoration: BoxDecoration(
               color: rc,
               shape: BoxShape.circle,

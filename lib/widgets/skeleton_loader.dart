@@ -39,10 +39,7 @@ class _SkeletonBlockState extends ConsumerState<SkeletonBlock>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: MotionTokens.ambient,
-    );
+    _ctrl = AnimationController(vsync: this, duration: MotionTokens.ambient);
   }
 
   @override

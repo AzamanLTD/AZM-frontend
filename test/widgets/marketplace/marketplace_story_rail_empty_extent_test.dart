@@ -53,17 +53,17 @@ class _NullApiClient implements ApiClient {
 /// OverflowBox laying the child out at full extent, clipped — the same
 /// geometry the marketplace home applies to MarketplaceExpandedStories.
 Widget _railExtentHarness(Widget rail) => SizedBox(
-      height: StoryRailCollapse.extentPx,
-      width: double.infinity,
-      child: ClipRect(
-        child: OverflowBox(
-          alignment: Alignment.topCenter,
-          minHeight: StoryRailCollapse.extentPx,
-          maxHeight: StoryRailCollapse.extentPx,
-          child: rail,
-        ),
-      ),
-    );
+  height: StoryRailCollapse.extentPx,
+  width: double.infinity,
+  child: ClipRect(
+    child: OverflowBox(
+      alignment: Alignment.topCenter,
+      minHeight: StoryRailCollapse.extentPx,
+      maxHeight: StoryRailCollapse.extentPx,
+      child: rail,
+    ),
+  ),
+);
 
 Future<void> _pumpEmptyRail(
   WidgetTester tester, {
@@ -77,7 +77,8 @@ Future<void> _pumpEmptyRail(
     ProviderScope(
       overrides: [
         followingListProvider.overrideWith(
-            (ref) => _EmptyFollowingNotifier()..load()),
+          (ref) => _EmptyFollowingNotifier()..load(),
+        ),
       ],
       child: MaterialApp(
         home: Scaffold(
@@ -103,9 +104,13 @@ void main() {
 
     // The regression: the old stacked heading overflowed this exact harness
     // by 18px. No exception may surface now.
-    expect(tester.takeException(), isNull,
-        reason: 'the empty state must fit the same rail extent the '
-            'populated rail fits');
+    expect(
+      tester.takeException(),
+      isNull,
+      reason:
+          'the empty state must fit the same rail extent the '
+          'populated rail fits',
+    );
   });
 
   testWidgets('empty rail box renders at the SHARED rail metrics — same '
@@ -119,8 +124,11 @@ void main() {
     expect(emptyList, findsOneWidget);
     expect(
       tester.getRect(emptyList.first).height,
-      StoryRailMetrics.ring + StoryRailMetrics.labelGap + StoryRailMetrics.label,
-      reason: '§16 one scale language — the empty rail box IS the populated '
+      StoryRailMetrics.ring +
+          StoryRailMetrics.labelGap +
+          StoryRailMetrics.label,
+      reason:
+          '§16 one scale language — the empty rail box IS the populated '
           'rail box height',
     );
 
@@ -138,8 +146,11 @@ void main() {
 
     await tester.tap(find.text('Browse'));
     await tester.pump(const Duration(milliseconds: 100));
-    expect(browsePressed, 1,
-        reason: 'the empty state still routes the user to discovery');
+    expect(
+      browsePressed,
+      1,
+      reason: 'the empty state still routes the user to discovery',
+    );
   });
 
   testWidgets('the guidance explanation lives in semantics — screen '

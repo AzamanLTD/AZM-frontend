@@ -21,7 +21,8 @@ import 'package:azaman/services/api_client.dart';
 // Canonical message types — from models/chat_message.dart
 // ─────────────────────────────────────────────────────────────────────────────
 import 'package:azaman/models/chat_message.dart';
-export 'package:azaman/models/chat_message.dart' show ChatMessage, MessageKind, MessageStatus;
+export 'package:azaman/models/chat_message.dart'
+    show ChatMessage, MessageKind, MessageStatus;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Backward-compat aliases — the canonical ChatMessage lives in models/chat_message.dart.
@@ -43,5 +44,7 @@ final totalUnreadChatCountProvider = FutureProvider<int>((ref) async {
       });
     }
     return 0;
-  } catch (_) { return 0; }
+  } catch (_) {
+    return 0;
+  }
 });

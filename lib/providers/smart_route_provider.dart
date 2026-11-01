@@ -17,7 +17,8 @@ double _num(dynamic v) {
 class SmartRoute {
   final String id;
   final String name;
-  final String action; // WITHDRAW_MOMO | INTERNAL_TRANSFER | SAVINGS_DEPOSIT | VAULT_DEPOSIT
+  final String
+  action; // WITHDRAW_MOMO | INTERNAL_TRANSFER | SAVINGS_DEPOSIT | VAULT_DEPOSIT
   final double amountUsdc;
   final String frequency; // DAILY | WEEKLY | MONTHLY | ON_DAY_OF_MONTH
   final int? dayOfMonth;
@@ -56,26 +57,31 @@ class SmartRoute {
   });
 
   factory SmartRoute.fromJson(Map<String, dynamic> j) => SmartRoute(
-        id: j['id'],
-        name: j['name'],
-        action: j['action'],
-        amountUsdc: _num(j['amountUsdc']),
-        frequency: j['frequency'],
-        dayOfMonth: j['dayOfMonth'] != null ? (j['dayOfMonth'] as num).toInt() : null,
-        status: j['status'],
-        destMomoNumber: j['destMomoNumber'],
-        destMomoProvider: j['destMomoProvider'],
-        destFriendUserId:
-            j['destFriendUserId'] != null ? (j['destFriendUserId'] as num).toInt() : null,
-        destSavingsGoalId: j['destSavingsGoalId'],
-        destVaultId: j['destVaultId'],
-        startDate: DateTime.parse(j['startDate']),
-        endDate: j['endDate'] != null ? DateTime.tryParse(j['endDate']) : null,
-        nextRunAt: DateTime.parse(j['nextRunAt']),
-        lastRunAt: j['lastRunAt'] != null ? DateTime.tryParse(j['lastRunAt']) : null,
-        totalRuns: (j['totalRuns'] as num?)?.toInt() ?? 0,
-        totalRoutedUsdc: _num(j['totalRoutedUsdc']),
-      );
+    id: j['id'],
+    name: j['name'],
+    action: j['action'],
+    amountUsdc: _num(j['amountUsdc']),
+    frequency: j['frequency'],
+    dayOfMonth: j['dayOfMonth'] != null
+        ? (j['dayOfMonth'] as num).toInt()
+        : null,
+    status: j['status'],
+    destMomoNumber: j['destMomoNumber'],
+    destMomoProvider: j['destMomoProvider'],
+    destFriendUserId: j['destFriendUserId'] != null
+        ? (j['destFriendUserId'] as num).toInt()
+        : null,
+    destSavingsGoalId: j['destSavingsGoalId'],
+    destVaultId: j['destVaultId'],
+    startDate: DateTime.parse(j['startDate']),
+    endDate: j['endDate'] != null ? DateTime.tryParse(j['endDate']) : null,
+    nextRunAt: DateTime.parse(j['nextRunAt']),
+    lastRunAt: j['lastRunAt'] != null
+        ? DateTime.tryParse(j['lastRunAt'])
+        : null,
+    totalRuns: (j['totalRuns'] as num?)?.toInt() ?? 0,
+    totalRoutedUsdc: _num(j['totalRoutedUsdc']),
+  );
 }
 
 class SmartRouteRun {
@@ -96,13 +102,13 @@ class SmartRouteRun {
   });
 
   factory SmartRouteRun.fromJson(Map<String, dynamic> j) => SmartRouteRun(
-        id: j['id'],
-        status: j['status'],
-        amountUsdc: _num(j['amountUsdc']),
-        amountGhs: j['amountGhs'] != null ? _num(j['amountGhs']) : null,
-        failureReason: j['failureReason'],
-        createdAt: DateTime.parse(j['createdAt']),
-      );
+    id: j['id'],
+    status: j['status'],
+    amountUsdc: _num(j['amountUsdc']),
+    amountGhs: j['amountGhs'] != null ? _num(j['amountGhs']) : null,
+    failureReason: j['failureReason'],
+    createdAt: DateTime.parse(j['createdAt']),
+  );
 }
 
 class SmartRoutesNotifier extends AsyncNotifier<List<SmartRoute>> {
@@ -136,8 +142,8 @@ class SmartRoutesNotifier extends AsyncNotifier<List<SmartRoute>> {
     final endpoint = status == 'PAUSED'
         ? '/smart-routes/$routeId/pause'
         : status == 'ACTIVE'
-            ? '/smart-routes/$routeId/resume'
-            : null;
+        ? '/smart-routes/$routeId/resume'
+        : null;
     if (endpoint == null) {
       // CANCELLED → DELETE
       final res = await apiClient.delete('/smart-routes/$routeId');
@@ -166,11 +172,13 @@ class SmartRoutesNotifier extends AsyncNotifier<List<SmartRoute>> {
 }
 
 final smartRoutesProvider =
-    AsyncNotifierProvider<SmartRoutesNotifier, List<SmartRoute>>(SmartRoutesNotifier.new);
+    AsyncNotifierProvider<SmartRoutesNotifier, List<SmartRoute>>(
+      SmartRoutesNotifier.new,
+    );
 
 final smartRouteDetailProvider =
     FutureProvider.family<Map<String, dynamic>?, String>((ref, routeId) async {
-  final res = await apiClient.get('/smart-routes/$routeId');
-  if (res.statusCode != 200) return null;
-  return jsonDecode(res.body) as Map<String, dynamic>;
-});
+      final res = await apiClient.get('/smart-routes/$routeId');
+      if (res.statusCode != 200) return null;
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    });

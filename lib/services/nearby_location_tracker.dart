@@ -40,8 +40,7 @@ class NearbyLocationTracker {
   NearbyLocationTracker({
     PositionStreamFactory? streamFactory,
     void Function(Position position)? onPosition,
-  }) : _streamFactory =
-           streamFactory ?? _platformPositionStream,
+  }) : _streamFactory = streamFactory ?? _platformPositionStream,
        _onPosition = onPosition;
 
   final PositionStreamFactory _streamFactory;

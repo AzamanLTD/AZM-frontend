@@ -52,9 +52,7 @@ class MarketplaceCollapsedAvatars extends ConsumerWidget {
     // label-only presentation — honest (no invented avatars) and no layout
     // jump when real data arrives.
     final following = followingState.valueOrNull ?? const [];
-    final unseen = following
-        .where(businessHasUnseenStory)
-        .length;
+    final unseen = following.where(businessHasUnseenStory).length;
 
     return Semantics(
       button: true,
@@ -72,7 +70,8 @@ class MarketplaceCollapsedAvatars extends ConsumerWidget {
               // lastStoryAt/lastViewedAt — the dash renders, the numeric
               // badge does NOT (never a manufactured count).
               counts: StoryRingCounts.fromUnseenFlag(
-                  businessHasUnseenStory(biz)),
+                businessHasUnseenStory(biz),
+              ),
               // Business VERIFICATION is not a story boost. The followed
               // business feed carries no boost field, so the boost ring
               // treatment stays OFF — verified status never masquerades
@@ -141,7 +140,8 @@ class MarketplaceExpandedStories extends ConsumerWidget {
               // §16 — one scale language: the rail content height is the
               // shared rail metrics (ring + label gap + label), the same
               // constants the chat rail renders at.
-              height: StoryRailMetrics.ring +
+              height:
+                  StoryRailMetrics.ring +
                   StoryRailMetrics.labelGap +
                   StoryRailMetrics.label,
               child: ListView.separated(
@@ -167,42 +167,43 @@ class MarketplaceExpandedStories extends ConsumerWidget {
                       child: Column(
                         children: [
                           Hero(
-                            tag: 'marketplace-story-ring-$id',
-                            child: StoryRing(
-                              avatarUrl: logoUrl,
-                              // Count-less source (§9): the business feed
-                              // carries only lastStoryAt/lastViewedAt — the
-                              // dash renders, the numeric badge does NOT
-                              // (never a manufactured count).
-                              counts: StoryRingCounts.fromUnseenFlag(hasUnseen),
-                              size: StoryRailMetrics.ring,
-                            ),
-                          )
-                          .animate()
-                          .scale(
-                            delay: Duration(milliseconds: index * 60),
-                            duration: 380.ms,
-                            curve: Curves.easeOutCubic,
-                            begin: Offset(0.3, 0.3),
-                            end: Offset(1, 1),
-                          )
-                          .fadeIn(
-                            delay: Duration(milliseconds: index * 60),
-                            duration: 280.ms,
-                          ),
+                                tag: 'marketplace-story-ring-$id',
+                                child: StoryRing(
+                                  avatarUrl: logoUrl,
+                                  // Count-less source (§9): the business feed
+                                  // carries only lastStoryAt/lastViewedAt — the
+                                  // dash renders, the numeric badge does NOT
+                                  // (never a manufactured count).
+                                  counts: StoryRingCounts.fromUnseenFlag(
+                                    hasUnseen,
+                                  ),
+                                  size: StoryRailMetrics.ring,
+                                ),
+                              )
+                              .animate()
+                              .scale(
+                                delay: Duration(milliseconds: index * 60),
+                                duration: 380.ms,
+                                curve: Curves.easeOutCubic,
+                                begin: Offset(0.3, 0.3),
+                                end: Offset(1, 1),
+                              )
+                              .fadeIn(
+                                delay: Duration(milliseconds: index * 60),
+                                duration: 280.ms,
+                              ),
                           const SizedBox(height: 6),
                           Text(
                             name,
                             style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: colors.textSecondary),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: colors.textSecondary,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.center,
-                          )
-                          .animate()
-                          .fadeIn(
+                          ).animate().fadeIn(
                             delay: Duration(milliseconds: index * 60 + 100),
                             duration: 280.ms,
                           ),
@@ -230,81 +231,97 @@ class MarketplaceExpandedStories extends ConsumerWidget {
     // below, exposed to screen readers without stealing rail geometry.
     return Semantics(
       container: true,
-      label: 'No followed businesses yet. Tap Browse to discover '
+      label:
+          'No followed businesses yet. Tap Browse to discover '
           'businesses, or follow one to see its stories here.',
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-          height: StoryRailMetrics.ring +
-              StoryRailMetrics.labelGap +
-              StoryRailMetrics.label,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: 5,
-            separatorBuilder: (_, __) =>
-                const SizedBox(width: AzSpace.lg - 2),
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return GestureDetector(
-                  onTap: onBrowsePressed,
-                  child: SizedBox(
+            height:
+                StoryRailMetrics.ring +
+                StoryRailMetrics.labelGap +
+                StoryRailMetrics.label,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: 5,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: AzSpace.lg - 2),
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return GestureDetector(
+                    onTap: onBrowsePressed,
+                    child: SizedBox(
+                      width: 68,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              color: colors.accentSurface,
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: colors.accent.withValues(alpha: 0.3),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.explore_rounded,
+                              color: colors.accent,
+                              size: 26,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Browse',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: colors.accent,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                } else {
+                  // Suggested business skeletons (shimmer placeholders)
+                  return SizedBox(
                     width: 68,
                     child: Column(
                       children: [
                         Container(
-                          width: 60, height: 60,
+                          width: 60,
+                          height: 60,
                           decoration: BoxDecoration(
-                            color: colors.accentSurface,
+                            color: colors.softSurface,
                             borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: colors.accent.withValues(alpha: 0.3), width: 1.5),
                           ),
-                          child: Icon(Icons.explore_rounded, color: colors.accent, size: 26),
+                        ).animate().shimmer(
+                          delay: (index * 200).ms,
+                          duration: 1200.ms,
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          'Browse',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colors.accent,
+                        Container(
+                          width: 40,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: colors.softSurface,
+                            borderRadius: BorderRadius.circular(4),
                           ),
+                        ).animate().shimmer(
+                          delay: (index * 200 + 100).ms,
+                          duration: 1200.ms,
                         ),
                       ],
                     ),
-                  ),
-                );
-              } else {
-                // Suggested business skeletons (shimmer placeholders)
-                return SizedBox(
-                  width: 68,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 60, height: 60,
-                        decoration: BoxDecoration(
-                          color: colors.softSurface,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      )
-                        .animate().shimmer(delay: (index * 200).ms, duration: 1200.ms),
-                      const SizedBox(height: 6),
-                      Container(
-                        width: 40, height: 8,
-                        decoration: BoxDecoration(
-                          color: colors.softSurface,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      )
-                        .animate().shimmer(delay: (index * 200 + 100).ms, duration: 1200.ms),
-                    ],
-                  ),
-                );
-              }
-            },
-          ),
+                  );
+                }
+              },
+            ),
           ),
           const SizedBox(height: 4),
         ],

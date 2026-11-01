@@ -5,7 +5,11 @@ class VideoPlayerWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const VideoPlayerWidget({super.key, required this.props, required this.business});
+  const VideoPlayerWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,14 +25,29 @@ class VideoPlayerWidget extends StatelessWidget {
           alignment: Alignment.center,
           children: [
             if (videoUrl != null && videoUrl.isNotEmpty)
-              const Center(child: Icon(Icons.play_circle_fill, size: 64, color: Colors.white70))
+              const Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  size: 64,
+                  color: Colors.white70,
+                ),
+              )
             else
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.video_library, size: 40, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
+                  Icon(
+                    Icons.video_library,
+                    size: 40,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.5),
+                  ),
                   const SizedBox(height: 8),
-                  const Text('No video configured', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                  const Text(
+                    'No video configured',
+                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                  ),
                 ],
               ),
           ],

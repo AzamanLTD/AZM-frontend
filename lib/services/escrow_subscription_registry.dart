@@ -1,9 +1,7 @@
 import 'package:azaman/services/socket_service.dart';
 
-typedef EscrowEventCallback = void Function(
-  Map<String, dynamic> payload,
-  String event,
-);
+typedef EscrowEventCallback =
+    void Function(Map<String, dynamic> payload, String event);
 typedef EscrowSubscription = void Function();
 
 typedef _EscrowSourceRegistrar = void Function(EscrowEventCallback callback);
@@ -18,8 +16,8 @@ class EscrowSubscriptionRegistry {
   EscrowSubscriptionRegistry({
     required _EscrowSourceRegistrar addSourceListener,
     required _EscrowSourceRemover removeSourceListener,
-  })  : _addSourceListener = addSourceListener,
-        _removeSourceListener = removeSourceListener;
+  }) : _addSourceListener = addSourceListener,
+       _removeSourceListener = removeSourceListener;
 
   factory EscrowSubscriptionRegistry.fromSocket([SocketService? socket]) {
     final source = socket ?? SocketService.instance;

@@ -26,7 +26,12 @@ class BusinessBookTab extends ConsumerStatefulWidget {
   final List<CatalogSection> menuSections;
   final List<BusinessProduct> uncategorisedProducts;
   final void Function(BusinessProduct product)? onOrderProduct;
-  final Future<void> Function(BusinessProduct product, Map<String, String> selections, int quantity)? onDineInAddToTab;
+  final Future<void> Function(
+    BusinessProduct product,
+    Map<String, String> selections,
+    int quantity,
+  )?
+  onDineInAddToTab;
   final String? dineInContext;
 
   const BusinessBookTab({
@@ -53,7 +58,9 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
   @override
   void initState() {
     super.initState();
-    _orderMode = widget.onDineInAddToTab != null ? RestaurantOrderMode.dineIn : RestaurantOrderMode.takeaway;
+    _orderMode = widget.onDineInAddToTab != null
+        ? RestaurantOrderMode.dineIn
+        : RestaurantOrderMode.takeaway;
   }
 
   Map<String, RestaurantDish> _dishMap(Map<String, dynamic>? rawData) {
@@ -76,7 +83,11 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
   /// BusinessProduct.priceUsdc` — then applies the selected variant and
   /// modifier deltas. Fail-closed: a null result must never create a
   /// payable cart line.
-  double? _selectedUnitPrice(BusinessProduct product, RestaurantDish dish, Map<String, String> selections) {
+  double? _selectedUnitPrice(
+    BusinessProduct product,
+    RestaurantDish dish,
+    Map<String, String> selections,
+  ) {
     return restaurantEffectiveUnitPrice(
       dish: dish,
       fallbackPrice: product.priceUsdc,
@@ -88,41 +99,79 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
   /// configuration: a non-finite or non-positive catalog price is unknown,
   /// not 0.00, and must not create a payable line.
   double? _catalogUnitPrice(BusinessProduct product) {
-    return product.priceUsdc.isFinite && product.priceUsdc > 0 ? product.priceUsdc : null;
+    return product.priceUsdc.isFinite && product.priceUsdc > 0
+        ? product.priceUsdc
+        : null;
   }
 
-  Widget _stage(Map<String, dynamic>? experience, BuildContext context, Map<String, RestaurantDish> dishesById) {
+  Widget _stage(
+    Map<String, dynamic>? experience,
+    BuildContext context,
+    Map<String, RestaurantDish> dishesById,
+  ) {
     final effectiveExperience = effectiveRestaurantExperience(
       experience: experience,
       dishes: dishesById.values,
     );
-    final blueprint = MarketplaceExperienceBlueprint.fromJson(effectiveExperience, widget.business.category);
-    final useRestaurantTray = blueprint.preset == 'DINING_JOURNEY' && blueprint.persistentTray && (widget.onOrderProduct != null || widget.onDineInAddToTab != null);
+    final blueprint = MarketplaceExperienceBlueprint.fromJson(
+      effectiveExperience,
+      widget.business.category,
+    );
+    final useRestaurantTray =
+        blueprint.preset == 'DINING_JOURNEY' &&
+        blueprint.persistentTray &&
+        (widget.onOrderProduct != null || widget.onDineInAddToTab != null);
 
-    void handleRestaurantOrder(BusinessProduct product, Map<String, String> selections, int quantity) {
-      if (_orderMode == RestaurantOrderMode.dineIn && widget.onDineInAddToTab != null) {
-        unawaited(widget.onDineInAddToTab!(product, selections, quantity).catchError((error) {
-          if (!context.mounted) return;
-          AzamanHaptics.warn();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not add ${product.name}: $error')));
-        }));
+    void handleRestaurantOrder(
+      BusinessProduct product,
+      Map<String, String> selections,
+      int quantity,
+    ) {
+      if (_orderMode == RestaurantOrderMode.dineIn &&
+          widget.onDineInAddToTab != null) {
+        unawaited(
+          widget.onDineInAddToTab!(product, selections, quantity).catchError((
+            error,
+          ) {
+            if (!context.mounted) return;
+            AzamanHaptics.warn();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Could not add ${product.name}: $error')),
+            );
+          }),
+        );
         return;
       }
       if (!useRestaurantTray) {
-        if (_orderMode != RestaurantOrderMode.dineIn && widget.onOrderProduct == null) {
+        if (_orderMode != RestaurantOrderMode.dineIn &&
+            widget.onOrderProduct == null) {
           AzamanHaptics.warn();
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Takeaway ordering is not available for this restaurant yet.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Takeaway ordering is not available for this restaurant yet.',
+              ),
+            ),
+          );
           return;
         }
         widget.onOrderProduct?.call(product);
         return;
       }
       final dish = dishesById[product.id];
-      final effectiveUnitPrice = dish == null ? _catalogUnitPrice(product) : _selectedUnitPrice(product, dish, selections);
+      final effectiveUnitPrice = dish == null
+          ? _catalogUnitPrice(product)
+          : _selectedUnitPrice(product, dish, selections);
       if (effectiveUnitPrice == null) {
         // Fail closed: no payable cart line for an unknown price.
         AzamanHaptics.warn();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No price available for ${product.name} — nothing was added to the tray.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No price available for ${product.name} — nothing was added to the tray.',
+            ),
+          ),
+        );
         return;
       }
       _addToRestaurantTray(
@@ -147,16 +196,20 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
       onOrderProduct: widget.onOrderProduct,
       onAddToTray: handleRestaurantOrder,
       restaurantDishesById: dishesById,
-      dineInContext: blueprint.customerContext.enabled ? widget.dineInContext : null,
+      dineInContext: blueprint.customerContext.enabled
+          ? widget.dineInContext
+          : null,
       orderMode: _orderMode,
       onOrderModeChanged: (mode) => setState(() => _orderMode = mode),
       dineInAvailable: widget.onDineInAddToTab != null,
       experience: effectiveExperience,
       // Store-scoped search (Overhaul 03 §1.3): only the text typed while the
       // search is in `store` scope filters this catalog.
-      storeQuery: ref.watch(marketplaceSearchProvider.select(
-        (s) => s.scope == MarketplaceSearchScope.store ? s.text : '',
-      )),
+      storeQuery: ref.watch(
+        marketplaceSearchProvider.select(
+          (s) => s.scope == MarketplaceSearchScope.store ? s.text : '',
+        ),
+      ),
     );
 
     if (!useRestaurantTray) return stage;
@@ -171,7 +224,9 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
           bottom: 84,
           child: RestaurantTrayRail(
             label: 'Open order tray',
-            onOpen: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CartScreen())),
+            onOpen: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const CartScreen())),
           ),
         ),
       ],
@@ -189,7 +244,9 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
   }) {
     if (!product.isActive) {
       AzamanHaptics.warn();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This dish is currently unavailable.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This dish is currently unavailable.')),
+      );
       return;
     }
 
@@ -209,27 +266,57 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
     );
 
     if (added) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${product.name} added to your order tray.'), duration: const Duration(milliseconds: 1400)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${product.name} added to your order tray.'),
+          duration: const Duration(milliseconds: 1400),
+        ),
+      );
       return;
     }
 
     final currentCart = ref.read(cartProvider);
-    if (currentCart.businessProfileId == null || currentCart.items.isEmpty) return;
+    if (currentCart.businessProfileId == null || currentCart.items.isEmpty)
+      return;
 
     AzamanHaptics.warn();
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Start a new order?'),
-        content: Text('Your current tray is from ${currentCart.businessName ?? 'another business'}. Replace it with this restaurant’s order?'),
+        content: Text(
+          'Your current tray is from ${currentCart.businessName ?? 'another business'}. Replace it with this restaurant’s order?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Keep tray')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Keep tray'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               notifier.clearCart();
-              notifier.addItem(businessProfileId: widget.business.id, businessName: widget.business.businessName, productId: product.id, name: product.name, unitPrice: unitPrice, imageUrl: product.primaryImage, category: product.category, experiencePreset: experiencePreset, quantity: quantity, variants: selections, notes: notes);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${product.name} added to your new order tray.'), duration: const Duration(milliseconds: 1400)));
+              notifier.addItem(
+                businessProfileId: widget.business.id,
+                businessName: widget.business.businessName,
+                productId: product.id,
+                name: product.name,
+                unitPrice: unitPrice,
+                imageUrl: product.primaryImage,
+                category: product.category,
+                experiencePreset: experiencePreset,
+                quantity: quantity,
+                variants: selections,
+                notes: notes,
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    '${product.name} added to your new order tray.',
+                  ),
+                  duration: const Duration(milliseconds: 1400),
+                ),
+              );
             },
             child: const Text('Replace tray'),
           ),
@@ -240,9 +327,13 @@ class _BusinessBookTabState extends ConsumerState<BusinessBookTab> {
 
   @override
   Widget build(BuildContext context) {
-    final experience = ref.watch(storefrontExperienceProvider(widget.business.id));
+    final experience = ref.watch(
+      storefrontExperienceProvider(widget.business.id),
+    );
     final products = ref.watch(storefrontProductsProvider(widget.business.id));
-    final dishesById = products.whenOrNull(data: (value) => _dishMap(value)) ?? const <String, RestaurantDish>{};
+    final dishesById =
+        products.whenOrNull(data: (value) => _dishMap(value)) ??
+        const <String, RestaurantDish>{};
     return experience.when(
       data: (value) => _stage(value, context, dishesById),
       loading: () => _stage(null, context, dishesById),

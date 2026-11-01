@@ -355,7 +355,6 @@ void main() {
       expect(overridden.read(launcherDraftsProvider).userId, isNull);
       expect(storage.store, isEmpty);
     });
-
   });
 
   group('generation guard — in-flight reads never cross users '
@@ -378,20 +377,25 @@ void main() {
       expect(controller.state.drafts, isEmpty);
 
       // NOW the old user's read resolves with a real draft payload.
-      gated.release(jsonEncode([
-        {
-          'id': 'addCash.user-1',
-          'surface': 'addCash',
-          'savedAtMs': DateTime.now().millisecondsSinceEpoch,
-          'payload': {'amountRaw': '50'},
-        }
-      ]));
+      gated.release(
+        jsonEncode([
+          {
+            'id': 'addCash.user-1',
+            'surface': 'addCash',
+            'savedAtMs': DateTime.now().millisecondsSinceEpoch,
+            'payload': {'amountRaw': '50'},
+          },
+        ]),
+      );
       await stale;
 
       // The stale generation is DISCARDED: the active user's state is
       // untouched — no cross-user bleed, no resurrected drafts.
-      expect(controller.state.userId, 'user-2',
-          reason: 'the late old-user completion must not steal state');
+      expect(
+        controller.state.userId,
+        'user-2',
+        reason: 'the late old-user completion must not steal state',
+      );
       expect(controller.state.drafts, isEmpty);
     });
 
@@ -408,7 +412,7 @@ void main() {
           'surface': 'addCash',
           'savedAtMs': DateTime.now().millisecondsSinceEpoch,
           'payload': {'amountRaw': '50'},
-        }
+        },
       ]);
       await controller.loadForUser('user-1');
       expect(controller.state.userId, 'user-1');
@@ -423,8 +427,11 @@ void main() {
       await controller.clearForLogout();
       expect(controller.state.userId, isNull);
       expect(controller.state.drafts, isEmpty);
-      expect(gated.store.containsKey('azm.launcher.drafts.user-1'), isFalse,
-          reason: 'logout clears the stored block');
+      expect(
+        gated.store.containsKey('azm.launcher.drafts.user-1'),
+        isFalse,
+        reason: 'logout clears the stored block',
+      );
 
       // The in-flight read completes AFTER the cleanup, delivering the
       // payload it captured BEFORE the block was cleared. The state
@@ -446,7 +453,7 @@ void main() {
           'surface': 'send',
           'savedAtMs': DateTime.now().millisecondsSinceEpoch,
           'payload': {'amountRaw': '10'},
-        }
+        },
       ]);
       gated.holdNextRead();
       final first = controller.loadForUser('user-1');
@@ -458,7 +465,7 @@ void main() {
           'surface': 'send',
           'savedAtMs': DateTime.now().millisecondsSinceEpoch,
           'payload': {'amountRaw': '20'},
-        }
+        },
       ]);
       await controller.loadForUser('user-2');
       expect(controller.state.drafts, hasLength(1));

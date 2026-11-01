@@ -14,10 +14,12 @@ void main() {
     test('overshoot but stay bounded', () {
       var peak = 0.0;
       for (var i = 0; i <= 100; i++) {
-        peak = peak > kHouseSpring.transform(i / 100) ? peak : kHouseSpring.transform(i / 100);
+        peak = peak > kHouseSpring.transform(i / 100)
+            ? peak
+            : kHouseSpring.transform(i / 100);
       }
-      expect(peak, greaterThan(1.0));   // it must bounce
-      expect(peak, lessThan(1.35));     // but not slingshot
+      expect(peak, greaterThan(1.0)); // it must bounce
+      expect(peak, lessThan(1.35)); // but not slingshot
     });
   });
 
@@ -55,7 +57,10 @@ void main() {
 
   test('LiquidReveal threshold logic', () {
     // Verify the threshold constant without rendering
-    expect(LiquidReveal(opacity: 0.2, child: const SizedBox()).tapThreshold, 0.6);
+    expect(
+      LiquidReveal(opacity: 0.2, child: const SizedBox()).tapThreshold,
+      0.6,
+    );
     expect(0.2 < 0.6, isTrue);
     expect(0.9 >= 0.6, isTrue);
   });

@@ -63,22 +63,22 @@ enum SusuStatus {
   }
 
   String get wire => switch (this) {
-        SusuStatus.configuring => 'CONFIGURING',
-        SusuStatus.active => 'ACTIVE',
-        SusuStatus.completed => 'COMPLETED',
-        SusuStatus.cancelled => 'CANCELLED',
-        SusuStatus.frozenDispute => 'FROZEN_DISPUTE',
-        SusuStatus.unknown => 'UNKNOWN',
-      };
+    SusuStatus.configuring => 'CONFIGURING',
+    SusuStatus.active => 'ACTIVE',
+    SusuStatus.completed => 'COMPLETED',
+    SusuStatus.cancelled => 'CANCELLED',
+    SusuStatus.frozenDispute => 'FROZEN_DISPUTE',
+    SusuStatus.unknown => 'UNKNOWN',
+  };
 
   String get label => switch (this) {
-        SusuStatus.configuring => 'Pending',
-        SusuStatus.active => 'Active',
-        SusuStatus.completed => 'Completed',
-        SusuStatus.cancelled => 'Cancelled',
-        SusuStatus.frozenDispute => 'Frozen',
-        SusuStatus.unknown => '—',
-      };
+    SusuStatus.configuring => 'Pending',
+    SusuStatus.active => 'Active',
+    SusuStatus.completed => 'Completed',
+    SusuStatus.cancelled => 'Cancelled',
+    SusuStatus.frozenDispute => 'Frozen',
+    SusuStatus.unknown => '—',
+  };
 }
 
 enum SusuMemberStatus {
@@ -108,13 +108,13 @@ enum SusuMemberStatus {
   }
 
   String get wire => switch (this) {
-        SusuMemberStatus.pendingVouch => 'PENDING_VOUCH',
-        SusuMemberStatus.pendingContract => 'PENDING_CONTRACT',
-        SusuMemberStatus.active => 'ACTIVE',
-        SusuMemberStatus.defaulted => 'DEFAULTED',
-        SusuMemberStatus.removed => 'REMOVED',
-        SusuMemberStatus.unknown => 'UNKNOWN',
-      };
+    SusuMemberStatus.pendingVouch => 'PENDING_VOUCH',
+    SusuMemberStatus.pendingContract => 'PENDING_CONTRACT',
+    SusuMemberStatus.active => 'ACTIVE',
+    SusuMemberStatus.defaulted => 'DEFAULTED',
+    SusuMemberStatus.removed => 'REMOVED',
+    SusuMemberStatus.unknown => 'UNKNOWN',
+  };
 }
 
 enum SusuFrequency {
@@ -141,20 +141,20 @@ enum SusuFrequency {
   }
 
   String get wire => switch (this) {
-        SusuFrequency.daily => 'DAILY',
-        SusuFrequency.weekly => 'WEEKLY',
-        SusuFrequency.biweekly => 'BIWEEKLY',
-        SusuFrequency.monthly => 'MONTHLY',
-        SusuFrequency.unknown => 'UNKNOWN',
-      };
+    SusuFrequency.daily => 'DAILY',
+    SusuFrequency.weekly => 'WEEKLY',
+    SusuFrequency.biweekly => 'BIWEEKLY',
+    SusuFrequency.monthly => 'MONTHLY',
+    SusuFrequency.unknown => 'UNKNOWN',
+  };
 
   String get label => switch (this) {
-        SusuFrequency.daily => 'Daily',
-        SusuFrequency.weekly => 'Weekly',
-        SusuFrequency.biweekly => 'Bi-weekly',
-        SusuFrequency.monthly => 'Monthly',
-        SusuFrequency.unknown => '—',
-      };
+    SusuFrequency.daily => 'Daily',
+    SusuFrequency.weekly => 'Weekly',
+    SusuFrequency.biweekly => 'Bi-weekly',
+    SusuFrequency.monthly => 'Monthly',
+    SusuFrequency.unknown => '—',
+  };
 }
 
 enum SusuInviteChannel {
@@ -178,11 +178,11 @@ enum SusuInviteChannel {
   }
 
   String get wire => switch (this) {
-        SusuInviteChannel.friend => 'FRIEND',
-        SusuInviteChannel.phone => 'PHONE',
-        SusuInviteChannel.link => 'LINK',
-        SusuInviteChannel.unknown => 'UNKNOWN',
-      };
+    SusuInviteChannel.friend => 'FRIEND',
+    SusuInviteChannel.phone => 'PHONE',
+    SusuInviteChannel.link => 'LINK',
+    SusuInviteChannel.unknown => 'UNKNOWN',
+  };
 }
 
 enum SusuInviteStatus {
@@ -239,13 +239,13 @@ enum SusuCycleStatus {
   }
 
   String get label => switch (this) {
-        SusuCycleStatus.pending => 'Pending',
-        SusuCycleStatus.collecting => 'Collecting',
-        SusuCycleStatus.collectingGrace => 'Grace period',
-        SusuCycleStatus.paidOut => 'Paid out',
-        SusuCycleStatus.defaulted => 'Defaulted',
-        SusuCycleStatus.unknown => '—',
-      };
+    SusuCycleStatus.pending => 'Pending',
+    SusuCycleStatus.collecting => 'Collecting',
+    SusuCycleStatus.collectingGrace => 'Grace period',
+    SusuCycleStatus.paidOut => 'Paid out',
+    SusuCycleStatus.defaulted => 'Defaulted',
+    SusuCycleStatus.unknown => '—',
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -293,13 +293,15 @@ class SusuSummary {
     final susu = (j['susu'] ?? j) as Map<String, dynamic>;
     final meExplicit = j['me'] as Map<String, dynamic>?;
     final membersArr = (susu['members'] ?? j['members']) as List?;
-    final me = meExplicit ??
+    final me =
+        meExplicit ??
         (membersArr != null && membersArr.isNotEmpty
             ? membersArr.first as Map<String, dynamic>
             : null);
     final ncExplicit = j['nextCycle'] as Map<String, dynamic>?;
     final cyclesArr = (susu['cycles'] ?? j['cycles']) as List?;
-    final nc = ncExplicit ??
+    final nc =
+        ncExplicit ??
         (cyclesArr != null && cyclesArr.isNotEmpty
             ? cyclesArr.first as Map<String, dynamic>
             : null);
@@ -312,15 +314,16 @@ class SusuSummary {
       name: (susu['name'] ?? susu['groupChat']?['name'] ?? 'Susu').toString(),
       status: SusuStatus.fromString(susu['status']),
       contributionUsdc: _decimalToDouble(
-          susu['contributionUsdc'] ?? susu['contributionAmount']),
+        susu['contributionUsdc'] ?? susu['contributionAmount'],
+      ),
       frequency: SusuFrequency.fromString(susu['frequency']),
       totalCycles: asInt(susu['totalCycles'] ?? susu['cycleCount']),
       activatedAt: _maybeDate(susu['activatedAt'] ?? susu['startDate']),
       myCycleSlot: me == null
           ? null
           : (me['cycleSlot'] ?? me['payoutSlot']) is num
-              ? (me['cycleSlot'] ?? me['payoutSlot'] as num).toInt()
-              : null,
+          ? (me['cycleSlot'] ?? me['payoutSlot'] as num).toInt()
+          : null,
       myStatus: SusuMemberStatus.fromString(me?['status']),
       myRole: (me?['role'] ?? 'MEMBER').toString(),
       nextCycle: nc == null ? null : SusuCycleSummary.fromJson(nc),
@@ -344,14 +347,15 @@ class SusuCycleSummary {
   });
 
   factory SusuCycleSummary.fromJson(Map<String, dynamic> j) => SusuCycleSummary(
-        id: j['id'].toString(),
-        cycleNumber: (j['cycleNumber'] as num).toInt(),
-        scheduledRunAt: DateTime.parse(
-            (j['scheduledRunAt'] ?? j['collectionDate']).toString()),
-        payoutUserId:
-            ((j['payoutUserId'] ?? j['payoutRecipientId']) as num).toInt(),
-        isMe: j['isMe'] == true,
-      );
+    id: j['id'].toString(),
+    cycleNumber: (j['cycleNumber'] as num).toInt(),
+    scheduledRunAt: DateTime.parse(
+      (j['scheduledRunAt'] ?? j['collectionDate']).toString(),
+    ),
+    payoutUserId: ((j['payoutUserId'] ?? j['payoutRecipientId']) as num)
+        .toInt(),
+    isMe: j['isMe'] == true,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -398,8 +402,9 @@ class SusuDetail {
       id: j['id'].toString(),
       name: (j['name'] ?? j['groupChat']?['name'] ?? 'Susu').toString(),
       status: SusuStatus.fromString(j['status']),
-      contributionUsdc:
-          _decimalToDouble(j['contributionUsdc'] ?? j['contributionAmount']),
+      contributionUsdc: _decimalToDouble(
+        j['contributionUsdc'] ?? j['contributionAmount'],
+      ),
       frequency: SusuFrequency.fromString(j['frequency']),
       totalCycles: ((j['totalCycles'] ?? j['cycleCount'] ?? 0) as num).toInt(),
       contractVersion: j['contractVersion']?.toString(),
@@ -428,10 +433,9 @@ class SusuInitiator {
   final String displayName;
   const SusuInitiator({required this.id, required this.displayName});
   factory SusuInitiator.fromJson(Map<String, dynamic> j) => SusuInitiator(
-        id: (j['id'] as num).toInt(),
-        displayName:
-            (j['displayName'] ?? j['username'] ?? 'Unknown').toString(),
-      );
+    id: (j['id'] as num).toInt(),
+    displayName: (j['displayName'] ?? j['username'] ?? 'Unknown').toString(),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -465,13 +469,15 @@ class SusuMemberView {
     return SusuMemberView(
       susuMemberId: (j['susuMemberId'] ?? j['id']).toString(),
       userId: ((j['userId'] ?? user?['id'] ?? 0) as num).toInt(),
-      displayName: (j['displayName'] ??
-              user?['displayName'] ??
-              user?['username'] ??
-              'Member')
-          .toString(),
-      avatar: (j['avatar'] ?? user?['profileImage'] ?? user?['profilePictureUrl'])
-          ?.toString(),
+      displayName:
+          (j['displayName'] ??
+                  user?['displayName'] ??
+                  user?['username'] ??
+                  'Member')
+              .toString(),
+      avatar:
+          (j['avatar'] ?? user?['profileImage'] ?? user?['profilePictureUrl'])
+              ?.toString(),
       cycleSlot: (j['cycleSlot'] ?? j['payoutSlot']) is num
           ? (j['cycleSlot'] ?? j['payoutSlot'] as num).toInt()
           : null,
@@ -510,20 +516,21 @@ class SusuCycleView {
   });
 
   factory SusuCycleView.fromJson(Map<String, dynamic> j) => SusuCycleView(
-        id: j['id'].toString(),
-        cycleNumber: (j['cycleNumber'] as num).toInt(),
-        scheduledRunAt: DateTime.parse(
-            (j['scheduledRunAt'] ?? j['collectionDate']).toString()),
-        status: SusuCycleStatus.fromString(j['status']),
-        payoutUserId:
-            ((j['payoutUserId'] ?? j['payoutRecipientId']) as num).toInt(),
-        paidOutAt: _maybeDate(j['paidOutAt']),
-        escrowDivertedAt: _maybeDate(j['escrowDivertedAt']),
-        payoutAmount: j['payoutAmount'] == null
-            ? null
-            : _decimalToDouble(j['payoutAmount']),
-        graceUntil: _maybeDate(j['graceUntil']),
-      );
+    id: j['id'].toString(),
+    cycleNumber: (j['cycleNumber'] as num).toInt(),
+    scheduledRunAt: DateTime.parse(
+      (j['scheduledRunAt'] ?? j['collectionDate']).toString(),
+    ),
+    status: SusuCycleStatus.fromString(j['status']),
+    payoutUserId: ((j['payoutUserId'] ?? j['payoutRecipientId']) as num)
+        .toInt(),
+    paidOutAt: _maybeDate(j['paidOutAt']),
+    escrowDivertedAt: _maybeDate(j['escrowDivertedAt']),
+    payoutAmount: j['payoutAmount'] == null
+        ? null
+        : _decimalToDouble(j['payoutAmount']),
+    graceUntil: _maybeDate(j['graceUntil']),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -555,14 +562,14 @@ class SusuInvitePreview {
     return SusuInvitePreview(
       susuName: (susu['name'] ?? 'Susu').toString(),
       contributionUsdc: _decimalToDouble(
-          susu['contributionUsdc'] ?? susu['contributionAmount']),
+        susu['contributionUsdc'] ?? susu['contributionAmount'],
+      ),
       frequency: SusuFrequency.fromString(susu['frequency']),
       memberCount: ((susu['memberCount'] ?? 0) as num).toInt(),
       inviterDisplayName:
           (inviter['displayName'] ?? inviter['username'] ?? 'Someone')
               .toString(),
-      inviterAvatar:
-          (inviter['avatar'] ?? inviter['profileImage'])?.toString(),
+      inviterAvatar: (inviter['avatar'] ?? inviter['profileImage'])?.toString(),
       expiresAt: DateTime.parse(j['expiresAt'].toString()),
     );
   }
@@ -610,26 +617,28 @@ class SusuInviteRequest {
   });
 
   factory SusuInviteRequest.friend(int userId) => SusuInviteRequest._(
-      channel: SusuInviteChannel.friend, inviteeUserId: userId);
+    channel: SusuInviteChannel.friend,
+    inviteeUserId: userId,
+  );
 
-  factory SusuInviteRequest.phone(String e164) => SusuInviteRequest._(
-      channel: SusuInviteChannel.phone, inviteePhone: e164);
+  factory SusuInviteRequest.phone(String e164) =>
+      SusuInviteRequest._(channel: SusuInviteChannel.phone, inviteePhone: e164);
 
   factory SusuInviteRequest.link() =>
       const SusuInviteRequest._(channel: SusuInviteChannel.link);
 
   Map<String, dynamic> toJson() => switch (channel) {
-        SusuInviteChannel.friend => {
-            'channel': 'FRIEND',
-            'inviteeUserId': inviteeUserId,
-          },
-        SusuInviteChannel.phone => {
-            'channel': 'PHONE',
-            'inviteePhone': inviteePhone,
-          },
-        SusuInviteChannel.link => {'channel': 'LINK'},
-        SusuInviteChannel.unknown => const {},
-      };
+    SusuInviteChannel.friend => {
+      'channel': 'FRIEND',
+      'inviteeUserId': inviteeUserId,
+    },
+    SusuInviteChannel.phone => {
+      'channel': 'PHONE',
+      'inviteePhone': inviteePhone,
+    },
+    SusuInviteChannel.link => {'channel': 'LINK'},
+    SusuInviteChannel.unknown => const {},
+  };
 }
 
 // Result of POST /api/susu — initial Susu + the fanned invites.
@@ -660,16 +669,16 @@ class SusuInviteRow {
   });
 
   factory SusuInviteRow.fromJson(Map<String, dynamic> j) => SusuInviteRow(
-        id: j['id'].toString(),
-        channel: SusuInviteChannel.fromString(j['channel']),
-        status: SusuInviteStatus.fromString(j['status']),
-        expiresAt: DateTime.parse(j['expiresAt'].toString()),
-        token: j['token']?.toString(),
-        inviteeUserId: j['inviteeUserId'] is num
-            ? (j['inviteeUserId'] as num).toInt()
-            : null,
-        inviteePhone: j['inviteePhone']?.toString(),
-      );
+    id: j['id'].toString(),
+    channel: SusuInviteChannel.fromString(j['channel']),
+    status: SusuInviteStatus.fromString(j['status']),
+    expiresAt: DateTime.parse(j['expiresAt'].toString()),
+    token: j['token']?.toString(),
+    inviteeUserId: j['inviteeUserId'] is num
+        ? (j['inviteeUserId'] as num).toInt()
+        : null,
+    inviteePhone: j['inviteePhone']?.toString(),
+  );
 
   /// Public Invite_Link URL for LINK-channel invites (Req 6.6).
   String? get publicUrl =>

@@ -39,8 +39,9 @@ class HotelMarketplaceState {
       isLoading: isLoading ?? this.isLoading,
       isBooking: isBooking ?? this.isBooking,
       error: clearError ? null : (error ?? this.error),
-      bookingFailureClass:
-          clearError ? null : (bookingFailureClass ?? this.bookingFailureClass),
+      bookingFailureClass: clearError
+          ? null
+          : (bookingFailureClass ?? this.bookingFailureClass),
       business: business ?? this.business,
       rooms: rooms ?? this.rooms,
     );
@@ -49,7 +50,8 @@ class HotelMarketplaceState {
 
 class HotelMarketplaceNotifier extends StateNotifier<HotelMarketplaceState> {
   final HotelMarketplaceService _service;
-  HotelMarketplaceNotifier(this._service) : super(const HotelMarketplaceState());
+  HotelMarketplaceNotifier(this._service)
+    : super(const HotelMarketplaceState());
 
   Future<void> load(String bizId) async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -102,6 +104,8 @@ class HotelMarketplaceNotifier extends StateNotifier<HotelMarketplaceState> {
   }
 }
 
-final hotelMarketplaceProvider = StateNotifierProvider<HotelMarketplaceNotifier, HotelMarketplaceState>(
-  (ref) => HotelMarketplaceNotifier(ref.watch(hotelMarketplaceServiceProvider)),
-);
+final hotelMarketplaceProvider =
+    StateNotifierProvider<HotelMarketplaceNotifier, HotelMarketplaceState>(
+      (ref) =>
+          HotelMarketplaceNotifier(ref.watch(hotelMarketplaceServiceProvider)),
+    );

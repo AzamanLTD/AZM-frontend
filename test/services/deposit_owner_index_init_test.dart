@@ -47,8 +47,9 @@ class _GatedStorage extends _MemStorage {
       final gate = readGate;
       if (gate != null) {
         readGate = null;
-        return gate.future.then((_) async =>
-            (await super.noSuchMethod(invocation)) as String?);
+        return gate.future.then(
+          (_) async => (await super.noSuchMethod(invocation)) as String?,
+        );
       }
     }
     return super.noSuchMethod(invocation);
@@ -59,8 +60,7 @@ void main() {
   const ownerIndexKey = 'azm.deposit.continuations.ownerIndex';
 
   Map<String, dynamic> persistedIndex(_MemStorage storage) =>
-      jsonDecode(storage.store[ownerIndexKey] ?? '{}')
-          as Map<String, dynamic>;
+      jsonDecode(storage.store[ownerIndexKey] ?? '{}') as Map<String, dynamic>;
 
   test('resolve() removes the owner binding from the PERSISTED index '
       'and a reconstructed service finds no binding for the resolved '
@@ -75,10 +75,16 @@ void main() {
     await ctrl.resolve('user-a', 'DEP-R1');
 
     final idx = persistedIndex(storage);
-    expect(idx.containsKey('DEP-R1'), isFalse,
-        reason: 'the resolved reference must leave the persisted index');
-    expect(idx['DEP-R2'], 'user-a',
-        reason: 'the sibling binding must survive the cleanup');
+    expect(
+      idx.containsKey('DEP-R1'),
+      isFalse,
+      reason: 'the resolved reference must leave the persisted index',
+    );
+    expect(
+      idx['DEP-R2'],
+      'user-a',
+      reason: 'the sibling binding must survive the cleanup',
+    );
 
     final fresh = DepositContinuationsService(storage: storage);
     expect(await fresh.lookupReferenceOwner('DEP-R1'), isNull);
@@ -122,9 +128,13 @@ void main() {
     ]);
 
     final idx = persistedIndex(storage);
-    expect(idx.containsKey('DEP-X1'), isFalse,
-        reason: 'the resolved binding must STAY removed even when a '
-            'concurrent save persists the index');
+    expect(
+      idx.containsKey('DEP-X1'),
+      isFalse,
+      reason:
+          'the resolved binding must STAY removed even when a '
+          'concurrent save persists the index',
+    );
     expect(idx['DEP-Y1'], 'user-b');
 
     final fresh = DepositContinuationsService(storage: storage);
@@ -136,8 +146,9 @@ void main() {
     final storage = _GatedStorage();
     final svc = DepositContinuationsService(storage: storage);
     await svc.save('user-a', 'DEP-A9');
-    storage.store['azm.deposit.continuations.ownerIndex'] =
-        jsonEncode({'DEP-A9': 'user-a'});
+    storage.store['azm.deposit.continuations.ownerIndex'] = jsonEncode({
+      'DEP-A9': 'user-a',
+    });
 
     final gate = Completer<void>();
     storage.readGate = gate;

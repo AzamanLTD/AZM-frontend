@@ -21,10 +21,13 @@ import 'package:azaman/widgets/azaman_network_image.dart';
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-final storyHighlightProvider = StateNotifierProvider.autoDispose
-    <StoryHighlightNotifier, AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  return StoryHighlightNotifier()..load();
-});
+final storyHighlightProvider =
+    StateNotifierProvider.autoDispose<
+      StoryHighlightNotifier,
+      AsyncValue<List<Map<String, dynamic>>>
+    >((ref) {
+      return StoryHighlightNotifier()..load();
+    });
 
 class StoryHighlightNotifier
     extends StateNotifier<AsyncValue<List<Map<String, dynamic>>>> {
@@ -77,8 +80,7 @@ class StoryHighlightsScreen extends ConsumerStatefulWidget {
       _StoryHighlightsScreenState();
 }
 
-class _StoryHighlightsScreenState
-    extends ConsumerState<StoryHighlightsScreen> {
+class _StoryHighlightsScreenState extends ConsumerState<StoryHighlightsScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
@@ -101,12 +103,20 @@ class _StoryHighlightsScreenState
         ],
       ),
       body: highlights.when(
-        loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
-        error: (e, _) => Center(child: Text('Failed to load highlights',
-            style: TextStyle(color: colors.textSecondary))),
+        loading: () =>
+            Center(child: CircularProgressIndicator(color: colors.accent)),
+        error: (e, _) => Center(
+          child: Text(
+            'Failed to load highlights',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+        ),
         data: (list) {
           if (list.isEmpty) {
-            return _EmptyState(colors: colors, onCreate: () => _showCreateDialog(context, ref));
+            return _EmptyState(
+              colors: colors,
+              onCreate: () => _showCreateDialog(context, ref),
+            );
           }
           return GridView.builder(
             padding: const EdgeInsets.all(16),
@@ -135,18 +145,27 @@ class _StoryHighlightsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: ref.read(themeProvider).colors.surface,
-        title: Text('New Highlight', style: TextStyle(color: ref.read(themeProvider).colors.textPrimary)),
+        title: Text(
+          'New Highlight',
+          style: TextStyle(color: ref.read(themeProvider).colors.textPrimary),
+        ),
         content: TextField(
           controller: titleCtrl,
           maxLength: 50,
           decoration: InputDecoration(
             hintText: 'Highlight title',
-            hintStyle: TextStyle(color: ref.read(themeProvider).colors.textTertiary),
+            hintStyle: TextStyle(
+              color: ref.read(themeProvider).colors.textTertiary,
+            ),
             enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: ref.read(themeProvider).colors.border),
+              borderSide: BorderSide(
+                color: ref.read(themeProvider).colors.border,
+              ),
             ),
             focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: ref.read(themeProvider).colors.accent),
+              borderSide: BorderSide(
+                color: ref.read(themeProvider).colors.accent,
+              ),
             ),
           ),
           style: TextStyle(color: ref.read(themeProvider).colors.textPrimary),
@@ -154,18 +173,30 @@ class _StoryHighlightsScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: ref.read(themeProvider).colors.textSecondary)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: ref.read(themeProvider).colors.textSecondary,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
               if (titleCtrl.text.trim().isNotEmpty) {
                 AzamanHaptics.nav();
-                ref.read(storyHighlightProvider.notifier)
+                ref
+                    .read(storyHighlightProvider.notifier)
                     .createHighlight(titleCtrl.text.trim(), []);
                 Navigator.pop(ctx);
               }
             },
-            child: Text('Create', style: TextStyle(color: ref.read(themeProvider).colors.accent, fontWeight: FontWeight.w600)),
+            child: Text(
+              'Create',
+              style: TextStyle(
+                color: ref.read(themeProvider).colors.accent,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -185,21 +216,35 @@ class _StoryHighlightsScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: ref.read(themeProvider).colors.surface,
-        title: Text('Delete highlight?', style: TextStyle(color: ref.read(themeProvider).colors.textPrimary)),
-        content: Text('This will permanently remove "${highlight['title']}"',
-            style: TextStyle(color: ref.read(themeProvider).colors.textSecondary)),
+        title: Text(
+          'Delete highlight?',
+          style: TextStyle(color: ref.read(themeProvider).colors.textPrimary),
+        ),
+        content: Text(
+          'This will permanently remove "${highlight['title']}"',
+          style: TextStyle(color: ref.read(themeProvider).colors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: ref.read(themeProvider).colors.textSecondary)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: ref.read(themeProvider).colors.textSecondary,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
-              ref.read(storyHighlightProvider.notifier)
+              ref
+                  .read(storyHighlightProvider.notifier)
                   .deleteHighlight(highlight['id']);
               Navigator.pop(ctx);
             },
-            child: Text('Delete', style: TextStyle(color: ref.read(themeProvider).colors.danger)),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: ref.read(themeProvider).colors.danger),
+            ),
           ),
         ],
       ),
@@ -222,15 +267,23 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(HugeIconsSolid.star, size: 48, color: colors.textTertiary),
           const SizedBox(height: 12),
-          Text('No highlights yet', style: TextStyle(color: colors.textSecondary, fontSize: 16)),
+          Text(
+            'No highlights yet',
+            style: TextStyle(color: colors.textSecondary, fontSize: 16),
+          ),
           const SizedBox(height: 4),
-          Text('Save your stories to permanent collections',
-              style: TextStyle(color: colors.textTertiary, fontSize: 13)),
+          Text(
+            'Save your stories to permanent collections',
+            style: TextStyle(color: colors.textTertiary, fontSize: 13),
+          ),
           const SizedBox(height: 16),
           TextButton.icon(
             onPressed: onCreate,
             icon: Icon(HugeIconsSolid.plusSign, size: 18, color: colors.accent),
-            label: Text('New Highlight', style: TextStyle(color: colors.accent)),
+            label: Text(
+              'New Highlight',
+              style: TextStyle(color: colors.accent),
+            ),
           ),
         ],
       ).animate().fadeIn(),
@@ -259,7 +312,10 @@ class _HighlightTile extends StatelessWidget {
         : highlight['coverUrl']?.toString();
 
     return GestureDetector(
-      onTap: () { AzamanHaptics.nav(); onTap(); },
+      onTap: () {
+        AzamanHaptics.nav();
+        onTap();
+      },
       onLongPress: onLongPress,
       child: Column(
         children: [
@@ -277,15 +333,22 @@ class _HighlightTile extends StatelessWidget {
             ),
             child: ClipOval(
               child: coverUrl != null && coverUrl.isNotEmpty
-                  ? AzamanNetworkImage(imageUrl: coverUrl, fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _placeholder())
+                  ? AzamanNetworkImage(
+                      imageUrl: coverUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => _placeholder(),
+                    )
                   : _placeholder(),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             highlight['title']?.toString() ?? '',
-            style: TextStyle(color: colors.textPrimary, fontSize: 12, fontWeight: FontWeight.w500),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

@@ -22,9 +22,7 @@ void main() {
     largeLayout = VehicleLayout(
       id: 'perf-test-60',
       vehicleType: 'COACH',
-      decks: [
-        Deck(deckIndex: 0, grid: _buildLargeGrid(rows: 15, cols: 4)),
-      ],
+      decks: [Deck(deckIndex: 0, grid: _buildLargeGrid(rows: 15, cols: 4))],
     );
 
     final solver = const SeatGeometrySolver();
@@ -46,8 +44,11 @@ void main() {
       final avgMillis = avgMicros / 1000;
 
       // Should be well under 5ms per computation
-      expect(avgMillis, lessThan(5.0),
-          reason: 'compute() took ${avgMillis}ms avg — must be < 5ms');
+      expect(
+        avgMillis,
+        lessThan(5.0),
+        reason: 'compute() took ${avgMillis}ms avg — must be < 5ms',
+      );
     });
   });
 
@@ -106,8 +107,12 @@ void main() {
       // Iterating 60 seat rects should take < 1ms (the actual paint with
       // drawRRect/drawPicture would be a few ms more, but still within 16.6ms)
       expect(seatCount, 60);
-      expect(best, lessThan(1.0),
-          reason: 'Best-of-5 rect iteration took ${best}ms — must be < 1ms for headroom');
+      expect(
+        best,
+        lessThan(1.0),
+        reason:
+            'Best-of-5 rect iteration took ${best}ms — must be < 1ms for headroom',
+      );
     });
   });
 
@@ -132,8 +137,11 @@ void main() {
       final avgMillis = avgMicros / 1000;
 
       // Each hit-test should be < 1ms (it's O(n) over seats, but n=60 is tiny)
-      expect(avgMillis, lessThan(1.0),
-          reason: 'hitTestLocal avg ${avgMillis}ms — must be < 1ms per call');
+      expect(
+        avgMillis,
+        lessThan(1.0),
+        reason: 'hitTestLocal avg ${avgMillis}ms — must be < 1ms per call',
+      );
     });
   });
 }
@@ -149,15 +157,19 @@ List<List<GridSlot>> _buildLargeGrid({required int rows, required int cols}) {
         rowSlots.add(GridSlot(type: SlotType.aisle, row: row, col: col));
       }
       final letter = String.fromCharCode(65 + col);
-      rowSlots.add(GridSlot(
-        type: SlotType.seat,
-        row: row,
-        col: col,
-        seatId: '${row + 1}$letter',
-        tier: row < 3 ? SeatTier.vip : SeatTier.standard,
-        fare: row < 3 ? 25.0 : 18.0,
-        status: (row + col) % 7 == 0 ? SeatBookStatus.booked : SeatBookStatus.available,
-      ));
+      rowSlots.add(
+        GridSlot(
+          type: SlotType.seat,
+          row: row,
+          col: col,
+          seatId: '${row + 1}$letter',
+          tier: row < 3 ? SeatTier.vip : SeatTier.standard,
+          fare: row < 3 ? 25.0 : 18.0,
+          status: (row + col) % 7 == 0
+              ? SeatBookStatus.booked
+              : SeatBookStatus.available,
+        ),
+      );
     }
     grid.add(rowSlots);
   }

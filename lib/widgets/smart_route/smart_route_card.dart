@@ -17,27 +17,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 class SmartRouteCard extends ConsumerWidget {
   final SmartRoute route;
   final AzamanColors colors;
   const SmartRouteCard({super.key, required this.route, required this.colors});
 
   IconData get _icon => switch (route.action) {
-        'WITHDRAW_MOMO' => Icons.smartphone_outlined,
-        'INTERNAL_TRANSFER' => Icons.swap_horiz,
-        'SAVINGS_DEPOSIT' => Icons.savings_outlined,
-        'VAULT_DEPOSIT' => Icons.lock_outline,
-        _ => Icons.turn_left,
-      };
+    'WITHDRAW_MOMO' => Icons.smartphone_outlined,
+    'INTERNAL_TRANSFER' => Icons.swap_horiz,
+    'SAVINGS_DEPOSIT' => Icons.savings_outlined,
+    'VAULT_DEPOSIT' => Icons.lock_outline,
+    _ => Icons.turn_left,
+  };
 
   Color _accent() => switch (route.action) {
-        'WITHDRAW_MOMO' => colors.warning,
-        'INTERNAL_TRANSFER' => colors.success,
-        'SAVINGS_DEPOSIT' => colors.accent,
-        'VAULT_DEPOSIT' => colors.accentSecondary,
-        _ => colors.textSecondary,
-      };
+    'WITHDRAW_MOMO' => colors.warning,
+    'INTERNAL_TRANSFER' => colors.success,
+    'SAVINGS_DEPOSIT' => colors.accent,
+    'VAULT_DEPOSIT' => colors.accentSecondary,
+    _ => colors.textSecondary,
+  };
 
   String _short(DateTime t) {
     final diff = t.difference(DateTime.now());
@@ -110,7 +109,10 @@ class SmartRouteCard extends ConsumerWidget {
                       '${route.amountUsdc.toStringAsFixed(2)} USDC · ${route.frequency.toLowerCase()} → ${_destLabel()}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                      style: TextStyle(
+                        color: colors.textTertiary,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),

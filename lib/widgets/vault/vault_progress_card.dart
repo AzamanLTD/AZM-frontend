@@ -17,7 +17,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/providers/vault_provider.dart';
 
-
 class VaultProgressCard extends ConsumerWidget {
   final Vault vault;
   final AzamanColors colors;
@@ -135,71 +134,89 @@ class VaultProgressCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 // Progress ring + details
-                Row(children: [
-                  SizedBox(
-                    width: 56, height: 56,
-                    child: Stack(alignment: Alignment.center, children: [
-                      SizedBox(
-                        width: 56, height: 56,
-                        child: CircularProgressIndicator(
-                          value: progress.toDouble(),
-                          strokeWidth: 4,
-                          color: accent,
-                          backgroundColor: colors.softSurface,
-                        ),
-                      ),
-                      Text("${(progress * 100).toInt()}%",
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 11, fontWeight: FontWeight.w800)),
-                    ]),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // The comparison row keeps BOTH slots in the native
-                    // USDC denomination — a converted figure here would mix
-                    // units inside one progress comparison. The labelled
-                    // GHS estimate lives on its own line below, never posed
-                    // as comparable to the USDC target.
-                    Row(
-                      children: [
-                        Flexible(
-                          child: NativeAmountText(
-                            key: const ValueKey('vault-progress-current'),
-                            amountUsdc: vault.currentAmountUsdc,
-                            forceNative: true,
-                            showEquivalent: false,
-                            style: TextStyle(
-                              color: colors.textSecondary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: CircularProgressIndicator(
+                              value: progress.toDouble(),
+                              strokeWidth: 4,
+                              color: accent,
+                              backgroundColor: colors.softSurface,
                             ),
                           ),
-                        ),
-                        Text(
-                          ' / ${vault.targetAmountUsdc.toStringAsFixed(2)} USDC',
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                          Text(
+                            "${(progress * 100).toInt()}%",
+                            style: TextStyle(
+                              color: accent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    AmountEntryEquivalent(
-                      amountUsdc: vault.currentAmountUsdc,
-                      railNote: 'vault balance held in USDC',
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // The comparison row keeps BOTH slots in the native
+                          // USDC denomination — a converted figure here would mix
+                          // units inside one progress comparison. The labelled
+                          // GHS estimate lives on its own line below, never posed
+                          // as comparable to the USDC target.
+                          Row(
+                            children: [
+                              Flexible(
+                                child: NativeAmountText(
+                                  key: const ValueKey('vault-progress-current'),
+                                  amountUsdc: vault.currentAmountUsdc,
+                                  forceNative: true,
+                                  showEquivalent: false,
+                                  style: TextStyle(
+                                    color: colors.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                ' / ${vault.targetAmountUsdc.toStringAsFixed(2)} USDC',
+                                style: TextStyle(
+                                  color: colors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          AmountEntryEquivalent(
+                            amountUsdc: vault.currentAmountUsdc,
+                            railNote: 'vault balance held in USDC',
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            "Projected: +${projected.toStringAsFixed(2)} USDC by ${_shortDate(vault.maturityDate)}",
+                            style: TextStyle(
+                              color: colors.success,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "Projected: +${projected.toStringAsFixed(2)} USDC by ${_shortDate(vault.maturityDate)}",
-                      style: TextStyle(color: colors.success, fontSize: 11,
-                        fontWeight: FontWeight.w600),
-                    ),
-                  ])),
-                ]),
+                  ],
+                ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
@@ -225,9 +242,21 @@ class VaultProgressCard extends ConsumerWidget {
   }
 
   String _shortDate(DateTime dt) {
-    final months = ["Jan","Feb","Mar","Apr","May","Jun",
-                    "Jul","Aug","Sep","Oct","Nov","Dec"];
-    return "${dt.day} ${months[dt.month-1]} ${dt.year}";
+    final months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
   }
 
   String _statusLine(Duration remaining) {

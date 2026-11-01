@@ -24,7 +24,8 @@ class MessageSearchScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<MessageSearchScreen> createState() => _MessageSearchScreenState();
+  ConsumerState<MessageSearchScreen> createState() =>
+      _MessageSearchScreenState();
 }
 
 class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
@@ -123,10 +124,16 @@ class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search, size: 64, color: Theme.of(context).disabledColor),
+            Icon(
+              Icons.search,
+              size: 64,
+              color: Theme.of(context).disabledColor,
+            ),
             const SizedBox(height: 16),
-            Text('Search across all your chats',
-                style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              'Search across all your chats',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
           ],
         ),
       );
@@ -141,11 +148,16 @@ class _MessageSearchScreenState extends ConsumerState<MessageSearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.sentiment_dissatisfied,
-                size: 48, color: Theme.of(context).disabledColor),
+            Icon(
+              Icons.sentiment_dissatisfied,
+              size: 48,
+              color: Theme.of(context).disabledColor,
+            ),
             const SizedBox(height: 12),
-            Text('No results found',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'No results found',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ],
         ),
       );
@@ -179,11 +191,7 @@ class _SearchResultItem extends StatelessWidget {
     final isMedia = messageType != 'TEXT' || mediaUrl != null;
 
     return ListTile(
-      leading: AzAvatar(
-        circular: true,
-        name: senderName,
-        size: 40,
-      ),
+      leading: AzAvatar(circular: true, name: senderName, size: 40),
       title: Row(
         children: [
           Expanded(
@@ -206,8 +214,11 @@ class _SearchResultItem extends StatelessWidget {
       subtitle: Row(
         children: [
           if (isMedia) ...[
-            Icon(_mediaIcon(messageType), size: 16,
-                color: Theme.of(context).colorScheme.primary),
+            Icon(
+              _mediaIcon(messageType),
+              size: 16,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             const SizedBox(width: 4),
           ],
           Expanded(
@@ -239,8 +250,11 @@ class _SearchResultItem extends StatelessWidget {
           ],
           if (isStarred) ...[
             const SizedBox(width: 4),
-            Icon(Icons.star_rounded,
-                size: 14, color: Theme.of(context).colorScheme.primary),
+            Icon(
+              Icons.star_rounded,
+              size: 14,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ],
         ],
       ),
@@ -253,23 +267,35 @@ class _SearchResultItem extends StatelessWidget {
 
   IconData _mediaIcon(String type) {
     switch (type) {
-      case 'IMAGE': return Icons.image;
-      case 'VIDEO': return Icons.videocam;
-      case 'AUDIO': return Icons.headphones;
-      case 'DOCUMENT': return Icons.description;
-      case 'LINK': return Icons.link;
-      default: return Icons.attach_file;
+      case 'IMAGE':
+        return Icons.image;
+      case 'VIDEO':
+        return Icons.videocam;
+      case 'AUDIO':
+        return Icons.headphones;
+      case 'DOCUMENT':
+        return Icons.description;
+      case 'LINK':
+        return Icons.link;
+      default:
+        return Icons.attach_file;
     }
   }
 
   String _mediaLabel(String type) {
     switch (type) {
-      case 'IMAGE': return 'Photo';
-      case 'VIDEO': return 'Video';
-      case 'AUDIO': return 'Voice message';
-      case 'DOCUMENT': return 'Document';
-      case 'LINK': return 'Link';
-      default: return 'Attachment';
+      case 'IMAGE':
+        return 'Photo';
+      case 'VIDEO':
+        return 'Video';
+      case 'AUDIO':
+        return 'Voice message';
+      case 'DOCUMENT':
+        return 'Document';
+      case 'LINK':
+        return 'Link';
+      default:
+        return 'Attachment';
     }
   }
 

@@ -40,30 +40,30 @@ const _bandHeight = 92.0;
 const _expectedClearance = _bandHeight + kNavBandGap;
 
 Widget _shell(Widget page) => MaterialApp(
-      home: Scaffold(
-        extendBody: true,
-        bottomNavigationBar: const _FixedBand(height: _bandHeight),
-        body: page,
-      ),
-    );
+  home: Scaffold(
+    extendBody: true,
+    bottomNavigationBar: const _FixedBand(height: _bandHeight),
+    body: page,
+  ),
+);
 
 // ── Marketplace fixtures ────────────────────────────────────────────────────
 
 BusinessProfile _biz(int i) => BusinessProfile(
-      id: 'biz$i',
-      bizId: 'BIZ-biz$i',
-      businessName: 'Business $i',
-      category: 'RETAIL',
-      isVerified: true,
-      isSuspended: false,
-      kybStatus: 'VERIFIED',
-      totalEscrows: 3,
-      completedEscrows: 3,
-      userId: 1,
-      totalVolume: 100,
-      averageRating: 4.5,
-      username: 'vendor-$i',
-    );
+  id: 'biz$i',
+  bizId: 'BIZ-biz$i',
+  businessName: 'Business $i',
+  category: 'RETAIL',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 3,
+  completedEscrows: 3,
+  userId: 1,
+  totalVolume: 100,
+  averageRating: 4.5,
+  username: 'vendor-$i',
+);
 
 /// Resolves the seeding search immediately with results.
 class _ResultsSearchNotifier extends BusinessSearchNotifier {
@@ -116,9 +116,11 @@ class _FakeFriends extends FriendProvider {
           'friend': {'id': 100 + i, 'username': 'friend$i'},
           'latestMessage': {
             'content': 'message $i',
-            'createdAt': DateTime(2026, 10, 1)
-                .add(Duration(minutes: i))
-                .toIso8601String(),
+            'createdAt': DateTime(
+              2026,
+              10,
+              1,
+            ).add(Duration(minutes: i)).toIso8601String(),
           },
         },
     ];
@@ -136,8 +138,7 @@ class _FakeFriends extends FriendProvider {
     // Same shape the real service returns; synchronous so the test frame
     // after enterText already shows the results list.
     searchResults = [
-      for (var i = 0; i < 15; i++)
-        {'id': 100 + i, 'username': 'ama$i'},
+      for (var i = 0; i < 15; i++) {'id': 100 + i, 'username': 'ama$i'},
     ];
     isLoading = false;
     notifyListeners();
@@ -188,8 +189,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            businessSearchProvider
-                .overrideWith((ref) => _ResultsSearchNotifier()),
+            businessSearchProvider.overrideWith(
+              (ref) => _ResultsSearchNotifier(),
+            ),
           ],
           child: _shell(const MarketplaceHomeScreen()),
         ),
@@ -217,8 +219,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            businessSearchProvider
-                .overrideWith((ref) => _ResultsSearchNotifier()),
+            businessSearchProvider.overrideWith(
+              (ref) => _ResultsSearchNotifier(),
+            ),
           ],
           child: _shell(const MarketplaceHomeScreen()),
         ),
@@ -234,9 +237,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final band = tester.getRect(find.byType(_FixedBand));
-      final lastBar = tester.getRect(
-        find.byType(BusinessResultCard).last,
-      );
+      final lastBar = tester.getRect(find.byType(BusinessResultCard).last);
 
       // Reachability contract: after bottoming out, the last card's end
       // sits the full breathing gap above the band's top edge — never
@@ -255,8 +256,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            businessSearchProvider
-                .overrideWith((ref) => _LoadingSearchNotifier()),
+            businessSearchProvider.overrideWith(
+              (ref) => _LoadingSearchNotifier(),
+            ),
           ],
           child: _shell(const MarketplaceHomeScreen()),
         ),

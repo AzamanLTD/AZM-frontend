@@ -39,7 +39,14 @@ import 'package:azaman/services/push_notification_service.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/router/auth_guard.dart';
 
-enum AuthStatus { idle, loading, authenticated, profileNotFound, unauthenticated, error }
+enum AuthStatus {
+  idle,
+  loading,
+  authenticated,
+  profileNotFound,
+  unauthenticated,
+  error,
+}
 
 class AuthProvider with ChangeNotifier {
   AuthProvider({this.ref, ApiClient? client}) : _api = client ?? apiClient;
@@ -55,7 +62,8 @@ class AuthProvider with ChangeNotifier {
   AuthStatus get status => _status;
   String? get error => _error;
   String? get token => _user?.token;
-  bool get isAuthenticated => _user != null && _status == AuthStatus.authenticated;
+  bool get isAuthenticated =>
+      _user != null && _status == AuthStatus.authenticated;
   bool get isLoading => _status == AuthStatus.loading;
   bool get profileNotFound => _status == AuthStatus.profileNotFound;
   String get role => (_user?.role ?? 'USER').toUpperCase();
@@ -63,7 +71,10 @@ class AuthProvider with ChangeNotifier {
   bool get isAdmin => role == 'ADMIN';
   bool get isUser => role == 'USER';
 
-  static final ValueNotifier<_AuthSnapshot> snapshot = ValueNotifier<_AuthSnapshot>(const _AuthSnapshot(user: null, status: AuthStatus.idle));
+  static final ValueNotifier<_AuthSnapshot> snapshot =
+      ValueNotifier<_AuthSnapshot>(
+        const _AuthSnapshot(user: null, status: AuthStatus.idle),
+      );
 
   void _publish() {
     snapshot.value = _AuthSnapshot(user: _user, status: _status);
@@ -151,8 +162,10 @@ class AuthProvider with ChangeNotifier {
       final body = jsonDecode(response.body);
       final Map<String, dynamic> profileJson = body is Map<String, dynamic>
           ? (body['user'] is Map<String, dynamic>
-              ? body['user'] as Map<String, dynamic>
-              : (body['data'] is Map<String, dynamic> ? body['data'] as Map<String, dynamic> : body))
+                ? body['user'] as Map<String, dynamic>
+                : (body['data'] is Map<String, dynamic>
+                      ? body['data'] as Map<String, dynamic>
+                      : body))
           : <String, dynamic>{};
       _user = User.fromJson({...profileJson, 'token': _user!.token});
       _status = AuthStatus.authenticated;
@@ -173,9 +186,8 @@ class AuthProvider with ChangeNotifier {
       // balances, so this is an authoritative hydration point too: the
       // card may print the figure (a genuine zero included) instead of
       // the unresolved waiting indicator.
-      ref
-          ?.read(balanceReadinessProvider.notifier)
-          .state = BalanceReadiness.loaded;
+      ref?.read(balanceReadinessProvider.notifier).state =
+          BalanceReadiness.loaded;
     } on ApiException catch (e) {
       if (generation != _hydrationGeneration) return;
       if (e.statusCode == 404) {
@@ -204,8 +216,10 @@ class AuthProvider with ChangeNotifier {
         // AuthGuard.isAuthenticated synchronously; flipping it here on a
         // blip kicked live users back to '/'. Only an explicit logout, a
         // rejected JWT (401) or a missing profile (404) invalidates.
-        debugPrint('[Auth] transient profile-fetch failure '
-            '(${e.statusCode}) — keeping authenticated session');
+        debugPrint(
+          '[Auth] transient profile-fetch failure '
+          '(${e.statusCode}) — keeping authenticated session',
+        );
         _status = AuthStatus.authenticated;
         AuthGuard.isAuthenticated = true;
         _error = 'Profile refresh unavailable. Showing last known data.';
@@ -214,10 +228,12 @@ class AuthProvider with ChangeNotifier {
       if (generation != _hydrationGeneration) return;
       // FINAL PASS §7 — same rule for non-Api exceptions (socket failures,
       // ClientException, decode blips): keep the session.
-        debugPrint('[Auth] transient profile-fetch error — keeping authenticated session');
-        _status = AuthStatus.authenticated;
-        AuthGuard.isAuthenticated = true;
-        _error = 'Could not refresh profile. Check your connection.';
+      debugPrint(
+        '[Auth] transient profile-fetch error — keeping authenticated session',
+      );
+      _status = AuthStatus.authenticated;
+      AuthGuard.isAuthenticated = true;
+      _error = 'Could not refresh profile. Check your connection.';
     } finally {
       _publish();
     }
@@ -233,9 +249,7 @@ class AuthProvider with ChangeNotifier {
       // repopulate the previous user's state.
       try {
         await ref?.read(launcherDraftsProvider.notifier).clearForLogout();
-        await ref
-            ?.read(depositContinuationsProvider.notifier)
-            .clearForLogout();
+        await ref?.read(depositContinuationsProvider.notifier).clearForLogout();
       } catch (_) {
         // Local state clearing must never block the session teardown.
       }
@@ -271,9 +285,7 @@ class AuthProvider with ChangeNotifier {
     // the next user never inherits the previous user's drafts.
     try {
       await ref?.read(launcherDraftsProvider.notifier).clearForLogout();
-      await ref
-          ?.read(depositContinuationsProvider.notifier)
-          .clearForLogout();
+      await ref?.read(depositContinuationsProvider.notifier).clearForLogout();
     } catch (_) {
       // Draft clearing must never block the logout itself.
     }

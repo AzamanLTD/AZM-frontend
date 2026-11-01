@@ -32,7 +32,10 @@ abstract final class StoryRailCollapse {
   /// rail's own bottom breathing room. Derived, not hard-coded — 94 px,
   /// within 2 px of the 96 the marketplace previously inline-coded.
   static const double extentPx =
-      StoryRailMetrics.ring + StoryRailMetrics.labelGap + StoryRailMetrics.label + 8;
+      StoryRailMetrics.ring +
+      StoryRailMetrics.labelGap +
+      StoryRailMetrics.label +
+      8;
 
   /// Scroll travel over which the rail collapses: its own extent — the
   /// rail is gone exactly when its last pixel leaves the viewport, the

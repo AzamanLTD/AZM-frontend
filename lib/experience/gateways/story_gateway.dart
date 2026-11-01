@@ -82,7 +82,8 @@ class RiverpodStoryFeedPort implements StoryFeedPort {
   Future<void> markViewed(String storyId) => _notifier.markViewed(storyId);
 
   @override
-  Future<void> boost(String storyId, int amount) => _notifier.boost(storyId, amount);
+  Future<void> boost(String storyId, int amount) =>
+      _notifier.boost(storyId, amount);
 }
 
 /// Capability-aware story operations. UI must consult [capabilities] before
@@ -106,7 +107,7 @@ abstract interface class StoryGateway {
 
 class HttpStoryGateway implements StoryGateway {
   HttpStoryGateway({StoryFeedPort? feedPort})
-      : _feed = feedPort ?? const _UnwiredStoryFeedPort();
+    : _feed = feedPort ?? const _UnwiredStoryFeedPort();
 
   final StoryFeedPort _feed;
   final Set<String> _viewed = {};
@@ -115,9 +116,9 @@ class HttpStoryGateway implements StoryGateway {
   /// map to real routes; everything else is unsupported.
   @override
   Set<StoryCapability> get capabilities => const {
-        StoryCapability.view,
-        StoryCapability.boost,
-      };
+    StoryCapability.view,
+    StoryCapability.boost,
+  };
 
   @override
   Future<void> markViewed(String storyId) async {
@@ -126,9 +127,12 @@ class HttpStoryGateway implements StoryGateway {
   }
 
   @override
-  Future<AzGatewayResult<void>> reply(String storyId, String message) async =>
-      const AzUnsupported(
-          'Story replies need POST /api/stories/:id/reply, which does not exist on the backend');
+  Future<AzGatewayResult<void>> reply(
+    String storyId,
+    String message,
+  ) async => const AzUnsupported(
+    'Story replies need POST /api/stories/:id/reply, which does not exist on the backend',
+  );
 
   @override
   Future<AzGatewayResult<void>> boost(String storyId, int amount) async {
@@ -144,9 +148,12 @@ class HttpStoryGateway implements StoryGateway {
   }
 
   @override
-  Future<AzGatewayResult<void>> react(String storyId, String emoji) async =>
-      const AzUnsupported(
-          'Story reactions need POST /api/stories/:id/react, which does not exist on the backend');
+  Future<AzGatewayResult<void>> react(
+    String storyId,
+    String emoji,
+  ) async => const AzUnsupported(
+    'Story reactions need POST /api/stories/:id/react, which does not exist on the backend',
+  );
 
   @override
   Future<AzGatewayResult<void>> shareLink(String storyId) async =>

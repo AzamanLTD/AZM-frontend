@@ -5,8 +5,9 @@ import 'package:azaman/marketplace/experience/marketplace_experience_capabilitie
 void main() {
   group('MarketplaceExperienceCatalog', () {
     test('maps restaurants to menu and reservation capabilities', () {
-      final profile =
-          MarketplaceExperienceCatalog.fromCategory('FOOD_BEVERAGE');
+      final profile = MarketplaceExperienceCatalog.fromCategory(
+        'FOOD_BEVERAGE',
+      );
 
       expect(profile, same(MarketplaceExperienceCatalog.restaurant));
       expect(profile.label, 'Restaurants');
@@ -43,10 +44,7 @@ void main() {
         profile.supports(MarketplaceExperienceCapability.productVariants),
         isTrue,
       );
-      expect(
-        profile.supports(MarketplaceExperienceCapability.pickup),
-        isTrue,
-      );
+      expect(profile.supports(MarketplaceExperienceCapability.pickup), isTrue);
       expect(
         profile.supports(MarketplaceExperienceCapability.delivery),
         isTrue,
@@ -58,8 +56,7 @@ void main() {
     });
 
     test('maps hotels to spatial room capabilities', () {
-      final profile =
-          MarketplaceExperienceCatalog.fromCategory('HOSPITALITY');
+      final profile = MarketplaceExperienceCatalog.fromCategory('HOSPITALITY');
 
       expect(profile, same(MarketplaceExperienceCatalog.hotel));
       expect(profile.label, 'Hotels');

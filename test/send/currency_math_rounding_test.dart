@@ -59,10 +59,11 @@ void main() {
       // 5.00 / 15.38 = 0.325097... → 0.33
       expect(
         CurrencyMath.convert(
-            amount: 5.0,
-            from: CurrencyCatalog.ghs,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: rate),
+          amount: 5.0,
+          from: CurrencyCatalog.ghs,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: rate,
+        ),
         0.33,
       );
     });
@@ -71,29 +72,32 @@ void main() {
       // 0.33 * 15.38 = 5.0754 → 5.08
       expect(
         CurrencyMath.convert(
-            amount: 0.33,
-            from: CurrencyCatalog.usdc,
-            to: CurrencyCatalog.ghs,
-            ghsPerUsdc: rate),
+          amount: 0.33,
+          from: CurrencyCatalog.usdc,
+          to: CurrencyCatalog.ghs,
+          ghsPerUsdc: rate,
+        ),
         5.08,
       );
     });
 
     test('large GHS amounts convert without epsilon distortion', () {
       final usdc = CurrencyMath.convert(
-          amount: 9999999.00,
-          from: CurrencyCatalog.ghs,
-          to: CurrencyCatalog.usdc,
-          ghsPerUsdc: rate);
+        amount: 9999999.00,
+        from: CurrencyCatalog.ghs,
+        to: CurrencyCatalog.usdc,
+        ghsPerUsdc: rate,
+      );
       expect(usdc, isNotNull);
       // 9999999 / 15.38 = 650194.99349... → 650194.99
       expect(usdc, 650194.99);
       // And the SAME rate back is exact decimal math on the same grid:
       final back = CurrencyMath.convert(
-          amount: usdc!,
-          from: CurrencyCatalog.usdc,
-          to: CurrencyCatalog.ghs,
-          ghsPerUsdc: rate);
+        amount: usdc!,
+        from: CurrencyCatalog.usdc,
+        to: CurrencyCatalog.ghs,
+        ghsPerUsdc: rate,
+      );
       expect(back, 9999998.95); // 650194.99 * 15.38 exactly
     });
 
@@ -101,10 +105,11 @@ void main() {
       for (final bad in [0.0, -1.0, double.nan, double.infinity]) {
         expect(
           CurrencyMath.convert(
-              amount: 5.0,
-              from: CurrencyCatalog.ghs,
-              to: CurrencyCatalog.usdc,
-              ghsPerUsdc: bad),
+            amount: 5.0,
+            from: CurrencyCatalog.ghs,
+            to: CurrencyCatalog.usdc,
+            ghsPerUsdc: bad,
+          ),
           isNull,
           reason: 'rate $bad must fail closed',
         );
@@ -118,18 +123,20 @@ void main() {
       // USDC transfer — the amount is already in the wire unit.
       expect(
         CurrencyMath.convert(
-            amount: 5.0,
-            from: CurrencyCatalog.usdc,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: 0),
+          amount: 5.0,
+          from: CurrencyCatalog.usdc,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: 0,
+        ),
         5.0,
       );
       expect(
         CurrencyMath.convert(
-            amount: 5.0,
-            from: CurrencyCatalog.usdc,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: double.nan),
+          amount: 5.0,
+          from: CurrencyCatalog.usdc,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: double.nan,
+        ),
         5.0,
       );
     });
@@ -137,18 +144,20 @@ void main() {
     test('same-unit values normalise to wire precision exactly', () {
       expect(
         CurrencyMath.convert(
-            amount: 9999999.00,
-            from: CurrencyCatalog.usdc,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: 0),
+          amount: 9999999.00,
+          from: CurrencyCatalog.usdc,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: 0,
+        ),
         9999999.00,
       );
       expect(
         CurrencyMath.convert(
-            amount: 5.001,
-            from: CurrencyCatalog.usdc,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: 15.38),
+          amount: 5.001,
+          from: CurrencyCatalog.usdc,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: 15.38,
+        ),
         5.0,
       );
     });
@@ -159,19 +168,21 @@ void main() {
       // 0.01 GHS at 15.38 = 0.00065 USDC → rounds to 0.00 → null.
       expect(
         CurrencyMath.convert(
-            amount: 0.01,
-            from: CurrencyCatalog.ghs,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: 15.38),
+          amount: 0.01,
+          from: CurrencyCatalog.ghs,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: 15.38,
+        ),
         isNull,
       );
       // 0.001 USDC direct → rounds to 0.00 → null (no zero wire).
       expect(
         CurrencyMath.convert(
-            amount: 0.001,
-            from: CurrencyCatalog.usdc,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: 15.38),
+          amount: 0.001,
+          from: CurrencyCatalog.usdc,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: 15.38,
+        ),
         isNull,
       );
     });
@@ -180,18 +191,20 @@ void main() {
       // 0.16 GHS at 15.38 = 0.01040... → 0.01 USDC — the smallest wire.
       expect(
         CurrencyMath.convert(
-            amount: 0.16,
-            from: CurrencyCatalog.ghs,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: 15.38),
+          amount: 0.16,
+          from: CurrencyCatalog.ghs,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: 15.38,
+        ),
         0.01,
       );
       expect(
         CurrencyMath.convert(
-            amount: 0.01,
-            from: CurrencyCatalog.usdc,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: 15.38),
+          amount: 0.01,
+          from: CurrencyCatalog.usdc,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: 15.38,
+        ),
         0.01,
       );
     });
@@ -203,15 +216,17 @@ void main() {
       final seen = <double>[];
       for (var i = 0; i < 8; i++) {
         final usdc = CurrencyMath.convert(
-            amount: current,
-            from: CurrencyCatalog.ghs,
-            to: CurrencyCatalog.usdc,
-            ghsPerUsdc: 15.38);
+          amount: current,
+          from: CurrencyCatalog.ghs,
+          to: CurrencyCatalog.usdc,
+          ghsPerUsdc: 15.38,
+        );
         final back = CurrencyMath.convert(
-            amount: usdc!,
-            from: CurrencyCatalog.usdc,
-            to: CurrencyCatalog.ghs,
-            ghsPerUsdc: 15.38);
+          amount: usdc!,
+          from: CurrencyCatalog.usdc,
+          to: CurrencyCatalog.ghs,
+          ghsPerUsdc: 15.38,
+        );
         expect(back, isNotNull);
         current = back!;
         seen.add(back);
@@ -219,8 +234,11 @@ void main() {
       // After the first rounding slip the cycle value must be a fixed
       // point — no creeping drift through repeated conversion.
       for (var i = 2; i < seen.length; i++) {
-        expect(seen[i], seen[i - 1],
-            reason: 'conversion cycle drifted at iteration $i');
+        expect(
+          seen[i],
+          seen[i - 1],
+          reason: 'conversion cycle drifted at iteration $i',
+        );
       }
     });
 
@@ -228,10 +246,11 @@ void main() {
       for (var i = 0; i < 50; i++) {
         expect(
           CurrencyMath.convert(
-              amount: 1234.56,
-              from: CurrencyCatalog.ghs,
-              to: CurrencyCatalog.usdc,
-              ghsPerUsdc: 15.38),
+            amount: 1234.56,
+            from: CurrencyCatalog.ghs,
+            to: CurrencyCatalog.usdc,
+            ghsPerUsdc: 15.38,
+          ),
           80.27,
         );
       }

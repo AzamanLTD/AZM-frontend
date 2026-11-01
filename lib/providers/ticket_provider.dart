@@ -61,9 +61,12 @@ class TicketDashboardState {
 
   List<Ticket> ticketsFor(TicketStatus s) {
     switch (s) {
-      case TicketStatus.open: return openTickets;
-      case TicketStatus.closed: return closedTickets;
-      case TicketStatus.cancelled: return cancelledTickets;
+      case TicketStatus.open:
+        return openTickets;
+      case TicketStatus.closed:
+        return closedTickets;
+      case TicketStatus.cancelled:
+        return cancelledTickets;
     }
   }
 }
@@ -73,7 +76,7 @@ class TicketDashboardNotifier extends StateNotifier<TicketDashboardState> {
   final TicketService _service;
 
   TicketDashboardNotifier(this.friendshipId, this._service)
-      : super(const TicketDashboardState());
+    : super(const TicketDashboardState());
 
   void setActiveTab(TicketStatus s) {
     if (state.activeTab == s) return;
@@ -84,9 +87,18 @@ class TicketDashboardNotifier extends StateNotifier<TicketDashboardState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final results = await Future.wait([
-        _service.listTickets(friendshipId: friendshipId, status: TicketStatus.open),
-        _service.listTickets(friendshipId: friendshipId, status: TicketStatus.closed),
-        _service.listTickets(friendshipId: friendshipId, status: TicketStatus.cancelled),
+        _service.listTickets(
+          friendshipId: friendshipId,
+          status: TicketStatus.open,
+        ),
+        _service.listTickets(
+          friendshipId: friendshipId,
+          status: TicketStatus.closed,
+        ),
+        _service.listTickets(
+          friendshipId: friendshipId,
+          status: TicketStatus.cancelled,
+        ),
       ]);
       state = state.copyWith(
         openTickets: results[0].tickets,
@@ -157,10 +169,15 @@ class TicketDashboardNotifier extends StateNotifier<TicketDashboardState> {
   }
 }
 
-final ticketDashboardProvider = StateNotifierProvider.family<
-    TicketDashboardNotifier, TicketDashboardState, String>(
-  (ref, friendshipId) => TicketDashboardNotifier(friendshipId, TicketService.instance),
-);
+final ticketDashboardProvider =
+    StateNotifierProvider.family<
+      TicketDashboardNotifier,
+      TicketDashboardState,
+      String
+    >(
+      (ref, friendshipId) =>
+          TicketDashboardNotifier(friendshipId, TicketService.instance),
+    );
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Workspace (one notifier per ticket)
@@ -211,7 +228,7 @@ class TicketWorkspaceNotifier extends StateNotifier<TicketWorkspaceState> {
   final TicketService _service;
 
   TicketWorkspaceNotifier(this.ticketId, this._service)
-      : super(const TicketWorkspaceState());
+    : super(const TicketWorkspaceState());
 
   Future<void> load() async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -280,7 +297,10 @@ class TicketWorkspaceNotifier extends StateNotifier<TicketWorkspaceState> {
 
   Future<void> _change(TicketStatus s) async {
     try {
-      final updated = await _service.changeStatus(ticketId: ticketId, status: s);
+      final updated = await _service.changeStatus(
+        ticketId: ticketId,
+        status: s,
+      );
       state = state.copyWith(ticket: updated);
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -293,5 +313,6 @@ class TicketWorkspaceNotifier extends StateNotifier<TicketWorkspaceState> {
 
 final ticketWorkspaceProvider = StateNotifierProvider.family
     .autoDispose<TicketWorkspaceNotifier, TicketWorkspaceState, String>(
-  (ref, ticketId) => TicketWorkspaceNotifier(ticketId, TicketService.instance),
-);
+      (ref, ticketId) =>
+          TicketWorkspaceNotifier(ticketId, TicketService.instance),
+    );

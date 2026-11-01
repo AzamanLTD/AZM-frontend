@@ -29,13 +29,15 @@ void main() {
 
   group('AzSensory static sink', () {
     test('apply() mirrors every field', () {
-      AzSensory.apply(const SensoryPreferences(
-        hapticsEnabled: false,
-        soundEnabled: false,
-        soundSuccessOnly: false,
-        ambientMotionEnabled: false,
-        forceReduceMotion: true,
-      ));
+      AzSensory.apply(
+        const SensoryPreferences(
+          hapticsEnabled: false,
+          soundEnabled: false,
+          soundSuccessOnly: false,
+          ambientMotionEnabled: false,
+          forceReduceMotion: true,
+        ),
+      );
       expect(AzSensory.hapticsEnabled, isFalse);
       expect(AzSensory.soundEnabled, isFalse);
       expect(AzSensory.soundSuccessOnly, isFalse);
@@ -52,17 +54,19 @@ void main() {
   });
 
   group('persistence', () {
-    test('defaults are haptics-on, sound-ON-but-success-only, ambient-on',
-        () async {
-      final provider = SensoryProvider();
-      await Future<void>.delayed(Duration.zero); // let _load() settle
-      expect(provider.prefs.hapticsEnabled, isTrue);
-      expect(provider.prefs.soundEnabled, isTrue);
-      expect(provider.prefs.soundSuccessOnly, isTrue);
-      expect(provider.prefs.ambientMotionEnabled, isTrue);
-      expect(provider.prefs.forceReduceMotion, isNull);
-      expect(AzSensory.hapticsEnabled, isTrue);
-    });
+    test(
+      'defaults are haptics-on, sound-ON-but-success-only, ambient-on',
+      () async {
+        final provider = SensoryProvider();
+        await Future<void>.delayed(Duration.zero); // let _load() settle
+        expect(provider.prefs.hapticsEnabled, isTrue);
+        expect(provider.prefs.soundEnabled, isTrue);
+        expect(provider.prefs.soundSuccessOnly, isTrue);
+        expect(provider.prefs.ambientMotionEnabled, isTrue);
+        expect(provider.prefs.forceReduceMotion, isNull);
+        expect(AzSensory.hapticsEnabled, isTrue);
+      },
+    );
 
     test('setters persist and update the static sink', () async {
       final provider = SensoryProvider();

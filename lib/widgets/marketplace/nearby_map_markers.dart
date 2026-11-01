@@ -60,27 +60,30 @@ const double kNearbyMarkerFallbackHue = 0.0;
 /// per row). Rows are NEVER re-ordered here — the nearby feed is
 /// distance-sorted by the server and the map must not silently disagree
 /// with the list.
-List<NearbyMarkerSpec> buildNearbyMarkerSpecs(List<BusinessLocation> locations) {
-  return locations.map((loc) {
-    final wire =
-        loc.businessCategory?.trim().isEmpty == true
+List<NearbyMarkerSpec> buildNearbyMarkerSpecs(
+  List<BusinessLocation> locations,
+) {
+  return locations
+      .map((loc) {
+        final wire = loc.businessCategory?.trim().isEmpty == true
             ? null
             : loc.businessCategory?.trim();
-    final double hue;
-    if (wire == null) {
-      hue = kNearbyMarkerFallbackHue;
-    } else {
-      final category = BusinessCategories.fromWire(wire);
-      hue = HSVColor.fromColor(category.color).hue;
-    }
-    return NearbyMarkerSpec(
-      id: loc.id,
-      position: LatLng(loc.latitude, loc.longitude),
-      hue: hue,
-      categoryWire: wire,
-      distanceKm: loc.distanceKm,
-    );
-  }).toList(growable: false);
+        final double hue;
+        if (wire == null) {
+          hue = kNearbyMarkerFallbackHue;
+        } else {
+          final category = BusinessCategories.fromWire(wire);
+          hue = HSVColor.fromColor(category.color).hue;
+        }
+        return NearbyMarkerSpec(
+          id: loc.id,
+          position: LatLng(loc.latitude, loc.longitude),
+          hue: hue,
+          categoryWire: wire,
+          distanceKm: loc.distanceKm,
+        );
+      })
+      .toList(growable: false);
 }
 
 /// Thin adapter from specs to platform markers. Marker taps route through

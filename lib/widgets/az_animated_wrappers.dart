@@ -45,9 +45,11 @@ class AzAnimatedSwitcher extends StatelessWidget {
       duration: duration,
       switchInCurve: MotionTokens.enter,
       switchOutCurve: MotionTokens.exit,
-      transitionBuilder: transitionBuilder ?? ((child, animation) {
-        return FadeTransition(opacity: animation, child: child);
-      }),
+      transitionBuilder:
+          transitionBuilder ??
+          ((child, animation) {
+            return FadeTransition(opacity: animation, child: child);
+          }),
       child: child,
     );
   }

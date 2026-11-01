@@ -61,23 +61,27 @@ class SharedVault {
   });
 
   factory SharedVault.fromJson(Map<String, dynamic> j) => SharedVault(
-        id: j['id'] as String,
-        name: j['name'] as String,
-        emoji: j['emoji'] as String?,
-        targetAmountUsdc: (j['targetAmountUsdc'] as num?)?.toDouble() ?? 0,
-        currentAmountUsdc: (j['currentAmountUsdc'] as num?)?.toDouble() ?? 0,
-        status: j['status'] as String? ?? 'ACTIVE',
-        startDate: DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
-        maturityDate: j['maturityDate'] != null ? DateTime.tryParse(j['maturityDate']) : null,
-        creatorName: j['creatorName'] as String? ?? 'Unknown',
-        creatorAzamanId: j['creatorAzamanId'] as String? ?? '',
-        isCoOwner: j['isCoOwner'] as bool? ?? false,
-        linkedChatId: j['linkedChatId'] as String?,
-        createdAt: DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
-        members: (j['members'] as List<dynamic>? ?? [])
-            .map((m) => SharedVaultMember.fromJson(m as Map<String, dynamic>))
-            .toList(),
-      );
+    id: j['id'] as String,
+    name: j['name'] as String,
+    emoji: j['emoji'] as String?,
+    targetAmountUsdc: (j['targetAmountUsdc'] as num?)?.toDouble() ?? 0,
+    currentAmountUsdc: (j['currentAmountUsdc'] as num?)?.toDouble() ?? 0,
+    status: j['status'] as String? ?? 'ACTIVE',
+    startDate:
+        DateTime.tryParse(j['startDate'] as String? ?? '') ?? DateTime.now(),
+    maturityDate: j['maturityDate'] != null
+        ? DateTime.tryParse(j['maturityDate'])
+        : null,
+    creatorName: j['creatorName'] as String? ?? 'Unknown',
+    creatorAzamanId: j['creatorAzamanId'] as String? ?? '',
+    isCoOwner: j['isCoOwner'] as bool? ?? false,
+    linkedChatId: j['linkedChatId'] as String?,
+    createdAt:
+        DateTime.tryParse(j['createdAt'] as String? ?? '') ?? DateTime.now(),
+    members: (j['members'] as List<dynamic>? ?? [])
+        .map((m) => SharedVaultMember.fromJson(m as Map<String, dynamic>))
+        .toList(),
+  );
 
   double get progress => targetAmountUsdc > 0
       ? (currentAmountUsdc / targetAmountUsdc).clamp(0.0, 1.0)
@@ -103,13 +107,15 @@ class SharedVaultMember {
     required this.joinedAt,
   });
 
-  factory SharedVaultMember.fromJson(Map<String, dynamic> j) => SharedVaultMember(
+  factory SharedVaultMember.fromJson(Map<String, dynamic> j) =>
+      SharedVaultMember(
         userId: j['userId'] as String? ?? '',
         name: j['name'] as String? ?? 'Unknown',
         avatarUrl: j['avatarUrl'] as String?,
         contributedUsdc: (j['contributedUsdc'] as num?)?.toDouble() ?? 0,
         role: j['role'] as String? ?? 'CONTRIBUTOR',
-        joinedAt: DateTime.tryParse(j['joinedAt'] as String? ?? '') ?? DateTime.now(),
+        joinedAt:
+            DateTime.tryParse(j['joinedAt'] as String? ?? '') ?? DateTime.now(),
       );
 
   bool get isOwner => role == 'OWNER';
@@ -118,8 +124,7 @@ class SharedVaultMember {
 
 // ── Provider ────────────────────────────────────────────────────────────────
 
-final sharedVaultsProvider =
-    FutureProvider<List<SharedVault>>((ref) async {
+final sharedVaultsProvider = FutureProvider<List<SharedVault>>((ref) async {
   final res = await apiClient.get('/shared-vaults');
   if (res.statusCode != 200) return [];
   final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -129,8 +134,10 @@ final sharedVaultsProvider =
       .toList();
 });
 
-final sharedVaultDetailProvider =
-    FutureProvider.family<SharedVault?, String>((ref, id) async {
+final sharedVaultDetailProvider = FutureProvider.family<SharedVault?, String>((
+  ref,
+  id,
+) async {
   final res = await apiClient.get('/shared-vaults/$id');
   if (res.statusCode != 200) return null;
   final body = jsonDecode(res.body) as Map<String, dynamic>;
@@ -184,18 +191,24 @@ class _SharedVaultScreenState extends ConsumerState<SharedVaultScreen> {
         backgroundColor: colors.card,
         onRefresh: () async => ref.refresh(sharedVaultsProvider),
         child: vaultsAsync.when(
-          loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+          loading: () =>
+              Center(child: CircularProgressIndicator(color: colors.accent)),
           error: (_, __) => _buildEmptyState(colors),
           data: (vaults) {
             if (vaults.isEmpty) return _buildEmptyState(colors);
             return ListView.builder(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-              physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: ClampingScrollPhysics(),
+              ),
               itemCount: vaults.length,
               itemBuilder: (context, i) => _SharedVaultCard(
                 vault: vaults[i],
                 colors: colors,
-                onTap: () => pushWithVerticalTransition(context, SharedVaultDetailScreen(vaultId: vaults[i].id)),
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  SharedVaultDetailScreen(vaultId: vaults[i].id),
+                ),
               ),
             );
           },
@@ -206,7 +219,10 @@ class _SharedVaultScreenState extends ConsumerState<SharedVaultScreen> {
         foregroundColor: colors.isDark ? Colors.black : Colors.white,
         onPressed: () => _showCreateSheet(colors),
         icon: const Icon(Icons.add, size: 20),
-        label: const Text('New Shared Vault', style: TextStyle(fontWeight: FontWeight.w700)),
+        label: const Text(
+          'New Shared Vault',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
       ),
     );
   }
@@ -220,7 +236,8 @@ class _SharedVaultScreenState extends ConsumerState<SharedVaultScreen> {
           child: Column(
             children: [
               Container(
-                width: 80, height: 80,
+                width: 80,
+                height: 80,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: colors.accent.withValues(alpha: 0.08),
@@ -240,13 +257,23 @@ class _SharedVaultScreenState extends ConsumerState<SharedVaultScreen> {
               Text(
                 'Create a shared vault with your partner,\nfamily, or friends',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.5),
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
               ),
               const SizedBox(height: 24),
               TextButton(
                 onPressed: () => _showCreateSheet(colors),
-                child: Text('Create your first shared vault →',
-                  style: TextStyle(color: colors.accent, fontWeight: FontWeight.w700, fontSize: 14)),
+                child: Text(
+                  'Create your first shared vault →',
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
               ),
             ],
           ),
@@ -275,7 +302,11 @@ class _SharedVaultCard extends ConsumerWidget {
   final AzamanColors colors;
   final VoidCallback onTap;
 
-  const _SharedVaultCard({required this.vault, required this.colors, required this.onTap});
+  const _SharedVaultCard({
+    required this.vault,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -294,7 +325,9 @@ class _SharedVaultCard extends ConsumerWidget {
           border: Border.all(color: colors.divider),
           boxShadow: [
             BoxShadow(
-              color: colors.isDark ? Colors.black.withValues(alpha: 0.2) : Colors.grey.withValues(alpha: 0.06),
+              color: colors.isDark
+                  ? Colors.black.withValues(alpha: 0.2)
+                  : Colors.grey.withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -307,7 +340,8 @@ class _SharedVaultCard extends ConsumerWidget {
             Row(
               children: [
                 Container(
-                  width: 44, height: 44,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: colors.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
@@ -342,13 +376,22 @@ class _SharedVaultCard extends ConsumerWidget {
                 ),
                 if (vault.isCompleted)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text('Goal reached!',
-                      style: TextStyle(color: Colors.green, fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'Goal reached!',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   )
                 else
                   Text(
@@ -383,7 +426,11 @@ class _SharedVaultCard extends ConsumerWidget {
                   amountUsdc: vault.currentAmountUsdc,
                   forceNative: true,
                   showEquivalent: false,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 Text(
                   '${vault.targetAmountUsdc.toStringAsFixed(2)} USDC',
@@ -412,10 +459,18 @@ class _SharedVaultCard extends ConsumerWidget {
                     child: CircleAvatar(
                       radius: 13,
                       backgroundColor: colors.surface,
-                      backgroundImage: m.avatarUrl != null ? NetworkImage(m.avatarUrl!) : null,
+                      backgroundImage: m.avatarUrl != null
+                          ? NetworkImage(m.avatarUrl!)
+                          : null,
                       child: m.avatarUrl == null
-                          ? Text(m.name.isNotEmpty ? m.name[0].toUpperCase() : '?',
-                              style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w700))
+                          ? Text(
+                              m.name.isNotEmpty ? m.name[0].toUpperCase() : '?',
+                              style: TextStyle(
+                                color: colors.textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            )
                           : null,
                     ),
                   );
@@ -426,8 +481,14 @@ class _SharedVaultCard extends ConsumerWidget {
                     child: CircleAvatar(
                       radius: 13,
                       backgroundColor: colors.divider,
-                      child: Text('+${vault.members.length - 4}',
-                        style: TextStyle(color: colors.textSecondary, fontSize: 10, fontWeight: FontWeight.w700)),
+                      child: Text(
+                        '+${vault.members.length - 4}',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 const SizedBox(width: 8),
@@ -439,11 +500,18 @@ class _SharedVaultCard extends ConsumerWidget {
                 if (vault.maturityDate != null)
                   Row(
                     children: [
-                      Icon(Icons.schedule, size: 12, color: colors.textTertiary),
+                      Icon(
+                        Icons.schedule,
+                        size: 12,
+                        color: colors.textTertiary,
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         _formatDaysLeft(vault.maturityDate!),
-                        style: TextStyle(color: colors.textTertiary, fontSize: 11),
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 11,
+                        ),
                       ),
                     ],
                   ),
@@ -452,7 +520,10 @@ class _SharedVaultCard extends ConsumerWidget {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: 300.ms, delay: const Duration(milliseconds: 50));
+    ).animate().fadeIn(
+      duration: 300.ms,
+      delay: const Duration(milliseconds: 50),
+    );
   }
 
   String _formatDaysLeft(DateTime date) {
@@ -470,10 +541,12 @@ class _CreateSharedVaultSheet extends ConsumerStatefulWidget {
   const _CreateSharedVaultSheet({required this.colors});
 
   @override
-  ConsumerState<_CreateSharedVaultSheet> createState() => _CreateSharedVaultSheetState();
+  ConsumerState<_CreateSharedVaultSheet> createState() =>
+      _CreateSharedVaultSheetState();
 }
 
-class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet> {
+class _CreateSharedVaultSheetState
+    extends ConsumerState<_CreateSharedVaultSheet> {
   final _name = TextEditingController();
   final _target = TextEditingController();
 
@@ -492,7 +565,18 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
   final _inviteControllers = <TextEditingController>[TextEditingController()];
   bool _submitting = false;
 
-  static const _emojiOptions = ['🎯', '🏖️', '🏠', '🚗', '💍', '🎓', '✈️', '💼', '👶', '🎁'];
+  static const _emojiOptions = [
+    '🎯',
+    '🏖️',
+    '🏠',
+    '🚗',
+    '💍',
+    '🎓',
+    '✈️',
+    '💼',
+    '👶',
+    '🎁',
+  ];
 
   @override
   void dispose() {
@@ -506,10 +590,12 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
 
   Future<void> _submit() async {
     if (_name.text.trim().isEmpty || _target.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please fill in name and target amount'),
-        duration: Duration(seconds: 2),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in name and target amount'),
+          duration: Duration(seconds: 2),
+        ),
+      );
       return;
     }
 
@@ -522,35 +608,48 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
 
       // r42: creating a shared vault opens the shared financial commitment
       // — one key per logical creation, reused across retries of it.
-      final res = await apiClient.postFinancial('/shared-vaults', {
-        'name': _name.text.trim(),
-        'emoji': _emoji,
-        'targetAmountUsdc': double.parse(_target.text.trim()),
-        'maturityDate': _maturity?.toIso8601String(),
-        'inviteAzamanIds': invites,
-      }, operationType: _createActionId, ref: _createRef);
+      final res = await apiClient.postFinancial(
+        '/shared-vaults',
+        {
+          'name': _name.text.trim(),
+          'emoji': _emoji,
+          'targetAmountUsdc': double.parse(_target.text.trim()),
+          'maturityDate': _maturity?.toIso8601String(),
+          'inviteAzamanIds': invites,
+        },
+        operationType: _createActionId,
+        ref: _createRef,
+      );
       // Key lifecycle owned by postFinancial (409 keeps, answered retires).
 
       if (!mounted) return;
       if (res.statusCode == 200 || res.statusCode == 201) {
         Navigator.pop(context);
         ref.refresh(sharedVaultsProvider);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Shared vault created! Invitations sent.'),
-          duration: Duration(seconds: 2),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Shared vault created! Invitations sent.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(jsonDecode(res.body)['message'] ?? 'Failed to create vault'),
-          duration: const Duration(seconds: 2),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              jsonDecode(res.body)['message'] ?? 'Failed to create vault',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Network error. Try again.'),
-          duration: Duration(seconds: 2),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error. Try again.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     }
     if (mounted) setState(() => _submitting = false);
@@ -560,7 +659,9 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
   Widget build(BuildContext context) {
     final colors = widget.colors;
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -570,36 +671,75 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
             children: [
               // Drag handle
               Center(
-                child: Container(width: 36, height: 4,
-                  decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2))),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
-              Text('New Shared Vault',
-                style: TextStyle(color: colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w900)),
+              Text(
+                'New Shared Vault',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text('Save together with family or friends',
-                style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+              Text(
+                'Save together with family or friends',
+                style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              ),
               const SizedBox(height: 24),
 
               // Emoji picker
-              Text('Choose an emoji', style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+              Text(
+                'Choose an emoji',
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 8),
               Wrap(
-                spacing: 8, runSpacing: 8,
-                children: _emojiOptions.map((e) => GestureDetector(
-                  onTap: () { HapticFeedback.selectionClick(); setState(() => _emoji = e); },
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(
-                      color: _emoji == e ? colors.accent.withValues(alpha: 0.15) : colors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _emoji == e ? colors.accent.withValues(alpha: 0.4) : colors.divider,
+                spacing: 8,
+                runSpacing: 8,
+                children: _emojiOptions
+                    .map(
+                      (e) => GestureDetector(
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _emoji = e);
+                        },
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _emoji == e
+                                ? colors.accent.withValues(alpha: 0.15)
+                                : colors.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _emoji == e
+                                  ? colors.accent.withValues(alpha: 0.4)
+                                  : colors.divider,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              e,
+                              style: const TextStyle(fontSize: 20),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Center(child: Text(e, style: const TextStyle(fontSize: 20))),
-                  ),
-                )).toList(),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 20),
 
@@ -623,7 +763,9 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
                 colors: colors,
                 icon: Icons.attach_money,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
               ),
               const SizedBox(height: 16),
 
@@ -652,7 +794,10 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
                   if (date != null) setState(() => _maturity = date);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.surface,
                     borderRadius: BorderRadius.circular(12),
@@ -660,14 +805,20 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 18, color: colors.textTertiary),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 18,
+                        color: colors.textTertiary,
+                      ),
                       const SizedBox(width: 10),
                       Text(
                         _maturity != null
                             ? '${_maturity!.day}/${_maturity!.month}/${_maturity!.year}'
                             : 'Pick a date',
                         style: TextStyle(
-                          color: _maturity != null ? colors.textPrimary : colors.textTertiary,
+                          color: _maturity != null
+                              ? colors.textPrimary
+                              : colors.textTertiary,
                           fontSize: 14,
                         ),
                       ),
@@ -675,7 +826,11 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
                       if (_maturity != null)
                         GestureDetector(
                           onTap: () => setState(() => _maturity = null),
-                          child: Icon(Icons.close, size: 16, color: colors.textTertiary),
+                          child: Icon(
+                            Icons.close,
+                            size: 16,
+                            color: colors.textTertiary,
+                          ),
                         ),
                     ],
                   ),
@@ -707,7 +862,11 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
                             entry.value.dispose();
                             setState(() => _inviteControllers.removeAt(i));
                           },
-                          child: Icon(Icons.remove_circle, color: colors.danger, size: 22),
+                          child: Icon(
+                            Icons.remove_circle,
+                            color: colors.danger,
+                            size: 22,
+                          ),
                         ),
                       ],
                     ],
@@ -716,9 +875,18 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
               }),
               const SizedBox(height: 4),
               TextButton.icon(
-                onPressed: () => setState(() => _inviteControllers.add(TextEditingController())),
+                onPressed: () => setState(
+                  () => _inviteControllers.add(TextEditingController()),
+                ),
                 icon: Icon(Icons.add, size: 18, color: colors.accent),
-                label: Text('Add another', style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w600)),
+                label: Text(
+                  'Add another',
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
 
@@ -730,16 +898,35 @@ class _CreateSharedVaultSheetState extends ConsumerState<_CreateSharedVaultSheet
                   onPressed: _submitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
-                    foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                    disabledBackgroundColor: colors.accent.withValues(alpha: 0.3),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    foregroundColor: colors.isDark
+                        ? Colors.black
+                        : Colors.white,
+                    disabledBackgroundColor: colors.accent.withValues(
+                      alpha: 0.3,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
                   child: _submitting
-                      ? SizedBox(width: 20, height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation(colors.isDark ? Colors.black : Colors.white)))
-                      : const Text('Create & Send Invites', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation(
+                              colors.isDark ? Colors.black : Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Text(
+                          'Create & Send Invites',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -757,10 +944,12 @@ class SharedVaultDetailScreen extends ConsumerStatefulWidget {
   const SharedVaultDetailScreen({required this.vaultId, super.key});
 
   @override
-  ConsumerState<SharedVaultDetailScreen> createState() => _SharedVaultDetailScreenState();
+  ConsumerState<SharedVaultDetailScreen> createState() =>
+      _SharedVaultDetailScreenState();
 }
 
-class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScreen> {
+class _SharedVaultDetailScreenState
+    extends ConsumerState<SharedVaultDetailScreen> {
   final _depositAmount = TextEditingController();
 
   // r42: one key per LOGICAL deposit into the open vault, reused across
@@ -786,30 +975,39 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
     try {
       // r42: shared vault deposits move USDC — one key per LOGICAL
       // deposit, reused across retries of that deposit.
-      final res = await apiClient.postFinancial('/shared-vaults/${vault.id}/deposit', {
-        'amountUsdc': amount,
-      }, operationType: _depositActionId, ref: _depositRef);
+      final res = await apiClient.postFinancial(
+        '/shared-vaults/${vault.id}/deposit',
+        {'amountUsdc': amount},
+        operationType: _depositActionId,
+        ref: _depositRef,
+      );
       if (!mounted) return;
       // Key lifecycle owned by postFinancial (409 keeps, answered retires).
       if (res.statusCode == 200) {
         Navigator.pop(context); // close deposit sheet
         ref.refresh(sharedVaultDetailProvider(widget.vaultId));
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Deposited $amount USDC! 🎉'),
-          duration: const Duration(seconds: 2),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Deposited $amount USDC! 🎉'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(jsonDecode(res.body)['message'] ?? 'Deposit failed'),
-          duration: const Duration(seconds: 2),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(jsonDecode(res.body)['message'] ?? 'Deposit failed'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Network error'),
-          duration: Duration(seconds: 2),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     }
   }
@@ -828,17 +1026,37 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
           icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Shared Vault',
-          style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Text(
+          'Shared Vault',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: vaultAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
-        error: (_, __) => Center(child: Text('Failed to load', style: TextStyle(color: colors.textSecondary))),
+        loading: () =>
+            Center(child: CircularProgressIndicator(color: colors.accent)),
+        error: (_, __) => Center(
+          child: Text(
+            'Failed to load',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+        ),
         data: (vault) {
-          if (vault == null) return Center(child: Text('Vault not found', style: TextStyle(color: colors.textSecondary)));
+          if (vault == null)
+            return Center(
+              child: Text(
+                'Vault not found',
+                style: TextStyle(color: colors.textSecondary),
+              ),
+            );
           final progress = vault.progress;
           final maxContributor = vault.members.isNotEmpty
-              ? vault.members.reduce((a, b) => a.contributedUsdc > b.contributedUsdc ? a : b)
+              ? vault.members.reduce(
+                  (a, b) => a.contributedUsdc > b.contributedUsdc ? a : b,
+                )
               : null;
 
           return SingleChildScrollView(
@@ -863,35 +1081,59 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                   ),
                   child: Column(
                     children: [
-                      Text(vault.emoji ?? '🎯', style: const TextStyle(fontSize: 40)),
+                      Text(
+                        vault.emoji ?? '🎯',
+                        style: const TextStyle(fontSize: 40),
+                      ),
                       const SizedBox(height: 8),
-                      Text(vault.name,
-                        style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w900)),
+                      Text(
+                        vault.name,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       // Circular progress
                       SizedBox(
-                        width: 120, height: 120,
+                        width: 120,
+                        height: 120,
                         child: Stack(
                           alignment: Alignment.center,
                           children: [
                             SizedBox(
-                              width: 120, height: 120,
+                              width: 120,
+                              height: 120,
                               child: CircularProgressIndicator(
                                 value: progress,
                                 strokeWidth: 10,
                                 backgroundColor: colors.divider,
                                 valueColor: AlwaysStoppedAnimation(
-                                  vault.isCompleted ? Colors.green : colors.accent,
+                                  vault.isCompleted
+                                      ? Colors.green
+                                      : colors.accent,
                                 ),
                               ),
                             ),
                             Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('${(progress * 100).toInt()}%',
-                                  style: TextStyle(color: colors.textPrimary, fontSize: 24, fontWeight: FontWeight.w900)),
-                                Text('${vault.currentAmountUsdc.toStringAsFixed(0)}/${vault.targetAmountUsdc.toStringAsFixed(0)}',
-                                  style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+                                Text(
+                                  '${(progress * 100).toInt()}%',
+                                  style: TextStyle(
+                                    color: colors.textPrimary,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                Text(
+                                  '${vault.currentAmountUsdc.toStringAsFixed(0)}/${vault.targetAmountUsdc.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    color: colors.textTertiary,
+                                    fontSize: 10,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
@@ -905,11 +1147,18 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                           child: ElevatedButton.icon(
                             onPressed: () => _showDepositSheet(vault, colors),
                             icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Add Contribution', style: TextStyle(fontWeight: FontWeight.w700)),
+                            label: const Text(
+                              'Add Contribution',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: colors.accent,
-                              foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              foregroundColor: colors.isDark
+                                  ? Colors.black
+                                  : Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
                               elevation: 0,
                             ),
                           ),
@@ -920,8 +1169,14 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                 const SizedBox(height: 24),
 
                 // Members breakdown
-                Text('Contributors',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 14, fontWeight: FontWeight.w700)),
+                Text(
+                  'Contributors',
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 ...vault.members.map((m) {
                   final pct = vault.currentAmountUsdc > 0
@@ -940,10 +1195,20 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                         CircleAvatar(
                           radius: 18,
                           backgroundColor: colors.card,
-                          backgroundImage: m.avatarUrl != null ? NetworkImage(m.avatarUrl!) : null,
+                          backgroundImage: m.avatarUrl != null
+                              ? NetworkImage(m.avatarUrl!)
+                              : null,
                           child: m.avatarUrl == null
-                              ? Text(m.name.isNotEmpty ? m.name[0].toUpperCase() : '?',
-                                  style: TextStyle(color: colors.textSecondary, fontSize: 14, fontWeight: FontWeight.w700))
+                              ? Text(
+                                  m.name.isNotEmpty
+                                      ? m.name[0].toUpperCase()
+                                      : '?',
+                                  style: TextStyle(
+                                    color: colors.textSecondary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                )
                               : null,
                         ),
                         const SizedBox(width: 12),
@@ -953,29 +1218,55 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                             children: [
                               Row(
                                 children: [
-                                  Text(m.name,
-                                    style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                                  Text(
+                                    m.name,
+                                    style: TextStyle(
+                                      color: colors.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                   if (m.isOwner) ...[
                                     const SizedBox(width: 5),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 1,
+                                      ),
                                       decoration: BoxDecoration(
-                                        color: colors.accent.withValues(alpha: 0.15),
+                                        color: colors.accent.withValues(
+                                          alpha: 0.15,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: Text('Owner',
-                                        style: TextStyle(color: colors.accent, fontSize: 9, fontWeight: FontWeight.w700)),
+                                      child: Text(
+                                        'Owner',
+                                        style: TextStyle(
+                                          color: colors.accent,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ),
                                   ] else if (m.isCoOwner) ...[
                                     const SizedBox(width: 5),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 1,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: colors.divider,
                                         borderRadius: BorderRadius.circular(8),
                                       ),
-                                      child: Text('Co-owner',
-                                        style: TextStyle(color: colors.textTertiary, fontSize: 9, fontWeight: FontWeight.w700)),
+                                      child: Text(
+                                        'Co-owner',
+                                        style: TextStyle(
+                                          color: colors.textTertiary,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ],
@@ -989,7 +1280,9 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                                   minHeight: 4,
                                   backgroundColor: colors.divider,
                                   valueColor: AlwaysStoppedAnimation(
-                                    m == maxContributor ? colors.accent : colors.textTertiary,
+                                    m == maxContributor
+                                        ? colors.accent
+                                        : colors.textTertiary,
                                   ),
                                 ),
                               ),
@@ -1000,10 +1293,21 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text(m.contributedUsdc.toStringAsFixed(2),
-                              style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
-                            Text('${pct.toStringAsFixed(0)}%',
-                              style: TextStyle(color: colors.textTertiary, fontSize: 10)),
+                            Text(
+                              m.contributedUsdc.toStringAsFixed(2),
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              '${pct.toStringAsFixed(0)}%',
+                              style: TextStyle(
+                                color: colors.textTertiary,
+                                fontSize: 10,
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -1019,11 +1323,25 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                       onPressed: () {
                         // Navigate to linked chat
                       },
-                      icon: Icon(Icons.chat_bubble_outline, size: 18, color: colors.accent),
-                      label: Text('Vault Chat', style: TextStyle(color: colors.accent, fontWeight: FontWeight.w600)),
+                      icon: Icon(
+                        Icons.chat_bubble_outline,
+                        size: 18,
+                        color: colors.accent,
+                      ),
+                      label: Text(
+                        'Vault Chat',
+                        style: TextStyle(
+                          color: colors.accent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: colors.accent.withValues(alpha: 0.3)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        side: BorderSide(
+                          color: colors.accent.withValues(alpha: 0.3),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
@@ -1046,7 +1364,9 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           child: Column(
@@ -1054,12 +1374,24 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Center(
-                child: Container(width: 36, height: 4,
-                  decoration: BoxDecoration(color: colors.divider, borderRadius: BorderRadius.circular(2))),
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
               const SizedBox(height: 16),
-              Text('Contribute to ${vault.name}',
-                style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+              Text(
+                'Contribute to ${vault.name}',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
               const SizedBox(height: 16),
               _TextField(
                 controller: _depositAmount,
@@ -1067,7 +1399,9 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                 colors: colors,
                 icon: Icons.attach_money,
                 keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -1077,11 +1411,18 @@ class _SharedVaultDetailScreenState extends ConsumerState<SharedVaultDetailScree
                   onPressed: () => _deposit(vault),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
-                    foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    foregroundColor: colors.isDark
+                        ? Colors.black
+                        : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
-                  child: const Text('Deposit', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                  child: const Text(
+                    'Deposit',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
                 ),
               ),
             ],
@@ -1100,8 +1441,14 @@ class _FieldLabel extends StatelessWidget {
   const _FieldLabel({required this.text, required this.colors});
 
   @override
-  Widget build(BuildContext context) => Text(text,
-    style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600));
+  Widget build(BuildContext context) => Text(
+    text,
+    style: TextStyle(
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+    ),
+  );
 }
 
 class _TextField extends StatelessWidget {
@@ -1140,14 +1487,21 @@ class _TextField extends StatelessWidget {
               controller: controller,
               keyboardType: keyboardType,
               inputFormatters: inputFormatters,
-              style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
               decoration: InputDecoration(
                 hintText: hint,
                 hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 14,
+                ),
               ),
             ),
           ),

@@ -83,7 +83,8 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
       'share_click',
       {'widgetType': 'app_bar'},
     );
-    final shareUrl = 'https://azaman.app/storefront/${widget.businessProfileId}';
+    final shareUrl =
+        'https://azaman.app/storefront/${widget.businessProfileId}';
     Share.share(
       'Check out ${widget.businessName ?? 'this business'} on AZAMAN! $shareUrl',
       subject: '${widget.businessName ?? 'Storefront'} on AZAMAN',
@@ -112,11 +113,22 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Row(children: [Icon(Icons.check_circle, color: Colors.green), SizedBox(width: 8), Text('Order Placed!')]),
-          content: Text('Your order has been placed successfully.\n\nOrder Ref: $orderRef\n\nThe business will be notified and your order is now awaiting payment.',
-            style: const TextStyle(fontSize: 14)),
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 8),
+              Text('Order Placed!'),
+            ],
+          ),
+          content: Text(
+            'Your order has been placed successfully.\n\nOrder Ref: $orderRef\n\nThe business will be notified and your order is now awaiting payment.',
+            style: const TextStyle(fontSize: 14),
+          ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close'),
+            ),
           ],
         ),
       );
@@ -153,10 +165,12 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
             FilledButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                ref.read(cartProvider.notifier).startNewCart(
-                  businessProfileId: bizId,
-                  businessName: bizName,
-                );
+                ref
+                    .read(cartProvider.notifier)
+                    .startNewCart(
+                      businessProfileId: bizId,
+                      businessName: bizName,
+                    );
                 _doAddToCart(product);
               },
               child: const Text('Start new cart'),
@@ -175,15 +189,17 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
     final bizId = widget.businessProfileId;
     final imageUrls = (product['imageUrls'] as List?)?.cast<String>() ?? [];
 
-    final added = ref.read(cartProvider.notifier).addItem(
-      businessProfileId: bizId,
-      businessName: bizName,
-      productId: product['id'] as String,
-      name: product['name'] as String? ?? 'Product',
-      unitPrice: (product['priceUsdc'] as num?)?.toDouble() ?? 0.0,
-      imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
-      category: product['category'] as String?,
-    );
+    final added = ref
+        .read(cartProvider.notifier)
+        .addItem(
+          businessProfileId: bizId,
+          businessName: bizName,
+          productId: product['id'] as String,
+          name: product['name'] as String? ?? 'Product',
+          unitPrice: (product['priceUsdc'] as num?)?.toDouble() ?? 0.0,
+          imageUrl: imageUrls.isNotEmpty ? imageUrls.first : null,
+          category: product['category'] as String?,
+        );
 
     if (!mounted) return;
 
@@ -206,15 +222,23 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
-    final renderAsync = ref.watch(storefrontRenderProvider(widget.businessProfileId));
-    final productsAsync = ref.watch(storefrontProductsProvider(widget.businessProfileId));
+    final renderAsync = ref.watch(
+      storefrontRenderProvider(widget.businessProfileId),
+    );
+    final productsAsync = ref.watch(
+      storefrontProductsProvider(widget.businessProfileId),
+    );
 
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
         title: Text(
           widget.businessName ?? 'Storefront',
-          style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         backgroundColor: colors.surface,
         foregroundColor: colors.textPrimary,
@@ -230,7 +254,9 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
         loading: () => const StorefrontSkeleton(),
         error: (err, stack) => _ErrorState(
           error: err.toString(),
-          onRetry: () => ref.invalidate(storefrontRenderProvider(widget.businessProfileId)),
+          onRetry: () => ref.invalidate(
+            storefrontRenderProvider(widget.businessProfileId),
+          ),
           colors: colors,
         ),
         data: (response) {
@@ -242,50 +268,61 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
           return AzPullToRefresh(
             color: colors.accent,
             onRefresh: () async {
-              ref.invalidate(storefrontRenderProvider(widget.businessProfileId));
-              ref.invalidate(storefrontProductsProvider(widget.businessProfileId));
-              await ref.read(storefrontRenderProvider(widget.businessProfileId).future);
+              ref.invalidate(
+                storefrontRenderProvider(widget.businessProfileId),
+              );
+              ref.invalidate(
+                storefrontProductsProvider(widget.businessProfileId),
+              );
+              await ref.read(
+                storefrontRenderProvider(widget.businessProfileId).future,
+              );
             },
             child: NotificationListener<ScrollToProductsNotification>(
-            onNotification: (_) {
-              final ctx = _productsKey.currentContext;
-              if (ctx != null) {
-                Scrollable.ensureVisible(ctx, duration: const Duration(milliseconds: 400), curve: Curves.easeOutCubic, alignment: 0.0);
-              }
-              return true;
-            },
-            child: CustomScrollView(
-              controller: _scrollCtrl,
-              slivers: [
-              // SDUI Storefront widgets
-              SliverToBoxAdapter(
-                child: StorefrontRenderer(
-                  response: response,
-                  businessProfileId: widget.businessProfileId,
-                ),
-              ),
+              onNotification: (_) {
+                final ctx = _productsKey.currentContext;
+                if (ctx != null) {
+                  Scrollable.ensureVisible(
+                    ctx,
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeOutCubic,
+                    alignment: 0.0,
+                  );
+                }
+                return true;
+              },
+              child: CustomScrollView(
+                controller: _scrollCtrl,
+                slivers: [
+                  // SDUI Storefront widgets
+                  SliverToBoxAdapter(
+                    child: StorefrontRenderer(
+                      response: response,
+                      businessProfileId: widget.businessProfileId,
+                    ),
+                  ),
 
-              // "Browse & Order" section (Phase 4)
-              SliverToBoxAdapter(
-                key: _productsKey,
-                child: _ProductsSection(
-                  productsAsync: productsAsync,
-                  colors: colors,
-                  onOrder: (product) {
-                    _addToCart(product);
-                  },
-                  onTrackProductTap: (productId) {
-                    StorefrontTrackingService.instance.trackEvent(
-                      widget.businessProfileId,
-                      'product_tap',
-                      {'productId': productId},
-                    );
-                  },
-                ),
+                  // "Browse & Order" section (Phase 4)
+                  SliverToBoxAdapter(
+                    key: _productsKey,
+                    child: _ProductsSection(
+                      productsAsync: productsAsync,
+                      colors: colors,
+                      onOrder: (product) {
+                        _addToCart(product);
+                      },
+                      onTrackProductTap: (productId) {
+                        StorefrontTrackingService.instance.trackEvent(
+                          widget.businessProfileId,
+                          'product_tap',
+                          {'productId': productId},
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-              ],
             ),
-          ),
           );
         },
       ),
@@ -314,14 +351,21 @@ class _ProductsSection extends StatelessWidget {
     return productsAsync.when(
       loading: () => Padding(
         padding: const EdgeInsets.all(32),
-        child: Center(child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2)),
+        child: Center(
+          child: CircularProgressIndicator(
+            color: colors.accent,
+            strokeWidth: 2,
+          ),
+        ),
       ),
-      error: (_, __) => const SizedBox.shrink(), // Silently hide on error — storefront still works
+      error: (_, __) =>
+          const SizedBox.shrink(), // Silently hide on error — storefront still works
       data: (data) {
         final products = (data['products'] as List?) ?? [];
         if (products.isEmpty) return const SizedBox.shrink();
 
-        final businessName = (data['business'] as Map<String, dynamic>?)?['name'] as String?;
+        final businessName =
+            (data['business'] as Map<String, dynamic>?)?['name'] as String?;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,11 +375,19 @@ class _ProductsSection extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
               child: Row(
                 children: [
-                  Icon(Icons.shopping_bag_outlined, size: 20, color: colors.accent),
+                  Icon(
+                    Icons.shopping_bag_outlined,
+                    size: 20,
+                    color: colors.accent,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Browse & Order',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: colors.textPrimary),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: colors.textPrimary,
+                    ),
                   ),
                   const Spacer(),
                   Text(
@@ -402,7 +454,11 @@ class _ProductCard extends StatelessWidget {
   final AzamanColors colors;
   final VoidCallback onTap;
 
-  const _ProductCard({required this.data, required this.colors, required this.onTap});
+  const _ProductCard({
+    required this.data,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -445,13 +501,19 @@ class _ProductCard extends StatelessWidget {
             // price is never ellipsized and the card never overflows.
             Flexible(
               child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-              child: AspectRatio(
-                aspectRatio: 1.2,
-                child: imageUrl != null
-                    ? AzamanNetworkImage(imageUrl: imageUrl, fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => _ProductImageFallback(colors: colors))
-                    : _ProductImageFallback(colors: colors),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(14),
+                ),
+                child: AspectRatio(
+                  aspectRatio: 1.2,
+                  child: imageUrl != null
+                      ? AzamanNetworkImage(
+                          imageUrl: imageUrl,
+                          fit: BoxFit.cover,
+                          errorWidget: (_, __, ___) =>
+                              _ProductImageFallback(colors: colors),
+                        )
+                      : _ProductImageFallback(colors: colors),
                 ),
               ),
             ),
@@ -459,65 +521,107 @@ class _ProductCard extends StatelessWidget {
             // Product info: intrinsic height — the image above absorbs
             // whatever the cell has left.
             Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: colors.textPrimary),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    if (description != null && description.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(description, style: TextStyle(fontSize: 11, color: colors.textSecondary),
-                          maxLines: 2, overflow: TextOverflow.ellipsis),
-                    ],
-                    // Tags row
-                    if (tags.isNotEmpty)
-                      Wrap(
-                        spacing: 4,
-                        runSpacing: 2,
-                        children: tags.take(2).map((tag) => _TagChip(tag: tag, colors: colors)).toList(),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (description != null && description.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colors.textSecondary,
                       ),
-                    const SizedBox(height: 4),
-                    // Price + Order button. A Wrap, not a Row: at phone
-                    // widths (320-390dp) the exact GHS price text plus the
-                    // prep time plus the Add chip cannot share one line in
-                    // a 2-column grid card. The price string is NEVER
-                    // ellipsized (exact-2dp truth) — the Add chip flows to
-                    // a second line instead of overflowing off-card.
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        Text(
-                          priceGhs == null ? 'Price unavailable' : 'GH₵$priceGhs',
-                          style: priceGhs == null
-                              ? TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: colors.textTertiary)
-                              : TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: colors.accent),
-                        ),
-                        if (prepMins != null)
-                          Text('~${prepMins}min', style: TextStyle(fontSize: 10, color: colors.textSecondary)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: colors.accent,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.add, size: 14, color: Colors.white),
-                              SizedBox(width: 2),
-                              Text('Add', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
-                            ],
-                          ),
-                        ),
-                      ],
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                ),
+                  // Tags row
+                  if (tags.isNotEmpty)
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 2,
+                      children: tags
+                          .take(2)
+                          .map((tag) => _TagChip(tag: tag, colors: colors))
+                          .toList(),
+                    ),
+                  const SizedBox(height: 4),
+                  // Price + Order button. A Wrap, not a Row: at phone
+                  // widths (320-390dp) the exact GHS price text plus the
+                  // prep time plus the Add chip cannot share one line in
+                  // a 2-column grid card. The price string is NEVER
+                  // ellipsized (exact-2dp truth) — the Add chip flows to
+                  // a second line instead of overflowing off-card.
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        priceGhs == null ? 'Price unavailable' : 'GH₵$priceGhs',
+                        style: priceGhs == null
+                            ? TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: colors.textTertiary,
+                              )
+                            : TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: colors.accent,
+                              ),
+                      ),
+                      if (prepMins != null)
+                        Text(
+                          '~${prepMins}min',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.add, size: 14, color: Colors.white),
+                            SizedBox(width: 2),
+                            Text(
+                              'Add',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
+            ),
           ],
         ),
       ),
@@ -541,7 +645,11 @@ class _TagChip extends StatelessWidget {
       ),
       child: Text(
         tag,
-        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: colors.accent),
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: colors.accent,
+        ),
       ),
     );
   }
@@ -555,7 +663,13 @@ class _ProductImageFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: colors.background,
-      child: Center(child: Icon(Icons.inventory_2_outlined, size: 32, color: colors.textSecondary)),
+      child: Center(
+        child: Icon(
+          Icons.inventory_2_outlined,
+          size: 32,
+          color: colors.textSecondary,
+        ),
+      ),
     );
   }
 }
@@ -567,7 +681,11 @@ class _ErrorState extends StatelessWidget {
   final VoidCallback onRetry;
   final AzamanColors colors;
 
-  const _ErrorState({required this.error, required this.onRetry, required this.colors});
+  const _ErrorState({
+    required this.error,
+    required this.onRetry,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -579,11 +697,29 @@ class _ErrorState extends StatelessWidget {
           children: [
             Icon(Icons.cloud_off, size: 48, color: colors.textSecondary),
             const SizedBox(height: 16),
-            Text('Could not load storefront', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+            Text(
+              'Could not load storefront',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(error, style: TextStyle(fontSize: 13, color: colors.textSecondary), textAlign: TextAlign.center),
+            Text(
+              error,
+              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 24),
-            ElevatedButton(onPressed: onRetry, style: ElevatedButton.styleFrom(backgroundColor: colors.accent, foregroundColor: Colors.white), child: const Text('Retry')),
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Retry'),
+            ),
           ],
         ),
       ),
@@ -604,11 +740,26 @@ class _NoStorefrontState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.storefront_outlined, size: 48, color: colors.textSecondary),
+            Icon(
+              Icons.storefront_outlined,
+              size: 48,
+              color: colors.textSecondary,
+            ),
             const SizedBox(height: 16),
-            Text('No storefront published yet', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+            Text(
+              'No storefront published yet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text('This business hasn\'t published their storefront. Check back later!', style: TextStyle(fontSize: 13, color: colors.textSecondary), textAlign: TextAlign.center),
+            Text(
+              'This business hasn\'t published their storefront. Check back later!',
+              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),

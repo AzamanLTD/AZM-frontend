@@ -27,8 +27,10 @@ void main() {
           'id': 'g1',
           'name': 'Protein',
           'required': true,
-          'options': [{'id': 'o1', 'name': 'Chicken', 'priceDelta': 15}],
-        }
+          'options': [
+            {'id': 'o1', 'name': 'Chicken', 'priceDelta': 15},
+          ],
+        },
       ],
     });
     expect(parsed.optionGroups.single.required, isTrue);

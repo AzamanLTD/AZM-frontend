@@ -12,3 +12,10 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Upload key material — see docs/RELEASE_SIGNING.md
+upload-keystore.jks
+
+# CI-only debug signing identity — see docs/RELEASE_SIGNING.md
+ci-debug.properties
+ci-debug-keystore.jks

@@ -26,9 +26,9 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
-import 'package:azaman/services/recipient_discovery_service.dart' show personalQrUsername;
+import 'package:azaman/services/recipient_discovery_service.dart'
+    show personalQrUsername;
 import 'package:azaman/widgets/azaman_sheet.dart';
-
 
 class QrScannerScreen extends ConsumerStatefulWidget {
   /// Default mode: the audited add-friend flow (search → confirm sheet →
@@ -128,7 +128,9 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
         // Find exact match
         final match = users.firstWhere(
-          (u) => (u['username'] as String?)?.toLowerCase() == username.toLowerCase(),
+          (u) =>
+              (u['username'] as String?)?.toLowerCase() ==
+              username.toLowerCase(),
           orElse: () => <String, dynamic>{},
         );
 
@@ -157,7 +159,10 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     }
   }
 
-  Future<bool?> _showConfirmSheet(Map<String, dynamic> user, AzamanColors colors) {
+  Future<bool?> _showConfirmSheet(
+    Map<String, dynamic> user,
+    AzamanColors colors,
+  ) {
     final username = user['username'] ?? 'Unknown';
     final tradesCompleted = user['tradesCompleted'] ?? 0;
 
@@ -169,56 +174,72 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       context,
       builder: (ctx) => AzStaggeredColumn(
         children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: colors.accent.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  username[0].toUpperCase(),
-                  style: TextStyle(color: colors.accent, fontSize: 26, fontWeight: FontWeight.w900),
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: colors.accent.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                username[0].toUpperCase(),
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              '@$username',
-              style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '@$username',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 6),
-            Text(
-              '$tradesCompleted trades completed',
-              style: TextStyle(color: colors.textTertiary, fontSize: 12),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.accent,
-                  foregroundColor: colors.isDark ? Colors.black : Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$tradesCompleted trades completed',
+            style: TextStyle(color: colors.textTertiary, fontSize: 12),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colors.accent,
+                foregroundColor: colors.isDark ? Colors.black : Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text('Send Friend Request', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Send Friend Request',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
               ),
             ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: colors.textTertiary)),
-            ),
+          ),
+          const SizedBox(height: 10),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: colors.textTertiary)),
+          ),
         ],
       ),
     );
   }
 
-  Future<void> _sendFriendRequest(Map<String, dynamic> user, AzamanColors colors) async {
+  Future<void> _sendFriendRequest(
+    Map<String, dynamic> user,
+    AzamanColors colors,
+  ) async {
     final userId = user['id'];
     if (userId == null) {
       _showSnack('Invalid user data.');
@@ -228,13 +249,18 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
 
     try {
       final response = await apiClient.post('/friends/request', {
-        'addresseeId': userId is int ? userId : int.tryParse(userId.toString()) ?? 0,
+        'addresseeId': userId is int
+            ? userId
+            : int.tryParse(userId.toString()) ?? 0,
         'message': 'Added via QR scan',
       });
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         HapticFeedback.heavyImpact();
-        _showSnack('Friend request sent to @${user['username']}!', isSuccess: true);
+        _showSnack(
+          'Friend request sent to @${user['username']}!',
+          isSuccess: true,
+        );
         // Close scanner after success
         await Future.delayed(const Duration(seconds: 1));
         if (mounted) Navigator.pop(context);
@@ -282,7 +308,11 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
         elevation: 0,
         title: Text(
           'Scan QR Code',
-          style: TextStyle(color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -296,10 +326,7 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
       body: Stack(
         children: [
           // Camera feed
-          MobileScanner(
-            controller: _controller,
-            onDetect: _onDetect,
-          ),
+          MobileScanner(controller: _controller, onDetect: _onDetect),
 
           // Overlay with cutout
           _ScannerOverlay(colors: colors),
@@ -311,13 +338,18 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black54,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  _isProcessing ? 'Processing...' : 'Point camera at an Azaman QR code',
+                  _isProcessing
+                      ? 'Processing...'
+                      : 'Point camera at an Azaman QR code',
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                 ),
               ),
@@ -378,22 +410,34 @@ class _ScannerOverlay extends StatelessWidget {
             Positioned(
               top: top,
               left: left,
-              child: _CornerAccent(color: colors.accent, position: _Corner.topLeft),
+              child: _CornerAccent(
+                color: colors.accent,
+                position: _Corner.topLeft,
+              ),
             ),
             Positioned(
               top: top,
               right: left,
-              child: _CornerAccent(color: colors.accent, position: _Corner.topRight),
+              child: _CornerAccent(
+                color: colors.accent,
+                position: _Corner.topRight,
+              ),
             ),
             Positioned(
               bottom: constraints.maxHeight - top - scanAreaSize,
               left: left,
-              child: _CornerAccent(color: colors.accent, position: _Corner.bottomLeft),
+              child: _CornerAccent(
+                color: colors.accent,
+                position: _Corner.bottomLeft,
+              ),
             ),
             Positioned(
               bottom: constraints.maxHeight - top - scanAreaSize,
               right: left,
-              child: _CornerAccent(color: colors.accent, position: _Corner.bottomRight),
+              child: _CornerAccent(
+                color: colors.accent,
+                position: _Corner.bottomRight,
+              ),
             ),
           ],
         );
@@ -457,7 +501,12 @@ class _CornerPainter extends CustomPainter {
       case _Corner.bottomRight:
         path.moveTo(size.width * 0.4, size.height);
         path.lineTo(size.width - 4, size.height);
-        path.quadraticBezierTo(size.width, size.height, size.width, size.height - 4);
+        path.quadraticBezierTo(
+          size.width,
+          size.height,
+          size.width,
+          size.height - 4,
+        );
         path.lineTo(size.width, size.height * 0.4);
         break;
     }

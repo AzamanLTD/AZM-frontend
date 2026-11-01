@@ -209,12 +209,14 @@ class EscrowDisputeModel {
           ? json['raisedById'] as int
           : int.tryParse(json['raisedById'].toString()) ?? 0,
       reason: (json['reason'] ?? '').toString(),
-      evidenceUrls:
-          urls is List ? urls.map((e) => e.toString()).toList() : const [],
+      evidenceUrls: urls is List
+          ? urls.map((e) => e.toString()).toList()
+          : const [],
       status: DisputeStatus.fromString(json['status']),
       ruling: DisputeRuling.fromString(json['ruling']),
       rulingNotes: json['rulingNotes']?.toString(),
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+      createdAt:
+          DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
   }

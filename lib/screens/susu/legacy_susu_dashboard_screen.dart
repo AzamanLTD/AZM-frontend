@@ -19,7 +19,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/susu/susu_warning_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 
-
 class LegacySusuDashboardScreen extends ConsumerWidget {
   final String susuGroupId;
   const LegacySusuDashboardScreen({super.key, required this.susuGroupId});
@@ -40,40 +39,55 @@ class LegacySusuDashboardScreen extends ConsumerWidget {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Susu',
-            style: TextStyle(
-                color: colors.textPrimary, fontSize: 17, fontWeight: FontWeight.w800)),
+        title: Text(
+          'Susu',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: susuAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+        loading: () =>
+            Center(child: CircularProgressIndicator(color: colors.accent)),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (susu) {
           if (susu == null) return const Center(child: Text('Susu not found'));
           // Match user id to int (backend returns int) — auth user.id is String|int.
           final myMember = myId == null
               ? null
-              : susu.members.where((m) => m.userId.toString() == myId.toString()).firstOrNull;
+              : susu.members
+                    .where((m) => m.userId.toString() == myId.toString())
+                    .firstOrNull;
 
           final needsContract =
-              susu.status == 'CONFIGURING' && myMember?.status == 'PENDING_CONTRACT';
+              susu.status == 'CONFIGURING' &&
+              myMember?.status == 'PENDING_CONTRACT';
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
             children: [
-              _Hero(susu: susu, colors: colors)
-                  .animate()
-                  .fadeIn(duration: 320.ms)
-                  .slideY(begin: 0.05, end: 0),
+              _Hero(
+                susu: susu,
+                colors: colors,
+              ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
               const SizedBox(height: 16),
-              if (myMember != null) _MyPosition(member: myMember, colors: colors),
+              if (myMember != null)
+                _MyPosition(member: myMember, colors: colors),
               if (needsContract) ...[
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: () {
-                    pushWithVerticalTransition(context, SusuWarningScreen(susuGroupId: susu.id,
-                          contributionUsdc: susu.contributionUsdc,
-                          frequency: susu.frequency,
-                          totalCycles: susu.totalCycles,));
+                    pushWithVerticalTransition(
+                      context,
+                      SusuWarningScreen(
+                        susuGroupId: susu.id,
+                        contributionUsdc: susu.contributionUsdc,
+                        frequency: susu.frequency,
+                        totalCycles: susu.totalCycles,
+                      ),
+                    );
                   },
                   icon: const Icon(Icons.gavel, size: 16),
                   label: const Text(
@@ -84,7 +98,9 @@ class LegacySusuDashboardScreen extends ConsumerWidget {
                     backgroundColor: colors.warning,
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -101,18 +117,19 @@ class LegacySusuDashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               ...susu.cycles.asMap().entries.map(
-                    (e) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: _CycleTile(
-                        cycle: e.value,
-                        members: susu.members,
-                        colors: colors,
-                      )
+                (e) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child:
+                      _CycleTile(
+                            cycle: e.value,
+                            members: susu.members,
+                            colors: colors,
+                          )
                           .animate()
                           .fadeIn(delay: (e.key * 40).ms, duration: 280.ms)
                           .slideY(begin: 0.04, end: 0),
-                    ),
-                  ),
+                ),
+              ),
             ],
           );
         },
@@ -139,19 +156,29 @@ class _Hero extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.8),
+        border: Border.all(
+          color: colors.warning.withValues(alpha: 0.30),
+          width: 0.8,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.account_balance_outlined, color: colors.warning, size: 18),
+              Icon(
+                Icons.account_balance_outlined,
+                color: colors.warning,
+                size: 18,
+              ),
               const SizedBox(width: 6),
               Text(
                 'Susu · ${susu.frequency}',
                 style: TextStyle(
-                    color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w800),
+                  color: colors.textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const Spacer(),
               Container(
@@ -159,7 +186,10 @@ class _Hero extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.warning.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: colors.warning.withValues(alpha: 0.30), width: 0.7),
+                  border: Border.all(
+                    color: colors.warning.withValues(alpha: 0.30),
+                    width: 0.7,
+                  ),
                 ),
                 child: Text(
                   susu.status,
@@ -215,7 +245,10 @@ class _MyPosition extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: colors.accent.withValues(alpha: 0.10),
-              border: Border.all(color: colors.accent.withValues(alpha: 0.30), width: 0.7),
+              border: Border.all(
+                color: colors.accent.withValues(alpha: 0.30),
+                width: 0.7,
+              ),
             ),
             alignment: Alignment.center,
             child: Text(
@@ -236,7 +269,10 @@ class _MyPosition extends StatelessWidget {
                 Text(
                   'Your Slot · #${member.cycleSlot}',
                   style: TextStyle(
-                      color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w800),
+                    color: colors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 Text(
                   'Trust ${member.trustScore.toStringAsFixed(1)} · ${member.status}',
@@ -255,12 +291,17 @@ class _CycleTile extends StatelessWidget {
   final SusuCycle cycle;
   final List<SusuMember> members;
   final AzamanColors colors;
-  const _CycleTile(
-      {required this.cycle, required this.members, required this.colors});
+  const _CycleTile({
+    required this.cycle,
+    required this.members,
+    required this.colors,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final winner = members.where((m) => m.userId == cycle.payoutUserId).firstOrNull;
+    final winner = members
+        .where((m) => m.userId == cycle.payoutUserId)
+        .firstOrNull;
     final (label, color) = switch (cycle.status) {
       'PENDING' => ('PENDING', colors.textTertiary),
       'COLLECTING' => ('COLLECTING', colors.warning),
@@ -303,7 +344,10 @@ class _CycleTile extends StatelessWidget {
                 Text(
                   '@${winner?.username ?? '—'} · \$${cycle.payoutAmount.toStringAsFixed(2)}',
                   style: TextStyle(
-                      color: colors.textPrimary, fontSize: 12.5, fontWeight: FontWeight.w700),
+                    color: colors.textPrimary,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 Text(
                   '${cycle.collectionDate.toLocal()}'.split('.').first,
@@ -317,7 +361,10 @@ class _CycleTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: color.withValues(alpha: 0.30), width: 0.7),
+              border: Border.all(
+                color: color.withValues(alpha: 0.30),
+                width: 0.7,
+              ),
             ),
             child: Text(
               label,

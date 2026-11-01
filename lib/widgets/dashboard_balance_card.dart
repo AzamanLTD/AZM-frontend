@@ -42,7 +42,6 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 // ── Public constants ────────────────────────────────────────────────────────
 
 /// ISO/IEC 7810 ID-1 credit-card aspect ratio. PROTECTED.
@@ -65,10 +64,7 @@ class DashboardBalanceCard extends ConsumerWidget {
   /// Optional label override (defaults to "Total Portfolio Value").
   final String? label;
 
-  const DashboardBalanceCard({
-    super.key,
-    this.label,
-  });
+  const DashboardBalanceCard({super.key, this.label});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -81,10 +77,7 @@ class DashboardBalanceCard extends ConsumerWidget {
         aspectRatio: kCreditCardAspectRatio,
         child: _BlackCardShell(
           colors: colors,
-          child: _CardFace(
-            colors: colors,
-            label: label,
-          ),
+          child: _CardFace(colors: colors, label: label),
         ),
       ),
     );
@@ -250,10 +243,7 @@ class _TitaniumSweep extends StatelessWidget {
 class _CardFace extends StatelessWidget {
   final AzamanColors colors;
   final String? label;
-  const _CardFace({
-    required this.colors,
-    this.label,
-  });
+  const _CardFace({required this.colors, this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -302,7 +292,7 @@ class _CardIdentityHeader extends ConsumerWidget {
       }),
     );
     final username = identity.$1.isEmpty ? 'Guest' : identity.$1;
-    final uid      = '@UID-${identity.$2}';
+    final uid = '@UID-${identity.$2}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,7 +393,7 @@ class _BalanceDisplay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Granular: the hologram amount and the visibility flag are the only
     // two pieces of state that should ever cause a rebuild here.
-    final ghsValue  = ref.watch(hologramBalanceProvider.select((v) => v));
+    final ghsValue = ref.watch(hologramBalanceProvider.select((v) => v));
     final isVisible = ref.watch(balanceVisibleProvider.select((v) => v));
 
     return Column(
@@ -429,8 +419,7 @@ class _BalanceDisplay extends ConsumerWidget {
                 ref.read(balanceVisibleProvider.notifier).state = !isVisible;
               },
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                 child: Icon(
                   isVisible
                       ? Icons.visibility_outlined
@@ -516,8 +505,7 @@ class _OracleRefreshPill extends ConsumerStatefulWidget {
   const _OracleRefreshPill({required this.colors});
 
   @override
-  ConsumerState<_OracleRefreshPill> createState() =>
-      _OracleRefreshPillState();
+  ConsumerState<_OracleRefreshPill> createState() => _OracleRefreshPillState();
 }
 
 class _OracleRefreshPillState extends ConsumerState<_OracleRefreshPill> {
@@ -530,8 +518,9 @@ class _OracleRefreshPillState extends ConsumerState<_OracleRefreshPill> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() {
-        _secondsRemaining =
-            _secondsRemaining > 0 ? _secondsRemaining - 1 : kOracleRefreshSeconds;
+        _secondsRemaining = _secondsRemaining > 0
+            ? _secondsRemaining - 1
+            : kOracleRefreshSeconds;
       });
     });
   }
@@ -553,14 +542,11 @@ class _OracleRefreshPillState extends ConsumerState<_OracleRefreshPill> {
     // Granular: when the rate value flips, reset the countdown. We use
     // `.select((r) => r)` to make the dependency explicit — only ticks of
     // the oracle rate provider can wake this listener up.
-    ref.listen<double>(
-      oracleRateProvider.select((r) => r),
-      (prev, next) {
-        if (prev != next && mounted) {
-          setState(() => _secondsRemaining = kOracleRefreshSeconds);
-        }
-      },
-    );
+    ref.listen<double>(oracleRateProvider.select((r) => r), (prev, next) {
+      if (prev != next && mounted) {
+        setState(() => _secondsRemaining = kOracleRefreshSeconds);
+      }
+    });
 
     final rate = ref.watch(oracleRateProvider.select((r) => r));
     final c = widget.colors;

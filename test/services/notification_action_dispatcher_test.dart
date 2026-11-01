@@ -268,94 +268,164 @@ void main() {
       expect(payload, before);
     });
   });
-group('restored action parity (review 4.2 matrix)', () {
-  const rows = [
-    // name, payload, resolution, route / delegated action
-    _ParityRow('OPEN_SUSU', {'susuId': 'sus-1'},
-        NotificationActionResolution.navigable, '/susu/sus-1'),
-    _ParityRow('OPEN_SUSU', {},
-        NotificationActionResolution.navigable, '/susu'),
-    _ParityRow('OPEN_SUSU', {'susuId': ''},
-        NotificationActionResolution.navigable, '/susu'),
-    _ParityRow('OPEN_SUSU_INVITE', {'token': 'tok-9'},
-        NotificationActionResolution.navigable, '/susu/invite/tok-9'),
-    _ParityRow('OPEN_SUSU_INVITE', {'susuId': 'sus-2'},
-        NotificationActionResolution.navigable, '/susu/sus-2'),
-    _ParityRow('OPEN_SUSU_INVITE', {'token': 't', 'susuId': 'sus-3'},
-        NotificationActionResolution.navigable, '/susu/invite/t'),
-    _ParityRow('OPEN_SUSU_INVITE', {},
-        NotificationActionResolution.navigable, '/susu'),
-    _ParityRow(
+  group('restored action parity (review 4.2 matrix)', () {
+    const rows = [
+      // name, payload, resolution, route / delegated action
+      _ParityRow(
+        'OPEN_SUSU',
+        {'susuId': 'sus-1'},
+        NotificationActionResolution.navigable,
+        '/susu/sus-1',
+      ),
+      _ParityRow(
+        'OPEN_SUSU',
+        {},
+        NotificationActionResolution.navigable,
+        '/susu',
+      ),
+      _ParityRow(
+        'OPEN_SUSU',
+        {'susuId': ''},
+        NotificationActionResolution.navigable,
+        '/susu',
+      ),
+      _ParityRow(
+        'OPEN_SUSU_INVITE',
+        {'token': 'tok-9'},
+        NotificationActionResolution.navigable,
+        '/susu/invite/tok-9',
+      ),
+      _ParityRow(
+        'OPEN_SUSU_INVITE',
+        {'susuId': 'sus-2'},
+        NotificationActionResolution.navigable,
+        '/susu/sus-2',
+      ),
+      _ParityRow(
+        'OPEN_SUSU_INVITE',
+        {'token': 't', 'susuId': 'sus-3'},
+        NotificationActionResolution.navigable,
+        '/susu/invite/t',
+      ),
+      _ParityRow(
+        'OPEN_SUSU_INVITE',
+        {},
+        NotificationActionResolution.navigable,
+        '/susu',
+      ),
+      _ParityRow(
         'OPEN_DEPOSIT_FOR_SUSU',
         {'amount': '50', 'susuId': 'sus-4'},
         NotificationActionResolution.navigable,
-        '/deposit?amount=50&memo=susu%3Asus-4'),
-    _ParityRow('OPEN_DEPOSIT_FOR_SUSU', {'susuId': 'sus-5'},
-        NotificationActionResolution.navigable, '/deposit?memo=susu%3Asus-5'),
-    _ParityRow('OPEN_DEPOSIT_FOR_SUSU', {},
-        NotificationActionResolution.navigable, '/deposit'),
-    _ParityRow('OPEN_ORDER', {'orderId': 'ord-1'},
-        NotificationActionResolution.navigable, '/orders/ord-1/tracking'),
-    _ParityRow(
+        '/deposit?amount=50&memo=susu%3Asus-4',
+      ),
+      _ParityRow(
+        'OPEN_DEPOSIT_FOR_SUSU',
+        {'susuId': 'sus-5'},
+        NotificationActionResolution.navigable,
+        '/deposit?memo=susu%3Asus-5',
+      ),
+      _ParityRow(
+        'OPEN_DEPOSIT_FOR_SUSU',
+        {},
+        NotificationActionResolution.navigable,
+        '/deposit',
+      ),
+      _ParityRow(
+        'OPEN_ORDER',
+        {'orderId': 'ord-1'},
+        NotificationActionResolution.navigable,
+        '/orders/ord-1/tracking',
+      ),
+      _ParityRow(
         'OPEN_ORDER',
         {'orderId': 'ord-2', 'orderRef': 'REF 77'},
         NotificationActionResolution.navigable,
-        '/orders/ord-2/tracking?orderRef=REF+77'),
-    _ParityRow('OPEN_ORDER', {},
-        NotificationActionResolution.unsupportedAction, null),
-    _ParityRow('OPEN_ORDER', {'orderId': ''},
-        NotificationActionResolution.unsupportedAction, null),
-    _ParityRow('OPEN_PROOF_OF_RESIDENCY', {},
-        NotificationActionResolution.navigable, '/proof-of-residency'),
-    _ParityRow('OPEN_HOME', {},
-        NotificationActionResolution.navigable, '/'),
-    // OPEN_CHAT keeps its ESTABLISHED imperative behaviour: delegated.
-    _ParityRow('OPEN_CHAT', {'conversationId': 'c1'},
-        NotificationActionResolution.delegated, 'OPEN_CHAT'),
-    _ParityRow('OPEN_CHAT', {},
-        NotificationActionResolution.delegated, 'OPEN_CHAT'),
-  ];
+        '/orders/ord-2/tracking?orderRef=REF+77',
+      ),
+      _ParityRow(
+        'OPEN_ORDER',
+        {},
+        NotificationActionResolution.unsupportedAction,
+        null,
+      ),
+      _ParityRow(
+        'OPEN_ORDER',
+        {'orderId': ''},
+        NotificationActionResolution.unsupportedAction,
+        null,
+      ),
+      _ParityRow(
+        'OPEN_PROOF_OF_RESIDENCY',
+        {},
+        NotificationActionResolution.navigable,
+        '/proof-of-residency',
+      ),
+      _ParityRow('OPEN_HOME', {}, NotificationActionResolution.navigable, '/'),
+      // OPEN_CHAT keeps its ESTABLISHED imperative behaviour: delegated.
+      _ParityRow(
+        'OPEN_CHAT',
+        {'conversationId': 'c1'},
+        NotificationActionResolution.delegated,
+        'OPEN_CHAT',
+      ),
+      _ParityRow(
+        'OPEN_CHAT',
+        {},
+        NotificationActionResolution.delegated,
+        'OPEN_CHAT',
+      ),
+    ];
 
-  for (final r in rows) {
-    test(
+    for (final r in rows) {
+      test(
         '${r.action} with ${r.payload.isEmpty ? 'no fields' : r.payload} → '
         '${r.expected.name}${r.expectedOutcome != null ? ' (${r.expectedOutcome})' : ''}',
         () {
-      final action = NotificationActionDispatcher.resolve({
-        'action': r.action,
-        ...r.payload,
-      });
-      expect(action.resolution, r.expected,
-          reason: '${r.action} must keep its restored resolution');
-      if (r.expected == NotificationActionResolution.navigable) {
-        expect(action.route, r.expectedOutcome);
-      } else if (r.expected == NotificationActionResolution.delegated) {
-        expect(action.actionName, r.expectedOutcome);
-        expect(action.route, isNull,
-            reason: 'a delegated action never invents a stand-in route');
-      } else {
-        expect(action.route, isNull);
-        expect(action.actionName, isNull);
-      }
+          final action = NotificationActionDispatcher.resolve({
+            'action': r.action,
+            ...r.payload,
+          });
+          expect(
+            action.resolution,
+            r.expected,
+            reason: '${r.action} must keep its restored resolution',
+          );
+          if (r.expected == NotificationActionResolution.navigable) {
+            expect(action.route, r.expectedOutcome);
+          } else if (r.expected == NotificationActionResolution.delegated) {
+            expect(action.actionName, r.expectedOutcome);
+            expect(
+              action.route,
+              isNull,
+              reason: 'a delegated action never invents a stand-in route',
+            );
+          } else {
+            expect(action.route, isNull);
+            expect(action.actionName, isNull);
+          }
+        },
+      );
+    }
+
+    test('the delegated OPEN_CHAT payload passes through untouched', () {
+      final payload = {
+        'action': 'OPEN_CHAT',
+        'conversationId': 'c-42',
+        'friendName': 'Ama',
+        'friendId': 'u-7',
+      };
+      final action = NotificationActionDispatcher.resolve(payload);
+      expect(action.resolution, NotificationActionResolution.delegated);
+      expect(action.actionName, 'OPEN_CHAT');
+      expect(action.payload, equals(payload));
+      expect(
+        payload['action'],
+        'OPEN_CHAT',
+        reason: 'resolution never mutates the payload map',
+      );
     });
-  }
-
-  test('the delegated OPEN_CHAT payload passes through untouched', () {
-    final payload = {
-      'action': 'OPEN_CHAT',
-      'conversationId': 'c-42',
-      'friendName': 'Ama',
-      'friendId': 'u-7',
-    };
-    final action = NotificationActionDispatcher.resolve(payload);
-    expect(action.resolution, NotificationActionResolution.delegated);
-    expect(action.actionName, 'OPEN_CHAT');
-    expect(action.payload, equals(payload));
-    expect(payload['action'], 'OPEN_CHAT',
-        reason: 'resolution never mutates the payload map');
   });
-});
-
 }
 
 class _ParityRow {
@@ -363,6 +433,10 @@ class _ParityRow {
   final Map<String, dynamic> payload;
   final NotificationActionResolution expected;
   final String? expectedOutcome;
-  const _ParityRow(this.action, this.payload, this.expected,
-      this.expectedOutcome);
+  const _ParityRow(
+    this.action,
+    this.payload,
+    this.expected,
+    this.expectedOutcome,
+  );
 }

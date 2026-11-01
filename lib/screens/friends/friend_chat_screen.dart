@@ -39,7 +39,6 @@ import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/chat_date_header.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 
-
 class FriendChatScreen extends ConsumerStatefulWidget {
   final String friendshipId;
   final String friendUsername;
@@ -121,8 +120,18 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
 
     // Listen for scroll to load more
     _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
-        ref.read(premiumChatProvider(ChatContextParams(context: ChatContext.friend, contextId: widget.friendshipId)).notifier).loadMessages(loadMore: true);
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200) {
+        ref
+            .read(
+              premiumChatProvider(
+                ChatContextParams(
+                  context: ChatContext.friend,
+                  contextId: widget.friendshipId,
+                ),
+              ).notifier,
+            )
+            .loadMessages(loadMore: true);
       }
     });
   }
@@ -139,9 +148,12 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
     // state) and any other component's listener stay attached.
     if (socket != null) {
       if (_onFriendTyping != null) socket.off('friend_typing', _onFriendTyping);
-      if (_onFriendMessage != null) socket.off('friend_message', _onFriendMessage);
-      if (_onTicketPresence != null) socket.off('ticket_presence_update', _onTicketPresence);
-      if (_onTicketStatus != null) socket.off('ticket_status_changed', _onTicketStatus);
+      if (_onFriendMessage != null)
+        socket.off('friend_message', _onFriendMessage);
+      if (_onTicketPresence != null)
+        socket.off('ticket_presence_update', _onTicketPresence);
+      if (_onTicketStatus != null)
+        socket.off('ticket_status_changed', _onTicketStatus);
     }
     super.dispose();
   }
@@ -170,8 +182,11 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         _messages.insert(0, Map<String, dynamic>.from(data));
         // Newest-first list (the API returns createdAt desc); the socket
         // payload carries the same DirectMessage shape.
-        _messages.sort((a, b) =>
-            (b['createdAt']?.toString() ?? '').compareTo(a['createdAt']?.toString() ?? ''));
+        _messages.sort(
+          (a, b) => (b['createdAt']?.toString() ?? '').compareTo(
+            a['createdAt']?.toString() ?? '',
+          ),
+        );
       });
       _markAsRead();
       _scrollToBottom();
@@ -306,11 +321,18 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   /// Scroll to a specific message by localId and highlight it briefly.
   /// Used by search results tap → jump to message in the conversation.
   void _jumpToMessage(String messageLocalId) {
-    final chatState = ref.read(premiumChatProvider(
-      ChatContextParams(context: ChatContext.friend, contextId: widget.friendshipId),
-    ));
+    final chatState = ref.read(
+      premiumChatProvider(
+        ChatContextParams(
+          context: ChatContext.friend,
+          contextId: widget.friendshipId,
+        ),
+      ),
+    );
     final messages = chatState.messages;
-    final index = messages.indexWhere((m) => m.localId == messageLocalId || m.id == messageLocalId);
+    final index = messages.indexWhere(
+      (m) => m.localId == messageLocalId || m.id == messageLocalId,
+    );
     if (index == -1) return;
 
     // Since ListView is reversed, index 0 = bottom. To scroll to a message
@@ -343,12 +365,12 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
           extra: const {'conversationContext': 'direct'},
         )
         .then((result) {
-      if (result != null && result is Map<String, dynamic>) {
-        final messageId = result['id'] as String?;
-        final localId = result['localId'] as String?;
-        _jumpToMessage(messageId ?? localId ?? '');
-      }
-    });
+          if (result != null && result is Map<String, dynamic>) {
+            final messageId = result['id'] as String?;
+            final localId = result['localId'] as String?;
+            _jumpToMessage(messageId ?? localId ?? '');
+          }
+        });
   }
 
   void _scrollToBottom() {
@@ -379,7 +401,9 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
         // handle re-authentication. Nothing to do here but avoid crashing.
         debugPrint('[FriendChat] markAsRead skipped: session expired.');
       } else {
-        debugPrint('[FriendChat] markAsRead failed: ${e.message} (${e.statusCode})');
+        debugPrint(
+          '[FriendChat] markAsRead failed: ${e.message} (${e.statusCode})',
+        );
       }
     } catch (e) {
       debugPrint('[FriendChat] markAsRead failed: $e');
@@ -439,16 +463,16 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       // the placeholder, the indexWhere returns -1 and we no-op.
       final serverMsg = result['message'];
       if (serverMsg is Map<String, dynamic>) {
-        final idx = _messages
-            .indexWhere((m) => m['clientNonce']?.toString() == clientNonce);
+        final idx = _messages.indexWhere(
+          (m) => m['clientNonce']?.toString() == clientNonce,
+        );
         if (idx != -1 && mounted) {
           // Carry the nonce through so a subsequent socket echo can
           // de-dupe against this row (the BE doesn't always echo back
           // to the sender, but if it does, this prevents a duplicate).
-          setState(() => _messages[idx] = {
-                ...serverMsg,
-                'clientNonce': clientNonce,
-              });
+          setState(
+            () => _messages[idx] = {...serverMsg, 'clientNonce': clientNonce},
+          );
         }
       }
     } catch (e) {
@@ -459,7 +483,8 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
       if (mounted) {
         setState(() {
           final idx = _messages.indexWhere(
-              (m) => m['clientNonce']?.toString() == clientNonce);
+            (m) => m['clientNonce']?.toString() == clientNonce,
+          );
           if (idx != -1) {
             _messages[idx] = {
               ..._messages[idx],
@@ -468,9 +493,9 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
             };
           }
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -478,7 +503,9 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   }
 
   void _emitTyping() {
-    SocketService.instance.rawSocket?.emit('typing_friend', {'friendshipId': widget.friendshipId});
+    SocketService.instance.rawSocket?.emit('typing_friend', {
+      'friendshipId': widget.friendshipId,
+    });
   }
 
   // ===========================================================================
@@ -538,8 +565,13 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   // ===========================================================================
 
   void _openTicketDashboard() {
-    pushWithVerticalTransition(context, TicketDashboardScreen(friendshipId: widget.friendshipId,
-          friendUsername: widget.friendUsername,)).then((_) {
+    pushWithVerticalTransition(
+      context,
+      TicketDashboardScreen(
+        friendshipId: widget.friendshipId,
+        friendUsername: widget.friendUsername,
+      ),
+    ).then((_) {
       // Refresh messages so any new TICKET_LINK event cards appear in
       // the parent chat feed.
       _loadMessages();
@@ -547,8 +579,13 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   }
 
   void _openTicket(String ticketId) {
-    pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: ticketId,
-          friendUsername: widget.friendUsername,));
+    pushWithVerticalTransition(
+      context,
+      TicketWorkspaceScreen(
+        ticketId: ticketId,
+        friendUsername: widget.friendUsername,
+      ),
+    );
   }
 
   // ===========================================================================
@@ -556,8 +593,13 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   // ===========================================================================
 
   void _openChatProfile() {
-    pushWithVerticalTransition(context, ChatProfileScreen(friendshipId: widget.friendshipId,
-          fallbackUsername: widget.friendUsername,));
+    pushWithVerticalTransition(
+      context,
+      ChatProfileScreen(
+        friendshipId: widget.friendshipId,
+        fallbackUsername: widget.friendUsername,
+      ),
+    );
   }
 
   // ===========================================================================
@@ -629,9 +671,13 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   @override
   Widget build(BuildContext context) {
     final c = ref.watch(themeProvider).colors;
-    final params = ChatContextParams(context: ChatContext.friend, contextId: widget.friendshipId);
+    final params = ChatContextParams(
+      context: ChatContext.friend,
+      contextId: widget.friendshipId,
+    );
     final chatState = ref.watch(premiumChatProvider(params));
-    final myUserId = int.tryParse(ref.read(authProvider).user?.id.toString() ?? '0') ?? 0;
+    final myUserId =
+        int.tryParse(ref.read(authProvider).user?.id.toString() ?? '0') ?? 0;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -659,7 +705,8 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                 child: _ChatHeaderTitle(
                   friendshipId: widget.friendshipId,
                   username: widget.friendUsername,
-                  isFriendTyping: _friendTyping || chatState.typingUserIds.isNotEmpty,
+                  isFriendTyping:
+                      _friendTyping || chatState.typingUserIds.isNotEmpty,
                   onTrustTapped: _showTrustBreakdown,
                 ),
               ),
@@ -673,16 +720,17 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
             onPressed: _openSearch,
           ),
           IconButton(
-            icon: Icon(Icons.timer_outlined,
-                size: 20,
-                color: chatState.disappearAfterSeconds != null
-                    ? c.accent
-                    : c.textSecondary),
+            icon: Icon(
+              Icons.timer_outlined,
+              size: 20,
+              color: chatState.disappearAfterSeconds != null
+                  ? c.accent
+                  : c.textSecondary,
+            ),
             tooltip: chatState.disappearAfterSeconds != null
                 ? 'Disappearing: ${chatState.disappearLabel}'
                 : 'Disappearing messages',
-            onPressed: () =>
-                showDisappearTimerSheet(context, params),
+            onPressed: () => showDisappearTimerSheet(context, params),
           ),
           IconButton(
             icon: Icon(Icons.more_vert, color: c.textPrimary),
@@ -708,59 +756,92 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
                     ),
                   ),
                   TextButton(
-                    onPressed: () => pushWithVerticalTransition(context, TicketWorkspaceScreen(ticketId: _ticketPresenceTicketId!, friendUsername: widget.friendUsername)),
-                    style: TextButton.styleFrom(minimumSize: Size.zero, padding: EdgeInsets.zero, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                    child: Text('Join', style: TextStyle(color: c.accent, fontSize: 12, fontWeight: FontWeight.bold)),
+                    onPressed: () => pushWithVerticalTransition(
+                      context,
+                      TicketWorkspaceScreen(
+                        ticketId: _ticketPresenceTicketId!,
+                        friendUsername: widget.friendUsername,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      minimumSize: Size.zero,
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      'Join',
+                      style: TextStyle(
+                        color: c.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-          
+
           Expanded(
             child: chatState.isLoading && chatState.messages.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  itemCount: chatState.messages.length + (chatState.hasMore ? 1 : 0),
-                  itemBuilder: (ctx, i) {
-                    if (i == chatState.messages.length) {
-                      return const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                      );
-                    }
-                    final msg = chatState.messages[i];
-                    final msgDate = msg.timestamp;
-                    final prevMsg = i < chatState.messages.length - 1 ? chatState.messages[i + 1] : null;
-                    final showDateHeader = prevMsg == null ||
-                        msgDate.day != prevMsg.timestamp.day ||
-                        msgDate.month != prevMsg.timestamp.month;
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    controller: _scrollController,
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    itemCount:
+                        chatState.messages.length + (chatState.hasMore ? 1 : 0),
+                    itemBuilder: (ctx, i) {
+                      if (i == chatState.messages.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      }
+                      final msg = chatState.messages[i];
+                      final msgDate = msg.timestamp;
+                      final prevMsg = i < chatState.messages.length - 1
+                          ? chatState.messages[i + 1]
+                          : null;
+                      final showDateHeader =
+                          prevMsg == null ||
+                          msgDate.day != prevMsg.timestamp.day ||
+                          msgDate.month != prevMsg.timestamp.month;
 
-                    return Column(children: [
-                      if (showDateHeader) ChatDateHeader(date: msgDate),
-                      PremiumMessageBubble(
-                        key: ValueKey(msg.localId),
-                        isHighlighted: _highlightedMessageId == msg.localId || _highlightedMessageId == msg.id,
-                        message: msg,
-                        myUserId: myUserId,
-                        showAvatar: false,
-                        showSenderName: false,
-                        onReply: (m) => setState(() => _replyTo = m),
-                        onReact: (id, emoji) => ref.read(premiumChatProvider(params).notifier).reactToMessage(id, emoji),
-                        onEdit: (m) => _showEditDialog(context, c, m, params),
-                        onDelete: (id) => ref.read(premiumChatProvider(params).notifier).deleteMessage(id),
-                        onRetry: () => ref.read(premiumChatProvider(params).notifier).retryMessage(msg.localId),
-                      )
-                    ]);
-                  },
-                ),
+                      return Column(
+                        children: [
+                          if (showDateHeader) ChatDateHeader(date: msgDate),
+                          PremiumMessageBubble(
+                            key: ValueKey(msg.localId),
+                            isHighlighted:
+                                _highlightedMessageId == msg.localId ||
+                                _highlightedMessageId == msg.id,
+                            message: msg,
+                            myUserId: myUserId,
+                            showAvatar: false,
+                            showSenderName: false,
+                            onReply: (m) => setState(() => _replyTo = m),
+                            onReact: (id, emoji) => ref
+                                .read(premiumChatProvider(params).notifier)
+                                .reactToMessage(id, emoji),
+                            onEdit: (m) =>
+                                _showEditDialog(context, c, m, params),
+                            onDelete: (id) => ref
+                                .read(premiumChatProvider(params).notifier)
+                                .deleteMessage(id),
+                            onRetry: () => ref
+                                .read(premiumChatProvider(params).notifier)
+                                .retryMessage(msg.localId),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
           ),
-          
-          if (chatState.typingUserIds.isNotEmpty)
-            TypingBubble(colors: c),
-            
+
+          if (chatState.typingUserIds.isNotEmpty) TypingBubble(colors: c),
+
           PremiumChatInput(
             replyTo: _replyTo,
             onClearReply: () => setState(() => _replyTo = null),
@@ -778,47 +859,87 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
               );
             },
             onSendText: (text) {
-              ref.read(premiumChatProvider(params).notifier).sendTextMessage(
-                text,
-                replyToId: _replyTo?.id,
-                replyToText: _replyTo?.text,
-                replyToSenderName: _replyTo?.senderUsername,
-              );
+              ref
+                  .read(premiumChatProvider(params).notifier)
+                  .sendTextMessage(
+                    text,
+                    replyToId: _replyTo?.id,
+                    replyToText: _replyTo?.text,
+                    replyToSenderName: _replyTo?.senderUsername,
+                  );
               setState(() => _replyTo = null);
             },
-            onSendMedia: ({required mediaUrl, required mediaType, required messageType, mimeType, size, duration, waveformPeaks, linkPreview, caption}) {
-              ref.read(premiumChatProvider(params).notifier).sendMediaMessage(
-                mediaUrl: mediaUrl, mediaType: mediaType, messageType: messageType, mimeType: mimeType,
-                size: size, duration: duration, waveformPeaks: waveformPeaks, linkPreview: linkPreview, caption: caption,
-              );
-            },
-            onTypingChanged: (isTyping) => ref.read(premiumChatProvider(params).notifier).sendTyping(isTyping),
+            onSendMedia:
+                ({
+                  required mediaUrl,
+                  required mediaType,
+                  required messageType,
+                  mimeType,
+                  size,
+                  duration,
+                  waveformPeaks,
+                  linkPreview,
+                  caption,
+                }) {
+                  ref
+                      .read(premiumChatProvider(params).notifier)
+                      .sendMediaMessage(
+                        mediaUrl: mediaUrl,
+                        mediaType: mediaType,
+                        messageType: messageType,
+                        mimeType: mimeType,
+                        size: size,
+                        duration: duration,
+                        waveformPeaks: waveformPeaks,
+                        linkPreview: linkPreview,
+                        caption: caption,
+                      );
+                },
+            onTypingChanged: (isTyping) => ref
+                .read(premiumChatProvider(params).notifier)
+                .sendTyping(isTyping),
           ),
         ],
       ),
     );
   }
 
-  void _showEditDialog(BuildContext ctx, AzamanColors c, ChatMessage msg, ChatContextParams params) {
+  void _showEditDialog(
+    BuildContext ctx,
+    AzamanColors c,
+    ChatMessage msg,
+    ChatContextParams params,
+  ) {
     final editCtrl = TextEditingController(text: msg.text);
     showDialog(
       context: ctx,
       builder: (_) => AlertDialog(
         backgroundColor: c.card,
-        title: Text('Edit Message', style: TextStyle(color: c.textPrimary, fontSize: 16)),
+        title: Text(
+          'Edit Message',
+          style: TextStyle(color: c.textPrimary, fontSize: 16),
+        ),
         content: TextField(
           controller: editCtrl,
           maxLines: null,
           style: TextStyle(color: c.textPrimary),
-          decoration: InputDecoration(hintText: 'Edit your message', hintStyle: TextStyle(color: c.textTertiary)),
+          decoration: InputDecoration(
+            hintText: 'Edit your message',
+            hintStyle: TextStyle(color: c.textTertiary),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: c.textTertiary))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: c.textTertiary)),
+          ),
           TextButton(
             onPressed: () {
               final newText = editCtrl.text.trim();
               if (newText.isNotEmpty) {
-                ref.read(premiumChatProvider(params).notifier).editMessage(msg.id, newText);
+                ref
+                    .read(premiumChatProvider(params).notifier)
+                    .editMessage(msg.id, newText);
               }
               Navigator.pop(ctx);
             },
@@ -968,10 +1089,7 @@ class _ChatHeaderTitle extends ConsumerWidget {
       return Text(
         state.error != null ? '—' : 'Loading reputation…',
         key: ValueKey('placeholder-${state.error != null}'),
-        style: TextStyle(
-          color: colors.textTertiary,
-          fontSize: 11,
-        ),
+        style: TextStyle(color: colors.textTertiary, fontSize: 11),
       );
     }
 

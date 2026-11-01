@@ -9,12 +9,12 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class VendorDepositScreen extends ConsumerStatefulWidget {
   const VendorDepositScreen({super.key});
 
   @override
-  ConsumerState<VendorDepositScreen> createState() => _VendorDepositScreenState();
+  ConsumerState<VendorDepositScreen> createState() =>
+      _VendorDepositScreenState();
 }
 
 class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
@@ -54,14 +54,13 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
       if (response.statusCode == 200 && mounted) {
         final data = jsonDecode(response.body);
         setState(() {
-          _tatumPolygonAddress =
-              data['tatumPolygonAddress']?.toString() ?? '';
+          _tatumPolygonAddress = data['tatumPolygonAddress']?.toString() ?? '';
           _availableBalance =
               double.tryParse(data['availableBalance']?.toString() ?? '0') ??
-                  0.0;
+              0.0;
           _escrowLockedBalance =
               double.tryParse(data['escrowLockedBalance']?.toString() ?? '0') ??
-                  0.0;
+              0.0;
           _isLoading = false;
         });
       } else if (mounted) {
@@ -96,9 +95,10 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
         title: Text(
           'Deposit USDT (Polygon)',
           style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.bold),
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: _isLoading
@@ -117,23 +117,29 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                       decoration: BoxDecoration(
                         color: colors.card,
                         borderRadius: BorderRadius.circular(20),
-                        border:
-                            Border.all(color: colors.accent.withValues(alpha: 0.2)),
+                        border: Border.all(
+                          color: colors.accent.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: Column(
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('AVAILABLE BALANCE',
-                                  style: TextStyle(
-                                      color: colors.textTertiary,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.5)),
-                              Icon(Icons.shield_outlined,
-                                  color: colors.accent.withValues(alpha: 0.5),
-                                  size: 18),
+                              Text(
+                                'AVAILABLE BALANCE',
+                                style: TextStyle(
+                                  color: colors.textTertiary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                              Icon(
+                                Icons.shield_outlined,
+                                color: colors.accent.withValues(alpha: 0.5),
+                                size: 18,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -150,7 +156,9 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                             Text(
                               '${_escrowLockedBalance.toStringAsFixed(2)} USDT locked in escrow',
                               style: TextStyle(
-                                  color: colors.textTertiary, fontSize: 11),
+                                color: colors.textTertiary,
+                                fontSize: 11,
+                              ),
                             ),
                           ],
                         ],
@@ -164,18 +172,24 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                           color: colors.warning.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                              color: colors.warning.withValues(alpha: 0.2)),
+                            color: colors.warning.withValues(alpha: 0.2),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.error_outline,
-                                color: colors.warning, size: 20),
+                            Icon(
+                              Icons.error_outline,
+                              color: colors.warning,
+                              size: 20,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 'No Polygon deposit address found. Contact support.',
                                 style: TextStyle(
-                                    color: colors.warning, fontSize: 13),
+                                  color: colors.warning,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ],
@@ -188,7 +202,8 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                           color: colors.surface,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: colors.accent.withValues(alpha: 0.3)),
+                            color: colors.accent.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -230,8 +245,7 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                               decoration: BoxDecoration(
                                 color: colors.card,
                                 borderRadius: BorderRadius.circular(12),
-                                border:
-                                    Border.all(color: colors.divider),
+                                border: Border.all(color: colors.divider),
                               ),
                               child: Row(
                                 children: [
@@ -248,20 +262,27 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   IconButton(
-                                    icon: Icon(Icons.copy_outlined,
-                                        color: colors.accent, size: 20),
+                                    icon: Icon(
+                                      Icons.copy_outlined,
+                                      color: colors.accent,
+                                      size: 20,
+                                    ),
                                     onPressed: () {
                                       HapticFeedback.selectionClick();
-                                      Clipboard.setData(ClipboardData(
-                                          text: _tatumPolygonAddress));
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
+                                      Clipboard.setData(
+                                        ClipboardData(
+                                          text: _tatumPolygonAddress,
+                                        ),
+                                      );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
                                           content: const Text(
-                                              'Address copied to clipboard'),
+                                            'Address copied to clipboard',
+                                          ),
                                           backgroundColor: colors.success,
-                                          behavior:
-                                              SnackBarBehavior.floating,
+                                          behavior: SnackBarBehavior.floating,
                                         ),
                                       );
                                     },
@@ -279,13 +300,17 @@ class _VendorDepositScreenState extends ConsumerState<VendorDepositScreen> {
                           color: colors.warning.withValues(alpha: 0.06),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                              color: colors.warning.withValues(alpha: 0.15)),
+                            color: colors.warning.withValues(alpha: 0.15),
+                          ),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.info_outline,
-                                color: colors.warning, size: 18),
+                            Icon(
+                              Icons.info_outline,
+                              color: colors.warning,
+                              size: 18,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(

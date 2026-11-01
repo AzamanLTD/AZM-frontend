@@ -40,19 +40,24 @@ class SocketService {
 
   void Function(double, double, String, String)? _onAzmReward;
   void Function(double, double, String, String)? _onAzmSpend;
-  final Set<void Function(Map<String, dynamic>)> _tradeUpdateListeners = <void Function(Map<String, dynamic>)>{};
+  final Set<void Function(Map<String, dynamic>)> _tradeUpdateListeners =
+      <void Function(Map<String, dynamic>)>{};
   void Function()? _onMarketUpdate;
-  final Set<void Function(Map<String, dynamic>)> _newNotificationListeners = <void Function(Map<String, dynamic>)>{};
-  final Set<void Function(Map<String, dynamic>)> _notificationsUpdatedListeners = <void Function(Map<String, dynamic>)>{};
+  final Set<void Function(Map<String, dynamic>)> _newNotificationListeners =
+      <void Function(Map<String, dynamic>)>{};
+  final Set<void Function(Map<String, dynamic>)>
+  _notificationsUpdatedListeners = <void Function(Map<String, dynamic>)>{};
   void Function(Map<String, dynamic>)? _onNewTradeRequest;
   void Function(Map<String, dynamic>)? _onBizNotification;
   void Function(int)? _onBizNotificationsUpdated;
-  final Set<void Function(Map<String, dynamic>)> _dineInTabEventListeners = <void Function(Map<String, dynamic>)>{};
+  final Set<void Function(Map<String, dynamic>)> _dineInTabEventListeners =
+      <void Function(Map<String, dynamic>)>{};
   void Function(Map<String, dynamic>)? _onBusinessOrderDelivered;
   void Function(Map<String, dynamic>)? _onOrderLocation;
   void Function(Map<String, dynamic>)? _onOrderStatus;
   void Function(Map<String, dynamic>)? _onOrderEta;
-  final Set<void Function(Map<String, dynamic>, String)> _escrowListeners = <void Function(Map<String, dynamic>, String)>{};
+  final Set<void Function(Map<String, dynamic>, String)> _escrowListeners =
+      <void Function(Map<String, dynamic>, String)>{};
   void Function(Map<String, dynamic>)? _onInvoicePaid;
   void Function(Map<String, dynamic>)? _onInvoiceReceived;
   // LAST REVIEW (pending-result cancellation) — deposit settlements are
@@ -62,36 +67,59 @@ class SocketService {
   // surface being left). A single callback slot made them mutually
   // exclusive; the established multi-listener pattern (trade updates,
   // escrow events) is the seam both now share.
-  final Set<void Function(double, double, String, String)> _depositSuccessListeners =
-      <void Function(double, double, String, String)>{};
+  final Set<void Function(double, double, String, String)>
+  _depositSuccessListeners = <void Function(double, double, String, String)>{};
   void Function(Map<String, dynamic>)? _onWithdrawalProgress;
   void Function(Map<String, dynamic>)? _onWithdrawalSettled;
 
-  void onAzmReward(void Function(double, double, String, String) cb) => _onAzmReward = cb;
-  void onAzmSpend(void Function(double, double, String, String) cb) => _onAzmSpend = cb;
-  void onTradeUpdate(void Function(Map<String, dynamic>) cb) => _tradeUpdateListeners.add(cb);
-  void removeTradeUpdateListener(void Function(Map<String, dynamic>) cb) => _tradeUpdateListeners.remove(cb);
+  void onAzmReward(void Function(double, double, String, String) cb) =>
+      _onAzmReward = cb;
+  void onAzmSpend(void Function(double, double, String, String) cb) =>
+      _onAzmSpend = cb;
+  void onTradeUpdate(void Function(Map<String, dynamic>) cb) =>
+      _tradeUpdateListeners.add(cb);
+  void removeTradeUpdateListener(void Function(Map<String, dynamic>) cb) =>
+      _tradeUpdateListeners.remove(cb);
   void onMarketUpdate(void Function() cb) => _onMarketUpdate = cb;
-  void onNewNotification(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.add(cb);
-  void removeNewNotificationListener(void Function(Map<String, dynamic>) cb) => _newNotificationListeners.remove(cb);
-  void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.add(cb);
-  void removeNotificationsUpdatedListener(void Function(Map<String, dynamic>) cb) => _notificationsUpdatedListeners.remove(cb);
-  void onNewTradeRequest(void Function(Map<String, dynamic>) cb) => _onNewTradeRequest = cb;
+  void onNewNotification(void Function(Map<String, dynamic>) cb) =>
+      _newNotificationListeners.add(cb);
+  void removeNewNotificationListener(void Function(Map<String, dynamic>) cb) =>
+      _newNotificationListeners.remove(cb);
+  void onNotificationsUpdated(void Function(Map<String, dynamic>) cb) =>
+      _notificationsUpdatedListeners.add(cb);
+  void removeNotificationsUpdatedListener(
+    void Function(Map<String, dynamic>) cb,
+  ) => _notificationsUpdatedListeners.remove(cb);
+  void onNewTradeRequest(void Function(Map<String, dynamic>) cb) =>
+      _onNewTradeRequest = cb;
   void removeNewTradeRequestListener() => _onNewTradeRequest = null;
-  void onBizNotification(void Function(Map<String, dynamic>) cb) => _onBizNotification = cb;
+  void onBizNotification(void Function(Map<String, dynamic>) cb) =>
+      _onBizNotification = cb;
   void removeBizNotificationListener() => _onBizNotification = null;
-  void onBizNotificationsUpdated(void Function(int) cb) => _onBizNotificationsUpdated = cb;
-  void removeBizNotificationsUpdatedListener() => _onBizNotificationsUpdated = null;
-  void onDineInTabEvent(void Function(Map<String, dynamic>) cb) => _dineInTabEventListeners.add(cb);
-  void removeDineInTabEventListener(void Function(Map<String, dynamic>) cb) => _dineInTabEventListeners.remove(cb);
-  void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) => _onBusinessOrderDelivered = cb;
-  void onOrderLocation(void Function(Map<String, dynamic>) cb) => _onOrderLocation = cb;
-  void onOrderStatus(void Function(Map<String, dynamic>) cb) => _onOrderStatus = cb;
+  void onBizNotificationsUpdated(void Function(int) cb) =>
+      _onBizNotificationsUpdated = cb;
+  void removeBizNotificationsUpdatedListener() =>
+      _onBizNotificationsUpdated = null;
+  void onDineInTabEvent(void Function(Map<String, dynamic>) cb) =>
+      _dineInTabEventListeners.add(cb);
+  void removeDineInTabEventListener(void Function(Map<String, dynamic>) cb) =>
+      _dineInTabEventListeners.remove(cb);
+  void onBusinessOrderDelivered(void Function(Map<String, dynamic>) cb) =>
+      _onBusinessOrderDelivered = cb;
+  void onOrderLocation(void Function(Map<String, dynamic>) cb) =>
+      _onOrderLocation = cb;
+  void onOrderStatus(void Function(Map<String, dynamic>) cb) =>
+      _onOrderStatus = cb;
   void onOrderEta(void Function(Map<String, dynamic>) cb) => _onOrderEta = cb;
-  void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) => _escrowListeners.add(cb);
-  void removeEscrowEventListener(void Function(Map<String, dynamic>, String) cb) => _escrowListeners.remove(cb);
-  void onInvoicePaid(void Function(Map<String, dynamic>) cb) => _onInvoicePaid = cb;
-  void onInvoiceReceived(void Function(Map<String, dynamic>) cb) => _onInvoiceReceived = cb;
+  void onEscrowEvent(void Function(Map<String, dynamic>, String) cb) =>
+      _escrowListeners.add(cb);
+  void removeEscrowEventListener(
+    void Function(Map<String, dynamic>, String) cb,
+  ) => _escrowListeners.remove(cb);
+  void onInvoicePaid(void Function(Map<String, dynamic>) cb) =>
+      _onInvoicePaid = cb;
+  void onInvoiceReceived(void Function(Map<String, dynamic>) cb) =>
+      _onInvoiceReceived = cb;
   void onDepositSuccess(void Function(double, double, String, String) cb) =>
       _depositSuccessListeners.add(cb);
 
@@ -99,8 +127,8 @@ class SocketService {
   /// removes ITS handler on dispose; the continuation monitor's listener
   /// must survive that and keep resolving stored continuations).
   void removeDepositSuccessListener(
-          void Function(double, double, String, String) cb) =>
-      _depositSuccessListeners.remove(cb);
+    void Function(double, double, String, String) cb,
+  ) => _depositSuccessListeners.remove(cb);
 
   /// Test-only introspection of the settlement seam: the deposit
   /// surface's listener and the session-wide monitor's listener are
@@ -118,13 +146,15 @@ class SocketService {
     String provider,
     String reference,
   ) {
-    for (final cb
-        in List<void Function(double, double, String, String)>.from(
-            _depositSuccessListeners)) {
+    for (final cb in List<void Function(double, double, String, String)>.from(
+      _depositSuccessListeners,
+    )) {
       try {
         cb(amountGhs, amountUsdc, provider, reference);
       } catch (callbackError) {
-        debugPrint('[SocketService] deposit_success listener error: $callbackError');
+        debugPrint(
+          '[SocketService] deposit_success listener error: $callbackError',
+        );
       }
     }
   }
@@ -138,10 +168,11 @@ class SocketService {
     double amountUsdc,
     String provider,
     String reference,
-  ) =>
-      _dispatchDepositSuccess(amountGhs, amountUsdc, provider, reference);
-  void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) => _onWithdrawalProgress = cb;
-  void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) => _onWithdrawalSettled = cb;
+  ) => _dispatchDepositSuccess(amountGhs, amountUsdc, provider, reference);
+  void onWithdrawalProgress(void Function(Map<String, dynamic>) cb) =>
+      _onWithdrawalProgress = cb;
+  void onWithdrawalSettled(void Function(Map<String, dynamic>) cb) =>
+      _onWithdrawalSettled = cb;
 
   /// r42 withdrawal progress sheet: release the singleton withdrawal
   /// callbacks when the sheet closes, so a disposed sheet stops receiving
@@ -178,7 +209,8 @@ class SocketService {
   bool get hasBizNotificationListener => _onBizNotification != null;
 
   @visibleForTesting
-  bool get hasBizNotificationsUpdatedListener => _onBizNotificationsUpdated != null;
+  bool get hasBizNotificationsUpdatedListener =>
+      _onBizNotificationsUpdated != null;
 
   @visibleForTesting
   int get dineInTabListenerCount => _dineInTabEventListeners.length;
@@ -231,7 +263,8 @@ class SocketService {
   }
 
   Future<void> _connect() async {
-    if (AppConfig.demoMode || _socket != null || _connecting || _authBlocked) return;
+    if (AppConfig.demoMode || _socket != null || _connecting || _authBlocked)
+      return;
     _connecting = true;
 
     try {
@@ -319,8 +352,11 @@ class SocketService {
       }
     });
 
-    socket.on('withdrawal_progress', (data) =>
-        _safeMapCallback(_onWithdrawalProgress, data, 'withdrawal_progress'));
+    socket.on(
+      'withdrawal_progress',
+      (data) =>
+          _safeMapCallback(_onWithdrawalProgress, data, 'withdrawal_progress'),
+    );
     socket.on('withdrawal_settled', (data) {
       _safeMapCallback(_onWithdrawalSettled, data, 'withdrawal_settled');
       if (_ref != null) unawaited(refreshCanonicalBalance(_ref));
@@ -329,11 +365,32 @@ class SocketService {
     socket.on('azm_reward', (data) => _handleAzmEvent(data, true));
     socket.on('azm_spend', (data) => _handleAzmEvent(data, false));
 
-    socket.on('trade_update', (data) => _dispatchMapListeners(_tradeUpdateListeners, data, 'trade_update'));
+    socket.on(
+      'trade_update',
+      (data) =>
+          _dispatchMapListeners(_tradeUpdateListeners, data, 'trade_update'),
+    );
     socket.on('market_update', (_) => _safeVoidCallback(_onMarketUpdate));
-    socket.on('new_notification', (data) => _dispatchMapListeners(_newNotificationListeners, data, 'new_notification'));
-    socket.on('notifications_updated', (data) => _dispatchMapListeners(_notificationsUpdatedListeners, data, 'notifications_updated'));
-    socket.on('new_trade_request', (data) => _safeMapCallback(_onNewTradeRequest, data, 'new_trade_request'));
+    socket.on(
+      'new_notification',
+      (data) => _dispatchMapListeners(
+        _newNotificationListeners,
+        data,
+        'new_notification',
+      ),
+    );
+    socket.on(
+      'notifications_updated',
+      (data) => _dispatchMapListeners(
+        _notificationsUpdatedListeners,
+        data,
+        'notifications_updated',
+      ),
+    );
+    socket.on(
+      'new_trade_request',
+      (data) => _safeMapCallback(_onNewTradeRequest, data, 'new_trade_request'),
+    );
     socket.on('biz_notification', (data) => _handleBizNotification(data));
     socket.on('biz_notifications_updated', (data) {
       try {
@@ -342,15 +399,59 @@ class SocketService {
         debugPrint('[SocketService] biz_notifications_updated parse error: $e');
       }
     });
-    socket.on('dine_in_tab_opened', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_opened'));
-    socket.on('dine_in_item_added', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_item_added'));
-    socket.on('dine_in_tab_finalized', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_finalized'));
-    socket.on('dine_in_tab_paid', (data) => _dispatchMapListeners(_dineInTabEventListeners, data, 'dine_in_tab_paid'));
-    socket.on('business_order_delivered', (data) => _safeMapCallback(_onBusinessOrderDelivered, data, 'business_order_delivered'));
+    socket.on(
+      'dine_in_tab_opened',
+      (data) => _dispatchMapListeners(
+        _dineInTabEventListeners,
+        data,
+        'dine_in_tab_opened',
+      ),
+    );
+    socket.on(
+      'dine_in_item_added',
+      (data) => _dispatchMapListeners(
+        _dineInTabEventListeners,
+        data,
+        'dine_in_item_added',
+      ),
+    );
+    socket.on(
+      'dine_in_tab_finalized',
+      (data) => _dispatchMapListeners(
+        _dineInTabEventListeners,
+        data,
+        'dine_in_tab_finalized',
+      ),
+    );
+    socket.on(
+      'dine_in_tab_paid',
+      (data) => _dispatchMapListeners(
+        _dineInTabEventListeners,
+        data,
+        'dine_in_tab_paid',
+      ),
+    );
+    socket.on(
+      'business_order_delivered',
+      (data) => _safeMapCallback(
+        _onBusinessOrderDelivered,
+        data,
+        'business_order_delivered',
+      ),
+    );
 
-    socket.on('order:location', (data) => _safeMapCallback(_onOrderLocation, data, 'order:location'));
-    socket.on('order:status', (data) => _safeMapCallback(_onOrderStatus, data, 'order:status'));
-    socket.on('order:eta', (data) => _safeMapCallback(_onOrderEta, data, 'order:eta'));
+    socket.on(
+      'order:location',
+      (data) => _safeMapCallback(_onOrderLocation, data, 'order:location'),
+    );
+    socket.on(
+      'order:status',
+      (data) => _safeMapCallback(_onOrderStatus, data, 'order:status'),
+    );
+    socket.on(
+      'order:eta',
+      (data) => _safeMapCallback(_onOrderEta, data, 'order:eta'),
+    );
 
     for (final event in const [
       'escrow_funded',
@@ -363,8 +464,14 @@ class SocketService {
     ]) {
       socket.on(event, (data) => _dispatchEscrow(data, event));
     }
-    socket.on('invoice_paid', (data) => _safeMapCallback(_onInvoicePaid, data, 'invoice_paid'));
-    socket.on('invoice_received', (data) => _safeMapCallback(_onInvoiceReceived, data, 'invoice_received'));
+    socket.on(
+      'invoice_paid',
+      (data) => _safeMapCallback(_onInvoicePaid, data, 'invoice_paid'),
+    );
+    socket.on(
+      'invoice_received',
+      (data) => _safeMapCallback(_onInvoiceReceived, data, 'invoice_received'),
+    );
   }
 
   void _handleBizNotification(dynamic data) {
@@ -405,12 +512,16 @@ class SocketService {
     }
     for (final id in _joinedTradeRooms) socket.emit('join_trade', id);
     for (final id in _joinedFriendRooms) {
-      socket.emit('join_friend_chat', {'friendshipId': id, 'userId': _currentUserId});
+      socket.emit('join_friend_chat', {
+        'friendshipId': id,
+        'userId': _currentUserId,
+      });
     }
     for (final id in _joinedGroupRooms) {
       socket.emit('join_group', {'groupId': id, 'userId': _currentUserId});
     }
-    for (final id in _joinedOrderRooms) socket.emit('join_order', {'orderId': id});
+    for (final id in _joinedOrderRooms)
+      socket.emit('join_order', {'orderId': id});
   }
 
   void joinTradeRoom(String tradeId) {
@@ -419,42 +530,58 @@ class SocketService {
     _socket?.emit('join_trade', id);
   }
 
-  void leaveTradeRoom(String tradeId) => _joinedTradeRooms.remove(tradeId.replaceAll('#', ''));
+  void leaveTradeRoom(String tradeId) =>
+      _joinedTradeRooms.remove(tradeId.replaceAll('#', ''));
   void joinFriendRoom(String friendshipId, String userId) {
     if (!_joinedFriendRooms.add(friendshipId)) return;
-    _socket?.emit('join_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
+    _socket?.emit('join_friend_chat', {
+      'friendshipId': friendshipId,
+      'userId': userId,
+    });
   }
+
   void leaveFriendRoom(String friendshipId, String userId) {
-    _socket?.emit('leave_friend_chat', {'friendshipId': friendshipId, 'userId': userId});
+    _socket?.emit('leave_friend_chat', {
+      'friendshipId': friendshipId,
+      'userId': userId,
+    });
     _joinedFriendRooms.remove(friendshipId);
   }
+
   void joinGroupRoom(String groupId, String userId) {
     if (!_joinedGroupRooms.add(groupId)) return;
     _socket?.emit('join_group', {'groupId': groupId, 'userId': userId});
   }
+
   void leaveGroupRoom(String groupId, String userId) {
     _socket?.emit('leave_group', {'groupId': groupId, 'userId': userId});
     _joinedGroupRooms.remove(groupId);
   }
+
   void joinOrderRoom(String orderId) {
     if (!_joinedOrderRooms.add(orderId)) return;
     _socket?.emit('join_order', {'orderId': orderId});
   }
+
   void leaveOrderRoom(String orderId) {
     _socket?.emit('leave_order', {'orderId': orderId});
     _joinedOrderRooms.remove(orderId);
   }
+
   void joinUserRoom(String userId) {
     _currentUserId = userId;
     _socket?.emit('join_user_room', {'userId': userId});
     _socket?.emit('join_balance_room', userId);
   }
-  void leaveRoom(String roomId) => _socket?.emit('leave_room', {'roomId': roomId});
+
+  void leaveRoom(String roomId) =>
+      _socket?.emit('leave_room', {'roomId': roomId});
 
   void emit(String event, dynamic data) {
     final socket = _socket;
     if (socket == null || !socket.connected) {
-      if (AppConfig.enableNetworkLogs) debugPrint('[SocketService] emit skipped: $event');
+      if (AppConfig.enableNetworkLogs)
+        debugPrint('[SocketService] emit skipped: $event');
       return;
     }
     socket.emit(event, data);
@@ -544,7 +671,9 @@ class SocketService {
   void _dispatchEscrow(dynamic data, String event) {
     try {
       final payload = _toMap(data);
-      for (final cb in List<void Function(Map<String, dynamic>, String)>.from(_escrowListeners)) {
+      for (final cb in List<void Function(Map<String, dynamic>, String)>.from(
+        _escrowListeners,
+      )) {
         try {
           cb(payload, event);
         } catch (callbackError) {
@@ -557,13 +686,15 @@ class SocketService {
   }
 
   void _dispatchMapListeners(
-      Set<void Function(Map<String, dynamic>)> listeners,
-      dynamic data,
-      String event,
+    Set<void Function(Map<String, dynamic>)> listeners,
+    dynamic data,
+    String event,
   ) {
     try {
       final payload = _toMap(data);
-      for (final cb in List<void Function(Map<String, dynamic>)>.from(listeners)) {
+      for (final cb in List<void Function(Map<String, dynamic>)>.from(
+        listeners,
+      )) {
         try {
           cb(payload);
         } catch (callbackError) {
@@ -575,7 +706,11 @@ class SocketService {
     }
   }
 
-  void _safeMapCallback(void Function(Map<String, dynamic>)? cb, dynamic data, String event) {
+  void _safeMapCallback(
+    void Function(Map<String, dynamic>)? cb,
+    dynamic data,
+    String event,
+  ) {
     try {
       cb?.call(_toMap(data));
     } catch (e) {

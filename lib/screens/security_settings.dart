@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,22 +9,39 @@ import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
+import 'package:azaman/services/app_unlock_gateway.dart';
 import 'package:azaman/services/biometric_service.dart';
+import 'package:azaman/services/money_unlock_flow.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
+/// The security screen's single HTTP client. Injectable because the false
+/// states this screen used to report (a PIN "removed", 2FA "enabled" the moment
+/// a secret was minted) are only provable by driving real responses.
+final securityApiClientProvider = Provider<ApiClient>((ref) => ApiClient());
+
+/// What the screen knows about this account's unlock methods.
+enum _UnlockCapsPhase { loading, known, unknown }
 
 class SecuritySettingsScreen extends ConsumerStatefulWidget {
   const SecuritySettingsScreen({super.key});
 
   @override
-  ConsumerState<SecuritySettingsScreen> createState() => _SecuritySettingsScreenState();
+  ConsumerState<SecuritySettingsScreen> createState() =>
+      _SecuritySettingsScreenState();
 }
 
-class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen> {
+class _SecuritySettingsScreenState
+    extends ConsumerState<SecuritySettingsScreen> {
   bool _twoFactorEnabled = false;
+
+  /// A secret has been minted and the QR is on screen, but NO code has been
+  /// confirmed yet. The authenticator is not protecting anything at this
+  /// point, so this must never read as "enabled".
+  bool _twoFactorPending = false;
   bool _showQrSetup = false;
   final _verificationCodeController = TextEditingController();
   final _pinController = TextEditingController();
+  final _pinCurrentController = TextEditingController();
   final _pinConfirmController = TextEditingController();
   bool _pinSet = false;
   // r42 — unfinished durable financial operations (process-death recovery).
@@ -35,6 +53,19 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   bool _obscurePinConfirm = true;
   bool _loading2fa = false;
   bool _loadingPin = false;
+
+  /// The app-unlock capability read. Three states, because "we asked and could
+  /// not find out" is not the same answer as "this account has nothing set up":
+  /// showing an existing member as unconfigured is the bug this exists to stop.
+  _UnlockCapsPhase _unlockCapsPhase = _UnlockCapsPhase.loading;
+  AppUnlockCapabilities? _unlockCaps;
+
+  /// Every read is stamped, so a slow answer for a previous account cannot
+  /// paint itself over the current member's screen.
+  int _unlockCapsGeneration = 0;
+
+  /// The code typed into the turn-off-2FA dialog.
+  final TextEditingController _disableCodeController = TextEditingController();
 
   String _qrData = '';
   String _secret = '';
@@ -67,6 +98,45 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     // });
     _loadBiometricState();
     _loadSessions();
+    _loadUnlockCapabilities();
+  }
+
+  /// Ask the server what this account can actually use to unlock money.
+  ///
+  /// The screen used to default every factor to "not configured" and never ask,
+  /// so a member who HAD a PIN saw an unconfigured account. Availability is a
+  /// server fact; this screen only reports what the server said.
+  Future<void> _loadUnlockCapabilities() async {
+    final generation = ++_unlockCapsGeneration;
+    final userId = ref.read(currentUserProvider).value?.id;
+    if (mounted) {
+      setState(() => _unlockCapsPhase = _UnlockCapsPhase.loading);
+    }
+    try {
+      final caps = await ref.read(appUnlockGatewayProvider).capabilities();
+      if (!mounted || generation != _unlockCapsGeneration) return;
+      if (ref.read(currentUserProvider).value?.id != userId) return;
+      setState(() {
+        _unlockCaps = caps;
+        _unlockCapsPhase = _UnlockCapsPhase.known;
+        // The server's answer is the only reason these may read as configured,
+        // and it is also the only reason they may read as unconfigured: the
+        // old `|| _pinSet` latch meant a PIN deleted elsewhere kept demanding a
+        // current PIN here. A failed read never reaches this branch, it becomes
+        // "unknown", so nothing is cleared on a guess.
+        _pinSet = caps.pinConfigured;
+        if (caps.authenticatorConfigured) {
+          _twoFactorEnabled = true;
+          _twoFactorPending = false;
+        }
+      });
+    } catch (_) {
+      if (!mounted || generation != _unlockCapsGeneration) return;
+      setState(() {
+        _unlockCaps = null;
+        _unlockCapsPhase = _UnlockCapsPhase.unknown;
+      });
+    }
   }
 
   Future<void> _loadBiometricState() async {
@@ -97,7 +167,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
             AzamanHaptics.warn();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Authentication failed. Biometric lock not enabled.'),
+                content: Text(
+                  'Authentication failed. Biometric lock not enabled.',
+                ),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -121,7 +193,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
             AzamanHaptics.warn();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Authentication failed. Biometric lock remains on.'),
+                content: Text(
+                  'Authentication failed. Biometric lock remains on.',
+                ),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -143,23 +217,30 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
   void dispose() {
     _verificationCodeController.dispose();
     _pinController.dispose();
+    _pinCurrentController.dispose();
     _pinConfirmController.dispose();
+    _disableCodeController.dispose();
     super.dispose();
   }
 
   void _onToggle2fa(bool value) async {
     if (value) {
       // Enable: call setup endpoint to get QR code
-      setState(() { _loading2fa = true; });
+      setState(() {
+        _loading2fa = true;
+      });
       final token = ref.read(authProvider).user?.token;
       try {
-        final apiClient = ApiClient();
+        final apiClient = ref.read(securityApiClientProvider);
         final res = await apiClient.post('/security/2fa/setup', {});
         if (res.statusCode == 200 || res.statusCode == 201) {
           final body = jsonDecode(res.body);
           final data = body['data'] ?? body;
           setState(() {
-            _twoFactorEnabled = true;
+            // A secret exists; nothing is enabled until the server confirms a
+            // code from it. Showing "on" here was the defect.
+            _twoFactorEnabled = false;
+            _twoFactorPending = true;
             _showQrSetup = true;
             _qrData = data['qrCodeDataURL'] ?? data['otpauthUrl'] ?? '';
             _secret = data['secret'] ?? '';
@@ -185,39 +266,119 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         if (mounted) setState(() => _loading2fa = false);
       }
     } else {
-      // Disable: show code input to confirm disable
-      setState(() {
-        _twoFactorEnabled = false;
-        _showQrSetup = false;
-        _verificationCodeController.clear();
-      });
-      _disable2fa();
+      // Turning protection OFF needs proof, and the switch must not move until
+      // the server agrees. Flipping it first meant a member could walk away
+      // believing 2FA was off while the backend still required it.
+      await _confirmDisable2fa();
+      return;
     }
     HapticFeedback.mediumImpact();
   }
 
-  Future<void> _disable2fa() async {
-    final code = _verificationCodeController.text.trim();
+  /// Ask for the current code, then disable. The switch only moves after the
+  /// server confirms; a refusal leaves protection ON and says why. Every branch
+  /// here used to end in silence, which is the worst possible outcome for a
+  /// security switch.
+  Future<void> _confirmDisable2fa() async {
+    // Owned by the State, not by this call: disposing it when showDialog
+    // returns tears the controller out from under the dialog's own exit
+    // animation, which throws "used after being disposed".
+    final controller = _disableCodeController..clear();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        final colors = ref.read(themeProvider).colors;
+        return AlertDialog(
+          backgroundColor: colors.surface,
+          title: Text(
+            'Turn off two-factor authentication?',
+            style: TextStyle(color: colors.textPrimary),
+          ),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            textAlign: TextAlign.center,
+            decoration: const InputDecoration(
+              counterText: '',
+              hintText: '6-digit code',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, controller.text.trim()),
+              child: const Text('Turn off'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted || code == null) return;
+    await _disable2fa(code);
+  }
+
+  Future<void> _disable2fa(String code) async {
     if (code.length != 6) {
-      // Just toggle off the UI; they'll need to verify next time
+      _securityNotice('Enter the 6-digit code from your authenticator', false);
       return;
     }
-    final token = ref.read(authProvider).user?.token;
+    setState(() => _loading2fa = true);
     try {
-      final apiClient = ApiClient();
-      final res = await apiClient.post('/security/2fa/disable', {'token': code});
+      final apiClient = ref.read(securityApiClientProvider);
+      final res = await apiClient.post('/security/2fa/disable', {
+        'token': code,
+      });
       if (res.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('2FA disabled successfully'),
-            backgroundColor: ref.read(themeProvider).colors.warning,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        // Confirmed off by the server — only now does the switch move.
+        setState(() {
+          _twoFactorEnabled = false;
+          _twoFactorPending = false;
+          _showQrSetup = false;
+          _verificationCodeController.clear();
+        });
+        _securityNotice('Two-factor authentication is off', false);
+      } else {
+        _securityNotice(_serverMessage(res, 'Could not turn off 2FA'), true);
       }
-    } catch (e) {
-      debugPrint('Disable 2FA error: $e');
+    } on ApiException catch (e) {
+      // The client raises on non-2xx, so a refusal arrives here, not as a
+      // status code. Its message is the server's own reason — the member is
+      // told why the code was rejected AND that protection is still on.
+      _securityNotice(e.message, true);
+    } catch (_) {
+      _securityNotice('Could not reach Azaman. 2FA is still on.', true);
+    } finally {
+      if (mounted) setState(() => _loading2fa = false);
     }
+  }
+
+  /// The server's own message, or a truthful fallback. Never a guessed one.
+  String _serverMessage(dynamic res, String fallback) {
+    try {
+      final body = jsonDecode(res.body);
+      final message = body['message'] ?? body['error'];
+      if (message is String && message.trim().isNotEmpty) return message;
+    } catch (_) {
+      // Non-JSON error body: the fallback is the honest answer.
+    }
+    return fallback;
+  }
+
+  void _securityNotice(String message, bool isError) {
+    if (!mounted) return;
+    final colors = ref.read(themeProvider).colors;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? colors.danger : colors.success,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _verifyCode() async {
@@ -232,24 +393,24 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       );
       return;
     }
-    
+
     setState(() => _loading2fa = true);
     final token = ref.read(authProvider).user?.token;
-    
+
     try {
-      final apiClient = ApiClient();
+      final apiClient = ref.read(securityApiClientProvider);
       final res = await apiClient.post('/security/2fa/verify', {'token': code});
-      
+
       if (res.statusCode == 200) {
         HapticFeedback.heavyImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('2FA enabled successfully'),
-            backgroundColor: ref.read(themeProvider).colors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        setState(() => _showQrSetup = false);
+        _securityNotice('Two-factor authentication is on', false);
+        setState(() {
+          _showQrSetup = false;
+          _twoFactorPending = false;
+          // Enabled, because the SERVER confirmed a code from the secret.
+          _twoFactorEnabled = true;
+          _verificationCodeController.clear();
+        });
       } else {
         final errBody = jsonDecode(res.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -299,35 +460,76 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       return;
     }
 
-    setState(() => _loadingPin = true);
-    final token = ref.read(authProvider).user?.token;
-
-    try {
-      final apiClient = ApiClient();
-      final res = await apiClient.post('/security/pin/set', {'pin': pin});
-
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        HapticFeedback.heavyImpact();
-        setState(() => _pinSet = true);
-        _pinController.clear();
-        _pinConfirmController.clear();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Azaman PIN set successfully'),
-            backgroundColor: ref.read(themeProvider).colors.success,
-            behavior: SnackBarBehavior.floating,
+    // FAIL CLOSED ON AN UNCONFIRMED PIN STATUS.
+    //
+    // "/security/pin/set" on backend main reads only `pin` and overwrites
+    // pinHash: no proof of the current PIN, no compare-and-swap, no refusal
+    // codes. The verifying handler ships with the app-unlock routes, and the
+    // capabilities read is the only signal this client has that they are
+    // deployed. When that read fails, "no PIN yet" and "rotate an existing
+    // PIN" are indistinguishable, so writing could silently replace a PIN the
+    // member never proved. Nothing is written and nothing is claimed.
+    if (_unlockCapsPhase != _UnlockCapsPhase.known) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Your PIN status could not be confirmed, so nothing was changed. '
+            'Try again in a moment.',
           ),
-        );
-      } else {
-        final errBody = jsonDecode(res.body);
+          backgroundColor: ref.read(themeProvider).colors.danger,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      unawaited(_loadUnlockCapabilities());
+      return;
+    }
+
+    final currentPin = _pinCurrentController.text.trim();
+    if (_pinSet) {
+      if (currentPin.length != 4) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errBody['message'] ?? 'Failed to set PIN'),
+            content: const Text('Enter your current PIN to change it'),
             backgroundColor: ref.read(themeProvider).colors.danger,
             behavior: SnackBarBehavior.floating,
           ),
         );
+        return;
       }
+    }
+
+    setState(() => _loadingPin = true);
+
+    try {
+      final apiClient = ref.read(securityApiClientProvider);
+
+      // One server-authoritative proof-and-update. The backend verifies the
+      // current PIN inside this same request and refuses without touching the
+      // hash, so a second /pin/verify call would be a rival verification path
+      // that can disagree with the one that actually guards the write.
+      await apiClient.post('/security/pin/set', {
+        'pin': pin,
+        if (_pinSet) 'currentPin': currentPin,
+      });
+
+      HapticFeedback.heavyImpact();
+      setState(() => _pinSet = true);
+      unawaited(_loadUnlockCapabilities());
+      _pinController.clear();
+      _pinConfirmController.clear();
+      _pinCurrentController.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Azaman PIN set successfully'),
+          backgroundColor: ref.read(themeProvider).colors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } on ApiException catch (err) {
+      // A refusal is NOT a network fault. ApiClient throws for every non-2xx
+      // response, so this is where the server's own code arrives: treating it
+      // as a transport error used to hide a refusal behind "Network error".
+      _showPinRefusal(code: err.code ?? '', message: err.message);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -341,20 +543,62 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     }
   }
 
-  void _removePin() {
-    setState(() => _pinSet = false);
-    HapticFeedback.mediumImpact();
+  /// Refusals are reported as refusals. The codes are the contract:
+  /// PIN_FORMAT_INVALID, PIN_CURRENT_REQUIRED, PIN_REQUIRED, PIN_INVALID,
+  /// PIN_LOCKED, PIN_ROTATION_CONFLICT and PIN_NOT_CONFIGURED.
+  ///
+  /// Two of them mean the client's view of the account is older than the
+  /// server's, so the screen asks again instead of leaving the member to retry
+  /// against a state that no longer exists. Nothing here ever reports a change,
+  /// touches [_pinSet] upward, or discards the new PIN the member typed, and
+  /// none of them claims what the active PIN currently is: after a conflict the
+  /// stored hash may have been replaced by another operation, so the only
+  /// truthful statement about it is that this attempt was not applied.
+  void _showPinRefusal({required String code, required String message}) {
+    if (!mounted) return;
+    final refusal = switch (code) {
+      'PIN_CURRENT_REQUIRED' => 'Enter your current PIN to change it.',
+      'PIN_REQUIRED' =>
+        'Your current PIN was missing from that request, so nothing was '
+            'changed. Enter it and try again.',
+      'PIN_INVALID' => 'That is not the current PIN. Nothing was changed.',
+      'PIN_LOCKED' =>
+        'Too many wrong attempts. Try again later. Nothing was changed.',
+      'PIN_FORMAT_INVALID' => 'A PIN is four digits.',
+      // A conflict means the compare-and-swap snapshot no longer matches the
+      // stored hash. Something changed the PIN while this screen was open, but
+      // which operation won and what the active PIN now is are facts only the
+      // server holds, so this must never say the PIN is unchanged: that would
+      // be a claim this client cannot make. It reports what it knows (the
+      // details changed, this attempt was not applied) and asks for the
+      // current PIN.
+      'PIN_ROTATION_CONFLICT' =>
+        'Your PIN details changed while this screen was open. This change '
+            "wasn't applied. Refresh and enter the current PIN to continue.",
+      'PIN_NOT_CONFIGURED' =>
+        'No Azaman PIN is set on this account yet, so there was no current PIN '
+            'to prove. Nothing was created. Save again to set one.',
+      _ => message,
+    };
+    if (code == 'PIN_NOT_CONFIGURED') {
+      // The server just said none exists: drop the current-PIN prompt rather
+      // than keep asking for proof of something that is not there.
+      setState(() => _pinSet = false);
+      unawaited(_loadUnlockCapabilities());
+    } else if (code == 'PIN_ROTATION_CONFLICT') {
+      // The proof we hold is stale. Clearing it asks for the right one without
+      // discarding the new PIN already typed.
+      _pinCurrentController.clear();
+      unawaited(_loadUnlockCapabilities());
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Azaman PIN removed'),
-        backgroundColor: ref.read(themeProvider).colors.warning,
+        content: Text(refusal),
+        backgroundColor: ref.read(themeProvider).colors.danger,
         behavior: SnackBarBehavior.floating,
       ),
     );
-    // Note: backend PIN removal could be wired here if endpoint exists
   }
-
-  @override
 
   // ── SESSION MANAGEMENT ──────────────────────────────────────────────────────
   Future<void> _loadSessions() async {
@@ -362,7 +606,10 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     try {
       final res = await apiClient.get('/security/sessions');
       final data = jsonDecode(res.body);
-      setState(() => _sessions = List<Map<String, dynamic>>.from(data['sessions'] ?? []));
+      setState(
+        () =>
+            _sessions = List<Map<String, dynamic>>.from(data['sessions'] ?? []),
+      );
     } catch (e) {
       debugPrint('[Security] session load error: $e');
     } finally {
@@ -375,14 +622,27 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: ref.watch(themeProvider).colors.card,
-        title: Text('Revoke Session?', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
-        content: Text('This will sign out that device immediately.',
-            style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
+        title: Text(
+          'Revoke Session?',
+          style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary),
+        ),
+        content: Text(
+          'This will sign out that device immediately.',
+          style: TextStyle(
+            color: ref.watch(themeProvider).colors.textSecondary,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Revoke', style: TextStyle(color: ref.watch(themeProvider).colors.danger)),
+            child: Text(
+              'Revoke',
+              style: TextStyle(color: ref.watch(themeProvider).colors.danger),
+            ),
           ),
         ],
       ),
@@ -403,14 +663,27 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: ref.watch(themeProvider).colors.card,
-        title: Text('Sign Out Everywhere?', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
-        content: Text('This will sign out ALL devices including this one. You\'ll need to log in again.',
-            style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
+        title: Text(
+          'Sign Out Everywhere?',
+          style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary),
+        ),
+        content: Text(
+          'This will sign out ALL devices including this one. You\'ll need to log in again.',
+          style: TextStyle(
+            color: ref.watch(themeProvider).colors.textSecondary,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Sign Out All', style: TextStyle(color: ref.watch(themeProvider).colors.danger)),
+            child: Text(
+              'Sign Out All',
+              style: TextStyle(color: ref.watch(themeProvider).colors.danger),
+            ),
           ),
         ],
       ),
@@ -439,24 +712,56 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: ref.watch(themeProvider).colors.card,
-            title: Text('Your Data Export', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary)),
+            title: Text(
+              'Your Data Export',
+              style: TextStyle(
+                color: ref.watch(themeProvider).colors.textPrimary,
+              ),
+            ),
             content: SizedBox(
               width: double.maxFinite,
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  Text('Here\'s a summary of your data:', style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary)),
-                  const SizedBox(height: 12),
-                  ...(data['summary'] as List<dynamic>?)?.map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(item['table'] ?? '', style: TextStyle(color: ref.watch(themeProvider).colors.textSecondary, fontSize: 13)),
-                        Text('${item['count']} records', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                      ],
+                  Text(
+                    'Here\'s a summary of your data:',
+                    style: TextStyle(
+                      color: ref.watch(themeProvider).colors.textSecondary,
                     ),
-                  )) ?? [],
+                  ),
+                  const SizedBox(height: 12),
+                  ...(data['summary'] as List<dynamic>?)?.map(
+                        (item) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                item['table'] ?? '',
+                                style: TextStyle(
+                                  color: ref
+                                      .watch(themeProvider)
+                                      .colors
+                                      .textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              Text(
+                                '${item['count']} records',
+                                style: TextStyle(
+                                  color: ref
+                                      .watch(themeProvider)
+                                      .colors
+                                      .textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ) ??
+                      [],
                 ],
               ),
             ),
@@ -468,14 +773,30 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
               TextButton(
                 onPressed: () {
                   // Copy full JSON to clipboard
-                  Clipboard.setData(ClipboardData(text: const JsonEncoder.withIndent('  ').convert(data)));
+                  Clipboard.setData(
+                    ClipboardData(
+                      text: const JsonEncoder.withIndent('  ').convert(data),
+                    ),
+                  );
                   AzamanHaptics.confirm();
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Data copied to clipboard', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary))),
+                    SnackBar(
+                      content: Text(
+                        'Data copied to clipboard',
+                        style: TextStyle(
+                          color: ref.watch(themeProvider).colors.textPrimary,
+                        ),
+                      ),
+                    ),
                   );
                 },
-                child: Text('Copy Full JSON', style: TextStyle(color: ref.watch(themeProvider).colors.accent)),
+                child: Text(
+                  'Copy Full JSON',
+                  style: TextStyle(
+                    color: ref.watch(themeProvider).colors.accent,
+                  ),
+                ),
               ),
             ],
           ),
@@ -485,7 +806,14 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       debugPrint('[Security] data export error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e', style: TextStyle(color: ref.watch(themeProvider).colors.textPrimary))),
+          SnackBar(
+            content: Text(
+              'Export failed: $e',
+              style: TextStyle(
+                color: ref.watch(themeProvider).colors.textPrimary,
+              ),
+            ),
+          ),
         );
       }
     } finally {
@@ -507,15 +835,15 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
           icon: Icon(Icons.arrow_back, color: colors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          'Security',
-          style: TextStyle(color: colors.textPrimary),
-        ),
+        title: Text('Security', style: TextStyle(color: colors.textPrimary)),
       ),
       body: ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         children: [
+          _sectionHeader('Unlock Money', colors),
+          _buildCard(colors, children: [_unlockMethodRows(colors)]),
+          const SizedBox(height: 20),
           _sectionHeader('Two-Factor Authentication', colors),
           _buildCard(
             colors,
@@ -524,14 +852,37 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                 colors,
                 icon: Icons.security,
                 title: 'Google Authenticator',
-                subtitle: 'Add an extra layer of security',
+                subtitle: _twoFactorEnabled
+                    ? 'On — a code is required when you sign in'
+                    : _twoFactorPending
+                    ? 'Not enabled yet — confirm a code below'
+                    : 'Add an extra layer of security',
                 value: _twoFactorEnabled,
-                onChanged: _onToggle2fa,
+                onChanged: _loading2fa ? null : _onToggle2fa,
               ),
-              if (_twoFactorEnabled && _showQrSetup) ...[
+              if (_showQrSetup && !_twoFactorEnabled) ...[
                 const SizedBox(height: 4),
                 Divider(color: colors.divider, height: 1),
                 const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: colors.warning),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        // No claim of protection until a code lands.
+                        'Two-factor authentication is not on yet. It turns on '
+                        'when you confirm a code from this secret.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: colors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(16),
@@ -540,7 +891,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: AnimatedQrDust(
-                      data: _qrData.isNotEmpty ? _qrData : 'otpauth://totp/Azaman?secret=$_secret&issuer=Azaman',
+                      data: _qrData.isNotEmpty
+                          ? _qrData
+                          : 'otpauth://totp/Azaman?secret=$_secret&issuer=Azaman',
                       size: 180,
                       inkColor: Colors.black,
                       backgroundColor: Colors.white,
@@ -552,10 +905,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                 Text(
                   'Scan this QR code in Google Authenticator',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: colors.textTertiary,
-                  ),
+                  style: TextStyle(fontSize: 12, color: colors.textTertiary),
                 ),
                 const SizedBox(height: 20),
                 TextField(
@@ -600,8 +950,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                     onPressed: _verifyCode,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -619,6 +970,19 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                 ),
                 const SizedBox(height: 8),
               ],
+            ],
+          ),
+
+          const SizedBox(height: 28),
+          _sectionHeader('Preferred unlock method', colors),
+          _buildCard(
+            colors,
+            children: [
+              // The Home trigger asks for whatever this member chose, not
+              // whatever the device happens to have. Only methods this account
+              // can actually satisfy are offered; an unavailable one is named
+              // as unavailable instead of silently replaced.
+              ..._preferenceRows(colors),
             ],
           ),
 
@@ -649,102 +1013,106 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
           _buildCard(
             colors,
             children: [
-              if (!_pinSet) ...[
-                _pinField(
-                  colors,
-                  label: 'New 4-digit PIN',
-                  controller: _pinController,
-                  obscure: _obscurePin,
-                  onToggleObscure: () =>
-                      setState(() => _obscurePin = !_obscurePin),
-                ),
-                const SizedBox(height: 12),
-                _pinField(
-                  colors,
-                  label: 'Confirm PIN',
-                  controller: _pinConfirmController,
-                  obscure: _obscurePinConfirm,
-                  onToggleObscure: () => setState(
-                      () => _obscurePinConfirm = !_obscurePinConfirm),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _savePin,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              // The status of this account's PIN is a server fact. Until it
+              // arrives, the card may imply neither "no PIN" (which would
+              // offer a first-time form over an existing secret) nor "PIN
+              // active" (which would offer rotation the server may not have).
+              if (_unlockCapsPhase != _UnlockCapsPhase.known) ...[
+                ..._pinStatusUnavailable(colors),
+              ] else ...[
+                if (_pinSet) ...[
+                  // A status line, not a control: there is no removal endpoint,
+                  // and the form below is the only thing that can change it.
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline,
+                        size: 18,
+                        color: colors.success,
                       ),
-                      elevation: 0,
-                    ),
-                    child: Text(
-                      'Set PIN',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: colors.isDark ? Colors.black : Colors.white,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Azaman PIN active',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: colors.textPrimary,
+                          ),
+                        ),
                       ),
+                      Text(
+                        'Change it below',
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // The server is the authority for rotation: it must be told
+                  // the PIN being replaced, so the member proves they know it
+                  // before a new one is written.
+                  _pinField(
+                    colors,
+                    label: 'Current 4-digit PIN',
+                    controller: _pinCurrentController,
+                    obscure: _obscurePin,
+                    onToggleObscure: () =>
+                        setState(() => _obscurePin = !_obscurePin),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                ...[
+                  _pinField(
+                    colors,
+                    label: _pinSet ? 'New 4-digit PIN' : 'New 4-digit PIN',
+                    controller: _pinController,
+                    obscure: _obscurePin,
+                    onToggleObscure: () =>
+                        setState(() => _obscurePin = !_obscurePin),
+                  ),
+                  const SizedBox(height: 12),
+                  _pinField(
+                    colors,
+                    label: 'Confirm PIN',
+                    controller: _pinConfirmController,
+                    obscure: _obscurePinConfirm,
+                    onToggleObscure: () => setState(
+                      () => _obscurePinConfirm = !_obscurePinConfirm,
                     ),
                   ),
-                ),
-              ] else ...[
-                Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: colors.success.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      // A second tap while the first is still in flight would
+                      // be a second write of the same secret.
+                      onPressed: _loadingPin ? null : _savePin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colors.accent,
+                        foregroundColor: colors.isDark
+                            ? Colors.black
+                            : Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
                       ),
-                      child: Icon(
-                        Icons.check_circle_outline,
-                        color: colors.success,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Azaman PIN active',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: colors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Used for transaction authorization',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colors.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: _removePin,
                       child: Text(
-                        'Remove',
+                        _loadingPin ? 'Saving…' : 'Set PIN',
                         style: TextStyle(
-                          color: colors.danger,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: colors.isDark ? Colors.black : Colors.white,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ],
             ],
           ),
@@ -761,11 +1129,18 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                   child: Center(child: CircularProgressIndicator()),
                 )
               else if (_sessions.isEmpty) ...[
-                _infoRow(colors, icon: Icons.devices, text: 'No active sessions found. Pull to refresh.'),
+                _infoRow(
+                  colors,
+                  icon: Icons.devices,
+                  text: 'No active sessions found. Pull to refresh.',
+                ),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: _loadSessions,
-                  child: Text('Refresh', style: TextStyle(color: colors.accent)),
+                  child: Text(
+                    'Refresh',
+                    style: TextStyle(color: colors.accent),
+                  ),
                 ),
               ] else ...[
                 ..._sessions.map((s) => _sessionTile(colors, s)),
@@ -775,10 +1150,17 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                   child: OutlinedButton.icon(
                     onPressed: _revokeAllSessions,
                     icon: Icon(Icons.logout, color: colors.danger, size: 18),
-                    label: Text('Sign Out All Devices', style: TextStyle(color: colors.danger)),
+                    label: Text(
+                      'Sign Out All Devices',
+                      style: TextStyle(color: colors.danger),
+                    ),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: colors.danger.withValues(alpha: 0.3)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(
+                        color: colors.danger.withValues(alpha: 0.3),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -795,7 +1177,8 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
               _infoRow(
                 colors,
                 icon: Icons.sync_outlined,
-                text: 'Operations that were interrupted before confirming '
+                text:
+                    'Operations that were interrupted before confirming '
                     '(app closed, connection lost). Resuming reuses the '
                     'original safety key and can never double-send. '
                     'Nothing here is ever deleted while unresolved.',
@@ -809,7 +1192,8 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                 _infoRow(
                   colors,
                   icon: Icons.lock_outline,
-                  text: 'Account could not be verified right now. For your '
+                  text:
+                      'Account could not be verified right now. For your '
                       'safety the resumable-operation list is hidden until '
                       'sign-in is restored.',
                 )
@@ -820,7 +1204,9 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                   text: 'No unfinished financial operations.',
                 )
               else
-                ..._pendingOps.map((op) => Column(children: [
+                ..._pendingOps.map(
+                  (op) => Column(
+                    children: [
                       Divider(color: colors.divider, height: 1),
                       _actionRow(
                         colors,
@@ -830,10 +1216,14 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                         subtitle:
                             '${op.safeSummary()} · key …${op.key.substring(op.key.length - 6)}'
                             '${op.secretFields.isEmpty ? '' : ' · needs fresh confirmation'}',
-                        onTap: _pendingOpsRetrying ? null : () => _retryPendingOp(op),
+                        onTap: _pendingOpsRetrying
+                            ? null
+                            : () => _retryPendingOp(op),
                         isLoading: _pendingOpsRetrying,
                       ),
-                    ])),
+                    ],
+                  ),
+                ),
             ],
           ),
           _sectionHeader('Privacy & Data', colors),
@@ -852,7 +1242,8 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
               _infoRow(
                 colors,
                 icon: Icons.shield_outlined,
-                text: 'Your data is portable. Export includes your profile, transactions, trades, messages, and more.',
+                text:
+                    'Your data is portable. Export includes your profile, transactions, trades, messages, and more.',
               ),
             ],
           ),
@@ -871,9 +1262,12 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       child: Row(
         children: [
           Container(
-            width: 40, height: 40,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: isCurrent ? colors.success.withValues(alpha: 0.1) : colors.accentSurface,
+              color: isCurrent
+                  ? colors.success.withValues(alpha: 0.1)
+                  : colors.accentSurface,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
@@ -890,26 +1284,48 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
                 Row(
                   children: [
                     Text(
-                      device.length > 30 ? '${device.substring(0, 30)}...' : device,
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: colors.textPrimary),
+                      device.length > 30
+                          ? '${device.substring(0, 30)}...'
+                          : device,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: colors.textPrimary,
+                      ),
                     ),
                     if (isCurrent) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: colors.success.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text('This device', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: colors.success)),
+                        child: Text(
+                          'This device',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: colors.success,
+                          ),
+                        ),
                       ),
                     ],
                   ],
                 ),
                 if (ip.isNotEmpty)
-                  Text(ip, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                  Text(
+                    ip,
+                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                  ),
                 if (created.isNotEmpty)
-                  Text(created, style: TextStyle(fontSize: 11, color: colors.textTertiary)),
+                  Text(
+                    created,
+                    style: TextStyle(fontSize: 11, color: colors.textTertiary),
+                  ),
               ],
             ),
           ),
@@ -939,23 +1355,41 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         child: Row(
           children: [
             Container(
-              width: 44, height: 44,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: colors.accentSurface,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: isLoading
-                ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: colors.accent))
-                : Icon(icon, color: colors.accent, size: 22),
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.accent,
+                      ),
+                    )
+                  : Icon(icon, color: colors.accent, size: 22),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: colors.textPrimary)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(fontSize: 12, color: colors.textTertiary)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: colors.textTertiary),
+                  ),
                 ],
               ),
             ),
@@ -965,7 +1399,11 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     );
   }
 
-  Widget _infoRow(AzamanColors colors, {required IconData icon, required String text}) {
+  Widget _infoRow(
+    AzamanColors colors, {
+    required IconData icon,
+    required String text,
+  }) {
     return Row(
       children: [
         Icon(icon, color: colors.textTertiary, size: 20),
@@ -1031,31 +1469,34 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         // away the user's ability to resume it. Nothing is sent instead.
         if (gathered.values.any((v) => v.toString().trim().isEmpty)) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(
-                'Enter your credentials to resume ${op.type}.'),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Enter your credentials to resume ${op.type}.'),
+            ),
+          );
           return;
         }
         freshSecrets.addAll(gathered);
       }
       await apiClient.retryRecovered(op, freshSecrets: freshSecrets);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${op.type}: resumed and finished.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${op.type}: resumed and finished.')),
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       // Retained statuses (401/409/429/5xx) keep the instance armed — it
       // stays listed here until it reaches a terminal outcome.
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('${op.type}: ${e.message}'),
-      ));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${op.type}: ${e.message}')));
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Network unavailable — operation stays resumable.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Network unavailable — operation stays resumable.'),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _pendingOpsRetrying = false);
       await _loadPendingOperations();
@@ -1073,31 +1514,43 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirm to resume'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('Resuming "${op.type}" requires fresh confirmation. '
-              'Your credentials are never stored and go only to this retry.'),
-          ...op.secretFields.map((f) => Padding(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Resuming "${op.type}" requires fresh confirmation. '
+              'Your credentials are never stored and go only to this retry.',
+            ),
+            ...op.secretFields.map(
+              (f) => Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: TextField(
                   controller: controllers[f],
                   obscureText: true,
                   autofocus: f == op.secretFields.first,
                   decoration: InputDecoration(
-                    labelText: f.toLowerCase().contains('totp') ||
+                    labelText:
+                        f.toLowerCase().contains('totp') ||
                             f.toLowerCase().contains('otp')
                         ? 'Authenticator code'
-                        : (f.toLowerCase().contains('pin') ? 'PIN' : 'Password'),
+                        : (f.toLowerCase().contains('pin')
+                              ? 'PIN'
+                              : 'Password'),
                   ),
                 ),
-              )),
-        ]),
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Resume')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Resume'),
+          ),
         ],
       ),
     );
@@ -1107,10 +1560,7 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
       }
       return null;
     }
-    final gathered = {
-      for (final e in controllers.entries)
-        e.key: e.value.text,
-    };
+    final gathered = {for (final e in controllers.entries) e.key: e.value.text};
     for (final c in controllers.values) {
       c.dispose();
     }
@@ -1132,6 +1582,77 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
     );
   }
 
+  /// The PIN card when the server has not said whether this account has a PIN.
+  ///
+  /// Rendering the form here was a defect of its own: it showed an empty
+  /// first-time setup over a PIN that might already exist, and the member only
+  /// learned the truth after pressing a button that then refused. This says
+  /// what is actually known (nothing yet), offers the one action that can
+  /// change that (ask again), and shows no field the client would write.
+  List<Widget> _pinStatusUnavailable(AzamanColors colors) {
+    final loading = _unlockCapsPhase == _UnlockCapsPhase.loading;
+    return [
+      Row(
+        children: [
+          Icon(
+            loading ? Icons.hourglass_empty : Icons.help_outline,
+            size: 18,
+            color: colors.textTertiary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              loading ? 'Checking your PIN status…' : 'PIN status unavailable',
+              key: const ValueKey('pin-status-unavailable'),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: colors.textPrimary,
+              ),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Text(
+        loading
+            ? 'Azaman is asking the server what this account can use.'
+            : 'Azaman could not confirm whether this account has a PIN, so '
+                  'setting or changing one is unavailable right now. Nothing '
+                  'has been changed.',
+        style: TextStyle(
+          fontSize: 13,
+          height: 1.45,
+          color: colors.textSecondary,
+        ),
+      ),
+      if (!loading) ...[
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          height: 44,
+          child: OutlinedButton(
+            key: const ValueKey('pin-status-retry'),
+            onPressed: _loadUnlockCapabilities,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: colors.textPrimary,
+              side: BorderSide(
+                color: colors.textTertiary.withValues(alpha: 0.4),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'Check again',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
+    ];
+  }
+
   Widget _buildCard(AzamanColors colors, {required List<Widget> children}) {
     return Container(
       width: double.infinity,
@@ -1146,6 +1667,71 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         children: children,
       ),
     );
+  }
+
+  /// The methods this account can really use, in the order the unlock flow
+  /// tries them. Nothing here is a promise the backend has not made.
+  List<Widget> _preferenceRows(AzamanColors colors) {
+    final chosen = ref.watch(moneyUnlockPreferenceProvider);
+    final userId = ref.read(currentUserProvider).value?.id;
+    final rows = <Widget>[];
+
+    void add(AppUnlockMethod method, String title, String subtitle) {
+      final selected = chosen == method;
+      rows.add(
+        Material(
+          type: MaterialType.transparency,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              selected
+                  ? Icons.radio_button_checked_rounded
+                  : Icons.radio_button_unchecked_rounded,
+              color: selected ? colors.accent : colors.textTertiary,
+            ),
+            title: Text(title),
+            subtitle: Text(subtitle),
+            onTap: () async {
+              await ref
+                  .read(moneyUnlockPreferenceProvider.notifier)
+                  .remember(userId, method);
+              if (mounted) AzamanHaptics.commit();
+            },
+          ),
+        ),
+      );
+    }
+
+    if (_biometricAvailable) {
+      add(
+        AppUnlockMethod.deviceAuth,
+        'Device authentication',
+        'Face, fingerprint or the device passcode',
+      );
+    }
+    if (_pinSet) {
+      add(AppUnlockMethod.pin, 'Azaman PIN', 'The 4-digit PIN you set here');
+    }
+    if (_twoFactorEnabled && !_twoFactorPending) {
+      add(
+        AppUnlockMethod.totp,
+        'Authenticator app',
+        'A code from your authenticator',
+      );
+    }
+    if (rows.isEmpty) {
+      rows.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            'No unlock method is configured yet. Set a PIN below, or enroll a '
+            'fingerprint or face on this device.',
+            style: TextStyle(color: colors.textSecondary),
+          ),
+        ),
+      );
+    }
+    return rows;
   }
 
   Widget _toggleRow(
@@ -1244,5 +1830,140 @@ class _SecuritySettingsScreenState extends ConsumerState<SecuritySettingsScreen>
         ),
       ),
     );
+  }
+
+  /// One truthful row per unlock method. No row is ever rendered from a local
+  /// boolean: the value comes from the capability read, or the row says the
+  /// answer is unknown.
+  Widget _unlockMethodRows(colors) {
+    if (_unlockCapsPhase == _UnlockCapsPhase.loading) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.textTertiary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              'Checking what this account can use…',
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+    if (_unlockCapsPhase == _UnlockCapsPhase.unknown) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.help_outline, size: 16, color: colors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'We could not confirm this account\'s unlock methods.',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'That is not the same as having none set up. Retry when you are '
+              'online.',
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
+            TextButton(
+              onPressed: _loadUnlockCapabilities,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final caps = _unlockCaps!;
+    final rows = <Widget>[
+      _capabilityRow(
+        colors,
+        icon: Icons.password,
+        title: 'Azaman PIN',
+        status: caps.pinConfigured ? 'Configured' : 'Not configured',
+        available: caps.pinConfigured,
+      ),
+      _capabilityRow(
+        colors,
+        icon: Icons.security,
+        title: 'Authenticator app',
+        status: caps.authenticatorConfigured ? 'Configured' : 'Not configured',
+        available: caps.authenticatorConfigured,
+      ),
+      _capabilityRow(
+        colors,
+        icon: Icons.sms_outlined,
+        title: 'SMS code',
+        // Offered only when the server says it can actually send one, and when
+        // it cannot, the server's own reason is what the member reads.
+        status: caps.smsUnlockAvailable
+            ? 'Available'
+            : _smsUnavailableCopy(caps.smsUnavailableReason),
+        available: caps.smsUnlockAvailable,
+      ),
+    ];
+    return Column(children: rows);
+  }
+
+  Widget _capabilityRow(
+    colors, {
+    required IconData icon,
+    required String title,
+    required String status,
+    required bool available,
+  }) {
+    return ListTile(
+      dense: true,
+      leading: Icon(
+        icon,
+        size: 20,
+        color: available ? colors.textPrimary : colors.textTertiary,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(color: colors.textPrimary, fontSize: 14),
+      ),
+      subtitle: Text(
+        status,
+        style: TextStyle(
+          color: available ? colors.success : colors.textTertiary,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  /// The server's reason, in words a member can act on. An unknown reason is
+  /// reported as unknown rather than guessed.
+  String _smsUnavailableCopy(String? reason) {
+    switch (reason) {
+      case 'PHONE_UNVERIFIED':
+        return 'Not available — verify your phone number first';
+      case 'SMS_SERVICE_UNAVAILABLE':
+        return 'Not available — SMS sending is not configured';
+      default:
+        return 'Not available';
+    }
   }
 }

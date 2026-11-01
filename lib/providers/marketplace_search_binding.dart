@@ -16,7 +16,8 @@ class MarketplaceSearchBinding {
   MarketplaceSearchBinding(this.ref);
   final WidgetRef ref;
 
-  MarketplaceSearchNotifier get _n => ref.read(marketplaceSearchProvider.notifier);
+  MarketplaceSearchNotifier get _n =>
+      ref.read(marketplaceSearchProvider.notifier);
 
   void onChanged(String text) => _n.changed(text);
   void onSubmit(String _) => _n.submit();
@@ -24,5 +25,9 @@ class MarketplaceSearchBinding {
   void clear() => _n.clear();
 
   List<String> placeholders(MarketplaceSearchState s, {String? storeName}) =>
-      MarketplacePlaceholders.forScope(s.scope, world: s.worldWire, storeName: storeName);
+      MarketplacePlaceholders.forScope(
+        s.scope,
+        world: s.worldWire,
+        storeName: storeName,
+      );
 }

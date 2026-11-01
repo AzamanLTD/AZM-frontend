@@ -5,8 +5,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/widgets/liquid/category_speed_dial.dart'
-    show kDialGooBody, kDialGooRim, measureSatellitePill, satelliteScale,
-        satelliteTravel, solveRadialFan;
+    show
+        kDialGooBody,
+        kDialGooRim,
+        measureSatellitePill,
+        satelliteScale,
+        satelliteTravel,
+        solveRadialFan;
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/liquid/liquid_placement.dart';
@@ -133,28 +138,41 @@ void main() {
 
     test('first two satellites establish the straight horizontal line '
         'through the anchor, opening into the right-side space', () {
-      final slots =
-          solveRadialFan(anchor: anchor, sizes: sizes, safe: safe, rightFan: true);
+      final slots = solveRadialFan(
+        anchor: anchor,
+        sizes: sizes,
+        safe: safe,
+        rightFan: true,
+      );
       expect(slots.length, 4);
       // The first two satellite positions are ON the anchor's horizontal
       // center line — a straight line through the selected category.
       for (final i in [0, 1]) {
-        expect(slots[i].rect.center.dy, closeTo(anchor.center.dy, 0.5),
-            reason: 'slot $i left the horizontal line');
+        expect(
+          slots[i].rect.center.dy,
+          closeTo(anchor.center.dy, 0.5),
+          reason: 'slot $i left the horizontal line',
+        );
       }
       // The horizontal-line pair opens into the right-side space, past the
       // anchor's edge — never centered around it.
       for (final i in [0, 1]) {
-        expect(slots[i].rect.left, greaterThanOrEqualTo(anchor.right - 1),
-            reason: 'slot $i leaked behind the anchor');
+        expect(
+          slots[i].rect.left,
+          greaterThanOrEqualTo(anchor.right - 1),
+          reason: 'slot $i leaked behind the anchor',
+        );
       }
     });
 
     test('remaining satellites open AWAY from the baseline in equal 45° '
-        'steps, mirrored above and below it (+45°, −45°), not a cascade',
-        () {
-      final slots =
-          solveRadialFan(anchor: anchor, sizes: sizes, safe: safe, rightFan: true);
+        'steps, mirrored above and below it (+45°, −45°), not a cascade', () {
+      final slots = solveRadialFan(
+        anchor: anchor,
+        sizes: sizes,
+        safe: safe,
+        rightFan: true,
+      );
       final c2 = slots[2].rect.center;
       final c3 = slots[3].rect.center;
       // The old 0/0/45/90 cascade funneled satellites 3 and 4 onto ONE
@@ -163,10 +181,16 @@ void main() {
       // BELOW the anchor line, one ABOVE it, both on the opening side.
       expect(c2.dx, greaterThan(anchor.center.dx));
       expect(c3.dx, greaterThan(anchor.center.dx));
-      expect(c2.dy, greaterThan(anchor.center.dy),
-          reason: 'the +45° slot opens below the baseline');
-      expect(c3.dy, lessThan(anchor.center.dy),
-          reason: 'the −45° slot opens above the baseline');
+      expect(
+        c2.dy,
+        greaterThan(anchor.center.dy),
+        reason: 'the +45° slot opens below the baseline',
+      );
+      expect(
+        c3.dy,
+        lessThan(anchor.center.dy),
+        reason: 'the −45° slot opens above the baseline',
+      );
       // The ANGLE grammar mirrors: |+45°| == |−45°| — equal angular
       // steps opening to both sides of the baseline. (Positional symmetry
       // is not asserted: the safe-area clamp may pull the side with less
@@ -177,41 +201,67 @@ void main() {
 
       // Both stay meaningfully clear of the baseline (a real 45° step,
       // not a token nudge), even after clamping.
-      expect((c2.dy - anchor.center.dy).abs(),
-          greaterThan(anchor.height * 0.5));
-      expect((c3.dy - anchor.center.dy).abs(),
-          greaterThan(anchor.height * 0.5));
+      expect(
+        (c2.dy - anchor.center.dy).abs(),
+        greaterThan(anchor.height * 0.5),
+      );
+      expect(
+        (c3.dy - anchor.center.dy).abs(),
+        greaterThan(anchor.height * 0.5),
+      );
 
       // And every satellite remains FULLY inside the safe area — the
       // mirrored pair opens, but nothing is ever clipped offscreen.
       for (final slot in slots) {
-        expect(slot.rect.top, greaterThanOrEqualTo(safe.top - 0.5),
-            reason: 'slot ${slot.index} clipped above the safe area');
-        expect(slot.rect.bottom, lessThanOrEqualTo(safe.bottom + 0.5),
-            reason: 'slot ${slot.index} clipped below the safe area');
-        expect(slot.rect.left, greaterThanOrEqualTo(safe.left - 0.5),
-            reason: 'slot ${slot.index} clipped left of the safe area');
-        expect(slot.rect.right, lessThanOrEqualTo(safe.right + 0.5),
-            reason: 'slot ${slot.index} clipped right of the safe area');
+        expect(
+          slot.rect.top,
+          greaterThanOrEqualTo(safe.top - 0.5),
+          reason: 'slot ${slot.index} clipped above the safe area',
+        );
+        expect(
+          slot.rect.bottom,
+          lessThanOrEqualTo(safe.bottom + 0.5),
+          reason: 'slot ${slot.index} clipped below the safe area',
+        );
+        expect(
+          slot.rect.left,
+          greaterThanOrEqualTo(safe.left - 0.5),
+          reason: 'slot ${slot.index} clipped left of the safe area',
+        );
+        expect(
+          slot.rect.right,
+          lessThanOrEqualTo(safe.right + 0.5),
+          reason: 'slot ${slot.index} clipped right of the safe area',
+        );
       }
     });
 
     test('every pill stays whole: safe-contained, anchor-clear, and '
         'mutually non-overlapping', () {
-      final slots =
-          solveRadialFan(anchor: anchor, sizes: sizes, safe: safe, rightFan: true);
+      final slots = solveRadialFan(
+        anchor: anchor,
+        sizes: sizes,
+        safe: safe,
+        rightFan: true,
+      );
       for (final s in slots) {
         expect(s.rect.left, greaterThanOrEqualTo(safe.left - 0.01));
         expect(s.rect.right, lessThanOrEqualTo(safe.right + 0.01));
         expect(s.rect.top, greaterThanOrEqualTo(safe.top - 0.01));
         expect(s.rect.bottom, lessThanOrEqualTo(safe.bottom - 0.01));
-        expect(s.rect.overlaps(anchor.deflate(1)), isFalse,
-            reason: 'slot ${s.index} overlaps the anchor');
+        expect(
+          s.rect.overlaps(anchor.deflate(1)),
+          isFalse,
+          reason: 'slot ${s.index} overlaps the anchor',
+        );
       }
       for (var i = 0; i < slots.length; i++) {
         for (var j = i + 1; j < slots.length; j++) {
-          expect(slots[i].rect.overlaps(slots[j].rect), isFalse,
-              reason: 'slots $i and $j collide');
+          expect(
+            slots[i].rect.overlaps(slots[j].rect),
+            isFalse,
+            reason: 'slots $i and $j collide',
+          );
         }
       }
     });
@@ -220,11 +270,18 @@ void main() {
         'right of centre (positions are solved, not hard-coded)', () {
       final rightAnchor = const Rect.fromLTWH(282, 88, 92, 44);
       final slots = solveRadialFan(
-          anchor: rightAnchor, sizes: sizes, safe: safe, rightFan: true);
+        anchor: rightAnchor,
+        sizes: sizes,
+        safe: safe,
+        rightFan: true,
+      );
       // The horizontal-line pair opens LEFT, past the anchor's other edge.
       for (final i in [0, 1]) {
-        expect(slots[i].rect.right, lessThanOrEqualTo(rightAnchor.left + 1),
-            reason: 'slot $i opened into the dead side');
+        expect(
+          slots[i].rect.right,
+          lessThanOrEqualTo(rightAnchor.left + 1),
+          reason: 'slot $i opened into the dead side',
+        );
       }
       // Everything stays anchor-clear and safe-contained (the vertical
       // steps may share the anchor's x-band — they sit below it).
@@ -239,13 +296,18 @@ void main() {
   // PR #142 FINAL PASS §2 — the dial blob is DELIBERATELY neutral gray,
   // independent of the theme surface. Pin it against BOTH palettes so a
   // future refactor can't quietly hand it back to colors.card/surface.
-  test('dial goo grays are neutral and distinct from both theme surfaces',
-      () {
+  test('dial goo grays are neutral and distinct from both theme surfaces', () {
     final light = ThemeProvider.getColors(AzamanTheme.light);
     final dark = ThemeProvider.getColors(AzamanTheme.dark);
     for (final c in [kDialGooBody, kDialGooRim]) {
-      for (final surface in [light.card, light.surface, light.background,
-          dark.card, dark.surface, dark.background]) {
+      for (final surface in [
+        light.card,
+        light.surface,
+        light.background,
+        dark.card,
+        dark.surface,
+        dark.background,
+      ]) {
         expect(c, isNot(surface));
       }
       // Neutral: no strong hue — the channel spread stays tight.

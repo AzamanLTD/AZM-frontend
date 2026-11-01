@@ -45,21 +45,29 @@ final connectivityProvider = StreamProvider<bool>((ref) {
 
   // Initial check — fire-and-forget. The stream's .when() will keep the
   // last-known value even after the first emission.
-  unawaited(connectivity.checkConnectivity().then((results) {
-    if (controller.isClosed) return;
-    controller.add(isOnline(results));
-  }).catchError((Object e) {
-    if (kDebugMode) debugPrint('[Connectivity] initial check failed: $e');
-    if (!controller.isClosed) controller.add(true); // Fail open.
-  }));
+  unawaited(
+    connectivity
+        .checkConnectivity()
+        .then((results) {
+          if (controller.isClosed) return;
+          controller.add(isOnline(results));
+        })
+        .catchError((Object e) {
+          if (kDebugMode) debugPrint('[Connectivity] initial check failed: $e');
+          if (!controller.isClosed) controller.add(true); // Fail open.
+        }),
+  );
 
   // Subscribe to subsequent changes.
-  final sub = connectivity.onConnectivityChanged.listen((results) {
-    if (controller.isClosed) return;
-    controller.add(isOnline(results));
-  }, onError: (Object e) {
-    if (kDebugMode) debugPrint('[Connectivity] stream error: $e');
-  });
+  final sub = connectivity.onConnectivityChanged.listen(
+    (results) {
+      if (controller.isClosed) return;
+      controller.add(isOnline(results));
+    },
+    onError: (Object e) {
+      if (kDebugMode) debugPrint('[Connectivity] stream error: $e');
+    },
+  );
 
   ref.onDispose(() {
     sub.cancel();
@@ -72,7 +80,9 @@ final connectivityProvider = StreamProvider<bool>((ref) {
 /// Convenience: a synchronous boolean for callers that only care about the
 /// last-known state (e.g. retry buttons that want to gate their tap on online).
 final isOnlineProvider = Provider<bool>((ref) {
-  return ref.watch(connectivityProvider).maybeWhen(
+  return ref
+      .watch(connectivityProvider)
+      .maybeWhen(
         data: (online) => online,
         // While loading or on error, assume online so we don't block UX.
         orElse: () => true,

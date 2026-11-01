@@ -11,7 +11,6 @@ import 'package:azaman/providers/smart_route_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/money/native_amount_display.dart';
 
-
 class SmartRouteCreateScreen extends ConsumerStatefulWidget {
   const SmartRouteCreateScreen({super.key});
 
@@ -20,7 +19,8 @@ class SmartRouteCreateScreen extends ConsumerStatefulWidget {
       _SmartRouteCreateScreenState();
 }
 
-class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen> {
+class _SmartRouteCreateScreenState
+    extends ConsumerState<SmartRouteCreateScreen> {
   final _name = TextEditingController(text: 'My Auto Payment');
   final _amount = TextEditingController();
 
@@ -61,9 +61,9 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
     final dest = <String, dynamic>{};
     if (_action == 'WITHDRAW_MOMO') {
       if (_momoNumber.text.trim().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Enter a MoMo number.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Enter a MoMo number.')));
         return;
       }
       dest['momoNumber'] = _momoNumber.text.trim();
@@ -78,7 +78,9 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -96,12 +98,14 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
           icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('New Smart Route',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            )),
+        title: Text(
+          'New Smart Route',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
@@ -118,44 +122,67 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: colors.accent.withValues(alpha: 0.2)),
               ),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(Icons.bolt_outlined, size: 18, color: colors.accent),
-                const SizedBox(width: 10),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text("What is a Smart Route?", style: TextStyle(
-                    color: colors.accent, fontSize: 13, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Smart Routes run automatically on a schedule. "
-                    "Set up a monthly MoMo withdrawal, recurring vault deposit, "
-                    "or scheduled transfer — once. It runs on its own after that.",
-                    style: TextStyle(color: colors.textSecondary, fontSize: 12, height: 1.4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.bolt_outlined, size: 18, color: colors.accent),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "What is a Smart Route?",
+                          style: TextStyle(
+                            color: colors.accent,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Smart Routes run automatically on a schedule. "
+                          "Set up a monthly MoMo withdrawal, recurring vault deposit, "
+                          "or scheduled transfer — once. It runs on its own after that.",
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ])),
-              ]),
+                ],
+              ),
             ),
             _label(colors, 'Action'),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: [
-                ('WITHDRAW_MOMO', 'MoMo Withdraw'),
-                ('INTERNAL_TRANSFER', 'Internal Transfer'),
-                ('SAVINGS_DEPOSIT', 'Savings Deposit'),
-                ('VAULT_DEPOSIT', 'Vault Deposit'),
-              ]
-                  .map((p) => ChoiceChip(
-                        selected: _action == p.$1,
-                        label: Text(p.$2),
-                        selectedColor: colors.accent.withValues(alpha: 0.20),
-                        onSelected: (_) => setState(() => _action = p.$1),
-                        labelStyle: TextStyle(
-                          color: _action == p.$1 ? colors.accent : colors.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+              children:
+                  [
+                        ('WITHDRAW_MOMO', 'MoMo Withdraw'),
+                        ('INTERNAL_TRANSFER', 'Internal Transfer'),
+                        ('SAVINGS_DEPOSIT', 'Savings Deposit'),
+                        ('VAULT_DEPOSIT', 'Vault Deposit'),
+                      ]
+                      .map(
+                        (p) => ChoiceChip(
+                          selected: _action == p.$1,
+                          label: Text(p.$2),
+                          selectedColor: colors.accent.withValues(alpha: 0.20),
+                          onSelected: (_) => setState(() => _action = p.$1),
+                          labelStyle: TextStyle(
+                            color: _action == p.$1
+                                ? colors.accent
+                                : colors.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ))
-                  .toList(),
+                      )
+                      .toList(),
             ),
             const SizedBox(height: 14),
             _label(colors, 'Name'),
@@ -181,17 +208,21 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
             Wrap(
               spacing: 6,
               children: ['DAILY', 'WEEKLY', 'MONTHLY', 'ON_DAY_OF_MONTH']
-                  .map((f) => ChoiceChip(
-                        selected: _frequency == f,
-                        label: Text(f),
-                        selectedColor: colors.accent.withValues(alpha: 0.20),
-                        onSelected: (_) => setState(() => _frequency = f),
-                        labelStyle: TextStyle(
-                          color: _frequency == f ? colors.accent : colors.textSecondary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ))
+                  .map(
+                    (f) => ChoiceChip(
+                      selected: _frequency == f,
+                      label: Text(f),
+                      selectedColor: colors.accent.withValues(alpha: 0.20),
+                      onSelected: (_) => setState(() => _frequency = f),
+                      labelStyle: TextStyle(
+                        color: _frequency == f
+                            ? colors.accent
+                            : colors.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
             if (_frequency == 'ON_DAY_OF_MONTH') ...[
@@ -213,17 +244,21 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
               Wrap(
                 spacing: 6,
                 children: ['MTN', 'VODAFONE', 'TELECEL']
-                    .map((p) => ChoiceChip(
-                          selected: _momoProvider == p,
-                          label: Text(p),
-                          selectedColor: colors.accent.withValues(alpha: 0.20),
-                          onSelected: (_) => setState(() => _momoProvider = p),
-                          labelStyle: TextStyle(
-                            color: _momoProvider == p ? colors.accent : colors.textSecondary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ))
+                    .map(
+                      (p) => ChoiceChip(
+                        selected: _momoProvider == p,
+                        label: Text(p),
+                        selectedColor: colors.accent.withValues(alpha: 0.20),
+                        onSelected: (_) => setState(() => _momoProvider = p),
+                        labelStyle: TextStyle(
+                          color: _momoProvider == p
+                              ? colors.accent
+                              : colors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    )
                     .toList(),
               ),
               const SizedBox(height: 10),
@@ -246,7 +281,10 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
                 ),
                 child: Text(
                   _busy ? 'Creating…' : 'Create Route',
-                  style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.4),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
                 ),
               ),
             ),
@@ -257,20 +295,24 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
   }
 
   Widget _label(AzamanColors colors, String s) => Padding(
-        padding: const EdgeInsets.only(bottom: 6, top: 2),
-        child: Text(
-          s.toUpperCase(),
-          style: TextStyle(
-            color: colors.textTertiary,
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 6, top: 2),
+    child: Text(
+      s.toUpperCase(),
+      style: TextStyle(
+        color: colors.textTertiary,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+      ),
+    ),
+  );
 
-  Widget _input(AzamanColors colors, TextEditingController c,
-      {String? hint, TextInputType? keyboard}) {
+  Widget _input(
+    AzamanColors colors,
+    TextEditingController c, {
+    String? hint,
+    TextInputType? keyboard,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: colors.card,
@@ -285,7 +327,11 @@ class _SmartRouteCreateScreenState extends ConsumerState<SmartRouteCreateScreen>
         // field's initial value — native-amount surface suite, Workstream D1).
         onChanged: (_) => setState(() {}),
         keyboardType: keyboard,
-        style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: hint,

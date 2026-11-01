@@ -34,7 +34,12 @@ class RestaurantNativeMenuJourney extends StatefulWidget {
   final List<BusinessProduct> uncategorisedProducts;
   final Map<String, RestaurantDish> dishesById;
   final AzamanColors colors;
-  final void Function(BusinessProduct product, Map<String, String> selections, int quantity) onAddToTray;
+  final void Function(
+    BusinessProduct product,
+    Map<String, String> selections,
+    int quantity,
+  )
+  onAddToTray;
   final bool showGallery;
   final bool showSpecifications;
   final bool showOptions;
@@ -77,7 +82,12 @@ class RestaurantNativeMenuJourney extends StatefulWidget {
     required String businessName,
     required MenuDocument document,
     required AzamanColors colors,
-    required void Function(BusinessProduct product, Map<String, String> selections, int quantity) onAddToTray,
+    required void Function(
+      BusinessProduct product,
+      Map<String, String> selections,
+      int quantity,
+    )
+    onAddToTray,
     bool showGallery = true,
     bool showSpecifications = true,
     bool showOptions = true,
@@ -86,35 +96,39 @@ class RestaurantNativeMenuJourney extends StatefulWidget {
     RestaurantOrderMode orderMode = RestaurantOrderMode.takeaway,
     ValueChanged<RestaurantOrderMode>? onOrderModeChanged,
     bool dineInAvailable = true,
-    MarketplaceDetailPresentation detailPresentation = MarketplaceDetailPresentation.dishDossier,
-  }) =>
-      RestaurantNativeMenuJourney(
-        key: key,
-        document: document,
-        businessName: businessName,
-        sections: const [],
-        uncategorisedProducts: const [],
-        dishesById: const {},
-        colors: colors,
-        onAddToTray: onAddToTray,
-        showGallery: showGallery,
-        showSpecifications: showSpecifications,
-        showOptions: showOptions,
-        showQuantity: showQuantity,
-        dineInContext: dineInContext,
-        orderMode: orderMode,
-        onOrderModeChanged: onOrderModeChanged,
-        dineInAvailable: dineInAvailable,
-        detailPresentation: detailPresentation,
-      );
+    MarketplaceDetailPresentation detailPresentation =
+        MarketplaceDetailPresentation.dishDossier,
+  }) => RestaurantNativeMenuJourney(
+    key: key,
+    document: document,
+    businessName: businessName,
+    sections: const [],
+    uncategorisedProducts: const [],
+    dishesById: const {},
+    colors: colors,
+    onAddToTray: onAddToTray,
+    showGallery: showGallery,
+    showSpecifications: showSpecifications,
+    showOptions: showOptions,
+    showQuantity: showQuantity,
+    dineInContext: dineInContext,
+    orderMode: orderMode,
+    onOrderModeChanged: onOrderModeChanged,
+    dineInAvailable: dineInAvailable,
+    detailPresentation: detailPresentation,
+  );
 
   /// Every product the journey can show, in menu order.
   List<BusinessProduct> get allProducts => document != null
       ? document!.items.map((i) => i.product).toList(growable: false)
-      : <BusinessProduct>[...sections.expand((s) => s.products), ...uncategorisedProducts];
+      : <BusinessProduct>[
+          ...sections.expand((s) => s.products),
+          ...uncategorisedProducts,
+        ];
 
   @override
-  State<RestaurantNativeMenuJourney> createState() => _RestaurantNativeMenuJourneyState();
+  State<RestaurantNativeMenuJourney> createState() =>
+      _RestaurantNativeMenuJourneyState();
 }
 
 class _MenuPage {
@@ -124,7 +138,8 @@ class _MenuPage {
   const _MenuPage(this.title, this.description, this.products);
 }
 
-class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourney> {
+class _RestaurantNativeMenuJourneyState
+    extends State<RestaurantNativeMenuJourney> {
   static const _pageSize = 4;
   final _bookKey = GlobalKey<FlipBookState>();
   late final FlipBookController _bookController;
@@ -155,23 +170,43 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.document, widget.document) ||
         !identical(oldWidget.sections, widget.sections) ||
-        !identical(oldWidget.uncategorisedProducts, widget.uncategorisedProducts)) {
+        !identical(
+          oldWidget.uncategorisedProducts,
+          widget.uncategorisedProducts,
+        )) {
       _pages = _buildPages();
     }
   }
 
   List<_MenuPage> _buildPages() {
     final pages = <_MenuPage>[];
-    void addSection(String title, String? description, List<BusinessProduct> products) {
+    void addSection(
+      String title,
+      String? description,
+      List<BusinessProduct> products,
+    ) {
       for (var start = 0; start < products.length; start += _pageSize) {
-        final end = start + _pageSize < products.length ? start + _pageSize : products.length;
-        pages.add(_MenuPage(title, start == 0 ? description : null, products.sublist(start, end)));
+        final end = start + _pageSize < products.length
+            ? start + _pageSize
+            : products.length;
+        pages.add(
+          _MenuPage(
+            title,
+            start == 0 ? description : null,
+            products.sublist(start, end),
+          ),
+        );
       }
     }
+
     final document = widget.document;
     if (document != null) {
       for (final chapter in document.chapters) {
-        addSection(chapter.title, chapter.description, chapter.items.map((i) => i.product).toList(growable: false));
+        addSection(
+          chapter.title,
+          chapter.description,
+          chapter.items.map((i) => i.product).toList(growable: false),
+        );
       }
       return pages;
     }
@@ -182,10 +217,13 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
     return pages;
   }
 
-  RestaurantDish? _knownDish(BusinessProduct product) =>
-      widget.document != null ? widget.document!.byId(product.id)?.dish : widget.dishesById[product.id];
+  RestaurantDish? _knownDish(BusinessProduct product) => widget.document != null
+      ? widget.document!.byId(product.id)?.dish
+      : widget.dishesById[product.id];
 
-  RestaurantDish _dishFor(BusinessProduct product) => _knownDish(product) ?? RestaurantDish(
+  RestaurantDish _dishFor(BusinessProduct product) =>
+      _knownDish(product) ??
+      RestaurantDish(
         id: product.id,
         name: product.name,
         description: product.description,
@@ -197,7 +235,12 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   @override
   Widget build(BuildContext context) {
     if (_pages.isEmpty) {
-      return Center(child: Text('Menu not yet available', style: TextStyle(color: widget.colors.textSecondary)));
+      return Center(
+        child: Text(
+          'Menu not yet available',
+          style: TextStyle(color: widget.colors.textSecondary),
+        ),
+      );
     }
     return Stack(
       fit: StackFit.expand,
@@ -214,16 +257,31 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
                   dineInEnabled: widget.dineInAvailable,
                 ),
               ),
-            if (widget.orderMode == RestaurantOrderMode.dineIn && widget.dineInContext != null && widget.dineInContext!.isNotEmpty)
+            if (widget.orderMode == RestaurantOrderMode.dineIn &&
+                widget.dineInContext != null &&
+                widget.dineInContext!.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: DecoratedBox(
-                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.34), borderRadius: BorderRadius.circular(14)),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.34),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      child: Text(widget.dineInContext!, style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
+                      child: Text(
+                        widget.dineInContext!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -243,7 +301,9 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
                       castShadow: Color(0x441A1206),
                       edge: Color(0xFFD8C6A2),
                     ),
-                    pageBuilder: (_, index) => index == 0 ? _cover() : _menuPage(_pages[index - 1], index),
+                    pageBuilder: (_, index) => index == 0
+                        ? _cover()
+                        : _menuPage(_pages[index - 1], index),
                   ),
                 ),
               ),
@@ -273,16 +333,44 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
           if (hero?.primaryImage != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(18),
-              child: AzamanNetworkImage(imageUrl: hero!.primaryImage!, width: 120, height: 120, fit: BoxFit.cover),
+              child: AzamanNetworkImage(
+                imageUrl: hero!.primaryImage!,
+                width: 120,
+                height: 120,
+                fit: BoxFit.cover,
+              ),
             )
           else
-            Icon(Icons.restaurant_menu_rounded, size: 58, color: widget.colors.accent),
+            Icon(
+              Icons.restaurant_menu_rounded,
+              size: 58,
+              color: widget.colors.accent,
+            ),
           const SizedBox(height: 16),
-          Text(widget.businessName, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF2D2416), fontSize: 20, fontWeight: FontWeight.w800)),
+          Text(
+            widget.businessName,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Color(0xFF2D2416),
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 6),
-          Text('MENU', style: TextStyle(color: widget.colors.accent, fontSize: 12, letterSpacing: 4, fontWeight: FontWeight.w800)),
+          Text(
+            'MENU',
+            style: TextStyle(
+              color: widget.colors.accent,
+              fontSize: 12,
+              letterSpacing: 4,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 22),
-          const Text('Turn from the edge to browse', style: TextStyle(color: Color(0xFF8B7A5A), fontSize: 11.5)),
+          const Text(
+            'Turn from the edge to browse',
+            style: TextStyle(color: Color(0xFF8B7A5A), fontSize: 11.5),
+          ),
         ],
       ),
     );
@@ -298,18 +386,50 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
             children: [
               Padding(
                 padding: const EdgeInsets.only(right: 92),
-                child: Text(page.title, style: const TextStyle(color: Color(0xFF2D2416), fontSize: 16, fontWeight: FontWeight.w800)),
+                child: Text(
+                  page.title,
+                  style: const TextStyle(
+                    color: Color(0xFF2D2416),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
               if (page.description != null && page.description!.isNotEmpty)
-                Padding(padding: const EdgeInsets.only(top: 4, right: 92), child: Text(page.description!, style: const TextStyle(color: Color(0xFF8B7A5A), fontSize: 10.5))),
-              const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Divider(color: Color(0xFFE8DCC4), height: 1)),
-              Expanded(child: ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: page.products.length,
-                separatorBuilder: (_, __) => const Divider(color: Color(0xFFE8DCC4), height: 16),
-                itemBuilder: (_, itemIndex) => _dishRow(page.products[itemIndex]),
-              )),
-              Align(alignment: Alignment.center, child: Text('$index', style: const TextStyle(color: Color(0xFFB8A88A), fontSize: 10))),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, right: 92),
+                  child: Text(
+                    page.description!,
+                    style: const TextStyle(
+                      color: Color(0xFF8B7A5A),
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 10),
+                child: Divider(color: Color(0xFFE8DCC4), height: 1),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: page.products.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(color: Color(0xFFE8DCC4), height: 16),
+                  itemBuilder: (_, itemIndex) =>
+                      _dishRow(page.products[itemIndex]),
+                ),
+              ),
+              Align(
+                alignment: Alignment.center,
+                child: Text(
+                  '$index',
+                  style: const TextStyle(
+                    color: Color(0xFFB8A88A),
+                    fontSize: 10,
+                  ),
+                ),
+              ),
             ],
           ),
           Positioned(
@@ -328,7 +448,8 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
 
   Widget _dishRow(BusinessProduct product) {
     final dish = _dishFor(product);
-    final configurable = dish.variants.isNotEmpty || dish.optionGroups.isNotEmpty;
+    final configurable =
+        dish.variants.isNotEmpty || dish.optionGroups.isNotEmpty;
     // GHS availability truth (review 2026-10-18): the menu row renders ONLY
     // the authoritative merchant GHS price — the legacy priceUsdc figure is
     // never a fallback. Without a server-confirmed GHS price the row says so
@@ -352,23 +473,73 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: product.primaryImage == null
-                    ? Container(width: 48, height: 48, color: widget.colors.softSurface, child: Icon(Icons.restaurant_rounded, color: widget.colors.textTertiary, size: 20))
-                    : AzamanNetworkImage(imageUrl: product.primaryImage!, width: 48, height: 48, fit: BoxFit.cover),
+                    ? Container(
+                        width: 48,
+                        height: 48,
+                        color: widget.colors.softSurface,
+                        child: Icon(
+                          Icons.restaurant_rounded,
+                          color: widget.colors.textTertiary,
+                          size: 20,
+                        ),
+                      )
+                    : AzamanNetworkImage(
+                        imageUrl: product.primaryImage!,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                      ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF2D2416), fontSize: 12.5, fontWeight: FontWeight.w700)),
-                    if (product.description != null && product.description!.isNotEmpty)
-                      Padding(padding: const EdgeInsets.only(top: 2), child: Text(product.description!, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF8B7A5A), fontSize: 10.5))),
+                    Text(
+                      product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF2D2416),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (product.description != null &&
+                        product.description!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          product.description!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF8B7A5A),
+                            fontSize: 10.5,
+                          ),
+                        ),
+                      ),
                     const SizedBox(height: 3),
-                    Text(product.priceGhs == null ? 'Price unavailable' : (configurable ? 'From GH₵${product.priceGhs}' : 'GH₵${product.priceGhs}'), style: const TextStyle(color: Color(0xFFB8860B), fontSize: 11.5, fontWeight: FontWeight.w800)),
+                    Text(
+                      product.priceGhs == null
+                          ? 'Price unavailable'
+                          : (configurable
+                                ? 'From GH₵${product.priceGhs}'
+                                : 'GH₵${product.priceGhs}'),
+                      style: const TextStyle(
+                        color: Color(0xFFB8860B),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Color(0xFFB8A88A), size: 18),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFFB8A88A),
+                size: 18,
+              ),
             ],
           ),
         ),
@@ -377,7 +548,10 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   }
 
   Widget _detailSheet(BusinessProduct product, RestaurantDish dish) {
-    final duration = MotionTokens.accessibleDuration(context, MotionTokens.standard);
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.standard,
+    );
     return MarketplaceDetailSurface(
       presentation: widget.detailPresentation,
       colors: widget.colors,
@@ -395,30 +569,148 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
       mainAxisSize: MainAxisSize.min,
       children: [
         if (widget.showGallery && dish.imageUrls.isNotEmpty)
-          SizedBox(height: 190, child: PageView.builder(itemCount: dish.imageUrls.length, itemBuilder: (_, index) => AzamanNetworkImage(imageUrl: dish.imageUrls[index], fit: BoxFit.cover)))
+          SizedBox(
+            height: 190,
+            child: PageView.builder(
+              itemCount: dish.imageUrls.length,
+              itemBuilder: (_, index) => AzamanNetworkImage(
+                imageUrl: dish.imageUrls[index],
+                fit: BoxFit.cover,
+              ),
+            ),
+          )
         else
-          Container(height: 112, color: widget.colors.softSurface, child: Icon(Icons.restaurant_menu_rounded, size: 42, color: widget.colors.textTertiary)),
+          Container(
+            height: 112,
+            color: widget.colors.softSurface,
+            child: Icon(
+              Icons.restaurant_menu_rounded,
+              size: 42,
+              color: widget.colors.textTertiary,
+            ),
+          ),
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 17, 20, 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(children: [Expanded(child: Text(product.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800))), IconButton(onPressed: _committing ? null : _closeDetail, icon: const Icon(Icons.close_rounded))]),
-                if (dish.description != null && dish.description!.isNotEmpty) Text(dish.description!, style: TextStyle(color: widget.colors.textSecondary, fontSize: 13, height: 1.35)),
-                if (widget.orderMode == RestaurantOrderMode.dineIn && widget.dineInContext != null && widget.dineInContext!.isNotEmpty)
-                  Padding(padding: const EdgeInsets.only(top: 9), child: Row(children: [Icon(Icons.table_restaurant_outlined, size: 15, color: widget.colors.textTertiary), const SizedBox(width: 5), Expanded(child: Text(widget.dineInContext!, style: TextStyle(color: widget.colors.textTertiary, fontSize: 11, fontWeight: FontWeight.w600)))])),
-                if (widget.showSpecifications && (dish.preparationMins != null || dish.calorieCount != null || dish.estimatedDelivery != null))
-                  Padding(padding: const EdgeInsets.only(top: 13), child: Wrap(spacing: 7, runSpacing: 7, children: [
-                    if (dish.preparationMins != null) _chip('${dish.preparationMins} min prep'),
-                    if (dish.calorieCount != null) _chip('${dish.calorieCount} kcal'),
-                    if (dish.estimatedDelivery != null && dish.estimatedDelivery!.isNotEmpty) _chip(dish.estimatedDelivery!),
-                  ])),
-                if (widget.showOptions && (dish.variants.isNotEmpty || dish.optionGroups.isNotEmpty)) _buildSheetLauncher(dish),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product.name,
+                        style: TextStyle(
+                          color: widget.colors.textPrimary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _committing ? null : _closeDetail,
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                if (dish.description != null && dish.description!.isNotEmpty)
+                  Text(
+                    dish.description!,
+                    style: TextStyle(
+                      color: widget.colors.textSecondary,
+                      fontSize: 13,
+                      height: 1.35,
+                    ),
+                  ),
+                if (widget.orderMode == RestaurantOrderMode.dineIn &&
+                    widget.dineInContext != null &&
+                    widget.dineInContext!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 9),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.table_restaurant_outlined,
+                          size: 15,
+                          color: widget.colors.textTertiary,
+                        ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            widget.dineInContext!,
+                            style: TextStyle(
+                              color: widget.colors.textTertiary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (widget.showSpecifications &&
+                    (dish.preparationMins != null ||
+                        dish.calorieCount != null ||
+                        dish.estimatedDelivery != null))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 13),
+                    child: Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        if (dish.preparationMins != null)
+                          _chip('${dish.preparationMins} min prep'),
+                        if (dish.calorieCount != null)
+                          _chip('${dish.calorieCount} kcal'),
+                        if (dish.estimatedDelivery != null &&
+                            dish.estimatedDelivery!.isNotEmpty)
+                          _chip(dish.estimatedDelivery!),
+                      ],
+                    ),
+                  ),
+                if (widget.showOptions &&
+                    (dish.variants.isNotEmpty || dish.optionGroups.isNotEmpty))
+                  _buildSheetLauncher(dish),
                 const SizedBox(height: 15),
-                Row(children: [Expanded(child: priceUnavailable ? Text('Price unavailable', style: TextStyle(color: widget.colors.textTertiary, fontSize: 15, fontWeight: FontWeight.w800)) : Text('${unit.toStringAsFixed(2)} USDC', style: TextStyle(color: widget.colors.accent, fontSize: 18, fontWeight: FontWeight.w900))), if (widget.showQuantity) _quantityControl()]),
+                Row(
+                  children: [
+                    Expanded(
+                      child: priceUnavailable
+                          ? Text(
+                              'Price unavailable',
+                              style: TextStyle(
+                                color: widget.colors.textTertiary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            )
+                          : Text(
+                              '${unit.toStringAsFixed(2)} USDC',
+                              style: TextStyle(
+                                color: widget.colors.accent,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                    ),
+                    if (widget.showQuantity) _quantityControl(),
+                  ],
+                ),
                 const SizedBox(height: 13),
-                SizedBox(width: double.infinity, child: FilledButton.icon(onPressed: canAdd && !priceUnavailable && !_committing ? _commit : null, icon: Icon(canAdd && !priceUnavailable ? Icons.add_shopping_cart_rounded : Icons.info_outline_rounded), label: Text(_addLabel(product, canAdd, unit)))),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: canAdd && !priceUnavailable && !_committing
+                        ? _commit
+                        : null,
+                    icon: Icon(
+                      canAdd && !priceUnavailable
+                          ? Icons.add_shopping_cart_rounded
+                          : Icons.info_outline_rounded,
+                    ),
+                    label: Text(_addLabel(product, canAdd, unit)),
+                  ),
+                ),
               ],
             ),
           ),
@@ -427,7 +719,21 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
     );
   }
 
-  Widget _chip(String label) => Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: widget.colors.softSurface, borderRadius: BorderRadius.circular(999)), child: Text(label, style: TextStyle(color: widget.colors.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w600)));
+  Widget _chip(String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: widget.colors.softSurface,
+      borderRadius: BorderRadius.circular(999),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(
+        color: widget.colors.textSecondary,
+        fontSize: 10.5,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 
   /// Fail-closed Add label: a missing/invalid effective price renders an
   /// explicit unavailable state — never a misleading 0.00 total.
@@ -447,14 +753,15 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
           _options[group.id]?.isNotEmpty ?? false,
       ],
     );
-    final requiredTotal = (dish.variants.isEmpty ? 0 : 1) +
+    final requiredTotal =
+        (dish.variants.isEmpty ? 0 : 1) +
         dish.optionGroups.where((group) => group.required).length;
     final complete = progress >= 1;
     final summary = dish.variants.isEmpty && dish.optionGroups.isEmpty
         ? 'No options required'
         : complete
-            ? 'Ready — all choices made'
-            : '${(progress * requiredTotal).round()} of $requiredTotal required chosen';
+        ? 'Ready — all choices made'
+        : '${(progress * requiredTotal).round()} of $requiredTotal required chosen';
     return Padding(
       padding: const EdgeInsets.only(top: 15),
       child: Semantics(
@@ -469,7 +776,9 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
               color: widget.colors.softSurface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: complete ? widget.colors.accent.withValues(alpha: 0.55) : Colors.transparent,
+                color: complete
+                    ? widget.colors.accent.withValues(alpha: 0.55)
+                    : Colors.transparent,
               ),
             ),
             child: Row(
@@ -480,13 +789,35 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Build your dish', style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
+                      Text(
+                        'Build your dish',
+                        style: TextStyle(
+                          color: widget.colors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(summary, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: complete ? widget.colors.accent : widget.colors.textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                      Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: complete
+                              ? widget.colors.accent
+                              : widget.colors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Icon(Icons.tune_rounded, size: 18, color: widget.colors.textTertiary),
+                Icon(
+                  Icons.tune_rounded,
+                  size: 18,
+                  color: widget.colors.textTertiary,
+                ),
               ],
             ),
           ),
@@ -507,8 +838,23 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
           accent: widget.colors.accent,
         ),
         child: complete
-            ? Center(child: Icon(Icons.check_rounded, size: 17, color: widget.colors.accent))
-            : Center(child: Text('${(progress * 100).round()}', style: TextStyle(color: widget.colors.textSecondary, fontSize: 9, fontWeight: FontWeight.w800))),
+            ? Center(
+                child: Icon(
+                  Icons.check_rounded,
+                  size: 17,
+                  color: widget.colors.accent,
+                ),
+              )
+            : Center(
+                child: Text(
+                  '${(progress * 100).round()}',
+                  style: TextStyle(
+                    color: widget.colors.textSecondary,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
       ),
     );
   }
@@ -529,7 +875,8 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
           _options
             ..clear()
             ..addAll({
-              for (final entry in options.entries) entry.key: Set<String>.from(entry.value),
+              for (final entry in options.entries)
+                entry.key: Set<String>.from(entry.value),
             });
           AzamanHaptics.confirm();
         }),
@@ -566,7 +913,8 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
   bool _canAdd(BusinessProduct product, RestaurantDish dish) {
     if (!product.isActive || !dish.available) return false;
     if (!widget.showOptions) return true;
-    if (dish.variants.isNotEmpty && (_size == null || _size!.isEmpty)) return false;
+    if (dish.variants.isNotEmpty && (_size == null || _size!.isEmpty))
+      return false;
     for (final group in dish.optionGroups) {
       if (group.required && (_options[group.id]?.isEmpty ?? true)) return false;
     }
@@ -575,13 +923,34 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
 
   Widget _quantityControl() {
     return Container(
-      decoration: BoxDecoration(color: widget.colors.softSurface, borderRadius: BorderRadius.circular(13)),
+      decoration: BoxDecoration(
+        color: widget.colors.softSurface,
+        borderRadius: BorderRadius.circular(13),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null, icon: const Icon(Icons.remove_rounded, size: 18)),
-          SizedBox(width: 22, child: Text('$_quantity', textAlign: TextAlign.center, style: TextStyle(color: widget.colors.textPrimary, fontWeight: FontWeight.w800))),
-          IconButton(onPressed: _quantity < 20 ? () => setState(() => _quantity++) : null, icon: const Icon(Icons.add_rounded, size: 18)),
+          IconButton(
+            onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
+            icon: const Icon(Icons.remove_rounded, size: 18),
+          ),
+          SizedBox(
+            width: 22,
+            child: Text(
+              '$_quantity',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: widget.colors.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: _quantity < 20
+                ? () => setState(() => _quantity++)
+                : null,
+            icon: const Icon(Icons.add_rounded, size: 18),
+          ),
         ],
       ),
     );
@@ -595,71 +964,175 @@ class _RestaurantNativeMenuJourneyState extends State<RestaurantNativeMenuJourne
     if (_size != null && _size!.isNotEmpty) selections['size'] = _size!;
     for (final group in dish.optionGroups) {
       final chosen = _options[group.id] ?? const <String>{};
-      final names = group.options.where((option) => chosen.contains(option.id)).map((option) => option.name).toList()..sort();
+      final names =
+          group.options
+              .where((option) => chosen.contains(option.id))
+              .map((option) => option.name)
+              .toList()
+            ..sort();
       if (names.isNotEmpty) selections[group.name] = names.join(', ');
     }
-    final duration = MotionTokens.accessibleDuration(context, MotionTokens.microInteraction);
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.microInteraction,
+    );
     setState(() => _committing = true);
     Future<void>.delayed(duration, () {
       if (!mounted) return;
-      widget.onAddToTray(product, selections, widget.showQuantity ? _quantity : 1);
-      setState(() { _committing = false; _product = null; _dish = null; });
+      widget.onAddToTray(
+        product,
+        selections,
+        widget.showQuantity ? _quantity : 1,
+      );
+      setState(() {
+        _committing = false;
+        _product = null;
+        _dish = null;
+      });
     });
   }
 
   void _closeDetail() {
     if (_committing) return;
-    setState(() { _product = null; _dish = null; });
+    setState(() {
+      _product = null;
+      _dish = null;
+    });
   }
 
   Widget _commitFeedback() {
-    final duration = MotionTokens.accessibleDuration(context, MotionTokens.spatial);
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.spatial,
+    );
     final content = Container(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
       decoration: const BoxDecoration(
         color: Color(0xFFFDF6E3),
         border: Border.fromBorderSide(BorderSide(color: Color(0xFFD8C6A2))),
-        boxShadow: [BoxShadow(color: Color(0x44000000), blurRadius: 14, offset: Offset(0, 6))],
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x44000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
-      child: const Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.restaurant_menu_rounded, size: 18, color: Color(0xFF2D2416)),
-        SizedBox(width: 8),
-        Text('Dish added from the menu', style: TextStyle(color: Color(0xFF2D2416), fontSize: 12.5, fontWeight: FontWeight.w800)),
-      ]),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.restaurant_menu_rounded,
+            size: 18,
+            color: Color(0xFF2D2416),
+          ),
+          SizedBox(width: 8),
+          Text(
+            'Dish added from the menu',
+            style: TextStyle(
+              color: Color(0xFF2D2416),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
     );
-    return Positioned.fill(child: IgnorePointer(child: Align(alignment: Alignment.bottomCenter, child: TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.7, end: 1), duration: duration, curve: MotionTokens.enter,
-      builder: (_, value, child) => Transform.translate(offset: Offset(0, 70 * (1 - value)), child: Opacity(opacity: value, child: child)),
-      child: content,
-    ))));
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.7, end: 1),
+            duration: duration,
+            curve: MotionTokens.enter,
+            builder: (_, value, child) => Transform.translate(
+              offset: Offset(0, 70 * (1 - value)),
+              child: Opacity(opacity: value, child: child),
+            ),
+            child: content,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _paperSurface(Widget child) => DecoratedBox(
-    decoration: const BoxDecoration(gradient: LinearGradient(colors: [Color(0xFFF3E9D2), Color(0xFFFDF6E3), Color(0xFFFFFBF0)])),
-    child: Padding(padding: const EdgeInsets.fromLTRB(26, 24, 20, 15), child: child),
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Color(0xFFF3E9D2), Color(0xFFFDF6E3), Color(0xFFFFFBF0)],
+      ),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(26, 24, 20, 15),
+      child: child,
+    ),
   );
 
   Widget _navigationControls() => Padding(
     padding: const EdgeInsets.fromLTRB(20, 0, 20, 13),
-    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      _navButton(Icons.chevron_left_rounded, 'Previous page', _page > 0, () => _bookKey.currentState?.turnBackward()),
-      const SizedBox(width: 18),
-      SizedBox(width: 100, child: Text(_page == 0 ? 'Cover' : '$_page / ${_pages.length}', textAlign: TextAlign.center, style: TextStyle(color: Colors.white.withValues(alpha: 0.78), fontSize: 11.5, fontWeight: FontWeight.w600))),
-      const SizedBox(width: 18),
-      _navButton(Icons.chevron_right_rounded, 'Next page', _page < _pages.length, () => _bookKey.currentState?.turnForward()),
-    ]),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _navButton(
+          Icons.chevron_left_rounded,
+          'Previous page',
+          _page > 0,
+          () => _bookKey.currentState?.turnBackward(),
+        ),
+        const SizedBox(width: 18),
+        SizedBox(
+          width: 100,
+          child: Text(
+            _page == 0 ? 'Cover' : '$_page / ${_pages.length}',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        const SizedBox(width: 18),
+        _navButton(
+          Icons.chevron_right_rounded,
+          'Next page',
+          _page < _pages.length,
+          () => _bookKey.currentState?.turnForward(),
+        ),
+      ],
+    ),
   );
 
-  Widget _navButton(IconData icon, String label, bool enabled, VoidCallback onTap) => Semantics(
-    button: true, enabled: enabled, label: label,
+  Widget _navButton(
+    IconData icon,
+    String label,
+    bool enabled,
+    VoidCallback onTap,
+  ) => Semantics(
+    button: true,
+    enabled: enabled,
+    label: label,
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: enabled ? onTap : null,
       child: AnimatedOpacity(
-        duration: MotionTokens.accessibleDuration(context, MotionTokens.control),
+        duration: MotionTokens.accessibleDuration(
+          context,
+          MotionTokens.control,
+        ),
         opacity: enabled ? 1 : 0.3,
-        child: Container(width: 34, height: 34, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: 0.10), border: Border.all(color: Colors.white.withValues(alpha: 0.18))), child: Icon(icon, color: Colors.white, size: 20)),
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white.withValues(alpha: 0.10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Icon(icon, color: Colors.white, size: 20),
+        ),
       ),
     ),
   );
@@ -693,7 +1166,13 @@ class _CompletionRingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius), -math.pi / 2, 2 * math.pi * progress, false, arc);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      2 * math.pi * progress,
+      false,
+      arc,
+    );
   }
 
   @override
@@ -730,7 +1209,8 @@ class _RestaurantBuildSheet extends StatefulWidget {
 class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
   late String? _size = widget.initialSize;
   late final SelectedOptionIdsForGroup _options = {
-    for (final entry in widget.initialOptions.entries) entry.key: Set<String>.from(entry.value),
+    for (final entry in widget.initialOptions.entries)
+      entry.key: Set<String>.from(entry.value),
   };
 
   double? _unitPrice() {
@@ -820,8 +1300,8 @@ class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
                 unitPrice == null
                     ? 'Price unavailable'
                     : canClose
-                        ? 'Done · ${unitPrice.toStringAsFixed(2)} USDC'
-                        : 'Choose required options',
+                    ? 'Done · ${unitPrice.toStringAsFixed(2)} USDC'
+                    : 'Choose required options',
               ),
             ),
           ),
@@ -829,17 +1309,40 @@ class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
       ),
     );
   }
+
   Widget _variantChoices() => Padding(
     padding: const EdgeInsets.only(top: 4),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Size', style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
-      const SizedBox(height: 7),
-      Wrap(spacing: 7, runSpacing: 7, children: widget.dish.variants.map((variant) => ChoiceChip(
-        label: Text(variant.priceDelta == 0 ? variant.name : '${variant.name} +${variant.priceDelta.toStringAsFixed(2)}'),
-        selected: _size == variant.name,
-        onSelected: (_) => setState(() => _size = variant.name),
-      )).toList()),
-    ]),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Size',
+          style: TextStyle(
+            color: widget.colors.textPrimary,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 7),
+        Wrap(
+          spacing: 7,
+          runSpacing: 7,
+          children: widget.dish.variants
+              .map(
+                (variant) => ChoiceChip(
+                  label: Text(
+                    variant.priceDelta == 0
+                        ? variant.name
+                        : '${variant.name} +${variant.priceDelta.toStringAsFixed(2)}',
+                  ),
+                  selected: _size == variant.name,
+                  onSelected: (_) => setState(() => _size = variant.name),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    ),
   );
 
   Widget _modifierGroup(RestaurantOptionGroup group) {
@@ -847,38 +1350,79 @@ class _RestaurantBuildSheetState extends State<_RestaurantBuildSheet> {
     final multi = group.maxSelection > 1;
     return Padding(
       padding: const EdgeInsets.only(top: 14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [Expanded(child: Text(group.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700))), Text(group.required ? 'Required' : (multi ? 'Up to ${group.maxSelection}' : 'Optional'), style: TextStyle(color: widget.colors.textTertiary, fontSize: 10))]),
-        const SizedBox(height: 4),
-        ...group.options.map((option) {
-          final checked = selected.contains(option.id);
-          // The paper sheet paints a ColoredBox background between the tile
-          // and the nearest Material ancestor, which would hide ink
-          // splashes (and trips the ListTile debug assertion). Give each
-          // modifier row its own transparent Material.
-          return Material(
-            color: Colors.transparent,
-            child: CheckboxListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            value: checked,
-            onChanged: (value) => setState(() {
-              if (value == true) {
-                if (!multi) {
-                  selected..clear()..add(option.id);
-                } else if (selected.length < group.maxSelection) {
-                  selected.add(option.id);
-                }
-              } else {
-                selected.remove(option.id);
-              }
-            }),
-            title: Text(option.name, style: TextStyle(color: widget.colors.textPrimary, fontSize: 12)),
-            secondary: option.priceDelta == 0 ? null : Text('+${option.priceDelta.toStringAsFixed(2)}', style: TextStyle(color: widget.colors.textSecondary, fontSize: 10)),
-            ),
-          );
-        }),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  group.name,
+                  style: TextStyle(
+                    color: widget.colors.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Text(
+                group.required
+                    ? 'Required'
+                    : (multi ? 'Up to ${group.maxSelection}' : 'Optional'),
+                style: TextStyle(
+                  color: widget.colors.textTertiary,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ...group.options.map((option) {
+            final checked = selected.contains(option.id);
+            // The paper sheet paints a ColoredBox background between the tile
+            // and the nearest Material ancestor, which would hide ink
+            // splashes (and trips the ListTile debug assertion). Give each
+            // modifier row its own transparent Material.
+            return Material(
+              color: Colors.transparent,
+              child: CheckboxListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                value: checked,
+                onChanged: (value) => setState(() {
+                  if (value == true) {
+                    if (!multi) {
+                      selected
+                        ..clear()
+                        ..add(option.id);
+                    } else if (selected.length < group.maxSelection) {
+                      selected.add(option.id);
+                    }
+                  } else {
+                    selected.remove(option.id);
+                  }
+                }),
+                title: Text(
+                  option.name,
+                  style: TextStyle(
+                    color: widget.colors.textPrimary,
+                    fontSize: 12,
+                  ),
+                ),
+                secondary: option.priceDelta == 0
+                    ? null
+                    : Text(
+                        '+${option.priceDelta.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: widget.colors.textSecondary,
+                          fontSize: 10,
+                        ),
+                      ),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 }
@@ -888,13 +1432,23 @@ class _RibbonBookmark extends StatelessWidget {
   final Color color;
   final Color textColor;
 
-  const _RibbonBookmark({required this.title, required this.color, required this.textColor});
+  const _RibbonBookmark({
+    required this.title,
+    required this.color,
+    required this.textColor,
+  });
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
-        boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 5, offset: Offset(0, 2))],
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x33000000),
+            blurRadius: 5,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: ClipPath(
         clipper: const _RibbonNotchClipper(),
@@ -908,7 +1462,12 @@ class _RibbonBookmark extends StatelessWidget {
             title.toUpperCase(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: textColor, fontSize: 8.5, fontWeight: FontWeight.w800, letterSpacing: 0.4),
+            style: TextStyle(
+              color: textColor,
+              fontSize: 8.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
           ),
         ),
       ),

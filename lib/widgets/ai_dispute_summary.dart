@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 class AiDisputeSummary extends ConsumerStatefulWidget {
   final String similarType;
   final int count;
@@ -67,17 +66,23 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
             ),
             boxShadow: [
               BoxShadow(
-                color: colors.accent.withValues(alpha: _glowAnimation.value * 0.15),
+                color: colors.accent.withValues(
+                  alpha: _glowAnimation.value * 0.15,
+                ),
                 blurRadius: 18 * _glowAnimation.value,
                 spreadRadius: 0,
               ),
               BoxShadow(
-                color: colors.accent.withValues(alpha: _glowAnimation.value * 0.08),
+                color: colors.accent.withValues(
+                  alpha: _glowAnimation.value * 0.08,
+                ),
                 blurRadius: 40 * _glowAnimation.value,
                 spreadRadius: -2,
               ),
               BoxShadow(
-                color: colors.accent.withValues(alpha: _glowAnimation.value * 0.04),
+                color: colors.accent.withValues(
+                  alpha: _glowAnimation.value * 0.04,
+                ),
                 blurRadius: 60 * _glowAnimation.value,
                 spreadRadius: -6,
               ),
@@ -118,11 +123,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
             color: colors.accent.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            Icons.auto_awesome,
-            color: colors.accent,
-            size: 18,
-          ),
+          child: Icon(Icons.auto_awesome, color: colors.accent, size: 18),
         ),
         const SizedBox(width: 12),
         Text(
@@ -171,11 +172,7 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
               color: colors.accent.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(
-              Icons.info_outline,
-              size: 14,
-              color: colors.accent,
-            ),
+            child: Icon(Icons.info_outline, size: 14, color: colors.accent),
           ),
         ),
       ],
@@ -258,10 +255,12 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
           ],
         ),
         const SizedBox(height: 8),
-        ...resolutions.map((r) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: _resolutionRow(r, colors),
-            )),
+        ...resolutions.map(
+          (r) => Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: _resolutionRow(r, colors),
+          ),
+        ),
       ],
     );
   }
@@ -292,24 +291,16 @@ class _AiDisputeSummaryState extends ConsumerState<AiDisputeSummary>
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                color: colors.textSecondary,
-                fontSize: 11,
-              ),
+              style: TextStyle(color: colors.textSecondary, fontSize: 11),
             ),
           ),
           if (detail.isNotEmpty)
             Text(
               detail,
-              style: TextStyle(
-                color: colors.textTertiary,
-                fontSize: 10,
-              ),
+              style: TextStyle(color: colors.textTertiary, fontSize: 10),
             ),
         ],
       ),
     );
   }
 }
-
-

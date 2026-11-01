@@ -46,7 +46,6 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/vendor_badge_row.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
-
 /// Public entry point: open the in-place flip overlay.
 ///
 /// `originRect` is the screen-space rect of the source card row (used
@@ -62,7 +61,8 @@ Future<void> showInPlaceFlipCard({
   required Future<void> Function({
     required double amountFiat,
     required Map<String, String> buyerDetails,
-  }) onConfirmTrade,
+  })
+  onConfirmTrade,
 }) async {
   final overlay = Overlay.of(context, rootOverlay: true);
   late OverlayEntry entry;
@@ -94,7 +94,8 @@ class _InPlaceFlipOverlay extends ConsumerStatefulWidget {
   final Future<void> Function({
     required double amountFiat,
     required Map<String, String> buyerDetails,
-  }) onConfirmTrade;
+  })
+  onConfirmTrade;
 
   const _InPlaceFlipOverlay({
     required this.ad,
@@ -153,11 +154,10 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
 
   Future<void> _logInteraction(String type) async {
     try {
-      await apiClient.post(
-        '/ads/${widget.ad.id}/interaction',
-        {'type': type},
-      );
-    } catch (_) {/* analytics is best-effort */}
+      await apiClient.post('/ads/${widget.ad.id}/interaction', {'type': type});
+    } catch (_) {
+      /* analytics is best-effort */
+    }
   }
 
   void _onVerticalDragUpdate(DragUpdateDetails d) {
@@ -187,8 +187,7 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
     // form is active. Width is ~92% of screen, height is generous so
     // the trade form fits without scrolling on most iPhones.
     final targetWidth = size.width * 0.92;
-    final targetHeight =
-        math.min(size.height * 0.78, 640.0).toDouble();
+    final targetHeight = math.min(size.height * 0.78, 640.0).toDouble();
     final targetTop = math.max(
       MediaQuery.of(context).padding.top + 24,
       (size.height - targetHeight) / 2 - 60,
@@ -209,20 +208,32 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
         // Lerp the rect from origin to target
         final left = ui.lerpDouble(widget.originRect.left, targetRect.left, t)!;
         final top = ui.lerpDouble(widget.originRect.top, targetRect.top, t)!;
-        final width =
-            ui.lerpDouble(widget.originRect.width, targetRect.width, t)!;
-        final height =
-            ui.lerpDouble(widget.originRect.height, targetRect.height, t)!;
+        final width = ui.lerpDouble(
+          widget.originRect.width,
+          targetRect.width,
+          t,
+        )!;
+        final height = ui.lerpDouble(
+          widget.originRect.height,
+          targetRect.height,
+          t,
+        )!;
 
         // Drag offset on the open card (positive = downward)
-        final dragOffset = (_ctrl.status == AnimationStatus.completed
-                ? _dragDy
-                : 0.0)
-            .clamp(0.0, 320.0);
+        final dragOffset =
+            (_ctrl.status == AnimationStatus.completed ? _dragDy : 0.0).clamp(
+              0.0,
+              320.0,
+            );
         final dragProgress = (dragOffset / 200).clamp(0.0, 1.0);
-        final blurAmount = (24.0 * t * (1 - dragProgress * 0.35)).clamp(0.0, 24.0);
-        final scrimAlpha =
-            (0.55 * t * (1 - dragProgress * 0.4)).clamp(0.0, 0.55);
+        final blurAmount = (24.0 * t * (1 - dragProgress * 0.35)).clamp(
+          0.0,
+          24.0,
+        );
+        final scrimAlpha = (0.55 * t * (1 - dragProgress * 0.4)).clamp(
+          0.0,
+          0.55,
+        );
 
         // Flip angle: pi (180°) at full open, 0 closed.
         final flipAngle = math.pi * t;
@@ -238,7 +249,9 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
                 onTap: _close,
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(
-                      sigmaX: blurAmount, sigmaY: blurAmount),
+                    sigmaX: blurAmount,
+                    sigmaY: blurAmount,
+                  ),
                   child: Container(
                     color: Colors.black.withValues(alpha: scrimAlpha),
                   ),
@@ -257,34 +270,34 @@ class _InPlaceFlipOverlayState extends ConsumerState<_InPlaceFlipOverlay>
                   ui.lerpDouble(12, 22, t) ?? 12,
                 ),
                 child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateX(flipAngle),
-                child: GestureDetector(
-                  onVerticalDragUpdate: _onVerticalDragUpdate,
-                  onVerticalDragEnd: _onVerticalDragEnd,
-                  // Material ancestor wraps both faces — kills the default
-                  // text underline that overlay text would otherwise pick
-                  // up (the well-known "no Material ancestor" gotcha).
-                  child: Material(
-                    color: Colors.transparent,
-                    child: showBack
-                        ? Transform(
-                            alignment: Alignment.center,
-                            transform: Matrix4.identity()..rotateX(math.pi),
-                            child: _BackFace(
-                              ad: widget.ad,
-                              colors: colors,
-                              isSubmitting: _isSubmitting,
-                              onConfirm: _onConfirm,
-                              onDismiss: _close,
-                            ),
-                          )
-                        : _FrontFace(ad: widget.ad, colors: colors),
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..setEntry(3, 2, 0.001)
+                    ..rotateX(flipAngle),
+                  child: GestureDetector(
+                    onVerticalDragUpdate: _onVerticalDragUpdate,
+                    onVerticalDragEnd: _onVerticalDragEnd,
+                    // Material ancestor wraps both faces — kills the default
+                    // text underline that overlay text would otherwise pick
+                    // up (the well-known "no Material ancestor" gotcha).
+                    child: Material(
+                      color: Colors.transparent,
+                      child: showBack
+                          ? Transform(
+                              alignment: Alignment.center,
+                              transform: Matrix4.identity()..rotateX(math.pi),
+                              child: _BackFace(
+                                ad: widget.ad,
+                                colors: colors,
+                                isSubmitting: _isSubmitting,
+                                onConfirm: _onConfirm,
+                                onDismiss: _close,
+                              ),
+                            )
+                          : _FrontFace(ad: widget.ad, colors: colors),
+                    ),
                   ),
                 ),
-              ),
               ),
             ),
           ],
@@ -412,7 +425,8 @@ class _BackFace extends ConsumerStatefulWidget {
   final Future<void> Function({
     required double amountFiat,
     required Map<String, String> buyerDetails,
-  }) onConfirm;
+  })
+  onConfirm;
   final VoidCallback onDismiss;
 
   const _BackFace({
@@ -443,8 +457,10 @@ class _BackFaceState extends ConsumerState<_BackFace> {
       return;
     }
     if (amount < widget.ad.minLimit || amount > widget.ad.maxLimit) {
-      _err('Amount must be between \$${widget.ad.minLimit.toStringAsFixed(0)} '
-          'and \$${widget.ad.maxLimit.toStringAsFixed(0)}');
+      _err(
+        'Amount must be between \$${widget.ad.minLimit.toStringAsFixed(0)} '
+        'and \$${widget.ad.maxLimit.toStringAsFixed(0)}',
+      );
       return;
     }
     // Buyer details are collected in the active trade screen, not here
@@ -454,12 +470,14 @@ class _BackFaceState extends ConsumerState<_BackFace> {
   }
 
   void _err(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: widget.colors.danger,
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.all(16),
-    ));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: widget.colors.danger,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
   }
 
   @override
@@ -554,7 +572,11 @@ class _BackFaceState extends ConsumerState<_BackFace> {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _statChip('${ad.completedTrades}', 'Trades', colors),
-                  _statChip('${(ad.completionRate * 100).toStringAsFixed(0)}%', 'Rate', colors),
+                  _statChip(
+                    '${(ad.completionRate * 100).toStringAsFixed(0)}%',
+                    'Rate',
+                    colors,
+                  ),
                   _riskBadge(ad.paymentMethod, colors, context),
                 ],
               ),
@@ -580,8 +602,9 @@ class _BackFaceState extends ConsumerState<_BackFace> {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: TextField(
                 controller: _amountCtrl,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: TextStyle(
                   color: colors.textPrimary,
                   fontSize: 22,
@@ -634,9 +657,10 @@ class _BackFaceState extends ConsumerState<_BackFace> {
                   Text(
                     'You receive',
                     style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600),
+                      color: colors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const Spacer(),
                   Text(
@@ -653,44 +677,47 @@ class _BackFaceState extends ConsumerState<_BackFace> {
 
             // Buyer payment details removed — user provides these in the
             // active trade screen AFTER initiating, not at this stage.
-
             const SizedBox(height: 16),
 
             SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: widget.isSubmitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colors.accent,
-                  foregroundColor:
-                      colors.isDark ? Colors.black : Colors.white,
-                  disabledBackgroundColor:
-                      colors.accent.withValues(alpha: 0.4),
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 0,
-                ),
-                child: widget.isSubmitting
-                    ? SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: colors.isDark ? Colors.black : Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Confirm trade',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.1,
-                        ),
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: widget.isSubmitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colors.accent,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
+                      disabledBackgroundColor: colors.accent.withValues(
+                        alpha: 0.4,
                       ),
-              ),
-            )
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: widget.isSubmitting
+                        ? SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colors.isDark
+                                  ? Colors.black
+                                  : Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Confirm trade',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                  ),
+                )
                 .animate(target: widget.isSubmitting ? 0 : 1)
                 .shimmer(
                   delay: 700.ms,
@@ -716,11 +743,20 @@ class _BackFaceState extends ConsumerState<_BackFace> {
 
   String _getMethodFeeLabel(String method) {
     const fees = {
-      'ZELLE': '2%', 'CASHAPP': '2%', 'APPLE_PAY': '2.5%', 'APPLE PAY': '2.5%',
-      'GOOGLE_PAY': '2.5%', 'GOOGLE PAY': '2.5%', 'VENMO': '2.5%',
-      'PAYPAL': '4%', 'WISE': '2%', 'REVOLUT': '2.5%',
-      'WESTERN_UNION': '1.5%', 'WESTERN UNION': '1.5%',
-      'WIRE_TRANSFER': '1.5%', 'WIRE TRANSFER': '1.5%',
+      'ZELLE': '2%',
+      'CASHAPP': '2%',
+      'APPLE_PAY': '2.5%',
+      'APPLE PAY': '2.5%',
+      'GOOGLE_PAY': '2.5%',
+      'GOOGLE PAY': '2.5%',
+      'VENMO': '2.5%',
+      'PAYPAL': '4%',
+      'WISE': '2%',
+      'REVOLUT': '2.5%',
+      'WESTERN_UNION': '1.5%',
+      'WESTERN UNION': '1.5%',
+      'WIRE_TRANSFER': '1.5%',
+      'WIRE TRANSFER': '1.5%',
     };
     return fees[method.toUpperCase()] ?? '2%';
   }
@@ -728,17 +764,39 @@ class _BackFaceState extends ConsumerState<_BackFace> {
   Widget _statChip(String value, String label, AzamanColors colors) {
     return Column(
       children: [
-        Text(value, style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.w800)),
+        Text(
+          value,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         const SizedBox(height: 2),
-        Text(label, style: TextStyle(color: colors.textTertiary, fontSize: 9, fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: TextStyle(
+            color: colors.textTertiary,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }
 
   Widget _riskBadge(String method, AzamanColors colors, BuildContext context) {
     final risk = _getRiskLevel(method);
-    final riskColor = risk == 'LOW' ? colors.success : risk == 'HIGH' ? colors.danger : colors.warning;
-    final riskLabel = risk == 'LOW' ? 'Low Risk' : risk == 'HIGH' ? 'High Risk' : 'Med Risk';
+    final riskColor = risk == 'LOW'
+        ? colors.success
+        : risk == 'HIGH'
+        ? colors.danger
+        : colors.warning;
+    final riskLabel = risk == 'LOW'
+        ? 'Low Risk'
+        : risk == 'HIGH'
+        ? 'High Risk'
+        : 'Med Risk';
 
     return GestureDetector(
       onTap: () => _showRiskExplanation(context, risk, method, colors),
@@ -753,7 +811,14 @@ class _BackFaceState extends ConsumerState<_BackFace> {
           children: [
             Icon(HugeIconsSolid.shield01, size: 11, color: riskColor),
             const SizedBox(width: 4),
-            Text(riskLabel, style: TextStyle(color: riskColor, fontSize: 10, fontWeight: FontWeight.w700)),
+            Text(
+              riskLabel,
+              style: TextStyle(
+                color: riskColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ],
         ),
       ),
@@ -762,22 +827,37 @@ class _BackFaceState extends ConsumerState<_BackFace> {
 
   String _getRiskLevel(String method) {
     const riskMap = {
-      'ZELLE': 'LOW', 'CASHAPP': 'LOW', 'WISE': 'LOW',
-      'WESTERN_UNION': 'LOW', 'WESTERN UNION': 'LOW',
-      'WIRE_TRANSFER': 'LOW', 'WIRE TRANSFER': 'LOW',
-      'APPLE_PAY': 'MEDIUM', 'APPLE PAY': 'MEDIUM',
-      'GOOGLE_PAY': 'MEDIUM', 'GOOGLE PAY': 'MEDIUM',
-      'VENMO': 'MEDIUM', 'REVOLUT': 'MEDIUM',
+      'ZELLE': 'LOW',
+      'CASHAPP': 'LOW',
+      'WISE': 'LOW',
+      'WESTERN_UNION': 'LOW',
+      'WESTERN UNION': 'LOW',
+      'WIRE_TRANSFER': 'LOW',
+      'WIRE TRANSFER': 'LOW',
+      'APPLE_PAY': 'MEDIUM',
+      'APPLE PAY': 'MEDIUM',
+      'GOOGLE_PAY': 'MEDIUM',
+      'GOOGLE PAY': 'MEDIUM',
+      'VENMO': 'MEDIUM',
+      'REVOLUT': 'MEDIUM',
       'PAYPAL': 'HIGH',
     };
     return riskMap[method.toUpperCase()] ?? 'MEDIUM';
   }
 
-  void _showRiskExplanation(BuildContext context, String risk, String method, AzamanColors colors) {
+  void _showRiskExplanation(
+    BuildContext context,
+    String risk,
+    String method,
+    AzamanColors colors,
+  ) {
     final explanations = {
-      'LOW': 'This payment method has very low chargeback risk. Transactions are typically irreversible once sent.',
-      'MEDIUM': 'This payment method has moderate risk. Disputes are possible but uncommon with verified accounts.',
-      'HIGH': 'This payment method has higher chargeback risk. The platform charges a higher fee to offset potential reversals.',
+      'LOW':
+          'This payment method has very low chargeback risk. Transactions are typically irreversible once sent.',
+      'MEDIUM':
+          'This payment method has moderate risk. Disputes are possible but uncommon with verified accounts.',
+      'HIGH':
+          'This payment method has higher chargeback risk. The platform charges a higher fee to offset potential reversals.',
     };
 
     showDialog(
@@ -785,12 +865,32 @@ class _BackFaceState extends ConsumerState<_BackFace> {
       builder: (ctx) => AlertDialog(
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('$method Risk Level', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-        content: Text(explanations[risk] ?? '', style: TextStyle(color: colors.textSecondary, fontSize: 13, height: 1.4)),
+        title: Text(
+          '$method Risk Level',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          explanations[risk] ?? '',
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Got it', style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Got it',
+              style: TextStyle(
+                color: colors.accent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -805,8 +905,9 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final letter =
-        initial.isEmpty ? 'V' : initial.substring(0, 1).toUpperCase();
+    final letter = initial.isEmpty
+        ? 'V'
+        : initial.substring(0, 1).toUpperCase();
     return Container(
       width: 42,
       height: 42,

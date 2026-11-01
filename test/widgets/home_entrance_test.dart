@@ -22,6 +22,7 @@
 // pair so the hero card renders deterministically. The network-facing
 // summary fetch fails fast in tests, so the sections below the rail render
 // in their idle states — nothing to settle but the entrance.
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -74,6 +75,8 @@ Future<void> _pumpHome(WidgetTester tester, {bool reduceMotion = false}) async {
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
+      // The subject here is Home's layout, so money is unlocked.
+      unlockedMoneyAccess(),
       // A derived Provider: overriding it keeps NotificationNotifier (and its
       // initial fetch) out of the tree entirely.
       unreadCountProvider.overrideWith((ref) => 0),

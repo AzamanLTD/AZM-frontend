@@ -50,7 +50,6 @@
 
 import 'package:flutter/material.dart';
 
-
 class SlideToConfirm extends StatefulWidget {
   final String text;
   final Color backgroundColor;
@@ -151,10 +150,7 @@ class SlideToConfirmState extends State<SlideToConfirm>
       widget.onConfirmed();
     } else {
       // Animate back to start
-      _resetAnimation = Tween<double>(
-        begin: _dragPosition,
-        end: 0.0,
-      ).animate(
+      _resetAnimation = Tween<double>(begin: _dragPosition, end: 0.0).animate(
         CurvedAnimation(parent: _resetController, curve: Curves.elasticOut),
       );
       _resetController
@@ -218,7 +214,9 @@ class SlideToConfirmState extends State<SlideToConfirm>
                           gradient: LinearGradient(
                             colors: [
                               widget.thumbColor.withValues(alpha: 0.1),
-                              widget.thumbColor.withValues(alpha: 0.3 * progress),
+                              widget.thumbColor.withValues(
+                                alpha: 0.3 * progress,
+                              ),
                             ],
                           ),
                         ),

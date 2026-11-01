@@ -14,9 +14,9 @@ import 'package:azaman/widgets/stories/viewer/story_viewer_screen.dart';
 class _FakeGateway implements StoryGateway {
   @override
   Set<StoryCapability> get capabilities => const {
-        StoryCapability.view,
-        StoryCapability.boost,
-      };
+    StoryCapability.view,
+    StoryCapability.boost,
+  };
 
   final List<String> viewed = [];
 
@@ -41,39 +41,40 @@ class _FakeGateway implements StoryGateway {
 }
 
 StoryItem _item(String id) => StoryItem(
-      id: id,
-      mediaUrl: 'https://cdn.example.com/$id.jpg',
-      mediaType: 'IMAGE',
-      durationSeconds: 5,
-      boosted: false,
-      seen: false,
-      createdAt: DateTime(2026, 10, 1),
-    );
+  id: id,
+  mediaUrl: 'https://cdn.example.com/$id.jpg',
+  mediaType: 'IMAGE',
+  durationSeconds: 5,
+  boosted: false,
+  seen: false,
+  createdAt: DateTime(2026, 10, 1),
+);
 
 StoryGroup _group(String author, List<String> ids) => StoryGroup(
-      authorId: author == 'ama' ? 7 : 8,
-      authorUsername: author,
-      hasUnseen: true,
-      isBoosted: false,
-      stories: [for (final id in ids) _item(id)],
-    );
+  authorId: author == 'ama' ? 7 : 8,
+  authorUsername: author,
+  hasUnseen: true,
+  isBoosted: false,
+  stories: [for (final id in ids) _item(id)],
+);
 
 Widget _host(_FakeGateway gateway, List<StoryGroup> groups) => ProviderScope(
-      overrides: [storyGatewayProvider.overrideWithValue(gateway)],
-      child: MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) =>
-                    StoryViewerScreen(groups: groups, heroTag: null),
-              )),
-              child: const Text('OPEN VIEWER'),
+  overrides: [storyGatewayProvider.overrideWithValue(gateway)],
+  child: MaterialApp(
+    home: Scaffold(
+      body: Builder(
+        builder: (context) => TextButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => StoryViewerScreen(groups: groups, heroTag: null),
             ),
           ),
+          child: const Text('OPEN VIEWER'),
         ),
       ),
-    );
+    ),
+  ),
+);
 
 /// One item: baseline frame + full 5s + the completion tick.
 Future<void> _runItem(WidgetTester tester) async {
@@ -85,25 +86,36 @@ Future<void> _runItem(WidgetTester tester) async {
 void main() {
   // Test surface is 800x600 → dismiss denominator is 300px (h/2).
 
-  testWidgets('opens on the initial group and marks only its story viewed',
-      (tester) async {
+  testWidgets('opens on the initial group and marks only its story viewed', (
+    tester,
+  ) async {
     final gateway = _FakeGateway();
-    await tester.pumpWidget(_host(
-        gateway, [_group('ama', ['s0', 's1']), _group('kofi', ['t0', 't1'])]));
+    await tester.pumpWidget(
+      _host(gateway, [
+        _group('ama', ['s0', 's1']),
+        _group('kofi', ['t0', 't1']),
+      ]),
+    );
     await tester.tap(find.text('OPEN VIEWER'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1)); // route transition
 
     expect(gateway.viewed, contains('s0'));
-    expect(gateway.viewed.toSet(), {'s0'},
-        reason: 'the inactive creator is never marked');
+    expect(gateway.viewed.toSet(), {
+      's0',
+    }, reason: 'the inactive creator is never marked');
   });
 
-  testWidgets('completing a creator advances to the next; the last one pops',
-      (tester) async {
+  testWidgets('completing a creator advances to the next; the last one pops', (
+    tester,
+  ) async {
     final gateway = _FakeGateway();
-    await tester.pumpWidget(_host(
-        gateway, [_group('ama', ['s0', 's1']), _group('kofi', ['t0', 't1'])]));
+    await tester.pumpWidget(
+      _host(gateway, [
+        _group('ama', ['s0', 's1']),
+        _group('kofi', ['t0', 't1']),
+      ]),
+    );
     await tester.tap(find.text('OPEN VIEWER'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -115,23 +127,34 @@ void main() {
     // Page animation to creator 2 (active flips at the midpoint).
     await tester.pump(const Duration(milliseconds: 200));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(gateway.viewed.toSet(), {'s0', 's1', 't0'},
-        reason: 'activation of the next creator marks its story');
+    expect(gateway.viewed.toSet(), {
+      's0',
+      's1',
+      't0',
+    }, reason: 'activation of the next creator marks its story');
 
     // Group 1 runs both items; its completion pops the viewer.
     await _runItem(tester); // t0
     await _runItem(tester); // t1 → last group completes
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 400)); // pop transition
-    expect(find.text('OPEN VIEWER'), findsOneWidget,
-        reason: 'completing the final creator closes the viewer');
+    expect(
+      find.text('OPEN VIEWER'),
+      findsOneWidget,
+      reason: 'completing the final creator closes the viewer',
+    );
   });
 
-  testWidgets('a short vertical pull springs back; a long one dismisses',
-      (tester) async {
+  testWidgets('a short vertical pull springs back; a long one dismisses', (
+    tester,
+  ) async {
     final gateway = _FakeGateway();
-    await tester.pumpWidget(_host(
-        gateway, [_group('ama', ['s0']), _group('kofi', ['t0'])]));
+    await tester.pumpWidget(
+      _host(gateway, [
+        _group('ama', ['s0']),
+        _group('kofi', ['t0']),
+      ]),
+    );
     await tester.tap(find.text('OPEN VIEWER'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -143,8 +166,11 @@ void main() {
     await short.up();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400)); // spring back
-    expect(find.text('OPEN VIEWER'), findsNothing,
-        reason: 'a short pull releases back to the viewer');
+    expect(
+      find.text('OPEN VIEWER'),
+      findsNothing,
+      reason: 'a short pull releases back to the viewer',
+    );
 
     // Long pull: 200px → dismiss 0.67 → commit → pop.
     final long = await tester.startGesture(const Offset(300, 300));
@@ -153,12 +179,16 @@ void main() {
     await long.up();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
-    expect(find.text('OPEN VIEWER'), findsOneWidget,
-        reason: 'a decisive pull dismisses the viewer');
+    expect(
+      find.text('OPEN VIEWER'),
+      findsOneWidget,
+      reason: 'a decisive pull dismisses the viewer',
+    );
   });
 
-  testWidgets('reduced motion: dismiss settles instantly, no spring frames',
-      (tester) async {
+  testWidgets('reduced motion: dismiss settles instantly, no spring frames', (
+    tester,
+  ) async {
     AzSensory.reduceMotionOverrideIsSet = true;
     AzSensory.reduceMotionOverride = true;
     addTearDown(() {
@@ -167,8 +197,12 @@ void main() {
     });
 
     final gateway = _FakeGateway();
-    await tester.pumpWidget(_host(
-        gateway, [_group('ama', ['s0']), _group('kofi', ['t0'])]));
+    await tester.pumpWidget(
+      _host(gateway, [
+        _group('ama', ['s0']),
+        _group('kofi', ['t0']),
+      ]),
+    );
     await tester.tap(find.text('OPEN VIEWER'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1)); // route transition
@@ -187,16 +221,24 @@ void main() {
     await second.up();
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('OPEN VIEWER'), findsNothing,
-        reason: 'instant settle keeps 0.2 + 0.3 below the commit line');
+    expect(
+      find.text('OPEN VIEWER'),
+      findsNothing,
+      reason: 'instant settle keeps 0.2 + 0.3 below the commit line',
+    );
   });
 
   // ── Review pass 2: cancel intent + details-swipe dedupe ─────────────────
 
-  testWidgets('a system-cancelled touch never advances the story',
-      (tester) async {
+  testWidgets('a system-cancelled touch never advances the story', (
+    tester,
+  ) async {
     final gateway = _FakeGateway();
-    await tester.pumpWidget(_host(gateway, [_group('ama', ['s0', 's1'])]));
+    await tester.pumpWidget(
+      _host(gateway, [
+        _group('ama', ['s0', 's1']),
+      ]),
+    );
     await tester.tap(find.text('OPEN VIEWER'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -206,18 +248,27 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await gesture.cancel();
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('1 of 2'), findsOneWidget,
-        reason: 'pointer cancel (notification shade, system gesture) must '
-            'not act as a tap on the right half');
+    expect(
+      find.text('1 of 2'),
+      findsOneWidget,
+      reason:
+          'pointer cancel (notification shade, system gesture) must '
+          'not act as a tap on the right half',
+    );
   });
 
-  testWidgets('a swipe-up opens the details sheet exactly once per gesture',
-      (tester) async {
+  testWidgets('a swipe-up opens the details sheet exactly once per gesture', (
+    tester,
+  ) async {
     // Capable gateway: the shell's capability gate passes, so the sheet
     // really opens — and must not stack per pointer-update.
     final gateway = _ViewersGateway();
-    await tester.pumpWidget(_host(
-        gateway, [_group('ama', ['s0']), _group('kofi', ['t0'])]));
+    await tester.pumpWidget(
+      _host(gateway, [
+        _group('ama', ['s0']),
+        _group('kofi', ['t0']),
+      ]),
+    );
     await tester.tap(find.text('OPEN VIEWER'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
@@ -228,8 +279,11 @@ void main() {
     await gesture.moveBy(const Offset(0, -20));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.byType(StoryDetailsSheet), findsOneWidget,
-        reason: 'three upward updates must open ONE sheet, not three');
+    expect(
+      find.byType(StoryDetailsSheet),
+      findsOneWidget,
+      reason: 'three upward updates must open ONE sheet, not three',
+    );
     await gesture.up();
     await tester.pump();
   });

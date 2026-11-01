@@ -66,10 +66,7 @@ class AzamanPageTransitionsBuilder extends PageTransitionsBuilder {
         opacity: dim,
         child: SlideTransition(
           position: slideIn,
-          child: FadeTransition(
-            opacity: curved,
-            child: child,
-          ),
+          child: FadeTransition(opacity: curved, child: child),
         ),
       ),
     );

@@ -12,12 +12,12 @@ import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_avatar.dart';
 
 Widget _harness(ThemeProvider tp, Widget child) => ProviderScope(
-      overrides: [themeProvider.overrideWith((ref) => tp)],
-      child: MaterialApp(
-        theme: ThemeProvider.getThemeData(tp.currentTheme),
-        home: Scaffold(body: Center(child: child)),
-      ),
-    );
+  overrides: [themeProvider.overrideWith((ref) => tp)],
+  child: MaterialApp(
+    theme: ThemeProvider.getThemeData(tp.currentTheme),
+    home: Scaffold(body: Center(child: child)),
+  ),
+);
 
 Future<void> _pump(
   WidgetTester tester,
@@ -33,9 +33,8 @@ Future<void> _pump(
 
 // Container(color:) renders as a ColoredBox in this SDK, so the themed
 // placeholder/fallback blocks are located by that color.
-Finder _softSurfaceBlocks(Color softSurface) => find.byWidgetPredicate(
-      (w) => w is ColoredBox && w.color == softSurface,
-    );
+Finder _softSurfaceBlocks(Color softSurface) =>
+    find.byWidgetPredicate((w) => w is ColoredBox && w.color == softSurface);
 
 BoxDecoration _decorationOf(Container c) => c.decoration as BoxDecoration;
 
@@ -48,27 +47,31 @@ void main() {
   });
 
   group('AzamanNetworkImage (NEW-K)', () {
-    testWidgets('fallback (null url) uses colors.softSurface and textTertiary icon',
-        (tester) async {
-      final tp = ThemeProvider();
-      await _pump(tester, const AzamanNetworkImage(imageUrl: null, width: 120, height: 80));
-      await tester.pump();
+    testWidgets(
+      'fallback (null url) uses colors.softSurface and textTertiary icon',
+      (tester) async {
+        final tp = ThemeProvider();
+        await _pump(
+          tester,
+          const AzamanNetworkImage(imageUrl: null, width: 120, height: 80),
+        );
+        await tester.pump();
 
-      final containers = _softSurfaceBlocks(tp.colors.softSurface);
-      expect(containers, findsOneWidget);
-      expect(
-        tester.getSize(containers.first),
-        const Size(120, 80),
-      );
+        final containers = _softSurfaceBlocks(tp.colors.softSurface);
+        expect(containers, findsOneWidget);
+        expect(tester.getSize(containers.first), const Size(120, 80));
 
-      final icon = tester.widget<Icon>(find.byIcon(Icons.image_outlined));
-      expect(icon.color, tp.colors.textTertiary);
-    });
+        final icon = tester.widget<Icon>(find.byIcon(Icons.image_outlined));
+        expect(icon.color, tp.colors.textTertiary);
+      },
+    );
 
     testWidgets('empty url falls back identically', (tester) async {
       final tp = ThemeProvider();
-      await _pump(tester,
-          const AzamanNetworkImage(imageUrl: '', width: 120, height: 80));
+      await _pump(
+        tester,
+        const AzamanNetworkImage(imageUrl: '', width: 120, height: 80),
+      );
       await tester.pump();
 
       expect(_softSurfaceBlocks(tp.colors.softSurface), findsOneWidget);
@@ -97,10 +100,12 @@ void main() {
       // which would otherwise race (and win) with a setTheme call.
       SharedPreferences.setMockInitialValues({'azaman_theme': 1});
       final tp = ThemeProvider();
-      await tester.pumpWidget(_harness(
-        tp,
-        const AzamanNetworkImage(imageUrl: null, width: 100, height: 50),
-      ));
+      await tester.pumpWidget(
+        _harness(
+          tp,
+          const AzamanNetworkImage(imageUrl: null, width: 100, height: 50),
+        ),
+      );
       // Let the async load land and its notifyListeners rebuild the tree.
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -114,16 +119,20 @@ void main() {
       expect(tp.colors.softSurface, isNot(equals(_lightColors().softSurface)));
     });
 
-    testWidgets('layout builder path sizes to parent constraints', (tester) async {
+    testWidgets('layout builder path sizes to parent constraints', (
+      tester,
+    ) async {
       final tp = ThemeProvider();
-      await tester.pumpWidget(_harness(
-        tp,
-        const SizedBox(
-          width: 200,
-          height: 90,
-          child: AzamanNetworkImage(imageUrl: null),
+      await tester.pumpWidget(
+        _harness(
+          tp,
+          const SizedBox(
+            width: 200,
+            height: 90,
+            child: AzamanNetworkImage(imageUrl: null),
+          ),
         ),
-      ));
+      );
       await tester.pump();
 
       expect(
@@ -134,15 +143,17 @@ void main() {
 
     testWidgets('borderRadius is preserved via ClipRRect', (tester) async {
       final tp = ThemeProvider();
-      await tester.pumpWidget(_harness(
-        tp,
-        const AzamanNetworkImage(
-          imageUrl: null,
-          width: 100,
-          height: 100,
-          borderRadius: BorderRadius.all(Radius.circular(12)),
+      await tester.pumpWidget(
+        _harness(
+          tp,
+          const AzamanNetworkImage(
+            imageUrl: null,
+            width: 100,
+            height: 100,
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
         ),
-      ));
+      );
       await tester.pump();
 
       final clip = tester.widget<ClipRRect>(find.byType(ClipRRect));
@@ -184,45 +195,64 @@ void main() {
       expect(find.text('K'.toUpperCase()), findsOneWidget);
       // Body occupies exactly `size` — no ring wrapper added.
       final avatarBody = find.descendant(
-          of: find.byType(ChatAvatar), matching: find.byType(SizedBox));
-      expect(tester.getSize(avatarBody.first), const Size(48, 48));
-    });
-
-    testWidgets('no ring leaves the rendering unchanged (no gradient container)',
-        (tester) async {
-      await _pump(tester, const ChatAvatar(name: 'Ama'));
-      expect(find.byWidgetPredicate(_isStoryRingGradientContainer), findsNothing);
-      final avatarBody = find.descendant(
-          of: find.byType(ChatAvatar), matching: find.byType(SizedBox));
-      expect(tester.getSize(avatarBody.first), const Size(48, 48));
-    });
-
-    testWidgets('storyRing renders outside the avatar body with default stroke',
-        (tester) async {
-      await _pump(
-        tester,
-        const ChatAvatar(
-          name: 'Ama',
-          storyRing: LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFF8C00)]),
-        ),
+        of: find.byType(ChatAvatar),
+        matching: find.byType(SizedBox),
       );
-      final ring = find.byWidgetPredicate(_isStoryRingGradientContainer);
-      expect(ring, findsOneWidget);
-      // size 48 + 2 * ringStrokeWidth(2.0) + 4 = 56
-      expect(tester.getSize(ring.first), const Size(56, 56));
-      // The avatar body still sits inside, at its original 48.
-      final avatarBody = find.descendant(
-          of: find.byType(ChatAvatar), matching: find.byType(SizedBox));
       expect(tester.getSize(avatarBody.first), const Size(48, 48));
     });
 
-    testWidgets('custom ringStrokeWidth changes the ring footprint', (tester) async {
+    testWidgets(
+      'no ring leaves the rendering unchanged (no gradient container)',
+      (tester) async {
+        await _pump(tester, const ChatAvatar(name: 'Ama'));
+        expect(
+          find.byWidgetPredicate(_isStoryRingGradientContainer),
+          findsNothing,
+        );
+        final avatarBody = find.descendant(
+          of: find.byType(ChatAvatar),
+          matching: find.byType(SizedBox),
+        );
+        expect(tester.getSize(avatarBody.first), const Size(48, 48));
+      },
+    );
+
+    testWidgets(
+      'storyRing renders outside the avatar body with default stroke',
+      (tester) async {
+        await _pump(
+          tester,
+          const ChatAvatar(
+            name: 'Ama',
+            storyRing: LinearGradient(
+              colors: [Color(0xFFFFD700), Color(0xFFFF8C00)],
+            ),
+          ),
+        );
+        final ring = find.byWidgetPredicate(_isStoryRingGradientContainer);
+        expect(ring, findsOneWidget);
+        // size 48 + 2 * ringStrokeWidth(2.0) + 4 = 56
+        expect(tester.getSize(ring.first), const Size(56, 56));
+        // The avatar body still sits inside, at its original 48.
+        final avatarBody = find.descendant(
+          of: find.byType(ChatAvatar),
+          matching: find.byType(SizedBox),
+        );
+        expect(tester.getSize(avatarBody.first), const Size(48, 48));
+      },
+    );
+
+    testWidgets('custom ringStrokeWidth changes the ring footprint', (
+      tester,
+    ) async {
       await _pump(
         tester,
         const ChatAvatar(
           name: 'Ama',
           ringStrokeWidth: 5,
-          storyRing: LinearGradient(colors: [Color(0xFFFFD700), Color(0xFF00CED1)]),
+          storyRing: LinearGradient(
+            colors: [Color(0xFFFFD700), Color(0xFF00CED1)],
+          ),
         ),
       );
       final ring = find.byWidgetPredicate(_isStoryRingGradientContainer);
@@ -235,11 +265,14 @@ void main() {
         const ChatAvatar(
           name: 'Ama',
           circular: true,
-          storyRing: LinearGradient(colors: [Color(0xFFFFD700), Color(0xFF00CED1)]),
+          storyRing: LinearGradient(
+            colors: [Color(0xFFFFD700), Color(0xFF00CED1)],
+          ),
         ),
       );
-      final container =
-          tester.widget<Container>(find.byWidgetPredicate(_isStoryRingGradientContainer));
+      final container = tester.widget<Container>(
+        find.byWidgetPredicate(_isStoryRingGradientContainer),
+      );
       expect(_decorationOf(container).shape, BoxShape.circle);
     });
 
@@ -256,11 +289,7 @@ void main() {
       // grey). The green online color is asserted below without the dot.
       await _pump(
         tester,
-        const ChatAvatar(
-          name: 'Ama',
-          isOnline: false,
-          showOnlineDot: true,
-        ),
+        const ChatAvatar(name: 'Ama', isOnline: false, showOnlineDot: true),
       );
       expect(
         find.byWidgetPredicate(
@@ -312,7 +341,9 @@ void main() {
           heroTag: 'alias-hero',
           circular: true,
           ringStrokeWidth: 3,
-          storyRing: LinearGradient(colors: [Color(0xFFFFD700), Color(0xFF00CED1)]),
+          storyRing: LinearGradient(
+            colors: [Color(0xFFFFD700), Color(0xFF00CED1)],
+          ),
         ),
       );
       expect(find.byType(Hero), findsOneWidget);

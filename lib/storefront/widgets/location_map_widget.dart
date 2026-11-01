@@ -5,7 +5,11 @@ class LocationMapWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const LocationMapWidget({super.key, required this.props, required this.business});
+  const LocationMapWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,23 +29,39 @@ class LocationMapWidget extends StatelessWidget {
             height: 180,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.1),
             ),
             child: Stack(
               children: [
                 Center(
-                  child: Icon(Icons.location_on, size: 48, color: Theme.of(context).colorScheme.primary),
+                  child: Icon(
+                    Icons.location_on,
+                    size: 48,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
                 Positioned(
-                  bottom: 8, left: 8,
+                  bottom: 8,
+                  left: 8,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).cardColor,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Theme.of(context).dividerColor),
                     ),
-                    child: Text('Zoom: $zoom', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface)),
+                    child: Text(
+                      'Zoom: $zoom',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
                   ),
                 ),
               ],

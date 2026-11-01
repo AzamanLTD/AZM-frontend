@@ -85,8 +85,8 @@ class AzToggle extends StatelessWidget {
                 color: value
                     ? colors.accent
                     : colors.isDark
-                        ? Colors.white.withValues(alpha: 0.10)
-                        : Colors.black.withValues(alpha: 0.08),
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : Colors.black.withValues(alpha: 0.08),
                 border: Border.all(
                   color: value
                       ? colors.accent
@@ -107,8 +107,12 @@ class AzToggle extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: value
-                        ? (colors.isDark ? const Color(0xFF111111) : Colors.white)
-                        : (colors.isDark ? const Color(0xFFEDEDED) : Colors.white),
+                        ? (colors.isDark
+                              ? const Color(0xFF111111)
+                              : Colors.white)
+                        : (colors.isDark
+                              ? const Color(0xFFEDEDED)
+                              : Colors.white),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.18),

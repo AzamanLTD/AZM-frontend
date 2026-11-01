@@ -119,7 +119,11 @@ abstract final class AzElevation {
   ///
   /// [intensity] 0.0â€“1.0. Keep it â‰¤ 0.45; a glow that is too strong reads as
   /// a rendering bug rather than as light.
-  static List<BoxShadow> glow(Color tint, {double intensity = 0.32, double blur = 32}) {
+  static List<BoxShadow> glow(
+    Color tint, {
+    double intensity = 0.32,
+    double blur = 32,
+  }) {
     return <BoxShadow>[
       BoxShadow(
         color: tint.withValues(alpha: intensity),

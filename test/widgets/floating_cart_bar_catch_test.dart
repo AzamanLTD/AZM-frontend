@@ -34,11 +34,11 @@ void main() {
     hapticCalls.clear();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (call) {
-      if (call.method.startsWith('HapticFeedback')) {
-        hapticCalls.add(call.method);
-      }
-      return null;
-    });
+          if (call.method.startsWith('HapticFeedback')) {
+            hapticCalls.add(call.method);
+          }
+          return null;
+        });
   });
 
   tearDown(() {
@@ -64,11 +64,7 @@ void main() {
     );
   }
 
-  void addItem(
-    String id,
-    String url, {
-    String preset = 'SHOP_FLOOR',
-  }) {
+  void addItem(String id, String url, {String preset = 'SHOP_FLOOR'}) {
     notifier.addItem(
       businessProfileId: 'biz-1',
       businessName: 'Azaman Retail',
@@ -83,12 +79,14 @@ void main() {
 
   /// The bar-level ScaleTransition is the first one in the tree (the
   /// subtotal pulse sits deeper inside the Material it wraps).
-  double barScale(WidgetTester tester) =>
-      tester.widget<ScaleTransition>(find.byType(ScaleTransition).first).scale
-          .value;
+  double barScale(WidgetTester tester) => tester
+      .widget<ScaleTransition>(find.byType(ScaleTransition).first)
+      .scale
+      .value;
 
-  testWidgets('a retail add plays the catch squash and the two-beat haptic',
-      (tester) async {
+  testWidgets('a retail add plays the catch squash and the two-beat haptic', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildSubject());
     addItem('p1', 'https://example.com/img-1.jpg');
     await tester.pump();
@@ -104,8 +102,9 @@ void main() {
     expect(hapticCalls, hasLength(2));
   });
 
-  testWidgets('a non-retail add keeps the pre-TASK-012 pulse and its haptic',
-      (tester) async {
+  testWidgets('a non-retail add keeps the pre-TASK-012 pulse and its haptic', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildSubject());
     addItem('d1', 'https://example.com/img-1.jpg', preset: 'DINING_JOURNEY');
     await tester.pump();
@@ -118,8 +117,9 @@ void main() {
     expect(hapticCalls, hasLength(1));
   });
 
-  testWidgets('the fan renders at most three thumbnails, newest on top',
-      (tester) async {
+  testWidgets('the fan renders at most three thumbnails, newest on top', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildSubject());
     for (var i = 1; i <= 4; i++) {
       addItem('p$i', 'https://example.com/img-$i.jpg');
@@ -140,8 +140,9 @@ void main() {
     );
   });
 
-  testWidgets('under reduced motion the tray settles without the catch',
-      (tester) async {
+  testWidgets('under reduced motion the tray settles without the catch', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildSubject(disableAnimations: true));
     addItem('p1', 'https://example.com/img-1.jpg');
     await tester.pump();
@@ -158,8 +159,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 60));
   });
 
-  testWidgets('the controllers are disposed cleanly mid-animation',
-      (tester) async {
+  testWidgets('the controllers are disposed cleanly mid-animation', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildSubject());
     addItem('p1', 'https://example.com/img-1.jpg');
     await tester.pump(); // catch mid-flight

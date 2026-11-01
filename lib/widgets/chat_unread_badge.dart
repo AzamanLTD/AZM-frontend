@@ -20,13 +20,28 @@ class ChatUnreadBadge extends ConsumerWidget {
         color: colors.accent,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: colors.accent.withValues(alpha: 0.3), blurRadius: 6, offset: const Offset(0, 1)),
+          BoxShadow(
+            color: colors.accent.withValues(alpha: 0.3),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
         ],
       ),
       child: Center(
-        child: Text(text,
-          style: TextStyle(color: colors.isDark ? Colors.black : Colors.white, fontSize: fontSize, fontWeight: FontWeight.w800)),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: colors.isDark ? Colors.black : Colors.white,
+            fontSize: fontSize,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
-    ).animate().scale(begin: const Offset(0.5, 0.5), end: const Offset(1.0, 1.0), duration: 300.ms, curve: Curves.elasticOut);
+    ).animate().scale(
+      begin: const Offset(0.5, 0.5),
+      end: const Offset(1.0, 1.0),
+      duration: 300.ms,
+      curve: Curves.elasticOut,
+    );
   }
 }

@@ -34,20 +34,25 @@ void main() {
       // `page`, never `cursor`).
       final ids1 = rows1.map((r) => r['id']).toSet();
       final ids2 = rows2.map((r) => r['id']).toSet();
-      expect(ids2.intersection(ids1), isEmpty,
-          reason: 'page 2 must contain different rows than page 1');
+      expect(
+        ids2.intersection(ids1),
+        isEmpty,
+        reason: 'page 2 must contain different rows than page 1',
+      );
     });
 
-    test('every row embeds the slim businessProfile with the real fields',
-        () {
+    test('every row embeds the slim businessProfile with the real fields', () {
       final res = DemoMarketplaceSeed.searchNearby();
       final rows = (res['locations'] as List).cast<Map<String, dynamic>>();
       expect(rows.length, 8);
 
       for (final row in rows) {
         final profile = row['businessProfile'];
-        expect(profile, isA<Map<String, dynamic>>(),
-            reason: 'row ${row['id']} must embed its owning profile');
+        expect(
+          profile,
+          isA<Map<String, dynamic>>(),
+          reason: 'row ${row['id']} must embed its owning profile',
+        );
         // EXACTLY the field set the real backend include ships.
         expect(profile.keys.toSet(), {
           'id',
@@ -68,33 +73,35 @@ void main() {
       }
     });
 
-    test('distanceKm is the haversine from the request origin, 0.1 km step',
-        () {
-      // Seeded location: _restaurantLocation (see the seed). Use the
-      // seeded coordinates themselves to compute the expected distance.
-      final seeded = DemoMarketplaceSeed.allBusinesses().first;
-      final loc = (seeded['locations'] as List).first as Map<String, dynamic>;
-      final lat = loc['latitude'] as num;
-      final lng = loc['longitude'] as num;
+    test(
+      'distanceKm is the haversine from the request origin, 0.1 km step',
+      () {
+        // Seeded location: _restaurantLocation (see the seed). Use the
+        // seeded coordinates themselves to compute the expected distance.
+        final seeded = DemoMarketplaceSeed.allBusinesses().first;
+        final loc = (seeded['locations'] as List).first as Map<String, dynamic>;
+        final lat = loc['latitude'] as num;
+        final lng = loc['longitude'] as num;
 
-      // Exactly on the location → 0.0 km.
-      final onIt = DemoMarketplaceSeed.searchNearby(
-        lat: lat.toDouble(),
-        lng: lng.toDouble(),
-      );
-      final first = (onIt['locations'] as List).first as Map<String, dynamic>;
-      expect(first['businessProfileId'], loc['businessProfileId']);
-      expect(first['distanceKm'], 0.0);
+        // Exactly on the location → 0.0 km.
+        final onIt = DemoMarketplaceSeed.searchNearby(
+          lat: lat.toDouble(),
+          lng: lng.toDouble(),
+        );
+        final first = (onIt['locations'] as List).first as Map<String, dynamic>;
+        expect(first['businessProfileId'], loc['businessProfileId']);
+        expect(first['distanceKm'], 0.0);
 
-      // ~0.111 km north (0.001° lat) → 0.1 after rounding.
-      final near = DemoMarketplaceSeed.searchNearby(
-        lat: lat.toDouble() - 0.001,
-        lng: lng.toDouble(),
-      );
-      final shifted =
-          (near['locations'] as List).first as Map<String, dynamic>;
-      expect(shifted['distanceKm'], 0.1);
-    });
+        // ~0.111 km north (0.001° lat) → 0.1 after rounding.
+        final near = DemoMarketplaceSeed.searchNearby(
+          lat: lat.toDouble() - 0.001,
+          lng: lng.toDouble(),
+        );
+        final shifted =
+            (near['locations'] as List).first as Map<String, dynamic>;
+        expect(shifted['distanceKm'], 0.1);
+      },
+    );
 
     test('rows are sorted ascending by distance across pages', () {
       final res = DemoMarketplaceSeed.searchNearby(
@@ -106,8 +113,7 @@ void main() {
       expect(rows.length, 3);
       for (var i = 1; i < rows.length; i++) {
         expect(
-          (rows[i - 1]['distanceKm'] as num) <=
-              (rows[i]['distanceKm'] as num),
+          (rows[i - 1]['distanceKm'] as num) <= (rows[i]['distanceKm'] as num),
           isTrue,
           reason: 'nearby feed must be distance-ordered (page 1)',
         );
@@ -145,8 +151,7 @@ void main() {
       }
     });
 
-    test('no origin → no fabricated distances, canonical order preserved',
-        () {
+    test('no origin → no fabricated distances, canonical order preserved', () {
       final res = DemoMarketplaceSeed.searchNearby();
       final rows = (res['locations'] as List).cast<Map<String, dynamic>>();
       for (final row in rows) {

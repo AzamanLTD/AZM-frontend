@@ -59,8 +59,8 @@ class HomeSummaryNotifier extends StateNotifier<HomeSummary> {
       if (fresh.rates.isAvailable) {
         final rate = fresh.rates.retailRate;
         final list = _ref.read(rateHistoryProvider);
-        final isDuplicate = list.isNotEmpty &&
-            (list.last.rate - rate).abs() < 0.0001;
+        final isDuplicate =
+            list.isNotEmpty && (list.last.rate - rate).abs() < 0.0001;
         if (!isDuplicate) {
           final next = [...list, RateObservation(DateTime.now(), rate)];
           if (next.length > 24) next.removeAt(0);
@@ -87,5 +87,5 @@ class HomeSummaryNotifier extends StateNotifier<HomeSummary> {
 ///   ref.read(homeSummaryProvider.notifier).refresh();
 final homeSummaryProvider =
     StateNotifierProvider<HomeSummaryNotifier, HomeSummary>((ref) {
-  return HomeSummaryNotifier(ref, HomeSummaryService());
-});
+      return HomeSummaryNotifier(ref, HomeSummaryService());
+    });

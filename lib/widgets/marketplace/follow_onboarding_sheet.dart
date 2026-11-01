@@ -223,7 +223,8 @@ class _FollowOnboardingSheetState extends ConsumerState<FollowOnboardingSheet> {
     final confirmed = _rows
         .where((r) => r.status == _FollowPickStatus.confirmed)
         .length;
-    final complete = confirmed > 0 &&
+    final complete =
+        confirmed > 0 &&
         (_rows.length >= _targetFollows
             ? confirmed >= _targetFollows
             : _failedCount == 0);

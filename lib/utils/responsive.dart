@@ -45,8 +45,7 @@ class Responsive {
   /// Lower bound (inclusive) of the desktop / expanded range.
   static const double desktopBreakpoint = 1200;
 
-  static double width(BuildContext context) =>
-      MediaQuery.sizeOf(context).width;
+  static double width(BuildContext context) => MediaQuery.sizeOf(context).width;
 
   static double height(BuildContext context) =>
       MediaQuery.sizeOf(context).height;
@@ -80,9 +79,8 @@ class Responsive {
   }
 
   /// Page-level padding that grows with available width.
-  static EdgeInsets pagePadding(BuildContext context) => EdgeInsets.all(
-        value(context, mobile: 16, tablet: 24, desktop: 32),
-      );
+  static EdgeInsets pagePadding(BuildContext context) =>
+      EdgeInsets.all(value(context, mobile: 16, tablet: 24, desktop: 32));
 
   /// Sensible default column count for content grids.
   static int gridColumns(BuildContext context) =>

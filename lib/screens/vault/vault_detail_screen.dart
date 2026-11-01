@@ -18,7 +18,6 @@ import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 
-
 class VaultDetailScreen extends ConsumerStatefulWidget {
   final String vaultId;
 
@@ -27,8 +26,7 @@ class VaultDetailScreen extends ConsumerStatefulWidget {
   /// captions byte-identical across runs.
   final DateTime Function()? nowFn;
 
-  const VaultDetailScreen(
-      {super.key, required this.vaultId, this.nowFn});
+  const VaultDetailScreen({super.key, required this.vaultId, this.nowFn});
 
   @override
   ConsumerState<VaultDetailScreen> createState() => _VaultDetailScreenState();
@@ -47,9 +45,9 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
   Future<void> _deposit() async {
     final amt = double.tryParse(_depositCtrl.text.trim());
     if (amt == null || amt <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a positive amount.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter a positive amount.')));
       return;
     }
     setState(() => _busy = true);
@@ -61,7 +59,9 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
       if (mounted) HapticFeedback.heavyImpact();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -74,8 +74,13 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Break vault early?',
-            style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800)),
+        title: Text(
+          'Break vault early?',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
         content: Text(
           'You will pay a ${(v.earlyBreakPenaltyPct * 100).toStringAsFixed(1)}% penalty on '
           '${v.currentAmountUsdc.toStringAsFixed(2)} USDC${_estimateSuffix(v.currentAmountUsdc)}. '
@@ -83,7 +88,10 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
           style: TextStyle(color: colors.textSecondary),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text('Break Vault', style: TextStyle(color: colors.danger)),
@@ -99,7 +107,9 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -138,15 +148,18 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
           icon: Icon(Icons.arrow_back, color: colors.textPrimary, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Vault',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-            )),
+        title: Text(
+          'Vault',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
       body: vaultAsync.when(
-        loading: () => Center(child: CircularProgressIndicator(color: colors.accent)),
+        loading: () =>
+            Center(child: CircularProgressIndicator(color: colors.accent)),
         error: (e, _) => Center(child: Text(e.toString())),
         data: (v) {
           if (v == null) return const Center(child: Text('Vault not found'));
@@ -158,14 +171,17 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
-              _Hero(v: v, progress: progress, colors: colors, daysLeft: daysLeft)
-                  .animate()
-                  .fadeIn(duration: 320.ms)
-                  .slideY(begin: 0.05, end: 0),
+              _Hero(
+                v: v,
+                progress: progress,
+                colors: colors,
+                daysLeft: daysLeft,
+              ).animate().fadeIn(duration: 320.ms).slideY(begin: 0.05, end: 0),
               const SizedBox(height: 16),
-              _StatsGrid(v: v, colors: colors)
-                  .animate()
-                  .fadeIn(delay: 80.ms, duration: 320.ms),
+              _StatsGrid(
+                v: v,
+                colors: colors,
+              ).animate().fadeIn(delay: 80.ms, duration: 320.ms),
               if (isActive) ...[
                 const SizedBox(height: 16),
                 _DepositCard(
@@ -182,8 +198,13 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                   Expanded(
                     child: _ActionChip(
                       icon: v.yieldEnabled ? Icons.flash_on : Icons.flash_off,
-                      label: v.yieldEnabled ? 'Yield ${v.yieldApr.toStringAsFixed(2)}%' : 'DeFi Yield',
-                      onTap: () => pushWithVerticalTransition(context, VaultYieldScreen(vault: v, vaultId: v.id)),
+                      label: v.yieldEnabled
+                          ? 'Yield ${v.yieldApr.toStringAsFixed(2)}%'
+                          : 'DeFi Yield',
+                      onTap: () => pushWithVerticalTransition(
+                        context,
+                        VaultYieldScreen(vault: v, vaultId: v.id),
+                      ),
                       colors: colors,
                     ),
                   ),
@@ -192,9 +213,14 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                     child: _ActionChip(
                       icon: Icons.wallet,
                       label: 'Wallet Pass',
-                      onTap: () => pushWithVerticalTransition(context, WalletPassScreen(passType: 'vault',
+                      onTap: () => pushWithVerticalTransition(
+                        context,
+                        WalletPassScreen(
+                          passType: 'vault',
                           itemId: v.id,
-                          title: v.name,)),
+                          title: v.name,
+                        ),
+                      ),
                       colors: colors,
                     ),
                   ),
@@ -214,7 +240,9 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
               depositsAsync.when(
                 loading: () => Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Center(child: CircularProgressIndicator(color: colors.accent)),
+                  child: Center(
+                    child: CircularProgressIndicator(color: colors.accent),
+                  ),
                 ),
                 error: (e, _) => Text(e.toString()),
                 data: (list) => list.isEmpty
@@ -222,15 +250,21 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                         padding: const EdgeInsets.all(12),
                         child: Text(
                           'No deposits yet.',
-                          style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                          style: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 12,
+                          ),
                         ),
                       )
                     : Column(
                         children: list
-                            .map((d) => _DepositTile(
+                            .map(
+                              (d) => _DepositTile(
                                 d: d,
                                 colors: colors,
-                                nowFn: widget.nowFn))
+                                nowFn: widget.nowFn,
+                              ),
+                            )
                             .toList(),
                       ),
               ),
@@ -238,15 +272,26 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
                   onPressed: _busy ? null : () => _confirmBreak(v, colors),
-                  icon: Icon(Icons.key_outlined, color: colors.danger, size: 16),
+                  icon: Icon(
+                    Icons.key_outlined,
+                    color: colors.danger,
+                    size: 16,
+                  ),
                   label: Text(
                     'Break Vault Early',
-                    style: TextStyle(color: colors.danger, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      color: colors.danger,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.danger.withValues(alpha: 0.30)),
+                    side: BorderSide(
+                      color: colors.danger.withValues(alpha: 0.30),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -284,7 +329,10 @@ class _Hero extends StatelessWidget {
           ],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.accent.withValues(alpha: 0.30), width: 0.8),
+        border: Border.all(
+          color: colors.accent.withValues(alpha: 0.30),
+          width: 0.8,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -374,11 +422,30 @@ class _StatsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('Streak', '${v.streakCount}', Icons.local_fire_department_outlined, colors.warning),
-      ('Best', '${v.longestStreak}', Icons.emoji_events_outlined, colors.accent),
-      ('AZM', v.totalAzmEarned.toStringAsFixed(0), Icons.bolt_outlined, colors.accentSecondary),
-      ('Score', '${v.consistencyScore.toStringAsFixed(0)}%',
-          Icons.analytics_outlined, colors.success),
+      (
+        'Streak',
+        '${v.streakCount}',
+        Icons.local_fire_department_outlined,
+        colors.warning,
+      ),
+      (
+        'Best',
+        '${v.longestStreak}',
+        Icons.emoji_events_outlined,
+        colors.accent,
+      ),
+      (
+        'AZM',
+        v.totalAzmEarned.toStringAsFixed(0),
+        Icons.bolt_outlined,
+        colors.accentSecondary,
+      ),
+      (
+        'Score',
+        '${v.consistencyScore.toStringAsFixed(0)}%',
+        Icons.analytics_outlined,
+        colors.success,
+      ),
     ];
     return Row(
       children: items
@@ -387,7 +454,10 @@ class _StatsGrid extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.card,
                     borderRadius: BorderRadius.circular(12),
@@ -397,14 +467,21 @@ class _StatsGrid extends StatelessWidget {
                     children: [
                       Icon(it.$3, color: it.$4, size: 16),
                       const SizedBox(height: 6),
-                      Text(it.$2,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          )),
-                      Text(it.$1,
-                          style: TextStyle(color: colors.textTertiary, fontSize: 9)),
+                      Text(
+                        it.$2,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        it.$1,
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 9,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -442,7 +519,9 @@ class _DepositCard extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: TextStyle(
                 color: colors.textPrimary,
                 fontSize: 18,
@@ -467,18 +546,25 @@ class _DepositCard extends StatelessWidget {
               backgroundColor: colors.accent,
               foregroundColor: colors.isDark ? Colors.black : Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
               elevation: 0,
             ),
             child: busy
                 ? const SizedBox(
                     height: 14,
                     width: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.black,
+                    ),
                   )
-                : const Text('Deposit',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
-          )
+                : const Text(
+                    'Deposit',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                  ),
+          ),
         ],
       ),
     );
@@ -489,21 +575,20 @@ class _DepositTile extends StatelessWidget {
   final VaultDeposit d;
   final AzamanColors colors;
   final DateTime Function()? nowFn;
-  const _DepositTile(
-      {required this.d, required this.colors, this.nowFn});
+  const _DepositTile({required this.d, required this.colors, this.nowFn});
 
   IconData get _icon => switch (d.type) {
-        'AUTO_RULE' => Icons.refresh,
-        'BONUS' => Icons.card_giftcard_outlined,
-        _ => Icons.arrow_downward,
-      };
+    'AUTO_RULE' => Icons.refresh,
+    'BONUS' => Icons.card_giftcard_outlined,
+    _ => Icons.arrow_downward,
+  };
 
   Color get _color => switch (d.status) {
-        'COMPLETED' => colors.success,
-        'FAILED_INSUFFICIENT' => colors.warning,
-        'FAILED_OTHER' => colors.danger,
-        _ => colors.textTertiary,
-      };
+    'COMPLETED' => colors.success,
+    'FAILED_INSUFFICIENT' => colors.warning,
+    'FAILED_OTHER' => colors.danger,
+    _ => colors.textTertiary,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -584,7 +669,6 @@ class _DepositTile extends StatelessWidget {
   }
 }
 
-
 class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -615,9 +699,15 @@ class _ActionChip extends StatelessWidget {
             Icon(icon, size: 16, color: colors.accent),
             const SizedBox(width: 6),
             Flexible(
-              child: Text(label,
-                  style: TextStyle(color: colors.textPrimary, fontSize: 11, fontWeight: FontWeight.w700),
-                  overflow: TextOverflow.ellipsis),
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),

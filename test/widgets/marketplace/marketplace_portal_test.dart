@@ -72,25 +72,26 @@ void main() {
 
     // The category SPEED DIAL is the selector (§11): at rest the anchor
     // shows the current category — All, a REAL selectable state.
-    expect(find.byKey(const ValueKey('marketplace-category-dial')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('marketplace-category-dial')),
+      findsOneWidget,
+    );
     expect(find.text('All'), findsOneWidget);
     // Near You is the ONLY additional control.
-    expect(find.byKey(const ValueKey('marketplace-near-you')),
-        findsOneWidget);
+    expect(find.byKey(const ValueKey('marketplace-near-you')), findsOneWidget);
     // No flat row of standalone category buttons.
     for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
-      expect(find.byKey(ValueKey('marketplace-category-$label')),
-          findsNothing);
+      expect(find.byKey(ValueKey('marketplace-category-$label')), findsNothing);
     }
 
     // The portal machinery is GONE — every old duplicated interaction path.
     expect(find.text('Discover'), findsNothing);
     expect(find.text('Choose your world'), findsNothing);
-    expect(find.byKey(const ValueKey('marketplace_explore_all')),
-        findsNothing);
-    expect(find.byKey(const ValueKey('marketplace_back_to_portal')),
-        findsNothing);
+    expect(find.byKey(const ValueKey('marketplace_explore_all')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('marketplace_back_to_portal')),
+      findsNothing,
+    );
     for (final wire in [
       'LOGISTICS',
       'FOOD_BEVERAGE',
@@ -136,8 +137,9 @@ void main() {
     expect(find.text('All'), findsOneWidget);
   });
 
-  testWidgets('the star/featured surface is gone entirely (§12)',
-      (tester) async {
+  testWidgets('the star/featured surface is gone entirely (§12)', (
+    tester,
+  ) async {
     await _pumpHome(tester);
     expect(find.text('Featured picks near you'), findsNothing);
     expect(find.textContaining('Featured'), findsNothing);
@@ -145,10 +147,10 @@ void main() {
     expect(find.byIcon(Icons.star_rounded), findsNothing);
   });
 
-  testWidgets('initialCategory still seeds the category filter',
-      (tester) async {
-    final notifier =
-        await _pumpHome(tester, initialCategory: 'retail');
+  testWidgets('initialCategory still seeds the category filter', (
+    tester,
+  ) async {
+    final notifier = await _pumpHome(tester, initialCategory: 'retail');
     // TASK-010b entry contract: the seeding search fires with the
     // normalised wire — unchanged by the one-screen correction.
     expect(notifier.searchedCategories.first, 'RETAIL');
@@ -162,9 +164,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [businessSearchProvider.overrideWith((ref) => notifier)],
-        child: const MaterialApp(
-          home: MarketplaceHomeScreen(),
-        ),
+        child: const MaterialApp(home: MarketplaceHomeScreen()),
       ),
     );
     await tester.pump(const Duration(milliseconds: 600));
@@ -188,8 +188,11 @@ void main() {
       // existing ghost mechanism, not a second category control.
       expect(find.text('All'), findsWidgets);
       for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
-        expect(find.text(label), findsOneWidget,
-            reason: 'category set is exactly All/Shop/Ride/Stay/Eat');
+        expect(
+          find.text(label),
+          findsOneWidget,
+          reason: 'category set is exactly All/Shop/Ride/Stay/Eat',
+        );
       }
       expect(find.text('Services'), findsNothing);
       expect(find.text('Wellness'), findsNothing);
@@ -204,8 +207,14 @@ void main() {
       // The pill rect (the satellite's own GestureDetector), not the text
       // rect — the icon left of the label offsets the text center.
       Offset pillCentre(String label) => tester
-          .getRect(find.ancestor(
-              of: find.text(label), matching: find.byType(GestureDetector)).first)
+          .getRect(
+            find
+                .ancestor(
+                  of: find.text(label),
+                  matching: find.byType(GestureDetector),
+                )
+                .first,
+          )
           .center;
       // The dial list order minus the selected "All": Eat, Shop, Ride, Stay.
       final eat = pillCentre('Eat');
@@ -228,12 +237,21 @@ void main() {
       // side (Stay straight below); the mirror reproduces the intended
       // diagram.
       expect(ride.dx, greaterThan(anchor.center.dx));
-      expect(ride.dy, greaterThan(anchor.center.dy),
-          reason: 'Ride is the +45° slot, below the baseline');
-      expect(stay.dx, greaterThan(anchor.center.dx),
-          reason: 'Stay opens into the same right-side space');
-      expect(stay.dy, lessThan(anchor.center.dy),
-          reason: 'Stay is the −45° slot, mirrored ABOVE the baseline');
+      expect(
+        ride.dy,
+        greaterThan(anchor.center.dy),
+        reason: 'Ride is the +45° slot, below the baseline',
+      );
+      expect(
+        stay.dx,
+        greaterThan(anchor.center.dx),
+        reason: 'Stay opens into the same right-side space',
+      );
+      expect(
+        stay.dy,
+        lessThan(anchor.center.dy),
+        reason: 'Stay is the −45° slot, mirrored ABOVE the baseline',
+      );
 
       // NOT a wide burst: no satellite wraps around the anchor's dead
       // (left) side. Stay sits ~1px inside the 90° slot at settle — the
@@ -263,15 +281,21 @@ void main() {
       await openFan(tester);
       final rects = [
         for (final label in ['Eat', 'Shop', 'Ride', 'Stay'])
-          tester.getRect(find.text(label)).inflate(4)
+          tester.getRect(find.text(label)).inflate(4),
       ];
       for (var i = 0; i < rects.length; i++) {
         for (var j = i + 1; j < rects.length; j++) {
-          expect(rects[i].overlaps(rects[j]), isFalse,
-              reason: 'satellites $i and $j overlap');
+          expect(
+            rects[i].overlaps(rects[j]),
+            isFalse,
+            reason: 'satellites $i and $j overlap',
+          );
         }
-        expect(rects[i].overlaps(anchorShrink(_dialAnchor(), tester)),
-            isFalse, reason: 'satellite $i overlaps the anchor pill');
+        expect(
+          rects[i].overlaps(anchorShrink(_dialAnchor(), tester)),
+          isFalse,
+          reason: 'satellite $i overlaps the anchor pill',
+        );
       }
     });
   });
@@ -283,10 +307,7 @@ void main() {
       await tester.tap(_dialAnchor());
       await tester.pumpAndSettle();
 
-      const satStyle = TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      );
+      const satStyle = TextStyle(fontSize: 12, fontWeight: FontWeight.w600);
       for (final label in ['Eat', 'Shop', 'Ride', 'Stay']) {
         final painter = TextPainter(
           text: TextSpan(text: label, style: satStyle),
@@ -296,19 +317,24 @@ void main() {
         // The pill has no width constraint on its label: the paragraph is
         // exactly the full intrinsic text size. Any clip/fade workaround
         // would shrink it below the painter's full width.
-        expect(rendered.size.width, greaterThanOrEqualTo(painter.width),
-            reason: 'label "$label" is clipped');
+        expect(
+          rendered.size.width,
+          greaterThanOrEqualTo(painter.width),
+          reason: 'label "$label" is clipped',
+        );
         expect(rendered.size.height, greaterThanOrEqualTo(painter.height));
       }
       // The anchor pill keeps the selected category fully visible too.
       final painter = TextPainter(
         text: const TextSpan(
-            text: 'All',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          text: 'All',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
       final anchor = tester.renderObject<RenderParagraph>(
-          find.text('All').first);
+        find.text('All').first,
+      );
       expect(anchor.size.width, greaterThanOrEqualTo(painter.width));
     });
   });
@@ -316,4 +342,3 @@ void main() {
 
 Rect anchorShrink(Finder f, WidgetTester tester) =>
     tester.getRect(f).deflate(8);
-

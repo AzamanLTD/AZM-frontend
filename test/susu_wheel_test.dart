@@ -92,7 +92,9 @@ void main() {
       expect(susuArcSweep(end, t, t), 0.0); // degenerate window
       expect(susuArcSweep(t, end, t.subtract(const Duration(minutes: 1))), 0.0);
       expect(
-          susuArcSweep(t, end, t.add(const Duration(hours: 2))), closeTo(0.5, 1e-9));
+        susuArcSweep(t, end, t.add(const Duration(hours: 2))),
+        closeTo(0.5, 1e-9),
+      );
       expect(susuArcSweep(t, end, end.add(const Duration(minutes: 1))), 1.0);
     });
   });
@@ -119,38 +121,63 @@ void main() {
       final now = DateTime.utc(2026, 6, 21, 12);
       expect(susuCountdownLabel(null, now), '');
       expect(
-          susuCountdownLabel(now.subtract(const Duration(seconds: 5)), now),
-          'Due now');
-      expect(susuCountdownLabel(now.add(const Duration(days: 3, hours: 2)), now),
-          '3d 2h');
-      expect(susuCountdownLabel(now.add(const Duration(hours: 2, minutes: 14)), now),
-          '2h 14m');
-      expect(susuCountdownLabel(now.add(const Duration(minutes: 4)), now), '4m');
-      expect(susuCountdownLabel(now.add(const Duration(seconds: 30)), now), '<1m');
+        susuCountdownLabel(now.subtract(const Duration(seconds: 5)), now),
+        'Due now',
+      );
+      expect(
+        susuCountdownLabel(now.add(const Duration(days: 3, hours: 2)), now),
+        '3d 2h',
+      );
+      expect(
+        susuCountdownLabel(now.add(const Duration(hours: 2, minutes: 14)), now),
+        '2h 14m',
+      );
+      expect(
+        susuCountdownLabel(now.add(const Duration(minutes: 4)), now),
+        '4m',
+      );
+      expect(
+        susuCountdownLabel(now.add(const Duration(seconds: 30)), now),
+        '<1m',
+      );
     });
   });
 
   group('SusuWheel', () {
-    testWidgets('renders the canvas and rings the upcoming slot', (tester) async {
-      await tester.pumpWidget(host(wheel(members: members(), cycles: cycles())));
+    testWidgets('renders the canvas and rings the upcoming slot', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(wheel(members: members(), cycles: cycles())),
+      );
       expect(find.byKey(const ValueKey('susu-wheel-canvas')), findsOneWidget);
       expect(find.byKey(const ValueKey('susu-wheel-next-dot')), findsOneWidget);
-      expect(find.byKey(const ValueKey('susu-wheel-center-label')), findsOneWidget);
-      await tester.pump(const Duration(milliseconds: 100)); // bounded: ticker runs
+      expect(
+        find.byKey(const ValueKey('susu-wheel-center-label')),
+        findsOneWidget,
+      );
+      await tester.pump(
+        const Duration(milliseconds: 100),
+      ); // bounded: ticker runs
     });
 
     testWidgets('marks the caller slot with YOU', (tester) async {
       await tester.pumpWidget(
-          host(wheel(members: members(), cycles: cycles(), meUserId: 10)));
+        host(wheel(members: members(), cycles: cycles(), meUserId: 10)),
+      );
       expect(find.text('YOU'), findsOneWidget);
     });
 
     testWidgets('center label names the upcoming slot', (tester) async {
-      await tester.pumpWidget(host(wheel(members: members(), cycles: cycles())));
+      await tester.pumpWidget(
+        host(wheel(members: members(), cycles: cycles())),
+      );
       expect(find.textContaining('slot 2'), findsOneWidget);
     });
 
-    testWidgets('terminal cycles show Done and the ticker stops', (tester) async {
+    testWidgets('terminal cycles show Done and the ticker stops', (
+      tester,
+    ) async {
       final t = DateTime.utc(2026, 6, 21, 12);
       final done = [
         SusuCycleView(
@@ -171,12 +198,15 @@ void main() {
 
     testWidgets('reduced motion never starts the ticker', (tester) async {
       await tester.pumpWidget(
-          host(wheel(members: members(), cycles: cycles()), reduced: true));
+        host(wheel(members: members(), cycles: cycles()), reduced: true),
+      );
       await tester.pumpAndSettle(); // would hang if the repeater were running
       expect(find.byKey(const ValueKey('susu-wheel-canvas')), findsOneWidget);
     });
 
-    testWidgets('members without a slot do not crash the wheel', (tester) async {
+    testWidgets('members without a slot do not crash the wheel', (
+      tester,
+    ) async {
       const unslotted = [
         SusuMemberView(
           susuMemberId: 'm9',
@@ -188,7 +218,9 @@ void main() {
           role: 'MEMBER',
         ),
       ];
-      await tester.pumpWidget(host(wheel(members: unslotted, cycles: cycles())));
+      await tester.pumpWidget(
+        host(wheel(members: unslotted, cycles: cycles())),
+      );
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byKey(const ValueKey('susu-wheel-canvas')), findsOneWidget);
     });
@@ -212,16 +244,17 @@ void main() {
           "o'clock", (tester) async {
         final t = DateTime.utc(2026, 6, 21, 12);
         final roster = List.generate(
-            n,
-            (i) => SusuMemberView(
-                  susuMemberId: 'm${i + 1}',
-                  userId: (i + 1) * 10,
-                  displayName: 'M${i + 1}',
-                  avatar: null,
-                  cycleSlot: i + 1,
-                  status: SusuMemberStatus.active,
-                  role: 'MEMBER',
-                ));
+          n,
+          (i) => SusuMemberView(
+            susuMemberId: 'm${i + 1}',
+            userId: (i + 1) * 10,
+            displayName: 'M${i + 1}',
+            avatar: null,
+            cycleSlot: i + 1,
+            status: SusuMemberStatus.active,
+            role: 'MEMBER',
+          ),
+        );
         final schedule = [
           SusuCycleView(
             id: 'c1',
@@ -246,18 +279,17 @@ void main() {
             ),
         ];
 
-        await tester.pumpWidget(host(wheel(
-          members: roster,
-          cycles: schedule,
-          totalSlots: n,
-        )));
+        await tester.pumpWidget(
+          host(wheel(members: roster, cycles: schedule, totalSlots: n)),
+        );
         await tester.pump(const Duration(milliseconds: 100));
 
         // The canvas proves the wheel's own frame; dots are Positioned
         // siblings (the 12-o'clock indicator is an Align, so every
         // Positioned in this tree is a slot dot).
-        final canvas =
-            tester.getRect(find.byKey(const ValueKey('susu-wheel-canvas')));
+        final canvas = tester.getRect(
+          find.byKey(const ValueKey('susu-wheel-canvas')),
+        );
         final center = canvas.center;
         const dotSize = 44.0, dotPad = 5.0;
         final radius = canvas.width / 2 - dotSize / 2 - dotPad - 2;
@@ -268,8 +300,12 @@ void main() {
         // canvas occupies the exact same frame, so the canvas origin
         // is the Stack origin.
         final drawn = dots
-            .map((d) => Offset(canvas.left + d.left! + dotSize / 2,
-                canvas.top + d.top! + dotSize / 2))
+            .map(
+              (d) => Offset(
+                canvas.left + d.left! + dotSize / 2,
+                canvas.top + d.top! + dotSize / 2,
+              ),
+            )
             .toList();
 
         // Each slot's drawn dot sits on the circle at susuSlotAngle.
@@ -282,23 +318,27 @@ void main() {
           final err = drawn
               .map((p) => (p - expected).distance)
               .reduce(math.min);
-          expect(err, lessThan(0.5),
-              reason:
-                  'slot $slot of $n drifted ${err.toStringAsFixed(2)}px');
+          expect(
+            err,
+            lessThan(0.5),
+            reason: 'slot $slot of $n drifted ${err.toStringAsFixed(2)}px',
+          );
         }
 
         // Uniform pitch, measured on the drawn dots: every dot's nearest
         // neighbour sits exactly one step around the circle (the chord
         // of 2*pi/n).
-        final stepChord =
-            2 * radius * math.sin((2 * math.pi / n) / 2);
+        final stepChord = 2 * radius * math.sin((2 * math.pi / n) / 2);
         for (final p in drawn) {
           final nearest = drawn
               .map((q) => (q - p).distance)
               .where((d) => d > 0.01)
               .reduce(math.min);
-          expect((nearest - stepChord).abs(), lessThan(1.0),
-              reason: 'a dot in the $n-slot wheel is off-pitch');
+          expect(
+            (nearest - stepChord).abs(),
+            lessThan(1.0),
+            reason: 'a dot in the $n-slot wheel is off-pitch',
+          );
         }
 
         // The upcoming slot's ringed dot is the one at slot 2's angle.
@@ -318,23 +358,30 @@ void main() {
           }
           return true;
         });
-        expect(pd, isNotNull,
-            reason: 'next dot must be laid out by a Positioned');
+        expect(
+          pd,
+          isNotNull,
+          reason: 'next dot must be laid out by a Positioned',
+        );
         final a2 = susuSlotAngle(2, n);
         final expectedNext = Offset(
           center.dx + radius * math.cos(a2),
           center.dy + radius * math.sin(a2),
         );
-        final nextCenter = Offset(canvas.left + pd!.left! + dotSize / 2,
-            canvas.top + pd!.top! + dotSize / 2);
+        final nextCenter = Offset(
+          canvas.left + pd!.left! + dotSize / 2,
+          canvas.top + pd!.top! + dotSize / 2,
+        );
         expect((nextCenter - expectedNext).distance, lessThan(0.5));
 
         // Pure geometry agrees with the drawing for this configuration.
         expect(susuSlotAngle(1, n), -math.pi / 2);
         for (var slot = 2; slot <= n; slot++) {
-          expect((susuSlotAngle(slot, n) - susuSlotAngle(slot - 1, n)) -
-                  2 * math.pi / n,
-              lessThan(1e-12));
+          expect(
+            (susuSlotAngle(slot, n) - susuSlotAngle(slot - 1, n)) -
+                2 * math.pi / n,
+            lessThan(1e-12),
+          );
         }
         expect(susuSlotAngle(n + 1, n), susuSlotAngle(1, n));
       });
@@ -344,13 +391,17 @@ void main() {
   group('SusuPositionWheel', () {
     testWidgets('tap selects the slot and the hub confirms it', (tester) async {
       final picks = <int>[];
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        members: const [
-          {'position': 1, 'username': 'Ama'},
-        ],
-        onPositionSelected: picks.add,
-      )));
+      await tester.pumpWidget(
+        host(
+          pickerWheel(
+            totalPositions: 4,
+            members: const [
+              {'position': 1, 'username': 'Ama'},
+            ],
+            onPositionSelected: picks.add,
+          ),
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('susu-position-slot-3')));
       await tester.pumpAndSettle(); // one-shot spring completes
       expect(picks, [3]);
@@ -359,30 +410,41 @@ void main() {
 
     testWidgets('taken slots stay inert', (tester) async {
       final picks = <int>[];
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        members: const [
-          {'position': 1, 'username': 'Ama'},
-        ],
-        onPositionSelected: picks.add,
-      )));
+      await tester.pumpWidget(
+        host(
+          pickerWheel(
+            totalPositions: 4,
+            members: const [
+              {'position': 1, 'username': 'Ama'},
+            ],
+            onPositionSelected: picks.add,
+          ),
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('susu-position-slot-1')));
       await tester.pump(const Duration(milliseconds: 50));
       expect(picks, isEmpty);
     });
 
-    testWidgets('drag springs to the nearest free slot and the hub commits',
-        (tester) async {
+    testWidgets('drag springs to the nearest free slot and the hub commits', (
+      tester,
+    ) async {
       final picks = <int>[];
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        members: const [
-          {'position': 1, 'username': 'Ama'},
-        ],
-        onPositionSelected: picks.add,
-      )));
+      await tester.pumpWidget(
+        host(
+          pickerWheel(
+            totalPositions: 4,
+            members: const [
+              {'position': 1, 'username': 'Ama'},
+            ],
+            onPositionSelected: picks.add,
+          ),
+        ),
+      );
       await tester.drag(
-          find.byKey(const ValueKey('susu-position-wheel')), const Offset(260, 0));
+        find.byKey(const ValueKey('susu-position-wheel')),
+        const Offset(260, 0),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Pick slot 4'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('susu-position-hub')));
@@ -392,10 +454,12 @@ void main() {
 
     testWidgets('reduced motion selects instantly', (tester) async {
       final picks = <int>[];
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        onPositionSelected: picks.add,
-      ), reduced: true));
+      await tester.pumpWidget(
+        host(
+          pickerWheel(totalPositions: 4, onPositionSelected: picks.add),
+          reduced: true,
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('susu-position-slot-2')));
       await tester.pumpAndSettle();
       expect(picks, [2]);
@@ -405,15 +469,16 @@ void main() {
     // indicator is MEASURED at the top of the wheel, not assumed via Align.
     testWidgets('12-o-clock indicator is geometrically at the top of the '
         'wheel', (tester) async {
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        onPositionSelected: (_) {},
-      )));
+      await tester.pumpWidget(
+        host(pickerWheel(totalPositions: 4, onPositionSelected: (_) {})),
+      );
       await tester.pump();
-      final wheel =
-          tester.getRect(find.byKey(const ValueKey('susu-position-wheel')));
-      final ind = tester
-          .getRect(find.byKey(const ValueKey('susu-12-oclock-indicator')));
+      final wheel = tester.getRect(
+        find.byKey(const ValueKey('susu-position-wheel')),
+      );
+      final ind = tester.getRect(
+        find.byKey(const ValueKey('susu-12-oclock-indicator')),
+      );
       // Horizontally centred on the wheel…
       expect((ind.center.dx - wheel.center.dx).abs(), lessThan(1.0));
       // …hugging the wheel's top edge…
@@ -428,13 +493,17 @@ void main() {
     testWidgets('tap a free slot then tap the hub naming that same slot — '
         'exactly one callback', (tester) async {
       final picks = <int>[];
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        members: const [
-          {'position': 1, 'username': 'Ama'},
-        ],
-        onPositionSelected: picks.add,
-      )));
+      await tester.pumpWidget(
+        host(
+          pickerWheel(
+            totalPositions: 4,
+            members: const [
+              {'position': 1, 'username': 'Ama'},
+            ],
+            onPositionSelected: picks.add,
+          ),
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('susu-position-slot-3')));
       await tester.pumpAndSettle(); // one-shot spring lands slot 3 at 12
       expect(picks, [3]);
@@ -446,16 +515,21 @@ void main() {
       expect(picks, [3]);
     });
 
-    testWidgets('re-tapping the same committed slot is a no-op',
-        (tester) async {
+    testWidgets('re-tapping the same committed slot is a no-op', (
+      tester,
+    ) async {
       final picks = <int>[];
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        members: const [
-          {'position': 1, 'username': 'Ama'},
-        ],
-        onPositionSelected: picks.add,
-      )));
+      await tester.pumpWidget(
+        host(
+          pickerWheel(
+            totalPositions: 4,
+            members: const [
+              {'position': 1, 'username': 'Ama'},
+            ],
+            onPositionSelected: picks.add,
+          ),
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('susu-position-slot-3')));
       await tester.pumpAndSettle();
       expect(picks, [3]);
@@ -467,13 +541,17 @@ void main() {
     testWidgets('selecting a different free slot afterwards commits once '
         'again — the guard is per-slot, not a latch', (tester) async {
       final picks = <int>[];
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        members: const [
-          {'position': 1, 'username': 'Ama'},
-        ],
-        onPositionSelected: picks.add,
-      )));
+      await tester.pumpWidget(
+        host(
+          pickerWheel(
+            totalPositions: 4,
+            members: const [
+              {'position': 1, 'username': 'Ama'},
+            ],
+            onPositionSelected: picks.add,
+          ),
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('susu-position-slot-3')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('susu-position-slot-2')));
@@ -484,16 +562,20 @@ void main() {
     testWidgets('a fully-taken wheel disables the hub (reads Spin) and '
         'tapping it fires zero callbacks', (tester) async {
       final picks = <int>[];
-      await tester.pumpWidget(host(pickerWheel(
-        totalPositions: 4,
-        members: const [
-          {'position': 1, 'username': 'Ama'},
-          {'position': 2, 'username': 'Kojo'},
-          {'position': 3, 'username': 'Esi'},
-          {'position': 4, 'username': 'Yaa'},
-        ],
-        onPositionSelected: picks.add,
-      )));
+      await tester.pumpWidget(
+        host(
+          pickerWheel(
+            totalPositions: 4,
+            members: const [
+              {'position': 1, 'username': 'Ama'},
+              {'position': 2, 'username': 'Kojo'},
+              {'position': 3, 'username': 'Esi'},
+              {'position': 4, 'username': 'Yaa'},
+            ],
+            onPositionSelected: picks.add,
+          ),
+        ),
+      );
       await tester.pump();
       expect(find.text('Spin'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('susu-position-hub')));
@@ -506,34 +588,34 @@ void main() {
 // ── Fixtures and hosts ────────────────────────────────────────────────────────
 
 List<SusuMemberView> members() => const [
-      SusuMemberView(
-        susuMemberId: 'm1',
-        userId: 10,
-        displayName: 'Ama',
-        avatar: null,
-        cycleSlot: 1,
-        status: SusuMemberStatus.active,
-        role: 'MEMBER',
-      ),
-      SusuMemberView(
-        susuMemberId: 'm2',
-        userId: 20,
-        displayName: 'Kojo',
-        avatar: null,
-        cycleSlot: 2,
-        status: SusuMemberStatus.active,
-        role: 'MEMBER',
-      ),
-      SusuMemberView(
-        susuMemberId: 'm3',
-        userId: 30,
-        displayName: 'Esi',
-        avatar: null,
-        cycleSlot: 3,
-        status: SusuMemberStatus.active,
-        role: 'ADMIN',
-      ),
-    ];
+  SusuMemberView(
+    susuMemberId: 'm1',
+    userId: 10,
+    displayName: 'Ama',
+    avatar: null,
+    cycleSlot: 1,
+    status: SusuMemberStatus.active,
+    role: 'MEMBER',
+  ),
+  SusuMemberView(
+    susuMemberId: 'm2',
+    userId: 20,
+    displayName: 'Kojo',
+    avatar: null,
+    cycleSlot: 2,
+    status: SusuMemberStatus.active,
+    role: 'MEMBER',
+  ),
+  SusuMemberView(
+    susuMemberId: 'm3',
+    userId: 30,
+    displayName: 'Esi',
+    avatar: null,
+    cycleSlot: 3,
+    status: SusuMemberStatus.active,
+    role: 'ADMIN',
+  ),
+];
 
 List<SusuCycleView> cycles() {
   final t = DateTime.utc(2026, 6, 21, 12);

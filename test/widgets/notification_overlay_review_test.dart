@@ -242,33 +242,38 @@ class _KeyGatedStorage implements FlutterSecureStorage {
 /// notifier HTTP edge must stay inside the test.
 class _SeededMockApi extends NotificationNotifier {
   _SeededMockApi(super.ref, List<AppNotification> seed, ApiClient api)
-      : super(client: api) {
+    : super(client: api) {
     state = seed;
   }
 }
 
-User _switchUser(String id) => User.fromJson(
-    {'id': id, 'username': 'u', 'email': '$id@example.com', 'token': 'tok', 'role': 'USER'});
+User _switchUser(String id) => User.fromJson({
+  'id': id,
+  'username': 'u',
+  'email': '$id@example.com',
+  'token': 'tok',
+  'role': 'USER',
+});
 
 /// An ApiClient whose /auth/me always answers with the asked-for
 /// profile, so the REAL fetchUserDetails succeeds for any user.
 ApiClient _meApi() => ApiClient(
-      client: MockClient((request) async {
-        final id = Uri.parse(request.url.toString()).pathSegments.last;
-        return http.Response(
-          jsonEncode({
-            'user': {
-              'id': id,
-              'username': 'u',
-              'email': '$id@example.com',
-              'token': 'tok',
-              'role': 'USER',
-            }
-          }),
-          200,
-        );
+  client: MockClient((request) async {
+    final id = Uri.parse(request.url.toString()).pathSegments.last;
+    return http.Response(
+      jsonEncode({
+        'user': {
+          'id': id,
+          'username': 'u',
+          'email': '$id@example.com',
+          'token': 'tok',
+          'role': 'USER',
+        },
       }),
+      200,
     );
+  }),
+);
 
 void main() {
   // ── Pure resolver: the canonical action-to-route contract ──────────────
@@ -288,11 +293,15 @@ void main() {
       expect(a.route, '/trade/42');
     });
 
-    test('OPEN_TRADE without an id is an unsupported action, never a guess',
-        () {
-      final a = NotificationActionDispatcher.resolve({'action': 'OPEN_TRADE'});
-      expect(a.resolution, NotificationActionResolution.unsupportedAction);
-    });
+    test(
+      'OPEN_TRADE without an id is an unsupported action, never a guess',
+      () {
+        final a = NotificationActionDispatcher.resolve({
+          'action': 'OPEN_TRADE',
+        });
+        expect(a.resolution, NotificationActionResolution.unsupportedAction);
+      },
+    );
 
     test('OPEN_DISPUTE with disputeId resolves the dispute route', () {
       final a = NotificationActionDispatcher.resolve({
@@ -309,8 +318,11 @@ void main() {
         'OPEN_FRIEND_TRANSFER_REQUEST',
       ]) {
         final a = NotificationActionDispatcher.resolve({'action': action});
-        expect(a.resolution, NotificationActionResolution.navigable,
-            reason: action);
+        expect(
+          a.resolution,
+          NotificationActionResolution.navigable,
+          reason: action,
+        );
         expect(a.route, '/friends');
       }
     });
@@ -336,8 +348,9 @@ void main() {
         '/settings',
       );
       expect(
-        NotificationActionDispatcher
-            .resolve({'action': 'ACCOUNT_STATUS'}).route,
+        NotificationActionDispatcher.resolve({
+          'action': 'ACCOUNT_STATUS',
+        }).route,
         '/settings',
       );
       expect(
@@ -345,8 +358,9 @@ void main() {
         '/savings',
       );
       expect(
-        NotificationActionDispatcher.resolve({'action': 'OPEN_MARKETPLACE'})
-            .route,
+        NotificationActionDispatcher.resolve({
+          'action': 'OPEN_MARKETPLACE',
+        }).route,
         '/marketplace',
       );
     });
@@ -382,8 +396,9 @@ void main() {
     // resolve as unsupported so the caller shows the honest fallback.
 
     test('allowlisted route subpaths resolve', () {
-      final a = NotificationActionDispatcher
-          .resolve({'route': '/business/BIZ-ABC123?tab=offers'});
+      final a = NotificationActionDispatcher.resolve({
+        'route': '/business/BIZ-ABC123?tab=offers',
+      });
       expect(a.resolution, NotificationActionResolution.navigable);
       expect(a.route, '/business/BIZ-ABC123?tab=offers');
     });
@@ -396,8 +411,11 @@ void main() {
         'friends', // no leading slash — not a registered route
       ]) {
         final a = NotificationActionDispatcher.resolve({'route': bad});
-        expect(a.resolution, NotificationActionResolution.unsupportedAction,
-            reason: 'route "$bad" must not navigate');
+        expect(
+          a.resolution,
+          NotificationActionResolution.unsupportedAction,
+          reason: 'route "$bad" must not navigate',
+        );
         expect(a.route, isNull);
       }
     });
@@ -410,78 +428,114 @@ void main() {
 
   // ── Overlay: canonical list, category authority, tap dispatch ──────────
 
-  testWidgets('explicitly categorised money/social/chat/system notifications are visible',
-      (tester) async {
-    await _pumpPanel(tester, seed: _categorisedSeed());
+  testWidgets(
+    'explicitly categorised money/social/chat/system notifications are visible',
+    (tester) async {
+      await _pumpPanel(tester, seed: _categorisedSeed());
 
-    // PRE-FIX: only sec-1 and gen-1 rendered; money/social/chat/system were
-    // silently omitted from the merged list.
-    expect(_card('money-1'), findsOneWidget);
-    expect(_card('social-1'), findsOneWidget);
-    expect(_card('chat-1'), findsOneWidget);
-    expect(_card('system-1'), findsOneWidget);
-    expect(_card('sec-1'), findsOneWidget);
-    expect(_card('gen-1'), findsOneWidget);
-  });
+      // PRE-FIX: only sec-1 and gen-1 rendered; money/social/chat/system were
+      // silently omitted from the merged list.
+      expect(_card('money-1'), findsOneWidget);
+      expect(_card('social-1'), findsOneWidget);
+      expect(_card('chat-1'), findsOneWidget);
+      expect(_card('system-1'), findsOneWidget);
+      expect(_card('sec-1'), findsOneWidget);
+      expect(_card('gen-1'), findsOneWidget);
+    },
+  );
 
-  testWidgets('money tab filters by explicit category AND legacy keywords',
-      (tester) async {
-    await _pumpPanel(tester, seed: [
-      ..._categorisedSeed(),
-      // Legacy general notification whose TITLE says money (predates the
-      // category field) — must still land on the money tab.
-      _n('legacy-money', 'Deposit received'),
-    ]);
+  testWidgets('money tab filters by explicit category AND legacy keywords', (
+    tester,
+  ) async {
+    await _pumpPanel(
+      tester,
+      seed: [
+        ..._categorisedSeed(),
+        // Legacy general notification whose TITLE says money (predates the
+        // category field) — must still land on the money tab.
+        _n('legacy-money', 'Deposit received'),
+      ],
+    );
 
     await tester.tap(find.text('Money').first);
     await tester.pumpAndSettle();
 
-    expect(_card('money-1'), findsOneWidget,
-        reason: 'explicit MONEY category must appear on the money tab');
-    expect(find.text('Deposit received'), findsOneWidget,
-        reason: 'legacy keyword fallback still files old general mail');
+    expect(
+      _card('money-1'),
+      findsOneWidget,
+      reason: 'explicit MONEY category must appear on the money tab',
+    );
+    expect(
+      find.text('Deposit received'),
+      findsOneWidget,
+      reason: 'legacy keyword fallback still files old general mail',
+    );
     expect(_card('social-1'), findsNothing);
     expect(_card('sec-1'), findsNothing);
   });
 
-  testWidgets('explicit category beats title keywords (MONEY title, SOCIAL category)',
-      (tester) async {
-    await _pumpPanel(tester, seed: [
-      // Title screams money; the server filed it SOCIAL. Explicit wins.
-      _n('kw-1', 'Title deposit kw-1', category: NotificationCategory.social),
-      // And the inverse: boring title, MONEY category.
-      _n('kw-2', 'Title kw-2', category: NotificationCategory.money),
-    ]);
+  testWidgets(
+    'explicit category beats title keywords (MONEY title, SOCIAL category)',
+    (tester) async {
+      await _pumpPanel(
+        tester,
+        seed: [
+          // Title screams money; the server filed it SOCIAL. Explicit wins.
+          _n(
+            'kw-1',
+            'Title deposit kw-1',
+            category: NotificationCategory.social,
+          ),
+          // And the inverse: boring title, MONEY category.
+          _n('kw-2', 'Title kw-2', category: NotificationCategory.money),
+        ],
+      );
 
-    await tester.tap(find.text('Money').first);
-    await tester.pumpAndSettle();
-    expect(find.text('Title deposit kw-1'), findsNothing,
-        reason: 'a SOCIAL notification must never appear on the money tab');
-    expect(find.text('Title kw-2'), findsOneWidget,
-        reason: 'a MONEY notification appears regardless of title');
+      await tester.tap(find.text('Money').first);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Title deposit kw-1'),
+        findsNothing,
+        reason: 'a SOCIAL notification must never appear on the money tab',
+      );
+      expect(
+        find.text('Title kw-2'),
+        findsOneWidget,
+        reason: 'a MONEY notification appears regardless of title',
+      );
 
-    await tester.tap(find.text('Social').first);
-    await tester.pumpAndSettle();
-    expect(find.text('Title deposit kw-1'), findsOneWidget);
-    expect(find.text('Title kw-2'), findsNothing);
-  });
+      await tester.tap(find.text('Social').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Title deposit kw-1'), findsOneWidget);
+      expect(find.text('Title kw-2'), findsNothing);
+    },
+  );
 
-  testWidgets('chat notifications surface under the Social tab', (tester) async {
-    await _pumpPanel(tester, seed: [_n('chat-1', 'Title chat-1', category: NotificationCategory.chat)]);
+  testWidgets('chat notifications surface under the Social tab', (
+    tester,
+  ) async {
+    await _pumpPanel(
+      tester,
+      seed: [_n('chat-1', 'Title chat-1', category: NotificationCategory.chat)],
+    );
 
     await tester.tap(find.text('Social').first);
     await tester.pumpAndSettle();
     expect(_card('chat-1'), findsOneWidget);
   });
 
-  testWidgets('tapping a card marks it read and dispatches the payload route',
-      (tester) async {
+  testWidgets('tapping a card marks it read and dispatches the payload route', (
+    tester,
+  ) async {
     final visited = <String>[];
     final container = await _pumpPanel(
       tester,
       seed: [
-        _n('t-1', 'Title t-1',
-            payload: {'action': 'OPEN_TRADE', 'tradeId': '77'}),
+        _n(
+          't-1',
+          'Title t-1',
+          payload: {'action': 'OPEN_TRADE', 'tradeId': '77'},
+        ),
       ],
       visitedRoutes: visited,
     );
@@ -500,8 +554,9 @@ void main() {
     expect(visited, contains('/trade/77'));
   });
 
-  testWidgets('tapping an informational card does not navigate',
-      (tester) async {
+  testWidgets('tapping an informational card does not navigate', (
+    tester,
+  ) async {
     final visited = <String>[];
     await _pumpPanel(
       tester,
@@ -513,18 +568,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(visited, isEmpty, reason: 'informational notice opens nothing');
-    expect(find.text('Notifications'), findsOneWidget,
-        reason: 'panel stays open — reading an informational notice is local');
+    expect(
+      find.text('Notifications'),
+      findsOneWidget,
+      reason: 'panel stays open — reading an informational notice is local',
+    );
   });
 
-  testWidgets('tapping an unsupported action tells the truth via a snackbar',
-      (tester) async {
+  testWidgets('tapping an unsupported action tells the truth via a snackbar', (
+    tester,
+  ) async {
     final visited = <String>[];
     await _pumpPanel(
       tester,
       seed: [
-        _n('unsup-1', 'Title unsup-1',
-            payload: {'action': 'NOT_A_REAL_ACTION'}),
+        _n(
+          'unsup-1',
+          'Title unsup-1',
+          payload: {'action': 'NOT_A_REAL_ACTION'},
+        ),
       ],
       visitedRoutes: visited,
     );
@@ -540,24 +602,32 @@ void main() {
     expect(visited, isEmpty);
   });
 
-  testWidgets('swipe-delete chip is the durable server-backed Delete',
-      (tester) async {
+  testWidgets('swipe-delete chip is the durable server-backed Delete', (
+    tester,
+  ) async {
     await _pumpPanel(tester, seed: [_n('d-1', 'Title d-1')]);
 
     // Reveal the left swipe chips by dragging the card left. A timed
     // drag delivers multiple move events so the horizontal recogniser
     // claims the gesture unambiguously.
-    await tester.timedDrag(_card('d-1'), const Offset(-90, 0),
-        const Duration(milliseconds: 400));
+    await tester.timedDrag(
+      _card('d-1'),
+      const Offset(-90, 0),
+      const Duration(milliseconds: 400),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Delete'), findsOneWidget,
-        reason: 'the durable owner-scoped dismissal contract is live');
+    expect(
+      find.text('Delete'),
+      findsOneWidget,
+      reason: 'the durable owner-scoped dismissal contract is live',
+    );
     expect(find.text('Hide'), findsNothing);
   });
 
-  testWidgets('the panel hosts no repeating idle controllers while open',
-      (tester) async {
+  testWidgets('the panel hosts no repeating idle controllers while open', (
+    tester,
+  ) async {
     await _pumpPanel(tester, seed: [_n('idle-1', 'Title idle-1')]);
 
     // pumpAndSettle TERMINATES on the open panel: nothing repeats while
@@ -569,18 +639,18 @@ void main() {
 
   // ── Canonical unread count ─────────────────────────────────────────────
 
-  test('unreadCountProvider counts unread notifications of every category',
-      () {
+  test('unreadCountProvider counts unread notifications of every category', () {
     final container = ProviderContainer(
       overrides: [
         authProvider.overrideWith((ref) => AuthProvider()),
-        notificationProvider.overrideWith((ref) => _Seeded(ref, [
-              _n('g1', 'a', category: NotificationCategory.general),
-              _n('g2', 'b',
-                  category: NotificationCategory.general, read: true),
-              _n('m1', 'c', category: NotificationCategory.money),
-              _n('s1', 'd', category: NotificationCategory.social),
-            ])),
+        notificationProvider.overrideWith(
+          (ref) => _Seeded(ref, [
+            _n('g1', 'a', category: NotificationCategory.general),
+            _n('g2', 'b', category: NotificationCategory.general, read: true),
+            _n('m1', 'c', category: NotificationCategory.money),
+            _n('s1', 'd', category: NotificationCategory.social),
+          ]),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -588,108 +658,131 @@ void main() {
     expect(container.read(unreadCountProvider), 3);
   });
 
-
-testWidgets(
+  testWidgets(
     'REVIEW FOLLOW-UP P1 — a direct account switch (no logout) re-binds '
     'the centre immediately: A\'s draft/reference vanish, B\'s records '
     'alone render, a delayed A read cannot repopulate, and switching '
-    'back reloads exactly A\'s records', (tester) async {
-  SharedPreferences.setMockInitialValues({'azaman_theme': 1});
-  final gated = _KeyGatedStorage();
+    'back reloads exactly A\'s records',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({'azaman_theme': 1});
+      final gated = _KeyGatedStorage();
 
-  // Seed: A has BOTH a launcher draft and an unresolved submitted-deposit
-  // continuation; B has B's own continuation.
-  final nowMs = DateTime.now().millisecondsSinceEpoch;
-  gated.store['azm.launcher.drafts.user-1'] = jsonEncode([
-    {
-      'id': 'send.user-1',
-      'surface': 'send',
-      'savedAtMs': nowMs,
-      'payload': {'amountRaw': '10'},
-    }
-  ]);
-  gated.store['azm.deposit.continuations.user-1'] = jsonEncode([
-    {'id': 'user-1.MOOLRE_A_123', 'reference': 'MOOLRE_A_123', 'savedAtMs': nowMs},
-  ]);
-  gated.store['azm.deposit.continuations.user-2'] = jsonEncode([
-    {'id': 'user-2.MOOLRE_B_456', 'reference': 'MOOLRE_B_456', 'savedAtMs': nowMs},
-  ]);
+      // Seed: A has BOTH a launcher draft and an unresolved submitted-deposit
+      // continuation; B has B's own continuation.
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      gated.store['azm.launcher.drafts.user-1'] = jsonEncode([
+        {
+          'id': 'send.user-1',
+          'surface': 'send',
+          'savedAtMs': nowMs,
+          'payload': {'amountRaw': '10'},
+        },
+      ]);
+      gated.store['azm.deposit.continuations.user-1'] = jsonEncode([
+        {
+          'id': 'user-1.MOOLRE_A_123',
+          'reference': 'MOOLRE_A_123',
+          'savedAtMs': nowMs,
+        },
+      ]);
+      gated.store['azm.deposit.continuations.user-2'] = jsonEncode([
+        {
+          'id': 'user-2.MOOLRE_B_456',
+          'reference': 'MOOLRE_B_456',
+          'savedAtMs': nowMs,
+        },
+      ]);
 
-  final mockApi = _meApi();
-  // The un-mocked secure-storage channel is noisy in tests; reads null.
-  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-      .setMockMethodCallHandler(
-    const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
-    (call) async => null,
+      final mockApi = _meApi();
+      // The un-mocked secure-storage channel is noisy in tests; reads null.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+            (call) async => null,
+          );
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith(
+            (ref) => AuthProvider(ref: ref, client: mockApi),
+          ),
+          notificationProvider.overrideWith(
+            (ref) => _SeededMockApi(ref, [], mockApi),
+          ),
+          launcherDraftsProvider.overrideWith(
+            (ref) =>
+                LauncherDraftsController(LauncherDraftsService(storage: gated)),
+          ),
+          depositContinuationsProvider.overrideWith(
+            (ref) => DepositContinuationsController(
+              DepositContinuationsService(storage: gated),
+            ),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Sign in as A through the real session path. A hard timeout keeps a
+      // regression from manifesting as a silent 10-minute stall.
+      await container
+          .read(authProvider)
+          .setSessionFromLogin(_switchUser('user-1'))
+          .timeout(const Duration(seconds: 15));
+      await _mountApp(tester, container);
+      NotificationOverlay.show(_homeContext!);
+      await tester.pumpAndSettle();
+
+      // The centre is open under A's identity: A's draft and A's submitted
+      // deposit are both rendered; B's is not.
+      expect(find.text('Continue sending'), findsOneWidget);
+      expect(find.text('Deposits in progress'), findsOneWidget);
+      expect(find.textContaining('MOOLRE_A_123'), findsOneWidget);
+      expect(find.textContaining('MOOLRE_B_456'), findsNothing);
+
+      // Start A-reads that will resolve LATE (after the switch).
+      gated.holdReadsFor('user-1');
+      final staleDrafts = container
+          .read(launcherDraftsProvider.notifier)
+          .loadForUser('user-1');
+      final staleCont = container
+          .read(depositContinuationsProvider.notifier)
+          .loadForUser('user-1');
+
+      // DIRECT switch to B — the real AuthProvider identity boundary, no
+      // logout anywhere in the path.
+      await container
+          .read(authProvider)
+          .setSessionFromLogin(_switchUser('user-2'))
+          .timeout(const Duration(seconds: 15));
+      await tester.pumpAndSettle();
+
+      // A's records are gone IMMEDIATELY; only B's continuation renders.
+      expect(
+        find.text('Continue sending'),
+        findsNothing,
+        reason: 'A\'s draft must vanish the moment the identity changes',
+      );
+      expect(find.textContaining('MOOLRE_A_123'), findsNothing);
+      expect(find.textContaining('MOOLRE_B_456'), findsOneWidget);
+      expect(find.text('Deposits in progress'), findsOneWidget);
+
+      // The delayed A read finally resolves — it must NOT repopulate or
+      // render A's records (generation guard).
+      gated.releaseHeld('user-1');
+      await staleDrafts;
+      await staleCont;
+      await tester.pumpAndSettle();
+      expect(find.text('Continue sending'), findsNothing);
+      expect(find.textContaining('MOOLRE_A_123'), findsNothing);
+      expect(find.textContaining('MOOLRE_B_456'), findsOneWidget);
+
+      // Switch back to A: exactly A's own still-valid records reload.
+      await container
+          .read(authProvider)
+          .setSessionFromLogin(_switchUser('user-1'));
+      await tester.pumpAndSettle();
+      expect(find.text('Continue sending'), findsOneWidget);
+      expect(find.textContaining('MOOLRE_A_123'), findsOneWidget);
+      expect(find.textContaining('MOOLRE_B_456'), findsNothing);
+    },
   );
-  final container = ProviderContainer(
-    overrides: [
-      authProvider.overrideWith((ref) => AuthProvider(ref: ref, client: mockApi)),
-      notificationProvider.overrideWith((ref) => _SeededMockApi(ref, [], mockApi)),
-      launcherDraftsProvider.overrideWith(
-          (ref) => LauncherDraftsController(LauncherDraftsService(storage: gated))),
-      depositContinuationsProvider.overrideWith((ref) =>
-          DepositContinuationsController(DepositContinuationsService(storage: gated))),
-    ],
-  );
-  addTearDown(container.dispose);
-
-  // Sign in as A through the real session path. A hard timeout keeps a
-  // regression from manifesting as a silent 10-minute stall.
-  await container
-      .read(authProvider)
-      .setSessionFromLogin(_switchUser('user-1'))
-      .timeout(const Duration(seconds: 15));
-  await _mountApp(tester, container);
-  NotificationOverlay.show(_homeContext!);
-  await tester.pumpAndSettle();
-
-  // The centre is open under A's identity: A's draft and A's submitted
-  // deposit are both rendered; B's is not.
-  expect(find.text('Continue sending'), findsOneWidget);
-  expect(find.text('Deposits in progress'), findsOneWidget);
-  expect(find.textContaining('MOOLRE_A_123'), findsOneWidget);
-  expect(find.textContaining('MOOLRE_B_456'), findsNothing);
-
-  // Start A-reads that will resolve LATE (after the switch).
-  gated.holdReadsFor('user-1');
-  final staleDrafts =
-      container.read(launcherDraftsProvider.notifier).loadForUser('user-1');
-  final staleCont = container
-      .read(depositContinuationsProvider.notifier)
-      .loadForUser('user-1');
-
-  // DIRECT switch to B — the real AuthProvider identity boundary, no
-  // logout anywhere in the path.
-  await container
-      .read(authProvider)
-      .setSessionFromLogin(_switchUser('user-2'))
-      .timeout(const Duration(seconds: 15));
-  await tester.pumpAndSettle();
-
-  // A's records are gone IMMEDIATELY; only B's continuation renders.
-  expect(find.text('Continue sending'), findsNothing,
-      reason: 'A\'s draft must vanish the moment the identity changes');
-  expect(find.textContaining('MOOLRE_A_123'), findsNothing);
-  expect(find.textContaining('MOOLRE_B_456'), findsOneWidget);
-  expect(find.text('Deposits in progress'), findsOneWidget);
-
-  // The delayed A read finally resolves — it must NOT repopulate or
-  // render A's records (generation guard).
-  gated.releaseHeld('user-1');
-  await staleDrafts;
-  await staleCont;
-  await tester.pumpAndSettle();
-  expect(find.text('Continue sending'), findsNothing);
-  expect(find.textContaining('MOOLRE_A_123'), findsNothing);
-  expect(find.textContaining('MOOLRE_B_456'), findsOneWidget);
-
-  // Switch back to A: exactly A's own still-valid records reload.
-  await container.read(authProvider).setSessionFromLogin(_switchUser('user-1'));
-  await tester.pumpAndSettle();
-  expect(find.text('Continue sending'), findsOneWidget);
-  expect(find.textContaining('MOOLRE_A_123'), findsOneWidget);
-  expect(find.textContaining('MOOLRE_B_456'), findsNothing);
-});
-
 }

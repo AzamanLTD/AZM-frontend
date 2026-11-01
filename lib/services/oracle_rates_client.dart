@@ -33,8 +33,9 @@ class SingleFlight {
     final request = run();
     _inFlight[key] = request;
     return request.whenComplete(() {
-      if (identical(_inFlight[key], request)) _inFlight.remove(key);
-    }) as Future<T>;
+          if (identical(_inFlight[key], request)) _inFlight.remove(key);
+        })
+        as Future<T>;
   }
 
   @visibleForTesting
@@ -44,6 +45,6 @@ class SingleFlight {
 final SingleFlight _flight = SingleFlight();
 
 Future<http.Response> getOracleRates() => _flight.run(
-      '/oracle/rates',
-      () => apiClient.get('/oracle/rates', requireAuth: false),
-    );
+  '/oracle/rates',
+  () => apiClient.get('/oracle/rates', requireAuth: false),
+);

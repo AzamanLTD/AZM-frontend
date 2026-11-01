@@ -27,7 +27,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
 
-
 /// Public entry point — opens the breakdown as a modal bottom sheet.
 Future<void> showTrustBreakdownSheet(
   BuildContext context, {
@@ -179,11 +178,7 @@ class _TrustBreakdownSheet extends ConsumerWidget {
                     ],
                   ),
                 ),
-                Container(
-                  width: 1,
-                  height: 36,
-                  color: colors.divider,
-                ),
+                Container(width: 1, height: 36, color: colors.divider),
                 const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -201,8 +196,11 @@ class _TrustBreakdownSheet extends ConsumerWidget {
                     if (rating != null)
                       Row(
                         children: [
-                          Icon(Icons.star_outline,
-                              color: colors.warning, size: 18),
+                          Icon(
+                            Icons.star_outline,
+                            color: colors.warning,
+                            size: 18,
+                          ),
                           const SizedBox(width: 2),
                           Text(
                             rating!.toStringAsFixed(1),
@@ -276,18 +274,21 @@ class _TrustBreakdownSheet extends ConsumerWidget {
           if (isVerifiedVendor) ...[
             const SizedBox(height: 14),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: colors.accent.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border:
-                    Border.all(color: colors.accent.withValues(alpha: 0.25)),
+                border: Border.all(
+                  color: colors.accent.withValues(alpha: 0.25),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_outline,
-                      color: colors.accent, size: 16),
+                  Icon(
+                    Icons.check_circle_outline,
+                    color: colors.accent,
+                    size: 16,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -373,10 +374,7 @@ class _CategoryRow extends StatelessWidget {
                   description,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: colors.textTertiary, fontSize: 11),
                 ),
               ],
             ),

@@ -112,7 +112,10 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
     final search = _claimedSearch;
     if (search != null && search.mounted) {
       if (business != null && business.category.isNotEmpty) {
-        search.setScope(MarketplaceSearchScope.world, worldWire: business.category);
+        search.setScope(
+          MarketplaceSearchScope.world,
+          worldWire: business.category,
+        );
       } else {
         search.setScope(MarketplaceSearchScope.marketplace);
       }
@@ -174,8 +177,9 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
 
   Future<void> _loadFollowState(String businessId) async {
     try {
-      final res = await ref.read(apiClientProvider).get(
-          '/follows/check/$businessId');
+      final res = await ref
+          .read(apiClientProvider)
+          .get('/follows/check/$businessId');
       final data = jsonDecode(res.body);
       if (mounted) {
         setState(() {
@@ -187,8 +191,9 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
 
   Future<void> _loadShowcase(String businessId) async {
     try {
-      final res = await ref.read(apiClientProvider).get(
-          '/showcases/$businessId');
+      final res = await ref
+          .read(apiClientProvider)
+          .get('/showcases/$businessId');
       final data = jsonDecode(res.body);
       if (mounted) {
         // Handle multiple response shapes: {'data': [...]}, {'items': [...]},
@@ -241,8 +246,9 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
   Future<void> _loadMenu(String bizId) async {
     setState(() => _menuLoading = true);
     try {
-      final response =
-          await ref.read(apiClientProvider).get('/business/$bizId/menu');
+      final response = await ref
+          .read(apiClientProvider)
+          .get('/business/$bizId/menu');
       final body = jsonDecode(response.body);
       final sections = body['sections'] as List<dynamic>? ?? [];
       final uncategorised =

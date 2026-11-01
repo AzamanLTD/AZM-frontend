@@ -39,7 +39,11 @@ class HotelRoom {
   String get displayType => roomType
       .toLowerCase()
       .split('_')
-      .map((part) => part.isEmpty ? part : '${part[0].toUpperCase()}${part.substring(1)}')
+      .map(
+        (part) => part.isEmpty
+            ? part
+            : '${part[0].toUpperCase()}${part.substring(1)}',
+      )
       .join(' ');
   String? get primaryImage => imageUrls.isEmpty ? null : imageUrls.first;
 
@@ -50,7 +54,9 @@ class HotelRoom {
       locationId: json['locationId']?.toString(),
       roomNumber: (json['roomNumber'] ?? '').toString(),
       roomType: (json['roomType'] ?? 'ROOM').toString(),
-      floor: json['floor'] == null ? null : int.tryParse(json['floor'].toString()),
+      floor: json['floor'] == null
+          ? null
+          : int.tryParse(json['floor'].toString()),
       capacity: int.tryParse(json['capacity']?.toString() ?? '') ?? 1,
       bedConfig: json['bedConfig']?.toString(),
       status: (json['status'] ?? 'UNKNOWN').toString(),
@@ -67,20 +73,20 @@ class HotelRoom {
   /// fully onto HotelRoom. Useful only for legacy widgets that still render a
   /// BusinessProduct-shaped preview; booking continues to use [id].
   BusinessProduct toLegacyProduct() => BusinessProduct(
-        id: id,
-        businessProfileId: businessProfileId,
-        name: 'Room $roomNumber',
-        slug: 'hotel-room-$id',
-        description: bedConfig,
-        category: 'HOSPITALITY',
-        locationId: locationId,
-        priceUsdc: basePriceUsdc,
-        totalRevenue: 0,
-        imageUrls: imageUrls,
-        isActive: isBookable,
-        totalOrders: 0,
-        tags: [roomType, ...amenities],
-      );
+    id: id,
+    businessProfileId: businessProfileId,
+    name: 'Room $roomNumber',
+    slug: 'hotel-room-$id',
+    description: bedConfig,
+    category: 'HOSPITALITY',
+    locationId: locationId,
+    priceUsdc: basePriceUsdc,
+    totalRevenue: 0,
+    imageUrls: imageUrls,
+    isActive: isBookable,
+    totalOrders: 0,
+    tags: [roomType, ...amenities],
+  );
 }
 
 double _hotelToDouble(dynamic value) {
@@ -88,6 +94,5 @@ double _hotelToDouble(dynamic value) {
   return double.tryParse(value?.toString() ?? '') ?? 0;
 }
 
-List<String> _hotelStrings(dynamic value) => value is List
-    ? value.map((item) => item.toString()).toList()
-    : const [];
+List<String> _hotelStrings(dynamic value) =>
+    value is List ? value.map((item) => item.toString()).toList() : const [];

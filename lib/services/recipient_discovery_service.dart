@@ -113,11 +113,11 @@ class SendRecipient {
     required String friendshipId,
     String? avatarUrl,
   }) : this(
-          username: username,
-          source: SendRecipientSource.friend,
-          friendshipId: friendshipId,
-          avatarUrl: avatarUrl,
-        );
+         username: username,
+         source: SendRecipientSource.friend,
+         friendshipId: friendshipId,
+         avatarUrl: avatarUrl,
+       );
 
   SendRecipient({
     required this.username,
@@ -127,20 +127,24 @@ class SendRecipient {
     this.userId,
     this.friendshipId,
     this.avatarUrl,
-  })  : assert(username == null || username.trim().isNotEmpty,
-            'a canonical username, when present, is never blank'),
-        assert(
-            username != null ||
-                (displayName != null && displayName.trim().isNotEmpty),
-            'a username-less row is display-only and must still identify '
-            'the person by their real display name — no anonymous rows'),
-        assert(
-            azamanId == null ||
-                (_azmIdPattern.hasMatch(azamanId) &&
-                    !_forbiddenAzmIds.contains(azamanId)),
-            'azamanId must be a well-formed live AZM ID or null — '
-            'presentation masks and placeholders can never enter a '
-            'financial recipient');
+  }) : assert(
+         username == null || username.trim().isNotEmpty,
+         'a canonical username, when present, is never blank',
+       ),
+       assert(
+         username != null ||
+             (displayName != null && displayName.trim().isNotEmpty),
+         'a username-less row is display-only and must still identify '
+         'the person by their real display name — no anonymous rows',
+       ),
+       assert(
+         azamanId == null ||
+             (_azmIdPattern.hasMatch(azamanId) &&
+                 !_forbiddenAzmIds.contains(azamanId)),
+         'azamanId must be a well-formed live AZM ID or null — '
+         'presentation masks and placeholders can never enter a '
+         'financial recipient',
+       );
 
   /// True only when the canonical peer-transfer rail can serve this
   /// recipient (an accepted friendship exists).
@@ -186,20 +190,14 @@ class SendRecipient {
 /// AZM-ID lookup outcomes. Every failure is honest and typed — the UI
 /// never renders a generic "not found" for a self-lookup or a malformed
 /// query.
-enum AzmLookupStatus {
-  found,
-  malformed,
-  self,
-  notFound,
-  network,
-}
+enum AzmLookupStatus { found, malformed, self, notFound, network }
 
 class AzmLookupOutcome {
   final AzmLookupStatus status;
   final SendRecipient? recipient;
   const AzmLookupOutcome.found(SendRecipient r)
-      : status = AzmLookupStatus.found,
-        recipient = r;
+    : status = AzmLookupStatus.found,
+      recipient = r;
   const AzmLookupOutcome(this.status) : recipient = null;
 }
 
@@ -262,19 +260,21 @@ class RecipientDiscoveryService {
         continue; // a row without a canonical identity is never a recipient
       }
       final friendId = friend['id'];
-      out.add(SendRecipient(
-        username: username,
-        displayName: friend['fullName']?.toString(),
-        // The friends projection carries no azamanId (backend privacy
-        // contract) — null, never a mask.
-        azamanId: null,
-        userId: friendId is int
-            ? friendId
-            : int.tryParse(friendId?.toString() ?? ''),
-        friendshipId: friendshipId,
-        avatarUrl: friend['profilePictureUrl']?.toString(),
-        source: SendRecipientSource.friend,
-      ));
+      out.add(
+        SendRecipient(
+          username: username,
+          displayName: friend['fullName']?.toString(),
+          // The friends projection carries no azamanId (backend privacy
+          // contract) — null, never a mask.
+          azamanId: null,
+          userId: friendId is int
+              ? friendId
+              : int.tryParse(friendId?.toString() ?? ''),
+          friendshipId: friendshipId,
+          avatarUrl: friend['profilePictureUrl']?.toString(),
+          source: SendRecipientSource.friend,
+        ),
+      );
     }
     return out;
   }
@@ -295,8 +295,9 @@ class RecipientDiscoveryService {
       return const AzmLookupOutcome(AzmLookupStatus.self);
     }
     try {
-      final res =
-          await _api.get('/users/lookup/${Uri.encodeComponent(azamanId)}');
+      final res = await _api.get(
+        '/users/lookup/${Uri.encodeComponent(azamanId)}',
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>?;
         final user = data?['user'] as Map<String, dynamic>?;
@@ -357,8 +358,9 @@ class RecipientDiscoveryService {
     try {
       // Query text is USER INPUT — it is always encoded as a component,
       // never interpolated raw into the path or query.
-      final res = await _api
-          .get('/friends/search?q=${Uri.encodeQueryComponent(q)}');
+      final res = await _api.get(
+        '/friends/search?q=${Uri.encodeQueryComponent(q)}',
+      );
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body) as Map<String, dynamic>?;
         final users = (data?['users'] as List?) ?? const [];
@@ -369,21 +371,21 @@ class RecipientDiscoveryService {
           final id = u['id'] is int
               ? u['id'] as int
               : int.tryParse(u['id']?.toString() ?? '');
-          if (username == null ||
-              username.isEmpty ||
-              id == null) {
+          if (username == null || username.isEmpty || id == null) {
             continue; // no canonical identity — not a selectable recipient
           }
           final friendshipId = friendshipsByUserId[id];
-          results.add(SendRecipient(
-            username: username,
-            userId: id,
-            friendshipId: friendshipId,
-            avatarUrl: u['profilePictureUrl']?.toString(),
-            source: friendshipId != null
-                ? SendRecipientSource.directoryFriend
-                : SendRecipientSource.directoryUser,
-          ));
+          results.add(
+            SendRecipient(
+              username: username,
+              userId: id,
+              friendshipId: friendshipId,
+              avatarUrl: u['profilePictureUrl']?.toString(),
+              source: friendshipId != null
+                  ? SendRecipientSource.directoryFriend
+                  : SendRecipientSource.directoryUser,
+            ),
+          );
         }
         return DirectorySearchOutcome(results);
       }

@@ -202,8 +202,7 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
                                         Icons.card_giftcard_outlined,
                                         'Refer & Earn',
                                         colors,
-                                        destination:
-                                            const ReferralScreen(),
+                                        destination: const ReferralScreen(),
                                       ),
                                     ],
                                   ),
@@ -216,7 +215,7 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
                                     context,
                                     colors,
                                     label: 'Money',
-rows: [
+                                    rows: [
                                       // Workstream G1 — the duplicate Deposit/Withdraw
                                       // rows are removed: their canonical
                                       // home is the Home + launcher (Add Cash
@@ -241,8 +240,7 @@ rows: [
                                         Icons.storefront_outlined,
                                         'Azaman Store',
                                         colors,
-                                        destination:
-                                            const AzamanStoreScreen(),
+                                        destination: const AzamanStoreScreen(),
                                       ),
                                     ],
                                   ),
@@ -289,10 +287,7 @@ rows: [
                                 _animatedWrapper(
                                   context,
                                   delay: 8,
-                                  child: _buildAllSettingsRow(
-                                    context,
-                                    colors,
-                                  ),
+                                  child: _buildAllSettingsRow(context, colors),
                                 ),
 
                                 const SizedBox(height: 24),
@@ -307,7 +302,7 @@ rows: [
                                   ),
                                 ),
                                 const SizedBox(height: 20),
-]),
+                              ]),
                             ),
                           ),
                         ],
@@ -374,9 +369,7 @@ rows: [
         decoration: BoxDecoration(
           color: colors.accent.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: colors.accent.withValues(alpha: 0.18),
-          ),
+          border: Border.all(color: colors.accent.withValues(alpha: 0.18)),
         ),
         child: Row(
           children: [
@@ -552,7 +545,8 @@ rows: [
       // NEW-A: when the destination has a canonical route, the route is
       // authoritative; the widget push remains only for screens without a
       // GoRoute yet.
-      onTap: onTapOverride ??
+      onTap:
+          onTapOverride ??
           ((destination == null && route == null)
               ? null
               : () {
@@ -730,8 +724,7 @@ class _SlenderMenuTileState extends State<_SlenderMenuTile> {
                           ),
                         ),
                       ),
-                      if (widget.chip != null &&
-                          widget.chip!.isNotEmpty) ...[
+                      if (widget.chip != null && widget.chip!.isNotEmpty) ...[
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -920,11 +913,7 @@ class _ProfileHeroDelegate extends SliverPersistentHeaderDelegate {
     final f = (shrinkOffset / (_maxExtent - _minExtent)).clamp(0.0, 1.0);
     // STAGE 2: the body receives the scroll FRACTION; its own threshold +
     // hysteresis logic decides when to run the short collapse/expand.
-    return _ProfileHeroBody(
-      username: username,
-      user: user,
-      scrollFraction: f,
-    );
+    return _ProfileHeroBody(username: username, user: user, scrollFraction: f);
   }
 
   @override
@@ -1007,8 +996,10 @@ class _ProfileHeroBodyState extends ConsumerState<_ProfileHeroBody>
     }
     // Short, restrained roll between presentations. Reduced motion →
     // the state snaps (MotionTokens honors the OS flag).
-    final duration =
-        MotionTokens.accessibleDuration(context, _collapseDuration);
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      _collapseDuration,
+    );
     if (duration == Duration.zero) {
       _t = collapsed ? 1.0 : 0.0;
       _ctrl.value = _t;
@@ -1016,9 +1007,9 @@ class _ProfileHeroBodyState extends ConsumerState<_ProfileHeroBody>
       return;
     }
     _ctrl.duration = duration;
-    _ctrl
-        .animateTo(collapsed ? 1.0 : 0.0)
-        .whenComplete(() { if (mounted) setState(() {}); });
+    _ctrl.animateTo(collapsed ? 1.0 : 0.0).whenComplete(() {
+      if (mounted) setState(() {});
+    });
   }
 
   void _onTick() {
@@ -1038,7 +1029,6 @@ class _ProfileHeroBodyState extends ConsumerState<_ProfileHeroBody>
     _ctrl.dispose();
     super.dispose();
   }
-
 
   static const double _avatarExpanded = 88;
   static const double _avatarCollapsed = 40;

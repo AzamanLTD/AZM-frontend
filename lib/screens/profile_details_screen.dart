@@ -18,7 +18,6 @@ import 'package:azaman/services/api_client.dart';
 
 import 'package:azaman/screens/kyc_verification_screen.dart';
 
-
 class ProfileDetailsScreen extends ConsumerStatefulWidget {
   const ProfileDetailsScreen({super.key});
 
@@ -93,7 +92,11 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
             CircleAvatar(
               radius: 40,
               backgroundColor: colors.card,
-              child: Icon(Icons.person_outline, size: 50, color: colors.textTertiary),
+              child: Icon(
+                Icons.person_outline,
+                size: 50,
+                color: colors.textTertiary,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -135,11 +138,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
                 },
               ),
             ),
-            _buildInfoTile(
-              colors,
-              label: "Username",
-              value: username,
-            ),
+            _buildInfoTile(colors, label: "Username", value: username),
 
             // --- SOCIAL LINKING ---
             _sectionHeader("Social Links", colors),
@@ -147,7 +146,11 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
               colors,
               label: "Twitter (X)",
               value: "@AzamanOfficial",
-              trailing: Icon(Icons.link, color: colors.accentSecondary, size: 20),
+              trailing: Icon(
+                Icons.link,
+                color: colors.accentSecondary,
+                size: 20,
+              ),
               onTap: () {
                 // Future logic to open Twitter URL
               },
@@ -161,7 +164,9 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
               value: _kycStatus == "VERIFIED" ? "High" : "Standard",
               trailing: Icon(
                 Icons.shield_outlined,
-                color: _kycStatus == "VERIFIED" ? colors.success : colors.accent,
+                color: _kycStatus == "VERIFIED"
+                    ? colors.success
+                    : colors.accent,
                 size: 20,
               ),
             ),
@@ -185,9 +190,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
     switch (_kycStatus) {
       case "LOADING":
         return Center(
-          child: CircularProgressIndicator(
-            color: colors.textTertiary,
-          ),
+          child: CircularProgressIndicator(color: colors.textTertiary),
         );
 
       case "VERIFIED":
@@ -235,7 +238,8 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-                builder: (context) => const KycVerificationScreen()),
+              builder: (context) => const KycVerificationScreen(),
+            ),
           ).then((_) {
             _fetchKycStatus();
           });
@@ -254,7 +258,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
                     color: cardColor.withValues(alpha: 0.05),
                     blurRadius: 10,
                     spreadRadius: 1,
-                  )
+                  ),
                 ]
               : [],
         ),
@@ -277,10 +281,7 @@ class _ProfileDetailsScreenState extends ConsumerState<ProfileDetailsScreen> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
                   ),
                 ],
               ),

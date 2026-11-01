@@ -66,10 +66,7 @@ void main() {
     final variants = <String, String>{'size': 'M'};
     final sourceLines = <RetailCartLine>[
       RetailCartLine(
-        product: const RetailProduct(
-          id: 'product-1',
-          name: 'Test product',
-        ),
+        product: const RetailProduct(id: 'product-1', name: 'Test product'),
         quantity: 2,
         variants: variants,
       ),
@@ -106,9 +103,6 @@ void main() {
   test('empty cart cannot begin an operation', () {
     final controller = RetailCheckoutController(_RecordingGateway());
 
-    expect(
-      () => controller.begin(const RetailCart()),
-      throwsStateError,
-    );
+    expect(() => controller.begin(const RetailCart()), throwsStateError);
   });
 }

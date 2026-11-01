@@ -3,7 +3,6 @@
 // AZAMAN — MARKETPLACE EXTENSIONS MODELS (v2, 2026-07-03)
 // =============================================================================
 
-
 double _decimalToDouble(dynamic value) {
   if (value == null) return 0;
   if (value is num) return value.toDouble();
@@ -136,7 +135,8 @@ class DineInTab {
       tableId: (json['tableId'] ?? table['id'])?.toString(),
       tableLabel: table['label']?.toString(),
       locationId: (json['locationId'] ?? table['locationId'])?.toString(),
-      items: (json['items'] as List?)
+      items:
+          (json['items'] as List?)
               ?.whereType<Map>()
               .map((e) => DineInTabItem.fromJson(Map<String, dynamic>.from(e)))
               .toList() ??
@@ -190,14 +190,15 @@ class BusinessShowcase {
     required this.displayOrder,
   });
 
-  factory BusinessShowcase.fromJson(Map<String, dynamic> json) => BusinessShowcase(
-    id: json['id'],
-    mediaUrl: json['mediaUrl'] ?? '',
-    mediaType: json['mediaType'] ?? 'IMAGE',
-    thumbnailUrl: json['thumbnailUrl'],
-    caption: json['caption'],
-    displayOrder: json['displayOrder'] ?? 0,
-  );
+  factory BusinessShowcase.fromJson(Map<String, dynamic> json) =>
+      BusinessShowcase(
+        id: json['id'],
+        mediaUrl: json['mediaUrl'] ?? '',
+        mediaType: json['mediaType'] ?? 'IMAGE',
+        thumbnailUrl: json['thumbnailUrl'],
+        caption: json['caption'],
+        displayOrder: json['displayOrder'] ?? 0,
+      );
 }
 
 // ── TrustScore ──────────────────────────────────────────────────────────────
@@ -226,11 +227,16 @@ class TrustScore {
 
   String get colorHex {
     switch (trustLevel) {
-      case 'EXCELLENT': return '#22C55E';
-      case 'GOOD': return '#3B82F6';
-      case 'CAUTION': return '#F59E0B';
-      case 'RISK': return '#EF4444';
-      default: return '#6B7280';
+      case 'EXCELLENT':
+        return '#22C55E';
+      case 'GOOD':
+        return '#3B82F6';
+      case 'CAUTION':
+        return '#F59E0B';
+      case 'RISK':
+        return '#EF4444';
+      default:
+        return '#6B7280';
     }
   }
 }

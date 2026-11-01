@@ -47,17 +47,19 @@ Future<void> _pumpSurface(WidgetTester tester, AzamanTheme theme) async {
 }
 
 List<BoxDecoration> _boxes(WidgetTester tester) => tester
-    .widgetList<DecoratedBox>(find.descendant(
-        of: find.byType(HolographicSurface), matching: find.byType(DecoratedBox)))
+    .widgetList<DecoratedBox>(
+      find.descendant(
+        of: find.byType(HolographicSurface),
+        matching: find.byType(DecoratedBox),
+      ),
+    )
     .map((d) => d.decoration)
     .whereType<BoxDecoration>()
     .toList();
 
 /// The base material (layer 1) — the first LinearGradient in the surface.
-LinearGradient _baseGradient(WidgetTester tester) => _boxes(tester)
-    .map((d) => d.gradient)
-    .whereType<LinearGradient>()
-    .first;
+LinearGradient _baseGradient(WidgetTester tester) =>
+    _boxes(tester).map((d) => d.gradient).whereType<LinearGradient>().first;
 
 /// The specular band (layer 3) — the gradient with the 0.34/0.50/0.66 stops.
 LinearGradient _sheen(WidgetTester tester) => _boxes(tester)
@@ -70,8 +72,12 @@ Border _rim(WidgetTester tester) =>
     _boxes(tester).map((d) => d.border).whereType<Border>().first;
 
 BoxDecoration _outerContainerDecoration(WidgetTester tester) => tester
-    .widgetList<Container>(find.descendant(
-        of: find.byType(HolographicSurface), matching: find.byType(Container)))
+    .widgetList<Container>(
+      find.descendant(
+        of: find.byType(HolographicSurface),
+        matching: find.byType(Container),
+      ),
+    )
     .map((c) => c.decoration)
     .whereType<BoxDecoration>()
     .firstWhere((d) => d.boxShadow != null);
@@ -81,28 +87,36 @@ double _dist(Color a, Color b) =>
 
 void main() {
   testWidgets(
-      'dark: the base falls away 22% toward black — a slab, not a flat fill',
-      (tester) async {
-    await _pumpSurface(tester, AzamanTheme.dark);
-    final bottom = _baseGradient(tester).colors.last;
-    final expected = Color.lerp(_base, Colors.black, 0.22)!;
-    expect(_dist(bottom, expected), lessThan(0.001));
-  });
+    'dark: the base falls away 22% toward black — a slab, not a flat fill',
+    (tester) async {
+      await _pumpSurface(tester, AzamanTheme.dark);
+      final bottom = _baseGradient(tester).colors.last;
+      final expected = Color.lerp(_base, Colors.black, 0.22)!;
+      expect(_dist(bottom, expected), lessThan(0.001));
+    },
+  );
 
   testWidgets(
-      'light: the base keeps its own hierarchy — lit top, soft 6% shade',
-      (tester) async {
-    await _pumpSurface(tester, AzamanTheme.light);
-    final g = _baseGradient(tester);
-    final top = g.colors.first;
-    final bottom = g.colors.last;
-    expect(_dist(top, Color.lerp(_base, Colors.white, 0.14)!), lessThan(0.001));
-    expect(
-        _dist(bottom, Color.lerp(_base, Colors.black, 0.06)!), lessThan(0.001));
-  });
+    'light: the base keeps its own hierarchy — lit top, soft 6% shade',
+    (tester) async {
+      await _pumpSurface(tester, AzamanTheme.light);
+      final g = _baseGradient(tester);
+      final top = g.colors.first;
+      final bottom = g.colors.last;
+      expect(
+        _dist(top, Color.lerp(_base, Colors.white, 0.14)!),
+        lessThan(0.001),
+      );
+      expect(
+        _dist(bottom, Color.lerp(_base, Colors.black, 0.06)!),
+        lessThan(0.001),
+      );
+    },
+  );
 
-  testWidgets('dark: the rim is a LIT highlight — light catching the edge',
-      (tester) async {
+  testWidgets('dark: the rim is a LIT highlight — light catching the edge', (
+    tester,
+  ) async {
     await _pumpSurface(tester, AzamanTheme.dark);
     final top = _rim(tester).top.color;
     expect(top.r, greaterThan(0.9)); // white
@@ -110,34 +124,38 @@ void main() {
   });
 
   testWidgets(
-      'light: the rim is a visible neutral stroke, not invisible white-on-white',
-      (tester) async {
-    await _pumpSurface(tester, AzamanTheme.light);
-    final top = _rim(tester).top.color;
-    expect(top.r, lessThan(0.2)); // neutral dark, not a white highlight
-    expect(top.a, closeTo(0x14 / 255, 0.01)); // clearly visible
-  });
+    'light: the rim is a visible neutral stroke, not invisible white-on-white',
+    (tester) async {
+      await _pumpSurface(tester, AzamanTheme.light);
+      final top = _rim(tester).top.color;
+      expect(top.r, lessThan(0.2)); // neutral dark, not a white highlight
+      expect(top.a, closeTo(0x14 / 255, 0.01)); // clearly visible
+    },
+  );
 
-  testWidgets('dark: a figure-plate vignette renders behind the balance',
-      (tester) async {
+  testWidgets('dark: a figure-plate vignette renders behind the balance', (
+    tester,
+  ) async {
     await _pumpSurface(tester, AzamanTheme.dark);
-    final radials = _boxes(tester)
-        .map((d) => d.gradient)
-        .whereType<RadialGradient>()
-        .toList();
+    final radials = _boxes(
+      tester,
+    ).map((d) => d.gradient).whereType<RadialGradient>().toList();
     // ceiling light + figure plate.
     expect(radials.length, 2);
-    expect(radials.any((g) => g.colors.first == Colors.black.withValues(alpha: 0.14)),
-        isTrue);
+    expect(
+      radials.any(
+        (g) => g.colors.first == Colors.black.withValues(alpha: 0.14),
+      ),
+      isTrue,
+    );
   });
 
   testWidgets('light: no figure plate — a dark vignette on white reads as a '
       'stain', (tester) async {
     await _pumpSurface(tester, AzamanTheme.light);
-    final radials = _boxes(tester)
-        .map((d) => d.gradient)
-        .whereType<RadialGradient>()
-        .toList();
+    final radials = _boxes(
+      tester,
+    ).map((d) => d.gradient).whereType<RadialGradient>().toList();
     // Ceiling light only.
     expect(radials.length, 1);
     expect(radials.single.colors.first.r, greaterThan(0.9)); // white light
@@ -149,8 +167,9 @@ void main() {
     expect(peak.a, closeTo(0.18, 0.001)); // sheenPeak 0.18 × gate 1.0
   });
 
-  testWidgets('light: the iridescence gate damps the band to 55%',
-      (tester) async {
+  testWidgets('light: the iridescence gate damps the band to 55%', (
+    tester,
+  ) async {
     await _pumpSurface(tester, AzamanTheme.light);
     final peak = _sheen(tester).colors[1];
     expect(peak.a, closeTo(0.18 * 0.55, 0.001));
@@ -166,7 +185,9 @@ void main() {
     expect(shadows.last.offset, const Offset(0, 1));
   });
 
-  testWidgets('dark: keeps the unmodified level-3 shadow recipe', (tester) async {
+  testWidgets('dark: keeps the unmodified level-3 shadow recipe', (
+    tester,
+  ) async {
     await _pumpSurface(tester, AzamanTheme.dark);
     final shadows = _outerContainerDecoration(tester).boxShadow!;
     expect(shadows.length, 2);

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-
 enum BanStatus { active, warned, restricted, banned }
 
 class GhostBanWrapper extends ConsumerStatefulWidget {
@@ -95,7 +94,8 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
       path: 'appeals@azaman.io',
       queryParameters: {
         'subject': 'Ghost Ban Appeal - ${widget.banStatus.name.toUpperCase()}',
-        'body': 'I believe my account was incorrectly restricted.\n\n'
+        'body':
+            'I believe my account was incorrectly restricted.\n\n'
             'Current Status: ${widget.banStatus.name.toUpperCase()}\n'
             'Account: [ENTER_USER_ID]\n\n'
             'Please review and lift this restriction.',
@@ -112,12 +112,7 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
 
     return Stack(
       children: [
-        if (_isBanned)
-          IgnorePointer(
-            child: widget.child,
-          )
-        else
-          widget.child,
+        if (_isBanned) IgnorePointer(child: widget.child) else widget.child,
         if (_isBanned)
           Positioned(
             top: 0,
@@ -132,7 +127,10 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
                   bottomRight: Radius.circular(14),
                 ),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(14),
@@ -183,7 +181,9 @@ class _GhostBanWrapperState extends ConsumerState<GhostBanWrapper> {
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.75),
                                 fontSize: 10,
-                                fontFeatures: const [FontFeature.tabularFigures()],
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
                               ),
                             ),
                           ],
@@ -210,7 +210,8 @@ class _AppealButton extends StatefulWidget {
   State<_AppealButton> createState() => _AppealButtonState();
 }
 
-class _AppealButtonState extends State<_AppealButton> with SingleTickerProviderStateMixin {
+class _AppealButtonState extends State<_AppealButton>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
 
@@ -221,9 +222,10 @@ class _AppealButtonState extends State<_AppealButton> with SingleTickerProviderS
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.06,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -236,10 +238,8 @@ class _AppealButtonState extends State<_AppealButton> with SingleTickerProviderS
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _pulseAnim,
-      builder: (context, child) => Transform.scale(
-        scale: _pulseAnim.value,
-        child: child,
-      ),
+      builder: (context, child) =>
+          Transform.scale(scale: _pulseAnim.value, child: child),
       child: GestureDetector(
         onTap: widget.onTap,
         child: Container(

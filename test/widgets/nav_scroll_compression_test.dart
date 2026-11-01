@@ -72,15 +72,10 @@ Widget _host(Widget child, {bool reduceMotion = false}) {
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, navigatorChild) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          disableAnimations: reduceMotion,
-        ),
+        data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
         child: navigatorChild ?? const SizedBox.shrink(),
       ),
-      home: Scaffold(
-        body: const SizedBox.expand(),
-        bottomNavigationBar: child,
-      ),
+      home: Scaffold(body: const SizedBox.expand(), bottomNavigationBar: child),
     ),
   );
 }
@@ -107,13 +102,20 @@ final _navFinder = find.byType(PremiumBottomNav);
 /// The nav's outer Padding: pill height + the 16px bottom inset (no safe area
 /// in the test surface). UX-CORRECTION §4: the icon-only pill is thinner —
 /// rest == 48 + 16 and compressed == 44 + 16.
-double _navHeight(WidgetTester tester) => tester.getSize(
+double _navHeight(WidgetTester tester) => tester
+    .getSize(
       find.descendant(of: _navFinder, matching: find.byType(Padding)).first,
-    ).height;
+    )
+    .height;
 
-double _pillOpacity(WidgetTester tester) => (tester.widget(
-      find.descendant(of: _navFinder, matching: find.byType(Opacity)).first,
-    ) as Opacity).opacity;
+double _pillOpacity(WidgetTester tester) =>
+    (tester.widget(
+              find
+                  .descendant(of: _navFinder, matching: find.byType(Opacity))
+                  .first,
+            )
+            as Opacity)
+        .opacity;
 
 void main() {
   tearDown(() => AzSensory.apply(const SensoryPreferences()));
@@ -150,7 +152,6 @@ void main() {
       // 9px crosses the first step boundary.
       expect(NavScrollCompression.fromPixels(9), 0.1);
     });
-
   });
 
   group('applyTo — the MainWrapper writer policy', () {
@@ -160,8 +161,9 @@ void main() {
       return tester.element(find.byType(Scaffold));
     }
 
-    testWidgets('reversible: scrolling down and back lands on the same value',
-        (tester) async {
+    testWidgets('reversible: scrolling down and back lands on the same value', (
+      tester,
+    ) async {
       final ctx = await _context(tester);
       // Through the STATEFUL writer: 30px down, then to 60, then back to 30.
       // The value at a given depth must be identical however the user got
@@ -179,16 +181,18 @@ void main() {
       expect(navScrollCompression.value, 0);
     });
 
-    testWidgets('a vertical scroll writes the quantised compression',
-        (tester) async {
+    testWidgets('a vertical scroll writes the quantised compression', (
+      tester,
+    ) async {
       final ctx = await _context(tester);
       final consumed = NavScrollCompression.applyTo(_scroll(ctx, 45));
       expect(consumed, isFalse, reason: 'notifications must keep bubbling');
       expect(navScrollCompression.value, 0.5);
     });
 
-    testWidgets('the same step writes nothing (quantisation caps rebuilds)',
-        (tester) async {
+    testWidgets('the same step writes nothing (quantisation caps rebuilds)', (
+      tester,
+    ) async {
       final ctx = await _context(tester);
       NavScrollCompression.applyTo(_scroll(ctx, 45));
       var writes = 0;
@@ -204,8 +208,9 @@ void main() {
       navScrollCompression.removeListener(listener);
     });
 
-    testWidgets('returning to the top restores rest (recovery)',
-        (tester) async {
+    testWidgets('returning to the top restores rest (recovery)', (
+      tester,
+    ) async {
       final ctx = await _context(tester);
       NavScrollCompression.applyTo(_scroll(ctx, 90));
       expect(navScrollCompression.value, 1);
@@ -213,19 +218,19 @@ void main() {
       expect(navScrollCompression.value, 0);
     });
 
-    testWidgets(
-      'horizontal scrollables never compress the vertical chrome',
-      (tester) async {
-        final ctx = await _context(tester);
-        NavScrollCompression.applyTo(
-          _scroll(ctx, 400, axisDirection: AxisDirection.right),
-        );
-        expect(navScrollCompression.value, 0);
-      },
-    );
+    testWidgets('horizontal scrollables never compress the vertical chrome', (
+      tester,
+    ) async {
+      final ctx = await _context(tester);
+      NavScrollCompression.applyTo(
+        _scroll(ctx, 400, axisDirection: AxisDirection.right),
+      );
+      expect(navScrollCompression.value, 0);
+    });
 
-    testWidgets('pull-to-refresh overscroll at the top does not compress',
-        (tester) async {
+    testWidgets('pull-to-refresh overscroll at the top does not compress', (
+      tester,
+    ) async {
       final ctx = await _context(tester);
       NavScrollCompression.applyTo(_scroll(ctx, -25));
       expect(navScrollCompression.value, 0);
@@ -233,8 +238,9 @@ void main() {
   });
 
   group('PremiumBottomNav widget', () {
-    testWidgets('at rest: thinner icon-only pill, no labels, semantics kept',
-        (tester) async {
+    testWidgets('at rest: thinner icon-only pill, no labels, semantics kept', (
+      tester,
+    ) async {
       await _pumpNav(tester);
       await tester.pumpAndSettle();
 
@@ -254,8 +260,9 @@ void main() {
       expect(find.bySemanticsLabel('Marketplace'), findsOneWidget);
     });
 
-    testWidgets('fully compressed: 44px (tap-target floor), 0.92 opacity',
-        (tester) async {
+    testWidgets('fully compressed: 44px (tap-target floor), 0.92 opacity', (
+      tester,
+    ) async {
       await _pumpNav(tester);
       navScrollCompression.value = 1;
       await tester.pumpAndSettle();
@@ -280,25 +287,24 @@ void main() {
       expect(find.byIcon(HugeIconsSolid.home01), findsOneWidget);
     });
 
-    testWidgets(
-      'unrelated rebuilds do not restart or jitter the compression',
-      (tester) async {
-        await _pumpNav(tester);
-        navScrollCompression.value = 0.5;
-        await tester.pumpAndSettle();
-        final settled = _navHeight(tester);
+    testWidgets('unrelated rebuilds do not restart or jitter the compression', (
+      tester,
+    ) async {
+      await _pumpNav(tester);
+      navScrollCompression.value = 0.5;
+      await tester.pumpAndSettle();
+      final settled = _navHeight(tester);
 
-        // Same compression, different selected tab: an unrelated rebuild must
-        // not snap the pill back to rest or replay the transition.
-        await _pumpNav(tester, selectedIndex: 2);
-        expect(_navHeight(tester), settled);
+      // Same compression, different selected tab: an unrelated rebuild must
+      // not snap the pill back to rest or replay the transition.
+      await _pumpNav(tester, selectedIndex: 2);
+      expect(_navHeight(tester), settled);
 
-        // Re-writing the same quantised value: still no restart.
-        navScrollCompression.value = 0.5;
-        await tester.pump();
-        expect(_navHeight(tester), settled);
-      },
-    );
+      // Re-writing the same quantised value: still no restart.
+      navScrollCompression.value = 0.5;
+      await tester.pump();
+      expect(_navHeight(tester), settled);
+    });
 
     testWidgets(
       'reduced motion freezes the pill at rest height and full opacity',
@@ -314,17 +320,27 @@ void main() {
     );
 
     for (final forced in [true, false]) {
-      testWidgets('nav user override=$forced wins over opposite OS flag', (tester) async {
+      testWidgets('nav user override=$forced wins over opposite OS flag', (
+        tester,
+      ) async {
         AzSensory.apply(SensoryPreferences(forceReduceMotion: forced));
         await _pumpNav(tester, reduceMotion: !forced);
         navScrollCompression.value = 1;
         await tester.pumpAndSettle();
         expect(_navHeight(tester), (forced ? 48 : 44) + 16);
         expect(_pillOpacity(tester), forced ? 1.0 : 0.92);
-        final pill = tester.widgetList<AnimatedContainer>(
-          find.descendant(of: _navFinder, matching: find.byType(AnimatedContainer)))
+        final pill = tester
+            .widgetList<AnimatedContainer>(
+              find.descendant(
+                of: _navFinder,
+                matching: find.byType(AnimatedContainer),
+              ),
+            )
             .firstWhere((w) => w.constraints?.maxHeight == (forced ? 48 : 44));
-        expect(pill.duration.inMicroseconds, forced ? 0 : MotionTokens.fast.inMicroseconds);
+        expect(
+          pill.duration.inMicroseconds,
+          forced ? 0 : MotionTokens.fast.inMicroseconds,
+        );
       });
     }
 
@@ -335,10 +351,7 @@ void main() {
         final selections = <int>[];
         await tester.pumpWidget(
           _host(
-            PremiumBottomNav(
-              selectedIndex: 0,
-              onItemSelected: selections.add,
-            ),
+            PremiumBottomNav(selectedIndex: 0, onItemSelected: selections.add),
           ),
         );
         await tester.pumpAndSettle();
@@ -355,10 +368,7 @@ void main() {
         // selection: it is an acknowledgment, not another selection.
         await tester.pumpWidget(
           _host(
-            PremiumBottomNav(
-              selectedIndex: 1,
-              onItemSelected: selections.add,
-            ),
+            PremiumBottomNav(selectedIndex: 1, onItemSelected: selections.add),
           ),
         );
         await tester.pumpAndSettle();
@@ -368,21 +378,25 @@ void main() {
       },
     );
 
-    testWidgets(
-      'layout safety: no overflow at a small surface',
-      (tester) async {
-        await tester.binding.setSurfaceSize(const Size(320, 480));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
-        await _pumpNav(tester);
-        navScrollCompression.value = 1;
-        await tester.pumpAndSettle();
-        expect(tester.takeException(), isNull);
-      },
-    );
+    testWidgets('layout safety: no overflow at a small surface', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(320, 480));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await _pumpNav(tester);
+      navScrollCompression.value = 1;
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
 
-    testWidgets('tearing the nav down removes its notifier listeners', (tester) async {
-      expect(navScrollCompression.hasListeners, isFalse,
-          reason: 'tests must not leak listeners into each other');
+    testWidgets('tearing the nav down removes its notifier listeners', (
+      tester,
+    ) async {
+      expect(
+        navScrollCompression.hasListeners,
+        isFalse,
+        reason: 'tests must not leak listeners into each other',
+      );
       await _pumpNav(tester);
       await tester.pumpAndSettle();
       expect(navScrollCompression.hasListeners, isTrue);

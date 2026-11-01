@@ -46,9 +46,7 @@ Widget _wrap(Widget child, {bool reduceMotion = false}) {
   return MaterialApp(
     debugShowCheckedModeBanner: false,
     builder: (context, navigatorChild) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        disableAnimations: reduceMotion,
-      ),
+      data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
       child: navigatorChild ?? const SizedBox.shrink(),
     ),
     home: Scaffold(body: Center(child: child)),
@@ -76,7 +74,9 @@ Future<void> _pumpWheel(
           key: _wheelKey,
           options: options,
           selectedIndex: selected,
-          axis: vertical ? CurrencyWheelAxis.vertical : CurrencyWheelAxis.horizontal,
+          axis: vertical
+              ? CurrencyWheelAxis.vertical
+              : CurrencyWheelAxis.horizontal,
           onChanged: onChanged ?? (_) {},
         ),
         reduceMotion: reduceMotion,
@@ -101,9 +101,7 @@ List<Rect> _chipRects(WidgetTester tester) {
         ),
       )
       .evaluate();
-  return [
-    for (final e in chips) tester.getRect(find.byWidget(e.widget)),
-  ];
+  return [for (final e in chips) tester.getRect(find.byWidget(e.widget))];
 }
 
 /// The symbol Text whose centre is nearest the wheel's centre: the
@@ -131,13 +129,18 @@ Rect _centredChip(Rect wheel, {required bool vertical}) => vertical
     ? Rect.fromLTWH(wheel.left, wheel.top + _peek, _chipW, _chipH)
     : Rect.fromLTWH(wheel.left + _peek, wheel.top, _chipW, _chipH);
 
-void expectSelectedChipCentred(WidgetTester tester,
-    {required bool vertical}) {
+void expectSelectedChipCentred(WidgetTester tester, {required bool vertical}) {
   final wheel = _wheelRect(tester);
-  expect(wheel.width, vertical ? _chipW : _chipW + 2 * _peek,
-      reason: 'the wheel box is one chip plus the two peek gutters');
-  expect(wheel.height, vertical ? _chipH + 2 * _peek : _chipH,
-      reason: 'the wheel box is one chip plus the two peek gutters');
+  expect(
+    wheel.width,
+    vertical ? _chipW : _chipW + 2 * _peek,
+    reason: 'the wheel box is one chip plus the two peek gutters',
+  );
+  expect(
+    wheel.height,
+    vertical ? _chipH + 2 * _peek : _chipH,
+    reason: 'the wheel box is one chip plus the two peek gutters',
+  );
 
   final chips = _chipRects(tester);
   expect(chips, isNotEmpty, reason: 'the strip paints its chips');
@@ -146,13 +149,16 @@ void expectSelectedChipCentred(WidgetTester tester,
   // Whichever unit is selected rides the centred slot — the strip order
   // is fixed (GHS, USDC, …), so after a roll the centred chip is NOT
   // strip index 0.
-  final onCentre = chips.indexWhere((c) =>
-      (c.left - centred.left).abs() <= 0.5 &&
-      (c.top - centred.top).abs() <= 0.5);
+  final onCentre = chips.indexWhere(
+    (c) =>
+        (c.left - centred.left).abs() <= 0.5 &&
+        (c.top - centred.top).abs() <= 0.5,
+  );
   expect(
     onCentre != -1,
     isTrue,
-    reason: 'the SELECTED chip sits dead-centre in the wheel box (chips '
+    reason:
+        'the SELECTED chip sits dead-centre in the wheel box (chips '
         '$chips, expected the selected one at $centred) — never cropped '
         'by the peek gutters',
   );
@@ -168,25 +174,30 @@ void main() {
 
   group('horizontal — the selected chip is never cropped', () {
     for (final size in const [(320.0, 568.0), (360.0, 740.0), (390.0, 844.0)]) {
-      testWidgets(
-          'centred and fully visible at ${size.$1.truncate()}dp '
-          '(surface ${size.$1.truncate()}×${size.$2.truncate()})',
-          (tester) async {
-        await _pumpWheel(tester,
-            options: CurrencyCatalog.sendEntryUnits,
-            surface: Size(size.$1, size.$2));
+      testWidgets('centred and fully visible at ${size.$1.truncate()}dp '
+          '(surface ${size.$1.truncate()}×${size.$2.truncate()})', (
+        tester,
+      ) async {
+        await _pumpWheel(
+          tester,
+          options: CurrencyCatalog.sendEntryUnits,
+          surface: Size(size.$1, size.$2),
+        );
         expectSelectedChipCentred(tester, vertical: false);
-        expect(_selectedSymbol(tester), 'GH₵',
-            reason: 'the GHS-first entry label is fully readable');
+        expect(
+          _selectedSymbol(tester),
+          'GH₵',
+          reason: 'the GHS-first entry label is fully readable',
+        );
       });
     }
 
     testWidgets('the immediate neighbour peeks exactly the gutter — '
         'nothing beyond it', (tester) async {
-      await _pumpWheel(tester, options: [
-        CurrencyCatalog.ghs,
-        CurrencyCatalog.usdc,
-      ]);
+      await _pumpWheel(
+        tester,
+        options: [CurrencyCatalog.ghs, CurrencyCatalog.usdc],
+      );
       final wheel = _wheelRect(tester);
       final chips = _chipRects(tester);
       expect(chips.length, 2);
@@ -197,7 +208,8 @@ void main() {
         chips[1].left >= wheel.right - _peek - 0.5 &&
             chips[1].left <= wheel.right - _peek + 0.5,
         isTrue,
-        reason: 'the USDC neighbour peeks exactly ${_peek}dp through the '
+        reason:
+            'the USDC neighbour peeks exactly ${_peek}dp through the '
             'trailing gutter (got left ${chips[1].left}, wheel right '
             '${wheel.right}) — the roll affordance is visible',
       );
@@ -215,27 +227,36 @@ void main() {
 
     testWidgets('three options: the second peeks, the third is fully '
         'clipped', (tester) async {
-      await _pumpWheel(tester, options: [
-        CurrencyCatalog.ghs,
-        CurrencyCatalog.usdc,
-        CurrencyCatalog.ghs,
-      ]);
+      await _pumpWheel(
+        tester,
+        options: [
+          CurrencyCatalog.ghs,
+          CurrencyCatalog.usdc,
+          CurrencyCatalog.ghs,
+        ],
+      );
       final wheel = _wheelRect(tester);
       final chips = _chipRects(tester);
       expect(chips.length, 3);
       expectSelectedChipCentred(tester, vertical: false);
       expect(chips[1].left, closeTo(wheel.right - _peek, 0.5));
-      expect(chips[2].left >= wheel.right - 0.5, isTrue,
-          reason: 'the chip beyond the neighbour is fully outside the '
-              'live clip');
+      expect(
+        chips[2].left >= wheel.right - 0.5,
+        isTrue,
+        reason:
+            'the chip beyond the neighbour is fully outside the '
+            'live clip',
+      );
     });
 
     testWidgets('a deliberate roll recentres the NEW unit; the old one '
         'peeks through the leading gutter', (tester) async {
       var changedTo = -1;
-      await _pumpWheel(tester,
-          options: CurrencyCatalog.sendEntryUnits,
-          onChanged: (i) => changedTo = i);
+      await _pumpWheel(
+        tester,
+        options: CurrencyCatalog.sendEntryUnits,
+        onChanged: (i) => changedTo = i,
+      );
 
       // Left swipe WELL past the 24dp deliberate threshold (tester.drag
       // consumes ~18dp of touch slop before the recognizer claims the
@@ -246,14 +267,21 @@ void main() {
 
       expect(changedTo, 1, reason: 'the deliberate roll advanced the unit');
       expectSelectedChipCentred(tester, vertical: false);
-      expect(_selectedSymbol(tester), 'USDC',
-          reason: 'the newly selected label is the readable one');
+      expect(
+        _selectedSymbol(tester),
+        'USDC',
+        reason: 'the newly selected label is the readable one',
+      );
 
       final wheel = _wheelRect(tester);
       final chips = _chipRects(tester);
-      expect(chips[0].right, closeTo(wheel.left + _peek, 0.5),
-          reason: 'the GHS chip now peeks exactly the gutter on the '
-              'leading side');
+      expect(
+        chips[0].right,
+        closeTo(wheel.left + _peek, 0.5),
+        reason:
+            'the GHS chip now peeks exactly the gutter on the '
+            'leading side',
+      );
     });
 
     testWidgets('a graze below the deliberate threshold never changes the '
@@ -266,17 +294,22 @@ void main() {
       await gesture.up();
       await tester.pumpAndSettle();
 
-      expect(_selectedSymbol(tester), before,
-          reason: 'a graze never rolls money denominations');
-      expectSelectedChipCentred(tester, vertical: false,
-          );
+      expect(
+        _selectedSymbol(tester),
+        before,
+        reason: 'a graze never rolls money denominations',
+      );
+      expectSelectedChipCentred(tester, vertical: false);
     });
 
-    testWidgets('reduced motion lands the new unit instantly, centred',
-        (tester) async {
-      await _pumpWheel(tester,
-          options: CurrencyCatalog.sendEntryUnits,
-          reduceMotion: true);
+    testWidgets('reduced motion lands the new unit instantly, centred', (
+      tester,
+    ) async {
+      await _pumpWheel(
+        tester,
+        options: CurrencyCatalog.sendEntryUnits,
+        reduceMotion: true,
+      );
       await tester.drag(find.byKey(_wheelKey), const Offset(-60, 0));
       await tester.pump(const Duration(milliseconds: 16));
 
@@ -286,40 +319,51 @@ void main() {
   });
 
   group("vertical — regression: Send's proven geometry holds", () {
-    testWidgets('the two-option wheel keeps its pinned geometry',
-        (tester) async {
-      await _pumpWheel(tester,
-          options: CurrencyCatalog.sendEntryUnits, vertical: true);
+    testWidgets('the two-option wheel keeps its pinned geometry', (
+      tester,
+    ) async {
+      await _pumpWheel(
+        tester,
+        options: CurrencyCatalog.sendEntryUnits,
+        vertical: true,
+      );
       expectSelectedChipCentred(tester, vertical: true);
       expect(_selectedSymbol(tester), 'GH₵');
 
       final wheel = _wheelRect(tester);
       final chips = _chipRects(tester);
-      expect(chips[1].top, closeTo(wheel.bottom - _peek, 0.5),
-          reason: 'the neighbour still peeks exactly ${_peek}dp below');
+      expect(
+        chips[1].top,
+        closeTo(wheel.bottom - _peek, 0.5),
+        reason: 'the neighbour still peeks exactly ${_peek}dp below',
+      );
     });
 
     testWidgets('a single option centres (new coverage)', (tester) async {
-      await _pumpWheel(tester,
-          options: [CurrencyCatalog.ghs], vertical: true);
+      await _pumpWheel(tester, options: [CurrencyCatalog.ghs], vertical: true);
       expectSelectedChipCentred(tester, vertical: true);
     });
 
     testWidgets('three options: the selected chip stays centred, the '
         'third is clipped (new coverage)', (tester) async {
-      await _pumpWheel(tester,
-          options: [
-            CurrencyCatalog.ghs,
-            CurrencyCatalog.usdc,
-            CurrencyCatalog.ghs,
-          ],
-          vertical: true);
+      await _pumpWheel(
+        tester,
+        options: [
+          CurrencyCatalog.ghs,
+          CurrencyCatalog.usdc,
+          CurrencyCatalog.ghs,
+        ],
+        vertical: true,
+      );
       final wheel = _wheelRect(tester);
       final chips = _chipRects(tester);
       expectSelectedChipCentred(tester, vertical: true);
       expect(chips[1].top, closeTo(wheel.bottom - _peek, 0.5));
-      expect(chips[2].top >= wheel.bottom - 0.5, isTrue,
-          reason: 'the chip beyond the neighbour is fully clipped');
+      expect(
+        chips[2].top >= wheel.bottom - 0.5,
+        isTrue,
+        reason: 'the chip beyond the neighbour is fully clipped',
+      );
     });
   });
 }

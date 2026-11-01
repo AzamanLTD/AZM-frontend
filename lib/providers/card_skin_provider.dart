@@ -42,7 +42,9 @@ class CardSkinState {
     return CardSkinState(
       catalog: catalog ?? this.catalog,
       loading: loading ?? this.loading,
-      pendingSkinId: clearPending ? null : (pendingSkinId ?? this.pendingSkinId),
+      pendingSkinId: clearPending
+          ? null
+          : (pendingSkinId ?? this.pendingSkinId),
       error: clearError ? null : (error ?? this.error),
     );
   }
@@ -76,7 +78,10 @@ class CardSkinNotifier extends StateNotifier<CardSkinState> {
     state = state.copyWith(pendingSkinId: skinId, clearError: true);
     try {
       final result = await azmSpendService.purchaseCardSkin(skinId);
-      _foldOwnershipUpdate(ownedSkinIds: result.ownedCardSkins, newBalance: result.newBalance);
+      _foldOwnershipUpdate(
+        ownedSkinIds: result.ownedCardSkins,
+        newBalance: result.newBalance,
+      );
       state = state.copyWith(clearPending: true);
       return true;
     } catch (e) {
@@ -112,7 +117,10 @@ class CardSkinNotifier extends StateNotifier<CardSkinState> {
     }
   }
 
-  void _foldOwnershipUpdate({required List<String> ownedSkinIds, required double newBalance}) {
+  void _foldOwnershipUpdate({
+    required List<String> ownedSkinIds,
+    required double newBalance,
+  }) {
     final current = state.catalog;
     if (current == null) return;
     final updatedSkins = current.skins.map((s) {
@@ -139,6 +147,8 @@ class CardSkinNotifier extends StateNotifier<CardSkinState> {
   }
 }
 
-final cardSkinProvider = StateNotifierProvider<CardSkinNotifier, CardSkinState>((ref) {
-  return CardSkinNotifier();
-});
+final cardSkinProvider = StateNotifierProvider<CardSkinNotifier, CardSkinState>(
+  (ref) {
+    return CardSkinNotifier();
+  },
+);

@@ -101,7 +101,13 @@ class AzmRewardNotifier extends StateNotifier<AzmRewardState> {
         azmRewardService.getFriendsLeaderboard(limit: 10),
       ]);
 
-      final historyResult = results[0] as ({List<AzmRewardEntry> rewards, String? nextCursor, bool hasMore});
+      final historyResult =
+          results[0]
+              as ({
+                List<AzmRewardEntry> rewards,
+                String? nextCursor,
+                bool hasMore,
+              });
       final summary = results[1] as AzmSummary;
       final rates = results[2] as AzmRates;
       final leaderboard = results[3] as AzmFriendsLeaderboard;
@@ -193,5 +199,5 @@ class AzmRewardNotifier extends StateNotifier<AzmRewardState> {
 
 final azmRewardProvider =
     StateNotifierProvider<AzmRewardNotifier, AzmRewardState>((ref) {
-  return AzmRewardNotifier();
-});
+      return AzmRewardNotifier();
+    });

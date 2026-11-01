@@ -1,19 +1,31 @@
 # Production-connected Android device smoke build.
 #
-# The CI-purpose Android Integration workflow builds with a PLACEHOLDER
-# Firebase configuration and the default dev backend (localhost), which is
-# fine for compile/integration gating but useless on a real phone. This
-# workflow produces an INSTALLABLE debug APK wired to the PRODUCTION backend
-# via --dart-define=ENV=prod and the real Android Firebase configuration,
-# injected from the AZM_ANDROID_GOOGLE_SERVICES_JSON_B64 repository secret.
+# Android Integration builds with a PLACEHOLDER Firebase configuration and the
+# default dev backend, which is fine for compile/integration gating but useless
+# on a real phone. This workflow produces an INSTALLABLE debug APK wired to the
+# PRODUCTION backend via --dart-define=ENV=prod and the REAL Firebase
+# configuration.
 #
-# Dispatch-only until it is deliberately folded into a release pipeline.
-# It intentionally does NOT touch the CI workflow's placeholder config —
-# that workflow still serves its compile-gating purpose.
+# Firebase configuration comes from the same canonical repository secret the
+# Android Integration workflow reads: GOOGLE_SERVICES_JSON, raw JSON content.
+# There is no second, separately-encoded copy. google-services.json is never
+# committed, and its contents are never echoed: only validation verdicts and the
+# package name are printed.
 #
-# The secret is base64-encoded google-services.json content. It is never
-# echoed, logged, or printed; the decode stream is piped straight to the
-# file and only structural facts (package names) are asserted.
+# The Web OAuth client id comes from the repository variable
+# GOOGLE_SERVER_CLIENT_ID and is passed to the build as a dart-define, because
+# Google id-token issuance on Android needs the WEB client id (client_type 3),
+# not the Android client id and never a client secret.
+#
+# Dispatch-only. It fails early and loudly when the configuration or the OAuth
+# client id is missing: a device build that looks production-connected but
+# cannot sign anyone in is worse than no build.
+#
+# Signing: the debug APK uses the SAME dedicated CI debug identity as the Android
+# Integration workflow (the four ANDROID_CI_DEBUG_* secrets). The upload key is
+# never substituted here. When those secrets are absent the build still runs, but
+# its summary marks the signer unstable and unsuitable for Firebase SHA
+# registration, because the hosted runner's debug certificate changes every run.
 
 name: Android Prod Smoke Build
 
@@ -73,44 +85,130 @@ jobs:
           sudo rm -rf /usr/local/lib/android/sdk/emulator
           sudo rm -rf /opt/ghc
 
-      # Fails loudly and early when the repository secret is absent — an
-      # empty secret must never fall through to a broken or default config.
-      - name: Write Android Firebase configuration
+      # Fails early and clearly when either half of the Firebase/OAuth pair is
+      # missing, and refuses a configuration that does not match this project and
+      # package. A malformed secret never degrades into a placeholder here.
+      - name: Write and validate Android Firebase configuration
         env:
-          GOOGLE_SERVICES_JSON_B64: ${{ secrets.AZM_ANDROID_GOOGLE_SERVICES_JSON_B64 }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
         run: |
           set -euo pipefail
-          if [ -z "${GOOGLE_SERVICES_JSON_B64}" ]; then
-            echo "::error::Required secret AZM_ANDROID_GOOGLE_SERVICES_JSON_B64 is missing or empty. Add it in repository Settings → Secrets → Actions before dispatching this workflow."
+          if [ -z "${GOOGLE_SERVICES_JSON:-}" ]; then
+            echo "::error::Required secret GOOGLE_SERVICES_JSON is missing or empty. Add the raw google-services.json content in repository Settings -> Secrets -> Actions -> Actions secrets before dispatching this workflow."
             exit 1
           fi
-          printf '%s' "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > android/app/google-services.json
+          if [ -z "${GOOGLE_SERVER_CLIENT_ID:-}" ]; then
+            echo "::error::Required variable GOOGLE_SERVER_CLIENT_ID is missing or empty. Add the Web OAuth client id (client_type 3) from the Firebase configuration in repository Settings -> Secrets -> Actions -> Actions variables. Without it Google Sign-In cannot issue an id token on Android."
+            exit 1
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
           test -s android/app/google-services.json
+          python3 tool/ci/validate_google_services.py \
+            --file android/app/google-services.json \
+            --project azaman-app \
+            --package com.azaman.app \
+            --server-client-id "$GOOGLE_SERVER_CLIENT_ID" \
+            --label "prod smoke firebase"
+          {
+            echo "### Firebase configuration"
+            echo ""
+            echo "| item | value |"
+            echo "| --- | --- |"
+            echo "| source | raw JSON from the canonical repository secret |"
+            echo "| project | \`azaman-app\` |"
+            echo "| package | \`com.azaman.app\` |"
+            echo "| Web OAuth client | supplied and matched against the configuration |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Validate Firebase package binding
+      # Same dedicated CI debug identity as Android Integration: one certificate
+      # the owner can register in Firebase, separate from the upload key.
+      - name: Materialise CI debug signing identity
+        id: ci_debug
+        env:
+          CI_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_CI_DEBUG_KEYSTORE_BASE64 }}
+          CI_DEBUG_STORE_PASSWORD: ${{ secrets.ANDROID_CI_DEBUG_STORE_PASSWORD }}
+          CI_DEBUG_KEY_ALIAS: ${{ secrets.ANDROID_CI_DEBUG_KEY_ALIAS }}
+          CI_DEBUG_KEY_PASSWORD: ${{ secrets.ANDROID_CI_DEBUG_KEY_PASSWORD }}
         run: |
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          path = Path("android/app/google-services.json")
-          data = json.loads(path.read_text())
-          clients = data.get("client", [])
-          package_names = {
-              c.get("client_info", {}).get("android_client_info", {}).get("package_name")
-              for c in clients
-          }
-          assert "com.example.azaman" in package_names, (
-              f"Firebase config does not contain com.example.azaman; got {sorted(package_names)}"
-          )
-          PY
+          set -euo pipefail
+          if [ -n "${CI_DEBUG_KEYSTORE_BASE64:-}" ]; then
+            echo "$CI_DEBUG_KEYSTORE_BASE64" | base64 -d > android/ci-debug-keystore.jks
+            {
+              echo "storeFile=ci-debug-keystore.jks"
+              echo "storePassword=$CI_DEBUG_STORE_PASSWORD"
+              echo "keyAlias=$CI_DEBUG_KEY_ALIAS"
+              echo "keyPassword=$CI_DEBUG_KEY_PASSWORD"
+            } > android/ci-debug.properties
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+            echo "Signed with the dedicated CI debug identity."
+          else
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::ANDROID_CI_DEBUG_KEYSTORE_BASE64 is not set. This APK is signed with the runner's throwaway debug certificate, which is NOT stable between runs; register no fingerprint for it."
+          fi
 
       - name: Build production-connected debug APK
-        run: >
-          flutter build apk
-          --debug
-          --dart-define=ENV=${{ inputs.environment }}
-          --split-per-abi
+        env:
+          GOOGLE_SERVER_CLIENT_ID: ${{ vars.GOOGLE_SERVER_CLIENT_ID }}
+        run: |
+          set -euo pipefail
+          flutter build apk \
+            --debug \
+            --dart-define=ENV=${{ inputs.environment }} \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID" \
+            --split-per-abi
+
+      # The phone installs this file, so its signer is reported rather than
+      # assumed. A fingerprint is only useful if it is printed by the build that
+      # produced it, and only trustworthy if the key behind it is stable.
+      - name: Report APK signer
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          BT="$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)"
+          APK="$(ls build/app/outputs/flutter-apk/*-arm64-v8a-debug.apk | head -1)"
+          "$BT/apksigner" verify --print-certs "$APK" > /tmp/smoke-certs.txt
+          DN="$(grep -m1 'certificate DN' /tmp/smoke-certs.txt | sed 's/.*DN: //')"
+          SHA1="$(grep -m1 'SHA-1 digest' /tmp/smoke-certs.txt | sed 's/.*digest: //')"
+          SHA256="$(grep -m1 'SHA-256 digest' /tmp/smoke-certs.txt | sed 's/.*digest: //')"
+          STABLE="${{ steps.ci_debug.outputs.stable }}"
+          echo "smoke APK signer: $DN"
+          echo "smoke APK signer is the dedicated CI identity: $STABLE"
+          {
+            echo "### Device APK signer"
+            echo ""
+            echo "| item | value |"
+            echo "| --- | --- |"
+            echo "| certificate | \`$DN\` |"
+            echo "| SHA-1 | \`$SHA1\` |"
+            echo "| SHA-256 | \`$SHA256\` |"
+            echo "| dedicated CI identity | \`$STABLE\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # "Stable" is claimed only when the dedicated key was actually
+          # materialised; the upload key is never used for a debug build.
+          if [ "$STABLE" != "true" ]; then
+            {
+              echo ""
+              echo "**Unstable signer.** The dedicated CI debug secrets are not configured,"
+              echo "so this APK carries the runner's throwaway debug certificate, which"
+              echo "changes between runs. It is unsuitable for Firebase SHA registration"
+              echo "and Google Sign-In on it is expected to fail."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::This APK's signer is unstable. It is not evidence about Google Sign-In, and its fingerprints must not be registered anywhere."
+          fi
+          # The upload key must never appear on a debug artifact. Matched on the
+          # components apksigner prints, not on keytool's "CN=..., O=..." order:
+          # apksigner prints least specific first ("C=KH, O=Azaman, L=Accra,
+          # CN=Azaman"), so a CN-first pattern here would silently never fire.
+          # Both debug identities carry "Debug" in their CN, the upload key does
+          # not, which separates them without hardcoding a fingerprint.
+          case "$DN" in
+            *"Debug"*) : ;;
+            *"O=Azaman"*)
+              echo "::error::this debug APK is signed with the upload key ($DN); debug builds must use the CI debug identity or the ambient debug key"
+              exit 1
+              ;;
+          esac
 
       - name: Upload production-connected APK
         uses: actions/upload-artifact@v4
@@ -119,3 +217,8 @@ jobs:
           path: build/app/outputs/flutter-apk/*-arm64-v8a-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Never leave CI key material behind, even on a cached or self-hosted runner.
+      - name: Remove CI debug key material
+        if: always()
+        run: rm -f android/ci-debug.properties android/ci-debug-keystore.jks

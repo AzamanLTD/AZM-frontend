@@ -23,6 +23,7 @@
 // deliberate, reviewable rebaseline.
 // =============================================================================
 
+import '../support/money_access_test_support.dart';
 import 'dart:io';
 import 'dart:typed_data' show ByteData, Uint8List;
 
@@ -105,6 +106,9 @@ Future<void> _pumpShell(
   final container = ProviderContainer(
     overrides: [
       auth_pkg.authProvider.overrideWith((ref) => auth_pkg.AuthProvider()),
+      // This suite's subject is the launcher/captures, so money starts
+      // unlocked; the privacy gate has its own suites.
+      unlockedMoneyAccess(),
       unreadCountProvider.overrideWith((ref) => 0),
       balanceDataProvider.overrideWith(
         (ref) => const BalanceData(availableBalance: 100),
@@ -123,9 +127,9 @@ Future<void> _pumpShell(
         theme: ThemeProvider.getThemeData(theme),
         home: RepaintBoundary(
           child: MediaQuery(
-            data: MediaQueryData(size: size).copyWith(
-              disableAnimations: reducedMotion,
-            ),
+            data: MediaQueryData(
+              size: size,
+            ).copyWith(disableAnimations: reducedMotion),
             child: const MainWrapper(),
           ),
         ),
@@ -169,10 +173,13 @@ void main() {
   for (final dark in [false, true]) {
     final theme = dark ? AzamanTheme.dark : AzamanTheme.light;
     final mode = dark ? 'dark' : 'light';
-    testWidgets('shell 360 $mode reduced-motion rest state',
-        (tester) async {
-      await _pumpShell(tester,
-          size: const Size(360, 800), theme: theme, reducedMotion: true);
+    testWidgets('shell 360 $mode reduced-motion rest state', (tester) async {
+      await _pumpShell(
+        tester,
+        size: const Size(360, 800),
+        theme: theme,
+        reducedMotion: true,
+      );
       await expectLater(
         find.byType(RepaintBoundary).first,
         matchesGoldenFile('goldens/shell/shell_360_${mode}_rm.png'),

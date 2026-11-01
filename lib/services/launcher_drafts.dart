@@ -40,42 +40,42 @@ enum LauncherSurface { send, withdraw, addCash, convert }
 
 extension LauncherSurfaceX on LauncherSurface {
   String get wire => switch (this) {
-        LauncherSurface.send => 'send',
-        LauncherSurface.withdraw => 'withdraw',
-        LauncherSurface.addCash => 'addCash',
-        LauncherSurface.convert => 'convert',
-      };
+    LauncherSurface.send => 'send',
+    LauncherSurface.withdraw => 'withdraw',
+    LauncherSurface.addCash => 'addCash',
+    LauncherSurface.convert => 'convert',
+  };
 
   String get label => switch (this) {
-        LauncherSurface.send => 'Send',
-        LauncherSurface.withdraw => 'Withdraw',
-        LauncherSurface.addCash => 'Add Cash',
-        LauncherSurface.convert => 'Convert',
-      };
+    LauncherSurface.send => 'Send',
+    LauncherSurface.withdraw => 'Withdraw',
+    LauncherSurface.addCash => 'Add Cash',
+    LauncherSurface.convert => 'Convert',
+  };
 
   String get actionLabel => switch (this) {
-        LauncherSurface.send => 'Finish sending',
-        LauncherSurface.withdraw => 'Finish withdrawing',
-        LauncherSurface.addCash => 'Finish adding cash',
-        LauncherSurface.convert => 'Finish converting',
-      };
+    LauncherSurface.send => 'Finish sending',
+    LauncherSurface.withdraw => 'Finish withdrawing',
+    LauncherSurface.addCash => 'Finish adding cash',
+    LauncherSurface.convert => 'Finish converting',
+  };
 
   /// The canonical route the Resume action navigates through — never a
   /// client-invented path.
   String get route => switch (this) {
-        LauncherSurface.send => '/send',
-        LauncherSurface.withdraw => '/withdraw',
-        LauncherSurface.addCash => '/deposit',
-        LauncherSurface.convert => '/convert',
-      };
+    LauncherSurface.send => '/send',
+    LauncherSurface.withdraw => '/withdraw',
+    LauncherSurface.addCash => '/deposit',
+    LauncherSurface.convert => '/convert',
+  };
 
   static LauncherSurface? fromWire(String? wire) => switch (wire) {
-        'send' => LauncherSurface.send,
-        'withdraw' => LauncherSurface.withdraw,
-        'addCash' => LauncherSurface.addCash,
-        'convert' => LauncherSurface.convert,
-        _ => null,
-      };
+    'send' => LauncherSurface.send,
+    'withdraw' => LauncherSurface.withdraw,
+    'addCash' => LauncherSurface.addCash,
+    'convert' => LauncherSurface.convert,
+    _ => null,
+  };
 }
 
 /// How long a kept draft lives. Five minutes, per the original programme.
@@ -112,18 +112,19 @@ class LauncherDraft {
 
   /// Coarse, honest remaining-life label for the continuation card.
   String minutesLeftAt(int nowMs) {
-    final left = ((savedAtMs + kLauncherDraftTtl.inMilliseconds - nowMs) /
-            Duration.millisecondsPerMinute)
-        .ceil();
+    final left =
+        ((savedAtMs + kLauncherDraftTtl.inMilliseconds - nowMs) /
+                Duration.millisecondsPerMinute)
+            .ceil();
     return left <= 0 ? 'expiring' : '${left}m left';
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'surface': surface.wire,
-        'savedAtMs': savedAtMs,
-        'payload': payload,
-      };
+    'id': id,
+    'surface': surface.wire,
+    'savedAtMs': savedAtMs,
+    'payload': payload,
+  };
 
   static LauncherDraft? fromJson(Map<String, dynamic> json) {
     final surface = LauncherSurfaceX.fromWire(json['surface']?.toString());
@@ -151,7 +152,7 @@ class LauncherDraft {
 
 class LauncherDraftsService {
   LauncherDraftsService({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -333,5 +334,5 @@ class LauncherDraftsController extends StateNotifier<LauncherDraftsState> {
 /// continuation cards, Resume, logout — watches this one provider.
 final launcherDraftsProvider =
     StateNotifierProvider<LauncherDraftsController, LauncherDraftsState>(
-  (ref) => LauncherDraftsController(LauncherDraftsService()),
-);
+      (ref) => LauncherDraftsController(LauncherDraftsService()),
+    );

@@ -118,62 +118,72 @@ class SensoryProvider extends ChangeNotifier {
   }
 
   Future<void> setHapticsEnabled(bool value) async {
-    _commit(SensoryPreferences(
-      hapticsEnabled: value,
-      soundEnabled: _prefs.soundEnabled,
-      soundSuccessOnly: _prefs.soundSuccessOnly,
-      ambientMotionEnabled: _prefs.ambientMotionEnabled,
-      forceReduceMotion: _prefs.forceReduceMotion,
-    ));
+    _commit(
+      SensoryPreferences(
+        hapticsEnabled: value,
+        soundEnabled: _prefs.soundEnabled,
+        soundSuccessOnly: _prefs.soundSuccessOnly,
+        ambientMotionEnabled: _prefs.ambientMotionEnabled,
+        forceReduceMotion: _prefs.forceReduceMotion,
+      ),
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kHaptics, value);
   }
 
   Future<void> setSoundEnabled(bool value) async {
-    _commit(SensoryPreferences(
-      hapticsEnabled: _prefs.hapticsEnabled,
-      soundEnabled: value,
-      soundSuccessOnly: _prefs.soundSuccessOnly,
-      ambientMotionEnabled: _prefs.ambientMotionEnabled,
-      forceReduceMotion: _prefs.forceReduceMotion,
-    ));
+    _commit(
+      SensoryPreferences(
+        hapticsEnabled: _prefs.hapticsEnabled,
+        soundEnabled: value,
+        soundSuccessOnly: _prefs.soundSuccessOnly,
+        ambientMotionEnabled: _prefs.ambientMotionEnabled,
+        forceReduceMotion: _prefs.forceReduceMotion,
+      ),
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kSound, value);
   }
 
   Future<void> setSoundSuccessOnly(bool value) async {
-    _commit(SensoryPreferences(
-      hapticsEnabled: _prefs.hapticsEnabled,
-      soundEnabled: _prefs.soundEnabled,
-      soundSuccessOnly: value,
-      ambientMotionEnabled: _prefs.ambientMotionEnabled,
-      forceReduceMotion: _prefs.forceReduceMotion,
-    ));
+    _commit(
+      SensoryPreferences(
+        hapticsEnabled: _prefs.hapticsEnabled,
+        soundEnabled: _prefs.soundEnabled,
+        soundSuccessOnly: value,
+        ambientMotionEnabled: _prefs.ambientMotionEnabled,
+        forceReduceMotion: _prefs.forceReduceMotion,
+      ),
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kSoundSuccessOnly, value);
   }
 
   Future<void> setAmbientMotionEnabled(bool value) async {
-    _commit(SensoryPreferences(
-      hapticsEnabled: _prefs.hapticsEnabled,
-      soundEnabled: _prefs.soundEnabled,
-      soundSuccessOnly: _prefs.soundSuccessOnly,
-      ambientMotionEnabled: value,
-      forceReduceMotion: _prefs.forceReduceMotion,
-    ));
+    _commit(
+      SensoryPreferences(
+        hapticsEnabled: _prefs.hapticsEnabled,
+        soundEnabled: _prefs.soundEnabled,
+        soundSuccessOnly: _prefs.soundSuccessOnly,
+        ambientMotionEnabled: value,
+        forceReduceMotion: _prefs.forceReduceMotion,
+      ),
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kAmbient, value);
   }
 
   /// Tri-state. `null` clears the override and returns control to the OS.
   Future<void> setForceReduceMotion(bool? value) async {
-    _commit(SensoryPreferences(
-      hapticsEnabled: _prefs.hapticsEnabled,
-      soundEnabled: _prefs.soundEnabled,
-      soundSuccessOnly: _prefs.soundSuccessOnly,
-      ambientMotionEnabled: _prefs.ambientMotionEnabled,
-      forceReduceMotion: value,
-    ));
+    _commit(
+      SensoryPreferences(
+        hapticsEnabled: _prefs.hapticsEnabled,
+        soundEnabled: _prefs.soundEnabled,
+        soundSuccessOnly: _prefs.soundSuccessOnly,
+        ambientMotionEnabled: _prefs.ambientMotionEnabled,
+        forceReduceMotion: value,
+      ),
+    );
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(kReduceOverride, value == null ? -1 : (value ? 1 : 0));
   }

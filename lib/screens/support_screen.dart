@@ -108,16 +108,10 @@ class SupportScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           if (index == 0) {
             return Padding(
-              padding: const EdgeInsets.only(
-                left: 4,
-                bottom: 12,
-              ),
+              padding: const EdgeInsets.only(left: 4, bottom: 12),
               child: Text(
                 'Quick answers to the everyday questions.',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: colors.textTertiary, fontSize: 13),
               ),
             );
           }

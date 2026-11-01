@@ -32,7 +32,10 @@ class RestaurantOrderModeSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final duration = MotionTokens.accessibleDuration(context, MotionTokens.control);
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.control,
+    );
     final modes = RestaurantOrderMode.values;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -53,7 +56,10 @@ class RestaurantOrderModeSwitch extends StatelessWidget {
           child: Stack(
             children: [
               AnimatedAlign(
-                alignment: Alignment(-1 + 2 * (selected.index / (modes.length - 1)), 0),
+                alignment: Alignment(
+                  -1 + 2 * (selected.index / (modes.length - 1)),
+                  0,
+                ),
                 duration: duration,
                 curve: MotionTokens.symmetric,
                 child: Container(
@@ -76,7 +82,9 @@ class RestaurantOrderModeSwitch extends StatelessWidget {
               Align(
                 alignment: Alignment.center,
                 child: Row(
-                  children: [for (final mode in modes) Expanded(child: _segment(mode))],
+                  children: [
+                    for (final mode in modes) Expanded(child: _segment(mode)),
+                  ],
                 ),
               ),
             ],
@@ -92,8 +100,8 @@ class RestaurantOrderModeSwitch extends StatelessWidget {
     final Color ink = isSelected
         ? (colors.isDark ? Colors.black : Colors.white)
         : (enabled
-            ? colors.textSecondary
-            : colors.textTertiary.withValues(alpha: 0.5));
+              ? colors.textSecondary
+              : colors.textTertiary.withValues(alpha: 0.5));
     return Semantics(
       button: true,
       selected: isSelected,

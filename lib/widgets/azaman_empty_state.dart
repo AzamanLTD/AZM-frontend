@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/az_state_illustration.dart';
 
-
 // =============================================================================
 // AZAMAN EMPTY STATE — Reusable empty/no-data display widget
 //
@@ -151,7 +150,10 @@ class AzamanEmptyState extends ConsumerWidget {
               onPressed: onAction,
               style: TextButton.styleFrom(
                 foregroundColor: colors.accent,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                   side: BorderSide(color: colors.accent.withValues(alpha: 0.3)),
@@ -159,7 +161,10 @@ class AzamanEmptyState extends ConsumerWidget {
               ),
               child: Text(
                 actionLabel!,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ),
           ],

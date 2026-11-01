@@ -28,13 +28,17 @@ class WorldMemory {
 
 class WorldMemoryNotifier extends StateNotifier<Map<String, WorldMemory>> {
   WorldMemoryNotifier({DateTime Function()? clock})
-      : _clock = clock ?? DateTime.now,
-        super(const {});
+    : _clock = clock ?? DateTime.now,
+      super(const {});
 
   final DateTime Function() _clock;
 
-  void remember(String wire,
-      {String? query, String? subcategory, double? scrollOffset}) {
+  void remember(
+    String wire, {
+    String? query,
+    String? subcategory,
+    double? scrollOffset,
+  }) {
     final prev = state[wire];
     state = {
       ...state,
@@ -76,5 +80,5 @@ class WorldMemoryNotifier extends StateNotifier<Map<String, WorldMemory>> {
 
 final worldMemoryProvider =
     StateNotifierProvider<WorldMemoryNotifier, Map<String, WorldMemory>>(
-  (_) => WorldMemoryNotifier(),
-);
+      (_) => WorldMemoryNotifier(),
+    );

@@ -43,8 +43,7 @@ class AzLogoRefreshIndicator extends ConsumerStatefulWidget {
       _AzLogoRefreshIndicatorState();
 }
 
-class _AzLogoRefreshIndicatorState
-    extends ConsumerState<AzLogoRefreshIndicator>
+class _AzLogoRefreshIndicatorState extends ConsumerState<AzLogoRefreshIndicator>
     with TickerProviderStateMixin {
   double _pullOffset = 0;
   double _peakPull = 0;
@@ -139,10 +138,7 @@ class _AzLogoRefreshIndicatorState
     await Future.delayed(const Duration(milliseconds: 350));
     _traceController.repeat();
     try {
-      await Future.wait([
-        widget.onRefresh(),
-        Future.delayed(_minDisplayTime),
-      ]);
+      await Future.wait([widget.onRefresh(), Future.delayed(_minDisplayTime)]);
     } finally {
       if (mounted) {
         _traceController.stop();
@@ -174,13 +170,12 @@ class _AzLogoRefreshIndicatorState
           if (_isRefreshing) {
             indicatorHeight =
                 Curves.easeOutCubic.transform(_slideController.value) *
-                    _triggerDistance;
+                _triggerDistance;
           } else {
             indicatorHeight = _pullOffset;
           }
 
-          final pullProgress =
-              (_pullOffset / _triggerDistance).clamp(0.0, 1.0);
+          final pullProgress = (_pullOffset / _triggerDistance).clamp(0.0, 1.0);
 
           double indicatorOpacity;
           if (_isRefreshing) {
@@ -260,7 +255,12 @@ class _RoundedTrianglePlatePainter extends CustomPainter {
 
     final path = Path();
     void addRoundedCorner(
-        Path path, Offset prev, Offset corner, Offset next, double radius) {
+      Path path,
+      Offset prev,
+      Offset corner,
+      Offset next,
+      double radius,
+    ) {
       final dir1 = (corner - prev);
       final dir2 = (next - corner);
       final len1 = dir1.distance;
@@ -275,7 +275,8 @@ class _RoundedTrianglePlatePainter extends CustomPainter {
 
     final startDir = (p2 - p1);
     final startLen = startDir.distance;
-    final startAdjust = startDir /
+    final startAdjust =
+        startDir /
         startLen *
         (startLen < cornerRadius * 2 ? startLen / 2 : cornerRadius);
     path.moveTo(p1.dx + startAdjust.dx, p1.dy + startAdjust.dy);
@@ -342,7 +343,7 @@ class _ThreePartLogoTrace extends StatelessWidget {
               partPaths: [
                 _parsePath(_part1),
                 _parsePath(_part2),
-                _parsePath(_part3)
+                _parsePath(_part3),
               ],
               loopProgress: isRefreshing ? traceAnimation.value : 0,
               fadeProgress: fadeAnimation.value,
@@ -399,8 +400,7 @@ class _ThreePartLogoPainter extends CustomPainter {
     canvas.translate(dx, dy);
     canvas.scale(scale);
 
-    final guideOpacity =
-        isRefreshing ? 0.15 : (pullProgress * 0.12 + 0.03);
+    final guideOpacity = isRefreshing ? 0.15 : (pullProgress * 0.12 + 0.03);
     final guidePaint = Paint()
       ..color = color.withValues(alpha: guideOpacity)
       ..style = PaintingStyle.stroke
@@ -451,19 +451,29 @@ class _ThreePartLogoPainter extends CustomPainter {
   }
 
   void _drawSubpathProgress(
-      Canvas canvas, Path path, Paint paint, double progress) {
+    Canvas canvas,
+    Path path,
+    Paint paint,
+    double progress,
+  ) {
     if (progress <= 0) return;
     final metrics = path.computeMetrics();
     for (final metric in metrics) {
       final targetLen = metric.length * progress;
       if (targetLen <= 0) continue;
       canvas.drawPath(
-          metric.extractPath(0, targetLen.clamp(0, metric.length)), paint);
+        metric.extractPath(0, targetLen.clamp(0, metric.length)),
+        paint,
+      );
     }
   }
 
   void _drawMovingTracer(
-      Canvas canvas, List<Path> paths, Paint paint, double loopProgress) {
+    Canvas canvas,
+    List<Path> paths,
+    Paint paint,
+    double loopProgress,
+  ) {
     final allMetrics = <ui.PathMetric>[];
     double totalLength = 0;
     for (final p in paths) {
@@ -491,7 +501,9 @@ class _ThreePartLogoPainter extends CustomPainter {
           final localEnd = overlapEnd - traveled;
           canvas.drawPath(
             metric.extractPath(
-                localStart.clamp(0, metric.length), localEnd.clamp(0, metric.length)),
+              localStart.clamp(0, metric.length),
+              localEnd.clamp(0, metric.length),
+            ),
             paint,
           );
         }
@@ -504,7 +516,9 @@ class _ThreePartLogoPainter extends CustomPainter {
             final localEnd = wrapOverlapEnd - traveled;
             canvas.drawPath(
               metric.extractPath(
-                  localStart.clamp(0, metric.length), localEnd.clamp(0, metric.length)),
+                localStart.clamp(0, metric.length),
+                localEnd.clamp(0, metric.length),
+              ),
               paint,
             );
           }

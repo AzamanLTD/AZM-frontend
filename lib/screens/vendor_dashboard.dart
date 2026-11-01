@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert'; 
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/trade_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
@@ -18,7 +18,6 @@ import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/utils/idempotency_key.dart';
 
-
 class VendorDashboard extends ConsumerStatefulWidget {
   const VendorDashboard({super.key});
 
@@ -26,7 +25,8 @@ class VendorDashboard extends ConsumerStatefulWidget {
   ConsumerState<VendorDashboard> createState() => _VendorDashboardState();
 }
 
-class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerProviderStateMixin {
+class _VendorDashboardState extends ConsumerState<VendorDashboard>
+    with TickerProviderStateMixin {
   // r42 OPERATION-INSTANCE MODEL: the action id names the operation TYPE.
   // Each genuinely new transfer gets a fresh durable instance; the ref is
   // this flow's retry handle — a re-tap after a lost response retries the
@@ -38,7 +38,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
   List<Map<String, dynamic>> pendingTrades = [];
   bool isOnline = true;
   bool _isBalanceVisible = true;
-  
+
   double _availableBalance = 0.0;
   // Phase J (2026-05-25): renamed from _lockedBalance and rebound from the
   // dropped V1 `lockedBalance` column to the V2 `escrowLockedBalance`. The
@@ -62,7 +62,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initRealtimeListeners();
       _fetchVendorBalances();
-      _fetchPendingTrades(); 
+      _fetchPendingTrades();
       _fetchVendorAds(); // --- PHASE 8: Fetch real ads from API ---
     });
   }
@@ -93,9 +93,21 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         final data = body['data'] ?? body['user'] ?? body;
         if (mounted) {
           setState(() {
-            _availableBalance = double.tryParse(data['availableBalance']?.toString() ?? "0.0") ?? 0.0;
-            _escrowLockedBalance = double.tryParse(data['escrowLockedBalance']?.toString() ?? "0.0") ?? 0.0;
-            _vendorUnallocatedBalance = double.tryParse(data['vendorUnallocatedBalance']?.toString() ?? "0.0") ?? 0.0;
+            _availableBalance =
+                double.tryParse(
+                  data['availableBalance']?.toString() ?? "0.0",
+                ) ??
+                0.0;
+            _escrowLockedBalance =
+                double.tryParse(
+                  data['escrowLockedBalance']?.toString() ?? "0.0",
+                ) ??
+                0.0;
+            _vendorUnallocatedBalance =
+                double.tryParse(
+                  data['vendorUnallocatedBalance']?.toString() ?? "0.0",
+                ) ??
+                0.0;
           });
         }
       }
@@ -117,28 +129,33 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
         final activeTrades = history.where((t) {
           final isVendor = t['vendorId'].toString() == vendorId.toString();
-          final isActive = t['status'] != 'COMPLETED' && t['status'] != 'CANCELLED';
+          final isActive =
+              t['status'] != 'COMPLETED' && t['status'] != 'CANCELLED';
           return isVendor && isActive;
         }).toList();
 
         if (mounted) {
           setState(() {
-            pendingTrades = activeTrades.map<Map<String, dynamic>>((t) => {
-              'tradeId': t['id'].toString(),
-              'amount': t['amountFiat'].toString(),
-              // Phase H3 — forward typed fields so the release-crypto sheet
-              // shows real numbers, not 0.00 USDT / 0.00 GHS. The legacy
-              // `amount` key (stringified fiat) is kept for backwards
-              // compat with consumers that haven't migrated yet.
-              'amountFiat': (t['amountFiat'] as num?)?.toDouble(),
-              'amountCrypto': (t['amountCrypto'] as num?)?.toDouble(),
-              'crypto': t['crypto']?.toString(),
-              'currency': t['currency']?.toString(),
-              'userName': 'Buyer #${t['userId']}',
-              'paymentMethod': t['paymentMethod'] ?? 'Bank Transfer',
-              'status': t['status'],
-              'timestamp': DateTime.parse(t['createdAt'])
-            }).toList();
+            pendingTrades = activeTrades
+                .map<Map<String, dynamic>>(
+                  (t) => {
+                    'tradeId': t['id'].toString(),
+                    'amount': t['amountFiat'].toString(),
+                    // Phase H3 — forward typed fields so the release-crypto sheet
+                    // shows real numbers, not 0.00 USDT / 0.00 GHS. The legacy
+                    // `amount` key (stringified fiat) is kept for backwards
+                    // compat with consumers that haven't migrated yet.
+                    'amountFiat': (t['amountFiat'] as num?)?.toDouble(),
+                    'amountCrypto': (t['amountCrypto'] as num?)?.toDouble(),
+                    'crypto': t['crypto']?.toString(),
+                    'currency': t['currency']?.toString(),
+                    'userName': 'Buyer #${t['userId']}',
+                    'paymentMethod': t['paymentMethod'] ?? 'Bank Transfer',
+                    'status': t['status'],
+                    'timestamp': DateTime.parse(t['createdAt']),
+                  },
+                )
+                .toList();
             _isLoadingTrades = false;
           });
         }
@@ -152,7 +169,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
   void _initRealtimeListeners() {
     _trade = ref.read(tradeProvider);
     final auth = ref.read(authProvider);
-    final socket = SocketService.instance.rawSocket; 
+    final socket = SocketService.instance.rawSocket;
     final userId = auth.user?.id;
 
     if (userId == null || socket == null) return;
@@ -166,27 +183,33 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       if (!mounted) return null;
       setState(() {
         if (data is Map && data['availableBalance'] != null) {
-          _availableBalance = double.tryParse(data['availableBalance'].toString()) ?? _availableBalance;
+          _availableBalance =
+              double.tryParse(data['availableBalance'].toString()) ??
+              _availableBalance;
         }
         if (data is Map && data['escrowLockedBalance'] != null) {
-          _escrowLockedBalance = double.tryParse(data['escrowLockedBalance'].toString()) ?? _escrowLockedBalance;
+          _escrowLockedBalance =
+              double.tryParse(data['escrowLockedBalance'].toString()) ??
+              _escrowLockedBalance;
         }
         if (data is Map && data['vendorUnallocatedBalance'] != null) {
-          _vendorUnallocatedBalance = double.tryParse(data['vendorUnallocatedBalance'].toString()) ?? _vendorUnallocatedBalance;
+          _vendorUnallocatedBalance =
+              double.tryParse(data['vendorUnallocatedBalance'].toString()) ??
+              _vendorUnallocatedBalance;
         }
       });
       return null;
     }
-    
+
     _balanceHandler = handler;
     socket.on('balance_update', handler);
 
     socket.on('new_trade_request', (data) {
-      HapticFeedback.heavyImpact(); 
+      HapticFeedback.heavyImpact();
       if (mounted) {
         setState(() {
           pendingTrades.insert(0, {
-            'tradeId': data['tradeId'].toString(), 
+            'tradeId': data['tradeId'].toString(),
             'amount': data['amount'].toString(),
             // Phase H3 — forward typed fields when the socket payload has
             // them (newer backend emits both legacy `amount` and the typed
@@ -199,21 +222,23 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             'userName': data['buyerName'] ?? 'Buyer',
             'paymentMethod': 'Bank Transfer',
             'status': 'NEW',
-            'timestamp': DateTime.now()
+            'timestamp': DateTime.now(),
           });
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("NEW ORDER: \$${data['amount']} from ${data['buyerName']}"),
+            content: Text(
+              "NEW ORDER: \$${data['amount']} from ${data['buyerName']}",
+            ),
             backgroundColor: const Color(0xFF02C076),
             duration: const Duration(seconds: 5),
             action: SnackBarAction(
-              label: "VIEW", 
-              textColor: Colors.black, 
-              onPressed: () => _autoTriggerTradeExecution(pendingTrades.first)
+              label: "VIEW",
+              textColor: Colors.black,
+              onPressed: () => _autoTriggerTradeExecution(pendingTrades.first),
             ),
-          )
+          ),
         );
       }
     });
@@ -223,9 +248,11 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     HapticFeedback.selectionClick();
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => VendorTradeExecution(tradeData: tradeData)),
+      MaterialPageRoute(
+        builder: (context) => VendorTradeExecution(tradeData: tradeData),
+      ),
     ).then((_) {
-      _fetchPendingTrades(); 
+      _fetchPendingTrades();
       _fetchVendorBalances();
     });
   }
@@ -239,13 +266,13 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
     HapticFeedback.selectionClick();
     final success = await trade.toggleAdStatus(adId, token);
-    
+
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Failed to toggle ad status."),
           backgroundColor: Color(0xFFF6465D),
-        )
+        ),
       );
     }
   }
@@ -274,8 +301,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         backgroundColor: Colors.black,
         body: Stack(
           children: [
-            const TechBackground(), 
-            
+            const TechBackground(),
+
             SafeArea(
               child: Column(
                 children: [
@@ -286,7 +313,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                   ),
                   const SizedBox(height: 16),
                   _buildProtocolBalanceCard(azamanGold),
-                  
+
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: TabBar(
@@ -296,41 +323,83 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       indicatorSize: TabBarIndicatorSize.label,
                       dividerColor: Colors.transparent,
                       tabs: [
-                        Tab(child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text("OPEN ORDERS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                            if (pendingTrades.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                                child: Text("${pendingTrades.length}", style: const TextStyle(fontSize: 10, color: Colors.white)),
-                              )
-                            ]
-                          ],
-                        )),
-                        // --- PHASE 8: SHOW AD COUNT IN TAB ---
-                        Tab(child: Consumer(
-                          builder: (context, ref, _) {
-                            final tp = ref.watch(tradeProvider);
-                            final adCount = tp.myActiveAds.where((a) => a['status'] == 'ACTIVE').length;
-                            return Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Text("MY ADS", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                if (adCount > 0) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: azamanGold.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
-                                    child: Text("$adCount", style: TextStyle(fontSize: 10, color: azamanGold, fontWeight: FontWeight.bold)),
-                                  )
-                                ]
+                        Tab(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                "OPEN ORDERS",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (pendingTrades.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    "${pendingTrades.length}",
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                               ],
-                            );
-                          },
-                        )),
+                            ],
+                          ),
+                        ),
+                        // --- PHASE 8: SHOW AD COUNT IN TAB ---
+                        Tab(
+                          child: Consumer(
+                            builder: (context, ref, _) {
+                              final tp = ref.watch(tradeProvider);
+                              final adCount = tp.myActiveAds
+                                  .where((a) => a['status'] == 'ACTIVE')
+                                  .length;
+                              return Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text(
+                                    "MY ADS",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (adCount > 0) ...[
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: azamanGold.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Text(
+                                        "$adCount",
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: azamanGold,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -343,7 +412,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       ],
                     ),
                   ),
-                  
+
                   _buildPostAdButton(azamanGold),
                 ],
               ),
@@ -373,15 +442,16 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
     // Volume locked in escrow today
     final todayVolume = todayTrades.fold<double>(
-        0, (s, t) => s + ((t['amountFiat'] as num?)?.toDouble() ?? 0));
+      0,
+      (s, t) => s + ((t['amountFiat'] as num?)?.toDouble() ?? 0),
+    );
 
     // Avg response time (createdAt → first status change, in minutes)
     double avgResponseMin = 0;
     final responseTimes = <double>[];
     for (final t in todayTrades) {
       final created = _glanceCreated(t);
-      final accepted =
-          DateTime.tryParse(t['acceptedAt']?.toString() ?? '');
+      final accepted = DateTime.tryParse(t['acceptedAt']?.toString() ?? '');
       if (created != null && accepted != null) {
         responseTimes.add(accepted.difference(created).inSeconds / 60.0);
       }
@@ -490,7 +560,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     final ts = t['timestamp'];
     if (ts is DateTime) return ts;
     return DateTime.tryParse(
-        t['timestamp']?.toString() ?? t['createdAt']?.toString() ?? '');
+      t['timestamp']?.toString() ?? t['createdAt']?.toString() ?? '',
+    );
   }
 
   String _fmt(double v) {
@@ -524,8 +595,23 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("VENDOR PROTOCOL", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1)),
-                  Text(isOnline ? "NODE: ACTIVE" : "NODE: OFFLINE", style: TextStyle(color: isOnline ? green : Colors.white24, fontSize: 9, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "VENDOR PROTOCOL",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  Text(
+                    isOnline ? "NODE: ACTIVE" : "NODE: OFFLINE",
+                    style: TextStyle(
+                      color: isOnline ? green : Colors.white24,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -536,25 +622,35 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                 icon: Icon(Icons.analytics_outlined, color: gold),
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  pushWithVerticalTransition(context, const VendorAnalyticsScreen());
+                  pushWithVerticalTransition(
+                    context,
+                    const VendorAnalyticsScreen(),
+                  );
                 },
               ),
               IconButton(
-                icon: Icon(Icons.settings_outlined, color: gold), 
+                icon: Icon(Icons.settings_outlined, color: gold),
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  pushWithVerticalTransition(context, VendorSettingsScreen(pendingTradeCount: pendingTrades.length,));
+                  pushWithVerticalTransition(
+                    context,
+                    VendorSettingsScreen(
+                      pendingTradeCount: pendingTrades.length,
+                    ),
+                  );
                 },
               ),
               Transform.scale(
                 scale: 0.8,
                 child: Switch(
-                  value: isOnline, 
-                  activeThumbColor: green, 
+                  value: isOnline,
+                  activeThumbColor: green,
                   onChanged: (val) {
                     setState(() => isOnline = val);
-                    SocketService.instance.emit('toggle_online', {'isOnline': val});
-                  }
+                    SocketService.instance.emit('toggle_online', {
+                      'isOnline': val,
+                    });
+                  },
                 ),
               ),
             ],
@@ -566,13 +662,15 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
   Widget _buildProtocolBalanceCard(Color gold) {
     double totalFunding = _vendorUnallocatedBalance + _escrowLockedBalance;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(colors: [Colors.white.withValues(alpha: 0.05), Colors.transparent]),
+        gradient: LinearGradient(
+          colors: [Colors.white.withValues(alpha: 0.05), Colors.transparent],
+        ),
         border: Border.all(color: gold.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -581,24 +679,49 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("VENDOR TRADING OVERVIEW", style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.bold)),
-              Icon(Icons.shield_outlined, color: gold.withValues(alpha: 0.5), size: 18),
+              const Text(
+                "VENDOR TRADING OVERVIEW",
+                style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Icon(
+                Icons.shield_outlined,
+                color: gold.withValues(alpha: 0.5),
+                size: 18,
+              ),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
               Text(
-                _isBalanceVisible ? totalFunding.toStringAsFixed(2) : "••••••", 
-                style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)
+                _isBalanceVisible ? totalFunding.toStringAsFixed(2) : "••••••",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(width: 8),
-              const Text("USDC", style: TextStyle(color: Colors.white38, fontSize: 12)),
+              const Text(
+                "USDC",
+                style: TextStyle(color: Colors.white38, fontSize: 12),
+              ),
               const SizedBox(width: 12),
               GestureDetector(
-                onTap: () => setState(() => _isBalanceVisible = !_isBalanceVisible),
-                child: Icon(_isBalanceVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white24, size: 18),
-              )
+                onTap: () =>
+                    setState(() => _isBalanceVisible = !_isBalanceVisible),
+                child: Icon(
+                  _isBalanceVisible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                  color: Colors.white24,
+                  size: 18,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -609,25 +732,73 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("TRADING POOL", style: TextStyle(color: Colors.white38, fontSize: 8, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "TRADING POOL",
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(_isBalanceVisible ? "\$${_vendorUnallocatedBalance.toStringAsFixed(2)}" : "•••", style: TextStyle(color: gold, fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(
+                    _isBalanceVisible
+                        ? "\$${_vendorUnallocatedBalance.toStringAsFixed(2)}"
+                        : "•••",
+                    style: TextStyle(
+                      color: gold,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text("IN ESCROW", style: TextStyle(color: Colors.white38, fontSize: 8, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "IN ESCROW",
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(_isBalanceVisible ? "\$${_escrowLockedBalance.toStringAsFixed(2)}" : "•••", style: const TextStyle(color: Color(0xFFF6465D), fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(
+                    _isBalanceVisible
+                        ? "\$${_escrowLockedBalance.toStringAsFixed(2)}"
+                        : "•••",
+                    style: const TextStyle(
+                      color: Color(0xFFF6465D),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text("WALLET", style: TextStyle(color: Colors.white38, fontSize: 8, fontWeight: FontWeight.bold)),
+                  const Text(
+                    "WALLET",
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text(_isBalanceVisible ? "\$${_availableBalance.toStringAsFixed(2)}" : "•••", style: const TextStyle(color: Color(0xFF02C076), fontSize: 14, fontWeight: FontWeight.bold)),
+                  Text(
+                    _isBalanceVisible
+                        ? "\$${_availableBalance.toStringAsFixed(2)}"
+                        : "•••",
+                    style: const TextStyle(
+                      color: Color(0xFF02C076),
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -650,7 +821,14 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       children: [
                         Icon(Icons.arrow_forward, size: 14, color: gold),
                         const SizedBox(width: 6),
-                        Text("Fund Pool", style: TextStyle(color: gold, fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text(
+                          "Fund Pool",
+                          style: TextStyle(
+                            color: gold,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -664,14 +842,27 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF02C076).withValues(alpha: 0.4)),
+                      border: Border.all(
+                        color: const Color(0xFF02C076).withValues(alpha: 0.4),
+                      ),
                     ),
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.arrow_back, size: 14, color: Color(0xFF02C076)),
+                        Icon(
+                          Icons.arrow_back,
+                          size: 14,
+                          color: Color(0xFF02C076),
+                        ),
                         SizedBox(width: 6),
-                        Text("To Wallet", style: TextStyle(color: Color(0xFF02C076), fontSize: 11, fontWeight: FontWeight.bold)),
+                        Text(
+                          "To Wallet",
+                          style: TextStyle(
+                            color: Color(0xFF02C076),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -685,15 +876,26 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
   }
 
   void _showTransferSheet(String direction) {
-    final maxAmount = direction == 'TO_POOL' ? _availableBalance : _vendorUnallocatedBalance;
-    final fromLabel = direction == 'TO_POOL' ? 'Available Wallet' : 'Trading Pool';
-    final toLabel = direction == 'TO_POOL' ? 'Trading Pool' : 'Available Wallet';
+    final maxAmount = direction == 'TO_POOL'
+        ? _availableBalance
+        : _vendorUnallocatedBalance;
+    final fromLabel = direction == 'TO_POOL'
+        ? 'Available Wallet'
+        : 'Trading Pool';
+    final toLabel = direction == 'TO_POOL'
+        ? 'Trading Pool'
+        : 'Available Wallet';
     final colors = ref.read(themeProvider).colors;
-    final accentColor = direction == 'TO_POOL' ? colors.accent : const Color(0xFF02C076);
+    final accentColor = direction == 'TO_POOL'
+        ? colors.accent
+        : const Color(0xFF02C076);
 
     if (maxAmount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No funds in $fromLabel to transfer.'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('No funds in $fromLabel to transfer.'),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
@@ -712,12 +914,16 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
           final isValidAmount = enteredAmount > 0 && enteredAmount <= maxAmount;
 
           return Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            ),
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: colors.card,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -732,8 +938,11 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          direction == 'TO_POOL' ? Icons.account_balance_wallet_outlined : Icons.arrow_back,
-                          color: accentColor, size: 20,
+                          direction == 'TO_POOL'
+                              ? Icons.account_balance_wallet_outlined
+                              : Icons.arrow_back,
+                          color: accentColor,
+                          size: 20,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -741,8 +950,21 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Transfer Funds', style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text('$fromLabel → $toLabel', style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                            Text(
+                              'Transfer Funds',
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              '$fromLabel → $toLabel',
+                              style: TextStyle(
+                                color: colors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -753,22 +975,43 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                   // Amount input
                   TextField(
                     controller: amountController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.bold),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                     onChanged: (_) => setSheetState(() {}),
                     decoration: InputDecoration(
                       hintText: '0.00',
                       hintStyle: TextStyle(color: colors.textTertiary),
                       prefixText: '\$ ',
-                      prefixStyle: TextStyle(color: colors.textSecondary, fontSize: 28),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.divider)),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.divider)),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: accentColor)),
+                      prefixStyle: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 28,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: colors.divider),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: colors.divider),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: accentColor),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text('Available: \$${maxAmount.toStringAsFixed(2)}', style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+                  Text(
+                    'Available: \$${maxAmount.toStringAsFixed(2)}',
+                    style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                  ),
                   const SizedBox(height: 12),
 
                   // Quick amount buttons
@@ -782,13 +1025,23 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                           setSheetState(() {});
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
                             color: colors.surface,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: colors.divider),
                           ),
-                          child: Text('$pct%', style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: Text(
+                            '$pct%',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       );
                     }).toList(),
@@ -806,7 +1059,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                         return GestureDetector(
                           onHorizontalDragUpdate: (details) {
                             setSheetState(() {
-                              confirmDragX = (confirmDragX + details.delta.dx).clamp(0.0, maxDrag);
+                              confirmDragX = (confirmDragX + details.delta.dx)
+                                  .clamp(0.0, maxDrag);
                             });
                             if (confirmDragX >= maxDrag * 0.9 && !isConfirmed) {
                               isConfirmed = true;
@@ -825,7 +1079,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                             decoration: BoxDecoration(
                               color: accentColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: accentColor.withValues(alpha: 0.3)),
+                              border: Border.all(
+                                color: accentColor.withValues(alpha: 0.3),
+                              ),
                             ),
                             child: Stack(
                               children: [
@@ -837,7 +1093,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                       width: confirmDragX + thumbSize,
                                       height: 56,
                                       decoration: BoxDecoration(
-                                        color: accentColor.withValues(alpha: 0.2),
+                                        color: accentColor.withValues(
+                                          alpha: 0.2,
+                                        ),
                                         borderRadius: BorderRadius.circular(28),
                                       ),
                                     ),
@@ -847,7 +1105,11 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                 Center(
                                   child: Text(
                                     'Slide to confirm transfer',
-                                    style: TextStyle(color: accentColor.withValues(alpha: 0.7), fontSize: 13, fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                      color: accentColor.withValues(alpha: 0.7),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                                 // Thumb
@@ -860,9 +1122,20 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                                     decoration: BoxDecoration(
                                       color: accentColor,
                                       borderRadius: BorderRadius.circular(24),
-                                      boxShadow: [BoxShadow(color: accentColor.withValues(alpha: 0.4), blurRadius: 8)],
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: accentColor.withValues(
+                                            alpha: 0.4,
+                                          ),
+                                          blurRadius: 8,
+                                        ),
+                                      ],
                                     ),
-                                    child: const Icon(Icons.arrow_forward, color: Colors.white, size: 22),
+                                    child: const Icon(
+                                      Icons.arrow_forward,
+                                      color: Colors.white,
+                                      size: 22,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -882,7 +1155,10 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       child: Center(
                         child: Text(
                           'Enter amount to continue',
-                          style: TextStyle(color: colors.textTertiary, fontSize: 13),
+                          style: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
@@ -901,10 +1177,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     try {
       // r42: internal transfers move funds between wallet tiers — one
       // key per LOGICAL transfer, reused across retries of it.
-      final response = await apiClient.postFinancial('/wallet/internal-transfer', {
-        'direction': direction,
-        'amount': amount,
-      }, operationType: _transferActionId, ref: _transferRef);
+      final response = await apiClient.postFinancial(
+        '/wallet/internal-transfer',
+        {'direction': direction, 'amount': amount},
+        operationType: _transferActionId,
+        ref: _transferRef,
+      );
       // Key lifecycle owned by postFinancial (409 keeps, answered retires).
 
       if (response.statusCode == 200) {
@@ -922,7 +1200,10 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Transfer failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Transfer failed: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -930,7 +1211,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
   void _showTransferSuccess(String direction, double amount) {
     final colors = ref.read(themeProvider).colors;
-    final toLabel = direction == 'TO_POOL' ? 'Trading Pool' : 'Available Wallet';
+    final toLabel = direction == 'TO_POOL'
+        ? 'Trading Pool'
+        : 'Available Wallet';
 
     showDialog(
       context: context,
@@ -949,10 +1232,21 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                   color: const Color(0xFF02C076).withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle_outline, color: Color(0xFF02C076), size: 48),
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  color: Color(0xFF02C076),
+                  size: 48,
+                ),
               ),
               const SizedBox(height: 16),
-              Text('Transfer Complete', style: TextStyle(color: colors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                'Transfer Complete',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 6),
               Text(
                 '\$${amount.toStringAsFixed(2)} moved to $toLabel',
@@ -968,13 +1262,36 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                 ),
                 child: Column(
                   children: [
-                    _balanceRow('Trading Pool', _vendorUnallocatedBalance, colors.accent, colors),
+                    _balanceRow(
+                      'Trading Pool',
+                      _vendorUnallocatedBalance,
+                      colors.accent,
+                      colors,
+                    ),
                     const SizedBox(height: 10),
-                    _balanceRow('In Escrow', _escrowLockedBalance, const Color(0xFFF6465D), colors),
+                    _balanceRow(
+                      'In Escrow',
+                      _escrowLockedBalance,
+                      const Color(0xFFF6465D),
+                      colors,
+                    ),
                     const SizedBox(height: 10),
-                    _balanceRow('Available Wallet', _availableBalance, const Color(0xFF02C076), colors),
+                    _balanceRow(
+                      'Available Wallet',
+                      _availableBalance,
+                      const Color(0xFF02C076),
+                      colors,
+                    ),
                     Divider(color: colors.divider, height: 20),
-                    _balanceRow('Total', _availableBalance + _vendorUnallocatedBalance + _escrowLockedBalance, colors.textPrimary, colors, isBold: true),
+                    _balanceRow(
+                      'Total',
+                      _availableBalance +
+                          _vendorUnallocatedBalance +
+                          _escrowLockedBalance,
+                      colors.textPrimary,
+                      colors,
+                      isBold: true,
+                    ),
                   ],
                 ),
               ),
@@ -983,7 +1300,14 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                 width: double.infinity,
                 child: TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: Text('Done', style: TextStyle(color: colors.accent, fontWeight: FontWeight.bold, fontSize: 15)),
+                  child: Text(
+                    'Done',
+                    style: TextStyle(
+                      color: colors.accent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -993,14 +1317,31 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     );
   }
 
-  Widget _balanceRow(String label, double amount, Color color, dynamic colors, {bool isBold = false}) {
+  Widget _balanceRow(
+    String label,
+    double amount,
+    Color color,
+    dynamic colors, {
+    bool isBold = false,
+  }) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: colors.textSecondary, fontSize: 12, fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+        Text(
+          label,
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 12,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
         Text(
           '\$${amount.toStringAsFixed(2)}',
-          style: TextStyle(color: color, fontSize: 13, fontWeight: isBold ? FontWeight.w900 : FontWeight.w600),
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: isBold ? FontWeight.w900 : FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -1008,10 +1349,19 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
 
   Widget _buildTradeTab(Color gold) {
     if (_isLoadingTrades) {
-      return Center(child: CircularProgressIndicator(color: ref.read(themeProvider).colors.accent));
+      return Center(
+        child: CircularProgressIndicator(
+          color: ref.read(themeProvider).colors.accent,
+        ),
+      );
     }
-    if (pendingTrades.isEmpty) return const AzamanEmptyState(icon: Icons.radar, title: "No Active Orders", subtitle: "New trade requests will appear here.");
-    
+    if (pendingTrades.isEmpty)
+      return const AzamanEmptyState(
+        icon: Icons.radar,
+        title: "No Active Orders",
+        subtitle: "New trade requests will appear here.",
+      );
+
     return ListView.builder(
       itemCount: pendingTrades.length,
       padding: const EdgeInsets.all(20),
@@ -1033,30 +1383,65 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         decoration: BoxDecoration(
           color: ref.read(themeProvider).colors.card,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: gold.withValues(alpha: 0.3)), 
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 5))]
+          border: Border.all(color: gold.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: Row(
           children: [
-            CircleAvatar(backgroundColor: gold.withValues(alpha: 0.1), child: Icon(Icons.notifications_outlined, color: gold, size: 20)),
+            CircleAvatar(
+              backgroundColor: gold.withValues(alpha: 0.1),
+              child: Icon(Icons.notifications_outlined, color: gold, size: 20),
+            ),
             const SizedBox(width: 15),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("BUYER: ${trade['userName']}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                  Text(
+                    "BUYER: ${trade['userName']}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text("${trade['amount']} GHS", style: TextStyle(color: gold, fontWeight: FontWeight.w900, fontSize: 18)),
+                  Text(
+                    "${trade['amount']} GHS",
+                    style: TextStyle(
+                      color: gold,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text("STATUS: ${trade['status']}", style: const TextStyle(color: Colors.white24, fontSize: 10)),
+                  Text(
+                    "STATUS: ${trade['status']}",
+                    style: const TextStyle(color: Colors.white24, fontSize: 10),
+                  ),
                 ],
               ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(color: gold, borderRadius: BorderRadius.circular(8)),
-              child: const Text("VIEW", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            )
+              decoration: BoxDecoration(
+                color: gold,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                "VIEW",
+                style: TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -1074,11 +1459,20 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
         // shadowing the top-level Riverpod `tradeProvider` symbol.
         final trade = ref.watch(tradeProvider);
         if (trade.isLoadingAds) {
-          return Center(child: CircularProgressIndicator(color: ref.read(themeProvider).colors.accent));
+          return Center(
+            child: CircularProgressIndicator(
+              color: ref.read(themeProvider).colors.accent,
+            ),
+          );
         }
 
         final ads = trade.myActiveAds;
-        if (ads.isEmpty) return const AzamanEmptyState(icon: Icons.layers_outlined, title: "No Advertisements Yet", subtitle: "Create your first ad to start receiving trade requests.");
+        if (ads.isEmpty)
+          return const AzamanEmptyState(
+            icon: Icons.layers_outlined,
+            title: "No Advertisements Yet",
+            subtitle: "Create your first ad to start receiving trade requests.",
+          );
 
         return AzPullToRefresh(
           color: gold,
@@ -1106,7 +1500,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     final double? margin = (ad['margin'] as num?)?.toDouble();
     final int adId = ad['id'];
 
-    final Color typeColor = isBuy ? const Color(0xFF02C076) : const Color(0xFFF6465D);
+    final Color typeColor = isBuy
+        ? const Color(0xFF02C076)
+        : const Color(0xFFF6465D);
 
     return AnimatedOpacity(
       opacity: isActive ? 1.0 : 0.5,
@@ -1118,7 +1514,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
           color: ref.read(themeProvider).colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isActive ? gold.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.05),
+            color: isActive
+                ? gold.withValues(alpha: 0.35)
+                : Colors.white.withValues(alpha: 0.05),
             width: isActive ? 1.2 : 0.5,
           ),
           boxShadow: [
@@ -1150,21 +1548,35 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: typeColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: typeColor.withValues(alpha: 0.3)),
+                        border: Border.all(
+                          color: typeColor.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Text(
                         isBuy ? "BUY" : "SELL",
-                        style: TextStyle(color: typeColor, fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1),
+                        style: TextStyle(
+                          color: typeColor,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          letterSpacing: 1,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Text(
                       ad['crypto'] ?? 'USDT',
-                      style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -1172,7 +1584,10 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: isActive
                             ? const Color(0xFF02C076).withValues(alpha: 0.1)
@@ -1182,7 +1597,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                       child: Text(
                         isActive ? "LIVE" : "OFF",
                         style: TextStyle(
-                          color: isActive ? const Color(0xFF02C076) : Colors.white24,
+                          color: isActive
+                              ? const Color(0xFF02C076)
+                              : Colors.white24,
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1,
@@ -1209,11 +1626,15 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             // --- ROW 2: Price ---
             Text(
               "${price.toStringAsFixed(2)} GHS / \$1",
-              style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+              ),
             ),
 
             const SizedBox(height: 14),
-            
+
             // --- ROW 3: Limits + Method ---
             Container(
               padding: const EdgeInsets.all(12),
@@ -1224,7 +1645,10 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               ),
               child: Column(
                 children: [
-                  _adDetailRow("Limits", "\$${minLimit.toStringAsFixed(0)} – \$${maxLimit.toStringAsFixed(0)}"),
+                  _adDetailRow(
+                    "Limits",
+                    "\$${minLimit.toStringAsFixed(0)} – \$${maxLimit.toStringAsFixed(0)}",
+                  ),
                   const SizedBox(height: 8),
                   _adDetailRow("Method", paymentMethod),
                   if (margin != null) ...[
@@ -1241,12 +1665,20 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.note_outlined, color: gold.withValues(alpha: 0.5), size: 14),
+                  Icon(
+                    Icons.note_outlined,
+                    color: gold.withValues(alpha: 0.5),
+                    size: 14,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       terms,
-                      style: const TextStyle(color: Colors.white38, fontSize: 11, height: 1.4),
+                      style: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1270,8 +1702,18 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11)),
-        Text(value, style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white38, fontSize: 11),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
@@ -1281,7 +1723,8 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
   Widget _buildBoostButton(Map<String, dynamic> ad, Color gold) {
     final bool isBoosted = ad['isBoosted'] == true;
     final String? boostExpiresAt = ad['boostExpiresAt']?.toString();
-    final bool boostActive = isBoosted &&
+    final bool boostActive =
+        isBoosted &&
         boostExpiresAt != null &&
         DateTime.tryParse(boostExpiresAt)?.isAfter(DateTime.now()) == true;
 
@@ -1292,21 +1735,26 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
       final label = remaining.inHours > 24
           ? '${(remaining.inHours / 24).ceil()}d left'
           : remaining.inHours > 0
-              ? '${remaining.inHours}h left'
-              : '${remaining.inMinutes}m left';
+          ? '${remaining.inHours}h left'
+          : '${remaining.inMinutes}m left';
 
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: const Color(0xFF02C076).withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF02C076).withValues(alpha: 0.3)),
+          border: Border.all(
+            color: const Color(0xFF02C076).withValues(alpha: 0.3),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.rocket_launch_outlined,
-                size: 14, color: Color(0xFF02C076)),
+            const Icon(
+              Icons.rocket_launch_outlined,
+              size: 14,
+              color: Color(0xFF02C076),
+            ),
             const SizedBox(width: 6),
             Text(
               'BOOSTED  \u2022  $label',
@@ -1404,7 +1852,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
             child: ElevatedButton.icon(
               onPressed: () {
                 Navigator.push(
-                  context, 
+                  context,
                   MaterialPageRoute(builder: (_) => const VendorAdCreator()),
                 ).then((_) => _fetchVendorAds()); // Refresh ads after returning
               },
@@ -1414,7 +1862,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
                 backgroundColor: gold.withValues(alpha: 0.1),
                 foregroundColor: gold,
                 side: BorderSide(color: gold.withValues(alpha: 0.5)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -1426,7 +1876,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const TradeAccountsScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const TradeAccountsScreen(),
+                  ),
                 );
               },
               icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
@@ -1434,7 +1886,9 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard> with TickerPr
               style: OutlinedButton.styleFrom(
                 foregroundColor: Colors.white70,
                 side: const BorderSide(color: Colors.white24),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ),
@@ -1480,9 +1934,24 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
   bool _isBoosting = false;
 
   static const _boostOptions = [
-    {'id': 'boost_24h', 'label': '24 Hours', 'cost': 15, 'desc': 'Featured at top of marketplace for 1 day'},
-    {'id': 'boost_72h', 'label': '3 Days', 'cost': 35, 'desc': 'Featured placement for 72 hours'},
-    {'id': 'boost_7d', 'label': '7 Days', 'cost': 80, 'desc': 'Premium featured spot for a full week'},
+    {
+      'id': 'boost_24h',
+      'label': '24 Hours',
+      'cost': 15,
+      'desc': 'Featured at top of marketplace for 1 day',
+    },
+    {
+      'id': 'boost_72h',
+      'label': '3 Days',
+      'cost': 35,
+      'desc': 'Featured placement for 72 hours',
+    },
+    {
+      'id': 'boost_7d',
+      'label': '7 Days',
+      'cost': 80,
+      'desc': 'Premium featured spot for a full week',
+    },
   ];
 
   Future<void> _handleBoost() async {
@@ -1499,21 +1968,25 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
 
     if (result != null) {
       HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(
-          'Ad boosted for ${result.boostDuration}! (-${result.azmSpent.toInt()} AZM)',
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Ad boosted for ${result.boostDuration}! (-${result.azmSpent.toInt()} AZM)',
+          ),
+          backgroundColor: const Color(0xFF02C076),
+          behavior: SnackBarBehavior.floating,
         ),
-        backgroundColor: const Color(0xFF02C076),
-        behavior: SnackBarBehavior.floating,
-      ));
+      );
       widget.onBoostSuccess();
     } else {
       final error = ref.read(azmSpendProvider).error ?? 'Failed to boost ad';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(error),
-        backgroundColor: const Color(0xFFF6465D),
-        behavior: SnackBarBehavior.floating,
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: const Color(0xFFF6465D),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -1562,7 +2035,10 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: widget.gold.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
@@ -1613,8 +2089,8 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                     color: isSelected
                         ? widget.gold
                         : canAfford
-                            ? Colors.white12
-                            : Colors.white.withValues(alpha: 0.04),
+                        ? Colors.white12
+                        : Colors.white.withValues(alpha: 0.04),
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
@@ -1636,7 +2112,9 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                           Text(
                             desc,
                             style: TextStyle(
-                              color: canAfford ? Colors.white38 : Colors.white12,
+                              color: canAfford
+                                  ? Colors.white38
+                                  : Colors.white12,
                               fontSize: 11,
                             ),
                           ),
@@ -1645,7 +2123,9 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? widget.gold.withValues(alpha: 0.15)
@@ -1658,8 +2138,8 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                           color: isSelected
                               ? widget.gold
                               : canAfford
-                                  ? Colors.white54
-                                  : Colors.white24,
+                              ? Colors.white54
+                              : Colors.white24,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1676,15 +2156,17 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed:
-                  _selectedBoostId != null && !_isBoosting ? _handleBoost : null,
+              onPressed: _selectedBoostId != null && !_isBoosting
+                  ? _handleBoost
+                  : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.gold,
                 foregroundColor: Colors.black,
                 disabledBackgroundColor: Colors.white10,
                 disabledForegroundColor: Colors.white24,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
               child: _isBoosting
@@ -1692,7 +2174,9 @@ class _AdBoostSheetState extends ConsumerState<_AdBoostSheet> {
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(
-                          color: Colors.black, strokeWidth: 2),
+                        color: Colors.black,
+                        strokeWidth: 2,
+                      ),
                     )
                   : const Text(
                       'CONFIRM BOOST',
@@ -1720,14 +2204,18 @@ class PulseCard extends StatefulWidget {
   State<PulseCard> createState() => _PulseCardState();
 }
 
-class _PulseCardState extends State<PulseCard> with SingleTickerProviderStateMixin {
+class _PulseCardState extends State<PulseCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000))..repeat(reverse: true);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
     _animation = Tween<double>(begin: 1.0, end: 1.02).animate(_controller);
   }
 
@@ -1747,20 +2235,24 @@ class TechBackground extends StatelessWidget {
   const TechBackground({super.key});
   @override
   Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: CustomPaint(
-        painter: GridPainter(),
-      ),
-    );
+    return Positioned.fill(child: CustomPaint(painter: GridPainter()));
   }
 }
 
 class GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withValues(alpha: 0.02)..strokeWidth = 0.5;
-    for (double i = 0; i < size.width; i += 40) { canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint); }
-    for (double i = 0; i < size.height; i += 40) { canvas.drawLine(Offset(0, i), Offset(size.width, i), paint); }
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.02)
+      ..strokeWidth = 0.5;
+    for (double i = 0; i < size.width; i += 40) {
+      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
+    }
+    for (double i = 0; i < size.height; i += 40) {
+      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
+    }
   }
-  @override bool shouldRepaint(CustomPainter oldDelegate) => false;
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

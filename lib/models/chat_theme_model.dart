@@ -34,7 +34,7 @@ class ChatThemeModel {
 
 class ChatThemeNotifier extends StateNotifier<ChatThemeModel> {
   ChatThemeNotifier({required String chatId})
-      : super(ChatThemeModel(chatId: chatId)) {
+    : super(ChatThemeModel(chatId: chatId)) {
     _load();
   }
 
@@ -61,6 +61,7 @@ class ChatThemeNotifier extends StateNotifier<ChatThemeModel> {
   }
 }
 
-final chatThemeProvider = StateNotifierProvider.family<ChatThemeNotifier, ChatThemeModel, String>(
-  (ref, chatId) => ChatThemeNotifier(chatId: chatId),
-);
+final chatThemeProvider =
+    StateNotifierProvider.family<ChatThemeNotifier, ChatThemeModel, String>(
+      (ref, chatId) => ChatThemeNotifier(chatId: chatId),
+    );

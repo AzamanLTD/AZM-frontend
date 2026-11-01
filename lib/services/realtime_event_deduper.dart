@@ -12,9 +12,9 @@
 
 class RealtimeEventDeduper {
   RealtimeEventDeduper({this.maxEntries = 256})
-      : assert(maxEntries > 0),
-        _seen = <String>{},
-        _order = <String>[];
+    : assert(maxEntries > 0),
+      _seen = <String>{},
+      _order = <String>[];
 
   final int maxEntries;
   final Set<String> _seen;

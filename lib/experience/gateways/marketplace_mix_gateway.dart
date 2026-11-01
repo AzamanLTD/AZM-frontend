@@ -61,10 +61,7 @@ enum MixCapability {
 }
 
 /// One page of `GET /api/discovery/items`.
-typedef MixDiscoveryPage = ({
-  List<MixOffer> offers,
-  String? nextCursor,
-});
+typedef MixDiscoveryPage = ({List<MixOffer> offers, String? nextCursor});
 
 /// The discovery surface is not enabled/available (404). Distinct from both
 /// an empty feed and a retryable failure.
@@ -72,7 +69,8 @@ class MixEndpointDisabledException implements Exception {
   const MixEndpointDisabledException();
 
   @override
-  String toString() => 'MixEndpointDisabledException: discovery endpoint unavailable (404)';
+  String toString() =>
+      'MixEndpointDisabledException: discovery endpoint unavailable (404)';
 }
 
 /// The server rejected a request parameter (422). Carries the server's
@@ -149,7 +147,8 @@ String buildDiscoveryItemsQuery({
 
 /// Real adapter over the canonical discovery endpoint.
 class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
-  HttpMarketplaceMixGateway({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  HttpMarketplaceMixGateway({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   final ApiClient _apiClient;
 
@@ -158,18 +157,18 @@ class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
 
   @override
   Set<MixCapability> get supportedCapabilities => const {
-        MixCapability.crossStoreCategoryBrowse,
-        MixCapability.offerIdentity,
-        MixCapability.ghsListPrice,
-        MixCapability.availabilitySignal,
-        MixCapability.taxonomyFilters,
-        MixCapability.itemStoreInteractions,
-        // Deliberately absent (do not add without a real contract):
-        //  - GHS payment/settlement (payableIn reports USDC only today)
-        //  - price-on-request (the feed excludes unpriced items entirely)
-        //  - same-item-across-stores grouping (no global item identity)
-        //  - analytics-backed ranking labels (rank.label is null until P3)
-      };
+    MixCapability.crossStoreCategoryBrowse,
+    MixCapability.offerIdentity,
+    MixCapability.ghsListPrice,
+    MixCapability.availabilitySignal,
+    MixCapability.taxonomyFilters,
+    MixCapability.itemStoreInteractions,
+    // Deliberately absent (do not add without a real contract):
+    //  - GHS payment/settlement (payableIn reports USDC only today)
+    //  - price-on-request (the feed excludes unpriced items entirely)
+    //  - same-item-across-stores grouping (no global item identity)
+    //  - analytics-backed ranking labels (rank.label is null until P3)
+  };
 
   @override
   Future<MixDiscoveryPage> fetchItems({
@@ -207,12 +206,15 @@ class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
     Map<String, dynamic> decoded;
     try {
       final parsed = jsonDecode(body);
-      if (parsed is! Map<String, dynamic>) throw const FormatException('not an object');
+      if (parsed is! Map<String, dynamic>)
+        throw const FormatException('not an object');
       decoded = parsed;
     } on FormatException {
       // A 200 that is not the discovery envelope is a broken surface —
       // retryable, never an empty success.
-      throw const MixRetryableException('discovery response was not the expected envelope');
+      throw const MixRetryableException(
+        'discovery response was not the expected envelope',
+      );
     }
 
     if (decoded['success'] != true) {
@@ -221,7 +223,9 @@ class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
 
     final rows = decoded['items'];
     if (rows is! List) {
-      throw const MixRetryableException('discovery response carried no items array');
+      throw const MixRetryableException(
+        'discovery response carried no items array',
+      );
     }
     // A malformed row fails the WHOLE page as retryable — it is never
     // silently dropped (which would fake a truncated, successful page).
@@ -229,7 +233,8 @@ class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
     for (final row in rows) {
       if (row is! Map) {
         throw const MixRetryableException(
-            'discovery page contained a malformed item row');
+          'discovery page contained a malformed item row',
+        );
       }
       offers.add(MixOffer.fromDiscoveryDto(Map<String, dynamic>.from(row)));
     }
@@ -240,7 +245,8 @@ class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
     // envelope is malformed — retryable, never a silent end-of-feed.
     if (!decoded.containsKey('nextCursor')) {
       throw const MixRetryableException(
-          'discovery envelope did not declare nextCursor');
+        'discovery envelope did not declare nextCursor',
+      );
     }
     final next = decoded['nextCursor'];
     String? nextCursor;
@@ -254,17 +260,20 @@ class HttpMarketplaceMixGateway implements MarketplaceMixGateway {
       final trimmed = next.trim();
       if (trimmed.isEmpty) {
         throw const MixRetryableException(
-            'discovery envelope carried a whitespace-only nextCursor');
+          'discovery envelope carried a whitespace-only nextCursor',
+        );
       }
       if (trimmed != next) {
         throw const MixRetryableException(
-            'discovery envelope nextCursor carried padding that would '
-            'mutate the opaque cursor');
+          'discovery envelope nextCursor carried padding that would '
+          'mutate the opaque cursor',
+        );
       }
       nextCursor = next;
     } else {
       throw const MixRetryableException(
-          'discovery envelope carried a malformed nextCursor');
+        'discovery envelope carried a malformed nextCursor',
+      );
     }
 
     return (offers: offers, nextCursor: nextCursor);

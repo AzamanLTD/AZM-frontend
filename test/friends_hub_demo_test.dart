@@ -14,7 +14,9 @@ import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 
 void main() {
-  testWidgets('FriendsHubScreen renders without exceptions in demo mode', (tester) async {
+  testWidgets('FriendsHubScreen renders without exceptions in demo mode', (
+    tester,
+  ) async {
     AppConfig.enableDemoMode();
 
     final container = ProviderContainer();
@@ -50,6 +52,10 @@ void main() {
       print('CAPTURED EXCEPTION: $exception');
       print('STACK: ${exception is Error ? exception.stackTrace : "n/a"}');
     }
-    expect(exception, isNull, reason: 'FriendsHubScreen threw during build/layout');
+    expect(
+      exception,
+      isNull,
+      reason: 'FriendsHubScreen threw during build/layout',
+    );
   });
 }

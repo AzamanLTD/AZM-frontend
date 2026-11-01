@@ -42,24 +42,35 @@ class ResumeCard extends ConsumerWidget {
             color: colors.card,
             borderRadius: BorderRadius.circular(AzRadius.lg),
           ),
-          child: Row(children: [
-            Icon(icon, color: colors.accent),
-            const SizedBox(width: AzSpace.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Pick up where you left off',
-                      style: AzText.caption.copyWith(color: colors.textTertiary)),
-                  Text(intent.title,
-                      style: AzText.title.copyWith(color: colors.textPrimary), maxLines: 2),
-                  Text(intent.subtitle,
-                      style: AzText.bodyS.copyWith(color: colors.textSecondary)),
-                ],
+          child: Row(
+            children: [
+              Icon(icon, color: colors.accent),
+              const SizedBox(width: AzSpace.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pick up where you left off',
+                      style: AzText.caption.copyWith(
+                        color: colors.textTertiary,
+                      ),
+                    ),
+                    Text(
+                      intent.title,
+                      style: AzText.title.copyWith(color: colors.textPrimary),
+                      maxLines: 2,
+                    ),
+                    Text(
+                      intent.subtitle,
+                      style: AzText.bodyS.copyWith(color: colors.textSecondary),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Icon(Icons.chevron_right_rounded, color: colors.textTertiary),
-          ]),
+              Icon(Icons.chevron_right_rounded, color: colors.textTertiary),
+            ],
+          ),
         ),
       ),
     );

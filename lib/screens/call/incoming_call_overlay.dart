@@ -19,7 +19,8 @@ class IncomingCallOverlay extends ConsumerStatefulWidget {
   const IncomingCallOverlay({super.key, required this.child});
 
   @override
-  ConsumerState<IncomingCallOverlay> createState() => _IncomingCallOverlayState();
+  ConsumerState<IncomingCallOverlay> createState() =>
+      _IncomingCallOverlayState();
 }
 
 class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay> {
@@ -31,21 +32,25 @@ class _IncomingCallOverlayState extends ConsumerState<IncomingCallOverlay> {
     final webrtc = ref.read(webrtcServiceProvider);
 
     webrtc.activeCall.listen((call) {
-      if (call != null && call.state == CallState.incoming && !_navigatedToCall) {
+      if (call != null &&
+          call.state == CallState.incoming &&
+          !_navigatedToCall) {
         _navigatedToCall = true;
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => CallScreen(
-              peerId: call.callerId,
-              peerName: call.callerName,
-              peerAvatar: call.callerAvatar,
-              isVideoCall: call.type == 'video',
-              isCaller: false,
-            ),
-          ),
-        ).then((_) {
-          _navigatedToCall = false;
-        });
+        Navigator.of(context)
+            .push(
+              MaterialPageRoute(
+                builder: (_) => CallScreen(
+                  peerId: call.callerId,
+                  peerName: call.callerName,
+                  peerAvatar: call.callerAvatar,
+                  isVideoCall: call.type == 'video',
+                  isCaller: false,
+                ),
+              ),
+            )
+            .then((_) {
+              _navigatedToCall = false;
+            });
       }
     });
   }

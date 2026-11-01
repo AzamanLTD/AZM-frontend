@@ -15,9 +15,7 @@ void main() {
     });
 
     test('uses the stable default domain code', () {
-      const error = StorefrontConflictException(
-        message: 'Refresh required.',
-      );
+      const error = StorefrontConflictException(message: 'Refresh required.');
 
       expect(error.code, 'STOREFRONT_DRAFT_CONFLICT');
     });

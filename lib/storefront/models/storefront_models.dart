@@ -5,7 +5,6 @@
 // Mirrors the backend Prisma models for themes, widgets, layouts, and stakes.
 // =============================================================================
 
-
 // ── Enums ────────────────────────────────────────────────────────────────────
 
 enum StorefrontTier { FREE, NITRO_BRONZE, NITRO_SILVER, NITRO_GOLD }
@@ -257,7 +256,8 @@ class LayoutJson {
     return LayoutJson(
       schemaVersion: json['schemaVersion'] ?? 1,
       gridColumns: json['gridColumns'] ?? 4,
-      tiles: (json['tiles'] as List<dynamic>?)
+      tiles:
+          (json['tiles'] as List<dynamic>?)
               ?.map((t) => LayoutTile.fromJson(t as Map<String, dynamic>))
               .toList() ??
           [],
@@ -330,12 +330,7 @@ class TilePosition {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'row': row,
-      'col': col,
-      'rowSpan': rowSpan,
-      'colSpan': colSpan,
-    };
+    return {'row': row, 'col': col, 'rowSpan': rowSpan, 'colSpan': colSpan};
   }
 }
 
@@ -541,8 +536,7 @@ class StorefrontBusinessInfo {
           ? (json['averageRating'] as num).toDouble()
           : null,
       phoneNumber: json['phoneNumber'],
-      escrowProtectionAvailable:
-          json['escrowProtectionAvailable'] == true,
+      escrowProtectionAvailable: json['escrowProtectionAvailable'] == true,
     );
   }
 }
@@ -598,7 +592,8 @@ class RenderLayout {
     return RenderLayout(
       schemaVersion: json['schemaVersion'] ?? 1,
       gridColumns: json['gridColumns'] ?? 4,
-      tiles: (json['tiles'] as List<dynamic>?)
+      tiles:
+          (json['tiles'] as List<dynamic>?)
               ?.map((t) => RenderTile.fromJson(t as Map<String, dynamic>))
               .toList() ??
           [],

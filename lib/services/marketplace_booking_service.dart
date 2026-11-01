@@ -24,7 +24,8 @@ import 'package:azaman/models/business_models.dart';
 // ── PROVIDER ─────────────────────────────────────────────────────────────────
 
 final marketplaceBookingServiceProvider = Provider<MarketplaceBookingService>(
-    (ref) => MarketplaceBookingService(apiClient: ref.watch(apiClientProvider)));
+  (ref) => MarketplaceBookingService(apiClient: ref.watch(apiClientProvider)),
+);
 
 // ── EXCEPTION ────────────────────────────────────────────────────────────────
 
@@ -86,31 +87,38 @@ extension TransitBookingFailureClassIsUnconfirmed
   /// True when the economic outcome is UNPROVEN — the booking may have
   /// committed. The UI must warn (check your bookings) instead of asserting
   /// the booking definitely failed.
-  bool get isUnconfirmed => this == TransitBookingFailureClass.ambiguousOrUnknown;
+  bool get isUnconfirmed =>
+      this == TransitBookingFailureClass.ambiguousOrUnknown;
 }
 
 // ── SERVICE ──────────────────────────────────────────────────────────────────
 
 class MarketplaceBookingService {
   MarketplaceBookingService({ApiClient? apiClient})
-      : _client = apiClient ?? ApiClient();
+    : _client = apiClient ?? ApiClient();
   final ApiClient _client;
 
   // ── QR CHECK-IN ────────────────────────────────────────────────────────────
 
   /// Generate a QR check-in token for a reservation (customer-side).
   Future<CheckInToken> generateCheckInQR(String reservationId) async {
-    final res = await _client.get('/marketplace/reservations/$reservationId/checkin-qr');
+    final res = await _client.get(
+      '/marketplace/reservations/$reservationId/checkin-qr',
+    );
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) {
-      throw MarketplaceBookingException(body['message'] ?? 'Failed to generate QR');
+      throw MarketplaceBookingException(
+        body['message'] ?? 'Failed to generate QR',
+      );
     }
     return CheckInToken.fromJson(body);
   }
 
   /// Business scans QR token to check in a customer.
   Future<CheckInResult> verifyCheckInToken(String token) async {
-    final res = await _client.post('/marketplace/business/checkin', {'token': token});
+    final res = await _client.post('/marketplace/business/checkin', {
+      'token': token,
+    });
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) {
       throw MarketplaceBookingException(body['message'] ?? 'Check-in failed');
@@ -120,7 +128,9 @@ class MarketplaceBookingService {
 
   /// Business searches by AZM-ID (manual fallback when scanner is down).
   Future<AzamanIdSearchResult> searchByAzamanId(String azamanId) async {
-    final res = await _client.post('/marketplace/business/checkin', {'azamanId': azamanId});
+    final res = await _client.post('/marketplace/business/checkin', {
+      'azamanId': azamanId,
+    });
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) {
       throw MarketplaceBookingException(body['message'] ?? 'Search failed');
@@ -130,7 +140,9 @@ class MarketplaceBookingService {
 
   /// Direct check-in by reservationId (from search results).
   Future<CheckInResult> directCheckIn(String reservationId) async {
-    final res = await _client.post('/marketplace/business/checkin', {'reservationId': reservationId});
+    final res = await _client.post('/marketplace/business/checkin', {
+      'reservationId': reservationId,
+    });
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) {
       throw MarketplaceBookingException(body['message'] ?? 'Check-in failed');
@@ -141,18 +153,28 @@ class MarketplaceBookingService {
   // ── TRANSIT TRIPS ──────────────────────────────────────────────────────────
 
   /// List available transit trips.
-  Future<List<TransitTrip>> listTrips({String? businessProfileId, String? status}) async {
+  Future<List<TransitTrip>> listTrips({
+    String? businessProfileId,
+    String? status,
+  }) async {
     final params = <String, String>{};
-    if (businessProfileId != null) params['businessProfileId'] = businessProfileId;
+    if (businessProfileId != null)
+      params['businessProfileId'] = businessProfileId;
     if (status != null) params['status'] = status;
-    final query = params.isNotEmpty ? '?${params.entries.map((e) => '${e.key}=${e.value}').join('&')}' : '';
+    final query = params.isNotEmpty
+        ? '?${params.entries.map((e) => '${e.key}=${e.value}').join('&')}'
+        : '';
     final res = await _client.get('/marketplace/transit/trips$query');
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) {
-      throw MarketplaceBookingException(body['message'] ?? 'Failed to load trips');
+      throw MarketplaceBookingException(
+        body['message'] ?? 'Failed to load trips',
+      );
     }
     final trips = body['trips'] as List? ?? [];
-    return trips.map((t) => TransitTrip.fromJson(t as Map<String, dynamic>)).toList();
+    return trips
+        .map((t) => TransitTrip.fromJson(t as Map<String, dynamic>))
+        .toList();
   }
 
   /// Get seat availability for a trip.
@@ -160,7 +182,9 @@ class MarketplaceBookingService {
     final res = await _client.get('/marketplace/transit/trips/$tripId/seats');
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) {
-      throw MarketplaceBookingException(body['message'] ?? 'Failed to load seats');
+      throw MarketplaceBookingException(
+        body['message'] ?? 'Failed to load seats',
+      );
     }
     return SeatAvailability.fromJson(body);
   }
@@ -205,7 +229,9 @@ class MarketplaceBookingService {
       final res = await _client.post(endpoint, body);
       final parsed = jsonDecode(res.body) as Map<String, dynamic>;
       if (parsed['success'] != true) {
-        throw MarketplaceBookingException(parsed['message'] ?? 'Booking failed');
+        throw MarketplaceBookingException(
+          parsed['message'] ?? 'Booking failed',
+        );
       }
       return BookSeatResult.fromJson(parsed);
     }
@@ -222,7 +248,8 @@ class MarketplaceBookingService {
         final parsed = jsonDecode(m.body) as Map<String, dynamic>;
         if (parsed['success'] != true) {
           throw MarketplaceBookingException(
-              parsed['message'] ?? 'Booking failed');
+            parsed['message'] ?? 'Booking failed',
+          );
         }
         return BookSeatResult.fromJson(parsed);
       }
@@ -235,10 +262,17 @@ class MarketplaceBookingService {
     // ref BEFORE the request leaves the device so a failure here is a RETRY
     // of this instance on the caller's next attempt.
     final op = await _resolveOperation(
-        type: operationType, endpoint: endpoint, request: body, ref: ref);
+      type: operationType,
+      endpoint: endpoint,
+      request: body,
+      ref: ref,
+    );
     try {
-      final res = await _client.post(endpoint, body,
-          headers: {'Idempotency-Key': op.key});
+      final res = await _client.post(
+        endpoint,
+        body,
+        headers: {'Idempotency-Key': op.key},
+      );
       final parsed = jsonDecode(res.body) as Map<String, dynamic>;
       // Malformed-success guard (deep-dive step 2, parity with checkoutCart):
       // an answered 2xx that does not carry an AUTHORITATIVE booking —
@@ -252,8 +286,9 @@ class MarketplaceBookingService {
       // ambiguousOrUnknown.
       if (!_carriesAuthoritativeBooking(parsed)) {
         throw const FormatException(
-            'Booking response was successful but carried no authoritative '
-            'booking result (id/bookingRef).');
+          'Booking response was successful but carried no authoritative '
+          'booking result (id/bookingRef).',
+        );
       }
       // Answered success — this booking instance is complete.
       await _releaseOperation(ref);
@@ -290,15 +325,22 @@ class MarketplaceBookingService {
     final retryId = ref?.operationId;
     if (retryId != null) {
       try {
-        return await DurableOperationRegistry.retry(retryId,
-            account: account, request: request);
+        return await DurableOperationRegistry.retry(
+          retryId,
+          account: account,
+          request: request,
+        );
       } on DurableOperationException {
         // Not retryable as that instance (terminal, or a materially
         // different request): a genuinely new action.
       }
     }
     final op = await DurableOperationRegistry.begin(
-        account: account, type: type, endpoint: endpoint, request: request);
+      account: account,
+      type: type,
+      endpoint: endpoint,
+      request: request,
+    );
     if (ref != null) ref.operationId = op.operationId;
     return op;
   }
@@ -308,8 +350,10 @@ class MarketplaceBookingService {
   Future<void> _releaseOperation(FinancialOperationRef? ref) async {
     final id = ref?.operationId;
     if (id == null) return;
-    await DurableOperationRegistry.retire(id,
-        account: await _client.operationAccount(failClosed: true));
+    await DurableOperationRegistry.retire(
+      id,
+      account: await _client.operationAccount(failClosed: true),
+    );
     if (ref != null) ref.operationId = null;
   }
 
@@ -353,13 +397,16 @@ class MarketplaceBookingService {
   /// disposition ([_isDefinitivePreEconomic]), so the classification can
   /// never contradict the identity lifecycle.
   static TransitBookingFailureClass classifyTransitBookingFailure(
-      Object error) {
+    Object error,
+  ) {
     if (error is ApiException) {
       if (error.statusCode == 401) {
         return TransitBookingFailureClass.authenticationRequired;
       }
-      if (error.statusCode == 429) return TransitBookingFailureClass.rateLimited;
-      if (error.statusCode == 409) return TransitBookingFailureClass.domainConflict;
+      if (error.statusCode == 429)
+        return TransitBookingFailureClass.rateLimited;
+      if (error.statusCode == 409)
+        return TransitBookingFailureClass.domainConflict;
       if (_isDefinitivePreEconomic(error.statusCode)) {
         return TransitBookingFailureClass.definitivePreEconomic;
       }
@@ -374,14 +421,19 @@ class MarketplaceBookingService {
 
   /// Cancel a transit booking.
   Future<bool> cancelBooking(String bookingId) async {
-    final res = await _client.delete('/marketplace/transit/bookings/$bookingId');
+    final res = await _client.delete(
+      '/marketplace/transit/bookings/$bookingId',
+    );
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     return body['success'] == true;
   }
 
   /// Transit check-in (business side).
   Future<bool> transitCheckIn(String bookingId) async {
-    final res = await _client.post('/marketplace/transit/bookings/$bookingId/checkin', {});
+    final res = await _client.post(
+      '/marketplace/transit/bookings/$bookingId/checkin',
+      {},
+    );
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     return body['success'] == true;
   }
@@ -390,18 +442,27 @@ class MarketplaceBookingService {
 
   /// Promote a review to a story.
   Future<bool> promoteReviewToStory(String reviewId) async {
-    final res = await _client.post('/marketplace/reviews/$reviewId/share-story', {});
+    final res = await _client.post(
+      '/marketplace/reviews/$reviewId/share-story',
+      {},
+    );
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     return body['success'] == true;
   }
 
   /// Get business stories (viral loop).
-  Future<List<BusinessStory>> getBusinessStories(String businessProfileId) async {
-    final res = await _client.get('/marketplace/business/$businessProfileId/stories');
+  Future<List<BusinessStory>> getBusinessStories(
+    String businessProfileId,
+  ) async {
+    final res = await _client.get(
+      '/marketplace/business/$businessProfileId/stories',
+    );
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) return [];
     final stories = body['stories'] as List? ?? [];
-    return stories.map((s) => BusinessStory.fromJson(s as Map<String, dynamic>)).toList();
+    return stories
+        .map((s) => BusinessStory.fromJson(s as Map<String, dynamic>))
+        .toList();
   }
 
   // ── NO-SHOW PENALTY POLICY ─────────────────────────────────────────────────
@@ -417,8 +478,12 @@ class MarketplaceBookingService {
     if (reservationId != null) body['reservationId'] = reservationId;
     if (transitBookingId != null) body['transitBookingId'] = transitBookingId;
     if (noShowPenaltyPct != null) body['noShowPenaltyPct'] = noShowPenaltyPct;
-    if (noShowPenaltyUsdc != null) body['noShowPenaltyUsdc'] = noShowPenaltyUsdc;
-    final res = await _client.patch('/marketplace/business/penalty-policy', body: body);
+    if (noShowPenaltyUsdc != null)
+      body['noShowPenaltyUsdc'] = noShowPenaltyUsdc;
+    final res = await _client.patch(
+      '/marketplace/business/penalty-policy',
+      body: body,
+    );
     final respBody = jsonDecode(res.body) as Map<String, dynamic>;
     return respBody['success'] == true;
   }
@@ -446,7 +511,9 @@ class MarketplaceBookingService {
     });
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (body['success'] != true) {
-      throw MarketplaceBookingException(body['message'] ?? 'Failed to create trip');
+      throw MarketplaceBookingException(
+        body['message'] ?? 'Failed to create trip',
+      );
     }
     return body['trip'] as Map<String, dynamic>;
   }
@@ -469,7 +536,8 @@ class MarketplaceBookingService {
   }
 
   // Fetch business detail with products and showcase
-  Future<({BusinessProfile business, List<dynamic> products})> fetchBusinessDetail(String bizId) async {
+  Future<({BusinessProfile business, List<dynamic> products})>
+  fetchBusinessDetail(String bizId) async {
     final res = await _client.get('/marketplace/business/$bizId');
     final data = jsonDecode(res.body)['data'];
     return (
@@ -483,6 +551,4 @@ class MarketplaceBookingService {
     final res = await _client.get('/marketplace/business/dine-in/$tabId');
     return jsonDecode(res.body)['data'];
   }
-
 }
-

@@ -164,7 +164,8 @@ void main() {
       // computed per call from the wall clock, so compared with a
       // tolerance rather than string equality).
       final detail = jsonDecode(
-          DemoInterceptor.tryGet('/susu/susu-1')!.body)['susu'];
+        DemoInterceptor.tryGet('/susu/susu-1')!.body,
+      )['susu'];
       final inline = detail['cycles'] as List;
       expect(inline.length, cycleList.length);
       for (var i = 0; i < inline.length; i++) {
@@ -175,23 +176,25 @@ void main() {
         expect(a['status'], b['status']);
         expect(a['payoutUserId'], b['payoutUserId']);
         expect(
-          DateTime.parse(a['scheduledRunAt'] as String)
-              .difference(DateTime.parse(b['scheduledRunAt'] as String))
-              .abs(),
+          DateTime.parse(
+            a['scheduledRunAt'] as String,
+          ).difference(DateTime.parse(b['scheduledRunAt'] as String)).abs(),
           lessThan(const Duration(seconds: 1)),
         );
       }
     });
 
     test('tryGet reports an active susu ONLY for the susu group', () {
-      final susuStatus =
-          jsonDecode(DemoInterceptor.tryGet('/group-chats/grp-2/susu/status')!.body);
+      final susuStatus = jsonDecode(
+        DemoInterceptor.tryGet('/group-chats/grp-2/susu/status')!.body,
+      );
       expect(susuStatus['susuGroupId'], 'susu-1');
       expect(susuStatus['status'], 'ACTIVE');
       expect(susuStatus['memberCount'], 4);
 
-      final plainStatus =
-          DemoInterceptor.tryGet('/group-chats/grp-1/susu/status');
+      final plainStatus = DemoInterceptor.tryGet(
+        '/group-chats/grp-1/susu/status',
+      );
       expect(plainStatus, isNotNull);
       final plain = jsonDecode(plainStatus!.body);
       // A plain group must NOT claim a phantom active susu.
@@ -238,31 +241,33 @@ void main() {
     // (the generic Chat failure); these pin the 201 {success, message}
     // envelope PremiumChatNotifier._sendViaHttp upgrades the optimistic
     // bubble with.
-    test('tryPost answers a friend-chat send with the 201 message envelope',
-        () {
-      final resp = DemoInterceptor.tryPost('/friends/chat/101/messages', {
-        'content': 'Demo hello',
-        'messageType': 'TEXT',
-        'metadata': {'amount': 25.0, 'currency': 'GHS'},
-      });
-      expect(resp, isNotNull);
-      expect(resp!.statusCode, 201);
-      final body = jsonDecode(resp.body) as Map<String, dynamic>;
-      expect(body['success'], true);
-      final msg = body['message'] as Map<String, dynamic>;
-      expect(msg['id'], isNotEmpty);
-      expect(msg['id'].toString(), startsWith('fm-demo-'));
-      expect(msg['createdAt'], isNotNull);
-      expect(msg['friendshipId'], '101');
-      expect(msg['senderId'], 1);
-      expect(msg['content'], 'Demo hello');
-      expect(msg['messageType'], 'TEXT');
-      final meta = msg['metadata'] as Map<String, dynamic>;
-      expect(meta['amount'], 25.0);
-      // The receiver is the real peer on friendship 101 (Bella), not a
-      // fabricated id.
-      expect(msg['receiverId'], 2);
-    });
+    test(
+      'tryPost answers a friend-chat send with the 201 message envelope',
+      () {
+        final resp = DemoInterceptor.tryPost('/friends/chat/101/messages', {
+          'content': 'Demo hello',
+          'messageType': 'TEXT',
+          'metadata': {'amount': 25.0, 'currency': 'GHS'},
+        });
+        expect(resp, isNotNull);
+        expect(resp!.statusCode, 201);
+        final body = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(body['success'], true);
+        final msg = body['message'] as Map<String, dynamic>;
+        expect(msg['id'], isNotEmpty);
+        expect(msg['id'].toString(), startsWith('fm-demo-'));
+        expect(msg['createdAt'], isNotNull);
+        expect(msg['friendshipId'], '101');
+        expect(msg['senderId'], 1);
+        expect(msg['content'], 'Demo hello');
+        expect(msg['messageType'], 'TEXT');
+        final meta = msg['metadata'] as Map<String, dynamic>;
+        expect(meta['amount'], 25.0);
+        // The receiver is the real peer on friendship 101 (Bella), not a
+        // fabricated id.
+        expect(msg['receiverId'], 2);
+      },
+    );
 
     test('tryPost echoes reply metadata for a friend-chat send', () {
       final resp = DemoInterceptor.tryPost('/friends/chat/102/messages', {
@@ -281,8 +286,7 @@ void main() {
       expect(msg['receiverId'], 3);
     });
 
-    test('tryPost answers a group-chat send with the 201 message envelope',
-        () {
+    test('tryPost answers a group-chat send with the 201 message envelope', () {
       final resp = DemoInterceptor.tryPost('/group-chats/grp-1/messages', {
         'type': 'TEXT',
         'content': 'Group hello',

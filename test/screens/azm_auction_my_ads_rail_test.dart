@@ -22,16 +22,21 @@ import 'package:azaman/providers/azm_auction_provider.dart';
 import 'package:azaman/screens/azm_auction/azm_auction_screen.dart';
 import 'package:azaman/services/api_client.dart';
 
-http.Response _json(int status, Map<String, dynamic> body) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
+http.Response _json(int status, Map<String, dynamic> body) => http.Response(
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
 
 class _AuctionRailClient extends ApiClient {
   final List<String> getPaths = [];
 
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     getPaths.add(endpoint);
     if (endpoint == '/ads/mine') {
       return _json(200, {
@@ -63,29 +68,30 @@ Widget _app(AzmAuctionScreen screen, ApiClient client) {
 
 void main() {
   testWidgets(
-      'the ad picker loads from the real /ads/mine rail and shows ACTIVE ads only',
-      (tester) async {
-    final client = _AuctionRailClient();
+    'the ad picker loads from the real /ads/mine rail and shows ACTIVE ads only',
+    (tester) async {
+      final client = _AuctionRailClient();
 
-    await tester.pumpWidget(_app(const AzmAuctionScreen(), client));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_app(const AzmAuctionScreen(), client));
+      await tester.pumpAndSettle();
 
-    // The exact corrected path — not '/p2p/my-ads' (nonexistent) and not a
-    // double-prefixed '/api/ads/mine'.
-    expect(client.getPaths, contains('/ads/mine'));
-    expect(client.getPaths.any((p) => p.startsWith('/api/')), isFalse);
+      // The exact corrected path — not '/p2p/my-ads' (nonexistent) and not a
+      // double-prefixed '/api/ads/mine'.
+      expect(client.getPaths, contains('/ads/mine'));
+      expect(client.getPaths.any((p) => p.startsWith('/api/')), isFalse);
 
-    // The picker renders from the {success, ads} envelope, filtered to
-    // status == 'ACTIVE'. While closed a DropdownButton renders only the
-    // selected item — the default selection is the FIRST active ad (#7).
-    expect(find.byType(DropdownButton<int>), findsOneWidget);
-    expect(find.text('Ad #7 · MTN MoMo'), findsOneWidget);
+      // The picker renders from the {success, ads} envelope, filtered to
+      // status == 'ACTIVE'. While closed a DropdownButton renders only the
+      // selected item — the default selection is the FIRST active ad (#7).
+      expect(find.byType(DropdownButton<int>), findsOneWidget);
+      expect(find.text('Ad #7 · MTN MoMo'), findsOneWidget);
 
-    // Open the dropdown: every ACTIVE ad is selectable, the PAUSED ad
-    // never entered the list.
-    await tester.tap(find.byType(DropdownButton<int>));
-    await tester.pumpAndSettle();
-    expect(find.text('Ad #11 · AirtelTigo'), findsOneWidget);
-    expect(find.text('Ad #9 · Vodafone Cash'), findsNothing);
-  });
+      // Open the dropdown: every ACTIVE ad is selectable, the PAUSED ad
+      // never entered the list.
+      await tester.tap(find.byType(DropdownButton<int>));
+      await tester.pumpAndSettle();
+      expect(find.text('Ad #11 · AirtelTigo'), findsOneWidget);
+      expect(find.text('Ad #9 · Vodafone Cash'), findsNothing);
+    },
+  );
 }

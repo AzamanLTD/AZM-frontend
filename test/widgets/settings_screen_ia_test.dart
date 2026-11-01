@@ -56,20 +56,17 @@ void main() {
     kycStatus: KycStatus.verified,
   );
 
-  Widget harness(ThemeProvider tp, {User? user}) =>
-      UncontrolledProviderScope(
-        container: ProviderContainer(
-          overrides: [
-            themeProvider.overrideWith((ref) => tp),
-            // The redesign reads identity (AZM ID + KYC chip) from the
-            // auth stream — stub it so no network work runs under test.
-            currentUserProvider.overrideWith(
-              (ref) => Stream.value(user),
-            ),
-          ],
-        ),
-        child: const MaterialApp(home: SettingsScreen()),
-      );
+  Widget harness(ThemeProvider tp, {User? user}) => UncontrolledProviderScope(
+    container: ProviderContainer(
+      overrides: [
+        themeProvider.overrideWith((ref) => tp),
+        // The redesign reads identity (AZM ID + KYC chip) from the
+        // auth stream — stub it so no network work runs under test.
+        currentUserProvider.overrideWith((ref) => Stream.value(user)),
+      ],
+    ),
+    child: const MaterialApp(home: SettingsScreen()),
+  );
 
   // The redesign renders sentence-case headers (see _SectionHeader).
   const sections = <String>[
@@ -91,8 +88,7 @@ void main() {
   Future<void> reveal(WidgetTester tester, Finder f) async {
     final state = tester.state<ScrollableState>(find.byType(Scrollable).first);
     var target = 0.0;
-    while (f.evaluate().isEmpty &&
-        target < state.position.maxScrollExtent) {
+    while (f.evaluate().isEmpty && target < state.position.maxScrollExtent) {
       // Clamp each step to the extent — short pages (fewer rows) must
       // still reach their bottom instead of skipping past the cap.
       state.position.jumpTo(math.min(target, state.position.maxScrollExtent));
@@ -224,9 +220,7 @@ void main() {
     tester,
   ) async {
     // Enabled → the chip says so.
-    SharedPreferences.setMockInitialValues({
-      'biometric_lock_enabled': true,
-    });
+    SharedPreferences.setMockInitialValues({'biometric_lock_enabled': true});
     final p = (await tester.runAsync(loadedProvider))!;
     await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump(const Duration(milliseconds: 300));
@@ -239,9 +233,7 @@ void main() {
     // Biometrics OFF: the row renders with NO chip — 'PIN only' would be a
     // fake two-factor claim (a biometric preference is not 2FA, and the
     // app reads no authoritative user 2FA status).
-    SharedPreferences.setMockInitialValues({
-      'biometric_lock_enabled': false,
-    });
+    SharedPreferences.setMockInitialValues({'biometric_lock_enabled': false});
     final p = (await tester.runAsync(loadedProvider))!;
     await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump(const Duration(milliseconds: 300));
@@ -251,8 +243,9 @@ void main() {
     expect(find.text('PIN only'), findsNothing);
   });
 
-  testWidgets('the Language row shows the supported truth — English only',
-      (tester) async {
+  testWidgets('the Language row shows the supported truth — English only', (
+    tester,
+  ) async {
     // The app has NO localization layer: the row must not open a picker
     // that persists a preference the locale never follows.
     final p = (await tester.runAsync(loadedProvider))!;
@@ -264,13 +257,17 @@ void main() {
     await tester.tap(find.text('Language'));
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('French'), findsNothing,
-        reason: 'no locale picker may render');
+    expect(
+      find.text('French'),
+      findsNothing,
+      reason: 'no locale picker may render',
+    );
     expect(find.text('Twi'), findsNothing);
   });
 
-  testWidgets('Clear Cache performs a REAL clear and reports the truth',
-      (tester) async {
+  testWidgets('Clear Cache performs a REAL clear and reports the truth', (
+    tester,
+  ) async {
     final p = (await tester.runAsync(loadedProvider))!;
     await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump();
@@ -285,9 +282,7 @@ void main() {
     expect(find.textContaining('MB freed'), findsNothing);
   });
 
-  testWidgets('the Edit Profile row opens the GENUINE editor', (
-    tester,
-  ) async {
+  testWidgets('the Edit Profile row opens the GENUINE editor', (tester) async {
     final p = (await tester.runAsync(loadedProvider))!;
     await tester.pumpWidget(harness(p, user: testUser()));
     await tester.pump();

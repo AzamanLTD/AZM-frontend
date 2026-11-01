@@ -62,7 +62,7 @@ class MixProximityStrip extends StatelessWidget {
               'from your current location.',
           excludeSemantics: true,
           child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -71,11 +71,7 @@ class MixProximityStrip extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.near_me_rounded,
-                    size: 14,
-                    color: colors.accent,
-                  ),
+                  Icon(Icons.near_me_rounded, size: 14, color: colors.accent),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -128,11 +124,13 @@ class MixLocalFirstRails extends ConsumerWidget {
         // Only rows the server actually measured carry distanceKm; a row
         // without a distance still shows (the position search returned
         // it) but never shows a GUESSED distance.
-        nearbyRows.add(_NearbyRowData(
-          name: name,
-          logoUrl: loc.businessLogoUrl,
-          distanceKm: loc.distanceKm,
-        ));
+        nearbyRows.add(
+          _NearbyRowData(
+            name: name,
+            logoUrl: loc.businessLogoUrl,
+            distanceKm: loc.distanceKm,
+          ),
+        );
         if (nearbyRows.length >= maxNearby) break;
       }
     }
@@ -241,7 +239,8 @@ class _Rail extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   clipBehavior: Clip.none,
                   itemCount: children.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: AzSpace.sm),
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(width: AzSpace.sm),
                   itemBuilder: (_, i) => children[i],
                 ),
               ),
@@ -303,8 +302,8 @@ class _NearbyRailCard extends StatelessWidget {
                     color: colors.card,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: (data.logoUrl != null &&
-                          data.logoUrl!.startsWith('http'))
+                  child:
+                      (data.logoUrl != null && data.logoUrl!.startsWith('http'))
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: AzamanNetworkImage(
@@ -355,11 +354,7 @@ class _NearbyRailCard extends StatelessWidget {
 }
 
 class _NetworkRailCard extends StatelessWidget {
-  const _NetworkRailCard({
-    super.key,
-    required this.offer,
-    required this.onTap,
-  });
+  const _NetworkRailCard({super.key, required this.offer, required this.onTap});
 
   final MixOffer offer;
   final VoidCallback onTap;
@@ -416,9 +411,7 @@ class _NetworkRailCard extends StatelessWidget {
                     offer.businessName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AzText.caption.copyWith(
-                      color: colors.textSecondary,
-                    ),
+                    style: AzText.caption.copyWith(color: colors.textSecondary),
                   ),
                   const SizedBox(height: 1),
                   Text(

@@ -44,6 +44,7 @@ import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../support/money_access_test_support.dart';
 
 bool _fontsLoaded = false;
 
@@ -82,7 +83,10 @@ Future<void> _pumpDeck(
     MediaQuery(
       data: const MediaQueryData(size: _surface),
       child: ProviderScope(
-        overrides: [authProvider.overrideWith((ref) => AuthProvider(ref: ref))],
+        overrides: [
+          unlockedMoneyAccess(),
+          authProvider.overrideWith((ref) => AuthProvider(ref: ref)),
+        ],
         child: MaterialApp(
           home: Scaffold(
             backgroundColor: const Color(0xFFF2F2F7),
@@ -277,6 +281,7 @@ void main() {
     Future<void> pumpHeading(WidgetTester tester, {Key? markerKey}) async {
       final container = ProviderContainer(
         overrides: [
+          unlockedMoneyAccess(),
           authProvider.overrideWith((ref) => AuthProvider()),
           unreadCountProvider.overrideWith((ref) => 0),
         ],
@@ -399,6 +404,7 @@ void main() {
       await tester.binding.setSurfaceSize(size);
       final container = ProviderContainer(
         overrides: [
+          unlockedMoneyAccess(),
           themeProvider.overrideWith((ref) => themeProviderInstance),
           authProvider.overrideWith((ref) => AuthProvider()),
           transactionHistoryProvider.overrideWith(

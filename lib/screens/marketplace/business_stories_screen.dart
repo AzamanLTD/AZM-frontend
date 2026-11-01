@@ -112,7 +112,7 @@ class _BusinessStoriesScreenState extends ConsumerState<BusinessStoriesScreen>
                     Colors.black.withValues(alpha: 0.5),
                     Colors.transparent,
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.4)
+                    Colors.black.withValues(alpha: 0.4),
                   ],
                   stops: const [0.0, 0.15, 0.85, 1.0],
                 ),
@@ -135,15 +135,16 @@ class _BusinessStoriesScreenState extends ConsumerState<BusinessStoriesScreen>
                           final progress = i < _currentIndex
                               ? 1.0
                               : i > _currentIndex
-                                  ? 0.0
-                                  : _progressController.value;
+                              ? 0.0
+                              : _progressController.value;
                           return ClipRRect(
                             borderRadius: BorderRadius.circular(2),
                             child: LinearProgressIndicator(
                               value: progress,
                               backgroundColor: Colors.white24,
                               valueColor: const AlwaysStoppedAnimation(
-                                  Colors.white),
+                                Colors.white,
+                              ),
                               minHeight: 2.5,
                             ),
                           );
@@ -163,8 +164,9 @@ class _BusinessStoriesScreenState extends ConsumerState<BusinessStoriesScreen>
                 children: [
                   if (widget.logoUrl != null)
                     CircleAvatar(
-                      backgroundImage:
-                          CachedNetworkImageProvider(widget.logoUrl!),
+                      backgroundImage: CachedNetworkImageProvider(
+                        widget.logoUrl!,
+                      ),
                       radius: 16,
                     )
                   else
@@ -182,16 +184,20 @@ class _BusinessStoriesScreenState extends ConsumerState<BusinessStoriesScreen>
                     child: Text(
                       widget.businessName,
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700),
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: Colors.white, size: 22),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],

@@ -42,8 +42,9 @@ Future<void> _loadFonts() async {
       Future<ByteData>.value(ByteData.view(Uint8List.fromList(inter).buffer)),
     );
   await interLoader.load();
-  final regular =
-      await File('assets/fonts/ComicNeue-Regular.ttf').readAsBytes();
+  final regular = await File(
+    'assets/fonts/ComicNeue-Regular.ttf',
+  ).readAsBytes();
   final bold = await File('assets/fonts/ComicNeue-Bold.ttf').readAsBytes();
   final comicLoader = FontLoader('ComicNeue')
     ..addFont(
@@ -82,7 +83,10 @@ _captureGeometry(WidgetTester tester) {
   );
 }
 
-Future<void> _pumpHome(WidgetTester tester, {required bool reducedMotion}) async {
+Future<void> _pumpHome(
+  WidgetTester tester, {
+  required bool reducedMotion,
+}) async {
   SharedPreferences.setMockInitialValues({
     'has_seen_flippable_card_hint': true,
     'azaman_theme': 0,
@@ -93,7 +97,9 @@ Future<void> _pumpHome(WidgetTester tester, {required bool reducedMotion}) async
   final container = ProviderContainer(
     overrides: [
       authProvider.overrideWith((ref) => AuthProvider()),
-      transactionHistoryProvider.overrideWith((ref) => _StaticHistoryNotifier()),
+      transactionHistoryProvider.overrideWith(
+        (ref) => _StaticHistoryNotifier(),
+      ),
       unreadCountProvider.overrideWith((ref) => 0),
       homeSummaryProvider.overrideWith(
         (ref) => _NoopHomeSummaryNotifier(ref, HomeSummaryService()),
@@ -124,48 +130,44 @@ Future<void> _pumpHome(WidgetTester tester, {required bool reducedMotion}) async
 
 void main() {
   for (final reducedMotion in [true, false]) {
-    testWidgets(
-      'doorway composition is final once the entrance settles '
-      '(reducedMotion: $reducedMotion)',
-      (tester) async {
-        await _pumpHome(tester, reducedMotion: reducedMotion);
-        // First build + the measurement frame.
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 16));
+    testWidgets('doorway composition is final once the entrance settles '
+        '(reducedMotion: $reducedMotion)', (tester) async {
+      await _pumpHome(tester, reducedMotion: reducedMotion);
+      // First build + the measurement frame.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
 
-        // Let the entrance choreography finish (stagger max 300ms +
-        // spatial travel 450ms) and the measured composition converge.
-        await tester.pump(const Duration(milliseconds: 900));
+      // Let the entrance choreography finish (stagger max 300ms +
+      // spatial travel 450ms) and the measured composition converge.
+      await tester.pump(const Duration(milliseconds: 900));
 
-        final settled = _captureGeometry(tester);
+      final settled = _captureGeometry(tester);
 
-        // Past the OLD fixed 1200ms measurement point: nothing may move.
-        await tester.pump(const Duration(milliseconds: 600));
-        await tester.pump(const Duration(milliseconds: 100));
-        final afterOldMeasurementPoint = _captureGeometry(tester);
+      // Past the OLD fixed 1200ms measurement point: nothing may move.
+      await tester.pump(const Duration(milliseconds: 600));
+      await tester.pump(const Duration(milliseconds: 100));
+      final afterOldMeasurementPoint = _captureGeometry(tester);
 
-        expect(
-          afterOldMeasurementPoint.deckH,
-          settled.deckH,
-          reason: 'the reminder deck must not resize after the entrance',
-        );
-        expect(
-          afterOldMeasurementPoint.deckTop,
-          settled.deckTop,
-          reason: 'the reminder deck must not move after the entrance',
-        );
-        expect(
-          afterOldMeasurementPoint.doorwayTop,
-          settled.doorwayTop,
-          reason: 'the doorway must not move after the entrance',
-        );
-        expect(
-          afterOldMeasurementPoint.doorwayH,
-          settled.doorwayH,
-          reason: 'the doorway must not resize after the entrance',
-        );
-      },
-    );
+      expect(
+        afterOldMeasurementPoint.deckH,
+        settled.deckH,
+        reason: 'the reminder deck must not resize after the entrance',
+      );
+      expect(
+        afterOldMeasurementPoint.deckTop,
+        settled.deckTop,
+        reason: 'the reminder deck must not move after the entrance',
+      );
+      expect(
+        afterOldMeasurementPoint.doorwayTop,
+        settled.doorwayTop,
+        reason: 'the doorway must not move after the entrance',
+      );
+      expect(
+        afterOldMeasurementPoint.doorwayH,
+        settled.doorwayH,
+        reason: 'the doorway must not resize after the entrance',
+      );
+    });
   }
 }
-

@@ -46,11 +46,7 @@ class InlineLinkPreview extends ConsumerStatefulWidget {
   final String text;
   final bool isMe;
 
-  const InlineLinkPreview({
-    super.key,
-    required this.text,
-    required this.isMe,
-  });
+  const InlineLinkPreview({super.key, required this.text, required this.isMe});
 
   @override
   ConsumerState<InlineLinkPreview> createState() => _InlineLinkPreviewState();
@@ -150,7 +146,8 @@ class _InlineLinkPreviewState extends ConsumerState<InlineLinkPreview> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 80, height: 8,
+                  width: 80,
+                  height: 8,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(4),
@@ -158,7 +155,8 @@ class _InlineLinkPreviewState extends ConsumerState<InlineLinkPreview> {
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  width: 200, height: 12,
+                  width: 200,
+                  height: 12,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(4),
@@ -166,7 +164,8 @@ class _InlineLinkPreviewState extends ConsumerState<InlineLinkPreview> {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  width: 160, height: 10,
+                  width: 160,
+                  height: 10,
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(4),
@@ -209,8 +208,8 @@ class _InlineLinkPreviewState extends ConsumerState<InlineLinkPreview> {
             if (preview.image != null && preview.image!.isNotEmpty)
               AspectRatio(
                 aspectRatio: 16 / 9,
-                child: AzamanNetworkImage(imageUrl: 
-                  preview.image!,
+                child: AzamanNetworkImage(
+                  imageUrl: preview.image!,
                   fit: BoxFit.cover,
                   errorWidget: (_, __, ___) => const SizedBox.shrink(),
                 ),
@@ -244,7 +243,8 @@ class _InlineLinkPreviewState extends ConsumerState<InlineLinkPreview> {
                       ),
                     ),
                   ],
-                  if (preview.description != null && preview.description!.isNotEmpty) ...[
+                  if (preview.description != null &&
+                      preview.description!.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
                       preview.description!,

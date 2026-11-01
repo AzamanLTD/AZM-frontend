@@ -28,7 +28,13 @@ class InboxRow extends ConsumerWidget {
   /// Injected clock for deterministic relative times in tests.
   final DateTime? now;
 
-  const InboxRow({super.key, required this.entry, required this.onTap, this.onLongPress, this.now});
+  const InboxRow({
+    super.key,
+    required this.entry,
+    required this.onTap,
+    this.onLongPress,
+    this.now,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,29 +45,37 @@ class InboxRow extends ConsumerWidget {
 
     final Widget avatar = switch (entry.kind) {
       InboxKind.group => AzIdentityMorph(
-          tag: AzIdentityTag.group(entry.id),
-          travel: travel,
-          child: GroupIdentityAvatar(group: entry.group!, colors: colors, size: 48),
-        ),
-      InboxKind.friend => ChatAvatar(
-          imageUrl: entry.avatarUrl,
-          name: entry.title,
+        tag: AzIdentityTag.group(entry.id),
+        travel: travel,
+        child: GroupIdentityAvatar(
+          group: entry.group!,
+          colors: colors,
           size: 48,
-          showOnlineDot: true,
-          isOnline: entry.isOnline,
-          // FriendChatScreen already uses this tag for its header avatar.
-          heroTag: entry.friendId != null ? 'avatar-${entry.friendId}' : null,
         ),
+      ),
+      InboxKind.friend => ChatAvatar(
+        imageUrl: entry.avatarUrl,
+        name: entry.title,
+        size: 48,
+        showOnlineDot: true,
+        isOnline: entry.isOnline,
+        // FriendChatScreen already uses this tag for its header avatar.
+        heroTag: entry.friendId != null ? 'avatar-${entry.friendId}' : null,
+      ),
     };
 
     return Semantics(
-      label: '${entry.title}. ${strong ? '${entry.unread} unread. ' : ''}${entry.preview}',
+      label:
+          '${entry.title}. ${strong ? '${entry.unread} unread. ' : ''}${entry.preview}',
       child: InkWell(
         key: ValueKey('inbox_row_${entry.kind.name}_${entry.id}'),
         onTap: onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AzSpace.lg, vertical: AzSpace.md),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AzSpace.lg,
+            vertical: AzSpace.md,
+          ),
           child: Row(
             children: [
               avatar,
@@ -75,25 +89,36 @@ class InboxRow extends ConsumerWidget {
                         if (entry.pinned)
                           Padding(
                             padding: const EdgeInsets.only(right: AzSpace.xs),
-                            child: Icon(Icons.push_pin_rounded, size: 12, color: colors.textTertiary),
+                            child: Icon(
+                              Icons.push_pin_rounded,
+                              size: 12,
+                              color: colors.textTertiary,
+                            ),
                           ),
                         Expanded(
                           child: Text(
                             entry.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: (strong ? AzText.title : AzText.body).copyWith(color: colors.textPrimary),
+                            style: (strong ? AzText.title : AzText.body)
+                                .copyWith(color: colors.textPrimary),
                           ),
                         ),
                         if (entry.isVerifiedVendor)
                           Padding(
                             padding: const EdgeInsets.only(left: AzSpace.xs),
-                            child: Icon(HugeIconsSolid.checkmarkBadge01, size: 14, color: colors.accent),
+                            child: Icon(
+                              HugeIconsSolid.checkmarkBadge01,
+                              size: 14,
+                              color: colors.accent,
+                            ),
                           ),
                         const SizedBox(width: AzSpace.sm),
                         Text(
                           time,
-                          style: AzText.caption.copyWith(color: strong ? colors.accent : colors.textTertiary),
+                          style: AzText.caption.copyWith(
+                            color: strong ? colors.accent : colors.textTertiary,
+                          ),
                         ),
                       ],
                     ),
@@ -107,23 +132,34 @@ class InboxRow extends ConsumerWidget {
                             child: Text(
                               '@',
                               key: const ValueKey('inbox_row_mention'),
-                              style: AzText.caption.copyWith(color: colors.accent, fontWeight: FontWeight.w800),
+                              style: AzText.caption.copyWith(
+                                color: colors.accent,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         Expanded(
                           child: Text(
-                            entry.preview.isEmpty ? 'Start chatting...' : entry.preview,
+                            entry.preview.isEmpty
+                                ? 'Start chatting...'
+                                : entry.preview,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AzText.bodyS.copyWith(
-                              color: strong ? colors.textPrimary : colors.textSecondary,
+                              color: strong
+                                  ? colors.textPrimary
+                                  : colors.textSecondary,
                             ),
                           ),
                         ),
                         if (entry.muted)
                           Padding(
                             padding: const EdgeInsets.only(left: AzSpace.xs),
-                            child: Icon(Icons.notifications_off_outlined, size: 14, color: colors.textTertiary),
+                            child: Icon(
+                              Icons.notifications_off_outlined,
+                              size: 14,
+                              color: colors.textTertiary,
+                            ),
                           ),
                         if (strong) ...[
                           const SizedBox(width: AzSpace.sm),
@@ -155,7 +191,10 @@ class _SignalGlyph extends StatelessWidget {
       InboxSignal.moneyOut => (Icons.north_east_rounded, colors.textSecondary),
       InboxSignal.request => (Icons.request_quote_outlined, colors.accent),
       InboxSignal.susuActive => (HugeIconsSolid.coins01, colors.accent),
-      InboxSignal.susuConfiguring => (HugeIconsSolid.coins01, colors.textTertiary),
+      InboxSignal.susuConfiguring => (
+        HugeIconsSolid.coins01,
+        colors.textTertiary,
+      ),
       InboxSignal.none => (null, null),
     };
     if (icon == null) return const SizedBox.shrink();

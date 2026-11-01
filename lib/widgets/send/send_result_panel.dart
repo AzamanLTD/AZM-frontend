@@ -71,8 +71,11 @@ class SendResultPanel extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: colors.success.withValues(alpha: 0.15),
                 ),
-                child: Icon(Icons.check_circle_outline,
-                    size: 40, color: colors.success),
+                child: Icon(
+                  Icons.check_circle_outline,
+                  size: 40,
+                  color: colors.success,
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -81,9 +84,10 @@ class SendResultPanel extends StatelessWidget {
               key: const ValueKey('send-success-title'),
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800),
+                color: colors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -92,8 +96,7 @@ class SendResultPanel extends StatelessWidget {
                   : '$amountText to $recipientName ($handle)',
               key: const ValueKey('send-success-detail'),
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: colors.textSecondary, fontSize: 14),
+              style: TextStyle(color: colors.textSecondary, fontSize: 14),
             ),
             if (secondaryAmountText != null) ...[
               const SizedBox(height: 6),
@@ -101,8 +104,7 @@ class SendResultPanel extends StatelessWidget {
                 '$secondaryAmountLabel $secondaryAmountText',
                 key: const ValueKey('send-success-wire-amount'),
                 textAlign: TextAlign.center,
-                style:
-                    TextStyle(color: colors.textTertiary, fontSize: 12),
+                style: TextStyle(color: colors.textTertiary, fontSize: 12),
               ),
             ],
             const SizedBox(height: 6),
@@ -111,8 +113,7 @@ class SendResultPanel extends StatelessWidget {
               '${handle.isEmpty ? recipientName : handle}.',
               key: const ValueKey('send-success-chat-note'),
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(color: colors.textTertiary, fontSize: 12),
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
             ),
             const SizedBox(height: 28),
             ScaleTap(
@@ -128,11 +129,14 @@ class SendResultPanel extends StatelessWidget {
                   color: colors.accent,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Text('Done',
-                    style: TextStyle(
-                        color: colors.onAccent,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800)),
+                child: Text(
+                  'Done',
+                  style: TextStyle(
+                    color: colors.onAccent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
           ],

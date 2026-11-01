@@ -24,7 +24,6 @@ import 'package:azaman/providers/group_chat_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 class InitiateSusuSheet extends ConsumerStatefulWidget {
   final String groupId;
   final int memberCount;
@@ -67,14 +66,17 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
     if (amt <= 0 || amt > 1000000) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Contribution must be between \$0.01 and \$1,000,000.')),
+          content: Text('Contribution must be between \$0.01 and \$1,000,000.'),
+        ),
       );
       return;
     }
     setState(() => _busy = true);
     HapticFeedback.mediumImpact();
     try {
-      await ref.read(groupActionsProvider).initiateSusu(
+      await ref
+          .read(groupActionsProvider)
+          .initiateSusu(
             widget.groupId,
             contributionUsdc: amt,
             frequency: _frequency.wire,
@@ -83,13 +85,17 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
       if (!mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Susu initiated — members must verify before the deadline.')),
+        const SnackBar(
+          content: Text(
+            'Susu initiated — members must verify before the deadline.',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -103,7 +109,11 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          20, 18, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+        20,
+        18,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: colors.surface,
@@ -120,22 +130,29 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                      color: colors.divider,
-                      borderRadius: BorderRadius.circular(2)),
+                    color: colors.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Initiate Susu',
-                  style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900)),
+              Text(
+                'Initiate Susu',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
               const SizedBox(height: 4),
               Text(
                 'Based on ${widget.memberCount} current members. The pool '
                 'recalculates if members join or leave before the deadline.',
                 style: TextStyle(
-                    color: colors.textTertiary, fontSize: 12, height: 1.4),
+                  color: colors.textTertiary,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 18),
 
@@ -149,26 +166,31 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 child: TextField(
                   controller: _amount,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'[\d.]')),
                   ],
                   onChanged: (_) => setState(() {}),
                   style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800),
+                    color: colors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText: '20.00',
-                    hintStyle:
-                        TextStyle(color: colors.textTertiary, fontSize: 14),
+                    hintStyle: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 14,
+                    ),
                     prefixText: '\$ ',
                     prefixStyle: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800),
+                      color: colors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
@@ -187,25 +209,26 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
               _label('Frequency', colors),
               Wrap(
                 spacing: 8,
-                children: [
-                  SusuFrequency.daily,
-                  SusuFrequency.weekly,
-                  SusuFrequency.biweekly,
-                  SusuFrequency.monthly,
-                ].map((f) {
-                  final sel = _frequency == f;
-                  return ChoiceChip(
-                    selected: sel,
-                    label: Text(f.label),
-                    onSelected: (_) => setState(() => _frequency = f),
-                    selectedColor: colors.warning.withValues(alpha: 0.20),
-                    labelStyle: TextStyle(
-                      color: sel ? colors.warning : colors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  );
-                }).toList(),
+                children:
+                    [
+                      SusuFrequency.daily,
+                      SusuFrequency.weekly,
+                      SusuFrequency.biweekly,
+                      SusuFrequency.monthly,
+                    ].map((f) {
+                      final sel = _frequency == f;
+                      return ChoiceChip(
+                        selected: sel,
+                        label: Text(f.label),
+                        onSelected: (_) => setState(() => _frequency = f),
+                        selectedColor: colors.warning.withValues(alpha: 0.20),
+                        labelStyle: TextStyle(
+                          color: sel ? colors.warning : colors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      );
+                    }).toList(),
               ),
               const SizedBox(height: 16),
 
@@ -234,7 +257,10 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
                 'accept the liability contract before the countdown ends. '
                 'Members who don\'t are removed from the group.',
                 style: TextStyle(
-                    color: colors.textTertiary, fontSize: 11, height: 1.4),
+                  color: colors.textTertiary,
+                  fontSize: 11,
+                  height: 1.4,
+                ),
               ),
               const SizedBox(height: 20),
 
@@ -247,20 +273,25 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.black),
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
                         )
                       : const Icon(Icons.rocket_launch_outlined, size: 16),
                   label: Text(
                     _busy ? 'Initiating…' : 'Initiate Susu',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w800, letterSpacing: 0.3),
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.warning,
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -273,17 +304,17 @@ class _InitiateSusuSheetState extends ConsumerState<InitiateSusuSheet> {
   }
 
   Widget _label(String t, AzamanColors colors) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(
-          t.toUpperCase(),
-          style: TextStyle(
-            color: colors.textTertiary,
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-          ),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Text(
+      t.toUpperCase(),
+      style: TextStyle(
+        color: colors.textTertiary,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+      ),
+    ),
+  );
 }
 
 class _PoolPreview extends StatelessWidget {
@@ -308,7 +339,10 @@ class _PoolPreview extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.accent.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.accent.withValues(alpha: 0.18), width: 0.7),
+        border: Border.all(
+          color: colors.accent.withValues(alpha: 0.18),
+          width: 0.7,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,15 +351,18 @@ class _PoolPreview extends StatelessWidget {
             Text(
               'Azaman rate · 1 USDC = GH₵ ${ghsRate.toStringAsFixed(2)}',
               style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700),
+                color: colors.textSecondary,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           const SizedBox(height: 6),
           _line(
             'Each member pays / cycle',
             '\$${contribution.toStringAsFixed(2)}',
-            ghsRate > 0 ? 'GH₵ ${(contribution * ghsRate).toStringAsFixed(2)}' : null,
+            ghsRate > 0
+                ? 'GH₵ ${(contribution * ghsRate).toStringAsFixed(2)}'
+                : null,
           ),
           const SizedBox(height: 4),
           _line(
@@ -344,11 +381,14 @@ class _PoolPreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Text(k,
-              style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 11.5,
-                  height: 1.3)),
+          child: Text(
+            k,
+            style: TextStyle(
+              color: colors.textTertiary,
+              fontSize: 11.5,
+              height: 1.3,
+            ),
+          ),
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,

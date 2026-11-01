@@ -5,14 +5,26 @@ class ReviewCarouselWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const ReviewCarouselWidget({super.key, required this.props, required this.business});
+  const ReviewCarouselWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
     final title = props['title'] as String? ?? 'Reviews';
-    final maxReviews = _asPositiveInt(props['maxReviews'], fallback: 5, max: 20);
+    final maxReviews = _asPositiveInt(
+      props['maxReviews'],
+      fallback: 5,
+      max: 20,
+    );
     final minRating = _asInt(props['minRating'], fallback: 4).clamp(1, 5);
-    final reviews = _parseReviews(props['reviews'], minRating: minRating, maxReviews: maxReviews);
+    final reviews = _parseReviews(
+      props['reviews'],
+      minRating: minRating,
+      maxReviews: maxReviews,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -50,11 +62,14 @@ class ReviewCarouselWidget extends StatelessWidget {
       final rating = _asInt(value['rating'], fallback: 0).clamp(0, 5);
       if (rating < minRating) continue;
       final comment = value['comment']?.toString().trim() ?? '';
-      final author = value['reviewerUsername']?.toString().trim() ??
+      final author =
+          value['reviewerUsername']?.toString().trim() ??
           value['author']?.toString().trim() ??
           'Customer';
       if (comment.isEmpty) continue;
-      reviews.add(_ReviewData(rating: rating, comment: comment, author: author));
+      reviews.add(
+        _ReviewData(rating: rating, comment: comment, author: author),
+      );
       if (reviews.length >= maxReviews) break;
     }
     return reviews;
@@ -65,7 +80,11 @@ class ReviewCarouselWidget extends StatelessWidget {
     return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 
-  static int _asPositiveInt(dynamic value, {required int fallback, required int max}) {
+  static int _asPositiveInt(
+    dynamic value, {
+    required int fallback,
+    required int max,
+  }) {
     return _asInt(value, fallback: fallback).clamp(1, max);
   }
 }
@@ -75,7 +94,11 @@ class _ReviewData {
   final String comment;
   final String author;
 
-  const _ReviewData({required this.rating, required this.comment, required this.author});
+  const _ReviewData({
+    required this.rating,
+    required this.comment,
+    required this.author,
+  });
 }
 
 class _ReviewCard extends StatelessWidget {
@@ -102,7 +125,9 @@ class _ReviewCard extends StatelessWidget {
               ...List.generate(
                 5,
                 (index) => Icon(
-                  index < review.rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                  index < review.rating
+                      ? Icons.star_rounded
+                      : Icons.star_outline_rounded,
                   size: 15,
                   color: scheme.primary,
                 ),
@@ -151,7 +176,10 @@ class _EmptyReviews extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.rate_review_outlined, color: Theme.of(context).colorScheme.primary),
+          Icon(
+            Icons.rate_review_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

@@ -62,13 +62,12 @@ class _AnimatedNumberState extends State<AnimatedNumber>
         _animation = AlwaysStoppedAnimation(widget.value);
       } else {
         _ctrl.reset();
-        _animation = Tween<double>(
-          begin: _oldValue,
-          end: widget.value,
-        ).animate(CurvedAnimation(
-          parent: _ctrl,
-          curve: widget.curve ?? MotionTokens.standardCurve,
-        ));
+        _animation = Tween<double>(begin: _oldValue, end: widget.value).animate(
+          CurvedAnimation(
+            parent: _ctrl,
+            curve: widget.curve ?? MotionTokens.standardCurve,
+          ),
+        );
         _ctrl.forward();
       }
       _oldValue = widget.value;
@@ -89,10 +88,7 @@ class _AnimatedNumberState extends State<AnimatedNumber>
     return AnimatedBuilder(
       animation: _animation,
       builder: (_, __) {
-        return Text(
-          widget.formatter(_animation.value),
-          style: widget.style,
-        );
+        return Text(widget.formatter(_animation.value), style: widget.style);
       },
     );
   }

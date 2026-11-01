@@ -14,8 +14,10 @@ import 'package:azaman/models/business_models.dart';
 
 // ── TRIP LIST ────────────────────────────────────────────────────────────────
 
-final transitTripsProvider =
-    FutureProvider.family<List<TransitTrip>, String?>((ref, businessProfileId) async {
+final transitTripsProvider = FutureProvider.family<List<TransitTrip>, String?>((
+  ref,
+  businessProfileId,
+) async {
   final svc = ref.watch(marketplaceBookingServiceProvider);
   return svc.listTrips(businessProfileId: businessProfileId);
 });
@@ -24,9 +26,9 @@ final transitTripsProvider =
 
 final seatAvailabilityProvider =
     FutureProvider.family<SeatAvailability, String>((ref, tripId) async {
-  final svc = ref.watch(marketplaceBookingServiceProvider);
-  return svc.getTripSeats(tripId);
-});
+      final svc = ref.watch(marketplaceBookingServiceProvider);
+      return svc.getTripSeats(tripId);
+    });
 
 // ── SELECTED SEATS (interactive state) ───────────────────────────────────────
 
@@ -34,8 +36,10 @@ final selectedSeatsProvider = StateProvider<Set<String>>((ref) => {});
 
 // ── CHECK-IN TOKEN ───────────────────────────────────────────────────────────
 
-final checkInTokenProvider =
-    FutureProvider.family<CheckInToken, String>((ref, reservationId) async {
+final checkInTokenProvider = FutureProvider.family<CheckInToken, String>((
+  ref,
+  reservationId,
+) async {
   final svc = ref.watch(marketplaceBookingServiceProvider);
   return svc.generateCheckInQR(reservationId);
 });
@@ -43,10 +47,13 @@ final checkInTokenProvider =
 // ── BUSINESS STORIES ─────────────────────────────────────────────────────────
 
 final businessStoriesProvider =
-    FutureProvider.family<List<BusinessStory>, String>((ref, businessProfileId) async {
-  final svc = ref.watch(marketplaceBookingServiceProvider);
-  return svc.getBusinessStories(businessProfileId);
-});
+    FutureProvider.family<List<BusinessStory>, String>((
+      ref,
+      businessProfileId,
+    ) async {
+      final svc = ref.watch(marketplaceBookingServiceProvider);
+      return svc.getBusinessStories(businessProfileId);
+    });
 
 // ── BOOKING ACTION STATE ─────────────────────────────────────────────────────
 
@@ -62,11 +69,18 @@ class BookingActionState {
   final TransitBookingFailureClass? failureClass;
   final BookSeatResult? result;
 
-  const BookingActionState(
-      {this.isLoading = false, this.error, this.failureClass, this.result});
+  const BookingActionState({
+    this.isLoading = false,
+    this.error,
+    this.failureClass,
+    this.result,
+  });
 
-  BookingActionState copyWith(
-      {bool? isLoading, String? error, BookSeatResult? result}) {
+  BookingActionState copyWith({
+    bool? isLoading,
+    String? error,
+    BookSeatResult? result,
+  }) {
     return BookingActionState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -109,8 +123,9 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
       // the in-service disposition.
       state = BookingActionState(
         error: e.toString(),
-        failureClass:
-            MarketplaceBookingService.classifyTransitBookingFailure(e),
+        failureClass: MarketplaceBookingService.classifyTransitBookingFailure(
+          e,
+        ),
       );
     }
   }
@@ -132,8 +147,9 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
 
 final bookingActionProvider =
     StateNotifierProvider<BookingActionNotifier, BookingActionState>(
-  (ref) => BookingActionNotifier(ref.watch(marketplaceBookingServiceProvider)),
-);
+      (ref) =>
+          BookingActionNotifier(ref.watch(marketplaceBookingServiceProvider)),
+    );
 
 // ── CHECK-IN ACTION STATE (business side) ────────────────────────────────────
 
@@ -143,7 +159,12 @@ class CheckInActionState {
   final CheckInResult? result;
   final AzamanIdSearchResult? searchResult;
 
-  const CheckInActionState({this.isLoading = false, this.error, this.result, this.searchResult});
+  const CheckInActionState({
+    this.isLoading = false,
+    this.error,
+    this.result,
+    this.searchResult,
+  });
 
   CheckInActionState copyWith({
     bool? isLoading,
@@ -170,7 +191,9 @@ class CheckInActionNotifier extends StateNotifier<CheckInActionState> {
       final result = await _svc.verifyCheckInToken(token);
       state = CheckInActionState(result: result);
     } catch (e) {
-      state = CheckInActionState(error: e.toString().replaceFirst('MarketplaceBookingException: ', ''));
+      state = CheckInActionState(
+        error: e.toString().replaceFirst('MarketplaceBookingException: ', ''),
+      );
     }
   }
 
@@ -180,7 +203,9 @@ class CheckInActionNotifier extends StateNotifier<CheckInActionState> {
       final result = await _svc.searchByAzamanId(azamanId);
       state = CheckInActionState(searchResult: result);
     } catch (e) {
-      state = CheckInActionState(error: e.toString().replaceFirst('MarketplaceBookingException: ', ''));
+      state = CheckInActionState(
+        error: e.toString().replaceFirst('MarketplaceBookingException: ', ''),
+      );
     }
   }
 
@@ -190,7 +215,9 @@ class CheckInActionNotifier extends StateNotifier<CheckInActionState> {
       final result = await _svc.directCheckIn(reservationId);
       state = CheckInActionState(result: result);
     } catch (e) {
-      state = CheckInActionState(error: e.toString().replaceFirst('MarketplaceBookingException: ', ''));
+      state = CheckInActionState(
+        error: e.toString().replaceFirst('MarketplaceBookingException: ', ''),
+      );
     }
   }
 
@@ -199,8 +226,9 @@ class CheckInActionNotifier extends StateNotifier<CheckInActionState> {
 
 final checkInActionProvider =
     StateNotifierProvider<CheckInActionNotifier, CheckInActionState>(
-  (ref) => CheckInActionNotifier(ref.watch(marketplaceBookingServiceProvider)),
-);
+      (ref) =>
+          CheckInActionNotifier(ref.watch(marketplaceBookingServiceProvider)),
+    );
 
 // ── MARKETPLACE BOOKING NOTIFIER ─────────────────────────────────────────────
 
@@ -236,9 +264,11 @@ class MarketplaceBookingState {
   }
 }
 
-class MarketplaceBookingNotifier extends StateNotifier<MarketplaceBookingState> {
+class MarketplaceBookingNotifier
+    extends StateNotifier<MarketplaceBookingState> {
   final MarketplaceBookingService _service;
-  MarketplaceBookingNotifier(this._service) : super(const MarketplaceBookingState());
+  MarketplaceBookingNotifier(this._service)
+    : super(const MarketplaceBookingState());
 
   // Load business detail with products (rooms/menu) and showcase
   Future<void> loadBusinessDetail(String bizId) async {
@@ -265,18 +295,22 @@ class MarketplaceBookingNotifier extends StateNotifier<MarketplaceBookingState> 
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
-
 }
 
-final marketplaceBookingProvider = StateNotifierProvider<MarketplaceBookingNotifier, MarketplaceBookingState>(
-  (ref) => MarketplaceBookingNotifier(ref.watch(marketplaceBookingServiceProvider)),
-);
+final marketplaceBookingProvider =
+    StateNotifierProvider<MarketplaceBookingNotifier, MarketplaceBookingState>(
+      (ref) => MarketplaceBookingNotifier(
+        ref.watch(marketplaceBookingServiceProvider),
+      ),
+    );
 
 // ── TRIP DETAIL (single trip by ID) ──────────────────────────────────────────
 /// Fetches all trips and finds the one matching [tripId].
 /// Used by the seat selection screen to show trip info in the booking success sheet.
-final tripDetailProvider =
-    FutureProvider.family<TransitTrip?, String>((ref, tripId) async {
+final tripDetailProvider = FutureProvider.family<TransitTrip?, String>((
+  ref,
+  tripId,
+) async {
   final svc = ref.watch(marketplaceBookingServiceProvider);
   final trips = await svc.listTrips();
   return trips.where((t) => t.id == tripId).firstOrNull;

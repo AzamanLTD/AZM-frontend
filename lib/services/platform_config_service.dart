@@ -30,16 +30,16 @@ class PlatformConfig {
   final double susuProfitPct;
 
   const PlatformConfig({
-    this.fiatWithdrawalFeePct  = 0.02,
-    this.cryptoPlatformFeePct  = 0.00,
+    this.fiatWithdrawalFeePct = 0.02,
+    this.cryptoPlatformFeePct = 0.00,
     this.cryptoWithdrawalFeePct = 0.01,
-    this.p2pFeePct             = 0.02,
-    this.tierThreshold         = 1000,
-    this.vendorShareUnder1k    = 0.40,
-    this.vendorShareOver1k     = 0.50,
-    this.bankMargin            = 0.03,
-    this.thirdPartyMargin      = 0.02,
-    this.susuProfitPct         = 0.03,
+    this.p2pFeePct = 0.02,
+    this.tierThreshold = 1000,
+    this.vendorShareUnder1k = 0.40,
+    this.vendorShareOver1k = 0.50,
+    this.bankMargin = 0.03,
+    this.thirdPartyMargin = 0.02,
+    this.susuProfitPct = 0.03,
   });
 
   /// Hardcoded safe defaults — used before first fetch and on any failure.
@@ -55,16 +55,16 @@ class PlatformConfig {
     }
 
     return PlatformConfig(
-      fiatWithdrawalFeePct:   s('fiatWithdrawalFeePct',  0.02),
-      cryptoPlatformFeePct:   s('cryptoPlatformFeePct',  0.00),
+      fiatWithdrawalFeePct: s('fiatWithdrawalFeePct', 0.02),
+      cryptoPlatformFeePct: s('cryptoPlatformFeePct', 0.00),
       cryptoWithdrawalFeePct: s('cryptoWithdrawalFeePct', 0.01),
-      p2pFeePct:              s('p2pFeePct',             0.02),
-      tierThreshold:          s('tierThreshold',         1000),
-      vendorShareUnder1k:     s('vendorShareUnder1k',    0.40),
-      vendorShareOver1k:      s('vendorShareOver1k',     0.50),
-      bankMargin:             s('bankMargin',            0.03),
-      thirdPartyMargin:       s('thirdPartyMargin',      0.02),
-      susuProfitPct:          s('susuProfitPct',         0.03),
+      p2pFeePct: s('p2pFeePct', 0.02),
+      tierThreshold: s('tierThreshold', 1000),
+      vendorShareUnder1k: s('vendorShareUnder1k', 0.40),
+      vendorShareOver1k: s('vendorShareOver1k', 0.50),
+      bankMargin: s('bankMargin', 0.03),
+      thirdPartyMargin: s('thirdPartyMargin', 0.02),
+      susuProfitPct: s('susuProfitPct', 0.03),
     );
   }
 
@@ -111,5 +111,8 @@ class PlatformConfigService {
 // ── Debug helper (avoids importing dart:developer everywhere) ─────────────────
 void debugLog(String msg) {
   // ignore: avoid_print
-  assert(() { print(msg); return true; }());
+  assert(() {
+    print(msg);
+    return true;
+  }());
 }

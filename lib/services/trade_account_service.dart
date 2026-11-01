@@ -62,11 +62,15 @@ class TradeAccount {
       case 'APPLE_PAY':
         return accountDetails['phone'] ?? 'Apple Pay';
       case 'GOOGLE_PAY':
-        return accountDetails['email'] ?? accountDetails['phone'] ?? 'Google Pay';
+        return accountDetails['email'] ??
+            accountDetails['phone'] ??
+            'Google Pay';
       case 'WISE':
         return accountDetails['email'] ?? 'Wise';
       case 'REVOLUT':
-        return accountDetails['username'] ?? accountDetails['phone'] ?? 'Revolut';
+        return accountDetails['username'] ??
+            accountDetails['phone'] ??
+            'Revolut';
       case 'GIFT_CARD':
         final cardType = accountDetails['cardType'] ?? 'Gift Card';
         final denom = accountDetails['denomination'];
@@ -311,7 +315,9 @@ class TradeAccountService {
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
       final List<dynamic> raw = body['accounts'] ?? [];
-      return raw.map((e) => TradeAccount.fromJson(e as Map<String, dynamic>)).toList();
+      return raw
+          .map((e) => TradeAccount.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
 
     throw Exception(_parseError(response));
@@ -324,7 +330,9 @@ class TradeAccountService {
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
       final List<dynamic> raw = body['accounts'] ?? [];
-      return raw.map((e) => TradeAccount.fromJson(e as Map<String, dynamic>)).toList();
+      return raw
+          .map((e) => TradeAccount.fromJson(e as Map<String, dynamic>))
+          .toList();
     }
 
     throw Exception(_parseError(response));
@@ -354,7 +362,8 @@ class TradeAccountService {
   static String _parseError(dynamic response) {
     try {
       final body = jsonDecode(response.body);
-      return body['message']?.toString() ?? 'Request failed (${response.statusCode})';
+      return body['message']?.toString() ??
+          'Request failed (${response.statusCode})';
     } catch (_) {
       return 'Request failed (${response.statusCode})';
     }

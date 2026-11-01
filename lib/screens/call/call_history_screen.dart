@@ -44,7 +44,6 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
   bool _claimArrival(int index) =>
       _awaitedFirstLoad && index <= 5 && _arrivedRows.add(index);
 
-
   @override
   Widget build(BuildContext context) {
     final callsAsync = ref.watch(callHistoryProvider);
@@ -63,13 +62,29 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
         loading: () => ListView.builder(
           itemCount: 8,
           itemBuilder: (_, __) => ListTile(
-            leading: SkeletonBlock(height: 52, width: 52, borderRadius: BorderRadius.circular(26)),
+            leading: SkeletonBlock(
+              height: 52,
+              width: 52,
+              borderRadius: BorderRadius.circular(26),
+            ),
             title: Padding(
               padding: const EdgeInsets.only(top: 8, bottom: 4),
-              child: SkeletonBlock(height: 14, width: 140, borderRadius: BorderRadius.circular(4)),
+              child: SkeletonBlock(
+                height: 14,
+                width: 140,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
-            subtitle: SkeletonBlock(height: 12, width: 90, borderRadius: BorderRadius.circular(4)),
-            trailing: SkeletonBlock(height: 24, width: 24, borderRadius: BorderRadius.circular(12)),
+            subtitle: SkeletonBlock(
+              height: 12,
+              width: 90,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            trailing: SkeletonBlock(
+              height: 24,
+              width: 24,
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
         error: (err, _) => Center(
@@ -78,8 +93,10 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
             children: [
               const Icon(Icons.error_outline, size: 48, color: Colors.grey),
               const SizedBox(height: 12),
-              Text('Failed to load calls',
-                  style: Theme.of(context).textTheme.bodyMedium),
+              Text(
+                'Failed to load calls',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
               const SizedBox(height: 8),
               FilledButton(
                 onPressed: () => ref.invalidate(callHistoryProvider),
@@ -94,22 +111,29 @@ class _CallHistoryScreenState extends ConsumerState<CallHistoryScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.phone_outlined,
-                      size: 64, color: Theme.of(context).disabledColor),
+                  Icon(
+                    Icons.phone_outlined,
+                    size: 64,
+                    color: Theme.of(context).disabledColor,
+                  ),
                   const SizedBox(height: 16),
-                  Text('No call history',
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(
+                    'No call history',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
                   const SizedBox(height: 4),
-                  Text('Start a call from any chat',
-                      style: Theme.of(context).textTheme.bodySmall),
+                  Text(
+                    'Start a call from any chat',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ],
               ),
             );
           }
 
           return AzPullToRefresh(
-        onRefresh: () async => ref.invalidate(callHistoryProvider),
-        child: ListView.builder(
+            onRefresh: () async => ref.invalidate(callHistoryProvider),
+            child: ListView.builder(
               itemCount: calls.length,
               itemBuilder: (context, index) {
                 final call = calls[index] as Map<String, dynamic>;
@@ -215,12 +239,14 @@ class _CallHistoryItem extends StatelessWidget {
     final createdAt = DateTime.tryParse(call['createdAt'] as String? ?? '');
 
     // Determine call direction
-    final isOutgoing = caller?['id'] != null &&
+    final isOutgoing =
+        caller?['id'] != null &&
         caller!['id'].toString() != callee?['id'].toString();
 
     // Get the "other person" info
     final otherUser = isOutgoing ? callee : caller;
-    final name = otherUser?['displayName'] ?? otherUser?['username'] ?? 'Unknown';
+    final name =
+        otherUser?['displayName'] ?? otherUser?['username'] ?? 'Unknown';
     final avatar = otherUser?['profilePictureUrl'] as String?;
 
     // Call status icon
@@ -248,8 +274,10 @@ class _CallHistoryItem extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         backgroundImage: avatar != null ? NetworkImage(avatar) : null,
         child: avatar == null
-            ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: const TextStyle(fontSize: 20))
+            ? Text(
+                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                style: const TextStyle(fontSize: 20),
+              )
             : null,
       ),
       title: Text(
@@ -265,14 +293,18 @@ class _CallHistoryItem extends StatelessWidget {
           const SizedBox(width: 4),
           if (createdAt != null)
             Flexible(
-              child: Text(_formatTimestamp(createdAt),
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall),
+              child: Text(
+                _formatTimestamp(createdAt),
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           const SizedBox(width: 8),
           if (durationSec > 0)
-            Text('(${_formatDuration(durationSec)})',
-                style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              '(${_formatDuration(durationSec)})',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
         ],
       ),
       trailing: IconButton(

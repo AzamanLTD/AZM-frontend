@@ -88,7 +88,8 @@ abstract class DurableOperationException implements Exception {
 /// A pending durable operation instance could not be found: it was retired,
 /// it belongs to another account namespace, or its record is unreadable.
 class DurableOperationNotFoundException extends DurableOperationException {
-  const DurableOperationNotFoundException(String operationId) : super(operationId);
+  const DurableOperationNotFoundException(String operationId)
+    : super(operationId);
   @override
   String toString() =>
       'DurableOperationNotFoundException: no pending operation '
@@ -117,7 +118,7 @@ class PendingFinancialOperationException implements Exception {
 /// instance is untouched.
 class DurableOperationNotReplayableException extends DurableOperationException {
   const DurableOperationNotReplayableException(String operationId)
-      : super(operationId);
+    : super(operationId);
   @override
   String toString() =>
       'DurableOperationNotReplayableException: the stored snapshot of '
@@ -131,7 +132,7 @@ class DurableOperationNotReplayableException extends DurableOperationException {
 class DurableOperationFingerprintMismatchException
     extends DurableOperationException {
   const DurableOperationFingerprintMismatchException(String operationId)
-      : super(operationId);
+    : super(operationId);
   @override
   String toString() =>
       'DurableOperationFingerprintMismatchException: request differs from '
@@ -262,8 +263,15 @@ extension DurableOperationSafeSummary on DurableOperation {
       break;
     }
     for (final k in const [
-      'escrowId', 'vaultId', 'susuId', 'goalId', 'friendshipId',
-      'businessProfileId', 'tradeId', 'walletId', 'groupId',
+      'escrowId',
+      'vaultId',
+      'susuId',
+      'goalId',
+      'friendshipId',
+      'businessProfileId',
+      'tradeId',
+      'walletId',
+      'groupId',
     ]) {
       final v = request[k]?.toString();
       if (v != null && v.isNotEmpty) {
@@ -287,10 +295,9 @@ class DurableOperationRegistry {
   /// request). Production always writes through SharedPreferences.
   @visibleForTesting
   static Future<void> Function(String slot, String encoded)?
-      storageWriterOverride;
+  storageWriterOverride;
 
-  static Future<SharedPreferences> _store() =>
-      SharedPreferences.getInstance();
+  static Future<SharedPreferences> _store() => SharedPreferences.getInstance();
 
   // -------------------------------------------------------------------------
   // Canonical fingerprinting (unchanged from v1 — the backend agreement on
@@ -338,9 +345,9 @@ class DurableOperationRegistry {
   /// The non-secret, non-identity view of a request body: the fields that
   /// constitute the operation's ECONOMIC identity.
   static Map<String, dynamic> economicView(Map<String, dynamic> body) {
-    return Map<String, dynamic>.from(body)
-      ..removeWhere((k, _) =>
-          _identityFields.contains(k) || secretFieldsDenylist.contains(k));
+    return Map<String, dynamic>.from(body)..removeWhere(
+      (k, _) => _identityFields.contains(k) || secretFieldsDenylist.contains(k),
+    );
   }
 
   /// Request fingerprint: sha256 over the canonical body form. Fields that
@@ -352,7 +359,9 @@ class DurableOperationRegistry {
   /// fingerprint computed from the SCRUBBED snapshot. This is what lets a
   /// recovered step-up operation match its own record.
   static String fingerprintOf(Map<String, dynamic> body) {
-    return sha256.convert(utf8.encode(canonical(economicView(body)))).toString();
+    return sha256
+        .convert(utf8.encode(canonical(economicView(body))))
+        .toString();
   }
 
   // -------------------------------------------------------------------------
@@ -374,8 +383,7 @@ class DurableOperationRegistry {
         createdAt: DateTime.parse(m['t'] as String),
         account: m['acc'] as String,
         request: (m['req'] as Map<String, dynamic>?) ?? const {},
-        secretFields:
-            (m['sec'] as List<dynamic>?)?.cast<String>() ?? const [],
+        secretFields: (m['sec'] as List<dynamic>?)?.cast<String>() ?? const [],
         replaySafe: (m['rs'] as bool?) ?? true,
       );
       if (expectAccount != null && op.account != expectAccount) return null;
@@ -387,17 +395,17 @@ class DurableOperationRegistry {
   }
 
   static String _encode(DurableOperation op) => jsonEncode({
-        'op': op.operationId,
-        'type': op.type,
-        'key': op.key,
-        'e': op.endpoint,
-        'f': op.fingerprint,
-        't': op.createdAt.toIso8601String(),
-        'acc': op.account,
-        'req': op.request,
-        'sec': op.secretFields,
-        'rs': op.replaySafe,
-      });
+    'op': op.operationId,
+    'type': op.type,
+    'key': op.key,
+    'e': op.endpoint,
+    'f': op.fingerprint,
+    't': op.createdAt.toIso8601String(),
+    'acc': op.account,
+    'req': op.request,
+    'sec': op.secretFields,
+    'rs': op.replaySafe,
+  });
 
   // -------------------------------------------------------------------------
   // Lifecycle
@@ -483,8 +491,10 @@ class DurableOperationRegistry {
   /// Terminal completion / definitive pre-economic release: removes THAT
   /// instance only. Every other outstanding instance — including other
   /// pending instances of the SAME type — is untouched.
-  static Future<void> retire(String operationId,
-      {required String account}) async {
+  static Future<void> retire(
+    String operationId, {
+    required String account,
+  }) async {
     final store = await _store();
     await store.remove(_slot(account, operationId));
   }
@@ -500,8 +510,11 @@ class DurableOperationRegistry {
   /// newest pending operation of the type". If the filter matches more
   /// than one instance, the CALLER must fail closed (see [recoverExact])
   /// and never guess.
-  static Future<List<DurableOperation>> pending(
-      {String? account, String? type, String? fingerprint}) async {
+  static Future<List<DurableOperation>> pending({
+    String? account,
+    String? type,
+    String? fingerprint,
+  }) async {
     final store = await _store();
     final results = <DurableOperation>[];
     for (final k in store.getKeys()) {
@@ -544,20 +557,26 @@ class DurableOperationRegistry {
   /// FinancialOperationRef (postFinancial's retry path, retry(operationId))
   /// remains the AUTHORITATIVE exact-instance route. recoverExact is only
   /// for binding a ref AFTER process death, when no ref survives.
-  static Future<DurableRecoveryMatch> recoverExact(
-      {required String account,
-      required String type,
-      required Map<String, dynamic> request}) async {
+  static Future<DurableRecoveryMatch> recoverExact({
+    required String account,
+    required String type,
+    required Map<String, dynamic> request,
+  }) async {
     final matches = await pending(
-        account: account, type: type, fingerprint: fingerprintOf(request));
+      account: account,
+      type: type,
+      fingerprint: fingerprintOf(request),
+    );
     if (matches.isEmpty) return const DurableRecoveryNone();
     if (matches.length == 1) return DurableRecoveryUnique(matches.first);
     return DurableRecoveryAmbiguous(matches);
   }
 
   /// Introspection: ONE instance by id, or null. Account-scoped.
-  static Future<DurableOperation?> byId(String operationId,
-      {required String account}) async {
+  static Future<DurableOperation?> byId(
+    String operationId, {
+    required String account,
+  }) async {
     final store = await _store();
     final raw = store.getString(_slot(account, operationId));
     if (raw == null) return null;

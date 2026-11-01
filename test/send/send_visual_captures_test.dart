@@ -37,8 +37,9 @@ import 'package:azaman/screens/send_money_screen.dart';
 import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 
-const _storageChannel =
-    MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+const _storageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
 
 class _FixedAuth extends AuthProvider {
   _FixedAuth(this.sessionUser);
@@ -62,14 +63,14 @@ class _FakeFriends extends FriendProvider {
 }
 
 User _user() => User(
-      id: '7',
-      username: 'me',
-      email: 'me@example.com',
-      token: 'tok',
-      role: 'USER',
-      azamanId: 'AZM-999999999',
-      availableBalance: 50.0,
-    );
+  id: '7',
+  username: 'me',
+  email: 'me@example.com',
+  token: 'tok',
+  role: 'USER',
+  azamanId: 'AZM-999999999',
+  availableBalance: 50.0,
+);
 
 const _sizes = {
   '320': Size(320, 692),
@@ -78,19 +79,20 @@ const _sizes = {
 };
 
 SendMoneyScreen _screen() => SendMoneyScreen.toFriend(
-      // The seam exists so captures can pin ONE rate and exercise the
-      // live GHS↔USDC conversion: 5.00 GHS → 0.33 USDC on the wire.
-      fxRateOverride: 15.38,
-      recipient: SendRecipient(
-        username: 'ama',
-        displayName: 'Ama Mensah',
-        userId: 101,
-        friendshipId: 'fs-1',
-        source: SendRecipientSource.friend,
-      ),
-      sendOverride: (friendshipId, amount, reference, token) async =>
-          {'success': true},
-    );
+  // The seam exists so captures can pin ONE rate and exercise the
+  // live GHS↔USDC conversion: 5.00 GHS → 0.33 USDC on the wire.
+  fxRateOverride: 15.38,
+  recipient: SendRecipient(
+    username: 'ama',
+    displayName: 'Ama Mensah',
+    userId: 101,
+    friendshipId: 'fs-1',
+    source: SendRecipientSource.friend,
+  ),
+  sendOverride: (friendshipId, amount, reference, token) async => {
+    'success': true,
+  },
+);
 
 // ── Real fonts (FontLoader pattern; see test/goldens/README.md) ─────────────
 
@@ -99,9 +101,9 @@ bool _fontsLoaded = false;
 Future<void> _loadFace(String family, String path) async {
   final bytes = await File(path).readAsBytes();
   final loader = FontLoader(family)
-    ..addFont(Future<ByteData>.value(
-      ByteData.view(Uint8List.fromList(bytes).buffer),
-    ));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
 }
 
@@ -124,7 +126,10 @@ Future<void> _loadAppFonts() async {
   await _loadFace('Inter', 'assets/fonts/Inter-Variable.ttf');
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
-  await _loadFace('MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+  await _loadFace(
+    'MaterialIcons',
+    'test/goldens/fonts/MaterialIcons-Regular.otf',
+  );
   await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
   _fontsLoaded = true;
 }
@@ -137,13 +142,19 @@ Future<void> _loadAppFonts() async {
 /// global Display Currency preference.
 Future<void> _rollWheelToUsdc(WidgetTester tester) async {
   final wheel = find.byKey(const ValueKey('send-amount-currency'));
-  expect(wheel, findsOneWidget,
-      reason: 'the Send amount wheel must be present to roll');
+  expect(
+    wheel,
+    findsOneWidget,
+    reason: 'the Send amount wheel must be present to roll',
+  );
   await tester.tap(wheel, warnIfMissed: false);
   await tester.pumpAndSettle();
   final usdcItem = find.text('USDC — USD Coin');
-  expect(usdcItem, findsOneWidget,
-      reason: 'the picker must offer the USDC entry option');
+  expect(
+    usdcItem,
+    findsOneWidget,
+    reason: 'the picker must offer the USDC entry option',
+  );
   await tester.tap(usdcItem);
   await tester.pumpAndSettle();
   // The picker has closed and the wheel rolled; the LOCAL entry unit is
@@ -165,8 +176,11 @@ Future<void> _driveKeypadToReview(WidgetTester tester) async {
 /// into the commit path (PR #165 finding 1); no CTA exists to tap.
 Future<void> _slideToConfirm(WidgetTester tester) async {
   final slide = find.byType(SlideToConfirm);
-  expect(slide, findsOneWidget,
-      reason: 'the money action is a slide-to-confirm surface');
+  expect(
+    slide,
+    findsOneWidget,
+    reason: 'the money action is a slide-to-confirm surface',
+  );
   final topLeft = tester.getTopLeft(slide);
   final gesture = await tester.startGesture(topLeft + const Offset(28, 30));
   // Workstream B: the review stage lives inside
@@ -203,9 +217,9 @@ Future<void> _pump(
 }) async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
-    if (call.method == 'read') return 'mock-token';
-    return null;
-  });
+        if (call.method == 'read') return 'mock-token';
+        return null;
+      });
   // azaman_theme: 0 = light, 1 = dark (index stability contract,
   // theme_provider.dart). No biometric_lock_enabled pref → the gate
   // stays off, so the slide alone commits.
@@ -270,26 +284,34 @@ Future<void> _capture(
   // exists ONLY under direct USDC entry (GHS entry has the wire row +
   // derivation-rate row instead). Never trust the wheel tap alone.
   if (usdcEntry && stage == 'review') {
-    expect(find.byKey(const ValueKey('send-review-ghs-equivalent')),
-        findsOneWidget,
-        reason: 'USDC-entry review must show the paired GHS equivalent');
+    expect(
+      find.byKey(const ValueKey('send-review-ghs-equivalent')),
+      findsOneWidget,
+      reason: 'USDC-entry review must show the paired GHS equivalent',
+    );
   }
 
   if (stage == 'success') {
     await tester.enterText(
-        find.byKey(const ValueKey('send-reference-field')), 'Jollof money');
+      find.byKey(const ValueKey('send-reference-field')),
+      'Jollof money',
+    );
     await tester.pump();
     await _slideToConfirm(tester);
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('send-success-icon')), findsOneWidget,
-        reason: 'the capture must show the committed success panel');
+    expect(
+      find.byKey(const ValueKey('send-success-icon')),
+      findsOneWidget,
+      reason: 'the capture must show the committed success panel',
+    );
   }
 
   final suffix = usdcEntry ? '_usdcentry' : (usdcPref ? '_usdcpref' : '');
   await expectLater(
     find.byType(MaterialApp),
     matchesGoldenFile(
-        '../goldens/send/${width}dp_${dark ? 'dark' : 'light'}_$stage$suffix.png'),
+      '../goldens/send/${width}dp_${dark ? 'dark' : 'light'}_$stage$suffix.png',
+    ),
   );
 }
 
@@ -299,9 +321,9 @@ void main() {
   for (final dark in const [false, true]) {
     for (final width in const ['320', '360', '390']) {
       for (final stage in const ['compose', 'review', 'success']) {
-        testWidgets(
-            'capture $width dp ${dark ? 'dark' : 'light'} — $stage',
-            (tester) async {
+        testWidgets('capture $width dp ${dark ? 'dark' : 'light'} — $stage', (
+          tester,
+        ) async {
           await _capture(tester, width: width, stage: stage, dark: dark);
         });
       }
@@ -314,11 +336,17 @@ void main() {
     for (final width in const ['320', '360', '390']) {
       for (final stage in const ['compose', 'review', 'success']) {
         testWidgets(
-            'capture $width dp ${dark ? 'dark' : 'light'} — $stage (USDC entry)',
-            (tester) async {
-          await _capture(
-              tester, width: width, stage: stage, dark: dark, usdcEntry: true);
-        });
+          'capture $width dp ${dark ? 'dark' : 'light'} — $stage (USDC entry)',
+          (tester) async {
+            await _capture(
+              tester,
+              width: width,
+              stage: stage,
+              dark: dark,
+              usdcEntry: true,
+            );
+          },
+        );
       }
     }
   }
@@ -328,8 +356,9 @@ void main() {
   // USDC-primary appearance of the balance chip is legitimate ONLY under
   // an explicitly saved USDC preference (work order §4D).
   for (final stage in const ['compose', 'review']) {
-    testWidgets('capture 360 dp light — $stage (deliberate USDC pref)',
-        (tester) async {
+    testWidgets('capture 360 dp light — $stage (deliberate USDC pref)', (
+      tester,
+    ) async {
       await _capture(
         tester,
         width: '360',

@@ -46,25 +46,41 @@ class MarketplaceExtensionsService {
   /// (id, businessName, logoUrl, category, isVerified, averageRating,
   /// followedAt) rather than forcing into the heavier BusinessProfile model,
   /// which requires several fields this endpoint doesn't return.
-  Future<List<Map<String, dynamic>>> getFollowing({int limit = 50, int offset = 0}) async {
-    final res = await _api.get('/follows/following?limit=$limit&offset=$offset');
+  Future<List<Map<String, dynamic>>> getFollowing({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final res = await _api.get(
+      '/follows/following?limit=$limit&offset=$offset',
+    );
     final body = jsonDecode(res.body);
     final list = body['following'] as List? ?? [];
     return list.cast<Map<String, dynamic>>();
   }
 
   // ── Ads ──
-  Future<List<BusinessAdPost>> getAdFeed({int limit = 20, int offset = 0}) async {
+  Future<List<BusinessAdPost>> getAdFeed({
+    int limit = 20,
+    int offset = 0,
+  }) async {
     final res = await _api.get('/ad-posts/feed?limit=$limit&offset=$offset');
     final body = jsonDecode(res.body);
-    final ads = (body['ads'] as List?)?.map((e) => BusinessAdPost.fromJson(e)).toList() ?? [];
+    final ads =
+        (body['ads'] as List?)
+            ?.map((e) => BusinessAdPost.fromJson(e))
+            .toList() ??
+        [];
     return ads;
   }
 
   Future<List<BusinessAdPost>> getActiveAds(String businessProfileId) async {
     final res = await _api.get('/ad-posts/active/$businessProfileId');
     final body = jsonDecode(res.body);
-    final ads = (body['ads'] as List?)?.map((e) => BusinessAdPost.fromJson(e)).toList() ?? [];
+    final ads =
+        (body['ads'] as List?)
+            ?.map((e) => BusinessAdPost.fromJson(e))
+            .toList() ??
+        [];
     return ads;
   }
 
@@ -85,7 +101,11 @@ class MarketplaceExtensionsService {
   Future<List<BusinessShowcase>> getShowcase(String businessProfileId) async {
     final res = await _api.get('/showcases/$businessProfileId');
     final body = jsonDecode(res.body);
-    final items = (body['items'] as List?)?.map((e) => BusinessShowcase.fromJson(e)).toList() ?? [];
+    final items =
+        (body['items'] as List?)
+            ?.map((e) => BusinessShowcase.fromJson(e))
+            .toList() ??
+        [];
     return items;
   }
 

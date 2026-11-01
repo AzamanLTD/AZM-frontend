@@ -734,8 +734,11 @@ void main() {
         find.byKey(const ValueKey('follow-onboarding-sheet-retry')),
       );
       await tester.pumpAndSettle();
-      expect(client.followCalls.length, 4,
-          reason: 'bp-1/bp-3 once each, bp-2 twice (confirm + retry)');
+      expect(
+        client.followCalls.length,
+        4,
+        reason: 'bp-1/bp-3 once each, bp-2 twice (confirm + retry)',
+      );
       expect(
         find.byKey(const ValueKey('follow-onboarding-sheet-browse')),
         findsOneWidget,

@@ -131,8 +131,9 @@ Widget _host(GoRouter router, RouteDepthTracker tracker) {
 double _bandOpacity(WidgetTester tester) {
   final band = find.byType(ContextualNavBand);
   return (tester.widget(
-    find.descendant(of: band, matching: find.byType(AnimatedOpacity)),
-  ) as AnimatedOpacity)
+            find.descendant(of: band, matching: find.byType(AnimatedOpacity)),
+          )
+          as AnimatedOpacity)
       .opacity;
 }
 
@@ -160,41 +161,42 @@ void main() {
   });
   tearDown(appShellBus.debugReset);
 
-  testWidgets('invisible at depth 0 while the shell is engaged',
-      (tester) async {
+  testWidgets('invisible at depth 0 while the shell is engaged', (
+    tester,
+  ) async {
     appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
     await _pumpApp(tester);
     expect(_bandOpacity(tester), 0.0); // root: the shell's pill owns the edge
   });
 
   testWidgets(
-      'at depth ≥ 1 the bar shows the route title + back chevron, and NO "…"',
-      (tester) async {
-    appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
-    await _pumpApp(tester);
+    'at depth ≥ 1 the bar shows the route title + back chevron, and NO "…"',
+    (tester) async {
+      appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
+      await _pumpApp(tester);
 
-    final router = _routerOf(tester);
-    router.push('/transactions');
-    await tester.pumpAndSettle();
+      final router = _routerOf(tester);
+      router.push('/transactions');
+      await tester.pumpAndSettle();
 
-    expect(_bandOpacity(tester), 1.0);
-    expect(find.byKey(const Key('contextual-nav-back')), findsOneWidget);
-    expect(find.text('Transactions'), findsOneWidget); // the bar's title
-    // PR-B: the ellipsis is GONE — no dead hit target, no hidden affordance.
-    expect(find.byKey(const Key('contextual-nav-toggle')), findsNothing);
-    expect(find.text('…'), findsNothing);
-    // The band never renders a tab pill any more: exactly the bar.
-    expect(find.byType(PremiumBottomNav), findsNothing);
-    // A11y honesty: the bar's semantics describe exactly the two
-    // remaining controls — back + title text. No 'Show tabs' stop.
-    expect(
-      find.bySemanticsLabel(RegExp('Show tabs|Hide tabs')),
-      findsNothing,
-    );
-  });
+      expect(_bandOpacity(tester), 1.0);
+      expect(find.byKey(const Key('contextual-nav-back')), findsOneWidget);
+      expect(find.text('Transactions'), findsOneWidget); // the bar's title
+      // PR-B: the ellipsis is GONE — no dead hit target, no hidden affordance.
+      expect(find.byKey(const Key('contextual-nav-toggle')), findsNothing);
+      expect(find.text('…'), findsNothing);
+      // The band never renders a tab pill any more: exactly the bar.
+      expect(find.byType(PremiumBottomNav), findsNothing);
+      // A11y honesty: the bar's semantics describe exactly the two
+      // remaining controls — back + title text. No 'Show tabs' stop.
+      expect(
+        find.bySemanticsLabel(RegExp('Show tabs|Hide tabs')),
+        findsNothing,
+      );
+    },
+  );
 
-  testWidgets('the back chevron pops ONE router page per tap',
-      (tester) async {
+  testWidgets('the back chevron pops ONE router page per tap', (tester) async {
     appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
     await _pumpApp(tester);
 
@@ -217,67 +219,76 @@ void main() {
   });
 
   testWidgets(
-      'rapid repeated back presses consume exactly one level per press',
-      (tester) async {
-    appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
-    await _pumpApp(tester);
+    'rapid repeated back presses consume exactly one level per press',
+    (tester) async {
+      appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
+      await _pumpApp(tester);
 
-    final router = _routerOf(tester);
-    router.push('/transactions');
-    await tester.pumpAndSettle();
-    router.push('/deep/leaf');
-    await tester.pumpAndSettle();
+      final router = _routerOf(tester);
+      router.push('/transactions');
+      await tester.pumpAndSettle();
+      router.push('/deep/leaf');
+      await tester.pumpAndSettle();
 
-    expect(_stackOf(tester), ['home', 'transactions', 'story-editor']);
+      expect(_stackOf(tester), ['home', 'transactions', 'story-editor']);
 
-    // Three rapid presses, asserted after EACH: every press consumes
-    // exactly one level (leaf → transactions → root). If a single press
-    // ever double-applied, the first assertion would already see 'home'.
-    await tester.tap(find.byKey(const Key('contextual-nav-back')));
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(_stackOf(tester), ['home', 'transactions'],
-        reason: 'press one pops exactly the leaf page');
-    expect(find.text('TXN PAGE'), findsOneWidget);
+      // Three rapid presses, asserted after EACH: every press consumes
+      // exactly one level (leaf → transactions → root). If a single press
+      // ever double-applied, the first assertion would already see 'home'.
+      await tester.tap(find.byKey(const Key('contextual-nav-back')));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_stackOf(tester), [
+        'home',
+        'transactions',
+      ], reason: 'press one pops exactly the leaf page');
+      expect(find.text('TXN PAGE'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('contextual-nav-back')));
-    await tester.pump(const Duration(milliseconds: 50));
-    expect(_stackOf(tester), ['home'],
-        reason: 'press two pops exactly the transactions page');
+      await tester.tap(find.byKey(const Key('contextual-nav-back')));
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(_stackOf(tester), [
+        'home',
+      ], reason: 'press two pops exactly the transactions page');
 
-    // At the root base there is nothing more to pop; the next press is
-    // the honest root fallback (stack stays ['home']), never a phantom
-    // pop or a crash.
-    await tester.tap(find.byKey(const Key('contextual-nav-back')));
-    await tester.pumpAndSettle();
-    expect(_stackOf(tester), ['home']);
-  });
+      // At the root base there is nothing more to pop; the next press is
+      // the honest root fallback (stack stays ['home']), never a phantom
+      // pop or a crash.
+      await tester.tap(find.byKey(const Key('contextual-nav-back')));
+      await tester.pumpAndSettle();
+      expect(_stackOf(tester), ['home']);
+    },
+  );
 
   testWidgets(
-      'a sanctioned imperative route above the top router page hides the band',
-      (tester) async {
-    var pushed = false;
-    appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
-    await _pumpApp(tester, onImperativePush: () {
-      pushed = true;
-    });
+    'a sanctioned imperative route above the top router page hides the band',
+    (tester) async {
+      var pushed = false;
+      appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
+      await _pumpApp(
+        tester,
+        onImperativePush: () {
+          pushed = true;
+        },
+      );
 
-    final router = _routerOf(tester);
-    router.push('/transactions');
-    await tester.pumpAndSettle();
-    expect(_bandOpacity(tester), 1.0);
+      final router = _routerOf(tester);
+      router.push('/transactions');
+      await tester.pumpAndSettle();
+      expect(_bandOpacity(tester), 1.0);
 
-    await tester.tap(find.text('IMPERATIVE'));
-    await tester.pumpAndSettle();
-    expect(pushed, isTrue);
-    expect(_bandOpacity(tester), 0.0); // imperative owns the screen
+      await tester.tap(find.text('IMPERATIVE'));
+      await tester.pumpAndSettle();
+      expect(pushed, isTrue);
+      expect(_bandOpacity(tester), 0.0); // imperative owns the screen
 
-    await tester.tap(find.text('POP'));
-    await tester.pumpAndSettle();
-    expect(_bandOpacity(tester), 1.0); // back on the router page: restored
-  });
+      await tester.tap(find.text('POP'));
+      await tester.pumpAndSettle();
+      expect(_bandOpacity(tester), 1.0); // back on the router page: restored
+    },
+  );
 
-  testWidgets('no shell engaged: the band stays honest and hidden',
-      (tester) async {
+  testWidgets('no shell engaged: the band stays honest and hidden', (
+    tester,
+  ) async {
     await _pumpApp(tester);
     expect(appShellBus.engaged, isFalse);
 
@@ -289,39 +300,37 @@ void main() {
   });
 
   testWidgets(
-      'a deep-link-only stack (nothing to pop) backs out to the canonical root',
-      (tester) async {
-    appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
-    await _pumpApp(tester, initialLocation: '/transactions');
-    await tester.pumpAndSettle();
+    'a deep-link-only stack (nothing to pop) backs out to the canonical root',
+    (tester) async {
+      appShellBus.engage(onTabRequest: (_) {}, initialTab: 0);
+      await _pumpApp(tester, initialLocation: '/transactions');
+      await tester.pumpAndSettle();
 
-    // Deep-link parity: the route's structural depth is 1 even though
-    // nothing sits under it in this test stack.
-    expect(_bandOpacity(tester), 1.0);
-    expect(find.text('Transactions'), findsOneWidget);
+      // Deep-link parity: the route's structural depth is 1 even though
+      // nothing sits under it in this test stack.
+      expect(_bandOpacity(tester), 1.0);
+      expect(find.text('Transactions'), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('contextual-nav-back')));
-    await tester.pumpAndSettle();
-    expect(_stackOf(tester), ['home']); // went home instead of stalling
-    expect(_bandOpacity(tester), 0.0);
-  });
+      await tester.tap(find.byKey(const Key('contextual-nav-back')));
+      await tester.pumpAndSettle();
+      expect(_stackOf(tester), ['home']); // went home instead of stalling
+      expect(_bandOpacity(tester), 0.0);
+    },
+  );
 }
-
 
 /// The live navigator's page stack, by route name — the truthful
 /// route-stack read (GoRouter's currentConfiguration.uri can lag the
 /// navigator's own page list).
 List<String> _stackOf(WidgetTester tester) {
   final nav = tester.state<NavigatorState>(find.byType(Navigator).first);
-  return nav.widget.pages
-      .map((pg) => pg.name ?? '?')
-      .toList();
+  return nav.widget.pages.map((pg) => pg.name ?? '?').toList();
 }
 
 // ── helpers that read the LIVE app from the tester ─────────────────────────
 
 /// The live router, resolved through the band (always under the tracker
 /// host, whatever the current route stack is).
-GoRouter _routerOf(WidgetTester tester) =>
-    RouteDepthTrackerHost.of(tester.element(find.byType(ContextualNavBand)))
-        .router;
+GoRouter _routerOf(WidgetTester tester) => RouteDepthTrackerHost.of(
+  tester.element(find.byType(ContextualNavBand)),
+).router;

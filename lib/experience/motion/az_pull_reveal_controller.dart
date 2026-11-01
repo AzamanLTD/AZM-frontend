@@ -19,11 +19,11 @@ class AzPullRevealController extends ChangeNotifier {
     required TickerProvider vsync,
     required this.maxExtentPx,
     this.solver = const AzSnapSolver(detents: [0, 1]),
-  })  : assert(maxExtentPx > 0),
-        _anim = AnimationController(
-          vsync: vsync,
-          duration: MotionTokens.emphasized,
-        ) {
+  }) : assert(maxExtentPx > 0),
+       _anim = AnimationController(
+         vsync: vsync,
+         duration: MotionTokens.emphasized,
+       ) {
     _anim.addListener(_onTick);
   }
 

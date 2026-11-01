@@ -93,9 +93,10 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
   Future<void> _saveRecent(String query) async {
     if (query.trim().isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
-    final list = [query, ..._recentSearches.where((s) => s != query)]
-        .take(_kMaxRecent)
-        .toList();
+    final list = [
+      query,
+      ..._recentSearches.where((s) => s != query),
+    ].take(_kMaxRecent).toList();
     await prefs.setStringList(_kRecentKey, list);
     if (mounted) setState(() => _recentSearches = list);
   }
@@ -129,11 +130,9 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
     final cat = _categoryIndex == 0
         ? null
         : BusinessCategories.withAll[_categoryIndex].wire;
-    ref.read(businessSearchProvider.notifier).search(
-          q,
-          category: cat,
-          verified: _verifiedOnly ? true : null,
-        );
+    ref
+        .read(businessSearchProvider.notifier)
+        .search(q, category: cat, verified: _verifiedOnly ? true : null);
   }
 
   void _pickCategory(int i) {
@@ -227,15 +226,26 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
                 style: TextStyle(color: colors.textPrimary, fontSize: 15),
                 decoration: InputDecoration(
                   hintText: 'Search businesses, services, products…',
-                  hintStyle: TextStyle(color: colors.textTertiary, fontSize: 14),
-                  prefixIcon: Icon(Icons.search, size: 18, color: colors.textTertiary),
+                  hintStyle: TextStyle(
+                    color: colors.textTertiary,
+                    fontSize: 14,
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    size: 18,
+                    color: colors.textTertiary,
+                  ),
                   suffixIcon: _searchCtrl.text.isNotEmpty
                       ? GestureDetector(
                           onTap: () {
                             _searchCtrl.clear();
                             setState(() => _hasSearched = false);
                           },
-                          child: Icon(Icons.cancel_outlined, size: 18, color: colors.textTertiary),
+                          child: Icon(
+                            Icons.cancel_outlined,
+                            size: 18,
+                            color: colors.textTertiary,
+                          ),
                         )
                       : null,
                   filled: true,
@@ -274,7 +284,10 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: _sort == s ? colors.accent : colors.card,
                     borderRadius: BorderRadius.circular(20),
@@ -354,14 +367,20 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.filter_list,
-                      size: 13,
-                      color: !_filters.isEmpty ? colors.accent : colors.textTertiary),
+                  Icon(
+                    Icons.filter_list,
+                    size: 13,
+                    color: !_filters.isEmpty
+                        ? colors.accent
+                        : colors.textTertiary,
+                  ),
                   const SizedBox(width: 5),
                   Text(
                     'Filters${!_filters.isEmpty ? " •" : ""}',
                     style: TextStyle(
-                      color: !_filters.isEmpty ? colors.accent : colors.textSecondary,
+                      color: !_filters.isEmpty
+                          ? colors.accent
+                          : colors.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -390,7 +409,10 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
               return GestureDetector(
                 onTap: () => _pickRecent(q),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: colors.card,
                     borderRadius: BorderRadius.circular(20),
@@ -399,14 +421,20 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.access_time, size: 13, color: colors.textTertiary),
+                      Icon(
+                        Icons.access_time,
+                        size: 13,
+                        color: colors.textTertiary,
+                      ),
                       const SizedBox(width: 6),
-                      Text(q,
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          )),
+                      Text(
+                        q,
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -466,7 +494,11 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
     );
   }
 
-  Widget _sectionHeader(AzamanColors colors, String title, {VoidCallback? onClear}) {
+  Widget _sectionHeader(
+    AzamanColors colors,
+    String title, {
+    VoidCallback? onClear,
+  }) {
     return Row(
       children: [
         Text(
@@ -533,7 +565,8 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
                   child: Padding(
                     padding: EdgeInsets.all(16),
                     child: SizedBox(
-                      width: 22, height: 22,
+                      width: 22,
+                      height: 22,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   ),
@@ -543,7 +576,10 @@ class _BusinessSearchScreenState extends ConsumerState<BusinessSearchScreen> {
               return BusinessCard(
                 business: biz,
                 tall: true,
-                onTap: () => pushWithVerticalTransition(context, BusinessProfileScreen(bizId: biz.bizId)),
+                onTap: () => pushWithVerticalTransition(
+                  context,
+                  BusinessProfileScreen(bizId: biz.bizId),
+                ),
               );
             },
           ),

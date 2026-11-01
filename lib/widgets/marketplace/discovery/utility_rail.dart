@@ -16,29 +16,28 @@ enum UtilityFilter { nearMe, openNow, topRated, saved }
 
 extension UtilityFilterX on UtilityFilter {
   String get label => switch (this) {
-        UtilityFilter.nearMe => 'Near me',
-        UtilityFilter.openNow => 'Open now',
-        UtilityFilter.topRated => 'Top rated',
-        UtilityFilter.saved => 'Saved',
-      };
+    UtilityFilter.nearMe => 'Near me',
+    UtilityFilter.openNow => 'Open now',
+    UtilityFilter.topRated => 'Top rated',
+    UtilityFilter.saved => 'Saved',
+  };
 
   DiscoverySignal? get signal => switch (this) {
-        UtilityFilter.nearMe => DiscoverySignal.nearby,
-        UtilityFilter.openNow => DiscoverySignal.openNow,
-        UtilityFilter.topRated => DiscoverySignal.topRated,
-        UtilityFilter.saved => null,
-      };
+    UtilityFilter.nearMe => DiscoverySignal.nearby,
+    UtilityFilter.openNow => DiscoverySignal.openNow,
+    UtilityFilter.topRated => DiscoverySignal.topRated,
+    UtilityFilter.saved => null,
+  };
 }
 
 /// Pure visibility rule — tested without widgets.
 List<UtilityFilter> visibleUtilityFilters({
   required Set<DiscoverySignal> supported,
   required bool hasSaves,
-}) =>
-    UtilityFilter.values.where((f) {
-      if (f == UtilityFilter.saved) return hasSaves;
-      return supported.contains(f.signal);
-    }).toList();
+}) => UtilityFilter.values.where((f) {
+  if (f == UtilityFilter.saved) return hasSaves;
+  return supported.contains(f.signal);
+}).toList();
 
 class UtilityRail extends ConsumerWidget {
   final UtilityFilter? active;
@@ -48,9 +47,16 @@ class UtilityRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-    final supported = ref.watch(marketplaceDiscoveryGatewayProvider).supportedSignals;
-    final hasSaves = ref.watch(savedBusinessesProvider.select((s) => s.isNotEmpty));
-    final filters = visibleUtilityFilters(supported: supported, hasSaves: hasSaves);
+    final supported = ref
+        .watch(marketplaceDiscoveryGatewayProvider)
+        .supportedSignals;
+    final hasSaves = ref.watch(
+      savedBusinessesProvider.select((s) => s.isNotEmpty),
+    );
+    final filters = visibleUtilityFilters(
+      supported: supported,
+      hasSaves: hasSaves,
+    );
     if (filters.isEmpty) return const SizedBox.shrink();
     return SizedBox(
       height: 36,
@@ -76,9 +82,12 @@ class UtilityRail extends ConsumerWidget {
                 color: selected ? colors.accent : colors.softSurface,
                 borderRadius: BorderRadius.circular(AzRadius.pill),
               ),
-              child: Text(f.label,
-                  style: AzText.label.copyWith(
-                      color: selected ? colors.background : colors.textPrimary)),
+              child: Text(
+                f.label,
+                style: AzText.label.copyWith(
+                  color: selected ? colors.background : colors.textPrimary,
+                ),
+              ),
             ),
           );
         },

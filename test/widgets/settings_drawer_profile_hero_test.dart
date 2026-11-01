@@ -80,8 +80,9 @@ Future<ProviderContainer> _pumpDrawer(
           // the reduced-motion flag is overridden (a bare MediaQueryData
           // has Size.zero and silently broke the drawer).
           builder: (context) => MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(disableAnimations: disableAnimations),
+            data: MediaQuery.of(
+              context,
+            ).copyWith(disableAnimations: disableAnimations),
             child: Scaffold(
               key: scaffoldKey,
               endDrawer: const SettingsDrawer(),
@@ -223,9 +224,7 @@ void main() {
     ) async {
       // The Security chip reads the REAL biometric pref — turn it on so
       // the chip renders; the drawer loads it asynchronously after mount.
-      SharedPreferences.setMockInitialValues({
-        'biometric_lock_enabled': true,
-      });
+      SharedPreferences.setMockInitialValues({'biometric_lock_enabled': true});
       await _pumpDrawer(tester, user: _verifiedUser());
       await tester.pump(const Duration(milliseconds: 120));
 
@@ -271,20 +270,17 @@ void main() {
       expect(find.text('Azaman 3.1'), findsOneWidget);
     });
 
-    testWidgets(
-      'G1: no duplicate Deposit row — deposits stay canonical on the '
-      'Home + launcher',
-      (tester) async {
-        await _pumpDrawer(tester, user: _verifiedUser());
+    testWidgets('G1: no duplicate Deposit row — deposits stay canonical on the '
+        'Home + launcher', (tester) async {
+      await _pumpDrawer(tester, user: _verifiedUser());
 
-        // The drawer must not duplicate the canonical deposit surface;
-        // the launcher's Add Cash action owns it (pinned in
-        // workstream_g_convert_test.dart: it pushes the /deposit route
-        // whose builder serves the STK-push MoMo screen).
-        expect(find.text('Deposit'), findsNothing);
-        expect(find.byType(DepositScreen), findsNothing);
-      },
-    );
+      // The drawer must not duplicate the canonical deposit surface;
+      // the launcher's Add Cash action owns it (pinned in
+      // workstream_g_convert_test.dart: it pushes the /deposit route
+      // whose builder serves the STK-push MoMo screen).
+      expect(find.text('Deposit'), findsNothing);
+      expect(find.byType(DepositScreen), findsNothing);
+    });
 
     testWidgets('unverified user renders no KYC chip (no decoration)', (
       tester,
@@ -375,32 +371,45 @@ void main() {
       // starts it, the second runs it to completion (220ms).
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.text('AZM-8273941'), findsOneWidget,
-          reason: 'mid-band scroll never collapses (hysteresis)');
+      expect(
+        find.text('AZM-8273941'),
+        findsOneWidget,
+        reason: 'mid-band scroll never collapses (hysteresis)',
+      );
 
       // 0.7 — past the collapse threshold → animates collapsed.
       scrollable.position.jumpTo(0.7 * travel);
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.byKey(const ValueKey('profile_hero_qr_icon')),
-          findsOneWidget);
-      expect(find.text('AZM-8273941'), findsNothing,
-          reason: 'past 0.66 the hero is collapsed');
+      expect(
+        find.byKey(const ValueKey('profile_hero_qr_icon')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('AZM-8273941'),
+        findsNothing,
+        reason: 'past 0.66 the hero is collapsed',
+      );
 
       // 0.4 — back INSIDE the dead band → stays collapsed (no flicker).
       scrollable.position.jumpTo(0.4 * travel);
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.byKey(const ValueKey('profile_hero_qr_icon')),
-          findsOneWidget,
-          reason: 'mid-band scroll after collapse never expands (hysteresis)');
+      expect(
+        find.byKey(const ValueKey('profile_hero_qr_icon')),
+        findsOneWidget,
+        reason: 'mid-band scroll after collapse never expands (hysteresis)',
+      );
 
       // 0.2 — below the expand threshold → animates expanded.
       scrollable.position.jumpTo(0.2 * travel);
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pump(const Duration(milliseconds: 400));
-      expect(find.text('AZM-8273941'), findsOneWidget,
-          reason: 'below 0.33 the hero expands again');
+      expect(
+        find.text('AZM-8273941'),
+        findsOneWidget,
+        reason: 'below 0.33 the hero expands again',
+      );
     });
 
     testWidgets('reduced motion: the threshold swap is INSTANT, never '
@@ -421,9 +430,11 @@ void main() {
       // No animation time given — the snap must already be complete.
       await tester.pump(const Duration(milliseconds: 1));
       await tester.pump(const Duration(milliseconds: 1));
-      expect(find.byKey(const ValueKey('profile_hero_qr_icon')),
-          findsOneWidget,
-          reason: 'with disableAnimations the collapse is instant');
+      expect(
+        find.byKey(const ValueKey('profile_hero_qr_icon')),
+        findsOneWidget,
+        reason: 'with disableAnimations the collapse is instant',
+      );
       expect(find.text('AZM-8273941'), findsNothing);
     });
   });

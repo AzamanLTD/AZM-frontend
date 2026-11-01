@@ -105,8 +105,8 @@ class DialGooPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (t <= 0.001) return;
-    final flight = (t / 0.45).clamp(0.0, 1.0) *
-        (1 - ((t - 0.62) / 0.38).clamp(0.0, 1.0));
+    final flight =
+        (t / 0.45).clamp(0.0, 1.0) * (1 - ((t - 0.62) / 0.38).clamp(0.0, 1.0));
     final sigma = kGooBlurRest + (kGooBlurActive - kGooBlurRest) * flight;
     final a = anchor.shift(-origin);
 
@@ -152,8 +152,7 @@ class DialGooPainter extends CustomPainter {
           // painted over by goo beads.
           final neckFrom = neckStartRadius <= 0
               ? a.center
-              : a.center +
-                  (centre - a.center).normalized * neckStartRadius;
+              : a.center + (centre - a.center).normalized * neckStartRadius;
           drawNeck(
             c,
             paint,

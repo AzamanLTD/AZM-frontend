@@ -15,17 +15,17 @@ import 'package:azaman/services/nearby_location_tracker.dart';
 ///   • every delivered event passed the guards and reached onPosition.
 
 Position _pos(double lat) => Position(
-      longitude: -0.19,
-      latitude: lat,
-      timestamp: DateTime.now(),
-      accuracy: 10,
-      altitude: 0,
-      altitudeAccuracy: 0,
-      heading: 0,
-      headingAccuracy: 0,
-      speed: 0,
-      speedAccuracy: 0,
-    );
+  longitude: -0.19,
+  latitude: lat,
+  timestamp: DateTime.now(),
+  accuracy: 10,
+  altitude: 0,
+  altitudeAccuracy: 0,
+  heading: 0,
+  headingAccuracy: 0,
+  speed: 0,
+  speedAccuracy: 0,
+);
 
 void main() {
   test('delivers live events to onPosition', () async {
@@ -45,53 +45,60 @@ void main() {
     await controller.close();
   });
 
-  test('start() is idempotent — no duplicate subscription, no dup events',
-      () async {
-    final controller = StreamController<Position>.broadcast();
-    var factoryCalls = 0;
-    final received = <Position>[];
-    final tracker = NearbyLocationTracker(
-      streamFactory: (_) {
-        factoryCalls++;
-        return controller.stream;
-      },
-      onPosition: received.add,
-    );
+  test(
+    'start() is idempotent — no duplicate subscription, no dup events',
+    () async {
+      final controller = StreamController<Position>.broadcast();
+      var factoryCalls = 0;
+      final received = <Position>[];
+      final tracker = NearbyLocationTracker(
+        streamFactory: (_) {
+          factoryCalls++;
+          return controller.stream;
+        },
+        onPosition: received.add,
+      );
 
-    tracker.start();
-    tracker.start(); // second call must be a no-op
-    controller.add(_pos(5.6));
-    await Future<void>.delayed(Duration.zero);
+      tracker.start();
+      tracker.start(); // second call must be a no-op
+      controller.add(_pos(5.6));
+      await Future<void>.delayed(Duration.zero);
 
-    expect(factoryCalls, 1, reason: 'exactly one platform stream requested');
-    expect(received.length, 1, reason: 'one event delivered once');
-    tracker.dispose();
-    await controller.close();
-  });
+      expect(factoryCalls, 1, reason: 'exactly one platform stream requested');
+      expect(received.length, 1, reason: 'one event delivered once');
+      tracker.dispose();
+      await controller.close();
+    },
+  );
 
-  test('stop() drops every late event — an exited surface cannot re-fire',
-      () async {
-    final controller = StreamController<Position>();
-    final received = <Position>[];
-    final tracker = NearbyLocationTracker(
-      streamFactory: (_) => controller.stream,
-      onPosition: received.add,
-    );
+  test(
+    'stop() drops every late event — an exited surface cannot re-fire',
+    () async {
+      final controller = StreamController<Position>();
+      final received = <Position>[];
+      final tracker = NearbyLocationTracker(
+        streamFactory: (_) => controller.stream,
+        onPosition: received.add,
+      );
 
-    tracker.start();
-    tracker.stop();
+      tracker.start();
+      tracker.stop();
 
-    // Position lands after the user left the surface.
-    controller.add(_pos(5.6));
-    await Future<void>.delayed(Duration.zero);
-    controller.add(_pos(5.7));
-    await Future<void>.delayed(Duration.zero);
+      // Position lands after the user left the surface.
+      controller.add(_pos(5.6));
+      await Future<void>.delayed(Duration.zero);
+      controller.add(_pos(5.7));
+      await Future<void>.delayed(Duration.zero);
 
-    expect(received, isEmpty,
-        reason: 'positions after stop() must never reach the consumer');
-    expect(tracker.isRunning, isFalse);
-    await controller.close();
-  });
+      expect(
+        received,
+        isEmpty,
+        reason: 'positions after stop() must never reach the consumer',
+      );
+      expect(tracker.isRunning, isFalse);
+      await controller.close();
+    },
+  );
 
   test('restart() forms a fresh generation — a straggler from the cancelled '
       'subscription dies even after the restart', () async {

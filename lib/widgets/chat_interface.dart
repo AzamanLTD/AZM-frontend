@@ -14,7 +14,6 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/liquid/liquid_dropdown_menu.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 
-
 class ChatInterface extends ConsumerStatefulWidget {
   final IO.Socket socket;
   final String tradeId;
@@ -104,7 +103,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   }
 
   Future<void> _handlePick(ImageSource source) async {
-    final XFile? image = await _picker.pickImage(source: source, imageQuality: 70);
+    final XFile? image = await _picker.pickImage(
+      source: source,
+      imageQuality: 70,
+    );
     if (image == null) return;
     setState(() => _isUploading = true);
     final uploadedUrl = await _uploadImage(image.path);
@@ -140,7 +142,9 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         if (raw.contains('T') || raw.contains('-')) {
           final dt = DateTime.tryParse(raw)?.toLocal();
           if (dt != null) {
-            final h = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+            final h = dt.hour == 0
+                ? 12
+                : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
             final m = dt.minute.toString().padLeft(2, '0');
             final p = dt.hour >= 12 ? 'PM' : 'AM';
             return '$h:$m $p';
@@ -155,7 +159,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   // --- Render 3-state ticks ---
   Widget _statusTicks(String? status, AzamanColors colors) {
     if (status == 'sending') {
-      return Icon(Icons.access_time, size: 13, color: colors.textTertiary.withValues(alpha: 0.6));
+      return Icon(
+        Icons.access_time,
+        size: 13,
+        color: colors.textTertiary.withValues(alpha: 0.6),
+      );
     }
     if (status == 'failed') {
       return Icon(Icons.error_outline, size: 13, color: colors.danger);
@@ -164,10 +172,18 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       return Icon(Icons.check_circle_outline, size: 13, color: colors.accent);
     }
     if (status == 'delivered') {
-      return Icon(Icons.check_circle_outline, size: 13, color: colors.textTertiary);
+      return Icon(
+        Icons.check_circle_outline,
+        size: 13,
+        color: colors.textTertiary,
+      );
     }
     // sent or anything else
-    return Icon(Icons.check_circle_outline, size: 13, color: colors.textTertiary);
+    return Icon(
+      Icons.check_circle_outline,
+      size: 13,
+      color: colors.textTertiary,
+    );
   }
 
   @override
@@ -196,18 +212,23 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
               final bool isSystem = senderType == 'system';
 
               final String msgType = msg['type'] ?? 'text';
-              final bool isMilestone = msgType == 'milestone_warning' || (textContainsMilestone(msg['text']?.toString() ?? ''));
+              final bool isMilestone =
+                  msgType == 'milestone_warning' ||
+                  (textContainsMilestone(msg['text']?.toString() ?? ''));
               final bool isAdminIntervention = msgType == 'ADMIN_INTERVENTION';
               final bool isSystemUrgency = msgType == 'SYSTEM_URGENCY';
               final bool isOfflineVendor = msgType == 'OFFLINE_VENDOR';
 
               // Time extension cards — JSON-encoded content
-              final rawText = msg['text']?.toString() ?? msg['content']?.toString() ?? '';
-              if (rawText.contains('TIME_EXTENSION_REQUEST') || rawText.contains('TIME_EXTENSION_GRANTED')) {
+              final rawText =
+                  msg['text']?.toString() ?? msg['content']?.toString() ?? '';
+              if (rawText.contains('TIME_EXTENSION_REQUEST') ||
+                  rawText.contains('TIME_EXTENSION_GRANTED')) {
                 return _timeExtensionCard(msg, isMe, colors);
               }
 
-              if (isAdminIntervention) return _adminInterventionBubble(msg, colors);
+              if (isAdminIntervention)
+                return _adminInterventionBubble(msg, colors);
               if (isSystemUrgency) return _systemUrgencyBubble(msg, colors);
               if (isOfflineVendor) return _offlineVendorBanner(msg, colors);
               if (isAdmin) return _adminBanner(msg, colors);
@@ -223,48 +244,66 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         if (widget.isTyping)
           Padding(
             padding: const EdgeInsets.only(left: 20, bottom: 10),
-            child: Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: colors.card,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(3, (i) {
-                    return TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0.6, end: 1.0),
-                      duration: Duration(milliseconds: 400 + i * 200),
-                      builder: (_, val, __) {
-                        return Transform.scale(
-                          scale: val,
-                          child: Container(
-                            width: 6, height: 6,
-                            margin: const EdgeInsets.symmetric(horizontal: 2),
-                            decoration: BoxDecoration(
-                              color: colors.textTertiary,
-                              shape: BoxShape.circle,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: colors.card,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(3, (i) {
+                      return TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.6, end: 1.0),
+                        duration: Duration(milliseconds: 400 + i * 200),
+                        builder: (_, val, __) {
+                          return Transform.scale(
+                            scale: val,
+                            child: Container(
+                              width: 6,
+                              height: 6,
+                              margin: const EdgeInsets.symmetric(horizontal: 2),
+                              decoration: BoxDecoration(
+                                color: colors.textTertiary,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  }),
+                          );
+                        },
+                      );
+                    }),
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
           ),
 
         // 3. UPLOAD INDICATOR
         if (_isUploading)
           Padding(
             padding: const EdgeInsets.only(left: 20, bottom: 10),
-            child: Row(children: [
-              SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 2, color: colors.success)),
-              const SizedBox(width: 10),
-              Text("Uploading image...", style: TextStyle(color: colors.textSecondary, fontSize: 12)),
-            ]),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 10,
+                  height: 10,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.success,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  "Uploading image...",
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                ),
+              ],
+            ),
           ),
 
         // 4. INPUT BAR — Premium Fintech Chat Input (Phase Q5)
@@ -293,8 +332,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   // --- MILESTONE WARNING DETECTION ---
   bool textContainsMilestone(String text) {
     final lower = text.toLowerCase();
-    return lower.contains('1/3') || lower.contains('2/3') || lower.contains('3/3') ||
-        lower.contains('milestone') || lower.contains('time warning');
+    return lower.contains('1/3') ||
+        lower.contains('2/3') ||
+        lower.contains('3/3') ||
+        lower.contains('milestone') ||
+        lower.contains('time warning');
   }
 
   int _extractMilestonePart(String text) {
@@ -305,7 +347,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   }
 
   // --- TIME EXTENSION CARD (inline message bubble) ---
-  Widget _timeExtensionCard(Map<String, dynamic> msg, bool isMe, AzamanColors colors) {
+  Widget _timeExtensionCard(
+    Map<String, dynamic> msg,
+    bool isMe,
+    AzamanColors colors,
+  ) {
     final raw = msg['text']?.toString() ?? msg['content']?.toString() ?? '';
     Map<String, dynamic>? data;
     try {
@@ -355,14 +401,18 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       // PENDING request
       accentColor = const Color(0xFFFFB800);
       icon = Icons.access_time;
-      title = isVendor ? 'Time Extension Requested' : 'Awaiting Vendor Response';
+      title = isVendor
+          ? 'Time Extension Requested'
+          : 'Awaiting Vendor Response';
       subtitle = '+$addedMinutes minutes requested';
     }
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
         margin: const EdgeInsets.symmetric(vertical: 5),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -384,17 +434,29 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: TextStyle(color: accentColor, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.3),
+                  style: TextStyle(
+                    color: accentColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: TextStyle(color: colors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             // Buttons only render for the VENDOR while the request is still PENDING.
-            if (isRequest && status == 'PENDING' && isVendor && messageId != null) ...[
+            if (isRequest &&
+                status == 'PENDING' &&
+                isVendor &&
+                messageId != null) ...[
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -404,22 +466,40 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: colors.divider),
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: Text('Decline', style: TextStyle(color: colors.textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'Decline',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => _approveTimeRequest(addedMinutes, messageId),
+                      onPressed: () =>
+                          _approveTimeRequest(addedMinutes, messageId),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: accentColor,
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      child: Text('Grant +$addedMinutes', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'Grant +$addedMinutes',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -436,13 +516,19 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
     );
   }
 
-  Future<void> _approveTimeRequest(int minutes, dynamic requestMessageId) async {
+  Future<void> _approveTimeRequest(
+    int minutes,
+    dynamic requestMessageId,
+  ) async {
     // Optimistically flip this request's status to APPROVED so the
     // buttons disappear immediately on this device. The BE will also
     // emit `message_updated` for cross-device parity, but the local
     // flip prevents the duplicate-tap window between the API call and
     // the socket round-trip.
-    final originalContent = _flipRequestStatusLocally(requestMessageId, 'APPROVED');
+    final originalContent = _flipRequestStatusLocally(
+      requestMessageId,
+      'APPROVED',
+    );
     try {
       final response = await apiClient.post('/trades/extend', {
         'tradeId': widget.tradeId,
@@ -452,7 +538,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       });
       if (response.statusCode == 200 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✓ Granted +$minutes min'), backgroundColor: const Color(0xFF02C076)),
+          SnackBar(
+            content: Text('✓ Granted +$minutes min'),
+            backgroundColor: const Color(0xFF02C076),
+          ),
         );
       } else if (response.statusCode == 409) {
         // Already responded — keep optimistic state, that's fine.
@@ -463,7 +552,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: ${response.body}'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('Failed: ${response.body}'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -480,7 +572,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   }
 
   Future<void> _declineTimeRequest(dynamic requestMessageId) async {
-    final originalContent = _flipRequestStatusLocally(requestMessageId, 'DECLINED');
+    final originalContent = _flipRequestStatusLocally(
+      requestMessageId,
+      'DECLINED',
+    );
     try {
       final response = await apiClient.post('/trades/extend/respond', {
         'tradeId': widget.tradeId,
@@ -489,7 +584,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       });
       if (response.statusCode == 200 && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Request declined'), backgroundColor: Color(0xFFEF4444)),
+          const SnackBar(
+            content: Text('Request declined'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
         );
       } else if (response.statusCode == 409) {
         // Already responded — keep optimistic state.
@@ -499,7 +597,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: ${response.body}'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('Failed: ${response.body}'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -604,7 +705,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           const SizedBox(height: 6),
           Text(
             timeStr,
-            style: TextStyle(color: baseColor.withValues(alpha: 0.6), fontSize: 10),
+            style: TextStyle(
+              color: baseColor.withValues(alpha: 0.6),
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -664,7 +768,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                 ),
                 child: Text(
                   'LVL $urgency',
-                  style: TextStyle(color: baseColor, fontSize: 9, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: baseColor,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -683,7 +791,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           const SizedBox(height: 8),
           Text(
             timeStr,
-            style: TextStyle(color: baseColor.withValues(alpha: 0.6), fontSize: 10),
+            style: TextStyle(
+              color: baseColor.withValues(alpha: 0.6),
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -692,7 +803,8 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
 
   // --- OFFLINE VENDOR WARNING ---
   Widget _offlineVendorBanner(Map<String, dynamic> msg, AzamanColors colors) {
-    final String text = (msg['text'] ?? 'Vendor appears to be offline').toString();
+    final String text = (msg['text'] ?? 'Vendor appears to be offline')
+        .toString();
     final String timeStr = _formatTime(msg['time'] ?? msg['createdAt']);
 
     return Container(
@@ -701,7 +813,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       decoration: BoxDecoration(
         color: colors.warning.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.warning.withValues(alpha: 0.5), width: 1.5),
+        border: Border.all(
+          color: colors.warning.withValues(alpha: 0.5),
+          width: 1.5,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -736,7 +851,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           const SizedBox(height: 6),
           Text(
             timeStr,
-            style: TextStyle(color: colors.warning.withValues(alpha: 0.6), fontSize: 10),
+            style: TextStyle(
+              color: colors.warning.withValues(alpha: 0.6),
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -744,7 +862,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
   }
 
   // --- ADMIN INTERVENTION BUBBLE ---
-  Widget _adminInterventionBubble(Map<String, dynamic> msg, AzamanColors colors) {
+  Widget _adminInterventionBubble(
+    Map<String, dynamic> msg,
+    AzamanColors colors,
+  ) {
     final String text = (msg['text'] ?? '').toString();
     final String timeStr = _formatTime(msg['time'] ?? msg['createdAt']);
 
@@ -769,7 +890,10 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: colors.accent,
                   borderRadius: BorderRadius.circular(12),
@@ -777,7 +901,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_circle_outline, size: 14, color: colors.isDark ? Colors.black : Colors.white),
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 14,
+                      color: colors.isDark ? Colors.black : Colors.white,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'ADMIN',
@@ -816,7 +944,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
               const SizedBox(width: 4),
               Text(
                 'Admin Intervention',
-                style: TextStyle(color: colors.accent, fontSize: 10, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: colors.accent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const Spacer(),
               Text(
@@ -843,21 +975,41 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.error_outline, color: colors.danger, size: 16),
-            const SizedBox(width: 5),
-            Text("SYSTEM ADMIN",
-                style: TextStyle(color: colors.danger, fontWeight: FontWeight.w900, letterSpacing: 1.2, fontSize: 11)),
-          ]),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: colors.danger, size: 16),
+              const SizedBox(width: 5),
+              Text(
+                "SYSTEM ADMIN",
+                style: TextStyle(
+                  color: colors.danger,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Text(
             msg['text'] ?? '',
             textAlign: TextAlign.center,
-            style: TextStyle(color: colors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold, height: 1.4),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 6),
-          Text(_formatTime(msg['time'] ?? msg['createdAt']),
-              style: TextStyle(color: colors.danger.withValues(alpha: 0.6), fontSize: 10)),
+          Text(
+            _formatTime(msg['time'] ?? msg['createdAt']),
+            style: TextStyle(
+              color: colors.danger.withValues(alpha: 0.6),
+              fontSize: 10,
+            ),
+          ),
         ],
       ),
     );
@@ -876,7 +1028,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
       child: Text(
         msg['text'] ?? '',
         textAlign: TextAlign.center,
-        style: TextStyle(color: colors.accent, fontSize: 12, fontWeight: FontWeight.w600),
+        style: TextStyle(
+          color: colors.accent,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -890,14 +1046,20 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
     final String? senderName = msg['senderName']?.toString();
 
     final Color bubbleColor = isMe ? colors.accent : colors.card;
-    final Color textColor = isMe ? (colors.isDark ? Colors.black : Colors.white) : colors.textPrimary;
-    final Color metaColor = isMe ? (colors.isDark ? Colors.black54 : Colors.white70) : colors.textTertiary;
+    final Color textColor = isMe
+        ? (colors.isDark ? Colors.black : Colors.white)
+        : colors.textPrimary;
+    final Color metaColor = isMe
+        ? (colors.isDark ? Colors.black54 : Colors.white70)
+        : colors.textTertiary;
 
     return Align(
       alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
         decoration: BoxDecoration(
           color: bubbleColor,
           borderRadius: BorderRadius.only(
@@ -923,7 +1085,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Row(
                           children: [
-                            Icon(Icons.person_outline, size: 12, color: isMe ? metaColor : colors.textSecondary),
+                            Icon(
+                              Icons.person_outline,
+                              size: 12,
+                              color: isMe ? metaColor : colors.textSecondary,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Sender Account Name: $senderName',
@@ -938,20 +1104,42 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                       ),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: AzamanNetworkImage(imageUrl: 
-                        mediaUrl.startsWith('http') ? mediaUrl : '${AppConfig.baseUrl}$mediaUrl',
-                        height: 180, width: 200, fit: BoxFit.cover,
+                      child: AzamanNetworkImage(
+                        imageUrl: mediaUrl.startsWith('http')
+                            ? mediaUrl
+                            : '${AppConfig.baseUrl}$mediaUrl',
+                        height: 180,
+                        width: 200,
+                        fit: BoxFit.cover,
                         placeholder: (c, url) => Container(
-                            height: 180, width: 200, color: colors.background,
-                            child: Center(child: CircularProgressIndicator(color: colors.accent, strokeWidth: 2)),
+                          height: 180,
+                          width: 200,
+                          color: colors.background,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: colors.accent,
+                              strokeWidth: 2,
+                            ),
                           ),
+                        ),
                         errorWidget: (context, error, stackTrace) {
                           if (File(mediaUrl).existsSync()) {
-                            return Image.file(File(mediaUrl), height: 180, width: 200, fit: BoxFit.cover);
+                            return Image.file(
+                              File(mediaUrl),
+                              height: 180,
+                              width: 200,
+                              fit: BoxFit.cover,
+                            );
                           }
                           return Container(
-                            height: 180, width: 200, color: colors.background,
-                            child: Icon(Icons.image_outlined, color: colors.textTertiary, size: 36),
+                            height: 180,
+                            width: 200,
+                            color: colors.background,
+                            child: Icon(
+                              Icons.image_outlined,
+                              color: colors.textTertiary,
+                              size: 36,
+                            ),
                           );
                         },
                       ),
@@ -964,7 +1152,11 @@ class _ChatInterfaceState extends ConsumerState<ChatInterface> {
                 padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                 child: Text(
                   text,
-                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             const SizedBox(height: 4),
@@ -1043,7 +1235,6 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
       setState(() => _hasText = hasText);
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -1131,7 +1322,9 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
           Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _hasText ? accentColor : accentColor.withValues(alpha: 0.3),
+              color: _hasText
+                  ? accentColor
+                  : accentColor.withValues(alpha: 0.3),
             ),
             child: IconButton(
               icon: widget.isUploading
@@ -1150,7 +1343,9 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
                           : (c.isDark ? Colors.black45 : Colors.white60),
                       size: 20,
                     ),
-              onPressed: (_hasText && !widget.isUploading) ? widget.onSend : null,
+              onPressed: (_hasText && !widget.isUploading)
+                  ? widget.onSend
+                  : null,
             ),
           ),
         ],
@@ -1158,7 +1353,6 @@ class _PremiumChatInputState extends State<_PremiumChatInput> {
     );
   }
 }
-
 
 class VendorPayeeDetails extends ConsumerWidget {
   final String paymentMethod;
@@ -1211,8 +1405,11 @@ class VendorPayeeDetails extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.account_balance_wallet_outlined,
-                  size: 16, color: colors.accent),
+              Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 16,
+                color: colors.accent,
+              ),
               const SizedBox(width: 8),
               Text(
                 'VENDOR PAYMENT INFO',
@@ -1274,17 +1471,20 @@ class VendorPayeeDetails extends ConsumerWidget {
                     side: BorderSide(color: colors.accent),
                     foregroundColor: colors.accent,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 10),
                   ),
                   icon: const Icon(Icons.copy_outlined, size: 16),
-                  label: const Text('Copy Tag',
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 12)),
+                  label: const Text(
+                    'Copy Tag',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
                   onPressed: () {
                     HapticFeedback.selectionClick();
-                    Clipboard.setData(ClipboardData(
-                        text: '$accountLabel\n$accountDetail'));
+                    Clipboard.setData(
+                      ClipboardData(text: '$accountLabel\n$accountDetail'),
+                    );
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text('Account details copied'),
@@ -1301,17 +1501,21 @@ class VendorPayeeDetails extends ConsumerWidget {
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.accent,
-                      foregroundColor:
-                          colors.isDark ? Colors.black : Colors.white,
+                      foregroundColor: colors.isDark
+                          ? Colors.black
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
                     icon: const Icon(Icons.share_outlined, size: 16),
                     label: Text(
                       'Open ${_appLabel(paymentMethod)}',
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 12),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
                     onPressed: () => _launchDeepLink(link),
                   ),
@@ -1324,14 +1528,12 @@ class VendorPayeeDetails extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline,
-                    size: 14, color: colors.textTertiary),
+                Icon(Icons.info_outline, size: 14, color: colors.textTertiary),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     termsNote!,
-                    style: TextStyle(
-                        color: colors.textTertiary, fontSize: 11),
+                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
                   ),
                 ),
               ],

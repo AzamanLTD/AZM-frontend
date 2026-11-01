@@ -19,13 +19,21 @@ import 'package:azaman/widgets/marketplace/nearby_outcome.dart';
 
 void _nop() {}
 
-Widget _wrap(Widget child) =>
-    ProviderScope(child: MaterialApp(home: Scaffold(body: child)));
+Widget _wrap(Widget child) => ProviderScope(
+  child: MaterialApp(home: Scaffold(body: child)),
+);
 
 void main() {
-  testWidgets('failure: error non-null renders the failure state, not empty', (tester) async {
+  testWidgets('failure: error non-null renders the failure state, not empty', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      _wrap(const NearbyOutcome(error: 'FormatException: bad payload', onRetry: _nop)),
+      _wrap(
+        const NearbyOutcome(
+          error: 'FormatException: bad payload',
+          onRetry: _nop,
+        ),
+      ),
     );
 
     expect(find.byKey(const Key('nearby-outcome-failure')), findsOneWidget);
@@ -35,7 +43,9 @@ void main() {
     expect(find.text('Retry'), findsOneWidget);
   });
 
-  testWidgets('failure: Retry fires the retry callback exactly once', (tester) async {
+  testWidgets('failure: Retry fires the retry callback exactly once', (
+    tester,
+  ) async {
     var retries = 0;
     await tester.pumpWidget(
       _wrap(NearbyOutcome(error: 'SocketException', onRetry: () => retries++)),
@@ -47,17 +57,24 @@ void main() {
     expect(retries, 1);
   });
 
-  testWidgets('failure: the Retry target meets the 44dp touch minimum', (tester) async {
+  testWidgets('failure: the Retry target meets the 44dp touch minimum', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrap(NearbyOutcome(error: 'timeout', onRetry: () {})),
     );
 
     final size = tester.getSize(find.byType(TextButton));
-    expect(size.height, greaterThanOrEqualTo(44),
-        reason: 'Retry is a primary map control — 44dp touch target rule');
+    expect(
+      size.height,
+      greaterThanOrEqualTo(44),
+      reason: 'Retry is a primary map control — 44dp touch target rule',
+    );
   });
 
-  testWidgets('empty: success with zero results renders ONLY the empty state', (tester) async {
+  testWidgets('empty: success with zero results renders ONLY the empty state', (
+    tester,
+  ) async {
     await tester.pumpWidget(_wrap(const NearbyOutcome(error: null)));
 
     expect(find.byKey(const Key('nearby-outcome-empty')), findsOneWidget);

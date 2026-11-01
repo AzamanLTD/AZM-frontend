@@ -151,10 +151,7 @@ class AzmSpendNotifier extends StateNotifier<AzmSpendState> {
             );
           }).toList(),
         );
-        state = state.copyWith(
-          options: updatedOptions,
-          lastAdBoost: result,
-        );
+        state = state.copyWith(options: updatedOptions, lastAdBoost: result);
       } else {
         state = state.copyWith(lastAdBoost: result);
       }
@@ -209,7 +206,8 @@ class AzmSpendNotifier extends StateNotifier<AzmSpendState> {
 
 // ── Provider ─────────────────────────────────────────────────────────────────
 
-final azmSpendProvider =
-    StateNotifierProvider<AzmSpendNotifier, AzmSpendState>((ref) {
-  return AzmSpendNotifier();
-});
+final azmSpendProvider = StateNotifierProvider<AzmSpendNotifier, AzmSpendState>(
+  (ref) {
+    return AzmSpendNotifier();
+  },
+);

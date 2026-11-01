@@ -37,8 +37,9 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
   bool _rulesPromptShown = false;
   final _name = TextEditingController(text: 'My Vault');
   final _target = TextEditingController();
-  late DateTime _maturity =
-      (widget.now ?? DateTime.now)().add(const Duration(days: 30));
+  late DateTime _maturity = (widget.now ?? DateTime.now)().add(
+    const Duration(days: 30),
+  );
 
   bool _autoRule = false;
   String _autoFreq = 'WEEKLY';
@@ -191,8 +192,9 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: _maturity,
-                      firstDate: (widget.now ?? DateTime.now)()
-                          .add(const Duration(days: 1)),
+                      firstDate: (widget.now ?? DateTime.now)().add(
+                        const Duration(days: 1),
+                      ),
                       lastDate: DateTime.now().add(
                         const Duration(days: 365 * 3),
                       ),

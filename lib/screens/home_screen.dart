@@ -32,6 +32,7 @@ import 'package:go_router/go_router.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
+import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/az_space.dart';
@@ -39,7 +40,10 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
 import 'package:azaman/widgets/home/home_persistent_header.dart';
+import 'package:azaman/widgets/home/balance_card_pair.dart';
 import 'package:azaman/widgets/home/home_balance_card.dart';
+import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
+import 'package:azaman/widgets/home/money_lock_surface.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/widgets/home/az_typewriter_heading.dart';
 import 'package:azaman/widgets/home/az_refresh_reward.dart';
@@ -689,142 +693,152 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
                             // never competes with real gestures.
                             child: QuietDepthScope(
                               child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // WORKSTREAM A — the header is now a
-                                // PINNED band above the scroll view; the
-                                // column reserves exactly its height plus
-                                // the rhythm it always had (56 + 12 == the
-                                // old 8 + 44 + 16, so the typewriter lands
-                                // at the same y it always did).
-                                const SizedBox(
-                                  height: HomePersistentHeader.bandHeight +
-                                      AzSpace.md,
-                                ),
-
-                                // Block 1 — the typewriter greeting (§2).
-                                _stage(
-                                  1,
-                                  const AzTypewriterHeading(),
-                                  reduceMotion,
-                                ),
-
-                                // PR #154 measured first pass: 20 → 12
-                                // pulls the deck toward the greeting so the
-                                // first viewport lands more of the wallet
-                                // area above the fold.
-                                const SizedBox(height: AzSpace.md),
-
-                                // Block 2 — the balance hero + pull-reveal
-                                // Visa deck (§3-6). The balance card visual
-                                // is unchanged; what changed is everything
-                                // AROUND it.
-                                _stage(
-                                  2,
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AzSpace.lg,
-                                    ),
-                                    child: _DeckHost(key: _deckKey),
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // WORKSTREAM A — the header is now a
+                                  // PINNED band above the scroll view; the
+                                  // column reserves exactly its height plus
+                                  // the rhythm it always had (56 + 12 == the
+                                  // old 8 + 44 + 16, so the typewriter lands
+                                  // at the same y it always did).
+                                  const SizedBox(
+                                    height:
+                                        HomePersistentHeader.bandHeight +
+                                        AzSpace.md,
                                   ),
-                                  reduceMotion,
-                                ),
 
-                                // PR #154 measured first pass: 24 → 16
-                                // between the deck and the module row.
-                                const SizedBox(height: AzSpace.lg),
-
-                                // Block 3 — Save / P2P / Susu modules (§9).
-                                _stage(
-                                  3,
-                                  KeyedSubtree(
-                                    key: _walletModulesKey,
-                                    child: const WalletModulesRow(),
+                                  // Block 1 — the typewriter greeting (§2).
+                                  _stage(
+                                    1,
+                                    const AzTypewriterHeading(),
+                                    reduceMotion,
                                   ),
-                                  reduceMotion,
-                                ),
 
-                                // PASS B5 — breathing room above the
-                                // reminder deck. The deck's geometry is
-                                // FIXED from its first settled render
-                                // (no band measurement, no placeholder
-                                // growth): a stable strip, never a
-                                // hard-coded giant SizedBox.
-                                const SizedBox(height: AzSpace.xxl),
+                                  // PR #154 measured first pass: 20 → 12
+                                  // pulls the deck toward the greeting so the
+                                  // first viewport lands more of the wallet
+                                  // area above the fold.
+                                  const SizedBox(height: AzSpace.md),
 
-                                // PASS §4/§5 + B/D — the reminder deck:
-                                // real susu + marketplace signals,
-                                // shuffled by swipe, in a FIXED compact
-                                // geometry (front card + one next-card
-                                // peek + position dots). The dots are
-                                // the card-count indicator. Production
-                                // Home never fabricates content: with
-                                // no real signal the deck renders the
-                                // honest placeholder (owner direction —
-                                // the slot is never blank), and a demo
-                                // build seeds from the demo data. The
-                                // height is the measured §4 FILL so the
-                                // deck owns the band above the doorway
-                                // instead of floating thin in it. The
-                                // key lets the scroll handoff measure
-                                // the deck's peek geometry. PASS B6:
-                                // the deck sits in the SAME horizontal
-                                // inset as the balance card — edges
-                                // align, no independent magic width.
-                                _stage(
-                                  4,
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: AzSpace.lg,
-                                    ),
-                                    child: KeyedSubtree(
-                                      key: _reminderDeckKey,
-                                      child: HomeReminderDeck(
-                                        height:
-                                            HomeReminderDeck.naturalBand +
-                                            _deckFill,
+                                  // Block 2 — the balance hero + pull-reveal
+                                  // Visa deck (§3-6). The balance card visual
+                                  // is unchanged; what changed is everything
+                                  // AROUND it.
+                                  _stage(
+                                    2,
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AzSpace.lg,
                                       ),
-                                    ),
-                                  ),
-                                  reduceMotion,
-                                ),
-
-                                // UX-CORRECTION §6 + PASS B5: the
-                                // ADAPTIVE measured spacer. The deck is a
-                                // fixed strip; this gap is what keeps
-                                // the doorway at the bottom of the first
-                                // viewport (never mid-content, never a
-                                // hard-coded giant SizedBox).
-                                SizedBox(height: _doorwayGap),
-
-                                // Block 4 — the Recent Activity doorway
-                                // (§10). No transaction rows live on the
-                                // resting Home, and (§6) the doorway is no
-                                // longer the drag surface — the Home page's
-                                // own bottom overscroll drives the handoff.
-                                // The doorway stays tappable as the
-                                // explicit fallback.
-                                //
-                                // TASK-B: the measurement key sits on a
-                                // _LayoutMarker OUTSIDE the entrance
-                                // transform — the marker's render box reports
-                                // the doorway's LAYOUT position from the
-                                // first frame, immune to the slide-in
-                                // transform applied to the visual doorway.
-                                _LayoutMarker(
-                                  key: _doorwayKey,
-                                  child: _stage(
-                                    5,
-                                    RecentActivityDoorway(
-                                      onOpen: _enterActivity,
-                                      progress: t,
-                                      armed: _handoffArmedDepth,
-                                      reduceMotion: reduceMotion,
+                                      // OWNER REQUIREMENT (2026-10-30): the
+                                      // Balance and Visa cards stay tucked in
+                                      // the pouch while money is locked. The
+                                      // deck is NEVER replaced — the gate now
+                                      // lives inside the cards (masked figures,
+                                      // refused reveals), so the pouch, the
+                                      // artwork and the 180dp doorway the
+                                      // measurement below depends on all keep
+                                      // their exact geometry.
+                                      child: _DeckHost(key: _deckKey),
                                     ),
                                     reduceMotion,
                                   ),
-                                ),
-                              ],
+
+                                  // PR #154 measured first pass: 24 → 16
+                                  // between the deck and the module row.
+                                  const SizedBox(height: AzSpace.lg),
+
+                                  // Block 3 — Save / P2P / Susu modules (§9).
+                                  _stage(
+                                    3,
+                                    KeyedSubtree(
+                                      key: _walletModulesKey,
+                                      child: const WalletModulesRow(),
+                                    ),
+                                    reduceMotion,
+                                  ),
+
+                                  // PASS B5 — breathing room above the
+                                  // reminder deck. The deck's geometry is
+                                  // FIXED from its first settled render
+                                  // (no band measurement, no placeholder
+                                  // growth): a stable strip, never a
+                                  // hard-coded giant SizedBox.
+                                  const SizedBox(height: AzSpace.xxl),
+
+                                  // PASS §4/§5 + B/D — the reminder deck:
+                                  // real susu + marketplace signals,
+                                  // shuffled by swipe, in a FIXED compact
+                                  // geometry (front card + one next-card
+                                  // peek + position dots). The dots are
+                                  // the card-count indicator. Production
+                                  // Home never fabricates content: with
+                                  // no real signal the deck renders the
+                                  // honest placeholder (owner direction —
+                                  // the slot is never blank), and a demo
+                                  // build seeds from the demo data. The
+                                  // height is the measured §4 FILL so the
+                                  // deck owns the band above the doorway
+                                  // instead of floating thin in it. The
+                                  // key lets the scroll handoff measure
+                                  // the deck's peek geometry. PASS B6:
+                                  // the deck sits in the SAME horizontal
+                                  // inset as the balance card — edges
+                                  // align, no independent magic width.
+                                  _stage(
+                                    4,
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: AzSpace.lg,
+                                      ),
+                                      child: KeyedSubtree(
+                                        key: _reminderDeckKey,
+                                        child: HomeReminderDeck(
+                                          height:
+                                              HomeReminderDeck.naturalBand +
+                                              _deckFill,
+                                        ),
+                                      ),
+                                    ),
+                                    reduceMotion,
+                                  ),
+
+                                  // UX-CORRECTION §6 + PASS B5: the
+                                  // ADAPTIVE measured spacer. The deck is a
+                                  // fixed strip; this gap is what keeps
+                                  // the doorway at the bottom of the first
+                                  // viewport (never mid-content, never a
+                                  // hard-coded giant SizedBox).
+                                  SizedBox(height: _doorwayGap),
+
+                                  // Block 4 — the Recent Activity doorway
+                                  // (§10). No transaction rows live on the
+                                  // resting Home, and (§6) the doorway is no
+                                  // longer the drag surface — the Home page's
+                                  // own bottom overscroll drives the handoff.
+                                  // The doorway stays tappable as the
+                                  // explicit fallback.
+                                  //
+                                  // TASK-B: the measurement key sits on a
+                                  // _LayoutMarker OUTSIDE the entrance
+                                  // transform — the marker's render box reports
+                                  // the doorway's LAYOUT position from the
+                                  // first frame, immune to the slide-in
+                                  // transform applied to the visual doorway.
+                                  _LayoutMarker(
+                                    key: _doorwayKey,
+                                    child: _stage(
+                                      5,
+                                      RecentActivityDoorway(
+                                        onOpen: _enterActivity,
+                                        progress: t,
+                                        armed: _handoffArmedDepth,
+                                        reduceMotion: reduceMotion,
+                                      ),
+                                      reduceMotion,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -967,9 +981,30 @@ class _DeckHostState extends ConsumerState<_DeckHost>
   // not just this constant.
   static const double _cardHeight = 180;
 
+  /// The app-wide money gate. Read (not cached) at every gesture so a relock
+  /// is honoured on the very next touch.
+  bool get _moneyLocked => !ref.read(moneyAccessProvider).canViewMoney;
+
+  /// A locked member reaching for a card: short haptic, one shake, and the
+  /// hint that points at the Azaman lock. No pose change, no route, no queued
+  /// action — the unlock path stays the launcher.
+  void _refuse() {
+    if (!mounted) return;
+    blockedMoneyAccessFeedback(ref);
+    showMoneyLockedHint(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
+    final moneyLocked = !ref.watch(moneyAccessProvider).canViewMoney;
+
+    // A relock (background, logout, tab change, explicit lock) must also drop
+    // the Visa detail panel and return the deck to the pouch: the gate closing
+    // is the same event as _relockNow().
+    ref.listen<MoneyAccessController>(moneyAccessProvider, (previous, next) {
+      if (!next.canViewMoney) _relockNow();
+    });
 
     // AUDIT §7 — MainWrapper keeps pages mounted, so an unlock can never be
     // treated as indefinitely valid. The INSTANT Home stops being the
@@ -979,40 +1014,47 @@ class _DeckHostState extends ConsumerState<_DeckHost>
       if (!next) _relockNow();
     });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        VisaTransferSeamAnchor(
-          visible: _deckState == WalletDeckState.tucked,
-          onTransfer: () => context.push(AzRoutes.cardTransfer),
-          child: WalletCardDeck(
-            key: _deckKey,
-            cardHeight: _cardHeight,
-            // WALLET POUCH follow-up: the old TapHintOverlay is REMOVED —
-            // its hand animation played invisibly behind the opaque pouch
-            // (the deck's exposed headers already teach tap-to-select).
-            // No perpetual ambient animation replaces it.
-            balanceCard: const HomeBalanceCard(),
-            visaCard: const AzmVisaCard(),
-            onStateChanged: _onDeckStateChanged,
-          ),
-        ),
-        // §6: sensitive card content appears ONLY after the gate passes.
-        if (_detailsUnlocked)
-          Padding(
-            padding: const EdgeInsets.only(top: AzSpace.md),
-            child: Container(
-              padding: const EdgeInsets.all(AzSpace.lg),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: AzmCardDetailsPanel(
-                programme: ref.read(azmCardProgrammeProvider),
-              ),
+    return MoneyLockShake(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          VisaTransferSeamAnchor(
+            visible: _deckState == WalletDeckState.tucked,
+            // Card Transfer is a protected action: while locked the clasp
+            // refuses instead of opening a money route.
+            onTransfer: () =>
+                moneyLocked ? _refuse() : context.push(AzRoutes.cardTransfer),
+            child: WalletCardDeck(
+              key: _deckKey,
+              cardHeight: _cardHeight,
+              // WALLET POUCH follow-up: the old TapHintOverlay is REMOVED —
+              // its hand animation played invisibly behind the opaque pouch
+              // (the deck's exposed headers already teach tap-to-select).
+              // No perpetual ambient animation replaces it.
+              balanceCard: const HomeBalanceCard(),
+              visaCard: const AzmVisaCard(),
+              onStateChanged: _onDeckStateChanged,
+              interactionLocked: moneyLocked,
+              onLockedInteraction: _refuse,
             ),
           ),
-      ],
+          // §6: sensitive card content appears ONLY after the gate passes.
+          if (_detailsUnlocked)
+            Padding(
+              padding: const EdgeInsets.only(top: AzSpace.md),
+              child: Container(
+                padding: const EdgeInsets.all(AzSpace.lg),
+                decoration: BoxDecoration(
+                  color: colors.card,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: AzmCardDetailsPanel(
+                  programme: ref.read(azmCardProgrammeProvider),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1089,7 +1131,6 @@ class _DeckHostState extends ConsumerState<_DeckHost>
     }
   }
 }
-
 
 /// EXPERIENCE PASS §6/§7 — clips the wallet composition to its top [height]
 /// so the handoff slides it under the screen edge instead of fading it out.

@@ -23,7 +23,6 @@ import 'package:azaman/providers/marketplace_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:go_router/go_router.dart';
 
-
 class WaitingRoomScreen extends ConsumerStatefulWidget {
   final int queuePosition;
   final String queueId;
@@ -120,7 +119,9 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Your turn! A trade slot is now open. Tap the ad to start.'),
+          content: Text(
+            'Your turn! A trade slot is now open. Tap the ad to start.',
+          ),
           behavior: SnackBarBehavior.floating,
           duration: Duration(seconds: 4),
         ),
@@ -150,7 +151,9 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Your turn! A trade slot is now open. Tap the ad to start.'),
+            content: Text(
+              'Your turn! A trade slot is now open. Tap the ad to start.',
+            ),
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 4),
           ),
@@ -319,10 +322,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
                 _currentPosition == 1
                     ? "You're next \u2014 prepare for trade."
                     : '${_currentPosition - 1} buyers ahead of you',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: colors.textTertiary, fontSize: 13),
               ),
             ],
           ),
@@ -337,9 +337,7 @@ class _WaitingRoomScreenState extends ConsumerState<WaitingRoomScreen>
       decoration: BoxDecoration(
         color: colors.warning.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colors.warning.withValues(alpha: 0.25),
-        ),
+        border: Border.all(color: colors.warning.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

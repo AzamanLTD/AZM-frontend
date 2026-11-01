@@ -28,7 +28,8 @@ class AnimatedQrDust extends StatefulWidget {
   final Color inkColor;
   final Color backgroundColor;
   final int errorCorrectLevel;
-  final int dustGrid; // subdivision per module (8 = 8×8 particles per dark module)
+  final int
+  dustGrid; // subdivision per module (8 = 8×8 particles per dark module)
 
   const AnimatedQrDust({
     super.key,
@@ -62,7 +63,9 @@ class _AnimatedQrDustState extends State<AnimatedQrDust>
   void initState() {
     super.initState();
 
-    _reducedMotion = WidgetsBinding.instance.platformDispatcher
+    _reducedMotion = WidgetsBinding
+        .instance
+        .platformDispatcher
         .accessibilityFeatures
         .reduceMotion;
 
@@ -129,19 +132,24 @@ class _AnimatedQrDustState extends State<AnimatedQrDust>
             final scatterY = math.sin(scatterAngle) * scatterRadius;
 
             // Launch position: bottom of the stage + module offset + scatter
-            final startX = launchX + (moduleX + _moduleSize / 2 - launchX) * 0.3 + scatterX;
+            final startX =
+                launchX +
+                (moduleX + _moduleSize / 2 - launchX) * 0.3 +
+                scatterX;
             final startY = launchY;
 
-            particles.add(_Particle(
-              startX: startX,
-              startY: startY,
-              targetX: targetX,
-              targetY: targetY,
-              scatterX: scatterX,
-              scatterY: scatterY,
-              tile: dustTile,
-              dist: dist,
-            ));
+            particles.add(
+              _Particle(
+                startX: startX,
+                startY: startY,
+                targetX: targetX,
+                targetY: targetY,
+                scatterX: scatterX,
+                scatterY: scatterY,
+                tile: dustTile,
+                dist: dist,
+              ),
+            );
           }
         }
       }
@@ -311,12 +319,15 @@ class _DustPainter extends CustomPainter {
       } else {
         // In flight: interpolate position with scatter fading out
         final scatterFactor = 1 - eased;
-        final x = p.startX + (p.targetX - p.startX) * eased + p.scatterX * scatterFactor;
-        final y = p.startY + (p.targetY - p.startY) * eased + p.scatterY * scatterFactor;
-        canvas.drawRect(
-          Rect.fromLTWH(x, y, p.tile, p.tile),
-          inkPaint,
-        );
+        final x =
+            p.startX +
+            (p.targetX - p.startX) * eased +
+            p.scatterX * scatterFactor;
+        final y =
+            p.startY +
+            (p.targetY - p.startY) * eased +
+            p.scatterY * scatterFactor;
+        canvas.drawRect(Rect.fromLTWH(x, y, p.tile, p.tile), inkPaint);
       }
     }
 

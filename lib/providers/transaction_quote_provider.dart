@@ -53,11 +53,12 @@ final transactionQuoteServiceProvider = Provider<TransactionQuoteService>(
 
 /// Creates a server-issued, short-lived quote. `purpose` separates independent
 /// purchase/deposit flows so a quote cannot accidentally be reused across them.
-final transactionQuoteProvider = FutureProvider.family<
-    TransactionQuote,
-    ({String purpose, double amountGhs})>((ref, args) {
-  return ref.read(transactionQuoteServiceProvider).createQuote(
-        purpose: args.purpose,
-        amountGhs: args.amountGhs,
-      );
-});
+final transactionQuoteProvider =
+    FutureProvider.family<
+      TransactionQuote,
+      ({String purpose, double amountGhs})
+    >((ref, args) {
+      return ref
+          .read(transactionQuoteServiceProvider)
+          .createQuote(purpose: args.purpose, amountGhs: args.amountGhs);
+    });

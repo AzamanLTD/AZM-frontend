@@ -78,8 +78,8 @@ class LargeTextDeckSheet extends ConsumerWidget {
     final secondaryLabel = v.availableUsdcEquivalent != null
         ? '\u2248 ${AzMoney.amount(v.availableUsdcEquivalent!)} USDC'
         : (ghsKnown
-            ? null // GHS known, FX not — the rate line owns the story.
-            : 'GHS balance unavailable');
+              ? null // GHS known, FX not — the rate line owns the story.
+              : 'GHS balance unavailable');
 
     // The deck's reminders, derived by the SAME shared function the
     // reminder deck renders from — one source of truth, no duplicated
@@ -173,7 +173,8 @@ class LargeTextDeckSheet extends ConsumerWidget {
                                 // headline above stays fully visible.
                                 'FX rate unavailable',
                                 key: const ValueKey(
-                                    'deck-sheet-rate-unavailable'),
+                                  'deck-sheet-rate-unavailable',
+                                ),
                                 style: AzText.body.copyWith(
                                   color: colors.textTertiary,
                                 ),
@@ -238,8 +239,9 @@ class LargeTextDeckSheet extends ConsumerWidget {
                         children: [
                           for (final card in reminders)
                             Padding(
-                              padding:
-                                  const EdgeInsets.only(bottom: AzSpace.sm),
+                              padding: const EdgeInsets.only(
+                                bottom: AzSpace.sm,
+                              ),
                               child: Text(
                                 '${card.eyebrow} — ${card.title}\n${card.subtitle}',
                                 style: AzText.body.copyWith(
@@ -301,11 +303,7 @@ class _Section extends StatelessWidget {
 /// the guard on pointer-down and the flip listener cedes on pointer-up —
 /// tapping the affordance opens the sheet WITHOUT also flipping the card.
 class LargeTextDeckButton extends ConsumerWidget {
-  const LargeTextDeckButton({
-    super.key,
-    this.flipGuard,
-    this.ambientScaler,
-  });
+  const LargeTextDeckButton({super.key, this.flipGuard, this.ambientScaler});
 
   final ValueNotifier<bool>? flipGuard;
 

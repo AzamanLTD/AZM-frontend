@@ -32,8 +32,9 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
   /// GHS estimate line beneath the field — display, never authority.
   double get _parsedAmount => double.tryParse(_amount.text.trim()) ?? 0;
   String _frequency = 'WEEKLY';
-  late DateTime _startDate =
-      (widget.now ?? DateTime.now)().add(const Duration(days: 1));
+  late DateTime _startDate = (widget.now ?? DateTime.now)().add(
+    const Duration(days: 1),
+  );
   bool _busy = false;
 
   @override
@@ -148,8 +149,9 @@ class _SusuConfigScreenState extends ConsumerState<SusuConfigScreen> {
                     context: context,
                     initialDate: _startDate,
                     firstDate: (widget.now ?? DateTime.now)(),
-                    lastDate: (widget.now ?? DateTime.now)()
-                        .add(const Duration(days: 365)),
+                    lastDate: (widget.now ?? DateTime.now)().add(
+                      const Duration(days: 365),
+                    ),
                   );
                   if (picked != null) setState(() => _startDate = picked);
                 },

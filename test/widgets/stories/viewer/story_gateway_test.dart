@@ -29,13 +29,10 @@ void main() {
   group('capability truth', () {
     test('exactly view + boost map to real backend routes', () {
       // routes/storyRoutes.js has POST /:id/view and POST /:id/boost only.
-      expect(
-        HttpStoryGateway().capabilities,
-        const {
-          StoryCapability.view,
-          StoryCapability.boost,
-        },
-      );
+      expect(HttpStoryGateway().capabilities, const {
+        StoryCapability.view,
+        StoryCapability.boost,
+      });
     });
 
     test('reply, react, share, viewers are NOT capabilities', () {
@@ -73,15 +70,18 @@ void main() {
   });
 
   group('markViewed', () {
-    test('posts once per story id per session, regardless of repeats', () async {
-      final port = _RecordingFeedPort();
-      final gateway = HttpStoryGateway(feedPort: port);
-      await gateway.markViewed('a');
-      await gateway.markViewed('a');
-      await gateway.markViewed('b');
-      await gateway.markViewed('a');
-      expect(port.viewed, ['a', 'b']);
-    });
+    test(
+      'posts once per story id per session, regardless of repeats',
+      () async {
+        final port = _RecordingFeedPort();
+        final gateway = HttpStoryGateway(feedPort: port);
+        await gateway.markViewed('a');
+        await gateway.markViewed('a');
+        await gateway.markViewed('b');
+        await gateway.markViewed('a');
+        expect(port.viewed, ['a', 'b']);
+      },
+    );
   });
 
   group('boost', () {
@@ -102,8 +102,9 @@ void main() {
     });
 
     test('runtime failure is AzFailed, not fabricated success', () async {
-      final gateway =
-          HttpStoryGateway(feedPort: _RecordingFeedPort(failBoost: true));
+      final gateway = HttpStoryGateway(
+        feedPort: _RecordingFeedPort(failBoost: true),
+      );
       final result = await gateway.boost('s1', 10);
       expect(result, isA<AzFailed<void>>());
       expect((result as AzFailed<void>).message, contains('Boost failed'));
@@ -118,17 +119,27 @@ void main() {
     // must die with its last listener so the feed can dispose too.
     final container = ProviderContainer();
     addTearDown(container.dispose);
-    expect(container.exists(storyFeedProvider), isFalse,
-        reason: 'nobody reads the feed until a gateway or hub listens');
+    expect(
+      container.exists(storyFeedProvider),
+      isFalse,
+      reason: 'nobody reads the feed until a gateway or hub listens',
+    );
     final sub = container.listen(storyGatewayProvider, (_, __) {});
-    expect(container.exists(storyFeedProvider), isTrue,
-        reason: 'the gateway watches the feed notifier');
+    expect(
+      container.exists(storyFeedProvider),
+      isTrue,
+      reason: 'the gateway watches the feed notifier',
+    );
     sub.close();
     // Let Riverpod flush autoDispose disposals.
     await Future<void>.delayed(Duration.zero);
     await Future<void>.delayed(Duration.zero);
-    expect(container.exists(storyFeedProvider), isFalse,
-        reason: 'the gateway died with its listener; the feed is not '
-            'pinned for the rest of the app run');
+    expect(
+      container.exists(storyFeedProvider),
+      isFalse,
+      reason:
+          'the gateway died with its listener; the feed is not '
+          'pinned for the rest of the app run',
+    );
   });
 }

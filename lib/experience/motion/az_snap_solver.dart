@@ -27,8 +27,8 @@ class AzSnapSolver {
     required this.detents,
     this.commitFraction = 0.40,
     this.flingVelocity = 600,
-  })  : assert(commitFraction >= 0 && commitFraction <= 1),
-        assert(flingVelocity > 0);
+  }) : assert(commitFraction >= 0 && commitFraction <= 1),
+       assert(flingVelocity > 0);
 
   /// Returns the detent [position] should settle on, given the release
   /// [velocity] (positive = towards higher detents).
@@ -39,7 +39,9 @@ class AzSnapSolver {
     final p = clamp(position);
     // 1) Fling decides direction.
     if (velocity.abs() >= flingVelocity) {
-      return velocity > 0 ? _nextAbove(p, strict: true) : _nextBelow(p, strict: true);
+      return velocity > 0
+          ? _nextAbove(p, strict: true)
+          : _nextBelow(p, strict: true);
     }
     // 2) Otherwise the nearest detent, biased by commitFraction from the lower one.
     final lower = _nextBelow(p);
@@ -68,8 +70,7 @@ class AzSnapSolver {
   }
 
   /// Clamps [p] to the detent range.
-  double clamp(double p) =>
-      math.max(detents.first, math.min(detents.last, p));
+  double clamp(double p) => math.max(detents.first, math.min(detents.last, p));
 
   static const double _eps = 1e-9;
 }

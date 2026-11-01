@@ -34,9 +34,11 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart';
 import 'package:azaman/screens/marketplace/leave_review_sheet.dart';
 
-http.Response _json(int status, Map<String, dynamic> body) =>
-    http.Response(jsonEncode(body), status,
-        headers: {'content-type': 'application/json'});
+http.Response _json(int status, Map<String, dynamic> body) => http.Response(
+  jsonEncode(body),
+  status,
+  headers: {'content-type': 'application/json'},
+);
 
 // The fake backend: the REAL endpoints the panel uses, keyed by the
 // CANONICAL BusinessProfile.id ('bp-1') — the display 'BIZ-1' code is a
@@ -53,8 +55,11 @@ class _RecordingClient extends ApiClient {
   bool showLessCheckFails = false;
 
   @override
-  Future<http.Response> get(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> get(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     calls.add('GET $endpoint');
     if (endpoint == '/follows/check/$kCanonicalId' && !followCheckFails) {
       return _json(200, {'success': true, 'isFollowing': following});
@@ -74,7 +79,7 @@ class _RecordingClient extends ApiClient {
                   'businessName': 'Palm Court Kitchen',
                   'category': 'FOOD_BEVERAGE',
                   'savedAt': '2026-10-25T10:00:00.000Z',
-                }
+                },
               ]
             : [],
       });
@@ -86,8 +91,13 @@ class _RecordingClient extends ApiClient {
   }
 
   @override
-  Future<http.Response> post(String endpoint, Map<String, dynamic> body,
-      {Map<String, String>? headers, bool requireAuth = true, String? idempotencyKey}) async {
+  Future<http.Response> post(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+    String? idempotencyKey,
+  }) async {
     calls.add('POST $endpoint ${body['businessProfileId'] ?? ''}');
     if (endpoint == '/follows') {
       following = true;
@@ -118,8 +128,11 @@ class _RecordingClient extends ApiClient {
   }
 
   @override
-  Future<http.Response> delete(String endpoint,
-      {Map<String, String>? headers, bool requireAuth = true}) async {
+  Future<http.Response> delete(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool requireAuth = true,
+  }) async {
     calls.add('DELETE $endpoint');
     if (endpoint == '/follows/$kCanonicalId') {
       following = false;
@@ -152,40 +165,39 @@ class _RouteRecorder extends NavigatorObserver {
 }
 
 BusinessProduct _product(String name) => BusinessProduct(
-      id: name.toLowerCase().replaceAll(' ', '-'),
-      businessProfileId: 'bp-1',
-      name: name,
-      slug: name.toLowerCase().replaceAll(' ', '-'),
-      priceUsdc: 12,
-      totalRevenue: 0,
-      imageUrls: const [],
-      isActive: true,
-      totalOrders: 5,
-    );
+  id: name.toLowerCase().replaceAll(' ', '-'),
+  businessProfileId: 'bp-1',
+  name: name,
+  slug: name.toLowerCase().replaceAll(' ', '-'),
+  priceUsdc: 12,
+  totalRevenue: 0,
+  imageUrls: const [],
+  isActive: true,
+  totalOrders: 5,
+);
 
 BusinessProfile _business({
   String category = 'FOOD_BEVERAGE',
   List<String> offeredCategories = const [],
-}) =>
-    BusinessProfile(
-      offeredCategories: offeredCategories,
-      id: 'bp-1',
-      bizId: 'BIZ-1',
-      businessName: 'Palm Court Kitchen',
-      category: category,
-      description: 'Jollof and grilled tilapia, Legon',
-      isVerified: true,
-      isSuspended: false,
-      kybStatus: 'VERIFIED',
-      totalEscrows: 4,
-      completedEscrows: 4,
-      userId: 1,
-      totalVolume: 100,
-      averageRating: 4.7,
-      username: 'palm-court',
-      reviewCount: 12,
-      products: [_product('Jollof Plate')],
-    );
+}) => BusinessProfile(
+  offeredCategories: offeredCategories,
+  id: 'bp-1',
+  bizId: 'BIZ-1',
+  businessName: 'Palm Court Kitchen',
+  category: category,
+  description: 'Jollof and grilled tilapia, Legon',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 4,
+  completedEscrows: 4,
+  userId: 1,
+  totalVolume: 100,
+  averageRating: 4.7,
+  username: 'palm-court',
+  reviewCount: 12,
+  products: [_product('Jollof Plate')],
+);
 
 GoRouter _router(NavigatorObserver obs, {Widget? home}) => GoRouter(
   initialLocation: '/',
@@ -197,8 +209,8 @@ GoRouter _router(NavigatorObserver obs, {Widget? home}) => GoRouter(
     ),
     GoRoute(
       path: '/business/:bizId',
-      builder: (c, s) => Scaffold(
-          body: Text('biz-${s.pathParameters['bizId']}')),
+      builder: (c, s) =>
+          Scaffold(body: Text('biz-${s.pathParameters['bizId']}')),
     ),
   ],
 );
@@ -220,13 +232,17 @@ Future<void> _pumpCard(
         if (client != null) apiClientProvider.overrideWithValue(client),
       ],
       child: MaterialApp.router(
-        routerConfig: _router(obs,
-            home: BusinessResultCard(business: business, distanceKm: 2.4)),
+        routerConfig: _router(
+          obs,
+          home: BusinessResultCard(business: business, distanceKm: 2.4),
+        ),
         theme: ThemeData(fontFamily: 'Roboto', brightness: brightness),
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(textScale),
-            size: width != null ? Size(width, 800) : MediaQuery.of(context).size,
+            size: width != null
+                ? Size(width, 800)
+                : MediaQuery.of(context).size,
           ),
           child: child!,
         ),
@@ -236,12 +252,12 @@ Future<void> _pumpCard(
   await tester.pump();
 }
 
-
 /// The avatar's FULL ACTION PANEL opens on press-and-hold now — the
 /// plain tap belongs to the persistent liquid dial (Workstream A PR-A).
 Future<void> _holdForPanel(WidgetTester tester) async {
   final gesture = await tester.startGesture(
-      tester.getCenter(find.byKey(const ValueKey('business-avatar-BIZ-1'))));
+    tester.getCenter(find.byKey(const ValueKey('business-avatar-BIZ-1'))),
+  );
   await tester.pump(kLongPressTimeout + const Duration(milliseconds: 1));
   await gesture.up();
   await tester.pumpAndSettle();
@@ -258,37 +274,61 @@ void main() {
 
       final avatar = find.byKey(const ValueKey('business-avatar-BIZ-1'));
       expect(avatar, findsOneWidget);
-      expect(find.byKey(const ValueKey('business-avatar-badge-BIZ-1')),
-          findsOneWidget,
-          reason: 'the primary-category badge is attached to the avatar');
+      expect(
+        find.byKey(const ValueKey('business-avatar-badge-BIZ-1')),
+        findsOneWidget,
+        reason: 'the primary-category badge is attached to the avatar',
+      );
 
       // Circular geometry: the avatar renders as a Box with equal width
       // and height (the ring is painted inside that box).
       final rect = tester.getRect(avatar);
-      expect(rect.width, closeTo(rect.height, 0.5),
-          reason: 'the avatar box is square (circle inside)');
+      expect(
+        rect.width,
+        closeTo(rect.height, 0.5),
+        reason: 'the avatar box is square (circle inside)',
+      );
 
       // WORKSTREAM G (G3): the badge sits at 6 o'clock — centred on the
       // avatar's vertical axis, bottom edge flush with the circle's
       // bottom edge, lower half only, logo still dominant.
-      final badgeRect =
-          tester.getRect(find.byKey(const ValueKey('business-avatar-badge-BIZ-1')));
-      expect((badgeRect.center.dx - rect.center.dx).abs(), lessThan(2.0),
-          reason: "the badge is centred on the avatar's axis (6 o'clock)");
-      expect(badgeRect.bottom <= rect.bottom + 2, isTrue,
-          reason: 'the badge bottom aligns with the circle bottom');
-      expect(badgeRect.bottom >= rect.bottom - 2, isTrue,
-          reason: 'the badge does not sink below the circle bottom');
-      expect(badgeRect.top > rect.center.dy, isTrue,
-          reason: 'the badge is in the lower half of the avatar');
-      expect(badgeRect.width < rect.width / 2, isTrue,
-          reason: 'the logo stays dominant over the badge');
+      final badgeRect = tester.getRect(
+        find.byKey(const ValueKey('business-avatar-badge-BIZ-1')),
+      );
+      expect(
+        (badgeRect.center.dx - rect.center.dx).abs(),
+        lessThan(2.0),
+        reason: "the badge is centred on the avatar's axis (6 o'clock)",
+      );
+      expect(
+        badgeRect.bottom <= rect.bottom + 2,
+        isTrue,
+        reason: 'the badge bottom aligns with the circle bottom',
+      );
+      expect(
+        badgeRect.bottom >= rect.bottom - 2,
+        isTrue,
+        reason: 'the badge does not sink below the circle bottom',
+      );
+      expect(
+        badgeRect.top > rect.center.dy,
+        isTrue,
+        reason: 'the badge is in the lower half of the avatar',
+      );
+      expect(
+        badgeRect.width < rect.width / 2,
+        isTrue,
+        reason: 'the logo stays dominant over the badge',
+      );
 
       // The category name is NOT printed as a label under the image —
       // it lives in the badge's semantics only.
-      final badgeSemantics = tester.firstWidget<Semantics>(find.descendant(
+      final badgeSemantics = tester.firstWidget<Semantics>(
+        find.descendant(
           of: find.byKey(const ValueKey('business-avatar-badge-BIZ-1')),
-          matching: find.byType(Semantics)));
+          matching: find.byType(Semantics),
+        ),
+      );
       expect(badgeSemantics.properties.label, contains('Category:'));
     });
 
@@ -300,14 +340,19 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('business-card-body-BIZ-1')));
       await tester.pumpAndSettle();
 
-      expect(recorder.routes.any((r) => r.startsWith('/business/')), isTrue,
-          reason: 'the body pushes the canonical business route');
+      expect(
+        recorder.routes.any((r) => r.startsWith('/business/')),
+        isTrue,
+        reason: 'the body pushes the canonical business route',
+      );
       // The routed screen receives the real bizId through the path
       // parameter — the canonical /business/:bizId contract end to end.
       expect(find.text('biz-BIZ-1'), findsOneWidget);
-      expect(find.byKey(const ValueKey('business-card-expanded-BIZ-1')),
-          findsNothing,
-          reason: 'no inline accordion/dropdown state exists');
+      expect(
+        find.byKey(const ValueKey('business-card-expanded-BIZ-1')),
+        findsNothing,
+        reason: 'no inline accordion/dropdown state exists',
+      );
     });
 
     testWidgets('holding the avatar opens the actions panel with '
@@ -317,9 +362,18 @@ void main() {
 
       await _holdForPanel(tester);
 
-      expect(find.byKey(const ValueKey('business-action-follow')), findsOneWidget);
-      expect(find.byKey(const ValueKey('business-action-bookmark')), findsOneWidget);
-      expect(find.byKey(const ValueKey('business-action-review')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('business-action-follow')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('business-action-bookmark')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('business-action-review')),
+        findsOneWidget,
+      );
 
       // The follow row checked the REAL contract on open.
       expect(client.calls, contains('GET /follows/check/$kCanonicalId'));
@@ -336,35 +390,51 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-          client.calls,
-          contains('POST /follows $kCanonicalId'),
-          reason: 'follow goes through POST /follows keyed by the '
-              'canonical BusinessProfile.id — the display BIZ- code '
-              '404s against findUnique({ where: { id } })');
-      expect(find.text('Unfollow'), findsOneWidget,
-          reason: 'the row reflects the real toggled state');
+        client.calls,
+        contains('POST /follows $kCanonicalId'),
+        reason:
+            'follow goes through POST /follows keyed by the '
+            'canonical BusinessProfile.id — the display BIZ- code '
+            '404s against findUnique({ where: { id } })',
+      );
+      expect(
+        find.text('Unfollow'),
+        findsOneWidget,
+        reason: 'the row reflects the real toggled state',
+      );
     });
 
-    testWidgets('the panel bookmark action toggles the real saved set',
-        (tester) async {
+    testWidgets('the panel bookmark action toggles the real saved set', (
+      tester,
+    ) async {
       final client = _RecordingClient();
       await _pumpCard(tester, _business(), client: client);
 
       await _holdForPanel(tester);
 
-      expect(find.text('Bookmark'), findsOneWidget,
-          reason: 'the business starts unsaved');
+      expect(
+        find.text('Bookmark'),
+        findsOneWidget,
+        reason: 'the business starts unsaved',
+      );
       await tester.tap(find.byKey(const ValueKey('business-action-bookmark')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 120));
 
       // The durable seam: the toggle rode POST /bookmarks with the
       // canonical id, and the row reflects the server-confirmed state.
-      expect(client.calls, contains('POST /bookmarks $kCanonicalId'),
-          reason: 'the bookmark toggle rode the durable server '
-              'contract keyed by the canonical id');
-      expect(find.text('Remove bookmark'), findsOneWidget,
-          reason: 'the row reflects the server-confirmed bookmark');
+      expect(
+        client.calls,
+        contains('POST /bookmarks $kCanonicalId'),
+        reason:
+            'the bookmark toggle rode the durable server '
+            'contract keyed by the canonical id',
+      );
+      expect(
+        find.text('Remove bookmark'),
+        findsOneWidget,
+        reason: 'the row reflects the server-confirmed bookmark',
+      );
     });
 
     testWidgets('the panel show-less row appears only after the real '
@@ -375,25 +445,37 @@ void main() {
       await _holdForPanel(tester);
 
       // The check ran on open; the row is honest absence before it.
-      expect(client.calls, contains('GET /recommendation-feedback/check/$kCanonicalId'));
-      expect(find.byKey(const ValueKey('business-action-show-less')),
-          findsOneWidget);
+      expect(
+        client.calls,
+        contains('GET /recommendation-feedback/check/$kCanonicalId'),
+      );
+      expect(
+        find.byKey(const ValueKey('business-action-show-less')),
+        findsOneWidget,
+      );
       expect(find.text('Show less like this'), findsOneWidget);
 
-      await tester.tap(
-          find.byKey(const ValueKey('business-action-show-less')));
+      await tester.tap(find.byKey(const ValueKey('business-action-show-less')));
       await tester.pumpAndSettle();
 
-      expect(client.calls, contains('POST /recommendation-feedback $kCanonicalId'),
-          reason: 'apply rides the real contract with the canonical id');
-      expect(find.text('Undo "show less like this"'), findsOneWidget,
-          reason: 'the row reflects the durable SHOW_LESS state');
+      expect(
+        client.calls,
+        contains('POST /recommendation-feedback $kCanonicalId'),
+        reason: 'apply rides the real contract with the canonical id',
+      );
+      expect(
+        find.text('Undo "show less like this"'),
+        findsOneWidget,
+        reason: 'the row reflects the durable SHOW_LESS state',
+      );
 
       // Undo restores NONE — idempotent removal, canonical id again.
-      await tester.tap(
-          find.byKey(const ValueKey('business-action-show-less')));
+      await tester.tap(find.byKey(const ValueKey('business-action-show-less')));
       await tester.pumpAndSettle();
-      expect(client.calls, contains('DELETE /recommendation-feedback/$kCanonicalId'));
+      expect(
+        client.calls,
+        contains('DELETE /recommendation-feedback/$kCanonicalId'),
+      );
       expect(find.text('Show less like this'), findsOneWidget);
     });
 
@@ -404,11 +486,17 @@ void main() {
 
       await _holdForPanel(tester);
 
-      expect(client.calls, contains('GET /recommendation-feedback/check/$kCanonicalId'));
-      expect(find.byKey(const ValueKey('business-action-show-less')),
-          findsNothing,
-          reason: 'a failed check must never offer an affordance '
-              'whose state is unknown');
+      expect(
+        client.calls,
+        contains('GET /recommendation-feedback/check/$kCanonicalId'),
+      );
+      expect(
+        find.byKey(const ValueKey('business-action-show-less')),
+        findsNothing,
+        reason:
+            'a failed check must never offer an affordance '
+            'whose state is unknown',
+      );
     });
 
     testWidgets('the avatar bookmark badge reflects the AUTHORITATIVE '
@@ -418,35 +506,50 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('business-avatar-bookmark-BIZ-1')),
-          findsOneWidget,
-          reason: 'the badge is drawn from the hydrated server list');
+      expect(
+        find.byKey(const ValueKey('business-avatar-bookmark-BIZ-1')),
+        findsOneWidget,
+        reason: 'the badge is drawn from the hydrated server list',
+      );
     });
 
     testWidgets('SEPARATION: an avatar tap NEVER navigates to the '
-        'business route, and a body tap NEVER opens the action panel',
-        (tester) async {
+        'business route, and a body tap NEVER opens the action panel', (
+      tester,
+    ) async {
       final recorder = _RouteRecorder();
-      await _pumpCard(tester, _business(),
-          observer: recorder, client: _RecordingClient());
+      await _pumpCard(
+        tester,
+        _business(),
+        observer: recorder,
+        client: _RecordingClient(),
+      );
 
       // Avatar tap: panel opens, and the body route callback is NOT fired.
       await _holdForPanel(tester);
-      expect(recorder.routes.where((r) => r.startsWith('/business/')),
-          isEmpty,
-          reason: 'the avatar opens the action panel; it must never '
-              'navigate to the business route as well');
+      expect(
+        recorder.routes.where((r) => r.startsWith('/business/')),
+        isEmpty,
+        reason:
+            'the avatar opens the action panel; it must never '
+            'navigate to the business route as well',
+      );
 
       // Close the panel, then body tap: route fires, no panel appears.
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('business-card-body-BIZ-1')));
       await tester.pumpAndSettle();
-      expect(recorder.routes.any((r) => r.startsWith('/business/')), isTrue,
-          reason: 'the body navigates');
       expect(
-          find.byKey(const ValueKey('business-action-follow')), findsNothing,
-          reason: 'the body tap must not have opened the action panel');
+        recorder.routes.any((r) => r.startsWith('/business/')),
+        isTrue,
+        reason: 'the body navigates',
+      );
+      expect(
+        find.byKey(const ValueKey('business-action-follow')),
+        findsNothing,
+        reason: 'the body tap must not have opened the action panel',
+      );
     });
 
     testWidgets('the panel review action opens the REAL LeaveReviewSheet '
@@ -457,37 +560,50 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('business-action-review')));
       await tester.pumpAndSettle();
 
-      expect(find.byType(LeaveReviewSheet), findsOneWidget,
-          reason: 'review routes to the real review sheet — no stub');
+      expect(
+        find.byType(LeaveReviewSheet),
+        findsOneWidget,
+        reason: 'review routes to the real review sheet — no stub',
+      );
     });
 
-    testWidgets('no bookmark control renders on the card body itself',
-        (tester) async {
+    testWidgets('no bookmark control renders on the card body itself', (
+      tester,
+    ) async {
       await _pumpCard(tester, _business());
 
       final body = find.byKey(const ValueKey('business-card-body-BIZ-1'));
       expect(
-          find.descendant(
-              of: body,
-              matching: find.byIcon(Icons.bookmark_rounded)),
-          findsNothing,
-          reason: 'bookmark moved into the avatar action panel');
+        find.descendant(
+          of: body,
+          matching: find.byIcon(Icons.bookmark_rounded),
+        ),
+        findsNothing,
+        reason: 'bookmark moved into the avatar action panel',
+      );
       expect(
-          find.descendant(
-              of: body,
-              matching: find.byIcon(Icons.bookmark_border_rounded)),
-          findsNothing);
+        find.descendant(
+          of: body,
+          matching: find.byIcon(Icons.bookmark_border_rounded),
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('body text never collides with the avatar circle or '
         'its notch', (tester) async {
       await _pumpCard(tester, _business());
 
-      final avatar = tester.getRect(find.byKey(const ValueKey('business-avatar-BIZ-1')));
+      final avatar = tester.getRect(
+        find.byKey(const ValueKey('business-avatar-BIZ-1')),
+      );
       final name = tester.getRect(find.text('Palm Court Kitchen'));
 
-      expect(name.left >= avatar.right - 1, isTrue,
-          reason: 'the name row starts clear of the avatar circle');
+      expect(
+        name.left >= avatar.right - 1,
+        isTrue,
+        reason: 'the name row starts clear of the avatar circle',
+      );
     });
 
     testWidgets('no guessed secondary-offering icons render when the DTO '
@@ -555,8 +671,9 @@ void main() {
     });
 
     testWidgets('Workstream D REGRESSION: a LEGACY payload repeating the '
-        'primary category in offeredCategories never renders it twice',
-        (tester) async {
+        'primary category in offeredCategories never renders it twice', (
+      tester,
+    ) async {
       await _pumpCard(
         tester,
         _business(
@@ -566,7 +683,11 @@ void main() {
           // additional offering. The backend now rejects this shape, but
           // the card must still defend against records written before
           // the contract tightened (additive defense, not trust).
-          offeredCategories: const ['HOSPITALITY', 'FOOD_BEVERAGE', 'HOSPITALITY'],
+          offeredCategories: const [
+            'HOSPITALITY',
+            'FOOD_BEVERAGE',
+            'HOSPITALITY',
+          ],
         ),
       );
 
@@ -578,11 +699,12 @@ void main() {
       // The semantics utterance mirrors the visual: primary spoken once,
       // the additional offering listed — no 'Hospitality' in the
       // also-offers section.
-      final semantics = find.bySemanticsLabel(RegExp('also offers.*Restaurant'));
+      final semantics = find.bySemanticsLabel(
+        RegExp('also offers.*Restaurant'),
+      );
       expect(semantics, findsOneWidget);
       expect(
-        find.bySemanticsLabel(
-            RegExp('also offers.*Hospitality')),
+        find.bySemanticsLabel(RegExp('also offers.*Hospitality')),
         findsNothing,
       );
     });
@@ -600,14 +722,18 @@ void main() {
       expect(find.byIcon(Icons.category_outlined), findsNothing);
     });
 
-    testWidgets('Workstream D: offering chips cap at 3 with a +N counter',
-        (tester) async {
+    testWidgets('Workstream D: offering chips cap at 3 with a +N counter', (
+      tester,
+    ) async {
       await _pumpCard(
         tester,
         _business(
           category: 'RETAIL',
           offeredCategories: const [
-            'FOOD_BEVERAGE', 'LOGISTICS', 'EDUCATION', 'TECHNOLOGY',
+            'FOOD_BEVERAGE',
+            'LOGISTICS',
+            'EDUCATION',
+            'TECHNOLOGY',
           ],
         ),
       );
@@ -642,21 +768,40 @@ void main() {
     });
 
     for (final width in const [320.0, 360.0, 390.0]) {
-      testWidgets('no overflow at ${width}dp (dark, 1.0× text)', (tester) async {
+      testWidgets('no overflow at ${width}dp (dark, 1.0× text)', (
+        tester,
+      ) async {
         await _pumpCard(tester, _business(), width: width);
-        expect(tester.takeException(), isNull,
-            reason: 'the card lays out cleanly at $width dp');
-        expect(find.byKey(const ValueKey('business-card-body-BIZ-1')),
-            findsOneWidget);
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'the card lays out cleanly at $width dp',
+        );
+        expect(
+          find.byKey(const ValueKey('business-card-body-BIZ-1')),
+          findsOneWidget,
+        );
       });
 
-      testWidgets('no overflow at ${width}dp (light, 1.4× text)', (tester) async {
-        await _pumpCard(tester, _business(),
-            width: width, textScale: 1.4, brightness: Brightness.light);
-        expect(tester.takeException(), isNull,
-            reason: 'large text stays clean at $width dp');
-        expect(find.byKey(const ValueKey('business-card-body-BIZ-1')),
-            findsOneWidget);
+      testWidgets('no overflow at ${width}dp (light, 1.4× text)', (
+        tester,
+      ) async {
+        await _pumpCard(
+          tester,
+          _business(),
+          width: width,
+          textScale: 1.4,
+          brightness: Brightness.light,
+        );
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'large text stays clean at $width dp',
+        );
+        expect(
+          find.byKey(const ValueKey('business-card-body-BIZ-1')),
+          findsOneWidget,
+        );
       });
     }
   });

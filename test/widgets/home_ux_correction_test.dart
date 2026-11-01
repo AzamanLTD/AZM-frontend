@@ -566,8 +566,9 @@ void main() {
   // ── §6 — Recent bubble doorway and low placement ──────────────────────
 
   group('§6 doorway wording + low placement', () {
-    testWidgets('the doorway is a neutral Recent button with no pull copy',
-        (tester) async {
+    testWidgets('the doorway is a neutral Recent button with no pull copy', (
+      tester,
+    ) async {
       await _pumpHome(tester);
 
       // Recent is a button, not a page heading or a directional-arrow CTA.

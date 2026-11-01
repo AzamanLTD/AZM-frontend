@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:azaman/providers/theme_provider.dart';
 
-
 // =============================================================================
 // AZAMAN — FORCE UPDATE SCREEN (Phase Q15-FE)
 //
@@ -84,10 +83,7 @@ class ForceUpdateScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text(
                     'Minimum version: $minVersion',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: colors.textTertiary, fontSize: 13),
                   ),
                 ],
 
@@ -102,8 +98,9 @@ class ForceUpdateScreen extends ConsumerWidget {
                       onPressed: () => _openUpdateUrl(context, colors),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: colors.accent,
-                        foregroundColor:
-                            colors.isDark ? Colors.black : Colors.white,
+                        foregroundColor: colors.isDark
+                            ? Colors.black
+                            : Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),

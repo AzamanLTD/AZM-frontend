@@ -61,8 +61,11 @@ class DepositContinuation {
     required this.savedAtMs,
   });
 
-  Map<String, dynamic> toJson() =>
-      {'id': id, 'reference': reference, 'savedAtMs': savedAtMs};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'reference': reference,
+    'savedAtMs': savedAtMs,
+  };
 
   static DepositContinuation? fromJson(Map<String, dynamic> json) {
     final id = json['id']?.toString();
@@ -73,13 +76,16 @@ class DepositContinuation {
     }
     if (savedAtMs is! int) return null;
     return DepositContinuation(
-        id: id, reference: reference, savedAtMs: savedAtMs);
+      id: id,
+      reference: reference,
+      savedAtMs: savedAtMs,
+    );
   }
 }
 
 class DepositContinuationsService {
   DepositContinuationsService({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -159,7 +165,9 @@ class DepositContinuationsService {
       await _loadRefOwners();
       try {
         await _storage.write(
-            key: _ownerIndexKey, value: jsonEncode(_refOwners));
+          key: _ownerIndexKey,
+          value: jsonEncode(_refOwners),
+        );
       } catch (_) {
         // Best-effort durability only — the in-memory binding owns the
         // session; a stale persisted entry is inert (exact-reference
@@ -230,8 +238,9 @@ class DepositContinuationsService {
       if (decoded is! List) return const [];
       final alive = <DepositContinuation>[];
       for (final e in decoded) {
-        final c =
-            e is Map<String, dynamic> ? DepositContinuation.fromJson(e) : null;
+        final c = e is Map<String, dynamic>
+            ? DepositContinuation.fromJson(e)
+            : null;
         if (c != null) alive.add(c);
       }
       return alive;
@@ -265,9 +274,10 @@ class DepositContinuationsService {
       final list = [...await loadForUser(userId)];
       final id = continuationId(userId, ref);
       final fresh = DepositContinuation(
-          id: id,
-          reference: ref,
-          savedAtMs: DateTime.now().millisecondsSinceEpoch);
+        id: id,
+        reference: ref,
+        savedAtMs: DateTime.now().millisecondsSinceEpoch,
+      );
       final i = list.indexWhere((c) => c.id == id);
       if (i >= 0) {
         list[i] = fresh;
@@ -360,16 +370,13 @@ class DepositContinuationsState {
   final String? userId;
   final List<DepositContinuation> continuations;
 
-  const DepositContinuationsState({
-    this.userId,
-    this.continuations = const [],
-  });
+  const DepositContinuationsState({this.userId, this.continuations = const []});
 }
 
 class DepositContinuationsController
     extends StateNotifier<DepositContinuationsState> {
   DepositContinuationsController(this._service)
-      : super(const DepositContinuationsState());
+    : super(const DepositContinuationsState());
 
   final DepositContinuationsService _service;
 
@@ -472,7 +479,7 @@ class DepositContinuationsController
 /// The single submitted-deposit continuation authority. The
 /// notification centre and the deposit surface share it.
 final depositContinuationsProvider =
-    StateNotifierProvider<DepositContinuationsController,
-        DepositContinuationsState>(
-  (ref) => DepositContinuationsController(DepositContinuationsService()),
-);
+    StateNotifierProvider<
+      DepositContinuationsController,
+      DepositContinuationsState
+    >((ref) => DepositContinuationsController(DepositContinuationsService()));

@@ -23,20 +23,36 @@ import 'package:azaman/models/business_models.dart';
 import 'package:azaman/widgets/marketplace/business_result_card.dart';
 
 BusinessProduct _product() => BusinessProduct(
-      id: 'jollof', businessProfileId: 'bp-1', name: 'Jollof Plate',
-      slug: 'jollof-plate', priceUsdc: 12, totalRevenue: 0,
-      imageUrls: const [], isActive: true, totalOrders: 5,
-    );
+  id: 'jollof',
+  businessProfileId: 'bp-1',
+  name: 'Jollof Plate',
+  slug: 'jollof-plate',
+  priceUsdc: 12,
+  totalRevenue: 0,
+  imageUrls: const [],
+  isActive: true,
+  totalOrders: 5,
+);
 
-BusinessProfile _business({BusinessStoryState? storyState}) =>
-    BusinessProfile(
-      id: 'bp-1', bizId: 'BIZ-1', businessName: 'Palm Court Kitchen',
-      category: 'FOOD_BEVERAGE', description: 'Jollof, Legon',
-      isVerified: true, isSuspended: false, kybStatus: 'VERIFIED',
-      totalEscrows: 4, completedEscrows: 4, userId: 1, totalVolume: 100,
-      averageRating: 4.7, username: 'palm-court', reviewCount: 12,
-      products: [_product()], storyState: storyState,
-    );
+BusinessProfile _business({BusinessStoryState? storyState}) => BusinessProfile(
+  id: 'bp-1',
+  bizId: 'BIZ-1',
+  businessName: 'Palm Court Kitchen',
+  category: 'FOOD_BEVERAGE',
+  description: 'Jollof, Legon',
+  isVerified: true,
+  isSuspended: false,
+  kybStatus: 'VERIFIED',
+  totalEscrows: 4,
+  completedEscrows: 4,
+  userId: 1,
+  totalVolume: 100,
+  averageRating: 4.7,
+  username: 'palm-court',
+  reviewCount: 12,
+  products: [_product()],
+  storyState: storyState,
+);
 
 Future<void> _pumpCard(WidgetTester tester, BusinessProfile business) async {
   SharedPreferences.setMockInitialValues({});
@@ -48,8 +64,9 @@ Future<void> _pumpCard(WidgetTester tester, BusinessProfile business) async {
           routes: [
             GoRoute(
               path: '/',
-              builder: (c, s) =>
-                  Scaffold(body: BusinessResultCard(business: business, distanceKm: 2.4)),
+              builder: (c, s) => Scaffold(
+                body: BusinessResultCard(business: business, distanceKm: 2.4),
+              ),
             ),
           ],
         ),
@@ -63,9 +80,7 @@ BoxDecoration? _ringDecoration(WidgetTester tester) {
   final finder = find.byKey(const ValueKey('business-story-ring-BIZ-1'));
   if (finder.evaluate().isEmpty) return null;
   final decorated = tester.widget<DecoratedBox>(
-    find
-        .descendant(of: finder, matching: find.byType(DecoratedBox))
-        .first,
+    find.descendant(of: finder, matching: find.byType(DecoratedBox)).first,
   );
   return decorated.decoration as BoxDecoration;
 }
@@ -73,14 +88,19 @@ BoxDecoration? _ringDecoration(WidgetTester tester) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('active + unseen → ring with unseen emphasis and "New story"',
-      (tester) async {
-    await _pumpCard(tester, _business(
-      storyState: BusinessStoryState(
-        hasActiveStory: true, hasUnseenStory: true,
-        latestStoryAt: DateTime.parse('2026-10-25T10:00:00Z'),
+  testWidgets('active + unseen → ring with unseen emphasis and "New story"', (
+    tester,
+  ) async {
+    await _pumpCard(
+      tester,
+      _business(
+        storyState: BusinessStoryState(
+          hasActiveStory: true,
+          hasUnseenStory: true,
+          latestStoryAt: DateTime.parse('2026-10-25T10:00:00Z'),
+        ),
       ),
-    ));
+    );
     final deco = _ringDecoration(tester);
     expect(deco, isNotNull, reason: 'an active story draws a ring');
     expect(deco!.border!.top.width, 2.5, reason: 'unseen ring is the bold one');
@@ -90,14 +110,19 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('active + seen → quiet ring, no "New story" claim',
-      (tester) async {
-    await _pumpCard(tester, _business(
-      storyState: BusinessStoryState(
-        hasActiveStory: true, hasUnseenStory: false,
-        latestStoryAt: DateTime.parse('2026-10-25T10:00:00Z'),
+  testWidgets('active + seen → quiet ring, no "New story" claim', (
+    tester,
+  ) async {
+    await _pumpCard(
+      tester,
+      _business(
+        storyState: BusinessStoryState(
+          hasActiveStory: true,
+          hasUnseenStory: false,
+          latestStoryAt: DateTime.parse('2026-10-25T10:00:00Z'),
+        ),
       ),
-    ));
+    );
     final deco = _ringDecoration(tester);
     expect(deco, isNotNull);
     expect(deco!.border!.top.width, 2.0, reason: 'seen ring is the quiet one');
@@ -108,30 +133,47 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('anonymous viewer (null unseen) is NOT treated as unseen',
-      (tester) async {
-    await _pumpCard(tester, _business(
-      storyState: BusinessStoryState(
-        hasActiveStory: true, hasUnseenStory: null,
-        latestStoryAt: DateTime.parse('2026-10-25T10:00:00Z'),
+  testWidgets('anonymous viewer (null unseen) is NOT treated as unseen', (
+    tester,
+  ) async {
+    await _pumpCard(
+      tester,
+      _business(
+        storyState: BusinessStoryState(
+          hasActiveStory: true,
+          hasUnseenStory: null,
+          latestStoryAt: DateTime.parse('2026-10-25T10:00:00Z'),
+        ),
       ),
-    ));
+    );
     final deco = _ringDecoration(tester);
     expect(deco, isNotNull, reason: 'hasActiveStory is real without a token');
-    expect(deco!.border!.top.width, 2.0, reason: 'null never gets unseen emphasis');
+    expect(
+      deco!.border!.top.width,
+      2.0,
+      reason: 'null never gets unseen emphasis',
+    );
     final handle = tester.ensureSemantics();
     await tester.pump();
-    expect(find.bySemanticsLabel(RegExp('New story')), findsNothing,
-        reason: 'the client must not claim new for an anonymous viewer');
+    expect(
+      find.bySemanticsLabel(RegExp('New story')),
+      findsNothing,
+      reason: 'the client must not claim new for an anonymous viewer',
+    );
     handle.dispose();
   });
 
   testWidgets('hasActiveStory false → NO ring', (tester) async {
-    await _pumpCard(tester, _business(
-      storyState: BusinessStoryState(
-        hasActiveStory: false, hasUnseenStory: false, latestStoryAt: null,
+    await _pumpCard(
+      tester,
+      _business(
+        storyState: BusinessStoryState(
+          hasActiveStory: false,
+          hasUnseenStory: false,
+          latestStoryAt: null,
+        ),
       ),
-    ));
+    );
     expect(_ringDecoration(tester), isNull);
     final handle = tester.ensureSemantics();
     await tester.pump();
@@ -139,11 +181,15 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('legacy payload without a storyState block → NO ring',
-      (tester) async {
+  testWidgets('legacy payload without a storyState block → NO ring', (
+    tester,
+  ) async {
     await _pumpCard(tester, _business(storyState: null));
-    expect(_ringDecoration(tester), isNull,
-        reason: 'absence is honest — never a guessed ring');
+    expect(
+      _ringDecoration(tester),
+      isNull,
+      reason: 'absence is honest — never a guessed ring',
+    );
     final handle = tester.ensureSemantics();
     await tester.pump();
     expect(find.bySemanticsLabel(RegExp('Story')), findsNothing);
@@ -151,10 +197,12 @@ void main() {
   });
 
   testWidgets('fromJson parses the wire block faithfully', (tester) async {
-    final json = jsonDecode('''
+    final json =
+        jsonDecode('''
       {"hasActiveStory": true, "hasUnseenStory": null,
        "latestStoryAt": "2026-10-25T10:00:00.000Z"}
-    ''') as Map<String, dynamic>;
+    ''')
+            as Map<String, dynamic>;
     final st = BusinessStoryState.fromJson(json);
     expect(st.hasActiveStory, true);
     expect(st.hasUnseenStory, isNull);

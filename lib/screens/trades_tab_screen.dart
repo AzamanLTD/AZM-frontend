@@ -25,7 +25,6 @@ import 'package:azaman/widgets/trade_countdown_chip.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
-
 class TradesTabScreen extends ConsumerStatefulWidget {
   const TradesTabScreen({super.key});
 
@@ -64,11 +63,23 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
         if (mounted) {
           setState(() {
             _activeTrades = history
-                .where((t) => !['COMPLETED', 'CANCELLED', 'AUTO_CANCELLED'].contains(t['status']))
+                .where(
+                  (t) => ![
+                    'COMPLETED',
+                    'CANCELLED',
+                    'AUTO_CANCELLED',
+                  ].contains(t['status']),
+                )
                 .map<Map<String, dynamic>>((t) => Map<String, dynamic>.from(t))
                 .toList();
             _completedTrades = history
-                .where((t) => ['COMPLETED', 'CANCELLED', 'AUTO_CANCELLED'].contains(t['status']))
+                .where(
+                  (t) => [
+                    'COMPLETED',
+                    'CANCELLED',
+                    'AUTO_CANCELLED',
+                  ].contains(t['status']),
+                )
                 .map<Map<String, dynamic>>((t) => Map<String, dynamic>.from(t))
                 .toList();
             _isLoading = false;
@@ -101,7 +112,10 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
             labelColor: colors.accent,
             unselectedLabelColor: colors.textTertiary,
             dividerColor: Colors.transparent,
-            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            labelStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
             tabs: [
               Tab(text: 'Active (${_activeTrades.length})'),
               Tab(text: 'History (${_completedTrades.length})'),
@@ -113,10 +127,7 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
         Expanded(
           child: TabBarView(
             controller: _tabController,
-            children: [
-              _buildActiveTab(colors),
-              _buildHistoryTab(colors),
-            ],
+            children: [_buildActiveTab(colors), _buildHistoryTab(colors)],
           ),
         ),
       ],
@@ -128,8 +139,12 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       return Center(child: CircularProgressIndicator(color: colors.accent));
     }
     if (_activeTrades.isEmpty) {
-      return _emptyState(colors, Icons.swap_horiz, 'No Active Trades',
-          'Start a trade from the P2P marketplace to see it here.');
+      return _emptyState(
+        colors,
+        Icons.swap_horiz,
+        'No Active Trades',
+        'Start a trade from the P2P marketplace to see it here.',
+      );
     }
 
     return AzPullToRefresh(
@@ -138,7 +153,8 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _activeTrades.length,
-        itemBuilder: (context, index) => _buildTradeCard(_activeTrades[index], colors, isActive: true),
+        itemBuilder: (context, index) =>
+            _buildTradeCard(_activeTrades[index], colors, isActive: true),
       ),
     );
   }
@@ -148,8 +164,12 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       return Center(child: CircularProgressIndicator(color: colors.accent));
     }
     if (_completedTrades.isEmpty) {
-      return _emptyState(colors, Icons.history, 'No Trade History',
-          'Completed and cancelled trades will appear here.');
+      return _emptyState(
+        colors,
+        Icons.history,
+        'No Trade History',
+        'Completed and cancelled trades will appear here.',
+      );
     }
 
     return AzPullToRefresh(
@@ -158,17 +178,24 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _completedTrades.length,
-        itemBuilder: (context, index) => _buildTradeCard(_completedTrades[index], colors, isActive: false),
+        itemBuilder: (context, index) =>
+            _buildTradeCard(_completedTrades[index], colors, isActive: false),
       ),
     );
   }
 
-  Widget _buildTradeCard(Map<String, dynamic> trade, AzamanColors colors, {required bool isActive}) {
+  Widget _buildTradeCard(
+    Map<String, dynamic> trade,
+    AzamanColors colors, {
+    required bool isActive,
+  }) {
     final status = trade['status'] ?? 'UNKNOWN';
     final amountCrypto = (trade['amountCrypto'] as num?)?.toDouble() ?? 0;
     final crypto = trade['crypto'] ?? 'USDT';
     final type = trade['type'] ?? 'SELL';
-    final createdAt = trade['createdAt'] != null ? DateTime.tryParse(trade['createdAt'].toString()) : null;
+    final createdAt = trade['createdAt'] != null
+        ? DateTime.tryParse(trade['createdAt'].toString())
+        : null;
     // Live expiry countdown (only meaningful on active trades that carry a
     // deadline field). Null → the chip is omitted entirely.
     final deadlineMs = isActive ? _deadlineMsFor(trade) : null;
@@ -179,7 +206,10 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        pushWithVerticalTransition(context, ActiveTradeScreen(orderId: '#${trade['id']}')).then((_) => _fetchTrades());
+        pushWithVerticalTransition(
+          context,
+          ActiveTradeScreen(orderId: '#${trade['id']}'),
+        ).then((_) => _fetchTrades());
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -188,11 +218,18 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
           color: colors.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isActive ? statusColor.withValues(alpha: 0.3) : colors.divider,
+            color: isActive
+                ? statusColor.withValues(alpha: 0.3)
+                : colors.divider,
             width: isActive ? 1.2 : 0.8,
           ),
           boxShadow: isActive
-              ? [BoxShadow(color: statusColor.withValues(alpha: 0.08), blurRadius: 12)]
+              ? [
+                  BoxShadow(
+                    color: statusColor.withValues(alpha: 0.08),
+                    blurRadius: 12,
+                  ),
+                ]
               : null,
         ),
         child: Row(
@@ -229,7 +266,10 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
                         const SizedBox(width: 8),
                       ],
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: statusColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
@@ -246,13 +286,19 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
                     ],
                   ),
                   const SizedBox(height: 6),
-                  DualCurrencyText(usdc: amountCrypto, style: TextStyle(color: colors.textSecondary, fontSize: 12)),
+                  DualCurrencyText(
+                    usdc: amountCrypto,
+                    style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                  ),
                   if (createdAt != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         _formatDate(createdAt),
-                        style: TextStyle(color: colors.textTertiary, fontSize: 10),
+                        style: TextStyle(
+                          color: colors.textTertiary,
+                          fontSize: 10,
+                        ),
                       ),
                     ),
                 ],
@@ -289,18 +335,38 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
     return null;
   }
 
-  Widget _emptyState(AzamanColors colors, IconData icon, String title, String subtitle) {
+  Widget _emptyState(
+    AzamanColors colors,
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 56, color: colors.textTertiary.withValues(alpha: 0.3)),
+          Icon(
+            icon,
+            size: 56,
+            color: colors.textTertiary.withValues(alpha: 0.3),
+          ),
           const SizedBox(height: 16),
-          Text(title, style: TextStyle(color: colors.textSecondary, fontSize: 16, fontWeight: FontWeight.w600)),
+          Text(
+            title,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 6),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(subtitle, textAlign: TextAlign.center, style: TextStyle(color: colors.textTertiary, fontSize: 12)),
+            child: Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textTertiary, fontSize: 12),
+            ),
           ),
         ],
       ),
@@ -309,33 +375,48 @@ class _TradesTabScreenState extends ConsumerState<TradesTabScreen>
 
   Color _getStatusColor(String status, AzamanColors colors) {
     switch (status) {
-      case 'PENDING_PAYMENT': return colors.warning;
-      case 'PAID': return colors.accent;
-      case 'COMPLETED': return colors.success;
-      case 'DISPUTED': return colors.danger;
+      case 'PENDING_PAYMENT':
+        return colors.warning;
+      case 'PAID':
+        return colors.accent;
+      case 'COMPLETED':
+        return colors.success;
+      case 'DISPUTED':
+        return colors.danger;
       case 'CANCELLED':
-      case 'AUTO_CANCELLED': return colors.textTertiary;
-      default: return colors.textSecondary;
+      case 'AUTO_CANCELLED':
+        return colors.textTertiary;
+      default:
+        return colors.textSecondary;
     }
   }
 
   IconData _getStatusIcon(String status) {
     switch (status) {
-      case 'PENDING_PAYMENT': return Icons.hourglass_empty;
-      case 'PAID': return Icons.check_circle_outline;
-      case 'COMPLETED': return Icons.check_circle_outline;
-      case 'DISPUTED': return Icons.gavel;
+      case 'PENDING_PAYMENT':
+        return Icons.hourglass_empty;
+      case 'PAID':
+        return Icons.check_circle_outline;
+      case 'COMPLETED':
+        return Icons.check_circle_outline;
+      case 'DISPUTED':
+        return Icons.gavel;
       case 'CANCELLED':
-      case 'AUTO_CANCELLED': return Icons.cancel_outlined;
-      default: return Icons.swap_horiz;
+      case 'AUTO_CANCELLED':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.swap_horiz;
     }
   }
 
   String _formatStatus(String status) {
     switch (status) {
-      case 'PENDING_PAYMENT': return 'AWAITING PAY';
-      case 'AUTO_CANCELLED': return 'EXPIRED';
-      default: return status;
+      case 'PENDING_PAYMENT':
+        return 'AWAITING PAY';
+      case 'AUTO_CANCELLED':
+        return 'EXPIRED';
+      default:
+        return status;
     }
   }
 

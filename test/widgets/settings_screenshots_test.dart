@@ -47,8 +47,9 @@ Future<void> _loadFonts() async {
       Future<ByteData>.value(ByteData.view(Uint8List.fromList(inter).buffer)),
     );
   await interLoader.load();
-  final regular =
-      await File('assets/fonts/ComicNeue-Regular.ttf').readAsBytes();
+  final regular = await File(
+    'assets/fonts/ComicNeue-Regular.ttf',
+  ).readAsBytes();
   final bold = await File('assets/fonts/ComicNeue-Bold.ttf').readAsBytes();
   final comicLoader = FontLoader('ComicNeue')
     ..addFont(
@@ -85,8 +86,9 @@ class _IdleBusinessNotifier extends MyBusinessNotifier {
 Future<void> _capture(WidgetTester tester, String name) async {
   var ok = false;
   await tester.runAsync(() async {
-    final boundary =
-        tester.renderObject<RenderRepaintBoundary>(find.byKey(_rootKey));
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(_rootKey),
+    );
     final image = await boundary.toImage(pixelRatio: 2.0);
     final data = (await image.toByteData(format: ImageByteFormat.png))!;
     Directory('.screenshots').createSync(recursive: true);

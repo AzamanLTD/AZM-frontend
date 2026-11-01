@@ -21,7 +21,11 @@ class RestaurantTrayRail extends ConsumerStatefulWidget {
   final String label;
   final VoidCallback onOpen;
 
-  const RestaurantTrayRail({super.key, required this.onOpen, this.label = 'Order tray'});
+  const RestaurantTrayRail({
+    super.key,
+    required this.onOpen,
+    this.label = 'Order tray',
+  });
 
   @override
   ConsumerState<RestaurantTrayRail> createState() => _RestaurantTrayRailState();
@@ -55,7 +59,10 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
   Widget build(BuildContext context) {
     final cart = ref.watch(cartProvider);
     final colors = ref.watch(themeProvider.select((theme) => theme.colors));
-    final duration = MotionTokens.accessibleDuration(context, MotionTokens.spatial);
+    final duration = MotionTokens.accessibleDuration(
+      context,
+      MotionTokens.spatial,
+    );
 
     final Widget rail;
     if (cart.isEmpty) {
@@ -73,7 +80,11 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
     );
   }
 
-  Widget _collapsedPill(BuildContext context, CartState cart, AzamanColors colors) {
+  Widget _collapsedPill(
+    BuildContext context,
+    CartState cart,
+    AzamanColors colors,
+  ) {
     return GestureDetector(
       key: const ValueKey('restaurant-tray-rail-collapsed'),
       behavior: HitTestBehavior.opaque,
@@ -84,7 +95,10 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
         setState(() => _expanded = true);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: AzSpace.md, vertical: 10),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AzSpace.md,
+          vertical: 10,
+        ),
         decoration: BoxDecoration(
           color: colors.surface.withValues(alpha: 0.94),
           borderRadius: AzRadius.brLg,
@@ -94,7 +108,11 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
                 : Colors.white.withValues(alpha: 0.55),
           ),
           boxShadow: const [
-            BoxShadow(color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 6)),
+            BoxShadow(
+              color: Color(0x33000000),
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
           ],
         ),
         child: Center(
@@ -106,11 +124,17 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
               Container(
                 constraints: const BoxConstraints(minWidth: 26),
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(color: colors.accent, borderRadius: AzRadius.brPill),
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  borderRadius: AzRadius.brPill,
+                ),
                 child: Text(
                   '${cart.itemCount}',
                   textAlign: TextAlign.center,
-                  style: AzText.label.copyWith(color: Colors.white, fontWeight: FontWeight.w800),
+                  style: AzText.label.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
               const SizedBox(width: AzSpace.sm),
@@ -119,7 +143,11 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
                 style: AzText.money(colors.textPrimary, size: AzText.sizeBodyS),
               ),
               const SizedBox(width: AzSpace.sm),
-              Icon(Icons.keyboard_arrow_up_rounded, size: 18, color: colors.textTertiary),
+              Icon(
+                Icons.keyboard_arrow_up_rounded,
+                size: 18,
+                color: colors.textTertiary,
+              ),
             ],
           ),
         ),
@@ -127,10 +155,16 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
     );
   }
 
-  Widget _expandedRail(BuildContext context, CartState cart, AzamanColors colors) {
+  Widget _expandedRail(
+    BuildContext context,
+    CartState cart,
+    AzamanColors colors,
+  ) {
     return Container(
       key: const ValueKey('restaurant-tray-rail-expanded'),
-      constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.42),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.42,
+      ),
       decoration: BoxDecoration(
         color: colors.surface.withValues(alpha: 0.97),
         borderRadius: AzRadius.brXl,
@@ -140,7 +174,11 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
               : Colors.white.withValues(alpha: 0.55),
         ),
         boxShadow: const [
-          BoxShadow(color: Color(0x40000000), blurRadius: 20, offset: Offset(0, 8)),
+          BoxShadow(
+            color: Color(0x40000000),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
         ],
       ),
       child: Column(
@@ -169,14 +207,25 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
           Flexible(
             child: ListView.separated(
               shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(AzSpace.md, 0, AzSpace.md, AzSpace.xs),
+              padding: const EdgeInsets.fromLTRB(
+                AzSpace.md,
+                0,
+                AzSpace.md,
+                AzSpace.xs,
+              ),
               itemCount: cart.items.length,
-              separatorBuilder: (_, __) => Divider(color: colors.divider, height: 1),
+              separatorBuilder: (_, __) =>
+                  Divider(color: colors.divider, height: 1),
               itemBuilder: (_, index) => _lineRow(cart.items[index], colors),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(AzSpace.md, AzSpace.sm, AzSpace.md, AzSpace.md),
+            padding: const EdgeInsets.fromLTRB(
+              AzSpace.md,
+              AzSpace.sm,
+              AzSpace.md,
+              AzSpace.md,
+            ),
             child: SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -208,7 +257,11 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
               child: item.image_url == null || item.image_url!.isEmpty
                   ? ColoredBox(
                       color: colors.softSurface,
-                      child: Icon(Icons.restaurant_rounded, size: 17, color: colors.textTertiary),
+                      child: Icon(
+                        Icons.restaurant_rounded,
+                        size: 17,
+                        color: colors.textTertiary,
+                      ),
                     )
                   : AzamanNetworkImage(
                       imageUrl: item.image_url!,
@@ -227,7 +280,10 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
                   item.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AzText.bodyS.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w700),
+                  style: AzText.bodyS.copyWith(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 if (variantSummary.isNotEmpty)
                   Padding(
@@ -236,7 +292,9 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
                       variantSummary,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AzText.caption.copyWith(color: colors.textTertiary),
+                      style: AzText.caption.copyWith(
+                        color: colors.textTertiary,
+                      ),
                     ),
                   ),
               ],
@@ -252,36 +310,32 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
   Widget _stepper(CartItem item, AzamanColors colors) {
     final notifier = ref.read(cartProvider.notifier);
     return Container(
-      decoration: BoxDecoration(color: colors.softSurface, borderRadius: AzRadius.brMd),
+      decoration: BoxDecoration(
+        color: colors.softSurface,
+        borderRadius: AzRadius.brMd,
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _stepButton(
-            HugeIconsStroke.minusSign,
-            'Decrease quantity',
-            () {
-              AzamanHaptics.toggle();
-              notifier.decrementLine(item.lineKey);
-            },
-            colors,
-          ),
+          _stepButton(HugeIconsStroke.minusSign, 'Decrease quantity', () {
+            AzamanHaptics.toggle();
+            notifier.decrementLine(item.lineKey);
+          }, colors),
           SizedBox(
             width: 22,
             child: Text(
               '${item.quantity}',
               textAlign: TextAlign.center,
-              style: AzText.bodyS.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w800),
+              style: AzText.bodyS.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-          _stepButton(
-            HugeIconsStroke.plusSign,
-            'Increase quantity',
-            () {
-              AzamanHaptics.toggle();
-              notifier.incrementLine(item.lineKey);
-            },
-            colors,
-          ),
+          _stepButton(HugeIconsStroke.plusSign, 'Increase quantity', () {
+            AzamanHaptics.toggle();
+            notifier.incrementLine(item.lineKey);
+          }, colors),
         ],
       ),
     );
@@ -292,16 +346,15 @@ class _RestaurantTrayRailState extends ConsumerState<RestaurantTrayRail> {
     String tooltip,
     VoidCallback onTap,
     AzamanColors colors,
-  ) =>
-      SizedBox(
-        width: 30,
-        height: 30,
-        child: IconButton(
-          tooltip: tooltip,
-          padding: EdgeInsets.zero,
-          iconSize: 14,
-          icon: Icon(icon, color: colors.textPrimary),
-          onPressed: onTap,
-        ),
-      );
+  ) => SizedBox(
+    width: 30,
+    height: 30,
+    child: IconButton(
+      tooltip: tooltip,
+      padding: EdgeInsets.zero,
+      iconSize: 14,
+      icon: Icon(icon, color: colors.textPrimary),
+      onPressed: onTap,
+    ),
+  );
 }

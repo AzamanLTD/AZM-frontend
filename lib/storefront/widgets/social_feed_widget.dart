@@ -5,7 +5,11 @@ class SocialFeedWidget extends StatelessWidget {
   final Map<String, dynamic> props;
   final StorefrontBusinessInfo business;
 
-  const SocialFeedWidget({super.key, required this.props, required this.business});
+  const SocialFeedWidget({
+    super.key,
+    required this.props,
+    required this.business,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,17 +28,30 @@ class SocialFeedWidget extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: Row(children: [
-            Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(width: 6),
-            Text(handle.isNotEmpty ? '@$handle' : 'Social Feed', style: Theme.of(context).textTheme.titleMedium),
-          ]),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                handle.isNotEmpty ? '@$handle' : 'Social Feed',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
         ),
         SizedBox(
           height: 180,
           child: GridView.builder(
             scrollDirection: Axis.horizontal,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 8, mainAxisSpacing: 8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
             itemCount: maxPosts,
             itemBuilder: (ctx, i) => Container(
               width: 90,
@@ -42,7 +59,11 @@ class SocialFeedWidget extends StatelessWidget {
                 color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, size: 28, color: Theme.of(ctx).colorScheme.primary),
+              child: Icon(
+                icon,
+                size: 28,
+                color: Theme.of(ctx).colorScheme.primary,
+              ),
             ),
           ),
         ),

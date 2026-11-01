@@ -99,25 +99,27 @@ class _SeededFollowing extends FollowingListNotifier {
 /// Ten deterministic businesses so the results list actually scrolls.
 class _SeededSearch extends BusinessSearchNotifier {
   _SeededSearch() : super(BusinessService()) {
-    state = state.copyWith(results: [
-      for (var i = 0; i < 10; i++)
-        BusinessProfile(
-          id: 'biz-$i',
-          bizId: 'BIZ-$i',
-          businessName: 'Business $i',
-          category: 'RETAIL',
-          isVerified: true,
-          isSuspended: false,
-          kybStatus: 'VERIFIED',
-          totalEscrows: 4,
-          completedEscrows: 4,
-          userId: 1,
-          totalVolume: 0,
-          averageRating: 0,
-          username: 'biz-$i',
-          createdAt: DateTime(2026, 10, 20 - i),
-        ),
-    ]);
+    state = state.copyWith(
+      results: [
+        for (var i = 0; i < 10; i++)
+          BusinessProfile(
+            id: 'biz-$i',
+            bizId: 'BIZ-$i',
+            businessName: 'Business $i',
+            category: 'RETAIL',
+            isVerified: true,
+            isSuspended: false,
+            kybStatus: 'VERIFIED',
+            totalEscrows: 4,
+            completedEscrows: 4,
+            userId: 1,
+            totalVolume: 0,
+            averageRating: 0,
+            username: 'biz-$i',
+            createdAt: DateTime(2026, 10, 20 - i),
+          ),
+      ],
+    );
   }
 
   @override
@@ -147,15 +149,15 @@ class _FakeFeed extends StoryFeedNotifier {
 }
 
 List<StoryGroup> _chatStories() => [
-      for (var i = 0; i < 3; i++)
-        StoryGroup(
-          authorId: i,
-          authorUsername: 'author$i',
-          hasUnseen: i < 2,
-          isBoosted: false,
-          stories: const [],
-        ),
-    ];
+  for (var i = 0; i < 3; i++)
+    StoryGroup(
+      authorId: i,
+      authorUsername: 'author$i',
+      hasUnseen: i < 2,
+      isBoosted: false,
+      stories: const [],
+    ),
+];
 
 class _FakeFriends extends FriendProvider {
   _FakeFriends(super.ref, int count) {
@@ -230,8 +232,7 @@ Future<ScrollController> _pumpHome(
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.reset);
 
-  final colors =
-      (theme ?? ThemeProvider()).colors;
+  final colors = (theme ?? ThemeProvider()).colors;
   Widget page = const MarketplaceHomeScreen();
   if (rootKey != null) {
     page = RepaintBoundary(key: rootKey, child: page);
@@ -299,10 +300,12 @@ void main() {
         'height, label and chevron', (tester) async {
       await _pumpBothCollapsed(tester);
 
-      final chatBody =
-          find.byKey(const ValueKey('inbox_story_rail_compact_body'));
-      final mktBody =
-          find.byKey(const ValueKey('marketplace_story_rail_compact'));
+      final chatBody = find.byKey(
+        const ValueKey('inbox_story_rail_compact_body'),
+      );
+      final mktBody = find.byKey(
+        const ValueKey('marketplace_story_rail_compact'),
+      );
 
       final chatRect = tester.getRect(chatBody);
       final mktRect = tester.getRect(mktBody);
@@ -313,20 +316,21 @@ void main() {
 
       // 2. Same circular ring stack — three rings, not squircle logo boxes.
       final chatRings = tester
-          .widgetList<StoryRing>(find.descendant(
-            of: chatBody,
-            matching: find.byType(StoryRing),
-          ))
+          .widgetList<StoryRing>(
+            find.descendant(of: chatBody, matching: find.byType(StoryRing)),
+          )
           .toList();
       final mktRings = tester
-          .widgetList<StoryRing>(find.descendant(
-            of: mktBody,
-            matching: find.byType(StoryRing),
-          ))
+          .widgetList<StoryRing>(
+            find.descendant(of: mktBody, matching: find.byType(StoryRing)),
+          )
           .toList();
       expect(chatRings.length, 3, reason: 'chat shows 3 story groups');
-      expect(mktRings.length,
-          3, reason: 'marketplace shows 3 followed businesses');
+      expect(
+        mktRings.length,
+        3,
+        reason: 'marketplace shows 3 followed businesses',
+      );
 
       // 3. Same ring size on both surfaces.
       for (var i = 0; i < 3; i++) {
@@ -336,17 +340,21 @@ void main() {
 
       // 4. Same 14dp overlap: consecutive ring origins at 0/14/28 on both.
       final chatStack = tester
-          .widgetList<Positioned>(find.descendant(
-            of: chatBody,
-            matching: find.byWidgetPredicate((w) => w is Positioned),
-          ))
+          .widgetList<Positioned>(
+            find.descendant(
+              of: chatBody,
+              matching: find.byWidgetPredicate((w) => w is Positioned),
+            ),
+          )
           .where((p) => p.child is StoryRing)
           .toList();
       final mktStack = tester
-          .widgetList<Positioned>(find.descendant(
-            of: mktBody,
-            matching: find.byWidgetPredicate((w) => w is Positioned),
-          ))
+          .widgetList<Positioned>(
+            find.descendant(
+              of: mktBody,
+              matching: find.byWidgetPredicate((w) => w is Positioned),
+            ),
+          )
           .where((p) => p.child is StoryRing)
           .toList();
       expect(chatStack.length, 3);
@@ -358,12 +366,17 @@ void main() {
 
       // 5. Same label: both fixtures carry exactly 2 unseen.
       final chatLabel = tester.widget<Text>(
-          find.byKey(const ValueKey('inbox_story_rail_compact_label')));
+        find.byKey(const ValueKey('inbox_story_rail_compact_label')),
+      );
       final mktLabel = tester.widget<Text>(
-          find.byKey(const ValueKey('marketplace_story_rail_compact_label')));
+        find.byKey(const ValueKey('marketplace_story_rail_compact_label')),
+      );
       expect(chatLabel.data, '2 new');
-      expect(mktLabel.data, chatLabel.data,
-          reason: 'the same unseen count must read the same on both surfaces');
+      expect(
+        mktLabel.data,
+        chatLabel.data,
+        reason: 'the same unseen count must read the same on both surfaces',
+      );
       expect(chatLabel.style?.fontSize, mktLabel.style?.fontSize);
       expect(chatLabel.style?.fontWeight, mktLabel.style?.fontWeight);
       expect(chatLabel.style?.color, mktLabel.style?.color);
@@ -374,73 +387,96 @@ void main() {
       // own horizontal padding. Marketplace now uses the identical
       // defaults, so on an equally-wide affordance the chevron rect and
       // the ring stack's leading offset must match chat EXACTLY.
-      final chatChevron = tester.getRect(find.descendant(
+      final chatChevron = tester.getRect(
+        find.descendant(
           of: chatBody,
-          matching: find.byIcon(Icons.keyboard_arrow_down_rounded)));
-      final mktChevron = tester.getRect(find.descendant(
+          matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+        ),
+      );
+      final mktChevron = tester.getRect(
+        find.descendant(
           of: mktBody,
-          matching: find.byIcon(Icons.keyboard_arrow_down_rounded)));
+          matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+        ),
+      );
       // The two surfaces sit at different offsets in the pumped Column,
       // so parity is asserted on the chevron's geometry RELATIVE to its
       // own strip: same trailing inset and same vertical inset.
-      expect(chatChevron.right - chatRect.right,
-          mktChevron.right - mktRect.right,
-          reason: 'chat parity — same trailing inset on both surfaces');
-      expect(chatChevron.top - chatRect.top, mktChevron.top - mktRect.top,
-          reason: 'chat parity — same vertical chevron inset');
-      expect(chatChevron.right - chatRect.right, -AzSpace.xl,
-          reason: 'the chevron floats 20dp inside the affordance\'s '
-              'trailing edge, exactly like the chat strip');
+      expect(
+        chatChevron.right - chatRect.right,
+        mktChevron.right - mktRect.right,
+        reason: 'chat parity — same trailing inset on both surfaces',
+      );
+      expect(
+        chatChevron.top - chatRect.top,
+        mktChevron.top - mktRect.top,
+        reason: 'chat parity — same vertical chevron inset',
+      );
+      expect(
+        chatChevron.right - chatRect.right,
+        -AzSpace.xl,
+        reason:
+            'the chevron floats 20dp inside the affordance\'s '
+            'trailing edge, exactly like the chat strip',
+      );
       expect(chatChevron.left, mktChevron.left);
 
       // 7. Effective leading padding (review A1): the first ring sits
       // AzSpace.xl (20) from the affordance's left edge on BOTH surfaces
       // — combined parent+component padding, not a zero-padding variant.
       const expectedLeading = AzSpace.xl;
-      final chatFirstRing =
-          tester.getRect(find.byWidget(chatRings.first));
-      final mktFirstRing =
-          tester.getRect(find.byWidget(mktRings.first));
+      final chatFirstRing = tester.getRect(find.byWidget(chatRings.first));
+      final mktFirstRing = tester.getRect(find.byWidget(mktRings.first));
       expect(chatFirstRing.left - chatRect.left, expectedLeading);
-      expect(mktFirstRing.left - mktRect.left, expectedLeading,
-          reason: 'the marketplace rail carries its own 20dp leading '
-              'padding; the parent header row adds none (combined = chat)');
-      expect(mktFirstRing.left - mktRect.left,
-          chatFirstRing.left - chatRect.left,
-          reason: 'the EFFECTIVE ring position is the same as chat');
+      expect(
+        mktFirstRing.left - mktRect.left,
+        expectedLeading,
+        reason:
+            'the marketplace rail carries its own 20dp leading '
+            'padding; the parent header row adds none (combined = chat)',
+      );
+      expect(
+        mktFirstRing.left - mktRect.left,
+        chatFirstRing.left - chatRect.left,
+        reason: 'the EFFECTIVE ring position is the same as chat',
+      );
     });
 
     testWidgets('verified status does NOT masquerade as story boosting '
         '(review A4)', (tester) async {
       await _pumpBothCollapsed(tester);
 
-      final mktBody =
-          find.byKey(const ValueKey('marketplace_story_rail_compact'));
+      final mktBody = find.byKey(
+        const ValueKey('marketplace_story_rail_compact'),
+      );
       // The fixture's first business (Adinkra Lounge) is VERIFIED — the
       // boost treatment must still be OFF on every rendered ring.
       final mktRings = tester
-          .widgetList<StoryRing>(find.descendant(
-            of: mktBody,
-            matching: find.byType(StoryRing),
-          ))
+          .widgetList<StoryRing>(
+            find.descendant(of: mktBody, matching: find.byType(StoryRing)),
+          )
           .toList();
       expect(mktRings.length, 3);
       for (final ring in mktRings) {
-        expect(ring.isBoosted, isFalse,
-            reason: 'the followed-business feed carries no boost field — '
-                'verification must never render the boosted ring');
+        expect(
+          ring.isBoosted,
+          isFalse,
+          reason:
+              'the followed-business feed carries no boost field — '
+              'verification must never render the boosted ring',
+        );
       }
 
       // The expanded rail is equally honest: verification ≠ boost there.
       // (Asserted via the shared CompactStoryItem contract: the collapsed
       // item for the verified business was built with isBoosted unset.)
-      final chatBody =
-          find.byKey(const ValueKey('inbox_story_rail_compact_body'));
+      final chatBody = find.byKey(
+        const ValueKey('inbox_story_rail_compact_body'),
+      );
       final chatRings = tester
-          .widgetList<StoryRing>(find.descendant(
-            of: chatBody,
-            matching: find.byType(StoryRing),
-          ))
+          .widgetList<StoryRing>(
+            find.descendant(of: chatBody, matching: find.byType(StoryRing)),
+          )
           .toList();
       for (final ring in chatRings) {
         expect(ring.isBoosted, isFalse);
@@ -452,13 +488,19 @@ void main() {
       await _pumpBothCollapsed(tester);
       final nodes = tester
           .widgetList<Semantics>(find.byType(Semantics))
-          .where((s) =>
-              (s.properties.label ?? '')
-                  .contains('2 businesses with new stories'))
+          .where(
+            (s) => (s.properties.label ?? '').contains(
+              '2 businesses with new stories',
+            ),
+          )
           .length;
-      expect(nodes, 1,
-          reason: 'the collapsed stories affordance announces the real '
-              'unseen count and what tapping does');
+      expect(
+        nodes,
+        1,
+        reason:
+            'the collapsed stories affordance announces the real '
+            'unseen count and what tapping does',
+      );
     });
   });
 
@@ -466,25 +508,34 @@ void main() {
     testWidgets('actions stay RIGHT of the collapsed affordance on the same '
         'row', (tester) async {
       final ctrl = await _pumpHome(tester);
-      expect(ctrl.position.maxScrollExtent,
-          greaterThan(StoryRailCollapse.travelPx),
-          reason: 'the seeded feed must be long enough to collapse the rail');
+      expect(
+        ctrl.position.maxScrollExtent,
+        greaterThan(StoryRailCollapse.travelPx),
+        reason: 'the seeded feed must be long enough to collapse the rail',
+      );
 
       ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
       await _settleFrames(tester, frames: 6);
 
-      final affordance =
-          find.byKey(const ValueKey('marketplace_story_rail_compact'));
-      expect(affordance, findsOneWidget,
-          reason: 'collapsed state shows the shared compact rail');
+      final affordance = find.byKey(
+        const ValueKey('marketplace_story_rail_compact'),
+      );
+      expect(
+        affordance,
+        findsOneWidget,
+        reason: 'collapsed state shows the shared compact rail',
+      );
 
       final affordanceRect = tester.getRect(affordance);
-      final storeIcon =
-          tester.getRect(find.byIcon(Icons.storefront_rounded).first);
-      final ordersIcon =
-          tester.getRect(find.byIcon(Icons.receipt_long_rounded).first);
-      final listSeg =
-          tester.getRect(find.byIcon(Icons.view_agenda_outlined).first);
+      final storeIcon = tester.getRect(
+        find.byIcon(Icons.storefront_rounded).first,
+      );
+      final ordersIcon = tester.getRect(
+        find.byIcon(Icons.receipt_long_rounded).first,
+      );
+      final listSeg = tester.getRect(
+        find.byIcon(Icons.view_agenda_outlined).first,
+      );
 
       // Same row (vertical overlap with the affordance)…
       for (final icon in [storeIcon, ordersIcon, listSeg]) {
@@ -499,28 +550,40 @@ void main() {
       // REAL header composition (parent 0 + component 20), the same
       // offset chat's full-width strip renders at.
       final rings = tester
-          .widgetList<StoryRing>(find.descendant(
-            of: affordance,
-            matching: find.byType(StoryRing),
-          ))
+          .widgetList<StoryRing>(
+            find.descendant(of: affordance, matching: find.byType(StoryRing)),
+          )
           .toList();
       expect(rings, isNotEmpty);
       final firstRing = tester.getRect(find.byWidget(rings.first));
-      expect(firstRing.left, closeTo(AzSpace.xl, 0.5),
-          reason: 'combined parent+component leading padding == chat\'s');
+      expect(
+        firstRing.left,
+        closeTo(AzSpace.xl, 0.5),
+        reason: 'combined parent+component leading padding == chat\'s',
+      );
 
       // Review A1 — chevron at the affordance's trailing edge with the
       // same internal inset chat uses: it floats 20dp inside the
       // AFFORDANCE's own right edge (the Expanded region that ends at the
       // row's SizedBox gap before the action icons).
-      final chevron = tester.getRect(find.descendant(
+      final chevron = tester.getRect(
+        find.descendant(
           of: affordance,
-          matching: find.byIcon(Icons.keyboard_arrow_down_rounded)));
-      expect(chevron.right, closeTo(affordanceRect.right - AzSpace.xl, 0.5),
-          reason: 'the chevron keeps chat\'s trailing-edge grammar beside '
-              'the right-aligned action icons');
-      expect(chevron.right, lessThan(storeIcon.left),
-          reason: 'the chevron stays left of the action cluster');
+          matching: find.byIcon(Icons.keyboard_arrow_down_rounded),
+        ),
+      );
+      expect(
+        chevron.right,
+        closeTo(affordanceRect.right - AzSpace.xl, 0.5),
+        reason:
+            'the chevron keeps chat\'s trailing-edge grammar beside '
+            'the right-aligned action icons',
+      );
+      expect(
+        chevron.right,
+        lessThan(storeIcon.left),
+        reason: 'the chevron stays left of the action cluster',
+      );
       await _teardownHome(tester);
     });
 
@@ -531,8 +594,9 @@ void main() {
       await _settleFrames(tester, frames: 6);
       final offsetBefore = ctrl.offset;
 
-      await tester
-          .tap(find.byKey(const ValueKey('marketplace_story_rail_compact')));
+      await tester.tap(
+        find.byKey(const ValueKey('marketplace_story_rail_compact')),
+      );
       // The expand is a 400ms animation — advance it in ticker-sized steps
       // (a single long pump only fires one animation tick).
       for (var i = 0; i < 14; i++) {
@@ -542,59 +606,82 @@ void main() {
       // Workstream F1: the anchor is preserved — the list scrolls DOWN by
       // the rail's growth instead of being dragged back to the top.
       expect(
-          ctrl.offset,
-          closeTo(offsetBefore + StoryRailCollapse.extentPx, 1.0),
-          reason: 'the anchor is preserved; the page never returns to the top');
+        ctrl.offset,
+        closeTo(offsetBefore + StoryRailCollapse.extentPx, 1.0),
+        reason: 'the anchor is preserved; the page never returns to the top',
+      );
       expect(ctrl.offset, greaterThan(StoryRailCollapse.extentPx));
       expect(find.byType(MarketplaceExpandedStories), findsOneWidget);
 
       final expandedRings = tester
-          .widgetList<StoryRing>(find.descendant(
-            of: find.byType(MarketplaceExpandedStories),
-            matching: find.byType(StoryRing),
-          ))
+          .widgetList<StoryRing>(
+            find.descendant(
+              of: find.byType(MarketplaceExpandedStories),
+              matching: find.byType(StoryRing),
+            ),
+          )
           .toList();
       expect(expandedRings.length, 3);
-      expect(expandedRings.first.size, 64,
-          reason: 'the expanded rail renders at the shared chat scale');
+      expect(
+        expandedRings.first.size,
+        64,
+        reason: 'the expanded rail renders at the shared chat scale',
+      );
       await _teardownHome(tester);
     });
 
-    testWidgets('no horizontal overflow at 320/360/390dp in either state',
-        (tester) async {
+    testWidgets('no horizontal overflow at 320/360/390dp in either state', (
+      tester,
+    ) async {
       for (final width in [320.0, 360.0, 390.0]) {
         final ctrl = await _pumpHome(tester, width: width);
         await tester.pump(const Duration(milliseconds: 100));
-        expect(tester.takeException(), isNull,
-            reason: 'expanded rail fits at ${width.toInt()}dp');
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'expanded rail fits at ${width.toInt()}dp',
+        );
 
         ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
         await _settleFrames(tester, frames: 6);
-        expect(tester.takeException(), isNull,
-            reason: 'collapsed affordance fits at ${width.toInt()}dp');
+        expect(
+          tester.takeException(),
+          isNull,
+          reason: 'collapsed affordance fits at ${width.toInt()}dp',
+        );
         await _teardownHome(tester);
       }
     });
 
-    testWidgets('reduced motion lands directly — binary, no fractional slide',
-        (tester) async {
+    testWidgets('reduced motion lands directly — binary, no fractional slide', (
+      tester,
+    ) async {
       final ctrl = await _pumpHome(tester, reducedMotion: true);
 
       // Below the shared snap threshold: fully open, directly.
       ctrl.jumpTo(20);
       await tester.pump();
-      final extent = find.byKey(const ValueKey('marketplace_story_rail_extent'));
-      expect(tester.getRect(extent).height,
-          closeTo(StoryRailCollapse.extentPx, 0.5),
-          reason: 'reduced motion keeps the rail fully open below threshold');
+      final extent = find.byKey(
+        const ValueKey('marketplace_story_rail_extent'),
+      );
+      expect(
+        tester.getRect(extent).height,
+        closeTo(StoryRailCollapse.extentPx, 0.5),
+        reason: 'reduced motion keeps the rail fully open below threshold',
+      );
 
       // Above the threshold: fully collapsed in the SAME frame — no slide.
       ctrl.jumpTo(StoryRailCollapse.travelPx * 0.9);
       await tester.pump();
-      expect(tester.getRect(extent).height, closeTo(0, 0.5),
-          reason: 'reduced motion lands directly in the collapsed state');
-      expect(find.byKey(const ValueKey('marketplace_story_rail_compact')),
-          findsOneWidget);
+      expect(
+        tester.getRect(extent).height,
+        closeTo(0, 0.5),
+        reason: 'reduced motion lands directly in the collapsed state',
+      );
+      expect(
+        find.byKey(const ValueKey('marketplace_story_rail_compact')),
+        findsOneWidget,
+      );
       await _teardownHome(tester);
     });
   });
@@ -607,18 +694,21 @@ void main() {
 
     Future<void> loadFonts() async {
       if (fontsLoaded) return;
-      final inter =
-          await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
+      final inter = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
       final loader = FontLoader('Inter')
-        ..addFont(Future<ByteData>.value(
-            ByteData.view(Uint8List.fromList(inter).buffer)));
+        ..addFont(
+          Future<ByteData>.value(
+            ByteData.view(Uint8List.fromList(inter).buffer),
+          ),
+        );
       await loader.load();
       fontsLoaded = true;
     }
 
     Future<ThemeProvider> seedTheme(AzamanTheme theme) async {
-      SharedPreferences.setMockInitialValues(
-          {'azaman_theme': theme == AzamanTheme.dark ? 1 : 0});
+      SharedPreferences.setMockInitialValues({
+        'azaman_theme': theme == AzamanTheme.dark ? 1 : 0,
+      });
       final p = ThemeProvider();
       var guard = 0;
       while (!p.isLoaded && guard++ < 100) {
@@ -631,20 +721,23 @@ void main() {
     Future<void> capture(WidgetTester tester, String name) async {
       var ok = false;
       await tester.runAsync(() async {
-        final boundary =
-            tester.renderObject<RenderRepaintBoundary>(find.byKey(rootKey));
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find.byKey(rootKey),
+        );
         final image = await boundary.toImage(pixelRatio: 2.0);
         final data = (await image.toByteData(format: ImageByteFormat.png))!;
         Directory('.screenshots/stories_parity').createSync(recursive: true);
-        File('.screenshots/stories_parity/$name.png')
-            .writeAsBytesSync(data.buffer.asUint8List());
+        File(
+          '.screenshots/stories_parity/$name.png',
+        ).writeAsBytesSync(data.buffer.asUint8List());
         ok = true;
       });
       expect(ok, isTrue, reason: 'capture $name wrote a PNG');
     }
 
-    testWidgets('marketplace expanded + collapsed, both themes, three widths',
-        (tester) async {
+    testWidgets('marketplace expanded + collapsed, both themes, three widths', (
+      tester,
+    ) async {
       await tester.runAsync(loadFonts);
       for (final theme in AzamanTheme.values) {
         for (final width in [320.0, 360.0, 390.0]) {
@@ -657,11 +750,15 @@ void main() {
             rootKey: rootKey,
           );
           await capture(
-              tester, 'marketplace_expanded_${themeName}_${width.toInt()}');
+            tester,
+            'marketplace_expanded_${themeName}_${width.toInt()}',
+          );
           ctrl.jumpTo(StoryRailCollapse.travelPx * 1.5);
           await _settleFrames(tester, frames: 8);
           await capture(
-              tester, 'marketplace_collapsed_${themeName}_${width.toInt()}');
+            tester,
+            'marketplace_collapsed_${themeName}_${width.toInt()}',
+          );
           await _teardownHome(tester);
           tester.view.resetPhysicalSize();
           tester.view.resetDevicePixelRatio();
@@ -669,8 +766,9 @@ void main() {
       }
     });
 
-    testWidgets('chat expanded + collapsed, both themes, three widths',
-        (tester) async {
+    testWidgets('chat expanded + collapsed, both themes, three widths', (
+      tester,
+    ) async {
       await tester.runAsync(loadFonts);
       for (final theme in AzamanTheme.values) {
         for (final width in [320.0, 360.0, 390.0]) {
@@ -682,8 +780,9 @@ void main() {
             ProviderScope(
               overrides: [
                 friendProvider.overrideWith((ref) => _FakeFriends(ref, 20)),
-                storyFeedProvider
-                    .overrideWith((ref) => _FakeFeed(_chatStories())),
+                storyFeedProvider.overrideWith(
+                  (ref) => _FakeFeed(_chatStories()),
+                ),
                 groupListProvider.overrideWith(() => _FakeGroups()),
               ],
               child: AnimatedBuilder(
@@ -718,7 +817,9 @@ void main() {
 
           // Committed drag collapses into the compact presentation.
           await tester.drag(
-              find.byKey(const ValueKey('inbox_scroll')), const Offset(0, -150));
+            find.byKey(const ValueKey('inbox_scroll')),
+            const Offset(0, -150),
+          );
           await tester.pumpAndSettle();
           await capture(tester, 'chat_collapsed_${themeName}_${width.toInt()}');
 

@@ -5,7 +5,11 @@ class LiquidSafeArea {
   final Size screen;
   final EdgeInsets padding;
   final double margin;
-  const LiquidSafeArea({required this.screen, required this.padding, this.margin = 12});
+  const LiquidSafeArea({
+    required this.screen,
+    required this.padding,
+    this.margin = 12,
+  });
 
   double get left => padding.left + margin;
   double get right => screen.width - padding.right - margin;
@@ -24,10 +28,14 @@ bool _growsRight(Rect anchor, LiquidSafeArea safe, TextDirection dir) {
 }
 
 class PanelPlacement {
-  final Rect rect;      // final panel rect, global
-  final Offset origin;  // scale origin (trigger centre) in panel-local coords
+  final Rect rect; // final panel rect, global
+  final Offset origin; // scale origin (trigger centre) in panel-local coords
   final bool above;
-  const PanelPlacement({required this.rect, required this.origin, required this.above});
+  const PanelPlacement({
+    required this.rect,
+    required this.origin,
+    required this.above,
+  });
 
   /// Offset from the anchor's top-left to the panel's top-left.
   /// Feed this to CompositedTransformFollower so the panel tracks the trigger.
@@ -51,7 +59,10 @@ PanelPlacement solvePanel({
   final spaceAbove = anchor.top - gap - safe.top;
   final spaceBelow = safe.bottom - anchor.bottom - gap;
   final above = spaceAbove >= panel.height || spaceAbove >= spaceBelow;
-  final h = math.min(panel.height, math.max(above ? spaceAbove : spaceBelow, 120.0));
+  final h = math.min(
+    panel.height,
+    math.max(above ? spaceAbove : spaceBelow, 120.0),
+  );
   final top = above ? anchor.top - gap - h : anchor.bottom + gap;
 
   final rect = Rect.fromLTWH(left, top, w, h);
@@ -64,7 +75,7 @@ PanelPlacement solvePanel({
 
 class ArcSlot {
   final int index;
-  final Rect rect;    // final pill rect, global
+  final Rect rect; // final pill rect, global
   final double angle; // radians from the horizontal-outward axis
   const ArcSlot({required this.index, required this.rect, required this.angle});
 }
@@ -172,9 +183,21 @@ List<ArcSlot> solveArc({
   // For each offset, scan radii from small to large.
   double? solveRadius() {
     final rMin = minRadiusForClearance();
-    final rMax = math.max(rMin, math.max(safe.screen.width, safe.screen.height));
+    final rMax = math.max(
+      rMin,
+      math.max(safe.screen.width, safe.screen.height),
+    );
     const samples = 300;
-    for (final offsetDeg in [0.0, 12.0, 24.0, 36.0, 48.0, 60.0, 72.0, maxSweepDeg]) {
+    for (final offsetDeg in [
+      0.0,
+      12.0,
+      24.0,
+      36.0,
+      48.0,
+      60.0,
+      72.0,
+      maxSweepDeg,
+    ]) {
       final offset = offsetDeg * math.pi / 180;
       if (offset > maxSweep + 1e-6) continue;
       for (var k = 0; k <= samples; k++) {
@@ -201,10 +224,14 @@ List<ArcSlot> solveArc({
         height: sizes[i].height,
       );
       // Safety clamp.
-      if (rect.left < safe.left) rect = rect.shift(Offset(safe.left - rect.left, 0));
-      if (rect.right > safe.right) rect = rect.shift(Offset(safe.right - rect.right, 0));
-      if (rect.top < safe.top) rect = rect.shift(Offset(0, safe.top - rect.top));
-      if (rect.bottom > safe.bottom) rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
+      if (rect.left < safe.left)
+        rect = rect.shift(Offset(safe.left - rect.left, 0));
+      if (rect.right > safe.right)
+        rect = rect.shift(Offset(safe.right - rect.right, 0));
+      if (rect.top < safe.top)
+        rect = rect.shift(Offset(0, safe.top - rect.top));
+      if (rect.bottom > safe.bottom)
+        rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
       slots.add(ArcSlot(index: i, rect: rect, angle: rad));
     }
     return slots;
@@ -212,7 +239,16 @@ List<ArcSlot> solveArc({
 
   if (foundR != null) {
     // Determine which offset worked.
-    for (final offsetDeg in [0.0, 12.0, 24.0, 36.0, 48.0, 60.0, 72.0, maxSweepDeg]) {
+    for (final offsetDeg in [
+      0.0,
+      12.0,
+      24.0,
+      36.0,
+      48.0,
+      60.0,
+      72.0,
+      maxSweepDeg,
+    ]) {
       final offset = offsetDeg * math.pi / 180;
       if (offset > maxSweep + 1e-6) continue;
       if (allFit(foundR, offset)) {
@@ -266,10 +302,13 @@ List<ArcSlot> solveArc({
       width: sizes[i].width,
       height: sizes[i].height,
     );
-    if (rect.left < safe.left) rect = rect.shift(Offset(safe.left - rect.left, 0));
-    if (rect.right > safe.right) rect = rect.shift(Offset(safe.right - rect.right, 0));
+    if (rect.left < safe.left)
+      rect = rect.shift(Offset(safe.left - rect.left, 0));
+    if (rect.right > safe.right)
+      rect = rect.shift(Offset(safe.right - rect.right, 0));
     if (rect.top < safe.top) rect = rect.shift(Offset(0, safe.top - rect.top));
-    if (rect.bottom > safe.bottom) rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
+    if (rect.bottom > safe.bottom)
+      rect = rect.shift(Offset(0, safe.bottom - rect.bottom));
     slots.add(ArcSlot(index: i, rect: rect, angle: rad));
   }
 
@@ -298,10 +337,14 @@ List<ArcSlot> solveArc({
         width: sizes[i].width,
         height: sizes[i].height,
       );
-      if (newRect.left < safe.left) newRect = newRect.shift(Offset(safe.left - newRect.left, 0));
-      if (newRect.right > safe.right) newRect = newRect.shift(Offset(safe.right - newRect.right, 0));
-      if (newRect.top < safe.top) newRect = newRect.shift(Offset(0, safe.top - newRect.top));
-      if (newRect.bottom > safe.bottom) newRect = newRect.shift(Offset(0, safe.bottom - newRect.bottom));
+      if (newRect.left < safe.left)
+        newRect = newRect.shift(Offset(safe.left - newRect.left, 0));
+      if (newRect.right > safe.right)
+        newRect = newRect.shift(Offset(safe.right - newRect.right, 0));
+      if (newRect.top < safe.top)
+        newRect = newRect.shift(Offset(0, safe.top - newRect.top));
+      if (newRect.bottom > safe.bottom)
+        newRect = newRect.shift(Offset(0, safe.bottom - newRect.bottom));
       if (!newRect.overlaps(prev.deflate(1))) {
         rad = newRad;
         cur = newRect;
@@ -323,14 +366,21 @@ List<ArcSlot> solveArc({
           width: sizes[i].width,
           height: sizes[i].height,
         );
-        if (newRect.left < safe.left) newRect = newRect.shift(Offset(safe.left - newRect.left, 0));
-        if (newRect.right > safe.right) newRect = newRect.shift(Offset(safe.right - newRect.right, 0));
-        if (newRect.top < safe.top) newRect = newRect.shift(Offset(0, safe.top - newRect.top));
-        if (newRect.bottom > safe.bottom) newRect = newRect.shift(Offset(0, safe.bottom - newRect.bottom));
+        if (newRect.left < safe.left)
+          newRect = newRect.shift(Offset(safe.left - newRect.left, 0));
+        if (newRect.right > safe.right)
+          newRect = newRect.shift(Offset(safe.right - newRect.right, 0));
+        if (newRect.top < safe.top)
+          newRect = newRect.shift(Offset(0, safe.top - newRect.top));
+        if (newRect.bottom > safe.bottom)
+          newRect = newRect.shift(Offset(0, safe.bottom - newRect.bottom));
         // Check against ALL prior slots, not just the immediately previous one.
         var overlapsAny = false;
         for (var j = 0; j < i; j++) {
-          if (newRect.overlaps(slots[j].rect.deflate(1))) { overlapsAny = true; break; }
+          if (newRect.overlaps(slots[j].rect.deflate(1))) {
+            overlapsAny = true;
+            break;
+          }
         }
         if (!overlapsAny) {
           r = newR;

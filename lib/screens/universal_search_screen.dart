@@ -75,20 +75,90 @@ class _QuickAction {
 }
 
 final _quickActions = <_QuickAction>[
-  _QuickAction(title: 'Send Money', icon: HugeIconsSolid.moneySend01, route: '/deposit', keywords: ['send', 'transfer', 'pay']),
-  _QuickAction(title: 'Withdraw', icon: HugeIconsSolid.moneySendSquare, route: '/withdraw', keywords: ['withdraw', 'cash out']),
-  _QuickAction(title: 'New Trade', icon: HugeIconsSolid.exchange01, route: '/trade/create', keywords: ['trade', 'exchange', 'buy', 'sell', 'crypto']),
-  _QuickAction(title: 'Marketplace', icon: HugeIconsSolid.store01, route: '/marketplace', keywords: ['market', 'shop', 'business', 'store']),
-  _QuickAction(title: 'Susu Groups', icon: HugeIconsSolid.group01, route: '/susu', keywords: ['susu', 'savings', 'group', 'rosca']),
-  _QuickAction(title: 'Vaults', icon: HugeIconsSolid.safeBox, route: '/savings', keywords: ['vault', 'savings', 'goal', 'save']),
-  _QuickAction(title: 'Chat', icon: HugeIconsSolid.message01, route: '/messages', keywords: ['chat', 'message', 'talk', 'dm']),
-  _QuickAction(title: 'Notifications', icon: HugeIconsSolid.notification01, route: '/notifications', keywords: ['notification', 'alert', 'bell']),
-  _QuickAction(title: 'Profile', icon: HugeIconsSolid.userCircle, route: '/profile', keywords: ['profile', 'settings', 'account']),
-  _QuickAction(title: 'Referrals', icon: HugeIconsSolid.gift, route: '/referral', keywords: ['refer', 'invite', 'friend', 'reward']),
-  _QuickAction(title: 'QR Scanner', icon: HugeIconsSolid.qrCode01, route: '/qr-scanner', keywords: ['qr', 'scan', 'code']),
-  _QuickAction(title: 'Transaction History', icon: HugeIconsSolid.note01, route: '/transactions', keywords: ['transaction', 'history', 'statement']),
-  _QuickAction(title: 'Spending Insights', icon: HugeIconsSolid.dashboardSquare01, route: '/spending-insights', keywords: ['spending', 'budget', 'insights', 'analytics', 'budget']),
-  _QuickAction(title: 'Round-Up Savings', icon: HugeIconsSolid.piggyBank, route: '/round-up', keywords: ['round', 'round-up', 'savings', 'piggy', 'acorns']),
+  _QuickAction(
+    title: 'Send Money',
+    icon: HugeIconsSolid.moneySend01,
+    route: '/deposit',
+    keywords: ['send', 'transfer', 'pay'],
+  ),
+  _QuickAction(
+    title: 'Withdraw',
+    icon: HugeIconsSolid.moneySendSquare,
+    route: '/withdraw',
+    keywords: ['withdraw', 'cash out'],
+  ),
+  _QuickAction(
+    title: 'New Trade',
+    icon: HugeIconsSolid.exchange01,
+    route: '/trade/create',
+    keywords: ['trade', 'exchange', 'buy', 'sell', 'crypto'],
+  ),
+  _QuickAction(
+    title: 'Marketplace',
+    icon: HugeIconsSolid.store01,
+    route: '/marketplace',
+    keywords: ['market', 'shop', 'business', 'store'],
+  ),
+  _QuickAction(
+    title: 'Susu Groups',
+    icon: HugeIconsSolid.group01,
+    route: '/susu',
+    keywords: ['susu', 'savings', 'group', 'rosca'],
+  ),
+  _QuickAction(
+    title: 'Vaults',
+    icon: HugeIconsSolid.safeBox,
+    route: '/savings',
+    keywords: ['vault', 'savings', 'goal', 'save'],
+  ),
+  _QuickAction(
+    title: 'Chat',
+    icon: HugeIconsSolid.message01,
+    route: '/messages',
+    keywords: ['chat', 'message', 'talk', 'dm'],
+  ),
+  _QuickAction(
+    title: 'Notifications',
+    icon: HugeIconsSolid.notification01,
+    route: '/notifications',
+    keywords: ['notification', 'alert', 'bell'],
+  ),
+  _QuickAction(
+    title: 'Profile',
+    icon: HugeIconsSolid.userCircle,
+    route: '/profile',
+    keywords: ['profile', 'settings', 'account'],
+  ),
+  _QuickAction(
+    title: 'Referrals',
+    icon: HugeIconsSolid.gift,
+    route: '/referral',
+    keywords: ['refer', 'invite', 'friend', 'reward'],
+  ),
+  _QuickAction(
+    title: 'QR Scanner',
+    icon: HugeIconsSolid.qrCode01,
+    route: '/qr-scanner',
+    keywords: ['qr', 'scan', 'code'],
+  ),
+  _QuickAction(
+    title: 'Transaction History',
+    icon: HugeIconsSolid.note01,
+    route: '/transactions',
+    keywords: ['transaction', 'history', 'statement'],
+  ),
+  _QuickAction(
+    title: 'Spending Insights',
+    icon: HugeIconsSolid.dashboardSquare01,
+    route: '/spending-insights',
+    keywords: ['spending', 'budget', 'insights', 'analytics', 'budget'],
+  ),
+  _QuickAction(
+    title: 'Round-Up Savings',
+    icon: HugeIconsSolid.piggyBank,
+    route: '/round-up',
+    keywords: ['round', 'round-up', 'savings', 'piggy', 'acorns'],
+  ),
 ];
 
 // ── Universal Search Screen ─────────────────────────────────────────────────
@@ -97,7 +167,8 @@ class UniversalSearchScreen extends ConsumerStatefulWidget {
   const UniversalSearchScreen({super.key});
 
   @override
-  ConsumerState<UniversalSearchScreen> createState() => _UniversalSearchScreenState();
+  ConsumerState<UniversalSearchScreen> createState() =>
+      _UniversalSearchScreenState();
 }
 
 class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
@@ -133,18 +204,20 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
       final titleMatch = action.title.toLowerCase().contains(q);
       final keywordMatch = action.keywords.any((k) => k.contains(q));
       if (titleMatch || keywordMatch) {
-        results.add(SearchResult(
-          id: 'action_${action.title}',
-          title: action.title,
-          subtitle: action.subtitle,
-          category: SearchCategory.pages,
-          icon: action.icon,
-          onTap: () {
-            AzamanHaptics.nav();
-            context.push(action.route);
-            Navigator.of(context).pop();
-          },
-        ));
+        results.add(
+          SearchResult(
+            id: 'action_${action.title}',
+            title: action.title,
+            subtitle: action.subtitle,
+            category: SearchCategory.pages,
+            icon: action.icon,
+            onTap: () {
+              AzamanHaptics.nav();
+              context.push(action.route);
+              Navigator.of(context).pop();
+            },
+          ),
+        );
       }
     }
 
@@ -174,16 +247,27 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 12, 12),
                 child: Row(
                   children: [
-                    Icon(HugeIconsSolid.search01, size: 20, color: colors.textTertiary),
+                    Icon(
+                      HugeIconsSolid.search01,
+                      size: 20,
+                      color: colors.textTertiary,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
                         focusNode: _focusNode,
-                        style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Search anything...',
-                          hintStyle: TextStyle(color: colors.textTertiary, fontSize: 16),
+                          hintStyle: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 16,
+                          ),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
@@ -214,7 +298,11 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                             color: colors.softSurface,
                             shape: BoxShape.circle,
                           ),
-                          child: Icon(HugeIconsSolid.cancel01, size: 16, color: colors.textTertiary),
+                          child: Icon(
+                            HugeIconsSolid.cancel01,
+                            size: 16,
+                            color: colors.textTertiary,
+                          ),
                         ),
                       )
                     else
@@ -224,7 +312,10 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                           padding: const EdgeInsets.only(left: 8),
                           child: Text(
                             'Cancel',
-                            style: TextStyle(color: colors.textTertiary, fontSize: 16),
+                            style: TextStyle(
+                              color: colors.textTertiary,
+                              fontSize: 16,
+                            ),
                           ),
                         ),
                       ),
@@ -239,8 +330,8 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                 child: _query.isEmpty
                     ? _buildQuickActions(colors)
                     : _results.isEmpty
-                        ? _buildEmptyState(colors)
-                        : _buildResults(colors),
+                    ? _buildEmptyState(colors)
+                    : _buildResults(colors),
               ),
             ],
           ),
@@ -321,14 +412,16 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
                 ),
               ),
             ),
-            ...items.map((r) => _SearchTile(
-                  icon: r.icon,
-                  iconColor: r.category.color,
-                  title: r.title,
-                  subtitle: r.subtitle,
-                  colors: colors,
-                  onTap: r.onTap ?? () {},
-                )),
+            ...items.map(
+              (r) => _SearchTile(
+                icon: r.icon,
+                iconColor: r.category.color,
+                title: r.title,
+                subtitle: r.subtitle,
+                colors: colors,
+                onTap: r.onTap ?? () {},
+              ),
+            ),
           ],
         );
       },
@@ -393,7 +486,10 @@ class _SearchTile extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
                           subtitle!,
-                          style: TextStyle(color: colors.textTertiary, fontSize: 12),
+                          style: TextStyle(
+                            color: colors.textTertiary,
+                            fontSize: 12,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -401,7 +497,11 @@ class _SearchTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(HugeIconsSolid.arrowRight01, size: 16, color: colors.textTertiary),
+              Icon(
+                HugeIconsSolid.arrowRight01,
+                size: 16,
+                color: colors.textTertiary,
+              ),
             ],
           ),
         ),

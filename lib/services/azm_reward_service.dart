@@ -173,7 +173,11 @@ class AzmFriendsLeaderboard {
     );
   }
 
-  static const empty = AzmFriendsLeaderboard(entries: [], myRank: null, totalMembers: 0);
+  static const empty = AzmFriendsLeaderboard(
+    entries: [],
+    myRank: null,
+    totalMembers: 0,
+  );
 }
 
 class AzmSourceStats {
@@ -240,12 +244,14 @@ class AzmRates {
 class AzmRewardService {
   /// Fetch paginated AZM earn history.
   Future<({List<AzmRewardEntry> rewards, String? nextCursor, bool hasMore})>
-      getHistory({String? cursor, int limit = 20, String? source}) async {
+  getHistory({String? cursor, int limit = 20, String? source}) async {
     final params = <String, String>{'limit': '$limit'};
     if (cursor != null) params['cursor'] = cursor;
     if (source != null) params['source'] = source;
 
-    final queryString = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+    final queryString = params.entries
+        .map((e) => '${e.key}=${e.value}')
+        .join('&');
     final response = await apiClient.get('/azm/history?$queryString');
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     final data = body['data'] as Map<String, dynamic>;
@@ -279,7 +285,9 @@ class AzmRewardService {
 
   /// Fetch the caller + their accepted friends ranked by total AZM earned.
   Future<AzmFriendsLeaderboard> getFriendsLeaderboard({int limit = 20}) async {
-    final response = await apiClient.get('/azm/friends-leaderboard?limit=$limit');
+    final response = await apiClient.get(
+      '/azm/friends-leaderboard?limit=$limit',
+    );
     final body = jsonDecode(response.body) as Map<String, dynamic>;
     return AzmFriendsLeaderboard.fromJson(body['data'] as Map<String, dynamic>);
   }

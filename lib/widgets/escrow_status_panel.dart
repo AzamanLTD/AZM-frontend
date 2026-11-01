@@ -16,7 +16,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -112,7 +111,10 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: statusColor.withValues(alpha: 0.35), width: 1),
+        border: Border.all(
+          color: statusColor.withValues(alpha: 0.35),
+          width: 1,
+        ),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -170,7 +172,8 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                               Flexible(
                                 child: NativeAmountText(
                                   key: const ValueKey(
-                                      'escrow-panel-collapsed-amount'),
+                                    'escrow-panel-collapsed-amount',
+                                  ),
                                   amountUsdc: escrow.amountUsdc,
                                   forceNative: true,
                                   showEquivalent: false,
@@ -198,8 +201,11 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                     AnimatedRotation(
                       turns: _expanded ? 0.5 : 0,
                       duration: const Duration(milliseconds: 200),
-                      child: Icon(Icons.arrow_downward,
-                          size: 20, color: colors.textTertiary),
+                      child: Icon(
+                        Icons.arrow_downward,
+                        size: 20,
+                        color: colors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -223,12 +229,10 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                 // lifecycle states.
                 railNote: switch (escrow.status) {
                   EscrowStatus.settled ||
-                  EscrowStatus.released =>
-                    'settled in USDC',
+                  EscrowStatus.released => 'settled in USDC',
                   EscrowStatus.draft ||
                   EscrowStatus.refunded ||
-                  EscrowStatus.expired =>
-                    'denominated in USDC',
+                  EscrowStatus.expired => 'denominated in USDC',
                   _ => 'held in USDC',
                 },
               ),
@@ -260,7 +264,6 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
-
 
   /// The honest live-equivalent suffix for a money confirmation: never a
   /// settlement claim, always labelled a current estimate, absent when the
@@ -311,19 +314,17 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       icon: Icons.check_circle_outline,
     );
     if (ok != true || !mounted) return;
-    await AzamanBiometricGate.run(
-      context,
-      () async {
-        final settled = await widget.onSatisfy();
-        if (settled && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+    await AzamanBiometricGate.run(context, () async {
+      final settled = await widget.onSatisfy();
+      if (settled && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
             content: Text('Escrow settled — funds released.'),
             behavior: SnackBarBehavior.floating,
-          ));
-        }
-      },
-      reason: 'Authenticate to confirm release',
-    );
+          ),
+        );
+      }
+    }, reason: 'Authenticate to confirm release');
   }
 
   Future<void> _confirmCancel() async {
@@ -350,9 +351,7 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
     final reason = await AzamanSheet.showPanel<String>(
       context,
       builder: (ctx, scrollController) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom,
-        ),
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
         child: Column(
           children: [
             Flexible(
@@ -362,22 +361,25 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.error_outline,
-                          color: colors.danger, size: 20),
+                      Icon(Icons.error_outline, color: colors.danger, size: 20),
                       const SizedBox(width: 8),
-                      Text('Raise a Dispute',
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                          )),
+                      Text(
+                        'Raise a Dispute',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Tell us what went wrong. An admin will review the escrow.',
-                    style:
-                        TextStyle(color: colors.textTertiary, fontSize: 12.5),
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 12.5,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   TextField(
@@ -420,9 +422,10 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Submit Dispute',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  child: const Text(
+                    'Submit Dispute',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ),
@@ -436,19 +439,20 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       await widget.onDispute(reason, const []);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not raise dispute: $e'),
-          backgroundColor: colors.danger,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not raise dispute: $e'),
+            backgroundColor: colors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
 
   Future<void> _openTermsSheet() async {
     final escrow = widget.escrow;
-    final controller =
-        TextEditingController(text: escrow?.deliveryTerms ?? '');
+    final controller = TextEditingController(text: escrow?.deliveryTerms ?? '');
     final colors = ref.read(themeProvider).colors;
     // NEW-B: same shape as the dispute sheet — free-text, keyboard-bound,
     // Panel with the Save row pinned so the primary action is never scrolled
@@ -464,32 +468,34 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
                 controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
                 children: [
-              Text('Update Delivery Terms',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                  )),
-              const SizedBox(height: 14),
-              TextField(
-                controller: controller,
-                maxLines: 5,
-                minLines: 3,
-                maxLength: 1000,
-                textCapitalization: TextCapitalization.sentences,
-                style: TextStyle(color: colors.textPrimary, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Scope, timeline, conditions…',
-                  hintStyle: TextStyle(color: colors.textTertiary),
-                  filled: true,
-                  fillColor: colors.card,
-                  counterText: '',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                  Text(
+                    'Update Delivery Terms',
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ),
-              ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: controller,
+                    maxLines: 5,
+                    minLines: 3,
+                    maxLength: 1000,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(color: colors.textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Scope, timeline, conditions…',
+                      hintStyle: TextStyle(color: colors.textTertiary),
+                      filled: true,
+                      fillColor: colors.card,
+                      counterText: '',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -498,19 +504,21 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
               child: SizedBox(
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () =>
-                      Navigator.pop(ctx, controller.text.trim()),
+                  onPressed: () => Navigator.pop(ctx, controller.text.trim()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: colors.accent,
-                    foregroundColor: colors.isDark ? Colors.black : Colors.white,
+                    foregroundColor: colors.isDark
+                        ? Colors.black
+                        : Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Save Terms',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                  child: const Text(
+                    'Save Terms',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                  ),
                 ),
               ),
             ),
@@ -524,11 +532,13 @@ class _EscrowStatusPanelState extends ConsumerState<EscrowStatusPanel> {
       await widget.onUpdateTerms(terms);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Could not update terms: $e'),
-          backgroundColor: colors.danger,
-          behavior: SnackBarBehavior.floating,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not update terms: $e'),
+            backgroundColor: colors.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -601,14 +611,24 @@ class _ExpandedBody extends StatelessWidget {
             isLoading: false,
           ),
           const SizedBox(height: 12),
-          _amountRow('Amount', escrow.amountUsdc,
-              key: const ValueKey('escrow-detail-amount')),
+          _amountRow(
+            'Amount',
+            escrow.amountUsdc,
+            key: const ValueKey('escrow-detail-amount'),
+          ),
           const SizedBox(height: 6),
-          _amountRow('Platform fee', escrow.feeUsdc,
-              key: const ValueKey('escrow-detail-fee')),
+          _amountRow(
+            'Platform fee',
+            escrow.feeUsdc,
+            key: const ValueKey('escrow-detail-fee'),
+          ),
           const SizedBox(height: 6),
-          _amountRow('Total locked', escrow.totalLocked,
-              emphasize: true, key: const ValueKey('escrow-detail-total')),
+          _amountRow(
+            'Total locked',
+            escrow.totalLocked,
+            emphasize: true,
+            key: const ValueKey('escrow-detail-total'),
+          ),
           if (escrow.dueDate != null) ...[
             const SizedBox(height: 6),
             _row('Due date', _fmtDate(escrow.dueDate!)),
@@ -616,13 +636,15 @@ class _ExpandedBody extends StatelessWidget {
           if (escrow.deliveryTerms != null &&
               escrow.deliveryTerms!.trim().isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('DELIVERY TERMS',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                )),
+            Text(
+              'DELIVERY TERMS',
+              style: TextStyle(
+                color: colors.textTertiary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
             const SizedBox(height: 4),
             Text(
               escrow.deliveryTerms!.trim(),
@@ -653,8 +675,7 @@ class _ExpandedBody extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline,
-                      size: 16, color: colors.danger),
+                  Icon(Icons.error_outline, size: 16, color: colors.danger),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -710,43 +731,58 @@ class _ExpandedBody extends StatelessWidget {
     // FUNDED / IN_PROGRESS.
     if (status == EscrowStatus.funded || status == EscrowStatus.inProgress) {
       if (_isPayee) {
-        buttons.add(_primaryButton('Mark Delivered',
-            Icons.check_circle_outline, () => onSatisfy(
-                'Mark Delivered',
-                'Confirm you have delivered. This moves the escrow toward settlement.')));
+        buttons.add(
+          _primaryButton(
+            'Mark Delivered',
+            Icons.check_circle_outline,
+            () => onSatisfy(
+              'Mark Delivered',
+              'Confirm you have delivered. This moves the escrow toward settlement.',
+            ),
+          ),
+        );
       }
       // Update terms (both parties may refine).
-      buttons.add(_secondaryButton(
-          'Update Terms', Icons.edit_outlined, onUpdateTerms));
+      buttons.add(
+        _secondaryButton('Update Terms', Icons.edit_outlined, onUpdateTerms),
+      );
       if (_isPayer) {
-        buttons.add(_dangerButton(
-            'Cancel Escrow', Icons.cancel_outlined, onCancel));
+        buttons.add(
+          _dangerButton('Cancel Escrow', Icons.cancel_outlined, onCancel),
+        );
       }
       // Either party can dispute.
-      buttons.add(_dangerButton(
-          'Raise Dispute', Icons.error_outline, onDispute));
+      buttons.add(
+        _dangerButton('Raise Dispute', Icons.error_outline, onDispute),
+      );
     }
 
     // PENDING_SETTLEMENT — the other party confirms release.
     if (status == EscrowStatus.pendingSettlement) {
       final iHaveConfirmed =
           (_isPayer && escrow.payerSatisfied) ||
-              (_isPayee && escrow.payeeSatisfied);
+          (_isPayee && escrow.payeeSatisfied);
       if (!iHaveConfirmed) {
-        buttons.add(_primaryButton('Confirm Release',
-            Icons.check_circle_outline, () => onSatisfy(
-                'Confirm Release',
-                'Release the locked funds? This settles the escrow.')));
+        buttons.add(
+          _primaryButton(
+            'Confirm Release',
+            Icons.check_circle_outline,
+            () => onSatisfy(
+              'Confirm Release',
+              'Release the locked funds? This settles the escrow.',
+            ),
+          ),
+        );
       } else {
         buttons.add(_infoBar('Waiting for the other party to confirm.'));
       }
-      buttons.add(_dangerButton(
-          'Raise Dispute', Icons.error_outline, onDispute));
+      buttons.add(
+        _dangerButton('Raise Dispute', Icons.error_outline, onDispute),
+      );
     }
 
     // DISPUTED / ADMIN_REVIEW — read-only, awaiting admin.
-    if (status == EscrowStatus.disputed ||
-        status == EscrowStatus.adminReview) {
+    if (status == EscrowStatus.disputed || status == EscrowStatus.adminReview) {
       buttons.add(_infoBar('Under admin review. We\'ll update you here.'));
     }
 
@@ -770,8 +806,10 @@ class _ExpandedBody extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onTap,
         icon: Icon(icon, size: 18),
-        label: Text(label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+        label: Text(
+          label,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: colors.accent,
           foregroundColor: colors.isDark ? Colors.black : Colors.white,
@@ -791,11 +829,14 @@ class _ExpandedBody extends StatelessWidget {
       child: OutlinedButton.icon(
         onPressed: onTap,
         icon: Icon(icon, size: 18, color: colors.textSecondary),
-        label: Text(label,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: colors.textSecondary)),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: colors.textSecondary,
+          ),
+        ),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: colors.divider),
           shape: RoundedRectangleBorder(
@@ -813,11 +854,14 @@ class _ExpandedBody extends StatelessWidget {
       child: OutlinedButton.icon(
         onPressed: onTap,
         icon: Icon(icon, size: 18, color: colors.danger),
-        label: Text(label,
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: colors.danger)),
+        label: Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: colors.danger,
+          ),
+        ),
         style: OutlinedButton.styleFrom(
           side: BorderSide(color: colors.danger.withValues(alpha: 0.5)),
           shape: RoundedRectangleBorder(
@@ -847,8 +891,10 @@ class _ExpandedBody extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: TextStyle(color: colors.textTertiary, fontSize: 12.5)),
+        Text(
+          label,
+          style: TextStyle(color: colors.textTertiary, fontSize: 12.5),
+        ),
         Text(
           value,
           style: TextStyle(
@@ -861,21 +907,25 @@ class _ExpandedBody extends StatelessWidget {
     );
   }
 
-
-
   /// Amount-of-record row: the native USDC figure plus the honest GHS line
   /// (a recorded principal when one exists, otherwise a current estimate at
   /// the fresh #165 oracle rate, otherwise a named unavailability). The
   /// stored amount itself is only ever read.
-  Widget _amountRow(String label, double amountUsdc,
-      {bool emphasize = false, Key? key}) {
+  Widget _amountRow(
+    String label,
+    double amountUsdc, {
+    bool emphasize = false,
+    Key? key,
+  }) {
     return Row(
       key: key,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(label,
-            style: TextStyle(color: colors.textTertiary, fontSize: 12.5)),
+        Text(
+          label,
+          style: TextStyle(color: colors.textTertiary, fontSize: 12.5),
+        ),
         Flexible(
           child: NativeAmountDisplay(
             amountUsdc: amountUsdc,
@@ -896,7 +946,6 @@ class _ExpandedBody extends StatelessWidget {
     );
   }
 
-
   Widget _satisfactionChip(String who, bool satisfied) {
     return Expanded(
       child: Container(
@@ -911,9 +960,7 @@ class _ExpandedBody extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              satisfied
-                  ? Icons.check_circle_outline
-                  : Icons.access_time,
+              satisfied ? Icons.check_circle_outline : Icons.access_time,
               size: 14,
               color: satisfied ? colors.success : colors.textTertiary,
             ),
@@ -934,8 +981,18 @@ class _ExpandedBody extends StatelessWidget {
 
   String _fmtDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[d.month - 1]} ${d.day}, ${d.year}';
   }

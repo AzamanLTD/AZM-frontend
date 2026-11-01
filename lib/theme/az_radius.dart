@@ -73,16 +73,19 @@ abstract final class AzRadius {
 
   // â”€â”€ DIRECTIONAL PRESETS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   /// Bottom-sheet / stage top corners at the `xxl` step.
-  static const BorderRadius sheetTop =
-      BorderRadius.vertical(top: Radius.circular(xxl));
+  static const BorderRadius sheetTop = BorderRadius.vertical(
+    top: Radius.circular(xxl),
+  );
 
   /// Bottom-sheet / stage top corners at the `xl` step.
-  static const BorderRadius sheetTopLg =
-      BorderRadius.vertical(top: Radius.circular(xl));
+  static const BorderRadius sheetTopLg = BorderRadius.vertical(
+    top: Radius.circular(xl),
+  );
 
   /// Top-only rounding for headers sitting on a scrolled list.
-  static const BorderRadius topLg =
-      BorderRadius.vertical(top: Radius.circular(lg));
+  static const BorderRadius topLg = BorderRadius.vertical(
+    top: Radius.circular(lg),
+  );
 
   // â”€â”€ HELPERS (non-const contexts) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   /// Rounded on all corners by [r]. Prefer the const presets above.
@@ -101,7 +104,8 @@ abstract final class AzRadius {
   ///
   /// A "squircle-adjacent" shape: sharp on the outer corner, rounded inward.
   /// Used for stacked / fanned card decks (marketplace shelf, tray fan).
-  static BorderRadius fanned(double r, {required bool left}) => BorderRadius.only(
+  static BorderRadius fanned(double r, {required bool left}) =>
+      BorderRadius.only(
         topLeft: Radius.circular(left ? r : r * 0.35),
         bottomLeft: Radius.circular(left ? r : r * 0.35),
         topRight: Radius.circular(left ? r * 0.35 : r),

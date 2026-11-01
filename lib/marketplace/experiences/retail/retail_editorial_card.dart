@@ -76,13 +76,20 @@ class RetailEditorialCard extends StatelessWidget {
                       Container(
                         color: colors.softSurface,
                         alignment: Alignment.center,
-                        child: Icon(HugeIconsSolid.shoppingBag01, color: colors.textTertiary),
+                        child: Icon(
+                          HugeIconsSolid.shoppingBag01,
+                          color: colors.textTertiary,
+                        ),
                       ),
                     if (onToggleSave != null)
                       Positioned(
                         top: AzSpace.sm,
                         right: AzSpace.sm,
-                        child: _SaveDot(saved: saved, colors: colors, onTap: onToggleSave!),
+                        child: _SaveDot(
+                          saved: saved,
+                          colors: colors,
+                          onTap: onToggleSave!,
+                        ),
                       ),
                     if (!product.isActive)
                       Positioned.fill(
@@ -91,7 +98,9 @@ class RetailEditorialCard extends StatelessWidget {
                           alignment: Alignment.center,
                           child: Text(
                             'Unavailable',
-                            style: AzText.label.copyWith(color: colors.textPrimary),
+                            style: AzText.label.copyWith(
+                              color: colors.textPrimary,
+                            ),
                           ),
                         ),
                       ),
@@ -102,7 +111,10 @@ class RetailEditorialCard extends StatelessWidget {
             const SizedBox(height: AzSpace.sm),
             Text(
               product.name,
-              style: AzText.body.copyWith(color: colors.textPrimary, fontWeight: FontWeight.w600),
+              style: AzText.body.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -111,8 +123,12 @@ class RetailEditorialCard extends StatelessWidget {
               priceGhs == null ? 'Price unavailable' : 'GH₵$priceGhs',
               style: priceGhs == null
                   ? AzText.caption.copyWith(color: colors.textTertiary)
-                  : AzText.money(colors.textPrimary,
-                      size: 14, weight: FontWeight.w700, tracking: 0),
+                  : AzText.money(
+                      colors.textPrimary,
+                      size: 14,
+                      weight: FontWeight.w700,
+                      tracking: 0,
+                    ),
             ),
           ],
         ),
@@ -126,7 +142,11 @@ class _SaveDot extends StatelessWidget {
   final AzamanColors colors;
   final VoidCallback onTap;
 
-  const _SaveDot({required this.saved, required this.colors, required this.onTap});
+  const _SaveDot({
+    required this.saved,
+    required this.colors,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

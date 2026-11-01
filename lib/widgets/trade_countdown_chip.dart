@@ -46,8 +46,10 @@ class _TradeCountdownChipState extends State<TradeCountdownChip> {
     if (dl == null) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     final diff = dl - now;
-    setState(() => _remaining =
-        diff > 0 ? Duration(milliseconds: diff) : Duration.zero);
+    setState(
+      () =>
+          _remaining = diff > 0 ? Duration(milliseconds: diff) : Duration.zero,
+    );
   }
 
   @override
@@ -72,7 +74,7 @@ class _TradeCountdownChipState extends State<TradeCountdownChip> {
     final label = expired
         ? 'Expired'
         : '${_remaining.inMinutes.toString().padLeft(2, '0')}:'
-            '${(_remaining.inSeconds % 60).toString().padLeft(2, '0')}';
+              '${(_remaining.inSeconds % 60).toString().padLeft(2, '0')}';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(

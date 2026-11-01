@@ -32,8 +32,9 @@ import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/card_transfer_screen.dart';
 
-const _storageChannel =
-    MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+const _storageChannel = MethodChannel(
+  'plugins.it_nomads.com/flutter_secure_storage',
+);
 
 const _sizes = {
   '320': Size(320, 692),
@@ -49,9 +50,9 @@ bool _fontsLoaded = false;
 Future<void> _loadFace(String family, String path) async {
   final bytes = await File(path).readAsBytes();
   final loader = FontLoader(family)
-    ..addFont(Future<ByteData>.value(
-      ByteData.view(Uint8List.fromList(bytes).buffer),
-    ));
+    ..addFont(
+      Future<ByteData>.value(ByteData.view(Uint8List.fromList(bytes).buffer)),
+    );
   await loader.load();
 }
 
@@ -61,7 +62,9 @@ Future<void> _loadAppFonts() async {
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Regular.ttf');
   await _loadFace('ComicNeue', 'assets/fonts/ComicNeue-Bold.ttf');
   await _loadFace(
-      'MaterialIcons', 'test/goldens/fonts/MaterialIcons-Regular.otf');
+    'MaterialIcons',
+    'test/goldens/fonts/MaterialIcons-Regular.otf',
+  );
   await _loadFace('DejaVuSans', 'test/goldens/fonts/DejaVuSans.ttf');
   _fontsLoaded = true;
 }
@@ -78,9 +81,9 @@ ThemeData _harnessTheme(bool dark) {
 Future<void> _pump(WidgetTester tester, Size size, {required bool dark}) async {
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(_storageChannel, (call) async {
-    if (call.method == 'read') return 'mock-token';
-    return null;
-  });
+        if (call.method == 'read') return 'mock-token';
+        return null;
+      });
   SharedPreferences.setMockInitialValues({'azaman_theme': dark ? 1 : 0});
   final tp = ThemeProvider();
   tester.view
@@ -154,18 +157,17 @@ void main() {
   for (final entry in _sizes.entries) {
     final isShort = entry.key.endsWith('short');
     for (final dark in [false, true]) {
-      testWidgets(
-        'capture ${entry.key} ${dark ? 'dark' : 'light'} '
-        '${isShort ? 'amount (short viewport)' : 'amount + review'}',
-        (tester) async {
-          if (isShort) {
-            await _capture(tester, width: entry.key, stage: 'amount', dark: dark);
-          } else {
-            await _capture(tester, width: entry.key, stage: 'amount', dark: dark);
-            await _capture(tester, width: entry.key, stage: 'review', dark: dark);
-          }
-        },
-      );
+      testWidgets('capture ${entry.key} ${dark ? 'dark' : 'light'} '
+          '${isShort ? 'amount (short viewport)' : 'amount + review'}', (
+        tester,
+      ) async {
+        if (isShort) {
+          await _capture(tester, width: entry.key, stage: 'amount', dark: dark);
+        } else {
+          await _capture(tester, width: entry.key, stage: 'amount', dark: dark);
+          await _capture(tester, width: entry.key, stage: 'review', dark: dark);
+        }
+      });
     }
   }
 }

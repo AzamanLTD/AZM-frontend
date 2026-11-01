@@ -103,13 +103,17 @@ class SusuService {
   }) async {
     // r42: creating a susu opens the recurring contribution commitment —
     // one key per logical creation, reused across retries of that action.
-    final res = await apiClient.postFinancial('/susu', {
-      'name': name,
-      'contributionUsdc': contributionUsdc.toStringAsFixed(2),
-      'frequency': frequency.wire,
-      'invites': invites.map((i) => i.toJson()).toList(),
-    }, operationType: _createActionId, ref: _flowRefs.putIfAbsent(
-        'create', () => FinancialOperationRef()));
+    final res = await apiClient.postFinancial(
+      '/susu',
+      {
+        'name': name,
+        'contributionUsdc': contributionUsdc.toStringAsFixed(2),
+        'frequency': frequency.wire,
+        'invites': invites.map((i) => i.toJson()).toList(),
+      },
+      operationType: _createActionId,
+      ref: _flowRefs.putIfAbsent('create', () => FinancialOperationRef()),
+    );
     final data = _envelope(res);
     final susuJson = (data['susu'] ?? data) as Map<String, dynamic>;
     final inviteJson = (data['invites'] as List?) ?? const [];
@@ -133,10 +137,15 @@ class SusuService {
   Future<void> cancelSusu(String susuId) async {
     // r42: cancelling releases/forfeits cycle funds — one key per logical
     // cancel, reused across retries of that cancel.
-    final res = await apiClient.postFinancial('/susu/$susuId/cancel',
-        const {},
-        operationType: _cancelAction(susuId),
-        ref: _flowRefs.putIfAbsent('cancel.$susuId', () => FinancialOperationRef()));
+    final res = await apiClient.postFinancial(
+      '/susu/$susuId/cancel',
+      const {},
+      operationType: _cancelAction(susuId),
+      ref: _flowRefs.putIfAbsent(
+        'cancel.$susuId',
+        () => FinancialOperationRef(),
+      ),
+    );
   }
 
   /// GET /api/susu/:id — privacy-gated detail (Req 5.2)
@@ -184,8 +193,10 @@ class SusuService {
 
   /// GET /api/liability-contract/active — public, Req 4.1
   Future<LiabilityContract> getActiveContract() async {
-    final res =
-        await apiClient.get('/liability-contract/active', requireAuth: false);
+    final res = await apiClient.get(
+      '/liability-contract/active',
+      requireAuth: false,
+    );
     final data = _envelope(res);
     final c = (data['contract'] ?? data) as Map<String, dynamic>;
     return LiabilityContract.fromJson(c);
@@ -203,14 +214,19 @@ class SusuService {
   }) async {
     // r42: overlay contract acceptance binds the member — one key per
     // logical acceptance, reused across retries.
-    final res = await apiClient.postFinancial('/susu/$susuId/contract/accept',
-        {
-          'contractVersion': contractVersion,
-          'contractHash': contractHash,
-          'agreed': true,
-        },
-        operationType: _contractAction(susuId),
-        ref: _flowRefs.putIfAbsent('contract.$susuId', () => FinancialOperationRef()));
+    final res = await apiClient.postFinancial(
+      '/susu/$susuId/contract/accept',
+      {
+        'contractVersion': contractVersion,
+        'contractHash': contractHash,
+        'agreed': true,
+      },
+      operationType: _contractAction(susuId),
+      ref: _flowRefs.putIfAbsent(
+        'contract.$susuId',
+        () => FinancialOperationRef(),
+      ),
+    );
   }
 
   // ───────────────────────────────────────────────────────────────────────
@@ -233,12 +249,18 @@ class SusuService {
     // r42: redeeming an invite creates the membership + financial
     // obligations — one key per logical redemption, reused across retries
     // (a lost response may mean the membership already committed).
-    final res = await apiClient.postFinancial('/susu/invites/$token/redeem',
-        const {},
-        operationType: _redeemAction(token),
-        ref: _flowRefs.putIfAbsent('redeem.$token', () => FinancialOperationRef()));
+    final res = await apiClient.postFinancial(
+      '/susu/invites/$token/redeem',
+      const {},
+      operationType: _redeemAction(token),
+      ref: _flowRefs.putIfAbsent(
+        'redeem.$token',
+        () => FinancialOperationRef(),
+      ),
+    );
     final data = _envelope(res);
-    final member = (data['member'] ?? data['susuMember']) as Map<String, dynamic>?;
+    final member =
+        (data['member'] ?? data['susuMember']) as Map<String, dynamic>?;
     return (member?['susuGroupId'] ?? member?['susuId'] ?? data['susuId'])
         .toString();
   }
@@ -246,9 +268,13 @@ class SusuService {
   /// POST /api/susu/invites/:id/accept — FRIEND/PHONE channel (Req 6.14).
   /// Backend returns `{ member: {...} }`.
   Future<String> acceptInvite(String inviteId) async {
-    final res = await apiClient.post('/susu/invites/$inviteId/accept', const {});
+    final res = await apiClient.post(
+      '/susu/invites/$inviteId/accept',
+      const {},
+    );
     final data = _envelope(res);
-    final member = (data['member'] ?? data['susuMember']) as Map<String, dynamic>?;
+    final member =
+        (data['member'] ?? data['susuMember']) as Map<String, dynamic>?;
     return (member?['susuGroupId'] ?? member?['susuId'] ?? data['susuId'])
         .toString();
   }

@@ -29,11 +29,7 @@ import 'package:azaman/theme/az_motion.dart';
 /// on; the activation animation is driven by the widget's internal
 /// controller (one-shot, activation-edge-triggered).
 class MixDie extends ConsumerStatefulWidget {
-  const MixDie({
-    super.key,
-    required this.active,
-    this.size = 22,
-  });
+  const MixDie({super.key, required this.active, this.size = 22});
 
   /// Whether Mix mode is on (accent-tinted faces + activation edge).
   final bool active;
@@ -101,11 +97,7 @@ class _MixDieState extends ConsumerState<MixDie>
 /// The isometric die painter: three faces (top, left, right) with pips
 /// (top 3 · left 1 · right 5 — a real dice arrangement, not decoration).
 class _IsoDiePainter extends CustomPainter {
-  _IsoDiePainter({
-    required this.t,
-    required this.active,
-    required this.colors,
-  });
+  _IsoDiePainter({required this.t, required this.active, required this.colors});
 
   /// Activation progress 0..1 (1 = settled). Reduced-motion never passes a
   /// mid value.
@@ -191,12 +183,17 @@ class _IsoDiePainter extends CustomPainter {
     final r = s * 0.055;
 
     // Top face: 3 pips along its center line.
+    canvas.drawCircle(Offset(0, -faceH / 2 - v * 1.55), r * 0.8, pipPaint);
     canvas.drawCircle(
-        Offset(0, -faceH / 2 - v * 1.55), r * 0.8, pipPaint);
+      Offset(-u * 0.30, -faceH / 2 - v * 1.15),
+      r * 0.8,
+      pipPaint,
+    );
     canvas.drawCircle(
-        Offset(-u * 0.30, -faceH / 2 - v * 1.15), r * 0.8, pipPaint);
-    canvas.drawCircle(
-        Offset(u * 0.30, -faceH / 2 - v * 1.15), r * 0.8, pipPaint);
+      Offset(u * 0.30, -faceH / 2 - v * 1.15),
+      r * 0.8,
+      pipPaint,
+    );
 
     // Left face: 1 pip (center).
     canvas.drawCircle(Offset(-u * 0.5, -v * 0.15), r * 0.85, pipPaint);

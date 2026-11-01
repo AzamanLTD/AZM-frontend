@@ -16,7 +16,9 @@ void main() {
         'businessProfileId': 'biz-1',
         'name': 'Test Product',
         'priceUsdc': 49.99,
-        'imageUrls': ['https://res.cloudinary.com/azaman/image/upload/v1/img.jpg'],
+        'imageUrls': [
+          'https://res.cloudinary.com/azaman/image/upload/v1/img.jpg',
+        ],
         'isActive': true,
         'slug': 'test-product',
         'description': 'A test product',

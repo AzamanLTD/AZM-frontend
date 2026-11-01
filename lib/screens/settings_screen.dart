@@ -70,8 +70,11 @@ class SettingsScreen extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final colors = themeNotifier.colors;
 
-    // The label shown on the right of the Theme row.
+    // The label shown on the right of the Theme row. APPEARANCE + the applied
+    // card identity, which now owns the app's brand accent — the independent
+    // accent picker is gone (P2), so this row must never read `accent`.
     final themeLabel = ThemeProvider.getColors(themeNotifier.currentTheme).name;
+    final cardLabel = themeNotifier.cardVariant.label;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -214,8 +217,7 @@ class SettingsScreen extends ConsumerWidget {
                 colors: colors,
                 icon: Icons.palette_outlined,
                 title: 'Theme',
-                trailingText:
-                    '$themeLabel \u00b7 ${themeNotifier.accent.label}',
+                trailingText: '$themeLabel \u00b7 $cardLabel card',
                 onTap: () {
                   AzamanHaptics.nav();
                   pushWithVerticalTransition(

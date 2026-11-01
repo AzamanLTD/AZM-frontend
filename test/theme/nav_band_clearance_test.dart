@@ -35,78 +35,76 @@ Widget _probe(Widget? band, WidgetBuilder page) {
 }
 
 void main() {
-  testWidgets('under the shell, navBandClearance equals the band height',
-      (tester) async {
+  testWidgets('under the shell, navBandClearance equals the band height', (
+    tester,
+  ) async {
     late double read;
-    await tester.pumpWidget(_probe(
-      const _FixedBand(height: 92),
-      (context) {
+    await tester.pumpWidget(
+      _probe(const _FixedBand(height: 92), (context) {
         read = navBandClearance(context);
         return const SizedBox.shrink();
-      },
-    ));
+      }),
+    );
 
     // extendBody publishes max(safe-area bottom, band height); the test
     // surface has no system inset, so this must be exactly the band.
     expect(read, 92);
   });
 
-  testWidgets('band height wins when larger than the safe-area inset',
-      (tester) async {
+  testWidgets('band height wins when larger than the safe-area inset', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1.0;
-    tester.view.padding =
-        const FakeViewPadding(bottom: 40); // 40px system inset
+    tester.view.padding = const FakeViewPadding(
+      bottom: 40,
+    ); // 40px system inset
     addTearDown(tester.view.reset);
 
     late double read;
-    await tester.pumpWidget(_probe(
-      const _FixedBand(height: 92),
-      (context) {
+    await tester.pumpWidget(
+      _probe(const _FixedBand(height: 92), (context) {
         read = navBandClearance(context);
         return const SizedBox.shrink();
-      },
-    ));
+      }),
+    );
 
     expect(read, 92); // max(40, 92)
   });
 
-  testWidgets('without a band, clearance degrades to the safe area only',
-      (tester) async {
+  testWidgets('without a band, clearance degrades to the safe area only', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1.0;
-    tester.view.padding =
-        const FakeViewPadding(bottom: 40);
+    tester.view.padding = const FakeViewPadding(bottom: 40);
     addTearDown(tester.view.reset);
 
     late double read;
-    await tester.pumpWidget(_probe(
-      null,
-      (context) {
+    await tester.pumpWidget(
+      _probe(null, (context) {
         read = navBandClearance(context);
         return const SizedBox.shrink();
-      },
-    ));
+      }),
+    );
 
     // Pushed screens (no persistent band) must never inherit the shell's
     // band height — they only ever see the system safe area.
     expect(read, 40);
   });
 
-  testWidgets('clearance tracks a band whose height changes between frames',
-      (tester) async {
+  testWidgets('clearance tracks a band whose height changes between frames', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(800, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
     double bandHeight = 92;
     late double read;
-    Widget buildHarness() => _probe(
-          _FixedBand(height: bandHeight),
-          (context) {
-            read = navBandClearance(context);
-            return const SizedBox.shrink();
-          },
-        );
+    Widget buildHarness() => _probe(_FixedBand(height: bandHeight), (context) {
+      read = navBandClearance(context);
+      return const SizedBox.shrink();
+    });
 
     await tester.pumpWidget(buildHarness());
     expect(read, 92);

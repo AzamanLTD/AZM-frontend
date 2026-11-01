@@ -57,8 +57,10 @@ class StoryDetailsSheet extends ConsumerWidget {
           const Text('Viewers'),
           const SizedBox(height: AzSpace.sm),
           const _CapabilityBoundary(
-              reason: 'A viewers roster needs a per-story viewer-list endpoint, '
-                  'which the backend does not expose yet'),
+            reason:
+                'A viewers roster needs a per-story viewer-list endpoint, '
+                'which the backend does not expose yet',
+          ),
         ] else if (!isOwnStory && canReact) ...[
           const Text('Send a reaction'),
           const SizedBox(height: AzSpace.sm),
@@ -85,17 +87,21 @@ class _ReactionChip extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return GestureDetector(
       onTap: () async {
-        final result = await ref.read(storyGatewayProvider).react(storyId, emoji);
+        final result = await ref
+            .read(storyGatewayProvider)
+            .react(storyId, emoji);
         if (!context.mounted) return;
         // Only a server-confirmed result pops the sheet. Unsupported/failed
         // results surface the reason — never a fabricated success.
         if (result case AzOk<void>()) {
           Navigator.of(context).pop();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(result.errorMessage ?? 'Reaction not sent'),
-            duration: const Duration(seconds: 1),
-          ));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.errorMessage ?? 'Reaction not sent'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
         }
       },
       child: Container(
@@ -118,20 +124,24 @@ class _CapabilityBoundary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: AzSpace.md),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline,
-                size: 16, color: Colors.white.withValues(alpha: 0.5)),
-            const SizedBox(width: AzSpace.sm),
-            Expanded(
-              child: Text(
-                reason,
-                style: AzText.bodyS
-                    .copyWith(color: Colors.white.withValues(alpha: 0.5)),
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: AzSpace.md),
+    child: Row(
+      children: [
+        Icon(
+          Icons.info_outline,
+          size: 16,
+          color: Colors.white.withValues(alpha: 0.5),
         ),
-      );
+        const SizedBox(width: AzSpace.sm),
+        Expanded(
+          child: Text(
+            reason,
+            style: AzText.bodyS.copyWith(
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

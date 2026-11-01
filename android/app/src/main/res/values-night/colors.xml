@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Identical in day and night: the launch frame is the intro's first
+         frame, and the intro is the same material in both themes. -->
+    <color name="launch_background_color">#FF000000</color>
+</resources>

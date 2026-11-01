@@ -66,8 +66,11 @@ void main() {
         AzText.sizeCaption,
       ];
       for (var i = 1; i < order.length; i++) {
-        expect(order[i], lessThan(order[i - 1]),
-            reason: 'step $i (${order[i]}) is not smaller than ${order[i - 1]}');
+        expect(
+          order[i],
+          lessThan(order[i - 1]),
+          reason: 'step $i (${order[i]}) is not smaller than ${order[i - 1]}',
+        );
       }
     });
 
@@ -83,19 +86,34 @@ void main() {
       expect(AzText.hero.letterSpacing, lessThan(0));
       expect(AzText.display.letterSpacing, lessThan(0));
       expect(AzText.caption.letterSpacing, greaterThan(0));
-      expect(AzText.eyebrow.letterSpacing, greaterThan(AzText.caption.letterSpacing!));
+      expect(
+        AzText.eyebrow.letterSpacing,
+        greaterThan(AzText.caption.letterSpacing!),
+      );
     });
 
     test('no ladder step hardcodes a colour', () {
       // Colour comes from `colors.textPrimary` at the call site. A baked-in
       // colour here would fight the theme and break dark mode.
       for (final style in <TextStyle>[
-        AzText.hero, AzText.display, AzText.titleXl, AzText.titleL,
-        AzText.title, AzText.bodyL, AzText.body, AzText.bodyS,
-        AzText.label, AzText.caption, AzText.button, AzText.eyebrow,
+        AzText.hero,
+        AzText.display,
+        AzText.titleXl,
+        AzText.titleL,
+        AzText.title,
+        AzText.bodyL,
+        AzText.body,
+        AzText.bodyS,
+        AzText.label,
+        AzText.caption,
+        AzText.button,
+        AzText.eyebrow,
       ]) {
-        expect(style.color, isNull,
-            reason: 'a ladder style must not carry a colour');
+        expect(
+          style.color,
+          isNull,
+          reason: 'a ladder style must not carry a colour',
+        );
       }
     });
   });
@@ -113,10 +131,16 @@ void main() {
     });
 
     test('every currency surface uses tabular figures', () {
-      expect(hasTabular(AzText.money(Colors.black)), isTrue,
-          reason: 'a live balance must not jitter digit-to-digit');
-      expect(hasTabular(AzText.delta(Colors.black)), isTrue,
-          reason: 'a "+0.42" delta that shifts width reads as broken');
+      expect(
+        hasTabular(AzText.money(Colors.black)),
+        isTrue,
+        reason: 'a live balance must not jitter digit-to-digit',
+      );
+      expect(
+        hasTabular(AzText.delta(Colors.black)),
+        isTrue,
+        reason: 'a "+0.42" delta that shifts width reads as broken',
+      );
     });
 
     test('money() honours a size override and keeps tabular on', () {
@@ -156,8 +180,13 @@ void main() {
         'labelSmall': t.labelSmall,
       };
       slots.forEach((name, style) {
-        expect(style, isNotNull, reason: '$name is unmapped — stock Material '
-            'widgets would fall back to the M3 baseline typography');
+        expect(
+          style,
+          isNotNull,
+          reason:
+              '$name is unmapped — stock Material '
+              'widgets would fall back to the M3 baseline typography',
+        );
       });
     });
 
@@ -171,8 +200,11 @@ void main() {
         'bodyMedium': t.bodyMedium,
         'labelLarge': t.labelLarge,
       }.entries) {
-        expect(entry.value?.color, isNull,
-            reason: '${entry.key} must not carry a colour');
+        expect(
+          entry.value?.color,
+          isNull,
+          reason: '${entry.key} must not carry a colour',
+        );
       }
     });
 

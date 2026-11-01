@@ -39,6 +39,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:typed_data' show ByteData, Uint8List;
 import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:azaman/experience/launch/azaman_intro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/config.dart';
@@ -57,6 +59,8 @@ import 'package:azaman/screens/theme_picker_screen.dart';
 import 'package:azaman/screens/wallet/convert_screen.dart';
 import 'package:azaman/screens/marketplace/saved_businesses_screen.dart';
 import 'package:azaman/services/business_service.dart';
+
+import '../support/money_access_test_support.dart';
 
 bool _fontsLoaded = false;
 
@@ -112,6 +116,10 @@ Future<void> _pumpRealApp(WidgetTester tester) async {
       ),
       oracleRateProvider.overrideWith((ref) => 1.0),
       businessSearchProvider.overrideWith((ref) => _InertSearchNotifier()),
+      // These journeys push money destinations (Send, Convert) and assert the
+      // member STAYS on them; the money gate has its own suites, so start
+      // these from an unlocked session rather than proxying the gate's state.
+      unlockedMoneyAccess(),
     ],
   );
   addTearDown(container.dispose);
@@ -139,8 +147,12 @@ Future<void> _bootDemoShell(WidgetTester tester) async {
   expect(find.byType(SplashScreen), findsOneWidget);
   // The real branding floor is 2 seconds; the demo waterfall then replaces
   // the route. Generous pumps through the floor + the transition.
+  // The splash holds for the WHOLE launch sequence now, so the wait is derived
+  // from it. A hardcoded ~3.1s here silently stopped reaching the shell the
+  // moment the intro was retimed.
   await tester.pump(const Duration(milliseconds: 2300));
-  await tester.pump(const Duration(milliseconds: 800));
+  await tester.pump(AzamanIntro.total);
+  await tester.pump(const Duration(milliseconds: 600));
   expect(find.byType(MainWrapper), findsOneWidget);
 }
 
@@ -164,7 +176,8 @@ Future<void> _openAndAssertStays(
   expect(
     find.byType(SplashScreen),
     findsNothing,
-    reason: 'a splash was re-instantiated under the destination — the '
+    reason:
+        'a splash was re-instantiated under the destination — the '
         'bounce engine is back',
   );
   // Back through the router lands DIRECTLY on the canonical shell page:
@@ -177,8 +190,11 @@ Future<void> _openAndAssertStays(
     findsNothing,
     reason: 'back passed through the splash — the old broken exit',
   );
-  expect(find.byType(MainWrapper), findsOneWidget,
-      reason: 'back did not land on the shell');
+  expect(
+    find.byType(MainWrapper),
+    findsOneWidget,
+    reason: 'back did not land on the shell',
+  );
   expect(
     topMatch(router),
     '/home',
@@ -373,10 +389,7 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     expect(find.byType(MainWrapper), findsOneWidget);
     expect(find.byType(SendMoneyScreen), findsNothing);
-    expect(
-      router.routerDelegate.currentConfiguration.uri.path,
-      '/home',
-    );
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/home');
   });
 
   testWidgets('auth semantics stay distinct: a transient backend failure never '
