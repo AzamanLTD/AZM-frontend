@@ -8,6 +8,11 @@ missing, because a debug-signed bundle is refused by Play and a build that succe
 being unuploadable is worse than one that fails. Debug builds are unaffected and keep signing
 with the debug key, so contributors and the integration lane never need the upload key.
 
+Current verified state (upload key present, real Firebase configuration,
+artifact sizes, the unregistrable debug signer) is recorded in
+[`ANDROID_RELEASE_STATE.md`](ANDROID_RELEASE_STATE.md). That file is evidence,
+not policy: if it disagrees with a run, the run wins.
+
 ## One-time: create the upload key
 
 Run this from the repo root. It is the only copy of the key; lose it and Play App Signing

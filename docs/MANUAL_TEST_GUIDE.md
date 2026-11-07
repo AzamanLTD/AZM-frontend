@@ -36,6 +36,10 @@ this guide is what CI cannot check.
 
 ---
 
+Before you start, read [`ANDROID_RELEASE_STATE.md`](ANDROID_RELEASE_STATE.md):
+it records which certificate signed the artifact in front of you and therefore
+which of the items below you can actually complete today.
+
 ## 1. Cold start and the launch clip
 
 Force-stop first (`Settings > Apps > Azaman > Force stop`). A warm start skips
