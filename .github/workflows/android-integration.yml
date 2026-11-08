@@ -241,6 +241,11 @@ jobs:
         run: |
           set -euo pipefail
           STABLE="${{ steps.ci_debug.outputs.stable }}"
+          if [ "$STABLE" = "true" ]; then
+            echo "device Google Sign-In gate: READY (stable CI debug identity)"
+          else
+            echo "device Google Sign-In gate: BLOCKED (throwaway signer, no ANDROID_CI_DEBUG_KEYSTORE_BASE64)"
+          fi
           {
             echo ""
             echo "### Google Sign-In on a physical device"
