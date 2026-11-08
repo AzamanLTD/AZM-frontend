@@ -232,6 +232,48 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      # A thrown-away signer makes real Google Sign-In untestable on a device,
+      # so the gate states that plainly instead of leaving it to be inferred
+      # from a warning nobody reads. This never fails the job: the artifact is
+      # still the right thing to hand a tester, it just is not an auth test.
+      - name: Google Sign-In device verification gate
+        if: always()
+        run: |
+          set -euo pipefail
+          STABLE="${{ steps.ci_debug.outputs.stable }}"
+          if [ "$STABLE" = "true" ]; then
+            echo "device Google Sign-In gate: READY (stable CI debug identity)"
+          else
+            echo "device Google Sign-In gate: BLOCKED (throwaway signer, no ANDROID_CI_DEBUG_KEYSTORE_BASE64)"
+          fi
+          {
+            echo ""
+            echo "### Google Sign-In on a physical device"
+            echo ""
+            if [ "$STABLE" = "true" ]; then
+              echo "**READY to test.** The APK is signed by the dedicated CI debug"
+              echo "identity, so its fingerprint is stable and can be registered."
+            else
+              echo "**BLOCKED - not verified.** No dedicated CI debug key is"
+              echo "configured, so every run signs with the runner's throwaway"
+              echo "\`CN=Android Debug\` certificate. A fingerprint registered from"
+              echo "this APK would break on the next run, so Google Sign-In has NOT"
+              echo "been verified from this artifact."
+              echo ""
+              echo "Owner action to unblock (repository secrets, values never printed):"
+              echo ""
+              echo "| secret | content |"
+              echo "| --- | --- |"
+              echo "| \`ANDROID_CI_DEBUG_KEYSTORE_BASE64\` | the dedicated CI debug keystore, \`base64 -w0\` |"
+              echo "| \`ANDROID_CI_DEBUG_STORE_PASSWORD\` | that keystore's store password |"
+              echo "| \`ANDROID_CI_DEBUG_KEY_ALIAS\` | its key alias |"
+              echo "| \`ANDROID_CI_DEBUG_KEY_PASSWORD\` | that key's password |"
+              echo ""
+              echo "Then register the resulting debug SHA-1/SHA-256 against the"
+              echo "\`com.azaman.app\` app in the existing \`azaman-app\` Firebase project."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
