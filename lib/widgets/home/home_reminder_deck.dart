@@ -64,6 +64,7 @@ import 'package:azaman/theme/az_motion.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/home/home_deck_separator.dart';
+import 'package:azaman/widgets/home/nearby_presence_card.dart';
 import 'package:azaman/widgets/home/home_reminder_ticket.dart';
 import 'package:azaman/widgets/quiet_depth.dart';
 
@@ -104,6 +105,12 @@ List<HomeReminderCardData> homeReminderCards(
   BuildContext context,
 ) {
   final list = <HomeReminderCardData>[];
+
+  // 0. NEARBY PRESENCE (Part 6.6 §F). Card zero, and only when the whole
+  //    visibility ladder holds — the builder returns null otherwise, so an
+  //    invisible feature contributes no card and no measurement.
+  final nearby = nearbyPresenceCard(ref, context);
+  if (nearby != null) list.add(nearby);
 
   // 1. The soonest pending Susu cycle across the caller's ACTIVE Susus.
   final mine = ref.watch(susuListProvider).valueOrNull ?? const <SusuSummary>[];

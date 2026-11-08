@@ -33,6 +33,9 @@
 // =============================================================================
 
 import 'dart:io';
+import 'package:azaman/screens/presence/nearby_preferences_screen.dart';
+import 'package:azaman/screens/presence/nearby_presence_screen.dart';
+import 'package:azaman/screens/presence/worker_presence_test_screen.dart';
 import 'package:azaman/screens/story_camera_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -250,6 +253,25 @@ GoRouter _buildAppRouter() => GoRouter(
       name: AzRouteNames.onboarding,
       builder: (context, state) => const OnboardingScreen(),
     ),
+    // ── Nearby presence (Part 6.6) ────────────────────────────────────────
+    GoRoute(
+      path: AzRoutes.nearby,
+      name: 'nearby',
+      builder: (context, state) => const NearbyPresenceScreen(),
+    ),
+    GoRoute(
+      path: AzRoutes.nearbyPreferences,
+      name: 'nearby-preferences',
+      builder: (context, state) => const NearbyPreferencesScreen(),
+    ),
+    GoRoute(
+      path: '/presence/verify',
+      name: 'presence-verify',
+      builder: (context, state) => WorkerPresenceTestScreen(
+        locationId: state.uri.queryParameters['locationId'] ?? '',
+      ),
+    ),
+
     GoRoute(
       path: AzRoutes.verifyPhone,
       name: 'verify-phone',

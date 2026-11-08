@@ -57,7 +57,9 @@
 		<string>Azaman uses your microphone to send voice messages in trade and group chats.</string>
 		<key>NSFaceIDUsageDescription</key>
 		<string>Azaman uses Face ID to authenticate financial transactions securely.</string>
-		<key>NSLocationWhenInUseUsageDescription</key>
+		<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Azaman uses Bluetooth only when you choose to check which participating store you are at. Nothing is scanned in the background.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
 		<string>Azaman uses your location to show nearby businesses in the Marketplace.</string>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>

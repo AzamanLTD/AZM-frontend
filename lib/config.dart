@@ -45,6 +45,28 @@ class AppConfig {
     defaultValue: false,
   );
 
+  /// Nearby Presence (Part 6.6). The client contract and the whole customer
+  /// experience are written, but no presence backend route is deployed yet.
+  /// Switched OFF: `--dart-define=PRESENCE_API=true` turns it on the moment
+  /// the routes ship. While false the feature is INVISIBLE and issues no
+  /// presence requests at all — it never falls back to fabricated candidates.
+  static const bool presenceApiEnabled = bool.fromEnvironment(
+    'PRESENCE_API',
+    defaultValue: false,
+  );
+
+  static bool? _presenceOverride;
+
+  /// The effective gate: the compile-time flag, unless a test has overridden
+  /// it. Production never sets the override, so the default stays OFF.
+  static bool get presenceEnabled => _presenceOverride ?? presenceApiEnabled;
+
+  /// Test-only: simulate the backend being switched on/off. Passing null
+  /// restores the compile-time flag.
+  @visibleForTesting
+  static void setPresenceOverrideForTest(bool? value) =>
+      _presenceOverride = value;
+
   static const bool _demoModeCompileTime = bool.fromEnvironment(
     'DEMO_MODE',
     defaultValue: false,
