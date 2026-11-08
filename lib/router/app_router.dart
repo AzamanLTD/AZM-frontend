@@ -267,9 +267,14 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/presence/verify',
       name: 'presence-verify',
-      builder: (context, state) => WorkerPresenceTestScreen(
-        locationId: state.uri.queryParameters['locationId'] ?? '',
-      ),
+      // A deep link is NOT authorisation. A blank or oversized locationId is
+      // refused here; the screen additionally refuses users with no valid
+      // employee context (see WorkerPresenceTestScreen).
+      builder: (context, state) {
+        final raw = (state.uri.queryParameters['locationId'] ?? '').trim();
+        final valid = raw.isNotEmpty && raw.length <= 64;
+        return WorkerPresenceTestScreen(locationId: valid ? raw : '');
+      },
     ),
 
     GoRoute(

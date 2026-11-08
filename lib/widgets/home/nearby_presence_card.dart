@@ -8,7 +8,7 @@
 //
 // Visibility is a strict ladder (Part 6.6 §E). Any rung that is not satisfied
 // returns null and the card does not exist:
-//   1. server feature flag (AppConfig.presenceEnabled)
+//   1. server feature flag (AppConfig.presenceApiEnabled)
 //   2. app unlocked through MoneyAccessController
 //   3. network is not known-down
 // A locked app never leaks presence above the lock surface.
@@ -22,6 +22,8 @@ import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/nearby_presence_controller.dart';
+import 'package:azaman/screens/presence/nearby_selector_sheet.dart';
+import 'package:azaman/services/presence/presence_gateway.dart';
 import 'package:azaman/providers/presence_preferences_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/widgets/home/home_reminder_deck.dart';
@@ -29,7 +31,7 @@ import 'package:azaman/widgets/home/home_reminder_deck.dart';
 /// Card 0. Returns null whenever Nearby must be invisible.
 HomeReminderCardData? nearbyPresenceCard(WidgetRef ref, BuildContext context) {
   // 1. The server flag. Off ⇒ the feature does not exist anywhere.
-  if (!AppConfig.presenceEnabled) return null;
+  if (!AppConfig.presenceApiEnabled) return null;
 
   // 2. The lock. Nothing presence-shaped renders above the lock surface.
   final money = ref.watch(moneyAccessProvider);
@@ -53,16 +55,23 @@ HomeReminderCardData? nearbyPresenceCard(WidgetRef ref, BuildContext context) {
   final state = ref.watch(nearbyPresenceControllerProvider);
 
   return switch (state) {
-    // Found one: the verified merchant, never an automatic checkout.
+    // Found one: the server-identified branch, never an automatic checkout.
     PresenceFoundOne(:final candidate) => HomeReminderCardData(
-      id: 'nearby-one-${candidate.branchId}',
+      id: 'nearby-one-${candidate.locationId}',
       eyebrow: 'NEARBY',
-      title: candidate.merchantName,
-      subtitle: candidate.proximity.label,
+      title: candidate.businessName.isEmpty
+          ? candidate.branchName
+          : candidate.businessName,
+      subtitle: candidate.proximityHint ?? candidate.branchName,
       icon: HugeIconsSolid.store01,
-      onTap: () => GoRouter.of(context).push(
-        AzRoutes.storefront(candidate.branchId, name: candidate.merchantName),
-      ),
+      onTap: () {
+        final ctrl = ref.read(nearbyPresenceControllerProvider.notifier);
+        ctrl.rememberChoice(candidate.locationId, chosen: true);
+        final route =
+            safeStorefrontRoute(candidate.storefrontRoute) ??
+            AzRoutes.businessProfile(candidate.businessId);
+        GoRouter.of(context).push(route);
+      },
     ),
 
     // Found many: the customer chooses. Never an automatic entry.
@@ -72,7 +81,26 @@ HomeReminderCardData? nearbyPresenceCard(WidgetRef ref, BuildContext context) {
       title: '${candidates.length} stores near you',
       subtitle: 'Tap to choose where you are',
       icon: HugeIconsSolid.location01,
-      onTap: () => GoRouter.of(context).push(AzRoutes.nearby),
+      // Part 6.6: the selector is a MODAL BOTTOM SHEET over Home, never a
+      // full-screen route, and never an automatic entry.
+      onTap: () async {
+        final ctrl = ref.read(nearbyPresenceControllerProvider.notifier);
+        final chosen = await showNearbySelectorSheet(
+          context,
+          candidates: candidates,
+        );
+        if (chosen == null) {
+          for (final c in candidates) {
+            ctrl.rememberChoice(c.locationId, chosen: false);
+          }
+          return;
+        }
+        ctrl.rememberChoice(chosen.locationId, chosen: true);
+        final route =
+            safeStorefrontRoute(chosen.storefrontRoute) ??
+            AzRoutes.businessProfile(chosen.businessId);
+        if (context.mounted) GoRouter.of(context).push(route);
+      },
     ),
 
     // Scanning is a quiet slot state, never a blocking spinner.

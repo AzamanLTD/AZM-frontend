@@ -45,12 +45,18 @@ class AppConfig {
     defaultValue: false,
   );
 
-  /// Nearby Presence (Part 6.6). The client contract and the whole customer
-  /// experience are written, but no presence backend route is deployed yet.
-  /// Switched OFF: `--dart-define=PRESENCE_API=true` turns it on the moment
-  /// the routes ship. While false the feature is INVISIBLE and issues no
-  /// presence requests at all — it never falls back to fabricated candidates.
-  static const bool presenceApiEnabled = bool.fromEnvironment(
+  /// Nearby Presence — CLIENT BUILD GATE (Part 6.6 §F).
+  ///
+  /// This is NOT the authoritative server flag. The server owns
+  /// `GlobalSettings.presenceEnabled`; that flag, not this constant, decides
+  /// whether presence operations are actually accepted.
+  ///
+  /// This gate answers one narrower question: "was this binary compiled with
+  /// a presence backend to talk to?" It defaults OFF and stays off in
+  /// production until the presence APIs and the server flag are deployed and
+  /// tested. While false the feature is INVISIBLE and issues no presence
+  /// requests at all — it never falls back to fabricated candidates.
+  static const bool presenceApiBuildEnabled = bool.fromEnvironment(
     'PRESENCE_API',
     defaultValue: false,
   );
@@ -59,7 +65,8 @@ class AppConfig {
 
   /// The effective gate: the compile-time flag, unless a test has overridden
   /// it. Production never sets the override, so the default stays OFF.
-  static bool get presenceEnabled => _presenceOverride ?? presenceApiEnabled;
+  static bool get presenceApiEnabled =>
+      _presenceOverride ?? presenceApiBuildEnabled;
 
   /// Test-only: simulate the backend being switched on/off. Passing null
   /// restores the compile-time flag.

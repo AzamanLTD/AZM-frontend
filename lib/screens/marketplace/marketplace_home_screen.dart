@@ -26,6 +26,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/theme/balance_card_brand.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
+import 'package:azaman/providers/nearby_scan_triggers.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/marketplace_nav_focus.dart';
@@ -193,6 +194,12 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
   @override
   void initState() {
     super.initState();
+    // Part 6.6: entering the marketplace is an approved Nearby trigger.
+    // Deferred past first paint and fully gated by the controller.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      NearbyScanTriggers(ref: ref).onMarketplaceEntered();
+    });
     // Seed the category BEFORE the first post-frame search, so a launcher or a
     // deep link lands on an already-filtered marketplace rather than flashing
     // "All" and then filtering a frame later.

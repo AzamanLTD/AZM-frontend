@@ -22,18 +22,15 @@ import 'package:azaman/services/presence/presence_scanner.dart';
 
 const String kUuid = 'f7826da64fa24e988024bc5b71e0893e';
 
-PresenceCandidate candidate(
-  String id, {
-  ProximityBucket p = ProximityBucket.near,
-  String? name,
-}) => PresenceCandidate(
-  branchId: id,
-  merchantName: name ?? 'Azaman Mart',
-  branchName: 'Osu',
-  storefrontMode: StorefrontMode.published,
-  proximity: p,
-  verified: true,
-);
+PresenceCandidate candidate(String id, {String hint = 'near', String? name}) =>
+    PresenceCandidate(
+      locationId: id,
+      businessId: 'biz-$id',
+      businessName: name ?? 'Azaman Mart',
+      branchName: 'Osu',
+      storefrontMode: StorefrontMode.catalogueAndPayment,
+      proximityHint: hint,
+    );
 
 /// One controller + its fakes, wired through a real ProviderContainer so the
 /// production providers are overridden exactly as the app would resolve them.

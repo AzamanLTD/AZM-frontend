@@ -50,12 +50,24 @@ enum BeaconFrameType {
 /// These are HINTS for ordering candidates. They are not metres and must not
 /// be rendered as a distance ("2 m away") or a storey ("ground floor").
 enum ProximityBucket {
-  strong('strong'),
-  near('near'),
-  far('far');
+  strong('strong', 'STRONG'),
+  near('near', 'NEAR'),
+  far('far', 'FAR');
 
-  const ProximityBucket(this.label);
+  const ProximityBucket(this.label, this.wireName);
+
+  /// Human word, e.g. for an accessibility label. Never a distance.
   final String label;
+
+  /// The ONLY strength value sent to the server.
+  final String wireName;
+
+  static ProximityBucket fromWire(String? raw) =>
+      switch ((raw ?? '').toUpperCase()) {
+        'STRONG' => ProximityBucket.strong,
+        'NEAR' => ProximityBucket.near,
+        _ => ProximityBucket.far,
+      };
 }
 
 /// One observation of one beacon at one instant.
@@ -87,6 +99,21 @@ class BeaconObservation {
     required this.sampleCount,
     required this.observedAt,
   });
+
+  /// The coarse bucket the wire carries. One name, one source.
+  ProximityBucket get bucket => proximity;
+
+  /// The instant this observation was last seen — the wire's observedAt.
+  DateTime get lastSeenAt => observedAt;
+
+  /// THE canonical wire form. Used by the HTTP gateway and by the fake, so a
+  /// field rename can never drift between production and tests.
+  Map<String, dynamic> toWire() => <String, dynamic>{
+    'beaconKey': beaconKey,
+    'rssiBucket': proximity.wireName,
+    'sampleCount': sampleCount,
+    'observedAt': observedAt.toUtc().toIso8601String(),
+  };
 
   @override
   String toString() =>

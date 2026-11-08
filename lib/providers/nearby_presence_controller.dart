@@ -6,7 +6,7 @@
 //        → foundOne | foundMany | none | blocked(reason) | error
 //
 // PRIVACY-FIRST GATES (all must hold before a scan starts):
-//   1. server/build presence flag ON (AppConfig.presenceEnabled && gateway
+//   1. server/build presence flag ON (AppConfig.presenceApiEnabled && gateway
 //      reports available) — otherwise the feature is INVISIBLE and no request
 //      is ever issued;
 //   2. user preference `nearbyDiscovery` ON (default OFF);
@@ -146,6 +146,9 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
   /// Fired for customer presence events only. Worker tests never use it.
   void Function(PresenceEvent event)? onCustomerEvent;
 
+  /// LOCAL diagnostics sink. Never uploaded.
+  void Function(PresenceLocalDiagnostic diagnostic)? onLocalDiagnostic;
+
   PresenceTuning get tuning => _tuning;
   Set<String> get sessionDismissed =>
       Set<String>.unmodifiable(_sessionDismissed);
@@ -154,7 +157,7 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
   /// Whether the feature should be rendered at all. Drives the "completely
   /// invisible" requirement — no card, no request, no permission prompt.
   bool get isFeatureVisible {
-    if (!AppConfig.presenceEnabled) return false;
+    if (!AppConfig.presenceApiEnabled) return false;
     if (!_gateway.isAvailable) return false;
     return true;
   }
@@ -176,7 +179,7 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
 
   /// Returns the blocking reason, or null when a scan may proceed.
   PresenceBlockReason? _prereqBlocker({required bool requirePreference}) {
-    if (!AppConfig.presenceEnabled || !_gateway.isAvailable) {
+    if (!AppConfig.presenceApiEnabled || !_gateway.isAvailable) {
       return PresenceBlockReason.featureFlagOff;
     }
     if (requirePreference) {
@@ -229,9 +232,8 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
 
     final generation = ++_generation;
     state = const PresenceScanning();
-    onCustomerEvent?.call(
-      PresenceEvent(type: PresenceEventType.scanStarted, occurredAt: _clock()),
-    );
+    // LOCAL diagnostic only — never submitted as a customer event.
+    onLocalDiagnostic?.call(PresenceLocalDiagnostic.scanStarted);
 
     PresenceScanOutcome outcome;
     try {
@@ -306,8 +308,12 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
         try {
           final challenge = await _gateway.requestChallenge();
           if (!mounted) return false;
+          // The nonce proves possession of the issued challenge. Sending
+          // only the id would prove nothing; the server hashes the nonce it
+          // issued and consumes the challenge atomically on success.
           final result = await _gateway.resolve(
-            challengeToken: challenge.token,
+            challengeId: challenge.challengeId,
+            nonce: challenge.nonce,
             observations: eligible,
           );
           if (!mounted) return false;
@@ -330,7 +336,7 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
     // Session dismissal memory: never re-prompt a store the customer already
     // dismissed or chose in this session.
     final candidates = raw
-        .where((c) => !_sessionDismissed.contains(c.branchId))
+        .where((c) => !_sessionDismissed.contains(c.locationId))
         .toList(growable: false);
 
     if (candidates.isEmpty) {
@@ -341,9 +347,9 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
       state = PresenceFoundOne(candidates.first);
       onCustomerEvent?.call(
         PresenceEvent(
-          type: PresenceEventType.candidateShown,
+          type: PresenceEventType.storefrontCandidateShown,
           occurredAt: _clock(),
-          branchId: candidates.first.branchId,
+          locationId: candidates.first.locationId,
         ),
       );
       return true;
@@ -351,7 +357,7 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
     state = PresenceFoundMany(candidates);
     onCustomerEvent?.call(
       PresenceEvent(
-        type: PresenceEventType.candidateShown,
+        type: PresenceEventType.storefrontCandidateShown,
         occurredAt: _clock(),
       ),
     );
@@ -359,22 +365,22 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
   }
 
   /// Records that the customer made a choice (or said "not here").
-  void rememberChoice(String branchId, {required bool chosen}) {
-    _sessionDismissed.add(branchId);
+  void rememberChoice(String locationId, {required bool chosen}) {
+    _sessionDismissed.add(locationId);
     if (chosen) {
       onCustomerEvent?.call(
         PresenceEvent(
-          type: PresenceEventType.candidateChosen,
+          type: PresenceEventType.storefrontSelected,
           occurredAt: _clock(),
-          branchId: branchId,
+          locationId: locationId,
         ),
       );
     } else {
       onCustomerEvent?.call(
         PresenceEvent(
-          type: PresenceEventType.candidateDismissed,
+          type: PresenceEventType.storefrontDismissed,
           occurredAt: _clock(),
-          branchId: branchId,
+          locationId: locationId,
         ),
       );
     }
@@ -405,12 +411,9 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
     }
     state = next;
     if (reason == PresenceBlockReason.throttled) {
-      onCustomerEvent?.call(
-        PresenceEvent(
-          type: PresenceEventType.scanThrottled,
-          occurredAt: _clock(),
-        ),
-      );
+      // LOCAL diagnostic — a throttle is a client-side fact, not a server
+      // customer event.
+      onLocalDiagnostic?.call(PresenceLocalDiagnostic.scanThrottled);
     }
   }
 
@@ -423,7 +426,7 @@ class NearbyPresenceController extends StateNotifier<NearbyPresenceState> {
   /// scanner reported. Nothing here touches sessions, orders or payments.
   Future<PresenceScanOutcome> runWorkerTest() async {
     const outcomeUnsupported = ScanUnsupported();
-    if (!AppConfig.presenceEnabled || !_gateway.isAvailable) {
+    if (!AppConfig.presenceApiEnabled || !_gateway.isAvailable) {
       return outcomeUnsupported;
     }
     try {
@@ -455,3 +458,13 @@ final nearbyPresenceControllerProvider =
 final presenceOpenSettingsProvider = Provider<Future<void> Function()?>(
   (ref) => null,
 );
+
+/// Client-local diagnostics. These stay on the device: the server event
+/// contract defines customer presence events only, and inventing wire names
+/// for these would be a contract the backend does not have.
+enum PresenceLocalDiagnostic {
+  scanStarted,
+  scanCompleted,
+  scanThrottled,
+  scanFailed,
+}
