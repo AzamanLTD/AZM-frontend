@@ -40,6 +40,34 @@ import 'package:flutter/foundation.dart';
 /// How the displayed FX rate was obtained, per the backend contract.
 enum BackendRateStatus { current, savedFallback, demoFallback, unavailable }
 
+/// Which headline the SERVER says the card should present.
+///
+/// D1 is resolved: COMBINED_ESTIMATE is the selected owner mode for the
+/// Ghana-first product. NATIVE_ONLY stays supported as an alternative the
+/// server may select — it is never a client-side fallback decision.
+enum BackendHeadlineMode {
+  nativeOnly,
+  combinedEstimate;
+
+  /// The ONLY accepted wire names. The mode is the SERVER's decision, so the
+  /// client accepts exactly what the contract publishes and nothing else.
+  static const Map<String, BackendHeadlineMode> _wireNames = {
+    'NATIVE_ONLY': BackendHeadlineMode.nativeOnly,
+    'COMBINED_ESTIMATE': BackendHeadlineMode.combinedEstimate,
+  };
+
+  /// Parses an EXPLICIT wire value.
+  ///
+  /// Returns null — never a default — for an unknown or malformed name, so
+  /// the caller REJECTS the payload. Silently degrading an unrecognised mode
+  /// to NATIVE_ONLY would present a combined balance as if it were a native
+  /// one, which is exactly the misrepresentation this contract forbids.
+  /// Case is tolerated (wire enums are published uppercase); whitespace is
+  /// not, because a padded value is not a name the backend published.
+  static BackendHeadlineMode? fromWire(String raw) =>
+      _wireNames[raw.toUpperCase()];
+}
+
 /// The backend's own valuation completeness verdict.
 enum BackendValuationStatus {
   current,
@@ -47,6 +75,7 @@ enum BackendValuationStatus {
   demoFallback,
   nativeGhsOnly,
   partialFxUnavailable,
+  fxUnavailable,
 }
 
 /// A backend monetary `{ exact, value }` pair.
@@ -124,6 +153,24 @@ class BackendBalanceValuation {
   /// REAL liquid USDC held — never the same quantity as [usdcEquivalent].
   final BackendMoney availableUsdc;
 
+  /// The server-selected headline mode (D1: COMBINED_ESTIMATE).
+  final BackendHeadlineMode headlineMode;
+
+  /// The backend's AUTHORITATIVE combined headline in GHS. Null when the
+  /// server could not produce one (e.g. partial FX) — the card then falls
+  /// back to the native GHS wallet figure, never to a client conversion.
+  final BackendMoney? headlineGhs;
+
+  /// The server's own verdict on whether [headlineGhs] is an ESTIMATE
+  /// (because available USDC was folded in at a display rate). The client
+  /// renders the ≈ marker from this field and never derives it.
+  final bool headlineIsEstimate;
+
+  /// Native GHS available for immediate GHS spending WITHOUT a quote.
+  /// Deliberately NOT the combined headline: the USDC contribution is
+  /// excluded, because spending it as GHS needs an executable quote.
+  final BackendMoney? spendableGhsNow;
+
   /// The DISPLAY valuation of the whole available GHS value expressed in
   /// USDC at the display rate. NOT USDC held. Null = cannot be valued.
   final BackendMoney? usdcEquivalent;
@@ -154,6 +201,10 @@ class BackendBalanceValuation {
     required this.availableUsdc,
     this.usdcEquivalent,
     this.availableGhsValue,
+    this.headlineMode = BackendHeadlineMode.nativeOnly,
+    this.headlineGhs,
+    this.headlineIsEstimate = false,
+    this.spendableGhsNow,
     required this.rateStatus,
     required this.valuationStatus,
     this.currentRate,
@@ -205,6 +256,32 @@ class BackendBalanceValuation {
         : money(availableGhsValueRaw);
     if (availableGhsValueRaw != null && availableGhsValue == null) return null;
 
+    // ── Headline block (additive to the original contract).
+    //
+    // MODE STRICTNESS (2026-11-08): an explicit but unknown or malformed
+    // `headlineMode` REJECTS the payload instead of defaulting, because the
+    // mode decides which figure the member is shown as their balance. Only a
+    // payload that carries NO mode at all is a legacy payload, and a legacy
+    // payload keeps the documented NATIVE_ONLY compatibility behaviour.
+    final headlineModeRaw = json['headlineMode'];
+    final BackendHeadlineMode headlineMode;
+    if (headlineModeRaw == null) {
+      headlineMode = BackendHeadlineMode.nativeOnly;
+    } else if (headlineModeRaw is String) {
+      final parsedMode = BackendHeadlineMode.fromWire(headlineModeRaw);
+      if (parsedMode == null) return null;
+      headlineMode = parsedMode;
+    } else {
+      return null;
+    }
+    final headlineGhsRaw = json['headlineGhs'];
+    final headlineGhs = headlineGhsRaw == null ? null : money(headlineGhsRaw);
+    if (headlineGhsRaw != null && headlineGhs == null) return null;
+    final spendableRaw = json['spendableGhsNow'];
+    final spendableGhsNow = spendableRaw == null ? null : money(spendableRaw);
+    if (spendableRaw != null && spendableGhsNow == null) return null;
+    final headlineIsEstimate = json['headlineIsEstimate'] == true;
+
     // ── Closed enums — unknown values are a contract break.
     final rateStatusRaw = json['rateStatus'];
     final BackendRateStatus? rateStatus = switch (rateStatusRaw) {
@@ -223,6 +300,7 @@ class BackendBalanceValuation {
           'NATIVE_GHS_ONLY' => BackendValuationStatus.nativeGhsOnly,
           'PARTIAL_FX_UNAVAILABLE' =>
             BackendValuationStatus.partialFxUnavailable,
+          'FX_UNAVAILABLE' => BackendValuationStatus.fxUnavailable,
           _ => null,
         };
     if (rateStatus == null || valuationStatus == null) return null;
@@ -328,6 +406,10 @@ class BackendBalanceValuation {
       availableUsdc: availableUsdc,
       usdcEquivalent: usdcEquivalent,
       availableGhsValue: availableGhsValue,
+      headlineMode: headlineMode,
+      headlineGhs: headlineGhs,
+      headlineIsEstimate: headlineIsEstimate,
+      spendableGhsNow: spendableGhsNow,
       rateStatus: rateStatus,
       valuationStatus: valuationStatus,
       currentRate: currentRate,

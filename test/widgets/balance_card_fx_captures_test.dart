@@ -102,6 +102,53 @@ BalanceCardValuation _unavailable() => const BalanceCardValuation(
   rate: FxRateView(kind: FxRateKind.none),
 ).compute();
 
+/// D1 RESOLVED: the SERVER's combined headline — native GHS plus the
+/// available USDC folded in at the canonical display rate, flagged by the
+/// backend as an estimate. 500 GHS + 20 USDC at 13.5 = 810 GHS, and the
+/// backend publishes the 60 USDC equivalent of that same headline.
+BalanceCardValuation _combinedEstimate() => const BalanceCardValuation(
+  nativeGhsAvailable: 500,
+  availableUsdc: 20,
+  balanceConfirmed: true,
+  escrowLocked: 5,
+  disputeEscrow: 2,
+  vaultLocked: 7,
+  savingsLockedGhs: 42.5,
+  susuCommitted: 5,
+  azmPoints: 1200,
+  rate: FxRateView(ghsPerUsdc: 13.5, kind: FxRateKind.fresh),
+  availableGhsValue: 500,
+  headlineMode: BalanceHeadlineMode.combinedEstimate,
+  headlineGhs: 810,
+  headlineIsEstimate: true,
+  backendUsdcEquivalent: 60,
+  spendableGhsNow: 500,
+  usdcTransactionGateOpen: true,
+).compute();
+
+/// PARTIAL_FX_UNAVAILABLE: the backend could NOT fold the USDC holding into a
+/// headline, so the headline is the NATIVE GHS balance, NOT flagged as an
+/// estimate, and no equivalent is published. The absence is stated on the
+/// card; it is never filled in with a client-side conversion.
+BalanceCardValuation _partialFxUnavailable() => const BalanceCardValuation(
+  nativeGhsAvailable: 500,
+  availableUsdc: 20,
+  balanceConfirmed: true,
+  escrowLocked: 5,
+  disputeEscrow: 2,
+  vaultLocked: 7,
+  savingsLockedGhs: 42.5,
+  susuCommitted: 5,
+  azmPoints: 1200,
+  rate: FxRateView(kind: FxRateKind.none),
+  availableGhsValue: 500,
+  headlineMode: BalanceHeadlineMode.combinedEstimate,
+  headlineGhs: 500,
+  headlineIsEstimate: false,
+  spendableGhsNow: 500,
+  usdcTransactionGateOpen: true,
+).compute();
+
 Future<void> _pump(
   WidgetTester tester, {
   required AzamanTheme theme,
@@ -608,5 +655,125 @@ void main() {
     _assertFrame(tester, width: 390);
     _assertBackContract(tester);
     await _capture(tester, 'back_reduced_motion_390_dark');
+  });
+
+  // ── D1 COMBINED_ESTIMATE — the Ghana-first headline ────────────────
+  //
+  // These three captures are the visual record of the contract this PR
+  // adds: the approximation marker, the honest unavailable state, and the
+  // back face of the SAME card so the breakdown can be seen NOT to inherit
+  // the combined figure.
+  testWidgets('front 390 dark: COMBINED_ESTIMATE — the GH₵ headline is the '
+      'backend figure and the USDC line carries the ≈ marker', (tester) async {
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 390,
+      valuation: _combinedEstimate(),
+    );
+    _assertFrame(tester, width: 390);
+    await _assertFrontContract(tester, width: 390);
+
+    // The headline is the SERVER's combined figure, and the ≈ appears
+    // because the SERVER flagged it as an estimate.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('balance-fx-headline')),
+        matching: find.textContaining('810'),
+      ),
+      findsOneWidget,
+      reason:
+          'the combined headline is the backend figure, not a sum drawn here',
+    );
+    expect(
+      find.byKey(const ValueKey('balance-fx-equivalent-approx')),
+      findsOneWidget,
+      reason: 'the ≈ marks the converted USDC line',
+    );
+    expect(
+      find.bySemanticsLabel(RegExp('Estimated available balance')),
+      findsWidgets,
+      reason: 'the estimate is announced, not merely glyph-marked',
+    );
+    await _capture(tester, 'front_combined_estimate_390_dark');
+  });
+
+  testWidgets('front 360 light: PARTIAL_FX_UNAVAILABLE — native GHS headline '
+      'stays, no ≈, and the missing equivalent is stated', (tester) async {
+    await _pump(
+      tester,
+      theme: AzamanTheme.light,
+      width: 360,
+      valuation: _partialFxUnavailable(),
+    );
+    _assertFrame(tester, width: 360);
+    await _assertFrontContract(tester, width: 360);
+
+    // 1. The native GHS headline is still there.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('balance-fx-headline')),
+        matching: find.textContaining('500'),
+      ),
+      findsOneWidget,
+    );
+    // 2. Nothing is invented: no ≈ anywhere on the face.
+    expect(find.textContaining('≈'), findsNothing);
+    // 3. The gap is stated rather than left blank or zeroed.
+    expect(
+      find.byKey(const ValueKey('balance-fx-equivalent-unavailable')),
+      findsOneWidget,
+    );
+    await _capture(tester, 'front_partial_fx_unavailable_360_light');
+  });
+
+  testWidgets('back 390 dark: the breakdown of a COMBINED_ESTIMATE card — '
+      'holdings stay native, the combined figure stays on the front', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      theme: AzamanTheme.dark,
+      width: 390,
+      valuation: _combinedEstimate(),
+    );
+    await _assertFrontContract(tester, width: 390);
+    final frontRect = tester.getRect(
+      find.byKey(const ValueKey('balance-pair-frame')),
+    );
+    await _flipToBack(tester);
+    _assertFrame(tester, width: 390);
+    _assertBackContract(tester);
+    expect(
+      tester.getRect(find.byKey(const ValueKey('balance-pair-frame'))).top,
+      closeTo(frontRect.top, 0.5),
+      reason: 'the flip must not move the frame',
+    );
+
+    // The GHS wallet keeps the NATIVE figure and the USDC row keeps USDC —
+    // neither is replaced by the 810 GHS headline.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('bc-row-ghs-wallet')),
+        matching: find.textContaining('500.00'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('bc-row-usdc-held')),
+        matching: find.textContaining('20.00 USDC'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('balance-pair-back-surface')),
+        matching: find.textContaining('810'),
+      ),
+      findsNothing,
+      reason: 'the combined estimate never becomes a breakdown figure',
+    );
+    await _capture(tester, 'back_combined_estimate_390_dark');
   });
 }

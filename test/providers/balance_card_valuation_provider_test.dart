@@ -1044,4 +1044,66 @@ void main() {
       expect(v.availableUsdc, 50);
     });
   });
+
+  // ── WORK PACKET 3-A (2026-11-08): GHANA-FIRST COMBINED_ESTIMATE ────────
+  // D1 is resolved: the owner selected COMBINED_ESTIMATE. These are ADDITIVE
+  // assertions on top of the native-only contract above; nothing is removed.
+  group('headline mode — COMBINED_ESTIMATE consumes the backend headline', () {
+    test('combined mode maps the headline, ≈ and spendable verbatim', () async {
+      final payload =
+          valuation367Payload(
+              nativeGhs: 20,
+              availableUsdc: 100,
+              usdcEquivalent: {'exact': '116.00000000', 'value': 116},
+              availableGhsValue: {'exact': '1450.00000000', 'value': 1450},
+            )
+            ..['headlineMode'] = 'COMBINED_ESTIMATE'
+            ..['headlineGhs'] = {'exact': '1450.00000000', 'value': 1450}
+            ..['headlineIsEstimate'] = true
+            ..['spendableGhsNow'] = {'exact': '20.00000000', 'value': 20};
+      final v = await _val(
+        _container(
+          balance: BalanceData(
+            availableBalance: 50,
+            valuationFieldPresent: true,
+            valuationRaw: payload,
+          ),
+        ),
+      );
+      // The headline is the BACKEND's combined figure, verbatim.
+      expect(v.effectiveHeadlineGhs, 1450);
+      expect(v.headlineApprox, isTrue);
+      // The equivalent is the BACKEND's number, not 20 / 12.5.
+      expect(v.availableUsdcEquivalent, 116);
+      // Spendable stays native GHS — never the combined headline.
+      expect(v.spendableGhsNow, 20);
+      // The native wallet balance is still available for the back face.
+      expect(v.nativeGhsAvailable, 20);
+    });
+
+    test(
+      'explicit NATIVE_ONLY keeps the legacy native-only semantics',
+      () async {
+        final payload = valuation367Payload(
+          nativeGhs: 20,
+          availableUsdc: 100,
+          usdcEquivalent: {'exact': '116.00000000', 'value': 116},
+          availableGhsValue: {'exact': '1450.00000000', 'value': 1450},
+        )..['headlineMode'] = 'NATIVE_ONLY';
+        final v = await _val(
+          _container(
+            balance: BalanceData(
+              availableBalance: 50,
+              valuationFieldPresent: true,
+              valuationRaw: payload,
+            ),
+          ),
+        );
+        expect(v.effectiveHeadlineGhs, 20);
+        expect(v.headlineApprox, isFalse);
+        // Legacy derivation survives untouched in this mode.
+        expect(v.availableUsdcEquivalent, closeTo(20 / 12.5, 1e-9));
+      },
+    );
+  });
 }

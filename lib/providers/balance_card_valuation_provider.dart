@@ -66,7 +66,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/balance_card_valuation.dart';
 import 'package:azaman/models/balance_valuation_payload.dart'
-    show BackendBalanceValuation, BackendRateStatus;
+    show BackendBalanceValuation, BackendRateStatus, BackendHeadlineMode;
 import 'package:azaman/providers/auth_provider.dart' show isVendorProvider;
 import 'package:azaman/providers/currency_provider.dart' show fxRateProvider;
 import 'package:azaman/providers/hologram_provider.dart'
@@ -303,6 +303,31 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
       // display rate — never a GHS figure from USDC.
       availableGhsValue: backendValuation.nativeGhsAvailable.value,
       availableUsdcEquivalent: null,
+      // D1 RESOLVED (2026-11-08): COMBINED_ESTIMATE is the owner-selected
+      // mode for the Ghana-first product. The headline, its estimate flag,
+      // its USDC equivalent and the spendable-now figure all come from the
+      // BACKEND, verbatim. The client mirrors the server's mode and never
+      // picks one, computes a headline, or re-derives the equivalent.
+      headlineMode:
+          backendValuation.headlineMode == BackendHeadlineMode.combinedEstimate
+          ? BalanceHeadlineMode.combinedEstimate
+          : BalanceHeadlineMode.nativeOnly,
+      headlineGhs: backendValuation.headlineGhs?.value,
+      headlineIsEstimate: backendValuation.headlineIsEstimate,
+      // ONLY in COMBINED_ESTIMATE. In NATIVE_ONLY the documented
+      // native-GHS-only contract still holds (owner-corrected 2026-10-27):
+      // the card derives its equivalent from the native balance and the
+      // display rate, and never consumes the backend's combined figure.
+      backendUsdcEquivalent:
+          backendValuation.headlineMode == BackendHeadlineMode.combinedEstimate
+          ? backendValuation.usdcEquivalent?.value
+          : null,
+      // Deliberately the NATIVE GHS figure when the server publishes no
+      // explicit spendable amount: the USDC portion needs a quote before it
+      // can fund a GHS payment, so it is never advertised as spendable.
+      spendableGhsNow:
+          backendValuation.spendableGhsNow?.value ??
+          backendValuation.nativeGhsAvailable.value,
       // AUTHORITATIVE gate — the backend's own transaction
       // authorisation boolean, verbatim. Never derived from the rate.
       usdcTransactionGateOpen: backendValuation.usdcTransactionGateOpen,
