@@ -79,12 +79,27 @@ BalanceCardValuation valuation({
   bool isEstimate = true,
   double? backendUsdcEquivalent = 60,
   double? spendableGhsNow = 500,
-  double ghsPerUsdc = 15.5,
+  // The ONE canonical rate for this fixture: 810 / 13.5 == 60 exactly, so a
+  // native headline, the rate and the backend equivalent all agree.
+  double? ghsPerUsdc = 13.5,
+  FxRateKind rateKind = FxRateKind.fresh,
+  double escrowLocked = 5,
+  double disputeEscrow = 2,
+  double? vaultLocked = 7,
+  double? savingsLockedGhs = 42.5,
+  double? susuCommitted,
+  double azmPoints = 900.75,
 }) => BalanceCardValuation(
   nativeGhsAvailable: nativeGhs,
   availableUsdc: availableUsdc,
   balanceConfirmed: true,
-  rate: FxRateView(ghsPerUsdc: ghsPerUsdc, kind: FxRateKind.fresh),
+  escrowLocked: escrowLocked,
+  disputeEscrow: disputeEscrow,
+  vaultLocked: vaultLocked,
+  savingsLockedGhs: savingsLockedGhs,
+  susuCommitted: susuCommitted,
+  azmPoints: azmPoints,
+  rate: FxRateView(ghsPerUsdc: ghsPerUsdc, kind: rateKind),
   availableGhsValue: nativeGhs,
   headlineMode: mode,
   headlineGhs: headlineGhs,
@@ -93,7 +108,23 @@ BalanceCardValuation valuation({
   spendableGhsNow: spendableGhsNow,
 ).compute();
 
-Future<void> pumpPair(WidgetTester tester, BalanceCardValuation v) async {
+/// Every string a back-face row renders, joined. Rows compose label and
+/// amount spans, so `Text.data` is often null — the rendered strings are the
+/// only honest evidence of what the member is actually shown.
+String rowSignature(WidgetTester tester, Key row) {
+  final texts = tester.widgetList<Text>(
+    find.descendant(of: find.byKey(row), matching: find.byType(Text)),
+  );
+  return texts.map((t) => t.data ?? t.textSpan?.toPlainText() ?? '').join('|');
+}
+
+Future<void> pumpPair(
+  WidgetTester tester,
+  BalanceCardValuation v, {
+  // A fresh widget identity forces a fresh flip State — without it a second
+  // pump would silently reuse the first card's back face.
+  Key? key,
+}) async {
   final colors = ThemeProvider.getColors(
     AzamanTheme.dark,
   ).withAccent(AzAccent.gold);
@@ -110,7 +141,7 @@ Future<void> pumpPair(WidgetTester tester, BalanceCardValuation v) async {
               padding: const EdgeInsets.all(12),
               child: SizedBox(
                 width: double.infinity,
-                child: BalanceCardPair(valuation: v, colors: colors),
+                child: BalanceCardPair(key: key, valuation: v, colors: colors),
               ),
             ),
           ),
@@ -212,6 +243,99 @@ void main() {
     });
   });
 
+  // The mode decides which figure the member is shown as THEIR BALANCE, so
+  // the parse is deliberately asymmetric: no mode at all is legacy, but a
+  // mode the contract does not publish is a broken payload — never a quiet
+  // demotion to NATIVE_ONLY, which would present a combined balance as a
+  // native one.
+  group('payload — headline mode is STRICT', () {
+    test('no mode at all keeps the legacy NATIVE_ONLY compatibility path', () {
+      final v = BackendBalanceValuation.parse(payload());
+      expect(v, isNotNull);
+      expect(v!.headlineMode, BackendHeadlineMode.nativeOnly);
+    });
+
+    test('an explicit null mode is treated as absent, not as a break', () {
+      final v = BackendBalanceValuation.parse(
+        payload()..['headlineMode'] = null,
+      );
+      expect(v, isNotNull);
+      expect(v!.headlineMode, BackendHeadlineMode.nativeOnly);
+    });
+
+    test('both published names parse', () {
+      expect(
+        BackendBalanceValuation.parse(
+          payload(headlineMode: 'NATIVE_ONLY'),
+        )!.headlineMode,
+        BackendHeadlineMode.nativeOnly,
+      );
+      expect(
+        BackendBalanceValuation.parse(
+          payload(headlineMode: 'COMBINED_ESTIMATE'),
+        )!.headlineMode,
+        BackendHeadlineMode.combinedEstimate,
+      );
+    });
+
+    test('case is tolerated — the wire enum is published uppercase', () {
+      expect(
+        BackendBalanceValuation.parse(
+          payload(headlineMode: 'combined_estimate'),
+        )!.headlineMode,
+        BackendHeadlineMode.combinedEstimate,
+      );
+    });
+
+    test('an UNKNOWN mode rejects the payload — never a silent default', () {
+      final v = BackendBalanceValuation.parse(
+        payload(headlineMode: 'COMBINED_GUESS'),
+      );
+      expect(
+        v,
+        isNull,
+        reason: 'an unrecognised mode must not become NATIVE_ONLY',
+      );
+    });
+
+    test('an empty or padded mode rejects the payload', () {
+      expect(BackendBalanceValuation.parse(payload(headlineMode: '')), isNull);
+      expect(
+        BackendBalanceValuation.parse(
+          payload(headlineMode: ' COMBINED_ESTIMATE '),
+        ),
+        isNull,
+        reason: 'a padded value is not a name the backend published',
+      );
+    });
+
+    test('a MALFORMED (non-string) mode rejects the payload', () {
+      for (final bad in <Object>[
+        42,
+        true,
+        1.5,
+        <String>[],
+        <String, dynamic>{},
+      ]) {
+        final raw = payload()..['headlineMode'] = bad;
+        expect(
+          BackendBalanceValuation.parse(raw),
+          isNull,
+          reason: 'headlineMode=$bad must not parse',
+        );
+      }
+    });
+
+    test('a rejected mode means NO valuation at all, not a degraded one', () {
+      // The failure is total on purpose: a caller must fall back to its own
+      // honest unknown state rather than render a mislabelled balance.
+      final v = BackendBalanceValuation.parse(
+        payload(headlineMode: 'NATIVE_ISH', headlineGhs: '810.00'),
+      );
+      expect(v, isNull);
+    });
+  });
+
   group('headline — server-authoritative, never recomputed', () {
     test('COMBINED_ESTIMATE leads with the backend headline', () {
       final v = valuation(headlineGhs: 810);
@@ -271,9 +395,28 @@ void main() {
       expect(v.effectiveHeadlineGhs, 500);
     });
 
-    test('the USDC equivalent is the backend figure, never derived', () {
-      // 500 GHS at 15.5 would derive 32.26 — the backend says 60.
+    test('the USDC equivalent is the backend figure and agrees with the '
+        'one canonical rate', () {
+      // The fixture is COHERENT: 810 GHS at the canonical 13.5 rate is
+      // exactly the 60 USDC the backend published. Both amounts agree at
+      // ONE rate, and the card shows the backend's number verbatim rather
+      // than re-deriving it.
+      final v = valuation(backendUsdcEquivalent: 60, ghsPerUsdc: 13.5);
+      expect(
+        810 / 13.5,
+        closeTo(60, 1e-9),
+        reason: 'the fixture itself must not disagree',
+      );
+      expect(v.availableUsdcEquivalent, 60);
+      expect(v.effectiveHeadlineGhs, 810);
+    });
+
+    test('a stale display rate never overrides the backend equivalent', () {
+      // Deliberate divergence: at a STALE 15.5 a derivation would give
+      // ~52.26, but the backend's 60 still stands. This is the failure mode
+      // the authoritative figure exists to eliminate.
       final v = valuation(backendUsdcEquivalent: 60, ghsPerUsdc: 15.5);
+      expect(810 / 15.5, isNot(closeTo(60, 0.5)));
       expect(v.availableUsdcEquivalent, 60);
     });
 
@@ -359,6 +502,242 @@ void main() {
       );
       final headline = find.byKey(const ValueKey('balance-fx-headline'));
       expect(headline, findsOneWidget);
+    });
+  });
+
+  // ── The BACK face. The combined estimate is a FRONT-FACE presentation of
+  // one number; it must never reach the breakdown, where every holding is
+  // shown in the unit it is actually denominated in.
+  group('widget — back face', () {
+    Finder rowText(Key row, String containing) => find.descendant(
+      of: find.byKey(row),
+      matching: find.textContaining(containing),
+    );
+
+    Future<void> flipToBack(WidgetTester t) async {
+      await t.tap(find.byKey(const ValueKey('balance-pair-flip-listener')));
+      await t.pump();
+      await t.pumpAndSettle();
+    }
+
+    /// The breakdown shows ONE section at a time; its pages are built
+    /// lazily, so a section must be reached before it can be judged.
+    Future<void> pageDown(WidgetTester t) async {
+      final pager = find.byKey(const ValueKey('bc-section-pager'));
+      final extent = t.getRect(pager).height * 0.86;
+      await t.drag(pager, Offset(0, -(extent * 0.75)));
+      await t.pumpAndSettle();
+    }
+
+    testWidgets('GHS wallet and USDC holdings stay separate, in their own '
+        'native units, with the combined headline nowhere on the face', (
+      t,
+    ) async {
+      await pumpPair(
+        t,
+        valuation(
+          nativeGhs: 500,
+          availableUsdc: 20,
+          headlineGhs: 810,
+          spendableGhsNow: 500,
+          backendUsdcEquivalent: 60,
+        ),
+      );
+      await flipToBack(t);
+
+      // The faces are exclusive: the front headline is not painted behind.
+      expect(
+        find.byKey(const ValueKey('balance-fx-headline')),
+        findsNothing,
+        reason: 'flipping replaces the front face',
+      );
+
+      // Two SEPARATE holdings, each in the unit it is held in.
+      expect(
+        rowText(const ValueKey('bc-row-ghs-wallet'), '500.00'),
+        findsOneWidget,
+        reason: 'the GHS wallet row keeps the native GHS figure',
+      );
+      expect(
+        rowText(const ValueKey('bc-row-usdc-held'), '20.00 USDC'),
+        findsOneWidget,
+        reason: 'the USDC row keeps the USDC holding, in USDC',
+      );
+
+      // The combined figure is NOT substituted for either holding.
+      expect(
+        find.textContaining('810'),
+        findsNothing,
+        reason: 'the combined headline belongs to the front face only',
+      );
+      expect(
+        find.textContaining('60.00'),
+        findsNothing,
+        reason: 'the backend equivalent is not a holding either',
+      );
+    });
+
+    testWidgets('locked breakdowns stay in native units and are never '
+        'converted or folded into the headline', (t) async {
+      await pumpPair(
+        t,
+        valuation(
+          nativeGhs: 500,
+          availableUsdc: 20,
+          headlineGhs: 810,
+          backendUsdcEquivalent: 60,
+          escrowLocked: 5,
+          disputeEscrow: 2,
+          vaultLocked: 7,
+        ),
+      );
+      await flipToBack(t);
+
+      // COMMITTED: the vault holding.
+      await pageDown(t);
+      expect(
+        rowText(const ValueKey('bc-row-vaults'), '7.00 USDC'),
+        findsOneWidget,
+      );
+
+      // LOCKED: escrow and dispute escrow, each its own native figure.
+      await pageDown(t);
+      expect(
+        rowText(const ValueKey('bc-row-escrow'), '5.00 USDC'),
+        findsOneWidget,
+        reason: 'escrow renders the locked USDC it actually holds',
+      );
+      expect(
+        rowText(const ValueKey('bc-row-dispute-escrow'), '2.00 USDC'),
+        findsOneWidget,
+      );
+
+      // Nothing on the locked or committed pages was converted to GHS.
+      expect(find.textContaining('GH₵'), findsNothing);
+    });
+
+    testWidgets('the honest savings gate holds: no monetary value while the '
+        'denomination/backing contract is unresolved', (t) async {
+      await pumpPair(t, valuation(savingsLockedGhs: 42.5, susuCommitted: null));
+      await flipToBack(t);
+      await pageDown(t);
+
+      expect(
+        rowText(const ValueKey('bc-row-savings'), '—'),
+        findsOneWidget,
+        reason: 'unknown is a dash, never a fabricated figure',
+      );
+      expect(
+        rowText(const ValueKey('bc-row-savings'), 'on the Savings screen'),
+        findsOneWidget,
+        reason: 'the row points at the surface that does show the fact',
+      );
+      expect(
+        find.textContaining('42.5'),
+        findsNothing,
+        reason: 'the parsed aggregate is not shown as a holding',
+      );
+    });
+
+    testWidgets('the breakdown is identical in both headline modes — the '
+        'mode never rewrites a holding', (t) async {
+      await pumpPair(
+        t,
+        valuation(
+          mode: BalanceHeadlineMode.combinedEstimate,
+          headlineGhs: 810,
+          backendUsdcEquivalent: 60,
+        ),
+      );
+      await flipToBack(t);
+      final available = rowSignature(t, const ValueKey('bc-row-ghs-wallet'));
+      final usdc = rowSignature(t, const ValueKey('bc-row-usdc-held'));
+      await pageDown(t);
+      final vaults = rowSignature(t, const ValueKey('bc-row-vaults'));
+
+      await pumpPair(
+        t,
+        valuation(
+          mode: BalanceHeadlineMode.nativeOnly,
+          headlineGhs: 810,
+          backendUsdcEquivalent: 60,
+        ),
+        key: const ValueKey('native-only-pair'),
+      );
+      await flipToBack(t);
+      expect(rowSignature(t, const ValueKey('bc-row-ghs-wallet')), available);
+      expect(rowSignature(t, const ValueKey('bc-row-usdc-held')), usdc);
+      await pageDown(t);
+      expect(rowSignature(t, const ValueKey('bc-row-vaults')), vaults);
+    });
+  });
+
+  // ── PARTIAL_FX_UNAVAILABLE: the case where the backend could NOT fold the
+  // USDC holding into the headline. The honest answer is the native GHS
+  // balance plus a stated absence — never a client-side conversion.
+  group('widget — PARTIAL_FX_UNAVAILABLE front face', () {
+    test('the wire status parses to a native headline with no equivalent', () {
+      final v = BackendBalanceValuation.parse(
+        payload(
+          headlineMode: 'COMBINED_ESTIMATE',
+          headlineGhs: '500.00',
+          headlineGhsValue: 500,
+          headlineIsEstimate: false,
+          usdcEquivalent: null,
+          rateStatus: 'UNAVAILABLE',
+          valuationStatus: 'PARTIAL_FX_UNAVAILABLE',
+        ),
+      );
+      expect(v, isNotNull);
+      expect(v!.headlineMode, BackendHeadlineMode.combinedEstimate);
+      expect(v.headlineGhs!.value, 500);
+      expect(v.headlineIsEstimate, isFalse);
+      expect(v.usdcEquivalent, isNull);
+      expect(v.rateStatus, BackendRateStatus.unavailable);
+      expect(v.valuationStatus, BackendValuationStatus.partialFxUnavailable);
+    });
+
+    testWidgets('the native GHS headline stays, nothing is invented, and the '
+        'gap is stated', (t) async {
+      final v = valuation(
+        mode: BalanceHeadlineMode.combinedEstimate,
+        nativeGhs: 500,
+        availableUsdc: 20,
+        // The backend could not produce a combined figure, so the headline
+        // is the native balance and is NOT flagged as an estimate.
+        headlineGhs: 500,
+        isEstimate: false,
+        backendUsdcEquivalent: null,
+        spendableGhsNow: 500,
+        ghsPerUsdc: null,
+        rateKind: FxRateKind.none,
+      );
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.headlineApprox, isFalse);
+
+      await pumpPair(t, v);
+
+      // 1. The native GHS headline is still visible.
+      expect(find.byKey(const ValueKey('balance-fx-headline')), findsOneWidget);
+      expect(find.textContaining('500'), findsWidgets);
+
+      // 2. No USDC contribution is invented: no ≈, no equivalent figure.
+      expect(
+        find.byKey(const ValueKey('balance-fx-equivalent-row')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('balance-fx-equivalent-approx')),
+        findsNothing,
+      );
+      expect(find.textContaining('≈'), findsNothing);
+
+      // 3. The unavailable equivalent is stated, not silently blank.
+      expect(
+        find.byKey(const ValueKey('balance-fx-equivalent-unavailable')),
+        findsOneWidget,
+      );
+      expect(find.bySemanticsLabel(RegExp('unavailable')), findsWidgets);
     });
   });
 }

@@ -49,10 +49,23 @@ enum BackendHeadlineMode {
   nativeOnly,
   combinedEstimate;
 
-  static BackendHeadlineMode fromWire(String? raw) =>
-      (raw ?? '').toUpperCase() == 'COMBINED_ESTIMATE'
-      ? BackendHeadlineMode.combinedEstimate
-      : BackendHeadlineMode.nativeOnly;
+  /// The ONLY accepted wire names. The mode is the SERVER's decision, so the
+  /// client accepts exactly what the contract publishes and nothing else.
+  static const Map<String, BackendHeadlineMode> _wireNames = {
+    'NATIVE_ONLY': BackendHeadlineMode.nativeOnly,
+    'COMBINED_ESTIMATE': BackendHeadlineMode.combinedEstimate,
+  };
+
+  /// Parses an EXPLICIT wire value.
+  ///
+  /// Returns null — never a default — for an unknown or malformed name, so
+  /// the caller REJECTS the payload. Silently degrading an unrecognised mode
+  /// to NATIVE_ONLY would present a combined balance as if it were a native
+  /// one, which is exactly the misrepresentation this contract forbids.
+  /// Case is tolerated (wire enums are published uppercase); whitespace is
+  /// not, because a padded value is not a name the backend published.
+  static BackendHeadlineMode? fromWire(String raw) =>
+      _wireNames[raw.toUpperCase()];
 }
 
 /// The backend's own valuation completeness verdict.
@@ -244,9 +257,23 @@ class BackendBalanceValuation {
     if (availableGhsValueRaw != null && availableGhsValue == null) return null;
 
     // ── Headline block (additive to the original contract).
-    final headlineMode = BackendHeadlineMode.fromWire(
-      json['headlineMode'] as String?,
-    );
+    //
+    // MODE STRICTNESS (2026-11-08): an explicit but unknown or malformed
+    // `headlineMode` REJECTS the payload instead of defaulting, because the
+    // mode decides which figure the member is shown as their balance. Only a
+    // payload that carries NO mode at all is a legacy payload, and a legacy
+    // payload keeps the documented NATIVE_ONLY compatibility behaviour.
+    final headlineModeRaw = json['headlineMode'];
+    final BackendHeadlineMode headlineMode;
+    if (headlineModeRaw == null) {
+      headlineMode = BackendHeadlineMode.nativeOnly;
+    } else if (headlineModeRaw is String) {
+      final parsedMode = BackendHeadlineMode.fromWire(headlineModeRaw);
+      if (parsedMode == null) return null;
+      headlineMode = parsedMode;
+    } else {
+      return null;
+    }
     final headlineGhsRaw = json['headlineGhs'];
     final headlineGhs = headlineGhsRaw == null ? null : money(headlineGhsRaw);
     if (headlineGhsRaw != null && headlineGhs == null) return null;
