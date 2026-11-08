@@ -13,6 +13,12 @@ name: Flutter Quality
 on:
   pull_request:
     branches: [main]
+  # Main must be verified too: without this trigger the merged tree could carry
+  # Android evidence but no full-suite evidence. No path filters on purpose -
+  # a narrow filter would let a change to a golden, workflow, android or
+  # firebase file land unverified.
+  push:
+    branches: [main]
   merge_group:
   workflow_dispatch:
 
@@ -21,7 +27,10 @@ permissions:
 
 concurrency:
   group: flutter-quality-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer commit on the same PR supersedes the older one, so cancelling is
+  # right there. A push to main is the only full-suite evidence that merge will
+  # ever have, so those runs are never cancelled.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   quality:

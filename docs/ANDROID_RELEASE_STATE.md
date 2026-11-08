@@ -82,6 +82,32 @@ plainly:
   `ANDROID_CI_DEBUG_KEY_PASSWORD`) close this gap. Generation commands are in
   `docs/RELEASE_SIGNING.md`.
 
+## Debug signing: the exact inputs and the gate
+
+`android-integration.yml` reads four repository secrets for a dedicated CI debug
+identity, kept strictly separate from the Play upload key:
+
+| secret | content |
+| --- | --- |
+| `ANDROID_CI_DEBUG_KEYSTORE_BASE64` | the CI debug keystore, `base64 -w0` onto one line |
+| `ANDROID_CI_DEBUG_STORE_PASSWORD` | that keystore's store password |
+| `ANDROID_CI_DEBUG_KEY_ALIAS` | its key alias |
+| `ANDROID_CI_DEBUG_KEY_PASSWORD` | that key's password |
+
+When the base64 secret is present the workflow writes `android/ci-debug.properties`
+for the `ciDebug` signing config, reports `stable=true`, and removes the key
+material in an `always()` step. When it is absent the APK is built with the
+runner's throwaway certificate, the run emits a warning, and the step summary
+marks the device Google Sign-In check **BLOCKED** with the owner action above.
+The build never fails for this: the artifact is still correct for layout,
+navigation and money-lock testing, it just cannot prove authentication.
+
+Registering a fingerprint from a throwaway certificate would break on the next
+run, so the pipeline refuses to imply that Google Sign-In has been verified.
+Only after the four secrets exist and the resulting debug SHA-1/SHA-256 is
+registered against `com.azaman.app` in the existing `azaman-app` project does a
+green Android run become authentication evidence.
+
 ## Test lanes on `main`
 
 `Flutter Quality` is configured for `pull_request`, `merge_group` and
@@ -93,6 +119,13 @@ Flutter Quality evidence from CI**. The full suite last ran in CI on
 This document was added in a pull request precisely so that the suite runs once
 against a tree that is `main` plus documentation only; that run is the CI
 evidence for the current code, not the older one.
+
+`flutter-ci.yml` now also triggers on `push` to `main`, so a merge is verified
+in full rather than carrying Android evidence alone. There are no path filters
+on any trigger: a narrow filter would let a change to a golden, workflow,
+android or firebase file land unverified. Concurrency cancels superseded runs
+on a pull request only, never on `main`, where the run is the sole full-suite
+evidence for that commit.
 
 ## What remains owner-only
 
