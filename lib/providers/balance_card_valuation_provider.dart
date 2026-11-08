@@ -314,7 +314,14 @@ final balanceCardValuationProvider = Provider<BalanceCardValuation>((ref) {
           : BalanceHeadlineMode.nativeOnly,
       headlineGhs: backendValuation.headlineGhs?.value,
       headlineIsEstimate: backendValuation.headlineIsEstimate,
-      backendUsdcEquivalent: backendValuation.usdcEquivalent?.value,
+      // ONLY in COMBINED_ESTIMATE. In NATIVE_ONLY the documented
+      // native-GHS-only contract still holds (owner-corrected 2026-10-27):
+      // the card derives its equivalent from the native balance and the
+      // display rate, and never consumes the backend's combined figure.
+      backendUsdcEquivalent:
+          backendValuation.headlineMode == BackendHeadlineMode.combinedEstimate
+          ? backendValuation.usdcEquivalent?.value
+          : null,
       // Deliberately the NATIVE GHS figure when the server publishes no
       // explicit spendable amount: the USDC portion needs a quote before it
       // can fund a GHS payment, so it is never advertised as spendable.
