@@ -40,6 +40,21 @@ import 'package:flutter/foundation.dart';
 /// How the displayed FX rate was obtained, per the backend contract.
 enum BackendRateStatus { current, savedFallback, demoFallback, unavailable }
 
+/// Which headline the SERVER says the card should present.
+///
+/// D1 is resolved: COMBINED_ESTIMATE is the selected owner mode for the
+/// Ghana-first product. NATIVE_ONLY stays supported as an alternative the
+/// server may select — it is never a client-side fallback decision.
+enum BackendHeadlineMode {
+  nativeOnly,
+  combinedEstimate;
+
+  static BackendHeadlineMode fromWire(String? raw) =>
+      (raw ?? '').toUpperCase() == 'COMBINED_ESTIMATE'
+      ? BackendHeadlineMode.combinedEstimate
+      : BackendHeadlineMode.nativeOnly;
+}
+
 /// The backend's own valuation completeness verdict.
 enum BackendValuationStatus {
   current,
@@ -47,6 +62,7 @@ enum BackendValuationStatus {
   demoFallback,
   nativeGhsOnly,
   partialFxUnavailable,
+  fxUnavailable,
 }
 
 /// A backend monetary `{ exact, value }` pair.
@@ -124,6 +140,24 @@ class BackendBalanceValuation {
   /// REAL liquid USDC held — never the same quantity as [usdcEquivalent].
   final BackendMoney availableUsdc;
 
+  /// The server-selected headline mode (D1: COMBINED_ESTIMATE).
+  final BackendHeadlineMode headlineMode;
+
+  /// The backend's AUTHORITATIVE combined headline in GHS. Null when the
+  /// server could not produce one (e.g. partial FX) — the card then falls
+  /// back to the native GHS wallet figure, never to a client conversion.
+  final BackendMoney? headlineGhs;
+
+  /// The server's own verdict on whether [headlineGhs] is an ESTIMATE
+  /// (because available USDC was folded in at a display rate). The client
+  /// renders the ≈ marker from this field and never derives it.
+  final bool headlineIsEstimate;
+
+  /// Native GHS available for immediate GHS spending WITHOUT a quote.
+  /// Deliberately NOT the combined headline: the USDC contribution is
+  /// excluded, because spending it as GHS needs an executable quote.
+  final BackendMoney? spendableGhsNow;
+
   /// The DISPLAY valuation of the whole available GHS value expressed in
   /// USDC at the display rate. NOT USDC held. Null = cannot be valued.
   final BackendMoney? usdcEquivalent;
@@ -154,6 +188,10 @@ class BackendBalanceValuation {
     required this.availableUsdc,
     this.usdcEquivalent,
     this.availableGhsValue,
+    this.headlineMode = BackendHeadlineMode.nativeOnly,
+    this.headlineGhs,
+    this.headlineIsEstimate = false,
+    this.spendableGhsNow,
     required this.rateStatus,
     required this.valuationStatus,
     this.currentRate,
@@ -205,6 +243,18 @@ class BackendBalanceValuation {
         : money(availableGhsValueRaw);
     if (availableGhsValueRaw != null && availableGhsValue == null) return null;
 
+    // ── Headline block (additive to the original contract).
+    final headlineMode = BackendHeadlineMode.fromWire(
+      json['headlineMode'] as String?,
+    );
+    final headlineGhsRaw = json['headlineGhs'];
+    final headlineGhs = headlineGhsRaw == null ? null : money(headlineGhsRaw);
+    if (headlineGhsRaw != null && headlineGhs == null) return null;
+    final spendableRaw = json['spendableGhsNow'];
+    final spendableGhsNow = spendableRaw == null ? null : money(spendableRaw);
+    if (spendableRaw != null && spendableGhsNow == null) return null;
+    final headlineIsEstimate = json['headlineIsEstimate'] == true;
+
     // ── Closed enums — unknown values are a contract break.
     final rateStatusRaw = json['rateStatus'];
     final BackendRateStatus? rateStatus = switch (rateStatusRaw) {
@@ -223,6 +273,7 @@ class BackendBalanceValuation {
           'NATIVE_GHS_ONLY' => BackendValuationStatus.nativeGhsOnly,
           'PARTIAL_FX_UNAVAILABLE' =>
             BackendValuationStatus.partialFxUnavailable,
+          'FX_UNAVAILABLE' => BackendValuationStatus.fxUnavailable,
           _ => null,
         };
     if (rateStatus == null || valuationStatus == null) return null;
@@ -328,6 +379,10 @@ class BackendBalanceValuation {
       availableUsdc: availableUsdc,
       usdcEquivalent: usdcEquivalent,
       availableGhsValue: availableGhsValue,
+      headlineMode: headlineMode,
+      headlineGhs: headlineGhs,
+      headlineIsEstimate: headlineIsEstimate,
+      spendableGhsNow: spendableGhsNow,
       rateStatus: rateStatus,
       valuationStatus: valuationStatus,
       currentRate: currentRate,

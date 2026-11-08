@@ -38,6 +38,11 @@
 import 'package:flutter/foundation.dart';
 
 /// How the displayed FX rate was obtained.
+/// D1 (resolved): the owner selected COMBINED_ESTIMATE for the Ghana-first
+/// product. The SERVER decides; the client never picks a mode by itself and
+/// never reinterprets NATIVE_ONLY as a fallback it computed.
+enum BalanceHeadlineMode { nativeOnly, combinedEstimate }
+
 enum FxRateKind {
   /// A current canonical rate, genuinely fresh.
   fresh,
@@ -201,6 +206,35 @@ class BalanceCardValuation {
   /// fabricated GH₵ 0.00).
   final double? availableGhsValue;
 
+  /// The backend's OWN USDC equivalent of the combined headline, verbatim.
+  /// When present it is the only figure the equivalent line may show in
+  /// COMBINED_ESTIMATE mode — the client never recomputes it from a
+  /// separately sourced rate.
+  final double? backendUsdcEquivalent;
+
+  /// Which headline the SERVER selected. In [BalanceHeadlineMode.combinedEstimate]
+  /// the front face leads with [headlineGhs]; in
+  /// [BalanceHeadlineMode.nativeOnly] it leads with the GHS wallet balance.
+  final BalanceHeadlineMode headlineMode;
+
+  /// The backend's authoritative combined headline in GHS (native GHS plus
+  /// available USDC at the canonical display rate). NULL means the backend
+  /// could not produce one — the card then shows the native wallet figure.
+  /// NEVER computed on the client.
+  final double? headlineGhs;
+
+  /// True only when the SERVER says the headline folds in an estimate (i.e.
+  /// available USDC contributed at a display rate). Drives the ≈ marker
+  /// verbatim; the client never derives it.
+  final bool headlineIsEstimate;
+
+  /// Native GHS spendable RIGHT NOW without a quote. Deliberately excludes
+  /// the indicative GHS value of USDC, which needs an executable quote and
+  /// explicit customer confirmation before it can fund a GHS payment. This
+  /// is the only figure that may back a spending statement — never the
+  /// combined headline.
+  final double? spendableGhsNow;
+
   /// The approximate USDC EQUIVALENT of [availableGhsValue] — a display
   /// estimate converted FROM the GHS balance at the display rate, marked
   /// ≈ on the card. Null when the GHS headline is unknown or no usable
@@ -208,6 +242,24 @@ class BalanceCardValuation {
   /// never read as USDC actually held (the real holding is the separate
   /// [availableUsdc]).
   final double? availableUsdcEquivalent;
+
+  /// The GHS figure the front face actually leads with.
+  ///
+  /// Only in COMBINED_ESTIMATE — and only when the backend actually supplied
+  /// a combined headline — does this differ from the native wallet balance.
+  /// A combined payload whose headline is missing degrades to the native
+  /// figure rather than to a client-side conversion.
+  double? get effectiveHeadlineGhs =>
+      headlineMode == BalanceHeadlineMode.combinedEstimate
+      ? (headlineGhs ?? availableGhsValue)
+      : availableGhsValue;
+
+  /// Whether the ≈ marker belongs on the GHS headline. The server decides;
+  /// with no combined headline there is nothing to approximate.
+  bool get headlineApprox =>
+      headlineMode == BalanceHeadlineMode.combinedEstimate &&
+      headlineIsEstimate &&
+      headlineGhs != null;
 
   /// Whether USDC-enabled transactions are allowed, per the backend gate.
   /// Frontend presentation follows this contract; it is never derived from
@@ -229,6 +281,11 @@ class BalanceCardValuation {
     this.rate = const FxRateView(),
     this.availableGhsValue,
     this.availableUsdcEquivalent,
+    this.backendUsdcEquivalent,
+    this.headlineMode = BalanceHeadlineMode.nativeOnly,
+    this.headlineGhs,
+    this.headlineIsEstimate = false,
+    this.spendableGhsNow,
     this.usdcTransactionGateOpen = false,
   });
 
@@ -244,7 +301,14 @@ class BalanceCardValuation {
   BalanceCardValuation compute() {
     final ghs = nativeGhsAvailable;
     final r = rate.hasRate ? rate.ghsPerUsdc! : null;
-    final usdcEquiv = ghs != null && r != null ? ghs / r : null;
+    // COMBINED_ESTIMATE: the equivalent is the BACKEND's figure or nothing.
+    // Falling back to a client division there would reintroduce exactly the
+    // independent-rate computation the contract forbids.
+    final double? usdcEquiv =
+        headlineMode == BalanceHeadlineMode.combinedEstimate
+        ? backendUsdcEquivalent
+        : (backendUsdcEquivalent ??
+              (ghs != null && r != null ? ghs / r : null));
     return BalanceCardValuation(
       nativeGhsAvailable: nativeGhsAvailable,
       availableUsdc: availableUsdc,
@@ -260,6 +324,11 @@ class BalanceCardValuation {
       rate: rate,
       availableGhsValue: ghs,
       availableUsdcEquivalent: usdcEquiv,
+      backendUsdcEquivalent: backendUsdcEquivalent,
+      headlineMode: headlineMode,
+      headlineGhs: headlineGhs,
+      headlineIsEstimate: headlineIsEstimate,
+      spendableGhsNow: spendableGhsNow,
       usdcTransactionGateOpen: usdcTransactionGateOpen,
     );
   }

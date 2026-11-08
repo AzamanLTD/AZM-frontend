@@ -258,11 +258,16 @@ class BalanceCardFx extends StatelessWidget {
           ],
         ),
       );
-    } else if (v.availableGhsValue != null) {
+    } else if (v.effectiveHeadlineGhs != null) {
+      // D1 RESOLVED (2026-11-08): Ghana-first. In COMBINED_ESTIMATE the
+      // headline is the backend's combined GHS figure (native GHS + available
+      // USDC at the canonical display rate). The ≈ appears ONLY when the
+      // SERVER sets headlineIsEstimate — the client never decides that a
+      // figure is indicative, and never builds the headline itself.
       headline = _AmountLine(
         key: const ValueKey('balance-fx-headline'),
         unit: 'GH₵',
-        amount: _money(vis, AzMoney.amount(v.availableGhsValue!)),
+        amount: _money(vis, AzMoney.amount(v.effectiveHeadlineGhs!)),
         amountStyle: AzText.money(
           colors.textPrimary,
           size: _kHeadlineSize,
@@ -276,14 +281,16 @@ class BalanceCardFx extends StatelessWidget {
         // this GHS balance at the display rate). The shared gutter
         // column stays so both lines' digits stay aligned; the ≈
         // glyph itself renders only on the USDC line.
-        approx: false,
-        // The semantics follow the visual state exactly: the GHS
-        // headline is announced as the available balance in GHS —
-        // the app's main currency, never as a USDC-derived estimate.
-        // The estimate language lives ONLY on the USDC line.
-        semanticsLabel:
-            'Available balance '
-            '${_money(vis, AzMoney.ghs(v.availableGhsValue!))} in GHS',
+        approx: v.headlineApprox,
+        // Semantics mirror the visual state exactly. A native-only headline
+        // is announced as the available balance; a combined one is announced
+        // as an ESTIMATE, because it folds in a converted USDC component.
+        semanticsLabel: v.headlineApprox
+            ? 'Estimated available balance '
+                  '${_money(vis, AzMoney.ghs(v.effectiveHeadlineGhs!))} '
+                  'in GHS, including your USDC at the current display rate'
+            : 'Available balance '
+                  '${_money(vis, AzMoney.ghs(v.effectiveHeadlineGhs!))} in GHS',
       );
     } else {
       // Confirmed balance, but the backend published NO authoritative
