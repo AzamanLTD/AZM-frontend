@@ -342,5 +342,11 @@ abstract final class AzRoutes {
       : '/orders/$orderId/tracking?orderRef=${_encode(orderRef)}';
   static String vaultYield(String vaultId) => '/vault/$vaultId/yield';
 
+  static const String nearby = '/nearby';
+  static const String nearbyPreferences = '/nearby/preferences';
+
+  static String presenceVerify(String locationId) =>
+      '/presence/verify?locationId=${_encode(locationId)}';
+
   static String _encode(String value) => Uri.encodeQueryComponent(value);
 }

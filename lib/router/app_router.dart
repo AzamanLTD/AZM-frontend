@@ -33,6 +33,9 @@
 // =============================================================================
 
 import 'dart:io';
+import 'package:azaman/screens/presence/nearby_preferences_screen.dart';
+import 'package:azaman/screens/presence/nearby_presence_screen.dart';
+import 'package:azaman/screens/presence/worker_presence_test_screen.dart';
 import 'package:azaman/screens/story_camera_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -250,6 +253,30 @@ GoRouter _buildAppRouter() => GoRouter(
       name: AzRouteNames.onboarding,
       builder: (context, state) => const OnboardingScreen(),
     ),
+    // ── Nearby presence (Part 6.6) ────────────────────────────────────────
+    GoRoute(
+      path: AzRoutes.nearby,
+      name: 'nearby',
+      builder: (context, state) => const NearbyPresenceScreen(),
+    ),
+    GoRoute(
+      path: AzRoutes.nearbyPreferences,
+      name: 'nearby-preferences',
+      builder: (context, state) => const NearbyPreferencesScreen(),
+    ),
+    GoRoute(
+      path: '/presence/verify',
+      name: 'presence-verify',
+      // A deep link is NOT authorisation. A blank or oversized locationId is
+      // refused here; the screen additionally refuses users with no valid
+      // employee context (see WorkerPresenceTestScreen).
+      builder: (context, state) {
+        final raw = (state.uri.queryParameters['locationId'] ?? '').trim();
+        final valid = raw.isNotEmpty && raw.length <= 64;
+        return WorkerPresenceTestScreen(locationId: valid ? raw : '');
+      },
+    ),
+
     GoRoute(
       path: AzRoutes.verifyPhone,
       name: 'verify-phone',

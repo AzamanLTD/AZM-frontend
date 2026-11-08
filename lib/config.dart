@@ -45,6 +45,35 @@ class AppConfig {
     defaultValue: false,
   );
 
+  /// Nearby Presence — CLIENT BUILD GATE (Part 6.6 §F).
+  ///
+  /// This is NOT the authoritative server flag. The server owns
+  /// `GlobalSettings.presenceEnabled`; that flag, not this constant, decides
+  /// whether presence operations are actually accepted.
+  ///
+  /// This gate answers one narrower question: "was this binary compiled with
+  /// a presence backend to talk to?" It defaults OFF and stays off in
+  /// production until the presence APIs and the server flag are deployed and
+  /// tested. While false the feature is INVISIBLE and issues no presence
+  /// requests at all — it never falls back to fabricated candidates.
+  static const bool presenceApiBuildEnabled = bool.fromEnvironment(
+    'PRESENCE_API',
+    defaultValue: false,
+  );
+
+  static bool? _presenceOverride;
+
+  /// The effective gate: the compile-time flag, unless a test has overridden
+  /// it. Production never sets the override, so the default stays OFF.
+  static bool get presenceApiEnabled =>
+      _presenceOverride ?? presenceApiBuildEnabled;
+
+  /// Test-only: simulate the backend being switched on/off. Passing null
+  /// restores the compile-time flag.
+  @visibleForTesting
+  static void setPresenceOverrideForTest(bool? value) =>
+      _presenceOverride = value;
+
   static const bool _demoModeCompileTime = bool.fromEnvironment(
     'DEMO_MODE',
     defaultValue: false,

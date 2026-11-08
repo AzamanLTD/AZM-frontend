@@ -1,5 +1,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
+    <!-- AZAMAN Nearby Presence (Part 6.7): legacy scan permissions are
+         declared with an explicit maxSdkVersion so they can never be granted
+         on modern Android, where BLUETOOTH_SCAN is the only correct path.
+         No background location, no ACCESS_BACKGROUND_*,
+         no always-location. -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <!-- Part 6.7: BLUETOOTH_SCAN WITHOUT neverForLocation. The flag is not
+         asserted here because it can filter iBeacon/Eddystone advertisement
+         frames; whether it is safe is a question for the physical hardware
+         spike, not this wave. Adding it later is a one-line change. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <!-- Bluetooth LE is OPTIONAL hardware: the app must install and run on a
+         device without it. -->
+    <uses-feature android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />

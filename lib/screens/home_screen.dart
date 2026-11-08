@@ -29,6 +29,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:azaman/providers/nearby_scan_triggers.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/home_summary_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
@@ -169,9 +170,17 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
   final GlobalKey _walletModulesKey = GlobalKey();
   final GlobalKey _doorwayKey = GlobalKey();
 
+  /// Part 6.6 §E: Home mount + resume triggers. Non-blocking and gated by
+  /// the controller, exactly like every other trigger path.
+  NearbyScanTriggers? _nearbyTriggers;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _nearbyTriggers = NearbyScanTriggers(ref: ref)..onHomeMounted();
+    });
     _handoff.addListener(() {
       if (mounted) setState(() {});
       // The handoff fully collapsed: the parked peek is meaningless at
@@ -213,6 +222,7 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
 
   @override
   void dispose() {
+    _nearbyTriggers?.dispose();
     // The doorway-gap measurement Timer belongs to this State's lifetime:
     // a test (or tab switch) that unmounts Home before the 1200ms
     // entrance settle would otherwise leave a pending timer behind.
@@ -444,6 +454,9 @@ class _AzamanHomePageState extends ConsumerState<AzamanHomePage>
     // A refresh is a "re-check the world" action. Exactly one threshold
     // haptic per committed pull — never doubled.
     AzamanHaptics.threshold();
+    // Part 6.6 §E: pull-to-refresh is an approved Nearby scan trigger. It
+    // goes through the same controller gate/throttle as every other path.
+    unawaited(_nearbyTriggers?.onPullToRefresh() ?? Future<void>.value());
     // NEW-D refresh reward: compare two REAL balance observations.
     final balanceBefore = ref.read(balanceDataProvider).availableBalance;
     final summaryFuture = ref.read(homeSummaryProvider.notifier).refresh();
