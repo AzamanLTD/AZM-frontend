@@ -184,6 +184,113 @@ void main() {
     });
   });
 
+  // ── §r42.4: the balance reaching the field is a JSON NUMBER, so the
+  // reconstruction carries a bounded error in BOTH directions. These tests pin
+  // the measured failures (dust: -1 unit; ~1e11 USDC: -210 and +445 units) and
+  // the two directional guarantees that make the field safe anyway.
+  group('presentation-balance limit (directional guarantees)', () {
+    BigInt exactUnitsOf(String literal) =>
+        ExactUsdcAmount.parse(literal).value!.baseUnits;
+
+    PresentationBalanceLimit limitOf(String literal) =>
+        ExactUsdcAmount.limitFromPresentationBalance(double.parse(literal));
+
+    test('the reconstruction is NOT exact at large magnitudes', () {
+      // 12 integer digits + 8 decimals = 20 significant digits; the double
+      // cannot carry that, so the "exact" claim an earlier revision made is
+      // false. The value is a hint, and this test says so out loud.
+      const literal = '100000000999.76543210';
+      final limit = limitOf(literal);
+      expect(limit.reconstructedUnits, lessThan(exactUnitsOf(literal)));
+      expect(
+        limit.errorBoundUnits,
+        greaterThan(exactUnitsOf(literal) - limit.reconstructedUnits),
+        reason: 'the bound must cover the measured gap',
+      );
+    });
+
+    test('a member typing their whole DUST balance is never refused', () {
+      // 3e-8: the double takes the floor path and lands one unit low.
+      const literal = '0.00000003';
+      final limit = limitOf(literal);
+      expect(limit.reconstructedUnits, lessThan(exactUnitsOf(literal)));
+      expect(
+        limit.acceptUpToUnits,
+        greaterThanOrEqualTo(exactUnitsOf(literal)),
+      );
+    });
+
+    test('the field never accepts less than the balance it represents', () {
+      for (final literal in [
+        '0.00000001',
+        '0.00000003',
+        '0.12345678',
+        '9999999.12345678',
+        '10000000.12345678',
+        '123456789.12345678',
+        '100000000999.55555555',
+        '100000000999.76543210',
+        '999999999999.99999999',
+      ]) {
+        expect(
+          limitOf(literal).acceptUpToUnits,
+          greaterThanOrEqualTo(exactUnitsOf(literal)),
+          reason: literal,
+        );
+      }
+    });
+
+    test('100% can never submit more than the balance held', () {
+      for (final literal in [
+        '0.00000001',
+        '0.00000003',
+        '0.12345678',
+        '1234.56789012',
+        '10000000.12345678',
+        '100000000999.55555555',
+        '999999999999.99999999',
+      ]) {
+        final limit = limitOf(literal);
+        expect(
+          limit.hundredPercentUnits,
+          lessThanOrEqualTo(exactUnitsOf(literal)),
+          reason: literal,
+        );
+        expect(
+          limit.hundredPercentUnits,
+          greaterThan(BigInt.zero),
+          reason: 'a positive balance must still offer something: $literal',
+        );
+      }
+    });
+
+    test('the bound grows with magnitude and is never zero', () {
+      expect(
+        ExactUsdcAmount.presentationErrorBoundUnits(0.00000003),
+        greaterThan(BigInt.zero),
+      );
+      expect(
+        ExactUsdcAmount.presentationErrorBoundUnits(1e11),
+        greaterThan(ExactUsdcAmount.presentationErrorBoundUnits(1e3)),
+      );
+      expect(ExactUsdcAmount.presentationErrorBoundUnits(0), BigInt.zero);
+      expect(ExactUsdcAmount.presentationErrorBoundUnits(-5), BigInt.zero);
+    });
+
+    test(
+      'ordinary balances still reconstruct exactly (observed, not promised)',
+      () {
+        // Where the double's text round-trips to the same decimal the
+        // reconstruction happens to be exact — true for every balance below
+        // ~10 million USDC at 8dp. Asserted as observed behaviour, so a future
+        // backend exact-string field is a strict improvement, not a fix.
+        for (final literal in ['0.1', '0.12345678', '1234.56789012']) {
+          expect(limitOf(literal).reconstructedUnits, exactUnitsOf(literal));
+        }
+      },
+    );
+  });
+
   group('base-unit rendering', () {
     test('formatUnits returns exact minimal decimal text', () {
       expect(ExactUsdcAmount.formatUnits(BigInt.from(10000000)), '0.1');
@@ -217,9 +324,10 @@ void main() {
   });
 
   group('presentation-balance ceiling (input limit only)', () {
-    test('an 8dp balance is recovered EXACTLY from its double text', () {
-      // This is the UX-critical case: a member typing their full balance must
-      // not be told it exceeds the balance.
+    test('an ordinary 8dp balance round-trips through its double text', () {
+      // Observed, NOT promised: true for every balance whose decimal the
+      // double's shortest text reproduces. §r42.4 documents where it stops
+      // being true (>= ~10M USDC at 8dp) and wraps it in a bound.
       expect(
         ExactUsdcAmount.ceilingUnitsFromPresentation(0.12345678),
         BigInt.from(12345678),
@@ -241,7 +349,11 @@ void main() {
       );
     });
 
-    test('the ceiling never exceeds the balance it came from', () {
+    // Renamed from "never exceeds the balance it came from": that claim is
+    // FALSE in general (§r42.4, measured +445 units around 1e11 USDC). The
+    // ceiling never exceeds the DOUBLE it was given; the double is not the
+    // database decimal, which is why the directional limit exists.
+    test('the ceiling never exceeds the double it came from', () {
       for (final balance in <double>[
         0.12345678,
         12.34,

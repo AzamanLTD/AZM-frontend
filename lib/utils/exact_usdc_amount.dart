@@ -193,6 +193,47 @@ class ExactUsdcAmount {
   /// Renders base units back to exact decimal text (trailing fractional zeros
   /// removed). Used by the quick-amount shortcuts, which are computed in base
   /// units so they can never exceed the balance they were derived from.
+  /// How far a reconstructed balance can sit from the DATABASE decimal, in
+  /// 1e-8 base units.
+  ///
+  /// The stored value D and the double's shortest round-trip text T each sit
+  /// within half an ulp of the SAME double, so |T - D| <= ulp, and for normal
+  /// magnitudes ulp <= |x| * 2^-52. Doubling that, then adding two units for
+  /// the integer floor and sub-denormal fuzz, gives a bound that is generous by
+  /// construction — it is a safety margin, not a measurement.
+  static BigInt presentationErrorBoundUnits(num balance) {
+    if (!balance.isFinite || balance <= 0) return BigInt.zero;
+    final magnitudeUnits = balance * 100000000;
+    final relative = (magnitudeUnits * 4.440892098500626e-16).ceil();
+    return BigInt.from(relative + 2);
+  }
+
+  /// The two directional answers an amount field needs from a lossy balance,
+  /// each with the bound that makes it safe.
+  static PresentationBalanceLimit limitFromPresentationBalance(num balance) {
+    final reconstructed = ceilingUnitsFromPresentation(balance);
+    final bound = presentationErrorBoundUnits(balance);
+    final ceiling = maxExclusiveUnits - BigInt.one;
+
+    var accept = reconstructed + bound;
+    if (accept > ceiling) accept = ceiling;
+
+    var hundred = reconstructed - bound;
+    if (hundred < BigInt.zero) hundred = BigInt.zero;
+    // A positive balance always has at least one unit; never offer "100%" as
+    // zero while the member holds something.
+    if (reconstructed > BigInt.zero && hundred == BigInt.zero) {
+      hundred = BigInt.one;
+    }
+
+    return PresentationBalanceLimit(
+      reconstructedUnits: reconstructed,
+      errorBoundUnits: bound,
+      acceptUpToUnits: accept,
+      hundredPercentUnits: hundred,
+    );
+  }
+
   static String formatUnits(BigInt units) {
     if (units.isNegative) {
       throw ArgumentError.value(
@@ -220,12 +261,18 @@ class ExactUsdcAmount {
   /// double, whose shortest round-trip text is the decimal the server
   /// projected. So:
   ///
-  ///   • when that text is already a plain <=8-dp decimal, its EXACT value is
-  ///     the ceiling — a member typing their full balance is accepted, and the
-  ///     100% shortcut lands on the balance rather than a unit below it;
+  ///   • when that text is a plain decimal, its value is the best
+  ///     reconstruction available;
   ///   • otherwise (exponent form, or more than 8 decimal places) fall back to
-  ///     the conservative floor, which can sit at most 1e-8 below the balance
-  ///     and therefore never overshoots.
+  ///     the floor of the double's scaled value.
+  ///
+  /// NEITHER branch is exact. The text is the shortest decimal that round-trips
+  /// to the same double, and the double is itself the nearest double to the
+  /// database decimal, so the reconstruction can sit ABOVE or BELOW the real
+  /// balance by up to [presentationErrorBoundUnits] — measured at up to 445
+  /// units (0.00000445 USDC) above and 210 below around 1e11 USDC. Use
+  /// [limitFromPresentationBalance] for the two questions that need a
+  /// direction (what the field may accept, what 100% may submit).
   ///
   /// This is an input LIMIT, never an authorisation: the server's transactional
   /// balance check remains the authority on whether the funds exist.
@@ -242,11 +289,11 @@ class ExactUsdcAmount {
   ///
   /// This is a LIMIT for the input field, never an authorisation: the server's
   /// transactional balance check stays authoritative. Two guarantees:
-  ///   • it never exceeds the balance it was derived from (floor, so at worst
-  ///     one 1e-8 unit low — a shortcut can never overshoot);
-  ///   • it makes no claim of exactness. The exact decimal string was already
-  ///     lost when the backend serialised the Decimal as a JSON number, so the
-  ///     only honest reconstruction is a conservative ceiling.
+  ///   • it never exceeds the VALUE OF THE DOUBLE it was given (a floor, so at
+  ///     worst one 1e-8 unit low);
+  ///   • it makes no claim about the DATABASE decimal. That double is itself
+  ///     only the nearest double to the stored value, so flooring it bounds the
+  ///     double, not the balance — see [presentationErrorBoundUnits].
   static BigInt floorUnitsFromPresentation(num balance) {
     if (!balance.isFinite || balance <= 0) return BigInt.zero;
     final scaled = balance * 100000000;
@@ -255,4 +302,35 @@ class ExactUsdcAmount {
     if (scaled >= 9.0e15) return maxExclusiveUnits - BigInt.one;
     return BigInt.from(scaled.floor());
   }
+}
+
+/// A lossy numeric balance turned into the two limits an amount field needs.
+///
+/// Kept as a value type so the DIRECTION of each decision is explicit: the
+/// field accepts up to the upper bound (never refusing what the server would
+/// accept), while a 100% shortcut submits at most the lower bound (never asking
+/// the server for more than the member holds).
+@immutable
+class PresentationBalanceLimit {
+  const PresentationBalanceLimit({
+    required this.reconstructedUnits,
+    required this.errorBoundUnits,
+    required this.acceptUpToUnits,
+    required this.hundredPercentUnits,
+  });
+
+  /// Best reconstruction of the balance, in 1e-8 units. A presentation hint.
+  final BigInt reconstructedUnits;
+
+  /// The maximum plausible gap between [reconstructedUnits] and the database
+  /// decimal, in 1e-8 units.
+  final BigInt errorBoundUnits;
+
+  /// The largest amount the input field may accept. Never below the database
+  /// balance, so a member typing their whole balance is never refused.
+  final BigInt acceptUpToUnits;
+
+  /// The largest amount a 100% shortcut may submit. Never above the database
+  /// balance, so the server never refuses it as insufficient.
+  final BigInt hundredPercentUnits;
 }

@@ -900,17 +900,16 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
     final maxAmount = direction == 'TO_POOL'
         ? _availableBalance
         : _vendorUnallocatedBalance;
-    // §r42.2 — the ceiling as EXACT base units. `maxAmount` stays for the
-    // display rows: it is a presentation double, because the backend
-    // serialises its Decimal columns as JSON numbers, so no exact balance
-    // string exists to recover. The ceiling is exact whenever that double's
-    // decimal text is a plain <=8-dp figure, and a conservative floor
-    // otherwise — in both cases it never sits ABOVE the balance, so a
-    // quick-amount shortcut cannot overshoot. The server's transactional
-    // balance check remains the authority on whether the funds are there.
-    final maxAmountUnits = ExactUsdcAmount.ceilingUnitsFromPresentation(
+    // §r42.4 — the balance arrives as a JSON number (the backend's Decimal
+    // serialiser emits `Number`), so the reconstruction is a HINT with a known
+    // error bound, not an exact figure. Two different directions are needed:
+    // what the FIELD may accept (floored-above, so a member typing their whole
+    // balance is never refused) and what 100% may SUBMIT (floored-below, so the
+    // server never refuses it as insufficient).
+    final balanceLimit = ExactUsdcAmount.limitFromPresentationBalance(
       maxAmount,
     );
+    final maxAmountUnits = balanceLimit.acceptUpToUnits;
     final fromLabel = direction == 'TO_POOL'
         ? 'Available Wallet'
         : 'Trading Pool';
@@ -1046,7 +1045,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Available: \$${ExactUsdcAmount.formatUnits(maxAmountUnits)}',
+                    'Available: \$${ExactUsdcAmount.formatUnits(balanceLimit.reconstructedUnits)}',
                     style: TextStyle(color: colors.textTertiary, fontSize: 12),
                   ),
                   const SizedBox(height: 12),
@@ -1058,8 +1057,11 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
                       // Integer base-unit arithmetic with a floor: a shortcut
                       // is convenient, never an authorisation, and never an
                       // amount above the balance it was taken from.
-                      final amt =
-                          maxAmountUnits * BigInt.from(pct) ~/ BigInt.from(100);
+                      final amt = pct == 100
+                          ? balanceLimit.hundredPercentUnits
+                          : balanceLimit.reconstructedUnits *
+                                BigInt.from(pct) ~/
+                                BigInt.from(100);
                       return GestureDetector(
                         onTap: () {
                           amountController.text = ExactUsdcAmount.formatUnits(
