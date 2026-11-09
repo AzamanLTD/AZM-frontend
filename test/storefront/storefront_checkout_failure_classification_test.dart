@@ -34,6 +34,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/storefront/services/storefront_service.dart';
+import 'package:azaman/storefront/core/checkout_failure_message.dart';
 import 'package:azaman/storefront/services/storefront_conflict_exception.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 
@@ -82,6 +83,13 @@ class _ScriptedClient {
   static final http.Response malformedSuccess = http.Response(
     jsonEncode({'success': true, 'data': <String, dynamic>{}}),
     200,
+    headers: {'content-type': 'application/json'},
+  );
+
+  /// WP-1.10 refusal: the backend sends an honest message AND a code.
+  static http.Response refused(String code, String message) => http.Response(
+    jsonEncode({'message': message, 'code': code}),
+    409,
     headers: {'content-type': 'application/json'},
   );
 
@@ -822,6 +830,241 @@ void main() {
           isNotNull,
           reason: 'the durable instance stays ARMED',
         );
+      },
+    );
+  });
+
+  // ── WP-1.10F: the documented GHS refusals arrive as a 409 by TRANSPORT,
+  // but are a DEFINITIVE PRE-ECONOMIC outcome by CODE. Two things must agree:
+  // the customer-facing class, and the durable identity (an already-released
+  // instance must not stay armed). Every test below runs the real service
+  // against the real registry, so a disagreement would fail here.
+  group('WP-1.10 GHS refusals — code, not status, decides', () {
+    const unavailable =
+        'GHS checkout is not available for this item yet. '
+        'No order was created and nothing was charged.';
+    const unresolved =
+        'The item price could not be resolved. '
+        'No order was created and nothing was charged.';
+
+    test('409 + GHS_CHECKOUT_UNAVAILABLE is definitive pre-economic', () {
+      final e = ApiException(
+        message: unavailable,
+        statusCode: 409,
+        code: 'GHS_CHECKOUT_UNAVAILABLE',
+      );
+      expect(
+        StorefrontService.classifyStorefrontFailure(e),
+        StorefrontFailureClass.definitivePreEconomic,
+      );
+      // The defense-in-depth type carries the same code field.
+      expect(
+        StorefrontService.classifyStorefrontFailure(
+          const StorefrontApiException(
+            statusCode: 409,
+            code: 'GHS_CHECKOUT_UNAVAILABLE',
+            message: unavailable,
+          ),
+        ),
+        StorefrontFailureClass.definitivePreEconomic,
+      );
+    });
+
+    test('409 + GHS_PRICE_STATE_UNRESOLVED is definitive pre-economic', () {
+      final e = ApiException(
+        message: unresolved,
+        statusCode: 409,
+        code: 'GHS_PRICE_STATE_UNRESOLVED',
+      );
+      expect(
+        StorefrontService.classifyStorefrontFailure(e),
+        StorefrontFailureClass.definitivePreEconomic,
+      );
+      expect(
+        StorefrontService.classifyStorefrontFailure(
+          const StorefrontApiException(
+            statusCode: 409,
+            code: 'GHS_PRICE_STATE_UNRESOLVED',
+            message: unresolved,
+          ),
+        ),
+        StorefrontFailureClass.definitivePreEconomic,
+      );
+    });
+
+    test('409 with an unrelated code still remains a domainConflict', () {
+      for (final code in <String>[
+        'IDEMPOTENCY_KEY_REUSED',
+        'CART_VERSION_CONFLICT',
+        'ghs_checkout_unavailable', // case matters: exact match only
+        'GHS_CHECKOUT_UNAVAILABLE_EXTRA',
+      ]) {
+        expect(
+          StorefrontService.classifyStorefrontFailure(
+            ApiException(message: 'conflict', statusCode: 409, code: code),
+          ),
+          StorefrontFailureClass.domainConflict,
+          reason: 'code "$code" must not be reclassified',
+        );
+      }
+    });
+
+    test('a generic 409 with no code still remains a domainConflict', () {
+      expect(
+        StorefrontService.classifyStorefrontFailure(
+          ApiException(message: 'Key already used', statusCode: 409),
+        ),
+        StorefrontFailureClass.domainConflict,
+      );
+      expect(
+        StorefrontService.classifyStorefrontFailure(
+          const StorefrontApiException(statusCode: 409, message: 'conflict'),
+        ),
+        StorefrontFailureClass.domainConflict,
+      );
+      // The neighbouring statuses keep their economic treatment too.
+      for (final status in <int>[408, 425, 429, 500, 503]) {
+        expect(
+          StorefrontService.classifyStorefrontFailure(
+            ApiException(message: 'x', statusCode: status),
+          ),
+          status == 429
+              ? StorefrontFailureClass.rateLimited
+              : StorefrontFailureClass.ambiguousOrUnknown,
+          reason: 'status $status must not be reclassified by the code branch',
+        );
+      }
+    });
+
+    test('both GHS codes surface the backend refusal message', () {
+      for (final pair in <MapEntry<String, String>>[
+        const MapEntry('GHS_CHECKOUT_UNAVAILABLE', unavailable),
+        const MapEntry('GHS_PRICE_STATE_UNRESOLVED', unresolved),
+      ]) {
+        final e = ApiException(
+          message: pair.value,
+          statusCode: 409,
+          code: pair.key,
+        );
+        final copy = storefrontFailureMessage(
+          StorefrontService.classifyStorefrontFailure(e),
+          e,
+        );
+        expect(copy, contains(pair.value));
+        expect(copy, contains('No order was created and nothing was charged'));
+        // The prohibitions, stated as assertions.
+        expect(copy.toLowerCase(), isNot(contains('may have gone through')));
+        expect(copy.toLowerCase(), isNot(contains('different cart version')));
+        expect(copy.toLowerCase(), isNot(contains('converted')));
+        expect(copy.toLowerCase(), isNot(contains('usdc')));
+      }
+    });
+
+    test(
+      'a definitive GHS refusal RETIRES the instance and clears the ref',
+      () async {
+        for (final entry in <MapEntry<String, String>>[
+          const MapEntry('GHS_CHECKOUT_UNAVAILABLE', unavailable),
+          const MapEntry('GHS_PRICE_STATE_UNRESOLVED', unresolved),
+        ]) {
+          final rec = _ScriptedClient();
+          final ref = FinancialOperationRef();
+          rec.script.add(_ScriptedClient.refused(entry.key, entry.value));
+
+          final err = await _errOf(
+            () => _service(rec).checkoutCart(
+              businessProfileId: _biz,
+              items: _cartA,
+              operationType: _type,
+              ref: ref,
+            ),
+          );
+
+          expect(
+            StorefrontService.classifyStorefrontFailure(err),
+            StorefrontFailureClass.definitivePreEconomic,
+            reason: entry.key,
+          );
+          expect(ref.operationId, isNull, reason: 'the ref must be cleared');
+          expect(
+            await DurableOperationRegistry.pending(account: 'acct-test'),
+            isEmpty,
+            reason: 'an already-released instance must not stay recoverable',
+          );
+        }
+      },
+    );
+
+    test('placeStorefrontOrder retires on a GHS refusal too', () async {
+      final rec = _ScriptedClient();
+      final ref = FinancialOperationRef();
+      rec.script.add(
+        _ScriptedClient.refused('GHS_PRICE_STATE_UNRESOLVED', unresolved),
+      );
+
+      final err = await _errOf(
+        () => _service(rec).placeStorefrontOrder(
+          businessProfileId: _biz,
+          productId: 'p1',
+          quantity: 1,
+          operationType: _type,
+          ref: ref,
+        ),
+      );
+
+      expect(
+        StorefrontService.classifyStorefrontFailure(err),
+        StorefrontFailureClass.definitivePreEconomic,
+      );
+      expect(ref.operationId, isNull);
+      expect(
+        await DurableOperationRegistry.pending(account: 'acct-test'),
+        isEmpty,
+      );
+    });
+
+    test(
+      'a generic idempotency 409 stays ARMED with the conflict copy',
+      () async {
+        final rec = _ScriptedClient();
+        final ref = FinancialOperationRef();
+        rec.script.add(
+          _ScriptedClient.status(
+            409,
+            message:
+                'This checkout idempotency key was already used for different '
+                'cart contents.',
+          ),
+        );
+
+        final err = await _errOf(
+          () => _service(rec).checkoutCart(
+            businessProfileId: _biz,
+            items: _cartA,
+            operationType: _type,
+            ref: ref,
+          ),
+        );
+
+        expect(
+          StorefrontService.classifyStorefrontFailure(err),
+          StorefrontFailureClass.domainConflict,
+        );
+        expect(
+          ref.operationId,
+          isNotNull,
+          reason: 'a generic 409 may still be in flight — keep the identity',
+        );
+        expect(
+          await DurableOperationRegistry.pending(account: 'acct-test'),
+          isNotEmpty,
+          reason: 'the instance must remain recoverable',
+        );
+        final copy = storefrontFailureMessage(
+          StorefrontService.classifyStorefrontFailure(err),
+          err,
+        );
+        expect(copy, contains('different cart version'));
       },
     );
   });

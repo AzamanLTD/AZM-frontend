@@ -184,6 +184,39 @@ class StorefrontService {
       statusCode != 425 &&
       statusCode != 429;
 
+  /// WP-1.10 refusal codes. The backend returns these BEFORE any order row
+  /// exists: the response states plainly that no order was created and
+  /// nothing was charged. They travel on a 409 so an older client keeps its
+  /// existing conflict copy, but for a current client the CODE — not the
+  /// status alone — decides that the outcome is definitive pre-economic.
+  static const Set<String> _ghsDefinitiveRefusalCodes = {
+    'GHS_CHECKOUT_UNAVAILABLE',
+    'GHS_PRICE_STATE_UNRESOLVED',
+  };
+
+  /// True when this 409 carries one of the documented GHS refusal codes.
+  static bool _isGhsDefinitiveRefusal(int statusCode, String? code) =>
+      statusCode == 409 &&
+      code != null &&
+      _ghsDefinitiveRefusalCodes.contains(code);
+
+  /// The DISPOSITION predicate: status-based definitiveness, extended by the
+  /// code-based GHS refusals. Classification and the durable lifecycle both
+  /// read this one function, so they cannot disagree about whether a 409 was
+  /// definitive — a mismatch would either keep an already-released instance
+  /// armed or retire one the backend never released.
+  static bool _isDefinitivePreEconomicFailure(Object error) {
+    if (error is ApiException) {
+      return _isDefinitivePreEconomic(error.statusCode) ||
+          _isGhsDefinitiveRefusal(error.statusCode, error.code);
+    }
+    if (error is StorefrontApiException) {
+      return _isDefinitivePreEconomic(error.statusCode) ||
+          _isGhsDefinitiveRefusal(error.statusCode, error.code);
+    }
+    return false;
+  }
+
   /// Maps a thrown failure of the live durable storefront economic paths
   /// to its economic class. Pure projection: reuses the SAME definitive
   /// predicate as the disposition ([_isDefinitivePreEconomic]), so the
@@ -217,6 +250,12 @@ class StorefrontService {
         return StorefrontFailureClass.authenticationRequired;
       }
       if (error.statusCode == 429) return StorefrontFailureClass.rateLimited;
+      if (_isGhsDefinitiveRefusal(error.statusCode, error.code)) {
+        // WP-1.10: definitive pre-economic despite the 409.
+        return StorefrontFailureClass.definitivePreEconomic;
+      }
+      // Every other 409 (idempotency fingerprint mismatch, a generic
+      // conflict) keeps its existing conflict classification.
       if (error.statusCode == 409) return StorefrontFailureClass.domainConflict;
       if (_isDefinitivePreEconomic(error.statusCode)) {
         return StorefrontFailureClass.definitivePreEconomic;
@@ -226,6 +265,12 @@ class StorefrontService {
     if (error is StorefrontApiException) {
       // Direct-response paths (defense-in-depth; ApiClient.post maps every
       // non-2xx to ApiException before the service parses anything).
+      if (_isGhsDefinitiveRefusal(error.statusCode, error.code)) {
+        // WP-1.10: definitive pre-economic despite the 409.
+        return StorefrontFailureClass.definitivePreEconomic;
+      }
+      // Every other 409 (idempotency fingerprint mismatch, a generic
+      // conflict) keeps its existing conflict classification.
       if (error.statusCode == 409) return StorefrontFailureClass.domainConflict;
       if (_isDefinitivePreEconomic(error.statusCode)) {
         return StorefrontFailureClass.definitivePreEconomic;
@@ -560,14 +605,14 @@ class StorefrontService {
       // retained otherwise so a same-key retry converges on the committed
       // order. ApiClient.post throws ApiException for every non-2xx — this
       // is the type that actually reaches the seam.
-      if (_isDefinitivePreEconomic(e.statusCode)) {
+      if (_isDefinitivePreEconomicFailure(e)) {
         await _releaseOperation(ref);
       }
       rethrow;
     } on StorefrontApiException catch (e) {
       // Defense-in-depth (unreachable via ApiClient.post today): same
       // disposition if a direct-response path ever throws here.
-      if (_isDefinitivePreEconomic(e.statusCode)) {
+      if (_isDefinitivePreEconomicFailure(e)) {
         await _releaseOperation(ref);
       }
       rethrow;
@@ -675,14 +720,14 @@ class StorefrontService {
         // the classification must run on THIS type — the previous
         // StorefrontApiException catch never fired, silently keeping
         // definitive-failure instances armed.
-        if (_isDefinitivePreEconomic(e.statusCode)) {
+        if (_isDefinitivePreEconomicFailure(e)) {
           await _releaseOperation(ref);
         }
         rethrow;
       } on StorefrontApiException catch (e) {
         // Defense-in-depth (unreachable via ApiClient.post today): same
         // disposition if a direct-response path ever throws here.
-        if (_isDefinitivePreEconomic(e.statusCode)) {
+        if (_isDefinitivePreEconomicFailure(e)) {
           await _releaseOperation(ref);
         }
         rethrow;
