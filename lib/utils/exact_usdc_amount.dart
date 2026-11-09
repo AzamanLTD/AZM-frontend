@@ -333,4 +333,20 @@ class PresentationBalanceLimit {
   /// The largest amount a 100% shortcut may submit. Never above the database
   /// balance, so the server never refuses it as insufficient.
   final BigInt hundredPercentUnits;
+
+  /// The amount a percentage shortcut may enter, in base units.
+  ///
+  /// EVERY shortcut derives from [hundredPercentUnits] — the LOWER bound on
+  /// the balance — so a shortcut can never exceed the same percentage of the
+  /// database balance, and 100% can never exceed the balance itself. Deriving
+  /// 25/50/75 from [reconstructedUnits] is NOT safe: around a dust balance the
+  /// error bound is comparable to the balance, so 75% of a reconstruction that
+  /// sits above the balance can exceed the whole balance. The source is
+  /// approximate, so a shortcut is "about N%", never an exact N% of the
+  /// database figure.
+  BigInt shortcutUnits(int pct) {
+    if (pct <= 0) return BigInt.zero;
+    if (pct >= 100) return hundredPercentUnits;
+    return hundredPercentUnits * BigInt.from(pct) ~/ BigInt.from(100);
+  }
 }

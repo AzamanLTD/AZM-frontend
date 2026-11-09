@@ -1054,14 +1054,12 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [25, 50, 75, 100].map((pct) {
-                      // Integer base-unit arithmetic with a floor: a shortcut
-                      // is convenient, never an authorisation, and never an
-                      // amount above the balance it was taken from.
-                      final amt = pct == 100
-                          ? balanceLimit.hundredPercentUnits
-                          : balanceLimit.reconstructedUnits *
-                                BigInt.from(pct) ~/
-                                BigInt.from(100);
+                      // Integer base-unit arithmetic off the LOWER bound: a
+                      // shortcut is convenient, never an authorisation, and
+                      // provably never an amount above the balance it came
+                      // from — including 25/50/75, which are not derived from
+                      // the (possibly high) reconstruction.
+                      final amt = balanceLimit.shortcutUnits(pct);
                       return GestureDetector(
                         onTap: () {
                           amountController.text = ExactUsdcAmount.formatUnits(

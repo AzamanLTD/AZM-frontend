@@ -395,4 +395,107 @@ void main() {
       );
     });
   });
+
+  // ── §r42.5: the bound itself, and the shortcut guarantee. ──────────────
+  group('presentation error bound', () {
+    BigInt exactOf(String lit) => ExactUsdcAmount.parse(lit).value!.baseUnits;
+    PresentationBalanceLimit limitOf(String lit) =>
+        ExactUsdcAmount.limitFromPresentationBalance(double.parse(lit));
+
+    test('the bound at the top of Decimal(20,8) is 44,411 units', () {
+      // 0.00044411 USDC — the TRUE maximum uncertainty. An earlier report
+      // claimed "below 0.000005", which was wrong by two orders of magnitude.
+      expect(
+        limitOf('999999999999.99999999').errorBoundUnits,
+        BigInt.from(44411),
+      );
+      expect(limitOf('999999999999').errorBoundUnits, BigInt.from(44411));
+    });
+
+    test('the bound tracks magnitude and never drops below 3 units', () {
+      expect(limitOf('0.00000003').errorBoundUnits, BigInt.from(3));
+      expect(limitOf('1000000').errorBoundUnits, BigInt.from(3));
+      expect(limitOf('100000000000').errorBoundUnits, BigInt.from(4443));
+      // 2^39 and its neighbours: the exponent step must not undershoot.
+      expect(limitOf('549755813888').errorBoundUnits, BigInt.from(24417));
+    });
+
+    test('the bound covers the measured reconstruction error everywhere', () {
+      // Worst gap found by a 4000-sample sweep plus binade edges.
+      const worst = <String, int>{
+        '549755813888.12345678': 5678,
+        '100000000999.55555555': 445,
+        '100000000999.76543210': 210,
+        '0.00000003': 1,
+      };
+      worst.forEach((lit, measured) {
+        final lim = limitOf(lit);
+        final error = (lim.reconstructedUnits - exactOf(lit)).abs();
+        expect(error, BigInt.from(measured), reason: lit);
+        expect(error, lessThanOrEqualTo(lim.errorBoundUnits), reason: lit);
+        expect(
+          lim.errorBoundUnits - error,
+          greaterThan(BigInt.zero),
+          reason: 'the bound must leave headroom at $lit',
+        );
+      });
+    });
+  });
+
+  group('percentage shortcuts', () {
+    BigInt exactOf(String lit) => ExactUsdcAmount.parse(lit).value!.baseUnits;
+    PresentationBalanceLimit limitOf(String lit) =>
+        ExactUsdcAmount.limitFromPresentationBalance(double.parse(lit));
+
+    test('no shortcut can exceed the database balance', () {
+      for (final lit in <String>[
+        '0.00000001', '0.00000002', '0.00000003', '0.00000004',
+        '0.00001234', '1.00000000', '1234.56789012',
+        // reconstruction ABOVE the balance (+445) and BELOW it (-210)
+        '100000000999.55555555', '100000000999.76543210',
+        '999999999999.99999999',
+      ]) {
+        final exact = exactOf(lit);
+        final lim = limitOf(lit);
+        for (final pct in <int>[25, 50, 75, 100]) {
+          final amount = lim.shortcutUnits(pct);
+          expect(amount, lessThanOrEqualTo(exact), reason: '$pct% of $lit');
+          expect(
+            amount,
+            greaterThanOrEqualTo(BigInt.zero),
+            reason: '$pct% of $lit',
+          );
+        }
+      }
+    });
+
+    test('a one-unit balance cannot be over-committed by 75%', () {
+      // The case the old reconstruction-based formula could break: 75% of a
+      // reconstruction sitting ABOVE a 1-unit balance.
+      final lim = limitOf('0.00000001');
+      expect(lim.shortcutUnits(25), BigInt.zero);
+      expect(lim.shortcutUnits(50), BigInt.zero);
+      expect(lim.shortcutUnits(75), BigInt.zero);
+      expect(lim.shortcutUnits(100), BigInt.one);
+    });
+
+    test('every percentage derives from the lower bound, never the hint', () {
+      final lim = limitOf('1234.56789012');
+      for (final pct in <int>[25, 50, 75]) {
+        expect(
+          lim.shortcutUnits(pct),
+          lim.hundredPercentUnits * BigInt.from(pct) ~/ BigInt.from(100),
+          reason: '$pct%',
+        );
+      }
+      expect(lim.shortcutUnits(100), lim.hundredPercentUnits);
+      expect(lim.reconstructedUnits, greaterThan(lim.hundredPercentUnits));
+    });
+
+    test('nonsense percentages are refused rather than guessed', () {
+      final lim = limitOf('1.00000000');
+      expect(lim.shortcutUnits(0), BigInt.zero);
+      expect(lim.shortcutUnits(-25), BigInt.zero);
+    });
+  });
 }
