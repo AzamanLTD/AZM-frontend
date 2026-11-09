@@ -8,6 +8,7 @@ import 'package:azaman/providers/azm_spend_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/socket_service.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/exact_usdc_amount.dart';
 import 'vendor_ad_creator.dart';
 import 'trade_accounts_screen.dart';
 import 'vendor_trade_execution.dart';
@@ -17,6 +18,26 @@ import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 import 'package:azaman/utils/idempotency_key.dart';
+
+/// §r42.2 — the internal-transfer request body.
+///
+/// The amount is a DECIMAL STRING: the backend's exact parser (PR #399) treats
+/// a string as authoritative and parses it without floating point, where the
+/// old JSON number was re-read with `parseFloat`. Top-level and pure so the
+/// wire shape can be asserted directly by tests.
+@visibleForTesting
+Map<String, dynamic> buildVendorInternalTransferBody(
+  String direction,
+  ExactUsdcAmount amount,
+) => {'direction': direction, 'amount': amount.wireAmount};
+
+/// The success line for a completed internal transfer.
+///
+/// Built from the SUBMITTED string, never re-formatted through a double: a
+/// member who moved 0.12345678 must not be told they moved 0.12.
+@visibleForTesting
+String vendorTransferSuccessLine(String toLabel, ExactUsdcAmount amount) =>
+    '\$${amount.wireAmount} moved to $toLabel';
 
 class VendorDashboard extends ConsumerStatefulWidget {
   const VendorDashboard({super.key});
@@ -879,6 +900,17 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
     final maxAmount = direction == 'TO_POOL'
         ? _availableBalance
         : _vendorUnallocatedBalance;
+    // §r42.2 — the ceiling as EXACT base units. `maxAmount` stays for the
+    // display rows: it is a presentation double, because the backend
+    // serialises its Decimal columns as JSON numbers, so no exact balance
+    // string exists to recover. The ceiling is exact whenever that double's
+    // decimal text is a plain <=8-dp figure, and a conservative floor
+    // otherwise — in both cases it never sits ABOVE the balance, so a
+    // quick-amount shortcut cannot overshoot. The server's transactional
+    // balance check remains the authority on whether the funds are there.
+    final maxAmountUnits = ExactUsdcAmount.ceilingUnitsFromPresentation(
+      maxAmount,
+    );
     final fromLabel = direction == 'TO_POOL'
         ? 'Available Wallet'
         : 'Trading Pool';
@@ -890,7 +922,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
         ? colors.accent
         : const Color(0xFF02C076);
 
-    if (maxAmount <= 0) {
+    if (maxAmount <= 0 || maxAmountUnits <= BigInt.zero) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No funds in $fromLabel to transfer.'),
@@ -910,8 +942,13 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
-          final enteredAmount = double.tryParse(amountController.text) ?? 0;
-          final isValidAmount = enteredAmount > 0 && enteredAmount <= maxAmount;
+          // The customer's text is parsed EXACTLY. No `double.tryParse`
+          // touches the amount on this path any more, so the figure that is
+          // validated, confirmed and submitted is one and the same.
+          final parsedAmount = ExactUsdcAmount.parse(amountController.text);
+          final isValidAmount =
+              parsedAmount.isValid &&
+              parsedAmount.value!.baseUnits <= maxAmountUnits;
 
           return Padding(
             padding: EdgeInsets.only(
@@ -1009,7 +1046,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Available: \$${maxAmount.toStringAsFixed(2)}',
+                    'Available: \$${ExactUsdcAmount.formatUnits(maxAmountUnits)}',
                     style: TextStyle(color: colors.textTertiary, fontSize: 12),
                   ),
                   const SizedBox(height: 12),
@@ -1018,10 +1055,16 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [25, 50, 75, 100].map((pct) {
-                      final amt = maxAmount * pct / 100;
+                      // Integer base-unit arithmetic with a floor: a shortcut
+                      // is convenient, never an authorisation, and never an
+                      // amount above the balance it was taken from.
+                      final amt =
+                          maxAmountUnits * BigInt.from(pct) ~/ BigInt.from(100);
                       return GestureDetector(
                         onTap: () {
-                          amountController.text = amt.toStringAsFixed(2);
+                          amountController.text = ExactUsdcAmount.formatUnits(
+                            amt,
+                          );
                           setSheetState(() {});
                         },
                         child: Container(
@@ -1066,7 +1109,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
                               isConfirmed = true;
                               HapticFeedback.heavyImpact();
                               Navigator.pop(ctx);
-                              _executeTransfer(direction, enteredAmount);
+                              _executeTransfer(direction, parsedAmount.value!);
                             }
                           },
                           onHorizontalDragEnd: (_) {
@@ -1154,7 +1197,14 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
                       ),
                       child: Center(
                         child: Text(
-                          'Enter amount to continue',
+                          // Say which rule was broken (precision, range,
+                          // balance) instead of a generic prompt — the member
+                          // must not have to guess why the slide is inert.
+                          parsedAmount.isValid
+                              ? 'Amount exceeds available balance'
+                              : parsedAmount.message,
+                          key: const ValueKey('vendor-transfer-amount-state'),
+                          textAlign: TextAlign.center,
                           style: TextStyle(
                             color: colors.textTertiary,
                             fontSize: 13,
@@ -1173,13 +1223,16 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
     );
   }
 
-  Future<void> _executeTransfer(String direction, double amount) async {
+  Future<void> _executeTransfer(
+    String direction,
+    ExactUsdcAmount amount,
+  ) async {
     try {
       // r42: internal transfers move funds between wallet tiers — one
       // key per LOGICAL transfer, reused across retries of it.
       final response = await apiClient.postFinancial(
         '/wallet/internal-transfer',
-        {'direction': direction, 'amount': amount},
+        buildVendorInternalTransferBody(direction, amount),
         operationType: _transferActionId,
         ref: _transferRef,
       );
@@ -1209,7 +1262,7 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
     }
   }
 
-  void _showTransferSuccess(String direction, double amount) {
+  void _showTransferSuccess(String direction, ExactUsdcAmount amount) {
     final colors = ref.read(themeProvider).colors;
     final toLabel = direction == 'TO_POOL'
         ? 'Trading Pool'
@@ -1249,7 +1302,10 @@ class _VendorDashboardState extends ConsumerState<VendorDashboard>
               ),
               const SizedBox(height: 6),
               Text(
-                '\$${amount.toStringAsFixed(2)} moved to $toLabel',
+                // The submitted string, verbatim: never re-formatted to
+                // 2dp, which would tell the member a different figure from
+                // the one that actually moved.
+                vendorTransferSuccessLine(toLabel, amount),
                 style: TextStyle(color: colors.textSecondary, fontSize: 13),
               ),
               const SizedBox(height: 20),
