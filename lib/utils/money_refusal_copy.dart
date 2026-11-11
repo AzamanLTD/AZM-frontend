@@ -29,6 +29,22 @@ String? moneyRefusalMessage(String? code) {
           'Check your history before trying again — it may already have gone '
           'through.';
 
+    case 'IDEMPOTENCY_IN_PROGRESS':
+      return 'A previous attempt of this exact payment is still resolving. '
+          'Nothing new was started. Check your history before trying again — '
+          'a second payment could charge you twice.';
+    case 'TOTP_INVALID':
+      return 'That authenticator code is not valid. Enter the current code '
+          'from your authenticator app.';
+    case 'TOTP_LOCKED':
+      return 'Too many incorrect codes. Two-factor confirmation is locked '
+          'for now. Nothing was sent.';
+    case 'PASSWORD_REQUIRED':
+      return 'Confirm this payment with your account password. '
+          'Nothing has been sent yet.';
+    case '2FA_REQUIRED':
+      return 'Confirm this payment with your authenticator code. '
+          'Nothing has been sent yet.';
     case 'USDC_INSUFFICIENT_BALANCE':
       return 'Your USDC balance is too low for this payout. Nothing was sent.';
 

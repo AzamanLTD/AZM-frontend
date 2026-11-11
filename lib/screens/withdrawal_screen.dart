@@ -575,10 +575,15 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // entry (same action in flight — retry converges), any other
         // ANSWERED 4xx/5xx disposition per the helper contract.
         final code = data['code']?.toString();
-        final msg = code == 'AZM_SPEND_FAILED'
-            ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
-            : (data['message']?.toString() ??
-                  'Withdrawal failed (status ${response.statusCode})');
+        // WP-L — a server refusal code carries exact, financially honest
+        // copy. It wins over the raw backend message so a refused payout can
+        // never read as a generic failure (or as a conversion that did not
+        // happen).
+        final msg = moneyRefusalMessage(code) ??
+            (code == 'AZM_SPEND_FAILED'
+                ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
+                : (data['message']?.toString() ??
+                      'Withdrawal failed (status ${response.statusCode})'));
         _showSnack(msg, isError: true);
       }
     } catch (e) {
