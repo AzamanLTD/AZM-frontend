@@ -91,10 +91,22 @@ class MarketplaceExtensionsService {
     return DineInTab.fromJson(body['tab']);
   }
 
+  /// WP-J — one durable identity per TAB payment.
+  ///
+  /// The backend mounts `require2FA` on POST /dine-in/tabs/:tabId/pay but no
+  /// idempotency middleware. The tab itself is the economic identity: a repeat
+  /// answers `alreadyPaid` instead of charging twice, so a step-up retry is
+  /// safe. Routing through postFinancial gives the retry a stable key and lets
+  /// the shared interceptor supply the TOTP/password the route demands.
+  final Map<String, FinancialOperationRef> _payRefs = {};
+
   Future<void> payTab(String tabId, {double? tip}) async {
-    await _api.post('/dine-in/tabs/$tabId/pay', {
-      if (tip != null) 'tipUsdc': tip,
-    });
+    await _api.postFinancial(
+      '/dine-in/tabs/$tabId/pay',
+      {if (tip != null) 'tipUsdc': tip},
+      operationType: 'dinein.tabpay',
+      ref: _payRefs.putIfAbsent(tabId, () => FinancialOperationRef()),
+    );
   }
 
   // ── Showcase ──
