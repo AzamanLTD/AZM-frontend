@@ -232,7 +232,16 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
       operationType: _depositAction(vaultId),
       ref: _depositRefs.putIfAbsent(vaultId, () => FinancialOperationRef()),
     );
-    if (res.statusCode != 200) throw Exception(_msg(res.body));
+    if (res.statusCode != 200) {
+      // WP-L — keep the backend code on the thrown error so the screen can
+      // render an honest refusal instead of a generic "break failed".
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw VaultBreakRefused(
+        body['code']?.toString(),
+        _msg(res.body),
+        res.statusCode,
+      );
+    }
     await refresh();
   }
 
@@ -298,3 +307,15 @@ final vaultDepositsProvider = FutureProvider.family<List<VaultDeposit>, String>(
     return list.map((e) => VaultDeposit.fromJson(e)).toList();
   },
 );
+
+/// A refused vault break, carrying the backend's own code so the UI can show
+/// the truthful refusal instead of a flattened message.
+class VaultBreakRefused implements Exception {
+  VaultBreakRefused(this.code, this.message, this.statusCode);
+  final String? code;
+  final String message;
+  final int statusCode;
+
+  @override
+  String toString() => 'VaultBreakRefused($code)';
+}

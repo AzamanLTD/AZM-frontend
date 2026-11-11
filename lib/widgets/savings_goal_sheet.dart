@@ -31,6 +31,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/providers/money_access_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/home/money_lock_blocked_feedback.dart';
@@ -172,10 +173,22 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           );
         }
       } else {
-        _toast(body['message']?.toString() ?? 'Deposit failed.', error: true);
+        final refusal = refusalCopyFor(body['code']?.toString());
+        _toast(
+          refusal?.message ??
+              body['message']?.toString() ??
+              'Deposit failed.',
+          error: true,
+        );
       }
     } catch (e) {
-      _toast('Network error: $e', error: true);
+      final refusal = refusalCopyFrom(e);
+      _toast(
+        refusal?.message ??
+            'We could not confirm this deposit. Check Activity before '
+                'trying again — it may already be processing.',
+        error: true,
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -203,13 +216,26 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
           _toast(body['message']?.toString() ?? 'Withdrawal successful.');
         }
       } else {
+        // WP-L — a typed refusal code is authoritative and honest; the raw
+        // backend message is only a fallback.
+        final refusal = refusalCopyFor(body['code']?.toString());
         _toast(
-          body['message']?.toString() ?? 'Withdrawal failed.',
+          refusal?.message ??
+              body['message']?.toString() ??
+              'Withdrawal failed.',
           error: true,
         );
       }
     } catch (e) {
-      _toast('Network error: $e', error: true);
+      // WP-L — never leak the exception, and never call an unanswered request
+      // a failure: the withdrawal may have been accepted.
+      final refusal = refusalCopyFrom(e);
+      _toast(
+        refusal?.message ??
+            'We could not confirm this withdrawal. Check Activity before '
+                'trying again — it may already be processing.',
+        error: true,
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }

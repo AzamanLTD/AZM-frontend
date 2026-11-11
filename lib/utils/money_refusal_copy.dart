@@ -101,3 +101,97 @@ String? _codeFromText(String text) {
   final m = RegExp(r'"code"\s*:\s*"([A-Z0-9_]+)"').firstMatch(text);
   return m?.group(1);
 }
+
+// -----------------------------------------------------------------------------
+// WP-L — refusal certainty authority.
+//
+// Screens need more than a sentence: they need to know whether the money is
+// definitely still with the customer, possibly already moved, or undecided.
+// Getting that classification wrong is how an app talks someone into paying
+// twice, so it lives here with the copy and nowhere else.
+// -----------------------------------------------------------------------------
+
+/// What the customer may safely believe about their money.
+enum RefusalCertainty {
+  /// Refused before the economic step. Nothing moved; correcting and retrying
+  /// is safe (with a fresh code where one was consumed).
+  refusedBeforeMoney,
+
+  /// Still processing. The original operation must be allowed to resolve;
+  /// starting a second one risks a double charge.
+  stillProcessing,
+
+  /// The authority could not answer. Outcome genuinely unknown: never
+  /// presented as a failure and never safe to blindly repeat.
+  unknownOutcome,
+}
+
+/// A refusal rendered as customer copy plus a truthful next step.
+class RefusalCopy {
+  const RefusalCopy(this.message, this.nextStep, this.certainty);
+
+  final String message;
+  final String nextStep;
+  final RefusalCertainty certainty;
+}
+
+/// Full refusal authority for a backend [code], or null when the code is not
+/// one this client can speak about truthfully.
+RefusalCopy? refusalCopyFor(String? code) {
+  final message = moneyRefusalMessage(code);
+  if (message == null) return null;
+  switch (code) {
+    case 'IDEMPOTENCY_IN_PROGRESS':
+      return RefusalCopy(
+        message,
+        'Open Activity to follow the original payment. Checking is safe; '
+            'paying again is not.',
+        RefusalCertainty.stillProcessing,
+      );
+    case 'TOTP_CLAIM_STORE_UNAVAILABLE':
+      return RefusalCopy(
+        message,
+        'Check Activity before trying again. If nothing appears, contact '
+            'support with your reference.',
+        RefusalCertainty.unknownOutcome,
+      );
+    default:
+      final needsFreshCode = code == 'TOTP_REPLAYED' ||
+          code == 'TOTP_INVALID' ||
+          code == 'TOTP_LOCKED' ||
+          code == '2FA_REQUIRED' ||
+          code == 'PASSWORD_REQUIRED';
+      return RefusalCopy(
+        message,
+        needsFreshCode
+            ? 'Nothing was sent. Enter a fresh code when you are ready.'
+            : 'Nothing was sent. You can correct this and try again.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+  }
+}
+
+/// Resolve a thrown error (ApiException or text) into a [RefusalCopy].
+RefusalCopy? refusalCopyFrom(Object error) {
+  String? code;
+  try {
+    final dynamic e = error;
+    // ignore: avoid_dynamic_calls
+    final dynamic c = e.code;
+    if (c is String && c.isNotEmpty) code = c;
+  } catch (_) {}
+  code ??= _codeFromText(error.toString());
+  return refusalCopyFor(code);
+}
+
+/// WP-H is not implemented. This is the GENERIC, truthful "we cannot tell you
+/// right now" state a screen may show when an authority cannot answer — it is
+/// deliberately NOT keyed to a backend code, because no such code is live yet.
+/// Never present it as a failure and never invite an immediate retry.
+RefusalCopy preparedAuthorityUnavailableCopy() => const RefusalCopy(
+      'We cannot confirm this action right now. Nothing has been confirmed '
+      'either way.',
+      'Check Activity before trying again. If nothing appears, contact '
+          'support with your reference.',
+      RefusalCertainty.unknownOutcome,
+    );
