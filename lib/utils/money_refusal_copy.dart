@@ -1,0 +1,62 @@
+// =============================================================================
+// AZAMAN — MONEY REFUSAL COPY (WP-L)
+//
+// Exact, non-misleading customer copy for money refusals that previously fell
+// through to a generic "Something went wrong".
+//
+// Three rules, each enforced by a test:
+//   1. Never imply a GHS conversion exists when its backing is unavailable.
+//   2. Never imply permanent failure when the backend outcome is ambiguous.
+//   3. Never imply payment happened when the backend refused it.
+// =============================================================================
+
+/// The customer-facing sentence for a money refusal [code], or null when the
+/// code is not one of the explicitly handled refusals (callers then keep
+/// their existing generic copy).
+String? moneyRefusalMessage(String? code) {
+  switch (code) {
+    case 'NATIVE_GHS_SHORTFALL_BACKING_UNAVAILABLE':
+      return 'This payout needs cedis that Azaman cannot fund yet, so no '
+          'conversion was made and nothing was sent. Your balance is '
+          'unchanged — try a smaller amount or another destination.';
+
+    case 'TOTP_REPLAYED':
+      return 'That authenticator code was already used for another action. '
+          'Wait for the next code and try again. Nothing was sent.';
+
+    case 'TOTP_CLAIM_STORE_UNAVAILABLE':
+      return 'We could not confirm your code, so this action is not finished. '
+          'Check your history before trying again — it may already have gone '
+          'through.';
+
+    case 'USDC_INSUFFICIENT_BALANCE':
+      return 'Your USDC balance is too low for this payout. Nothing was sent.';
+
+    case 'NATIVE_GHS_QUOTE_INTENT_CHANGED':
+    case 'NATIVE_GHS_QUOTE_INTENT_MISMATCH':
+      return 'The rate changed while you were confirming. Nothing was sent — '
+          'review the new quote before continuing.';
+
+    case 'NATIVE_GHS_QUOTE_INVALID':
+      return 'That quote is no longer valid. Request a fresh quote. Nothing '
+          'was sent.';
+
+    default:
+      return null;
+  }
+}
+
+/// True when [code] describes an outcome the client cannot know, as opposed to
+/// a definite refusal. Ambiguous outcomes must never be presented as failures
+/// or as successes.
+bool isAmbiguousMoneyRefusal(String? code) =>
+    code == 'TOTP_CLAIM_STORE_UNAVAILABLE';
+
+/// True when [code] is a definite, pre-economic refusal: nothing was sent and
+/// no money moved.
+bool isDefiniteMoneyRefusal(String? code) =>
+    code == 'NATIVE_GHS_SHORTFALL_BACKING_UNAVAILABLE' ||
+    code == 'USDC_INSUFFICIENT_BALANCE' ||
+    code == 'NATIVE_GHS_QUOTE_INVALID' ||
+    code == 'NATIVE_GHS_QUOTE_INTENT_CHANGED' ||
+    code == 'NATIVE_GHS_QUOTE_INTENT_MISMATCH';
