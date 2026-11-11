@@ -60,3 +60,28 @@ bool isDefiniteMoneyRefusal(String? code) =>
     code == 'NATIVE_GHS_QUOTE_INVALID' ||
     code == 'NATIVE_GHS_QUOTE_INTENT_CHANGED' ||
     code == 'NATIVE_GHS_QUOTE_INTENT_MISMATCH';
+
+
+/// WP-L — resolve a refusal code from any thrown value and return the exact
+/// customer copy, or null when the value carries no known code.
+///
+/// Reads `ApiException.code` when available and falls back to a `"code":"X"`
+/// scan of the message body, which is how the backend's envelope reaches
+/// screens that only ever see `e.toString()`.
+String? moneyErrorText(Object error) {
+  String? code;
+  try {
+    final dynamic e = error;
+    // ignore: avoid_dynamic_calls
+    final dynamic c = e.code;
+    if (c is String && c.isNotEmpty) code = c;
+  } catch (_) {}
+  code ??= _codeFromText(error.toString());
+  if (code == null) return null;
+  return moneyRefusalMessage(code);
+}
+
+String? _codeFromText(String text) {
+  final m = RegExp(r'"code"\s*:\s*"([A-Z0-9_]+)"').firstMatch(text);
+  return m?.group(1);
+}
