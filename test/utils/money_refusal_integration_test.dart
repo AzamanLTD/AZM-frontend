@@ -50,14 +50,34 @@ void main() {
     });
 
     test('claim-store outage does not read as a permanent failure', () {
-      final t = moneyRefusalMessage('TOTP_CLAIM_STORE_UNAVAILABLE')!
-          .toLowerCase();
+      // The canonical mapping splits message from next step on purpose:
+      // moneyRefusalMessage() returns only the message. Assert against the
+      // RefusalCopy and its full display, not the message alone.
+      final copy = refusalCopyFor('TOTP_CLAIM_STORE_UNAVAILABLE')!;
+      final message = copy.message.toLowerCase();
+      final display = copy.display.toLowerCase();
+
+      expect(copy.certainty, RefusalCertainty.refusedBeforeMoney);
+      expect(copy.retryIsSafe, isTrue);
+
+      // The message must not suggest a transaction may already have happened.
+      expect(message.contains('may already'), isFalse);
+      expect(message.contains('may have gone through'), isFalse);
+      expect(message.contains('already have gone'), isFalse);
+
+      // The safe next step is to try again with a fresh authenticator code.
+      // Production copy says "Try once more in a moment with a fresh
+      // authenticator code" — a deliberate, non-hammering retry invitation.
       expect(
-        t.contains('try again') ||
-            t.contains('trying again') ||
-            t.contains('may already'),
+        display.contains('try again') || display.contains('try once more'),
         isTrue,
       );
+      expect(display.contains('fresh authenticator code'), isTrue);
+
+      // Nothing here may read as a permanent failure.
+      expect(display.contains('failed'), isFalse);
+      expect(display.contains('cannot be completed'), isFalse);
+      expect(display.contains('permanent'), isFalse);
     });
 
     test('unknown codes stay unhandled so each screen keeps its own copy', () {

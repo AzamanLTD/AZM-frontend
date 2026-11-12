@@ -226,7 +226,7 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
   Future<void> deposit(String vaultId, double amountUsdc) async {
     // r42: vault deposits lock USDC — one key per logical deposit,
     // reused across retries of that deposit.
-    final res = await apiClient.postFinancial(
+    final res = await ref.read(apiClientProvider).postFinancial(
       '/vaults/$vaultId/deposit',
       {'amountUsdc': amountUsdc},
       operationType: _depositAction(vaultId),
@@ -279,13 +279,28 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
   Future<void> breakEarly(String vaultId) async {
     // r42: breaking early moves the locked funds back — one key per
     // logical break action, reused across retries of that break.
-    final res = await apiClient.postFinancial(
+    final res = await ref.read(apiClientProvider).postFinancial(
       '/vaults/$vaultId/break',
       {'confirmedBreak': true},
       operationType: _breakAction(vaultId),
       ref: _breakRefs.putIfAbsent(vaultId, () => FinancialOperationRef()),
     );
-    if (res.statusCode != 200) throw Exception(_msg(res.body));
+    if (res.statusCode != 200) {
+      // WP-L — keep the backend code so the screen can speak truthfully about
+      // an in-progress or unknown break instead of showing a raw exception.
+      Map<String, dynamic> body;
+      try {
+        body = jsonDecode(res.body) as Map<String, dynamic>;
+      } catch (_) {
+        body = const <String, dynamic>{};
+      }
+      throw VaultActionRefused(
+        VaultAction.breakEarly,
+        body['code']?.toString(),
+        _msg(res.body),
+        res.statusCode,
+      );
+    }
     await refresh();
   }
 
