@@ -226,13 +226,23 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
   Future<void> deposit(String vaultId, double amountUsdc) async {
     // r42: vault deposits lock USDC — one key per logical deposit,
     // reused across retries of that deposit.
-    final res = await apiClient.postFinancial(
+    final res = await ref.read(apiClientProvider).postFinancial(
       '/vaults/$vaultId/deposit',
       {'amountUsdc': amountUsdc},
       operationType: _depositAction(vaultId),
       ref: _depositRefs.putIfAbsent(vaultId, () => FinancialOperationRef()),
     );
-    if (res.statusCode != 200) throw Exception(_msg(res.body));
+    if (res.statusCode != 200) {
+      // WP-L — keep the backend code on the thrown error so the screen can
+      // render an honest refusal instead of a generic "break failed".
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      throw VaultActionRefused(
+        VaultAction.deposit,
+        body['code']?.toString(),
+        _msg(res.body),
+        res.statusCode,
+      );
+    }
     await refresh();
   }
 
@@ -247,20 +257,50 @@ class VaultsNotifier extends AsyncNotifier<List<Vault>> {
       if (amountUsdc != null) 'amountUsdc': amountUsdc,
       if (frequency != null) 'frequency': frequency,
     });
-    if (res.statusCode != 200) throw Exception(_msg(res.body));
+    if (res.statusCode != 200) {
+      // WP-L — keep the backend code so the screen can speak truthfully about
+      // an unknown or in-progress break instead of showing a raw exception.
+      Map<String, dynamic> body;
+      try {
+        body = jsonDecode(res.body) as Map<String, dynamic>;
+      } catch (_) {
+        body = const <String, dynamic>{};
+      }
+      throw VaultActionRefused(
+        VaultAction.breakEarly,
+        body['code']?.toString(),
+        _msg(res.body),
+        res.statusCode,
+      );
+    }
     await refresh();
   }
 
   Future<void> breakEarly(String vaultId) async {
     // r42: breaking early moves the locked funds back — one key per
     // logical break action, reused across retries of that break.
-    final res = await apiClient.postFinancial(
+    final res = await ref.read(apiClientProvider).postFinancial(
       '/vaults/$vaultId/break',
       {'confirmedBreak': true},
       operationType: _breakAction(vaultId),
       ref: _breakRefs.putIfAbsent(vaultId, () => FinancialOperationRef()),
     );
-    if (res.statusCode != 200) throw Exception(_msg(res.body));
+    if (res.statusCode != 200) {
+      // WP-L — keep the backend code so the screen can speak truthfully about
+      // an in-progress or unknown break instead of showing a raw exception.
+      Map<String, dynamic> body;
+      try {
+        body = jsonDecode(res.body) as Map<String, dynamic>;
+      } catch (_) {
+        body = const <String, dynamic>{};
+      }
+      throw VaultActionRefused(
+        VaultAction.breakEarly,
+        body['code']?.toString(),
+        _msg(res.body),
+        res.statusCode,
+      );
+    }
     await refresh();
   }
 
@@ -298,3 +338,26 @@ final vaultDepositsProvider = FutureProvider.family<List<VaultDeposit>, String>(
     return list.map((e) => VaultDeposit.fromJson(e)).toList();
   },
 );
+
+/// A refused vault break, carrying the backend's own code so the UI can show
+/// the truthful refusal instead of a flattened message.
+/// Which vault action was refused. Deposit and break have different fallback
+/// copy, different economic shapes and different retry permissions, so the
+/// refusal must say which one it was.
+enum VaultAction { deposit, breakEarly }
+
+/// A refused vault action, carrying the backend's own code so the screen can
+/// render the shared refusal copy instead of a raw exception string.
+class VaultActionRefused implements Exception {
+  VaultActionRefused(this.action, this.code, this.message, this.statusCode);
+
+  final VaultAction action;
+  final String? code;
+  final String message;
+  final int statusCode;
+
+  /// Never interpolate the secret-free backend message straight into the UI;
+  /// the screen renders [code] through the shared authority.
+  @override
+  String toString() => 'VaultActionRefused(${action.name}, $code)';
+}

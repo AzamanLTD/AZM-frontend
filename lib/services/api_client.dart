@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
+import '../services/financial_step_up.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_interceptor.dart';
@@ -402,6 +404,56 @@ class ApiClient {
     );
   }
 
+  /// WP-J — the ONLY step-up integration point.
+  ///
+  /// The backend mounts `require2FA` BEFORE its idempotency middleware, so a
+  /// credential is spent at middleware time even when the request later
+  /// fails or its response is lost. What that forces here:
+  ///   - exactly ONE re-attempt with a freshly supplied credential;
+  ///   - the SAME endpoint and the SAME idempotency key, so no new operation
+  ///     is created and an original that committed replays instead of
+  ///     charging twice;
+  ///   - the credential goes into a COPY of the body, never into the durable
+  ///     snapshot, so it cannot be persisted, queued offline or replayed
+  ///     from storage;
+  ///   - TOTP_REPLAYED and TOTP_CLAIM_STORE_UNAVAILABLE are rethrown, never
+  ///     retried: one is a spent step, the other an undecided outcome.
+  Future<http.Response> _sendWithStepUp(
+    DurableOperation op,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    required bool requireAuth,
+    required String key,
+  }) async {
+    try {
+      return await post(
+        op.endpoint,
+        body,
+        headers: headers,
+        requireAuth: requireAuth,
+        idempotencyKey: key,
+      );
+    } on ApiException catch (e) {
+      final factor = factorFor(e.statusCode, e.code);
+      if (factor == null) rethrow; // not a step-up challenge
+      final credential = await FinancialStepUp.request(
+        StepUpChallenge(factor: factor, message: e.message),
+      );
+      if (credential == null) rethrow; // no prompt installed / dismissed
+      final stepped = Map<String, dynamic>.from(body)
+        ..[factor.bodyField] = credential.value;
+      // One attempt only. A failure here propagates to the disposition below
+      // (401/409/5xx retain the durable instance, 4xx-retryable retires it).
+      return await post(
+        op.endpoint,
+        stepped,
+        headers: headers,
+        requireAuth: requireAuth,
+        idempotencyKey: key,
+      );
+    }
+  }
+
   /// The shared wire transmit + durable disposition of one RESOLVED
   /// instance: send with the instance's key, then retire/retain per the
   /// disposition contract (2xx and definitive pre-economic 4xx retire;
@@ -419,12 +471,12 @@ class ApiClient {
       body['clientRequestId'] = key; // one identity, everywhere
     }
     try {
-      final response = await post(
-        op.endpoint,
+      final response = await _sendWithStepUp(
+        op,
         body,
         headers: headers,
         requireAuth: requireAuth,
-        idempotencyKey: key,
+        key: key,
       );
       // 2xx: the authoritative outcome is in hand — terminal.
       await DurableOperationRegistry.retire(op.operationId, account: account);
