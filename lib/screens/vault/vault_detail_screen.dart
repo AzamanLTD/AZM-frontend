@@ -63,14 +63,16 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
       // the backend code, so the customer gets the truthful sentence and the
       // correct next step instead of "Exception: ...".
       if (!mounted) return;
-      final copy = e is VaultBreakRefused ? refusalCopyFor(e.code) : null;
+      final copy = e is VaultActionRefused ? refusalCopyFor(e.code) : null;
+      // Deposit-specific fallback: a deposit that produced no answer may have
+      // been committed, so it is never called a failure.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            copy == null
-                ? 'We could not confirm this vault break. Nothing has been '
-                    'confirmed either way — check Activity before trying again.'
-                : '${copy.message} ${copy.nextStep}',
+            copy?.display ??
+                'We could not confirm this vault deposit. Nothing has been '
+                    'confirmed either way — check Activity before trying '
+                    'again.',
           ),
           duration: const Duration(seconds: 6),
         ),
@@ -121,7 +123,21 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              (e is VaultActionRefused ? refusalCopyFor(e.code) : null)
+                      ?.display ??
+                  // Break-specific fallback. An unanswered break may already
+                  // have released the funds: never call it failed, and never
+                  // invite a second break under a fresh identity.
+                  'We could not confirm this vault break. Nothing has been '
+                      'confirmed either way — check Activity before trying '
+                      'again.',
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);

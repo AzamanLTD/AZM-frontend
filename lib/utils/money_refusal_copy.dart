@@ -1,144 +1,35 @@
 // =============================================================================
-// AZAMAN — MONEY REFUSAL COPY (WP-L)
+// AZAMAN — MONEY REFUSAL AUTHORITY (WP-L)
 //
-// Exact, non-misleading customer copy for money refusals that previously fell
-// through to a generic "Something went wrong".
+// ONE authority. Every customer-facing money refusal resolves here, and every
+// helper below is a thin delegate so nothing can disagree with anything else.
 //
 // Three rules, each enforced by a test:
 //   1. Never imply a GHS conversion exists when its backing is unavailable.
-//   2. Never imply permanent failure when the backend outcome is ambiguous.
+//   2. Never imply permanent failure when the backend outcome is undecided.
 //   3. Never imply payment happened when the backend refused it.
-// =============================================================================
-
-/// The customer-facing sentence for a money refusal [code], or null when the
-/// code is not one of the explicitly handled refusals (callers then keep
-/// their existing generic copy).
-String? moneyRefusalMessage(String? code) {
-  switch (code) {
-    case 'NATIVE_GHS_SHORTFALL_BACKING_UNAVAILABLE':
-      return 'This payout needs cedis that Azaman cannot fund yet, so no '
-          'conversion was made and nothing was sent. Your balance is '
-          'unchanged — try a smaller amount or another destination.';
-
-    case 'TOTP_REPLAYED':
-      return 'That authenticator code was already used for another action. '
-          'Wait for the next code and try again. Nothing was sent.';
-
-    case 'TOTP_CLAIM_STORE_UNAVAILABLE':
-      return 'We could not confirm your code, so this action is not finished. '
-          'Check your history before trying again — it may already have gone '
-          'through.';
-
-    case 'IDEMPOTENCY_IN_PROGRESS':
-      return 'A previous attempt of this exact payment is still resolving. '
-          'Nothing new was started. Check your history before trying again — '
-          'a second payment could charge you twice.';
-    case 'TOTP_INVALID':
-      return 'That authenticator code is not valid. Enter the current code '
-          'from your authenticator app.';
-    case 'TOTP_LOCKED':
-      return 'Too many incorrect codes. Two-factor confirmation is locked '
-          'for now. Nothing was sent.';
-    case 'PASSWORD_REQUIRED':
-      return 'Confirm this payment with your account password. '
-          'Nothing has been sent yet.';
-    case '2FA_REQUIRED':
-      return 'Confirm this payment with your authenticator code. '
-          'Nothing has been sent yet.';
-    case 'USDC_INSUFFICIENT_BALANCE':
-      return 'Your USDC balance is too low for this payout. Nothing was sent.';
-
-    case 'NATIVE_GHS_QUOTE_INTENT_CHANGED':
-    case 'NATIVE_GHS_QUOTE_INTENT_MISMATCH':
-      return 'The rate changed while you were confirming. Nothing was sent — '
-          'review the new quote before continuing.';
-
-    case 'NATIVE_GHS_QUOTE_INVALID':
-      return 'That quote is no longer valid. Request a fresh quote. Nothing '
-          'was sent.';
-
-    case 'IDEMPOTENCY_PAYLOAD_CONFLICT':
-      return 'An earlier payment with this reference already completed, so '
-          'this one was not started. Check Activity for the completed payment.';
-    case 'IDEMPOTENCY_KEY_REQUIRED':
-      return 'This payment could not be started because the app did not send '
-          'its reference. Nothing was sent.';
-    case 'INSUFFICIENT_FUNDS':
-      return 'Your GHS balance is too low for this amount, so nothing was '
-          'moved. Top up or reduce the amount.';
-    case 'INSUFFICIENT_BALANCE':
-      return 'Your balance is too low for this amount, so nothing was moved. '
-          'Top up or reduce the amount.';
-    default:
-      return null;
-  }
-}
-
-/// True when [code] describes an outcome the client cannot know, as opposed to
-/// a definite refusal. Ambiguous outcomes must never be presented as failures
-/// or as successes.
-bool isAmbiguousMoneyRefusal(String? code) =>
-    code == 'TOTP_CLAIM_STORE_UNAVAILABLE';
-
-/// True when [code] is a definite, pre-economic refusal: nothing was sent and
-/// no money moved.
-bool isDefiniteMoneyRefusal(String? code) =>
-    code == 'NATIVE_GHS_SHORTFALL_BACKING_UNAVAILABLE' ||
-    code == 'USDC_INSUFFICIENT_BALANCE' ||
-    code == 'NATIVE_GHS_QUOTE_INVALID' ||
-    code == 'NATIVE_GHS_QUOTE_INTENT_CHANGED' ||
-    code == 'NATIVE_GHS_QUOTE_INTENT_MISMATCH';
-
-
-/// WP-L — resolve a refusal code from any thrown value and return the exact
-/// customer copy, or null when the value carries no known code.
-///
-/// Reads `ApiException.code` when available and falls back to a `"code":"X"`
-/// scan of the message body, which is how the backend's envelope reaches
-/// screens that only ever see `e.toString()`.
-String? moneyErrorText(Object error) {
-  String? code;
-  try {
-    final dynamic e = error;
-    // ignore: avoid_dynamic_calls
-    final dynamic c = e.code;
-    if (c is String && c.isNotEmpty) code = c;
-  } catch (_) {}
-  code ??= _codeFromText(error.toString());
-  if (code == null) return null;
-  return moneyRefusalMessage(code);
-}
-
-String? _codeFromText(String text) {
-  final m = RegExp(r'"code"\s*:\s*"([A-Z0-9_]+)"').firstMatch(text);
-  return m?.group(1);
-}
-
-// -----------------------------------------------------------------------------
-// WP-L — refusal certainty authority.
 //
-// Screens need more than a sentence: they need to know whether the money is
-// definitely still with the customer, possibly already moved, or undecided.
-// Getting that classification wrong is how an app talks someone into paying
-// twice, so it lives here with the copy and nowhere else.
-// -----------------------------------------------------------------------------
+// Certainty is not a guess: each code is classified from the backend behaviour
+// that proves it, cited inline. Backend candidate 6a6f233 verified for route
+// ordering; e35bad2 verified identically for the same mounts.
+// =============================================================================
 
 /// What the customer may safely believe about their money.
 enum RefusalCertainty {
-  /// Refused before the economic step. Nothing moved; correcting and retrying
-  /// is safe (with a fresh code where one was consumed).
+  /// Refused before the economic handler ran. Provable because the refusing
+  /// middleware is mounted ahead of both the idempotency claim and the
+  /// controller — or because the failure throws inside a transaction that
+  /// rolls back.
   refusedBeforeMoney,
 
   /// An EARLIER operation under the same identity already COMMITTED. The new,
   /// mismatched request was refused, but money HAS moved for the original.
   priorOperationCommitted,
 
-  /// Still processing. The original operation must be allowed to resolve;
-  /// starting a second one risks a double charge.
+  /// A claim exists and the original operation is still resolving.
   stillProcessing,
 
-  /// The authority could not answer. Outcome genuinely unknown: never
-  /// presented as a failure and never safe to blindly repeat.
+  /// Undecided. Never presented as a failure, never safe to blindly repeat.
   unknownOutcome,
 }
 
@@ -149,22 +40,31 @@ class RefusalCopy {
   final String message;
   final String nextStep;
   final RefusalCertainty certainty;
+
+  /// A fresh submission is only safe when this request provably sent nothing.
+  /// Every other certainty demands the customer resolve the existing
+  /// operation first.
+  bool get retryIsSafe => certainty == RefusalCertainty.refusedBeforeMoney;
+
+  /// The single block of text a screen shows.
+  String get display => '$message $nextStep';
 }
 
-/// Full refusal authority for a backend [code], or null when the code is not
-/// one this client can speak about truthfully.
+// -----------------------------------------------------------------------------
+// THE canonical mapping.
+// -----------------------------------------------------------------------------
+
+/// Resolve a backend refusal [code] into copy, certainty and next step.
+///
+/// Returns null for anything not proven here — including every unrecognised
+/// 5xx and provider timeout. A null result means "this client cannot say
+/// anything true about the money", so callers keep their own honest,
+/// non-committal fallback.
 RefusalCopy? refusalCopyFor(String? code) {
-  final message = moneyRefusalMessage(code);
-  if (message == null) return null;
-  // WP-L — every classification below is proven by backend source, cited on
-  // the branch of the switch that uses it. There is deliberately NO broad
-  // default: an unlisted code returns null so no screen can attach a
-  // reassuring "nothing was sent" to an outcome nobody has proven.
   switch (code) {
     // ── A PRIOR operation with this identity already COMMITTED ─────────────
-    // middleware/idempotency.js:284-290 — returned only when
-    // existing.status === COMMITTED and the fingerprint differs. Money has
-    // already moved for the earlier operation.
+    // middleware/idempotency.js — returned only when existing.status ===
+    // COMMITTED and the request fingerprint differs (verified on 6a6f233).
     case 'IDEMPOTENCY_PAYLOAD_CONFLICT':
       return const RefusalCopy(
         'An earlier payment with this reference already completed. These '
@@ -177,98 +77,183 @@ RefusalCopy? refusalCopyFor(String? code) {
       );
 
     // ── Still processing ──────────────────────────────────────────────────
-    // middleware/idempotency.js:311 — a claim exists and is IN_PROGRESS.
+    // A claim exists and is IN_PROGRESS.
     case 'IDEMPOTENCY_IN_PROGRESS':
-      return RefusalCopy(
-        message,
+      return const RefusalCopy(
+        'A payment with these exact details is still being processed. Nothing '
+            'new was started.',
         'Open Activity to follow the original payment. Checking is safe; '
             'sending it again is not.',
         RefusalCertainty.stillProcessing,
       );
 
     // ── Refused BEFORE idempotency and before the economic handler ─────────
-    // require2FA() is mounted ahead of idempotency() and the controller on all
-    // 19 require2FA mounts audited at backend e35bad2 (friendRoutes:78,
-    // savingsRoutes:33, vaultRoutes:28, walletRoutes:133/228,
-    // withdrawalRoutes:40/61/71/92, financeRoutes:55, tradeRoutes:50,
-    // p2pRoutes:32, escrowRoutes:24, marketplaceRoutes:48,
-    // bankBeneficiaryRoutes:24/32/37/39, dineInRoutes:32). A step-up refusal
-    // therefore cannot have created a claim or reached economic code — not even
-    // a claim-store outage, which is refused inside this same middleware.
+    // require2FA() is mounted ahead of idempotency() and the controller on
+    // every audited mount (savingsRoutes, vaultRoutes, friendRoutes,
+    // walletRoutes, withdrawalRoutes, marketplaceRoutes, p2pRoutes,
+    // escrowRoutes, tradeRoutes, financeRoutes, dineInRoutes, checked on
+    // 6a6f233). A claim-store outage is refused inside that same middleware
+    // (require2FA.js, TOTP_CODES.UNAVAILABLE -> sendTotpUnavailable), so the
+    // request cannot have reached the economic code — this is a definite
+    // pre-economic refusal, NOT an unknown outcome.
     case '2FA_REQUIRED':
-    case 'PASSWORD_REQUIRED':
-    case 'TOTP_INVALID':
-    case 'TOTP_REPLAYED':
-    case 'TOTP_LOCKED':
-    case 'TOTP_CLAIM_STORE_UNAVAILABLE':
-      return RefusalCopy(
-        message,
+      return const RefusalCopy(
+        'Confirm this payment with your authenticator code. Nothing has been '
+            'sent yet.',
         'Nothing was sent. Confirm with a fresh authenticator code to '
             'continue.',
         RefusalCertainty.refusedBeforeMoney,
       );
+    case 'PASSWORD_REQUIRED':
+      return const RefusalCopy(
+        'Confirm this payment with your account password. Nothing has been '
+            'sent yet.',
+        'Nothing was sent. Confirm with your password to continue.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+    case 'TOTP_INVALID':
+      return const RefusalCopy(
+        'That authenticator code is not valid. Nothing was sent.',
+        'Nothing was sent. Confirm with a fresh authenticator code to '
+            'continue.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+    case 'TOTP_REPLAYED':
+      return const RefusalCopy(
+        'That authenticator code was already used for another action. Nothing '
+            'was sent.',
+        'Nothing was sent. Confirm with a fresh authenticator code to '
+            'continue.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+    case 'TOTP_LOCKED':
+      return const RefusalCopy(
+        'Too many incorrect codes, so two-factor confirmation is locked for '
+            'now. Nothing was sent.',
+        'Nothing was sent. Wait for the lock to clear, then confirm with a '
+            'fresh authenticator code.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+    case 'TOTP_CLAIM_STORE_UNAVAILABLE':
+      return const RefusalCopy(
+        'We could not check your authenticator code just now, so this request '
+            'was not carried out. Nothing was sent.',
+        'Nothing was sent. Try once more in a moment with a fresh '
+            'authenticator code.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
 
-    // middleware/idempotency.js:211 — rejected before any claim is created.
+    // Rejected before any claim is created.
     case 'IDEMPOTENCY_KEY_REQUIRED':
-      return RefusalCopy(
-        message,
+      return const RefusalCopy(
+        'This payment could not be started because the app did not send its '
+            'reference. Nothing was sent.',
         'Nothing was sent. This is an app problem rather than a payment '
             'problem — retrying the same action is safe.',
         RefusalCertainty.refusedBeforeMoney,
       );
 
-    // src/services/nativeGhsWithdrawalService.js:262-266 — thrown BEFORE
-    // prisma.$transaction and before any quote is consumed.
+    // ── Thrown BEFORE the transaction, or inside one that rolls back ───────
+    // nativeGhsWithdrawalService: checked before prisma.$transaction and
+    // before any quote is consumed.
     case 'NATIVE_GHS_SHORTFALL_BACKING_UNAVAILABLE':
-      return RefusalCopy(
-        message,
+      return const RefusalCopy(
+        'This payout needs cedis that Azaman cannot fund yet, so no conversion '
+            'was made and nothing was sent. Your balance is unchanged.',
         'Nothing was converted and nothing was sent. Withdraw from your '
             'existing GHS balance, or try a smaller amount.',
         RefusalCertainty.refusedBeforeMoney,
       );
 
-    // nativeGhsWithdrawalService.js:334 and the quote guards around it. A
-    // stale quote refusal either precedes the transaction or throws inside it,
-    // which rolls back — either way no economic effect survives.
     case 'NATIVE_GHS_QUOTE_INTENT_CHANGED':
+      return const RefusalCopy(
+        'The exchange rate moved before this could complete, so the quoted '
+            'amount no longer applies. Nothing was sent.',
+        'Nothing was sent. Request a fresh quote and confirm the new amount '
+            'before continuing.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
     case 'NATIVE_GHS_QUOTE_INTENT_MISMATCH':
     case 'NATIVE_GHS_QUOTE_INVALID':
-      return RefusalCopy(
-        message,
+      return const RefusalCopy(
+        'That quote is no longer valid for this amount. Nothing was sent.',
         'Nothing was sent. Request a fresh quote and confirm the new amount '
             'before continuing.',
         RefusalCertainty.refusedBeforeMoney,
       );
 
-    // The codes the backend actually returns when a balance claim loses:
-    // controllers/savingsController.js:389 (INSUFFICIENT_FUNDS, atomic
-    // conditional decrement inside prisma.$transaction) and
-    // services/vaultService.js:623 (INSUFFICIENT_BALANCE). Both throw inside
-    // the transaction, so the decrement rolls back.
+    // Atomic balance claims that lose their conditional decrement throw inside
+    // the transaction, so the whole transaction rolls back:
+    //   INSUFFICIENT_FUNDS        — savingsController atomic GHS claim
+    //   INSUFFICIENT_BALANCE      — vaultService break claim
+    //   USDC_INSUFFICIENT_BALANCE — nativeGhsWithdrawalService USDC CAS debit
+    //                               (both verified present on 6a6f233)
     case 'INSUFFICIENT_FUNDS':
-    case 'INSUFFICIENT_BALANCE':
-      return RefusalCopy(
-        message,
+      return const RefusalCopy(
+        'Your GHS balance is too low for this amount, so nothing was moved.',
         'Nothing was sent. Top up or reduce the amount, then try again.',
         RefusalCertainty.refusedBeforeMoney,
       );
+    case 'INSUFFICIENT_BALANCE':
+      return const RefusalCopy(
+        'Your balance is too low for this amount, so nothing was moved.',
+        'Nothing was sent. Top up or reduce the amount, then try again.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+    case 'USDC_INSUFFICIENT_BALANCE':
+      return const RefusalCopy(
+        'You do not have enough USDC for this amount, so nothing was converted '
+            'or sent.',
+        'Nothing was sent. Top up USDC or reduce the amount, then try again.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
   }
-  // Unmapped, including every unrecognised 5xx and provider timeout: no
-  // classification, so no screen may call it safe or call it failed.
+  // Unproven: no message, no certainty, no permission.
   return null;
 }
 
-/// Resolve a thrown error (ApiException or text) into a [RefusalCopy].
-RefusalCopy? refusalCopyFrom(Object error) {
-  String? code;
+// -----------------------------------------------------------------------------
+// Delegates. These exist so older call sites keep working; they carry no
+// opinion of their own.
+// -----------------------------------------------------------------------------
+
+/// The customer sentence for [code], or null when the code is not proven.
+String? moneyRefusalMessage(String? code) => refusalCopyFor(code)?.message;
+
+/// True only for outcomes the client genuinely cannot decide: an indexed claim
+/// still in flight, or an explicitly unknown outcome. A claim-store outage is
+/// NOT ambiguous — it is refused before the economic handler ever runs.
+bool isAmbiguousMoneyRefusal(String? code) {
+  final copy = refusalCopyFor(code);
+  if (copy == null) return false;
+  return copy.certainty == RefusalCertainty.stillProcessing ||
+      copy.certainty == RefusalCertainty.unknownOutcome;
+}
+
+/// True only when the backend has proven this request sent nothing.
+bool isDefiniteMoneyRefusal(String? code) =>
+    refusalCopyFor(code)?.certainty == RefusalCertainty.refusedBeforeMoney;
+
+/// Resolve a thrown error into its [RefusalCopy].
+RefusalCopy? refusalCopyFrom(Object error) => refusalCopyFor(_codeOf(error));
+
+/// The customer sentence for a thrown error, or null when unproven.
+String? moneyErrorText(Object error) => refusalCopyFrom(error)?.message;
+
+/// The backend code carried by [error], if it carries one at all.
+String? _codeOf(Object error) {
   try {
     final dynamic e = error;
     // ignore: avoid_dynamic_calls
     final dynamic c = e.code;
-    if (c is String && c.isNotEmpty) code = c;
+    if (c is String && c.isNotEmpty) return c;
   } catch (_) {}
-  code ??= _codeFromText(error.toString());
-  return refusalCopyFor(code);
+  return _codeFromText(error.toString());
+}
+
+String? _codeFromText(String text) {
+  final m = RegExp(r'"code"\s*:\s*"([A-Z0-9_]+)"').firstMatch(text);
+  return m?.group(1);
 }
 
 /// WP-H is not implemented. This is the GENERIC, truthful "we cannot tell you

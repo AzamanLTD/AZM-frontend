@@ -17,17 +17,28 @@ void main() {
   test('TOTP_REPLAYED says nothing was sent and asks for the next code', () {
     final msg = moneyRefusalMessage('TOTP_REPLAYED')!;
     expect(msg.toLowerCase(), contains('nothing was sent'));
-    expect(isDefiniteMoneyRefusal('TOTP_REPLAYED'), isFalse,
-        reason: 'replay is pre-economic but not one of the GHS classes');
+    // Corrected: require2FA refuses before idempotency and the controller on
+    // every audited mount, so a replay refusal IS definite and pre-economic.
+    expect(isDefiniteMoneyRefusal('TOTP_REPLAYED'), isTrue,
+        reason: 'replay is refused before any economic handler runs');
   });
 
-  test('claim-store outage is ambiguous, never a failure or a success', () {
+  test('claim-store outage is a definite pre-economic refusal', () {
+    // Corrected contract: the claim-store outage is thrown inside require2FA,
+    // which is mounted before idempotency() and the controller on every
+    // audited route (verified on backend 6a6f233). The economic handler cannot
+    // have run, so this is NOT an ambiguous economic outcome — and the old
+    // "it may already have gone through" wording contradicted the certainty
+    // model. Both statements can no longer coexist.
     const code = 'TOTP_CLAIM_STORE_UNAVAILABLE';
-    final msg = moneyRefusalMessage(code)!;
-    expect(isAmbiguousMoneyRefusal(code), isTrue);
-    expect(isDefiniteMoneyRefusal(code), isFalse);
-    expect(msg.toLowerCase(), isNot(contains('failed')));
-    expect(msg.toLowerCase(), contains('may already'));
+    final copy = refusalCopyFor(code)!;
+    expect(copy.certainty, RefusalCertainty.refusedBeforeMoney);
+    expect(copy.retryIsSafe, isTrue);
+    expect(isDefiniteMoneyRefusal(code), isTrue);
+    expect(isAmbiguousMoneyRefusal(code), isFalse);
+    expect(copy.message.toLowerCase(), isNot(contains('failed')));
+    expect(copy.message.toLowerCase(), isNot(contains('may already')));
+    expect(copy.display.toLowerCase(), contains('nothing was sent'));
   });
 
   test('unknown codes stay unhandled so callers keep their own copy', () {
