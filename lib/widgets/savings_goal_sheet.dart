@@ -150,7 +150,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       // durable identity. The BE derives the savings deposit's @unique
       // `txHash` from it — a retry after a lost response converges instead
       // of double-debiting.
-      final res = await apiClient.postFinancial(
+      final res = await ref.read(apiClientProvider).postFinancial(
         '/savings/goals/$_goalId/deposit',
         {
           'amountGhs': amountGhs,
@@ -200,7 +200,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
       // r42: same one-identity rule as deposits — the header carries the
       // logical operation key the backend now requires, reused across
       // retries of the same withdrawal.
-      final res = await apiClient.postFinancial(
+      final res = await ref.read(apiClientProvider).postFinancial(
         '/savings/goals/$_goalId/withdraw',
         amountGhs == null ? {} : {'amountGhs': amountGhs},
         operationType: _withdrawActionId,
@@ -247,7 +247,7 @@ class _SheetBodyState extends ConsumerState<_SheetBody> {
 
     setState(() => _busy = true);
     try {
-      final res = await apiClient.put('/savings/goals/$_goalId/$endpoint', {});
+      final res = await ref.read(apiClientProvider).put('/savings/goals/$_goalId/$endpoint', {});
 
       final body = jsonDecode(res.body);
       if (res.statusCode == 200 && body['success'] == true) {

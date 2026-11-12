@@ -57,6 +57,18 @@ String? moneyRefusalMessage(String? code) {
       return 'That quote is no longer valid. Request a fresh quote. Nothing '
           'was sent.';
 
+    case 'IDEMPOTENCY_PAYLOAD_CONFLICT':
+      return 'An earlier payment with this reference already completed, so '
+          'this one was not started. Check Activity for the completed payment.';
+    case 'IDEMPOTENCY_KEY_REQUIRED':
+      return 'This payment could not be started because the app did not send '
+          'its reference. Nothing was sent.';
+    case 'INSUFFICIENT_FUNDS':
+      return 'Your GHS balance is too low for this amount, so nothing was '
+          'moved. Top up or reduce the amount.';
+    case 'INSUFFICIENT_BALANCE':
+      return 'Your balance is too low for this amount, so nothing was moved. '
+          'Top up or reduce the amount.';
     default:
       return null;
   }
@@ -117,6 +129,10 @@ enum RefusalCertainty {
   /// is safe (with a fresh code where one was consumed).
   refusedBeforeMoney,
 
+  /// An EARLIER operation under the same identity already COMMITTED. The new,
+  /// mismatched request was refused, but money HAS moved for the original.
+  priorOperationCommitted,
+
   /// Still processing. The original operation must be allowed to resolve;
   /// starting a second one risks a double charge.
   stillProcessing,
@@ -140,35 +156,106 @@ class RefusalCopy {
 RefusalCopy? refusalCopyFor(String? code) {
   final message = moneyRefusalMessage(code);
   if (message == null) return null;
+  // WP-L — every classification below is proven by backend source, cited on
+  // the branch of the switch that uses it. There is deliberately NO broad
+  // default: an unlisted code returns null so no screen can attach a
+  // reassuring "nothing was sent" to an outcome nobody has proven.
   switch (code) {
+    // ── A PRIOR operation with this identity already COMMITTED ─────────────
+    // middleware/idempotency.js:284-290 — returned only when
+    // existing.status === COMMITTED and the fingerprint differs. Money has
+    // already moved for the earlier operation.
+    case 'IDEMPOTENCY_PAYLOAD_CONFLICT':
+      return const RefusalCopy(
+        'An earlier payment with this reference already completed. These '
+            'details differ from it, so this new payment was not started.',
+        'Open Activity to find the completed payment before you send anything '
+            'else. If you cannot find it, contact support with the time of the '
+            'earlier attempt. Do not start a new payment until that one is '
+            'identified.',
+        RefusalCertainty.priorOperationCommitted,
+      );
+
+    // ── Still processing ──────────────────────────────────────────────────
+    // middleware/idempotency.js:311 — a claim exists and is IN_PROGRESS.
     case 'IDEMPOTENCY_IN_PROGRESS':
       return RefusalCopy(
         message,
         'Open Activity to follow the original payment. Checking is safe; '
-            'paying again is not.',
+            'sending it again is not.',
         RefusalCertainty.stillProcessing,
       );
+
+    // ── Refused BEFORE idempotency and before the economic handler ─────────
+    // require2FA() is mounted ahead of idempotency() and the controller on all
+    // 19 require2FA mounts audited at backend e35bad2 (friendRoutes:78,
+    // savingsRoutes:33, vaultRoutes:28, walletRoutes:133/228,
+    // withdrawalRoutes:40/61/71/92, financeRoutes:55, tradeRoutes:50,
+    // p2pRoutes:32, escrowRoutes:24, marketplaceRoutes:48,
+    // bankBeneficiaryRoutes:24/32/37/39, dineInRoutes:32). A step-up refusal
+    // therefore cannot have created a claim or reached economic code — not even
+    // a claim-store outage, which is refused inside this same middleware.
+    case '2FA_REQUIRED':
+    case 'PASSWORD_REQUIRED':
+    case 'TOTP_INVALID':
+    case 'TOTP_REPLAYED':
+    case 'TOTP_LOCKED':
     case 'TOTP_CLAIM_STORE_UNAVAILABLE':
       return RefusalCopy(
         message,
-        'Check Activity before trying again. If nothing appears, contact '
-            'support with your reference.',
-        RefusalCertainty.unknownOutcome,
+        'Nothing was sent. Confirm with a fresh authenticator code to '
+            'continue.',
+        RefusalCertainty.refusedBeforeMoney,
       );
-    default:
-      final needsFreshCode = code == 'TOTP_REPLAYED' ||
-          code == 'TOTP_INVALID' ||
-          code == 'TOTP_LOCKED' ||
-          code == '2FA_REQUIRED' ||
-          code == 'PASSWORD_REQUIRED';
+
+    // middleware/idempotency.js:211 — rejected before any claim is created.
+    case 'IDEMPOTENCY_KEY_REQUIRED':
       return RefusalCopy(
         message,
-        needsFreshCode
-            ? 'Nothing was sent. Enter a fresh code when you are ready.'
-            : 'Nothing was sent. You can correct this and try again.',
+        'Nothing was sent. This is an app problem rather than a payment '
+            'problem — retrying the same action is safe.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+
+    // src/services/nativeGhsWithdrawalService.js:262-266 — thrown BEFORE
+    // prisma.$transaction and before any quote is consumed.
+    case 'NATIVE_GHS_SHORTFALL_BACKING_UNAVAILABLE':
+      return RefusalCopy(
+        message,
+        'Nothing was converted and nothing was sent. Withdraw from your '
+            'existing GHS balance, or try a smaller amount.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+
+    // nativeGhsWithdrawalService.js:334 and the quote guards around it. A
+    // stale quote refusal either precedes the transaction or throws inside it,
+    // which rolls back — either way no economic effect survives.
+    case 'NATIVE_GHS_QUOTE_INTENT_CHANGED':
+    case 'NATIVE_GHS_QUOTE_INTENT_MISMATCH':
+    case 'NATIVE_GHS_QUOTE_INVALID':
+      return RefusalCopy(
+        message,
+        'Nothing was sent. Request a fresh quote and confirm the new amount '
+            'before continuing.',
+        RefusalCertainty.refusedBeforeMoney,
+      );
+
+    // The codes the backend actually returns when a balance claim loses:
+    // controllers/savingsController.js:389 (INSUFFICIENT_FUNDS, atomic
+    // conditional decrement inside prisma.$transaction) and
+    // services/vaultService.js:623 (INSUFFICIENT_BALANCE). Both throw inside
+    // the transaction, so the decrement rolls back.
+    case 'INSUFFICIENT_FUNDS':
+    case 'INSUFFICIENT_BALANCE':
+      return RefusalCopy(
+        message,
+        'Nothing was sent. Top up or reduce the amount, then try again.',
         RefusalCertainty.refusedBeforeMoney,
       );
   }
+  // Unmapped, including every unrecognised 5xx and provider timeout: no
+  // classification, so no screen may call it safe or call it failed.
+  return null;
 }
 
 /// Resolve a thrown error (ApiException or text) into a [RefusalCopy].

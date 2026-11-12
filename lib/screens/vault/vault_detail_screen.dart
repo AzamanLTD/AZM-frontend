@@ -14,6 +14,7 @@ import 'package:azaman/utils/currency_math.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/providers/vault_provider.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/screens/vault/vault_yield_screen.dart';
 import 'package:azaman/screens/wallet/wallet_pass_screen.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
@@ -58,11 +59,22 @@ class _VaultDetailScreenState extends ConsumerState<VaultDetailScreen> {
       ref.invalidate(vaultDepositsProvider(widget.vaultId));
       if (mounted) HapticFeedback.heavyImpact();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
-      }
+      // WP-L — render the refusal, never e.toString(). A typed refusal carries
+      // the backend code, so the customer gets the truthful sentence and the
+      // correct next step instead of "Exception: ...".
+      if (!mounted) return;
+      final copy = e is VaultBreakRefused ? refusalCopyFor(e.code) : null;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            copy == null
+                ? 'We could not confirm this vault break. Nothing has been '
+                    'confirmed either way — check Activity before trying again.'
+                : '${copy.message} ${copy.nextStep}',
+          ),
+          duration: const Duration(seconds: 6),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
