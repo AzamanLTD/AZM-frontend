@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_interceptor.dart';
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/services/step_up_service.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 
 /// A centralized API client for handling HTTP requests to the Azaman backend.
@@ -21,6 +22,15 @@ class ApiClient {
 
   bool _isRefreshing = false;
   Future<bool>? _refreshFuture;
+
+  /// §WP-H G — set once at startup to the UI that can ask the user for a proof.
+  /// Null (tests, headless flows) means the challenge is surfaced unchanged and
+  /// nothing is retried, which is exactly today's behaviour.
+  static StepUpProofProvider? stepUpProofProvider;
+
+  /// The header the consumption gate reads. Kept beside [stepUpProofProvider] so
+  /// the client half of the contract lives in one file.
+  static const String stepUpGrantHeader = 'x-step-up-grant';
 
   static String get baseUrl => AppConfig.apiUrl;
 
@@ -109,8 +119,103 @@ class ApiClient {
             body: jsonEncode(body),
           )
           .timeout(AppConfig.requestTimeout);
-      return _handleResponse(response);
+      // §WP-H G: earn a capability for THIS action and replay once. The replay
+      // reuses requestHeaders, so the Idempotency-Key is identical - the backend
+      // released that claim on the 4xx challenge, so this is one operation, not two.
+      final settled = await _resolveStepUp(
+        endpoint: endpoint,
+        body: body,
+        headers: requestHeaders,
+        failed: response,
+      );
+      return _handleResponse(settled);
     });
+  }
+
+  /// Turns a `401 STEP_UP_REQUIRED` into one verification and one replay.
+  ///
+  /// Returns [failed] unchanged whenever the response is not a step-up challenge,
+  /// no UI is wired, the user cancels, or the dance goes wrong: the caller then
+  /// sees the original refusal rather than a confusing second error.
+  Future<http.Response> _resolveStepUp({
+    required String endpoint,
+    required Map<String, dynamic> body,
+    required Map<String, String> headers,
+    required http.Response failed,
+  }) async {
+    if (failed.statusCode != 401) return failed;
+    final challenge = StepUpChallenge.fromBody(
+      decodeJsonObject(failed.body) ?? const <String, dynamic>{},
+    );
+    if (challenge == null) return failed;
+    final provider = stepUpProofProvider;
+    if (provider == null) return failed;
+
+    StepUpProof? proof;
+    try {
+      proof = await provider(challenge);
+    } catch (_) {
+      return failed; // the sheet itself failed: never invent a proof
+    }
+    if (proof == null || proof.isEmpty) return failed;
+
+    final grant = await _requestStepUpGrant(
+      challenge: challenge,
+      proof: proof,
+      headers: headers,
+    );
+    final retryHeaders = Map<String, String>.of(headers)
+      ..[stepUpGrantHeader] = grant.token;
+    return _client
+        .post(
+          Uri.parse('$baseUrl$endpoint'),
+          headers: retryHeaders,
+          body: jsonEncode(body),
+        )
+        .timeout(AppConfig.requestTimeout);
+  }
+
+  /// Exchanges a proof for a single-use capability bound to the refused action.
+  ///
+  /// `challenge.action` is echoed verbatim: it is the server's own descriptor, so
+  /// the digest it re-canonicalises to is the one the gate computed. The token is
+  /// returned exactly once and never stored.
+  Future<StepUpGrant> _requestStepUpGrant({
+    required StepUpChallenge challenge,
+    required StepUpProof proof,
+    required Map<String, String> headers,
+  }) async {
+    final response = await _client
+        .post(
+          Uri.parse('$baseUrl/api/step-up/grant'),
+          headers: <String, String>{
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+            if (headers['Authorization'] != null)
+              'Authorization': headers['Authorization']!,
+          },
+          body: jsonEncode(<String, dynamic>{
+            'action': challenge.action,
+            ...proof.toJson(),
+          }),
+        )
+        .timeout(AppConfig.requestTimeout);
+
+    final parsed = decodeJsonObject(response.body);
+    final grant = StepUpGrant.fromBody(parsed ?? const <String, dynamic>{});
+    if ((response.statusCode == 200 || response.statusCode == 201) &&
+        grant != null) {
+      return grant;
+    }
+    // Surface the backend's own reason. A 503 means the claim store is down, not
+    // that the code was wrong, and the UI must not tell the user to try again.
+    throw ApiException(
+      message: parsed?['message']?.toString() ??
+          'Verification was not accepted. Nothing was executed.',
+      statusCode: response.statusCode,
+      code: parsed?['code']?.toString(),
+      body: parsed,
+    );
   }
 
   /// The account namespace for durable operations: the signed-in user's

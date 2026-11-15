@@ -30,6 +30,7 @@ import 'package:azaman/widgets/premium_bottom_nav.dart';
 import 'package:azaman/widgets/shell_swipe_detector.dart';
 import 'package:azaman/widgets/contextual_nav_band.dart';
 import 'package:azaman/router/app_router.dart';
+import 'package:azaman/widgets/step_up_sheet.dart';
 import 'package:azaman/router/route_depth.dart';
 
 import 'package:azaman/providers/auth_provider.dart' as auth_pkg;
@@ -141,6 +142,16 @@ Future<void> syncTradeHistory() async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   StartupCoordinator.registerBackgroundMessageHandler();
+
+  // §WP-H G — one wiring point for the whole app. Any financial call the backend
+  // refuses with `401 STEP_UP_REQUIRED` is replayed through this sheet, so no
+  // money-moving screen needs to know step-up exists. Left unset in tests and
+  // headless flows, where the challenge is simply surfaced as before.
+  ApiClient.stepUpProofProvider = (challenge) async {
+    final context = rootNavigatorKey.currentContext;
+    if (context == null || !context.mounted) return null;
+    return showStepUpSheet(context, challenge);
+  };
 
   if (AppConfig.sentryEnabled) {
     await SentryFlutter.init((options) {
