@@ -17,6 +17,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/screens/vault/vault_create_screen.dart';
 import 'package:azaman/screens/vault/vault_detail_screen.dart';
@@ -69,7 +70,12 @@ class VaultListScreen extends ConsumerWidget {
           loading: () =>
               Center(child: CircularProgressIndicator(color: colors.accent)),
           error: (e, _) => _ErrorView(
-            message: e.toString(),
+            message: safeMoneyErrorText(
+              e,
+              unknownFallback:
+                  'Your vaults could not be loaded just now. Nothing has '
+                  'changed — pull to refresh.',
+            ),
             onRetry: () => ref.read(vaultsProvider.notifier).refresh(),
           ),
           data: (vaults) => _Body(vaults: vaults, colors: colors),
