@@ -59,4 +59,23 @@ void main() {
       expect(text, contains('authenticator code is not valid'));
     });
   });
+
+  group('escrow provider surfaces', () {
+    test('a proven escrow refusal renders the authority copy', () {
+      final text = safeMoneyErrorText(
+        _Coded('IDEMPOTENCY_PAYLOAD_CONFLICT'),
+        unknownFallback: unconfirmedMoneyOutcomeText(),
+      );
+      expect(text, contains('already completed'));
+    });
+
+    test('a bare escrow failure never surfaces toString()', () {
+      const raw = _Bare();
+      final text = safeMoneyErrorText(raw, unknownFallback: unconfirmedMoneyOutcomeText());
+      expect(text, isNot(contains('_Bare')));
+      expect(text, unconfirmedMoneyOutcomeText());
+    });
+  });
 }
+
+// ── Escrow: the last money surface that stored raw exception text ────────────
