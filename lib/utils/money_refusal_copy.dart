@@ -267,3 +267,29 @@ RefusalCopy preparedAuthorityUnavailableCopy() => const RefusalCopy(
           'support with your reference.',
       RefusalCertainty.unknownOutcome,
     );
+
+// -----------------------------------------------------------------------------
+// SURFACE HELPER (WP-L closure) — the one call a money screen makes.
+// -----------------------------------------------------------------------------
+
+/// The sentence a money surface may show for [error].
+///
+/// A proven backend refusal renders its exact copy (which already carries the
+/// truthful next step). Anything else — an unproven 5xx, a provider timeout, a
+/// transport loss — renders [unknownFallback], which must never claim the money
+/// did or did not move. Raw exception text must never reach a money surface:
+/// `toString()` of a socket exception is not a statement about money.
+String safeMoneyErrorText(
+  Object error, {
+  required String unknownFallback,
+}) {
+  final copy = refusalCopyFrom(error);
+  if (copy != null) return copy.display;
+  return unknownFallback;
+}
+
+/// The default honest sentence for an undecided money outcome. Screens may pass
+/// their own, but it must stay this shape: no failure claim, no retry invite.
+String unconfirmedMoneyOutcomeText() =>
+    'We could not confirm what happened to this payment, so nothing is '
+    'claimed either way. Check Activity before trying again.';

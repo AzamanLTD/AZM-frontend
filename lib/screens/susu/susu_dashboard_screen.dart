@@ -33,6 +33,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/susu_model.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/susu_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -1182,9 +1183,20 @@ class _AutoRetainCardState extends ConsumerState<_AutoRetainCard> {
                       } catch (e) {
                         if (mounted) {
                           setState(() => _enabled = !v); // revert
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text(e.toString())));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                safeMoneyErrorText(
+                                  e,
+                                  unknownFallback:
+                                      'We could not confirm whether auto-retain '
+                                      'was updated. The switch shows the last '
+                                      'confirmed value — reopen this page to '
+                                      'check before changing it again.',
+                                ),
+                              ),
+                            ),
+                          );
                         }
                       } finally {
                         if (mounted) setState(() => _busy = false);
