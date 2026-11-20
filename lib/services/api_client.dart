@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../services/financial_step_up.dart';
+import '../services/step_up_grant.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_interceptor.dart';
@@ -434,6 +435,19 @@ class ApiClient {
         idempotencyKey: key,
       );
     } on ApiException catch (e) {
+      // WP-H action-bound grant: the backend names the exact action it will
+      // accept a grant for. Handled BEFORE the legacy body-factor path because
+      // it is a different contract (grant header, not a body field).
+      if (e.code == StepUpGrantCodes.stepUpRequired) {
+        return await _retryWithStepUpGrant(
+          op,
+          body,
+          headers: headers,
+          requireAuth: requireAuth,
+          key: key,
+          refusal: e,
+        );
+      }
       final factor = factorFor(e.statusCode, e.code);
       if (factor == null) rethrow; // not a step-up challenge
       final credential = await FinancialStepUp.request(
@@ -451,6 +465,74 @@ class ApiClient {
         requireAuth: requireAuth,
         idempotencyKey: key,
       );
+    }
+  }
+
+  /// Steps 2–4 of the WP-H protocol, on top of ONE already-resolved durable
+  /// operation.
+  ///
+  /// The original endpoint, body, Idempotency-Key and material descriptor are
+  /// reused verbatim. Nothing here mints a new key, starts a second operation
+  /// or re-derives the action from screen state: the server's descriptor is
+  /// forwarded as received, and the retry differs only by the grant header.
+  Future<http.Response> _retryWithStepUpGrant(
+    DurableOperation op,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    required bool requireAuth,
+    required String key,
+    required ApiException refusal,
+  }) async {
+    final challenge = StepUpGrantChallenge.fromBody(refusal.body);
+    if (challenge == null) throw refusal; // not a usable challenge: never invent one
+
+    final protocol = StepUpGrantProtocol(
+      send: (path, grantBody) async {
+        try {
+          final response = await post(
+            path,
+            grantBody,
+            requireAuth: requireAuth,
+          );
+          return StepUpHttpResult(
+            statusCode: response.statusCode,
+            body: _decodeOrNull(response.body),
+          );
+        } on ApiException catch (e) {
+          return StepUpHttpResult(
+            statusCode: e.statusCode,
+            body: e.body,
+            code: e.code,
+          );
+        }
+      },
+    );
+
+    // obtain() throws StepUpCancelled (user dismissed: nothing sent),
+    // StepUpGrantRefused (truthful refusal) or StepUpGrantDigestMismatch
+    // (never transmit the economic action).
+    final grant = await protocol.obtain(challenge);
+
+    final retryHeaders = <String, String>{
+      ...?headers,
+      StepUpGrantCodes.grantHeader: grant.token,
+    };
+    // The retry is the SAME operation: same endpoint, same body, same key.
+    return await post(
+      op.endpoint,
+      body,
+      headers: retryHeaders,
+      requireAuth: requireAuth,
+      idempotencyKey: key,
+    );
+  }
+
+  Map<String, dynamic>? _decodeOrNull(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
     }
   }
 
