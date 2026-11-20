@@ -24,6 +24,7 @@ import 'package:azaman/screens/trade_summary_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/utils/idempotency_key.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 
 class VendorTradeExecution extends ConsumerStatefulWidget {
   final Map<String, dynamic> tradeData;
@@ -531,9 +532,17 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
       }
     } catch (e) {
       if (mounted) {
+        // WP-L closure: a transport loss or timeout is an UNKNOWN outcome for a
+        // release, never a failed one. Proven backend refusals keep their exact
+        // copy; everything else says we could not confirm.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Network Error: $e"),
+            content: Text(
+              safeMoneyErrorText(
+                e,
+                unknownFallback: unconfirmedMoneyOutcomeText(),
+              ),
+            ),
             backgroundColor: colors.danger,
           ),
         );
@@ -677,7 +686,15 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Failed: $e'),
+                            content: Text(
+                              safeMoneyErrorText(
+                                e,
+                                unknownFallback:
+                                    'We could not confirm whether the time was '
+                                    'extended. Reopen the trade to check before '
+                                    'trying again.',
+                              ),
+                            ),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -736,7 +753,17 @@ class _VendorTradeExecutionState extends ConsumerState<VendorTradeExecution> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(
+              safeMoneyErrorText(
+                e,
+                unknownFallback:
+                    'We could not confirm whether this trade was accepted. '
+                    'Check your trades before accepting again.',
+              ),
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }

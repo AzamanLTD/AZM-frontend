@@ -41,6 +41,7 @@ import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/services/azm_spend_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/smart_route/smart_route_list_screen.dart';
@@ -574,10 +575,15 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // entry (same action in flight — retry converges), any other
         // ANSWERED 4xx/5xx disposition per the helper contract.
         final code = data['code']?.toString();
-        final msg = code == 'AZM_SPEND_FAILED'
-            ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
-            : (data['message']?.toString() ??
-                  'Withdrawal failed (status ${response.statusCode})');
+        // WP-L — a server refusal code carries exact, financially honest
+        // copy. It wins over the raw backend message so a refused payout can
+        // never read as a generic failure (or as a conversion that did not
+        // happen).
+        final msg = moneyRefusalMessage(code) ??
+            (code == 'AZM_SPEND_FAILED'
+                ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
+                : (data['message']?.toString() ??
+                      'Withdrawal failed (status ${response.statusCode})'));
         _showSnack(msg, isError: true);
       }
     } catch (e) {
@@ -1127,7 +1133,8 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(moneyErrorText(e) ??
+                e.toString().replaceAll('Exception: ', '')),
             backgroundColor: colors.danger,
           ),
         );

@@ -20,6 +20,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/router/route_registry.dart';
@@ -357,13 +358,19 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
       final unresolved = _requestOperationUnresolved;
       if (!unresolved) _pendingLinkOnly = null;
       setState(() {
+        // WP-L closure: an unresolved operation is never re-labelled; a proven
+        // backend refusal keeps its exact copy; anything else stays honest.
         _requestError = unresolved
             ? 'We could not confirm the result. Retry the same action before changing this request.'
             : error is StateError
             ? error.message
-            : error is ApiException
-            ? error.message
-            : 'Could not create the request. Please try again.';
+            : safeMoneyErrorText(
+                error,
+                unknownFallback: error is ApiException
+                    ? error.message
+                    : 'We could not confirm whether this request was created. '
+                        'Check your requests before creating it again.',
+              );
       });
     } finally {
       if (mounted) setState(() => _creatingRequest = false);

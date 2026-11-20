@@ -12,6 +12,7 @@
 // =============================================================================
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/services/escrow_service.dart';
@@ -81,7 +82,13 @@ class EscrowNotifier extends StateNotifier<EscrowState> {
       AzamanHaptics.commit();
       AzSound.success();
     } catch (e) {
-      state = state.copyWith(isFunding: false, error: e.toString());
+      state = state.copyWith(
+        isFunding: false,
+        error: safeMoneyErrorText(
+          e,
+          unknownFallback: unconfirmedMoneyOutcomeText(),
+        ),
+      );
       rethrow;
     }
   }
@@ -98,7 +105,15 @@ class EscrowNotifier extends StateNotifier<EscrowState> {
       AzamanHaptics.commit();
       return result.settled;
     } catch (e) {
-      state = state.copyWith(isSatisfying: false, error: e.toString());
+      state = state.copyWith(
+        isSatisfying: false,
+        error: safeMoneyErrorText(
+          e,
+          unknownFallback:
+              'We could not confirm whether this was recorded. Check the '
+              'escrow before acting again.',
+        ),
+      );
       rethrow;
     }
   }
@@ -142,7 +157,14 @@ class EscrowNotifier extends StateNotifier<EscrowState> {
       AzamanHaptics.warn();
       await load();
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(
+        error: safeMoneyErrorText(
+          e,
+          unknownFallback:
+              'We could not confirm whether the escrow was cancelled. Reload '
+              'the escrow before trying again.',
+        ),
+      );
       rethrow;
     }
   }
