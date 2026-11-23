@@ -205,4 +205,30 @@ void main() {
       expect(AzMoney.amount(50, decimals: 0), '50');
     });
   });
+
+  group('wireAmount — the exact string a financial request carries', () {
+    test('keeps the customer digits verbatim, never a parsed double', () {
+      expect(AmountInput.wireAmount('100.50'), '100.50');
+      expect(AmountInput.wireAmount('0.00000001'), '0.00000001');
+      expect(AmountInput.wireAmount('  12.30 '), '12.30');
+    });
+
+    test('trims a trailing separator the keypad can leave behind', () {
+      expect(AmountInput.wireAmount('100.'), '100');
+    });
+
+    test('refuses shapes that are not an exact decimal', () {
+      expect(AmountInput.wireAmount(''), isNull);
+      expect(AmountInput.wireAmount('.'), isNull);
+      expect(AmountInput.wireAmount('1e3'), isNull);
+      expect(AmountInput.wireAmount('abc'), isNull);
+      expect(AmountInput.wireAmount('1.2.3'), isNull);
+    });
+
+    test('a double would already have lost these, the string does not', () {
+      // 0.1 + 0.2 == 0.30000000000000004 as a double.
+      expect(AmountInput.wireAmount('0.30'), '0.30');
+      expect(AmountInput.wireAmount('9007199254740993'), '9007199254740993');
+    });
+  });
 }

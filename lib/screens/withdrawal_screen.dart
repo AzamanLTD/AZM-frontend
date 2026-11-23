@@ -472,7 +472,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       // durable instance whose fingerprint EXACTLY matches it (r42
       // exact-instance process-death recovery — never "newest pending").
       final body = <String, dynamic>{
-        'amount': amount,
+        'amount': _amountExact,
         'recipientPhone': phone,
         'network': _selectedNetwork.apiValue,
         // Master Sprint v2: the optional `accountName` field is now used
@@ -636,7 +636,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       // durable instance whose fingerprint EXACTLY matches it (r42
       // exact-instance process-death recovery — never "newest pending").
       final body = <String, dynamic>{
-        'amount': amount,
+        'amount': _amountExact,
         'destination': destination,
         'networkPref': networkPref,
       };
@@ -1150,6 +1150,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   /// meaningful amount (empty/zero). Every validity rule is enforced by
   /// the [AmountInput] state machine before any state exists.
   double? get _amountValue => AmountInput.value(_amountRaw);
+  /// The exact decimal string this screen puts on the wire. The backend binds
+  /// the step-up action to the amount and refuses a numeric JSON amount, so the
+  /// customer's own digits are sent, never the parsed double.
+  String get _amountExact => AmountInput.wireAmount(_amountRaw) ?? _amountRaw;
 
   /// The odometer string: grouped integer part, fraction exactly as
   /// typed. Empty input displays as '0' — a resting instrument reads

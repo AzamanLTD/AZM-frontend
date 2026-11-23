@@ -53,6 +53,25 @@ abstract final class AmountInput {
 
   /// The numeric value the user has entered, or null when there is no
   /// meaningful amount (empty, or zero).
+  /// The exact decimal string a financial request must carry.
+  ///
+  /// [raw] is the customer's own keypad digits, so the amount never passes
+  /// through a binary double. The backend's canonical action refuses a
+  /// non-string amount outright ("must be an exact decimal string"), and the
+  /// withdrawal handler builds its Prisma.Decimal from the text it receives.
+  ///
+  /// The only shape the keypad can produce that is not a valid decimal is a
+  /// trailing separator ("100."), trimmed here. Returns null when the text is
+  /// not an exact decimal, so a caller refuses locally instead of sending
+  /// something the backend has to reject.
+  static String? wireAmount(String raw) {
+    var text = raw.trim();
+    if (text.endsWith('.')) text = text.substring(0, text.length - 1);
+    if (text.isEmpty) return null;
+    if (!RegExp(r'^-?\d+(\.\d+)?$').hasMatch(text)) return null;
+    return text;
+  }
+
   static double? value(String raw) {
     if (raw.isEmpty) return null;
     final v = double.tryParse(raw);
