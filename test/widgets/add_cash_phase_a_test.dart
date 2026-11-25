@@ -149,35 +149,32 @@ void main() {
         isTrue,
         reason: 'the amount must sit in the top-left region, not centered',
       );
-      // And it is genuinely at the TOP: below it come the method row,
-      // pills, keypad and CTA — all with larger vertical positions.
+      // The funding account now leads the form, above the amount.
       final methodRect = tester.getRect(find.text('Kwame Mensah'));
-      final pillRect = tester.getRect(find.text('GH₵ 50'));
       final keypadRect = tester.getRect(find.byType(AmountKeypad));
       final ctaRect = tester.getRect(find.text('Add Cash').last);
 
-      expect(zeroRect.bottom < methodRect.top, isTrue);
       expect(
-        methodRect.bottom < pillRect.top,
+        methodRect.bottom < zeroRect.top,
         isTrue,
-        reason:
-            'the method row must sit directly under the amount, '
-            'above the quick amounts',
+        reason: 'the funding selector must precede the amount',
       );
-      expect(pillRect.bottom < keypadRect.top, isTrue);
+      expect(zeroRect.bottom < keypadRect.top, isTrue);
       expect(keypadRect.bottom < ctaRect.top, isTrue);
     });
 
-    testWidgets('the payment-method row sits directly under the amount '
-        '(not under the keypad)', (tester) async {
+    testWidgets('the funding selector sits above the amount and keypad', (
+      tester,
+    ) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openDeposit(tester);
       await tester.pump(const Duration(seconds: 1));
 
       final method = tester.getRect(find.text('Kwame Mensah'));
+      final amount = tester.getRect(find.byType(OdometerNumber));
       final keypad = tester.getRect(find.byType(AmountKeypad));
-      // The method row is in the UPPER half of the surface.
+      expect(method.bottom < amount.top, isTrue);
       expect(method.top < keypad.top - 100, isTrue);
     });
 

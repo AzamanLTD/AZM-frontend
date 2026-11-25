@@ -4,10 +4,9 @@
 // The deposit surface redesigned as ONE composed product sheet:
 //
 //   [X] Add Cash            ← the single authoritative close affordance
+//   [network] Name / 024 … / ˅ ← funding-account selector
 //   GH₵ 0                   ← odometer amount, huge, the visual anchor
-//   [50][100][200][500]     ← quick amounts
 //   1 2 3 / 4 5 6 / 7 8 9 / . 0 ⌫   ← custom keypad
-//   [network] Name / 024 … / ˅      ← ONE payment-method row → selector sheet
 //   [ Add Cash ]            ← CTA, bottom safe area
 // Crypto receiving lives on the separate full-page Receive destination.
 //
@@ -292,7 +291,7 @@ class _AddCashHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // =============================================================================
-// FIAT PANEL — odometer amount, quick pills, keypad, method row, CTA.
+// FIAT PANEL — funding account, odometer amount, keypad, CTA.
 // =============================================================================
 
 class _FiatDepositPanel extends ConsumerStatefulWidget {
@@ -1310,52 +1309,8 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                 ),
               ),
             ],
-            // ── Phantom-style top-left amount composition (UI-correction
-            // Phase A): the amount and the selected payment method form the
-            // primary interaction at the top; keypad and CTA anchor the
-            // bottom. Nothing centers the amount anymore.
-            Padding(
-              padding: EdgeInsets.fromLTRB(24, compact ? 6 : 14, 24, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          AzMoney.ghsSymbol,
-                          style: AzText.money(
-                            colors.textSecondary,
-                            size: compact ? 24 : 30,
-                            tracking: -0.5,
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // The amount is the visual anchor. Empty input
-                      // renders as 0; only changed slots roll.
-                      OdometerNumber(
-                        value: _amountDisplay,
-                        style: AzText.money(
-                          colors.textPrimary,
-                          size: compact ? 52 : 64,
-                        ),
-                        semanticsLabel: '${AzMoney.ghsSymbol} $_amountDisplay',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Payment method — ONE row, directly under the amount (NOT
-            // below the keypad): the amount and the method it will be
-            // charged to read as one composed instrument.
+            // Funding account selector leads the form, like the recipient
+            // control on Send. The amount remains directly beneath it.
             Padding(
               padding: EdgeInsets.fromLTRB(20, compact ? 10 : 14, 20, 0),
               child: accountsAsync.when(
@@ -1399,30 +1354,46 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
               ),
             ),
 
-            // Quick amounts — replace the current amount, roll the odometer.
+            // ── Phantom-style top-left amount composition (UI-correction
+            // Phase A): the amount and selected funding account form the
+            // primary interaction at the top; keypad and CTA anchor the
+            // bottom. Nothing centers the amount anymore.
             Padding(
-              padding: EdgeInsets.fromLTRB(24, compact ? 10 : 14, 24, 0),
-              child: Wrap(
-                alignment: WrapAlignment.start,
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  for (final amt in const [50, 100, 200, 500])
-                    _QuickAmountPill(
-                      colors: colors,
-                      amount: amt,
-                      selected: _amountRaw == amt.toString(),
-                      onTap: () {
-                        if (_isSubmitting ||
-                            _isValidatingName ||
-                            _persistingContinuation) {
-                          return;
-                        }
-                        AzamanHaptics.toggle();
-                        setState(() => _amountRaw = amt.toString());
-                      },
-                    ),
-                ],
+              padding: EdgeInsets.fromLTRB(24, compact ? 6 : 14, 24, 0),
+              child: SizedBox(
+                width: double.infinity,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          AzMoney.ghsSymbol,
+                          style: AzText.money(
+                            colors.textSecondary,
+                            size: compact ? 24 : 30,
+                            tracking: -0.5,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // The amount is the visual anchor. Empty input
+                      // renders as 0; only changed slots roll.
+                      OdometerNumber(
+                        value: _amountDisplay,
+                        style: AzText.money(
+                          colors.textPrimary,
+                          size: compact ? 52 : 64,
+                        ),
+                        semanticsLabel: '${AzMoney.ghsSymbol} $_amountDisplay',
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
@@ -1973,62 +1944,6 @@ class _RecoveryUnresolvedBanner extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// QUICK AMOUNT PILL
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _QuickAmountPill extends StatelessWidget {
-  const _QuickAmountPill({
-    required this.colors,
-    required this.amount,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final AzamanColors colors;
-  final int amount;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: '${AzMoney.ghsSymbol} $amount',
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: MotionTokens.control,
-          curve: MotionTokens.enter,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-          decoration: BoxDecoration(
-            color: selected
-                ? colors.accent.withValues(alpha: 0.14)
-                : colors.softSurface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-              color: selected
-                  ? colors.accent
-                  : colors.border.withValues(alpha: 0.6),
-              width: 1,
-            ),
-          ),
-          child: Text(
-            '${AzMoney.ghsSymbol} $amount',
-            style: TextStyle(
-              color: selected ? colors.accent : colors.textSecondary,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // PAYMENT METHOD ROW — the single selected-method surface.
 // Primary identity: the verified registered name (accountName) when one
 // exists; the nickname is the fallback, never the other way around.
@@ -2059,6 +1974,7 @@ class _SelectedMethodRow extends StatelessWidget {
     final phone = MomoNetwork.formatPhone(account.phoneNumber);
 
     return ScaleTap(
+      key: const ValueKey('add-cash-source-selector'),
       onTap: onTap,
       child: Semantics(
         button: true,
@@ -2073,7 +1989,7 @@ class _SelectedMethodRow extends StatelessWidget {
           // against the page, not from a stroked box-in-box.
           decoration: BoxDecoration(
             color: colors.softSurface,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
             children: [
@@ -2145,6 +2061,7 @@ class _AddMethodRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ScaleTap(
+      key: const ValueKey('add-cash-source-selector'),
       onTap: onTap,
       child: Semantics(
         button: true,
@@ -2154,7 +2071,7 @@ class _AddMethodRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             color: colors.softSurface.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(28),
             border: Border.all(
               color: colors.accent.withValues(alpha: 0.35),
               width: 1.2,
@@ -2196,6 +2113,7 @@ class _ChooseMethodRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ScaleTap(
+      key: const ValueKey('add-cash-source-selector'),
       onTap: onTap,
       child: Semantics(
         button: true,
@@ -2206,7 +2124,7 @@ class _ChooseMethodRow extends StatelessWidget {
           // Same no-border surface grammar as the selected-method row.
           decoration: BoxDecoration(
             color: colors.softSurface,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
             children: [

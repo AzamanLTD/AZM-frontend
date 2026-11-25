@@ -8,8 +8,7 @@
 // Interaction grammar is the Add Cash surface's (deposit_screen.dart):
 //   • odometer-style amount display, amount-first at the top
 //   • the custom AmountKeypad (no system keyboard for the amount)
-//   • quick amount pills
-//   • ONE dedicated recipient row (no inline contact list)
+//   • recipient and QR controls in the top entry row
 //   • a deliberate review stage, then a strong bottom action
 //
 // Financial truth (this is the release-critical part):
@@ -50,8 +49,6 @@
 
 import 'dart:async';
 import 'dart:io';
-
-import 'package:meta/meta.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -210,12 +207,6 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   /// post-frame callback, so a resumed draft re-validates the recipient
   /// instead of trusting stored data.
   String? _draftSeedAzamanId;
-
-  // Quick amounts per entry unit — a '10' pill is NEVER ambiguous: the
-  // label carries the unit, and GHS pills are cedi-scale, not USDC digits.
-  List<double> get _quickAmounts => _entryIndex == 0
-      ? const [20.0, 50.0, 100.0, 200.0]
-      : const [5.0, 10.0, 20.0, 50.0];
 
   @override
   void initState() {
@@ -419,10 +410,14 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     AzamanHaptics.toggle();
     setState(() {
       _entryIndex = newIndex;
-      _amountRaw = _formatQuick(converted);
+      _amountRaw = _formatAmount(converted);
       _error = null;
     });
   }
+
+  static String _formatAmount(double value) => value == value.truncateToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(2);
 
   bool get _canProgress =>
       _amountValue != null && _recipient != null && _recipient!.canReceive;
@@ -451,12 +446,28 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     }
   }
 
+  Future<void> _scanRecipient() async {
+    if (_stage == _SendStage.sending) return;
+    final picked = await showRecipientSelectorSheet(
+      context,
+      currentRecipient: _recipient,
+      discovery: widget.discovery,
+      openScannerOnShow: true,
+    );
+    if (picked != null && mounted) {
+      setState(() {
+        _recipient = picked;
+        _recipientChosenByUser = true;
+        _error = null;
+      });
+    }
+  }
+
   void _clearRecipient() {
     if (_stage == _SendStage.sending) return;
     AzamanHaptics.nav();
     setState(() {
       _recipient = null;
-      // A cleared recipient is no longer user-added state.
       _recipientChosenByUser = false;
       _error = null;
     });
@@ -802,6 +813,11 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                   stage: _stage,
                   onClose: _attemptClose,
                   onBackToEdit: _backToCompose,
+                  recipient: _recipient,
+                  lookingUp: _seedLookingUp,
+                  onChooseRecipient: _chooseRecipient,
+                  onScanRecipient: _scanRecipient,
+                  onClearRecipient: _clearRecipient,
                 ),
                 Expanded(
                   child: switch (_stage) {
@@ -954,7 +970,6 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     String myAzamanId,
   ) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final recipient = _recipient;
     // The chip is a DISPLAY surface: it follows the user's global display
     // preference (never the local entry wheel) and shows the ledger truth
     // (USDC) alongside its equivalent when the rate is valid.
@@ -1083,38 +1098,6 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Quick amounts — denominated in the wheel's selected unit.
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: [
-                      for (final amt in _quickAmounts)
-                        _QuickAmountPill(
-                          colors: colors,
-                          amount: amt,
-                          unit: _entryUnit,
-                          selected: _amountRaw == _formatQuick(amt),
-                          onTap: () {
-                            AzamanHaptics.toggle();
-                            setState(() => _amountRaw = _formatQuick(amt));
-                          },
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ONE dedicated recipient row — never an inline list.
-                _RecipientField(
-                  colors: colors,
-                  recipient: recipient,
-                  lookingUp: _seedLookingUp,
-                  onChoose: _chooseRecipient,
-                  onClear: _clearRecipient,
-                ),
-
                 if (_error != null) ...[
                   const SizedBox(height: 10),
                   _ErrorText(colors: colors, message: _error!),
@@ -1160,9 +1143,6 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
       ],
     );
   }
-
-  static String _formatQuick(double v) =>
-      v == v.truncateToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
 
   // ── Review stage ────────────────────────────────────────────────────────
 
@@ -1579,52 +1559,6 @@ class _BalanceChip extends StatelessWidget {
   }
 }
 
-class _QuickAmountPill extends StatelessWidget {
-  const _QuickAmountPill({
-    required this.colors,
-    required this.amount,
-    required this.unit,
-    required this.selected,
-    required this.onTap,
-  });
-  final AzamanColors colors;
-  final double amount;
-  final AzCurrency unit;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // The label ALWAYS names the unit: 'GH₵ 100' is never misread as
-    // '100 USDC' when the wheel has moved.
-    final label = amount == amount.truncateToDouble()
-        ? '${unit.symbol}\u00A0${amount.toStringAsFixed(0)}'
-        : '${unit.symbol}\u00A0${amount.toStringAsFixed(2)}';
-    final face = selected ? colors.accent : colors.card;
-    final textColor = selected ? colors.onAccent : colors.textSecondary;
-    return ScaleTap(
-      key: ValueKey('send-quick-$label'),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: face,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? colors.accent : colors.divider),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _RecipientField extends StatelessWidget {
   const _RecipientField({
     required this.colors,
@@ -1632,6 +1566,7 @@ class _RecipientField extends StatelessWidget {
     required this.lookingUp,
     required this.onChoose,
     required this.onClear,
+    required this.compact,
   });
 
   final AzamanColors colors;
@@ -1639,171 +1574,102 @@ class _RecipientField extends StatelessWidget {
   final bool lookingUp;
   final VoidCallback onChoose;
   final VoidCallback onClear;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final r = recipient;
-    if (r == null) {
-      final body = lookingUp
-          ? Row(
-              children: [
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'Resolving AZM ID…',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                ),
-              ],
-            )
-          : Row(
-              children: [
-                Icon(
-                  Icons.person_add_outlined,
-                  size: 20,
-                  color: colors.textTertiary,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Choose recipient',
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Icon(Icons.chevron_right, size: 20, color: colors.textTertiary),
-              ],
-            );
+    if (compact) {
+      final title =
+          r?.name ?? (lookingUp ? 'Finding recipient…' : 'Choose recipient');
+      final subtitle = r?.identityLine ?? 'Send to a person';
       return ScaleTap(
-        key: const ValueKey('send-recipient-field'),
+        key: ValueKey(
+          r == null ? 'send-recipient-field' : 'send-recipient-confirmed',
+        ),
         onTap: onChoose,
         child: Semantics(
           button: true,
-          label: 'Choose recipient',
+          label: r == null
+              ? 'Choose recipient'
+              : 'Recipient: ${r.identityLine}. Change recipient.',
+          excludeSemantics: true,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: colors.divider),
+              color: colors.softSurface,
+              borderRadius: BorderRadius.circular(24),
             ),
-            child: body,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (r != null)
+                  _Avatar(colors: colors, url: r.avatarUrl, name: r.name)
+                else
+                  Icon(
+                    Icons.person_add_alt_1_outlined,
+                    size: 18,
+                    color: colors.textSecondary,
+                  ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (r != null)
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 10.5,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (r != null) ...[
+                  const SizedBox(width: 6),
+                  r.canReceive
+                      ? _FriendChip(colors: colors)
+                      : _NotConnectedChip(colors: colors),
+                ],
+                const SizedBox(width: 4),
+                if (r == null)
+                  Icon(Icons.expand_more, size: 18, color: colors.textTertiary)
+                else
+                  GestureDetector(
+                    key: const ValueKey('send-recipient-clear'),
+                    onTap: onClear,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: Icon(
+                        Icons.close,
+                        size: 14,
+                        color: colors.textTertiary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       );
     }
-
-    // Confirmed recipient: resolved identity + obvious Change and Clear.
-    return Container(
-      key: const ValueKey('send-recipient-confirmed'),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: r.canReceive ? colors.accent : colors.danger),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              _Avatar(colors: colors, url: r.avatarUrl, name: r.name),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      r.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      // PR #165 review finding 4: honest identity line. A
-                      // username-less AZM lookup shows displayName + the
-                      // real AZM ID — the display name is NEVER
-                      // manufactured into an `@handle`.
-                      r.identityLine,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: colors.textSecondary,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              r.canReceive
-                  ? _FriendChip(colors: colors)
-                  : _NotConnectedChip(colors: colors),
-            ],
-          ),
-          if (!r.canReceive) ...[
-            const SizedBox(height: 8),
-            Text(
-              'You are not connected yet. Peer sends require an accepted friendship — this recipient cannot receive this transfer.',
-              style: TextStyle(color: colors.textTertiary, fontSize: 11),
-            ),
-          ],
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              ScaleTap(
-                key: const ValueKey('send-recipient-change'),
-                onTap: onChoose,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  child: Text(
-                    'Change',
-                    style: TextStyle(
-                      color: colors.accent,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
-              ScaleTap(
-                key: const ValueKey('send-recipient-clear'),
-                onTap: onClear,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  child: Text(
-                    'Clear',
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 }
 
@@ -2085,12 +1951,22 @@ class _SendHeader extends StatelessWidget {
     required this.stage,
     required this.onClose,
     required this.onBackToEdit,
+    required this.recipient,
+    required this.lookingUp,
+    required this.onChooseRecipient,
+    required this.onScanRecipient,
+    required this.onClearRecipient,
   });
 
   final AzamanColors colors;
   final _SendStage stage;
   final VoidCallback onClose;
   final VoidCallback onBackToEdit;
+  final SendRecipient? recipient;
+  final bool lookingUp;
+  final VoidCallback onChooseRecipient;
+  final VoidCallback onScanRecipient;
+  final VoidCallback onClearRecipient;
 
   bool get _showsBackToEdit =>
       stage == _SendStage.review ||
@@ -2141,16 +2017,54 @@ class _SendHeader extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 14),
-          Text(
-            _showsBackToEdit ? 'Review transfer' : 'Send',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
+          const SizedBox(width: 12),
+          if (_showsBackToEdit)
+            Text(
+              'Review transfer',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            )
+          else ...[
+            Expanded(
+              child: _RecipientField(
+                colors: colors,
+                recipient: recipient,
+                lookingUp: lookingUp,
+                onChoose: onChooseRecipient,
+                onClear: onClearRecipient,
+                compact: true,
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Semantics(
+              button: true,
+              label: 'Scan recipient QR code',
+              excludeSemantics: true,
+              child: GestureDetector(
+                key: const ValueKey('send-top-qr'),
+                onTap: onScanRecipient,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: colors.softSurface,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.qr_code_scanner_rounded,
+                    size: 20,
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

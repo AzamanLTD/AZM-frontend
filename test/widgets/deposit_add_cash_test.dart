@@ -1,6 +1,6 @@
 // =============================================================================
 // ADD CASH REDESIGN — WIDGET TESTS: GROUP A (initial surface), B (odometer
-// wiring), C (quick amounts), F (CTA + the full Moolre flow under demo
+// wiring), C (no quick amounts), F (CTA + the full Moolre flow under demo
 // mode), I (accessibility).
 //
 // Group J (regression) lives with the existing suites; this file must stay
@@ -213,7 +213,7 @@ void main() {
       expect(find.text('Receive USDC'), findsNothing);
     });
 
-    testWidgets('resting instrument: amount 0, pills, keypad, method, CTA', (
+    testWidgets('resting instrument: source, amount, keypad, CTA', (
       tester,
     ) async {
       _phoneSize(tester);
@@ -231,11 +231,13 @@ void main() {
         findsOneWidget,
       );
 
-      // Quick amounts: 50 / 100 / 200 / 500.
-      expect(find.text('GH₵ 50'), findsOneWidget);
-      expect(find.text('GH₵ 100'), findsOneWidget);
-      expect(find.text('GH₵ 200'), findsOneWidget);
-      expect(find.text('GH₵ 500'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('add-cash-source-selector')),
+        findsOneWidget,
+      );
+      for (final amount in ['GH₵ 50', 'GH₵ 100', 'GH₵ 200', 'GH₵ 500']) {
+        expect(find.text(amount), findsNothing);
+      }
 
       // Keypad: all nine digits, decimal, backspace.
       for (final d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']) {
@@ -327,32 +329,17 @@ void main() {
     });
   });
 
-  group('C — quick amounts', () {
-    testWidgets('a pill sets the amount instantly', (tester) async {
+  group('C — amount entry', () {
+    testWidgets('quick amount presets are absent', (tester) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openDeposit(tester);
       await tester.pump(const Duration(seconds: 1));
 
-      await tester.tap(find.text('GH₵ 100'));
-      await _settleRoll(tester);
-
-      expect(_odometerCell('1'), findsOneWidget);
-      expect(_odometerCell('0'), findsNWidgets(2)); // both zeros of 100
-    });
-
-    testWidgets('repeated pill taps are harmless', (tester) async {
-      _phoneSize(tester);
-      await tester.pumpWidget(_app());
-      await _openDeposit(tester);
-      await tester.pump(const Duration(seconds: 1));
-
-      await tester.tap(find.text('GH₵ 200'));
-      await tester.tap(find.text('GH₵ 200'));
-      await _settleRoll(tester);
-      // Still 200 — no doubling, no crash.
-      expect(_odometerCell('2'), findsOneWidget);
-      expect(_odometerCell('0'), findsNWidgets(2));
+      for (final amount in ['GH₵ 50', 'GH₵ 100', 'GH₵ 200', 'GH₵ 500']) {
+        expect(find.text(amount), findsNothing);
+      }
+      expect(find.byType(AmountKeypad), findsOneWidget);
     });
   });
 
