@@ -1510,49 +1510,54 @@ class _BalanceChip extends StatelessWidget {
     final hasRate = rate != null && CurrencyMath.isUsableRate(rate!);
     final ghsText = hasRate ? AzMoney.ghs(balance * rate!) : null;
     final ledgerText = '${balance.toStringAsFixed(2)} USDC';
-    final available = ghsFirst
-        ? (ghsText == null
-              ? 'Available: $ledgerText'
-              : 'Available: $ghsText · $ledgerText')
-        : (ghsText == null
-              ? 'Available: $ledgerText'
-              : 'Available: $ledgerText · $ghsText');
+    final primary = ghsFirst ? (ghsText ?? ledgerText) : ledgerText;
+    final details = <String>[
+      if (primary != ledgerText) ledgerText,
+      if (primary == ledgerText && ghsText != null) ghsText,
+      if (myAzamanId.isNotEmpty) 'Your ID: $myAzamanId',
+    ].join(' · ');
     return Container(
       key: const ValueKey('send-balance-chip'),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
         color: colors.accentSurface,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          Icon(Icons.wallet_outlined, size: 16, color: colors.accent),
-          const SizedBox(width: 8),
+          Icon(Icons.wallet_outlined, size: 18, color: colors.accent),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text(
-              available,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: colors.accent,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Available: $primary',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.accent,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (details.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    details,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: colors.textTertiary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          if (myAzamanId.isNotEmpty)
-            Flexible(
-              child: Text(
-                'Your ID: $myAzamanId',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
         ],
       ),
     );
