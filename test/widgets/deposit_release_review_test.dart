@@ -298,10 +298,16 @@ Future<void> _settleSheet(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 100));
 }
 
-/// Stage 50 GHS via the quick-amount pill.
+/// Stage 50 GHS through the on-screen amount keypad.
 Future<void> _enterAmount(WidgetTester tester) async {
-  await tester.tap(find.text('GH₵ 50'));
-  await tester.pump(const Duration(milliseconds: 100));
+  for (final digit in ['5', '0']) {
+    final key = find.descendant(
+      of: find.byType(AmountKeypad),
+      matching: find.text(digit),
+    );
+    await tester.tap(key.first, warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 100));
+  }
   await tester.pump(const Duration(milliseconds: 600));
 }
 

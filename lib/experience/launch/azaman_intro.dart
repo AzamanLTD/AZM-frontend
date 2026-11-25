@@ -1,34 +1,19 @@
 // =============================================================================
 // AZAMAN — LAUNCH INTRO
 //
-// ONE continuous painted sequence, rebuilt from the approved reference clip
-// (656x848, 30fps, 3.83s) rather than assembled from separate assets.
+// The production splash plays the theme-matched MP4 renders from the Rive
+// source project in rive/azaman-liquid and rive/azaman-liquid-light. A native
+// video surface keeps startup independent of a Rive runtime export watermark;
+// the editable Rive source and its Luau script remain alongside the app asset.
 //
-// WHY THIS REPLACES THE PREVIOUS IMPLEMENTATION
-// The old intro stacked two independent SVGs — a mark and a complete lockup —
-// and animated their opacity and scale. That produces a layered crossfade: the
-// eye sees one logo dissolve into another logo. The reference never does that.
-// It has ONE drawing in ONE place, and the transition is an expanding circular
-// aperture: a bright ring grows out of the collapsed mark and uncovers the
-// wordmark from the centre outward, with the ink riding just behind the ring
-// edge. So the transform is a REVEAL of a single painting, not a swap of two.
-//
-// MEASURED TIMELINE (every constant is from the clip, not invented)
-//   0    - 200ms   mark swells in, 84px -> 126px (of a 656px canvas)
-//   200  - 1000ms  glass tile swells around it, rim highlight sweeps, it breathes
-//   1000 - 1300ms  tile contracts away, mark shrinks to a 39px point
-//   1330 - 1530ms  bright annulus forms, r 44 -> 58, cyan chromatic edge
-//   1400 - 2200ms  aperture expands, uncovering the wordmark; 8% overshoot
-//   2000 - 3000ms  halo expands and fades
-//   2200 - 3833ms  settled wordmark holds, readable, then the screen resolves
-//
-// The completion callback fires at the END of that timeline, never at the
-// moment the wordmark starts to appear: the ring/halo has real motion left
-// after the first letter is legible, and leaving early is what makes an intro
-// feel cut off.
+// The 3-second sequence is mark-only: liquid refraction brings the silver mark
+// in, the distortion settles for a centered hold, then a returning fluid swell
+// carries the mark away. The completion callback fires only after the full
+// sequence, while startup work runs concurrently behind the splash.
 // =============================================================================
 
 import 'dart:ui' as ui;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -65,61 +50,61 @@ class IntroChrome {
   final Color ringEdge;
 
   static const IntroChrome dark = IntroChrome(
-    background: Color(0xFF000000),
-    tileTop: Color(0xFF1F1E23),
-    tileBottom: Color(0xFF06070C),
-    rimStart: Color(0x66FFFFFF),
-    rimEnd: Color(0x14FFFFFF),
-    glow: Color(0x333F8FD2),
-    // The owner's silver ramp, verbatim from the mark SVG.
+    background: Color(0xFF010103),
+    tileTop: Color(0xFF141820),
+    tileBottom: Color(0xFF05070B),
+    rimStart: Color(0xB3EEF3FF),
+    rimEnd: Color(0x3305070B),
+    glow: Color(0x224D6F98),
+    // The dark-theme ink is the supplied cool white, with restrained metallic
+    // reflections so the three-arc master still reads as polished silver.
     markStops: <Color>[
-      Color(0xFF80898B),
-      Color(0xFFDCE0E0),
-      Color(0xFF8D9699),
-      Color(0xFFF1F3F3),
-      Color(0xFF929A9D),
-      Color(0xFF717A7D),
+      Color(0xFFF2F5FA),
+      Color(0xFFC7CED8),
+      Color(0xFFF2F5FA),
+      Color(0xFFAEB7C4),
+      Color(0xFFEEF3FF),
+      Color(0xFFF2F5FA),
     ],
-    // Measured down a thick wordmark stem in the final frame.
     wordStops: <Color>[
-      Color(0xFFFFFFFF),
-      Color(0xFFE6EAEC),
-      Color(0xFFC2C4C8),
-      Color(0xFFDCDDE1),
-      Color(0xFFA0A1A6),
-      Color(0xFF6C6D73),
+      Color(0xFFF2F5FA),
+      Color(0xFFC7CED8),
+      Color(0xFFF2F5FA),
+      Color(0xFFAEB7C4),
+      Color(0xFFEEF3FF),
+      Color(0xFFF2F5FA),
     ],
-    ring: Color(0xFFFFFFFF),
-    ringEdge: Color(0xFF7BD3FF),
+    ring: Color(0xFFF2F5FA),
+    ringEdge: Color(0xFFAEBFD1),
   );
 
   /// Light theme keeps the same geometry and materials; the metal reads against
   /// paper instead of against black.
   static const IntroChrome light = IntroChrome(
-    background: Color(0xFFF4F5F6),
+    background: Color(0xFFF4F4F7),
     tileTop: Color(0xFFFFFFFF),
-    tileBottom: Color(0xFFE7EAEC),
+    tileBottom: Color(0xFFE4E7EF),
     rimStart: Color(0xCCFFFFFF),
     rimEnd: Color(0x33000000),
-    glow: Color(0x1A3F8FD2),
+    glow: Color(0x14343F52),
     markStops: <Color>[
-      Color(0xFF2F363B),
-      Color(0xFF7C878D),
-      Color(0xFF48525A),
-      Color(0xFFBCC6CB),
-      Color(0xFF5A646A),
-      Color(0xFF39424A),
+      Color(0xFF0B0C11),
+      Color(0xFF3A4148),
+      Color(0xFF101116),
+      Color(0xFF59616A),
+      Color(0xFF1C1F24),
+      Color(0xFF0B0C11),
     ],
     wordStops: <Color>[
-      Color(0xFF262D32),
-      Color(0xFF5A6469),
-      Color(0xFF7F8A90),
-      Color(0xFFC4CFD5),
-      Color(0xFF7A858B),
-      Color(0xFF232A2F),
+      Color(0xFF0B0C11),
+      Color(0xFF3A4148),
+      Color(0xFF101116),
+      Color(0xFF59616A),
+      Color(0xFF1C1F24),
+      Color(0xFF0B0C11),
     ],
-    ring: Color(0xFF262D32),
-    ringEdge: Color(0xFF3F8FD2),
+    ring: Color(0xFF0B0C11),
+    ringEdge: Color(0xFF58616C),
   );
 
   static IntroChrome of(BuildContext context) =>
@@ -128,12 +113,11 @@ class IntroChrome {
 
 /// Public timing contract, so callers and tests share ONE set of numbers.
 abstract final class AzamanIntro {
-  /// The reference clip's full length: the sequence is not finished before this.
-  static const Duration total = Duration(milliseconds: 3833);
+  /// The full Rive-rendered launch sequence played by the Flutter splash.
+  static const Duration total = Duration(milliseconds: 3000);
 
-  /// The moment the wordmark is fully settled and the halo has cleared.
-  /// Routing waits for [total]; this is only the point where the mark reads.
-  static const Duration settled = Duration(milliseconds: 2200);
+  /// The calm, centered mark hold in the middle of the liquid sequence.
+  static const Duration settled = Duration(milliseconds: 1500);
 
   // Stage boundaries, in milliseconds from the first frame.
   static const int markIn = 200;
@@ -185,7 +169,7 @@ abstract final class AzamanIntro {
   static const double wordWidth = 0.393; // 258 / 656
 }
 
-/// Reduced motion: no travel, no reveal — the settled brand state, then on.
+/// Reduced motion and decoder-failure fallback: show the centered mark, then on.
 class AzamanIntroStatic extends StatelessWidget {
   const AzamanIntroStatic({super.key, this.chrome});
 
@@ -196,12 +180,74 @@ class AzamanIntroStatic extends StatelessWidget {
     final c = chrome ?? IntroChrome.of(context);
     return ColoredBox(
       color: c.background,
+      child: SizedBox.expand(child: CustomPaint(painter: _MarkHoldPainter(c))),
+    );
+  }
+}
+
+/// Vector-authored alternative to the supplied clips. Kept available for
+/// iterating on motion in Flutter; the splash currently uses
+/// [AzamanIntroPlayer] to preserve the richer reference effect faithfully.
+class AzamanIntroMotion extends StatefulWidget {
+  const AzamanIntroMotion({super.key, required this.onCompleted, this.chrome});
+
+  final VoidCallback onCompleted;
+  final IntroChrome? chrome;
+
+  @override
+  State<AzamanIntroMotion> createState() => _AzamanIntroMotionState();
+}
+
+class _AzamanIntroMotionState extends State<AzamanIntroMotion>
+    with SingleTickerProviderStateMixin {
+  static bool _playedInProcess = false;
+
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: AzamanIntro.total,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (_playedInProcess) {
+      _controller.value = 1;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onCompleted();
+      });
+      return;
+    }
+    _playedInProcess = true;
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed && mounted) {
+        widget.onCompleted();
+      }
+    });
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chrome = widget.chrome ?? IntroChrome.of(context);
+    return ColoredBox(
+      color: chrome.background,
       child: Center(
-        child: FractionallySizedBox(
-          widthFactor: AzamanIntro.wordWidth,
-          child: AspectRatio(
-            aspectRatio: kWordmarkWidth / kWordmarkHeight,
-            child: CustomPaint(painter: _WordmarkPainter(c)),
+        child: AspectRatio(
+          aspectRatio: kLaunchAspectRatio,
+          child: RepaintBoundary(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) => CustomPaint(
+                painter: _AzamanIntroPainter(_controller.value, chrome),
+                size: Size.infinite,
+              ),
+            ),
           ),
         ),
       ),
@@ -209,34 +255,296 @@ class AzamanIntroStatic extends StatelessWidget {
   }
 }
 
-class _WordmarkPainter extends CustomPainter {
-  const _WordmarkPainter(this.chrome);
+class _AzamanIntroPainter extends CustomPainter {
+  _AzamanIntroPainter(this.progress, this.chrome);
+
+  final double progress;
   final IntroChrome chrome;
+
+  static const Size _designSize = Size(656, 848);
+  static const Offset _center = Offset(328, 424);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path.from(_wordCache ?? parseIntroPath(kWordmarkPath))
-      ..transform(
-        Matrix4.diagonal3Values(
-          size.width / kWordmarkWidth,
-          size.height / kWordmarkHeight,
-          1,
-        ).storage,
+    if (size.isEmpty) return;
+    ensureIntroArtPrepared();
+    canvas.save();
+    canvas.scale(
+      size.width / _designSize.width,
+      size.height / _designSize.height,
+    );
+
+    final time = progress.clamp(0.0, 1.0) * AzamanIntro.total.inMilliseconds;
+    _paintGlassTile(canvas, time);
+    _paintMark(canvas, time);
+    _paintWordReveal(canvas, time);
+    _paintLensAndRings(canvas, time);
+
+    canvas.restore();
+  }
+
+  void _paintGlassTile(Canvas canvas, double time) {
+    final appear = _ease(time, 180, 430);
+    final collapse = _ease(
+      time,
+      AzamanIntro.collapseStart.toDouble(),
+      AzamanIntro.collapseEnd.toDouble(),
+    );
+    final opacity = appear * (1 - collapse);
+    if (opacity <= 0.001) return;
+
+    final breathe = 1 + 0.012 * math.sin((time - 260) / 260);
+    final edge = AzamanIntro.tileWidth * _designSize.width;
+    final side =
+        edge * (0.72 + 0.28 * appear) * (1 - 0.94 * collapse) * breathe;
+    final rect = Rect.fromCenter(center: _center, width: side, height: side);
+    final radius = Radius.circular(side * 0.225);
+    final rrect = RRect.fromRectAndRadius(rect, radius);
+
+    canvas.drawRRect(
+      rrect.shift(const Offset(0, 8)),
+      Paint()
+        ..color = _alpha(chrome.glow, opacity * 0.62)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
+    );
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, <Color>[
+          _alpha(chrome.tileTop, opacity * 0.58),
+          _alpha(chrome.tileBottom, opacity * 0.78),
+        ]),
+    );
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.25
+        ..shader = ui.Gradient.linear(rect.topLeft, rect.bottomRight, <Color>[
+          _alpha(chrome.rimStart, opacity),
+          _alpha(chrome.rimEnd, opacity),
+        ]),
+    );
+
+    final sweep = _ease(time, 370, 910);
+    if (sweep > 0 && sweep < 1) {
+      canvas.save();
+      canvas.clipRRect(rrect);
+      final x = rect.left - side * 0.25 + side * 1.5 * sweep;
+      canvas.drawLine(
+        Offset(x - side * 0.08, rect.top),
+        Offset(x + side * 0.08, rect.bottom),
+        Paint()
+          ..color = _alpha(Colors.white, opacity * 0.20)
+          ..strokeWidth = side * 0.11
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 16),
       );
+      canvas.restore();
+    }
+
+    final bubblePhase = _ease(time, 660, 980);
+    if (bubblePhase > 0 && collapse < 0.1) {
+      final bubblePaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = _alpha(chrome.rimStart, (1 - bubblePhase) * 0.5);
+      canvas.drawCircle(
+        Offset(
+          _center.dx + side * 0.27,
+          _center.dy - side * 0.36 * bubblePhase,
+        ),
+        4.5,
+        bubblePaint,
+      );
+      canvas.drawCircle(
+        Offset(
+          _center.dx - side * 0.31,
+          _center.dy - side * 0.18 * bubblePhase,
+        ),
+        2.6,
+        bubblePaint,
+      );
+    }
+  }
+
+  void _paintMark(Canvas canvas, double time) {
+    final visibility = 1 - _ease(time, 1330, 1550);
+    if (visibility <= 0.001) return;
+    final swell = _ease(time, 0, AzamanIntro.markIn.toDouble());
+    final collapse = _ease(
+      time,
+      AzamanIntro.collapseStart.toDouble(),
+      AzamanIntro.collapseEnd.toDouble(),
+    );
+    final width =
+        ui.lerpDouble(
+              AzamanIntro.markStartWidth * _designSize.width,
+              AzamanIntro.markPeakWidth * _designSize.width,
+              swell,
+            )! *
+            (1 - collapse) +
+        AzamanIntro.markCollapsedWidth * _designSize.width * collapse;
+    final scale = width / kMarkBox;
+    final rect = Rect.fromCenter(center: _center, width: width, height: width);
+    final mark = _markCache!;
+
+    if (time < AzamanIntro.collapseEnd + 200) {
+      canvas.drawPath(
+        _transformed(mark, scale, rect.topLeft),
+        Paint()
+          ..color = _alpha(chrome.glow, 0.46 * visibility)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      );
+    }
     canvas.drawPath(
-      path,
+      _transformed(mark, scale, rect.topLeft),
+      Paint()
+        ..color = _alpha(Colors.white, visibility)
+        ..shader = ui.Gradient.linear(
+          rect.topLeft,
+          rect.bottomRight,
+          chrome.markStops,
+          const <double>[0, 0.18, 0.42, 0.62, 0.80, 1],
+        ),
+    );
+
+    // A narrow travelling highlight gives the metal one deliberate light pass.
+    final glint = _ease(time, 520, 940);
+    if (glint > 0 && glint < 1 && collapse < 0.1) {
+      final x = rect.left - width * 0.2 + width * 1.4 * glint;
+      canvas.save();
+      canvas.clipPath(_transformed(mark, scale, rect.topLeft));
+      canvas.drawLine(
+        Offset(x, rect.top),
+        Offset(x + width * 0.12, rect.bottom),
+        Paint()
+          ..color = _alpha(Colors.white, 0.62)
+          ..strokeWidth = math.max(1.0, width * 0.035)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+      canvas.restore();
+    }
+  }
+
+  void _paintWordReveal(Canvas canvas, double time) {
+    if (time < AzamanIntro.ringStart) return;
+    final wordWidth = AzamanIntro.wordWidth * _designSize.width;
+    final wordHeight = wordWidth * kWordmarkHeight / kWordmarkWidth;
+    final wordRect = Rect.fromCenter(
+      center: _center,
+      width: wordWidth,
+      height: wordHeight,
+    );
+    final reveal = _ease(time, 1400, AzamanIntro.revealEnd.toDouble());
+    final aperture = 176 * reveal;
+
+    canvas.save();
+    canvas.clipPath(
+      Path()..addOval(Rect.fromCircle(center: _center, radius: aperture)),
+    );
+    canvas.drawPath(
+      _transformed(_wordCache!, wordWidth / kWordmarkWidth, wordRect.topLeft),
       Paint()
         ..shader = ui.Gradient.linear(
-          Offset(0, 0),
-          Offset(0, size.height),
+          wordRect.topLeft,
+          wordRect.bottomRight,
           chrome.wordStops,
           const <double>[0, 0.18, 0.42, 0.62, 0.80, 1],
         ),
     );
+
+    final streak = _ease(time, 1810, 2170);
+    if (streak > 0 && streak < 1) {
+      final x = wordRect.left - wordWidth * 0.22 + wordWidth * 1.44 * streak;
+      canvas.drawLine(
+        Offset(x, wordRect.top - 2),
+        Offset(x + wordWidth * 0.075, wordRect.bottom + 2),
+        Paint()
+          ..color = _alpha(
+            Colors.white,
+            0.50 * (1 - (streak - 0.5).abs() * 1.5),
+          )
+          ..strokeWidth = math.max(1.2, wordWidth * 0.012)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+    }
+    canvas.restore();
   }
 
+  void _paintLensAndRings(Canvas canvas, double time) {
+    if (time < AzamanIntro.ringStart) return;
+    final inProgress = _ease(time, 1330, 1530);
+    final fade =
+        1 -
+        _ease(
+          time,
+          AzamanIntro.ringFadeStart.toDouble(),
+          AzamanIntro.ringGone.toDouble(),
+        );
+    final radius = 44 + 28 * inProgress + 104 * _ease(time, 1530, 1960);
+    final opacity = (inProgress * fade).clamp(0.0, 1.0);
+    if (opacity <= 0.001) return;
+
+    canvas.drawCircle(
+      _center,
+      radius * 1.7,
+      Paint()
+        ..shader = ui.Gradient.radial(_center, radius * 1.7, <Color>[
+          _alpha(chrome.glow, opacity * 0.8),
+          _alpha(chrome.glow, 0),
+        ]),
+    );
+    canvas.drawCircle(
+      _center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.2
+        ..color = _alpha(chrome.ringEdge, opacity * 0.8)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+    );
+    canvas.drawCircle(
+      _center,
+      radius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..color = _alpha(chrome.ring, opacity),
+    );
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: _center + const Offset(0, 5),
+        width: radius * 2.0,
+        height: radius * 0.50,
+      ),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.1
+        ..color = _alpha(chrome.ringEdge, opacity * 0.42),
+    );
+  }
+
+  static Path _transformed(Path source, double scale, Offset translation) {
+    final matrix = Matrix4.identity()
+      ..setEntry(0, 0, scale)
+      ..setEntry(1, 1, scale)
+      ..setEntry(0, 3, translation.dx)
+      ..setEntry(1, 3, translation.dy);
+    return Path.from(source)..transform(matrix.storage);
+  }
+
+  static double _ease(double time, double start, double end) {
+    if (end <= start) return time >= end ? 1 : 0;
+    final t = ((time - start) / (end - start)).clamp(0.0, 1.0);
+    return Curves.easeInOutCubic.transform(t);
+  }
+
+  static Color _alpha(Color color, double opacity) =>
+      color.withAlpha((color.a * 255 * opacity.clamp(0.0, 1.0)).round());
+
   @override
-  bool shouldRepaint(_WordmarkPainter old) => old.chrome != chrome;
+  bool shouldRepaint(_AzamanIntroPainter old) =>
+      old.progress != progress || old.chrome != chrome;
 }
 
 Path? _markCache, _wordCache;
@@ -318,36 +626,20 @@ class _Tokenize {
 }
 
 // ---------------------------------------------------------------------------
-// THE CLIP IS THE ANIMATION
+// LEGACY VIDEO PLAYBACK TEST SEAM
 // ---------------------------------------------------------------------------
 
-/// The owner's motion reference, packaged as an asset and played as-is.
-///
-/// Everything above is brand material: the chrome, the settled wordmark lockup
-/// and the path parses that draw it. Everything below plays the actual motion.
-///
-/// An earlier revision re-drew the sequence with a painter. It matched the
-/// measured frames closely and still read as separate artwork being swapped,
-/// because every transition between mark, tile, ring and wordmark was
-/// reconstructed from stills rather than played. Tests on that painter passed
-/// while the owner was reporting the defect: they asserted the reconstruction,
-/// not the motion. This file no longer competes with the reference.
-const String kLaunchVideoAsset = 'assets/experience/launch/azaman_launch.mp4';
+/// Video playback for the supplied light and dark launch compositions.
+const String kLaunchVideoDarkAsset =
+    'assets/experience/launch/azaman_launch_dark.mp4';
+const String kLaunchVideoLightAsset =
+    'assets/experience/launch/azaman_launch_light.mp4';
+const String kLaunchVideoAsset = kLaunchVideoDarkAsset;
 
-/// The clip's own frame geometry (656 x 848). The launch is letterboxed on
-/// black rather than cropped, so no part of the composition is lost on a
-/// taller phone and the clip's black ground blends into the viewport.
-const double kLaunchAspectRatio = 656 / 848;
-
-/// Silver gradient of the owner's mark, in the 1024-unit design box.
-const List<Color> kMarkSilver = <Color>[
-  Color(0xFF80898B),
-  Color(0xFFDCE0E0),
-  Color(0xFF8D9699),
-  Color(0xFFF1F3F3),
-  Color(0xFF929A9D),
-  Color(0xFF717A7D),
-];
+/// The supplied light and dark clips are 932 x 1460. Keep this exact ratio
+/// during decoder startup so the frame-zero hold has the same vertical
+/// composition and position as the first decoded frame.
+const double kLaunchAspectRatio = 932 / 1460;
 
 /// Seam over the platform player.
 ///
@@ -371,7 +663,7 @@ abstract class LaunchVideo {
   Widget buildSurface();
 }
 
-/// Production player. Asset-backed, silent, played exactly once.
+/// Asset-backed player for the theme-specific launch composition.
 class AssetLaunchVideo implements LaunchVideo {
   AssetLaunchVideo({String asset = kLaunchVideoAsset})
     : _controller = VideoPlayerController.asset(asset);
@@ -415,10 +707,12 @@ class AssetLaunchVideo implements LaunchVideo {
 /// rebuild or an internal navigation replaying the entrance. Tests need to
 /// clear it between cases.
 @visibleForTesting
-void resetLaunchPlayGuard() => _AzamanIntroPlayerState._playedInProcess = false;
+void resetLaunchPlayGuard() {
+  _AzamanIntroPlayerState._playedInProcess = false;
+  _AzamanIntroMotionState._playedInProcess = false;
+}
 
-/// Plays the reference clip once, reports only when it has finished, and keeps
-/// the final wordmark on screen afterwards instead of cutting to black.
+/// Player for the theme-specific composition used by the production splash.
 ///
 /// [onFailed] is for a genuine playback failure (no decoder, corrupt asset,
 /// stalled player). The caller swaps in [AzamanIntroStatic]; this widget also
@@ -430,6 +724,7 @@ class AzamanIntroPlayer extends StatefulWidget {
     this.onFailed,
     this.chrome,
     this.video,
+    this.asset,
   });
 
   /// Fires when the clip has reached its end — the full sequence, not an
@@ -446,6 +741,9 @@ class AzamanIntroPlayer extends StatefulWidget {
   /// Test seam. Production passes nothing and gets [AssetLaunchVideo].
   final LaunchVideo? video;
 
+  /// Theme-specific reference composition for production playback.
+  final String? asset;
+
   @override
   State<AzamanIntroPlayer> createState() => _AzamanIntroPlayerState();
 }
@@ -456,7 +754,9 @@ class _AzamanIntroPlayerState extends State<AzamanIntroPlayer> {
   /// completion immediately and paints the settled frame instead.
   static bool _playedInProcess = false;
 
-  late final LaunchVideo _video = widget.video ?? AssetLaunchVideo();
+  late final LaunchVideo _video =
+      widget.video ??
+      AssetLaunchVideo(asset: widget.asset ?? kLaunchVideoAsset);
   late final bool _ownsVideo = widget.video == null;
 
   bool _ready = false;
@@ -575,14 +875,17 @@ class _LaunchFrameZeroHold extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ColoredBox(
     color: chrome.background,
-    child: const SizedBox.expand(
-      child: CustomPaint(painter: _MarkHoldPainter()),
+    child: SizedBox.expand(
+      child: CustomPaint(painter: _MarkHoldPainter(chrome, widthFraction: 0.2)),
     ),
   );
 }
 
 class _MarkHoldPainter extends CustomPainter {
-  const _MarkHoldPainter();
+  const _MarkHoldPainter(this.chrome, {this.widthFraction = 0.4});
+
+  final IntroChrome chrome;
+  final double widthFraction;
 
   static List<Path>? _paths;
 
@@ -591,7 +894,9 @@ class _MarkHoldPainter extends CustomPainter {
     final paths = _paths ??= kMarkPaths
         .map(parseIntroPath)
         .toList(growable: false);
-    final width = size.width * AzamanIntro.markStartWidth;
+    // Match the rendered mark's ~40% of the artboard, with the three arcs
+    // themselves occupying the central ~56% of the source SVG's square box.
+    final width = size.width * widthFraction;
     if (width <= 0) return;
     final scale = width / kMarkBox;
     canvas.save();
@@ -601,7 +906,7 @@ class _MarkHoldPainter extends CustomPainter {
       ..shader = ui.Gradient.linear(
         const Offset(0, 0),
         const Offset(0, kMarkBox),
-        kMarkSilver,
+        chrome.markStops,
         const <double>[0, 0.18, 0.42, 0.62, 0.80, 1],
       );
     for (final path in paths) {
@@ -611,5 +916,7 @@ class _MarkHoldPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MarkHoldPainter oldDelegate) => false;
+  bool shouldRepaint(_MarkHoldPainter oldDelegate) =>
+      oldDelegate.chrome != chrome ||
+      oldDelegate.widthFraction != widthFraction;
 }

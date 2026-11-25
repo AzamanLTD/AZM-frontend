@@ -56,7 +56,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     _brandingFloorTimer = Timer(
       _reduceMotion
           ? const Duration(milliseconds: 320)
-          : AzamanIntro.total + const Duration(milliseconds: 100),
+          : AzamanIntro.total,
       () {
         if (!_brandingFloorDone.isCompleted) _brandingFloorDone.complete();
       },
@@ -71,7 +71,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     );
 
     // Reduced motion still needs the reveal gate released: the static state
-    // has nothing to finish, and waiting the full 3.8s would just be a slow
+    // has nothing to finish, and waiting the full 3s would just be a slow
     // blank hold for someone who asked for less motion.
     if (_reduceMotion) _onIntroRevealed();
   }
@@ -95,11 +95,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   /// splash still holds for the entrance, but the network is never idled
   /// behind it, so startup is max(animation, waterfall).
   ///
-  /// THE FLOOR IS THE WHOLE SEQUENCE, NOT THE WORDMARK'S FIRST APPEARANCE.
-  /// This used to be `revealMs + 120` (2.12s) against a 3.83s reference: the
-  /// route changed while the ring and halo still had ~1.7s of motion left,
-  /// which is precisely what makes an intro feel cut off. The floor is now
-  /// [AzamanIntro.total], the length of the approved clip.
+  /// THE FLOOR IS THE WHOLE SEQUENCE. Navigation waits for the full liquid
+  /// mark animation, not just the moment its center becomes visible.
   /// Both floors are TIMERS, not fire-and-forget futures, so leaving the
   /// splash cancels them. An orphaned deadman timer firing after the route
   /// changed is harmless on a device but it keeps a real timer alive past the
@@ -113,14 +110,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   Future<void> get _brandingFloor => _brandingFloorDone.future;
   Future<void> get _revealFloor => _revealFloorDone.future;
 
-  /// Deadman switch for the animation. The player normally reports through
-  /// [AzamanIntroPlayer.onCompleted]; if that callback never arrives (tickers
-  /// disabled at the platform level, a build that swaps the intro out) the
-  /// splash must still be able to leave. It can only ever run LATE, never
-  /// early, so the "never cut the animation" guarantee holds either way.
+  /// Deadman switch for the launch sequence. Video playback normally reports
+  /// through [AzamanIntroPlayer.onCompleted]; the floor also guarantees the
+  /// splash can leave if a platform decoder stalls.
 
-  /// Reduced motion never plays the full travel; it shows the settled brand
-  /// state and continues through boot.
+  /// Reduced motion skips the travel, shows the centered mark, and continues
+  /// through boot.
   late final bool _reduceMotion = WidgetsBinding
       .instance
       .platformDispatcher
@@ -129,16 +124,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   void _onIntroRevealed() {
     if (!_introRevealed.isCompleted) _introRevealed.complete();
-  }
-
-  /// Playback failed (no frame ever painted, an exception in the painter).
-  /// Show the static brand lockup and keep booting: never a black screen, and
-  /// never a fake success.
-  bool _introFailed = false;
-  void _onIntroFailed() {
-    if (_introFailed) return;
-    setState(() => _introFailed = true);
-    _onIntroRevealed();
   }
 
   /// Every splash exit goes through here, so the branding floor elapses
@@ -309,18 +294,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final introChrome = IntroChrome.of(context);
     return Scaffold(
-      // Match the intro's own canvas so there is never a white flash before
-      // the first frame paints.
-      // The clip is a black-ground composition and is the same material in
-      // both themes, so the surface behind it is black in light mode too.
-      backgroundColor: Colors.black,
-      body: _reduceMotion || _introFailed
-          ? const AzamanIntroStatic(chrome: IntroChrome.dark)
+      backgroundColor: introChrome.background,
+      body: _reduceMotion
+          ? AzamanIntroStatic(chrome: introChrome)
           : AzamanIntroPlayer(
-              chrome: IntroChrome.dark,
+              chrome: introChrome,
+              asset: Theme.of(context).brightness == Brightness.dark
+                  ? kLaunchVideoDarkAsset
+                  : kLaunchVideoLightAsset,
               onCompleted: _onIntroRevealed,
-              onFailed: _onIntroFailed,
+              onFailed: _onIntroRevealed,
             ),
     );
   }

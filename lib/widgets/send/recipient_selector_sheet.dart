@@ -47,6 +47,7 @@ Future<SendRecipient?> showRecipientSelectorSheet(
   BuildContext context, {
   SendRecipient? currentRecipient,
   RecipientDiscoveryService? discovery,
+  bool openScannerOnShow = false,
 }) {
   return showModalBottomSheet<SendRecipient>(
     context: context,
@@ -57,15 +58,21 @@ Future<SendRecipient?> showRecipientSelectorSheet(
     builder: (_) => _RecipientSelectorSheet(
       currentRecipient: currentRecipient,
       discovery: discovery,
+      openScannerOnShow: openScannerOnShow,
     ),
   );
 }
 
 class _RecipientSelectorSheet extends ConsumerStatefulWidget {
-  const _RecipientSelectorSheet({this.currentRecipient, this.discovery});
+  const _RecipientSelectorSheet({
+    this.currentRecipient,
+    this.discovery,
+    this.openScannerOnShow = false,
+  });
 
   final SendRecipient? currentRecipient;
   final RecipientDiscoveryService? discovery;
+  final bool openScannerOnShow;
 
   @override
   ConsumerState<_RecipientSelectorSheet> createState() =>
@@ -97,6 +104,7 @@ class _RecipientSelectorSheetState
     _seedFriends();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ref.read(friendProvider).refreshAll();
+      if (mounted && widget.openScannerOnShow) _scanQr();
     });
   }
 
