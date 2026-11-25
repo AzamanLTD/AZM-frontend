@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:azaman/experience/launch/azaman_intro.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_launch_video.dart';
@@ -20,11 +19,15 @@ Future<void> _settle(WidgetTester tester) async {
 void main() {
   setUp(resetLaunchPlayGuard);
 
-  test('the launch clip is packaged as a real asset', () {
-    final clip = File(kLaunchVideoAsset);
-    expect(clip.existsSync(), isTrue, reason: kLaunchVideoAsset);
-    // A few KB would mean a truncated or placeholder file.
-    expect(clip.lengthSync(), greaterThan(50000));
+  test('both theme-specific launch clips are bundled app assets', () async {
+    for (final asset in <String>[
+      kLaunchVideoDarkAsset,
+      kLaunchVideoLightAsset,
+    ]) {
+      final clip = await rootBundle.load(asset);
+      // A few KB would mean a truncated or placeholder file.
+      expect(clip.lengthInBytes, greaterThan(50000), reason: asset);
+    }
   });
 
   testWidgets('plays the clip once, silently, and reports only at the end', (
@@ -43,11 +46,11 @@ void main() {
     expect(video.volume, 0, reason: 'a launch must never make a sound');
     expect(completed, 0, reason: 'initialising is not finishing');
 
-    video.advance(const Duration(milliseconds: 3000));
+    video.advance(AzamanIntro.total - const Duration(milliseconds: 121));
     await tester.pump();
-    expect(completed, 0, reason: '3 s of a 3.83 s clip is not the end');
+    expect(completed, 0, reason: 'the final 120 ms has not played yet');
 
-    video.advance(const Duration(milliseconds: 900));
+    video.advance(const Duration(milliseconds: 121));
     await tester.pump();
     expect(completed, 1);
   });
@@ -106,7 +109,7 @@ void main() {
     expect(completedSecond, 1, reason: 'and it must not strand the caller');
   });
 
-  testWidgets('a player that cannot start holds the settled lockup', (
+  testWidgets('a player that cannot start holds the centered mark', (
     tester,
   ) async {
     final video = FakeLaunchVideo(failInitialize: true);
