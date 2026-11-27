@@ -36,6 +36,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/widgets/money_stage/money_stage.dart';
 import 'package:azaman/widgets/launcher_exit_prompt.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lottie/lottie.dart';
@@ -76,6 +77,7 @@ class DepositScreen extends ConsumerStatefulWidget {
     this.prefillAmount,
     this.memo,
     this.restoredDraft,
+    this.skyPhaseForCaptures = 0,
   });
 
   final DepositTab initialTab;
@@ -97,6 +99,9 @@ class DepositScreen extends ConsumerStatefulWidget {
   /// deposit. The saved-account pick is re-matched by id against the
   /// LIVE account list when the panel loads.
   final Map<String, dynamic>? restoredDraft;
+
+  /// Pins the sky's drift phase so visual captures are deterministic.
+  final double skyPhaseForCaptures;
 
   @override
   ConsumerState<DepositScreen> createState() => _DepositScreenState();
@@ -200,15 +205,19 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
 
     return Scaffold(
       backgroundColor: colors.surface,
-      body: SafeArea(
+      // The Add money stage: a dawn sky. The close control floats in the
+      // corner; the funding account pill centres in the same row (the
+      // panel owns it, like the recipient pill on Send).
+      body: AzMoneyStage(
+        mood: AzMoneyMood.addMoney,
+        skyPhase: widget.skyPhaseForCaptures,
+        child: SafeArea(
         bottom: false,
         child: PullDownDismissibleSurface(
           onDismiss: _attemptClose,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Stack(
             children: [
-              _AddCashHeader(colors: colors, onClose: _attemptClose),
-              Expanded(
+              Positioned.fill(
                 child: _FiatDepositPanel(
                   key: _fiatPanelKey,
                   prefillAmount: widget.prefillAmount,
@@ -222,8 +231,15 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
                       ?.toString(),
                 ),
               ),
+              Positioned(
+                // Vertically centred on the 52dp account pill row.
+                top: 12,
+                left: 16,
+                child: _AddCashHeader(colors: colors, onClose: _attemptClose),
+              ),
             ],
           ),
+        ),
         ),
       ),
     );
@@ -243,41 +259,12 @@ class _AddCashHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      child: Row(
-        children: [
-          Semantics(
-            button: true,
-            label: 'Close Add Cash',
-            excludeSemantics: true,
-            child: GestureDetector(
-              onTap: onClose,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: colors.softSurface,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(Icons.close, size: 18, color: colors.textPrimary),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Text(
-            'Add Cash',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
+    return AzStageRoundButton(
+      // Icons.close (not _rounded): the surface's ONE close affordance,
+      // as the surface tests pin it.
+      icon: Icons.close,
+      onTap: onClose,
+      semanticsLabel: 'Close Add Cash',
     );
   }
 }
@@ -1273,7 +1260,12 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final colors = ref.watch(themeProvider).colors;
+    // On the Add money stage every row, sheet trigger and the CTA read the
+    // stage palette: glass surfaces, the sky's ink as text and accent.
+    final base = ref.watch(themeProvider).colors;
+    final colors = AzStageSkin.maybeOf(context) != null
+        ? AzStageSkin.adapt(base, AzMoneyMood.addMoney)
+        : base;
 
     return _requiresOtp
         ? _buildOtpEntry(colors)
@@ -1312,8 +1304,13 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
             // Funding account selector leads the form, like the recipient
             // control on Send. The amount remains directly beneath it.
             Padding(
-              padding: EdgeInsets.fromLTRB(20, compact ? 10 : 14, 20, 0),
-              child: accountsAsync.when(
+              // Same row as the floating close button (16 + 44 + 8 inset);
+              // a glass "+" balances it on the right.
+              padding: const EdgeInsets.fromLTRB(68, 8, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: accountsAsync.when(
                 loading: () => const _MethodRowSkeleton(),
                 error: (e, _) => _MethodErrorRow(
                   colors: colors,
@@ -1352,54 +1349,74 @@ class _FiatDepositPanelState extends ConsumerState<_FiatDepositPanel>
                   );
                 },
               ),
+                  ),
+                  const SizedBox(width: 8),
+                  AzStageRoundButton(
+                    key: const ValueKey('add-cash-add-account'),
+                    icon: Icons.add_rounded,
+                    onTap: (_isSubmitting || _isValidatingName || _persistingContinuation)
+                        ? null
+                        : () => _openAddAccountSheet(),
+                    semanticsLabel: 'Add a mobile money account',
+                  ),
+                ],
+              ),
             ),
 
-            // ── Phantom-style top-left amount composition (UI-correction
-            // Phase A): the amount and selected funding account form the
-            // primary interaction at the top; keypad and CTA anchor the
-            // bottom. Nothing centers the amount anymore.
-            Padding(
-              padding: EdgeInsets.fromLTRB(24, compact ? 6 : 14, 24, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+            // The amount, centred on the dawn sky (the money-stage grammar
+            // shared with Send). The surface's name rides quietly above it.
+            Expanded(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          AzMoney.ghsSymbol,
-                          style: AzText.money(
-                            colors.textSecondary,
-                            size: compact ? 24 : 30,
-                            tracking: -0.5,
-                            height: 1.2,
-                          ),
+                      Text(
+                        'Add Cash',
+                        key: const ValueKey('add-cash-stage-title'),
+                        style: AzStageType.stageTitle(colors.textSecondary),
+                      ),
+                      const SizedBox(height: 14),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              AzMoney.ghsSymbol,
+                              style: AzStageType.unit(
+                                colors.textSecondary,
+                                size: compact ? 24 : 30,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // The amount is the visual anchor. Empty input
+                            // renders as 0; only changed slots roll.
+                            OdometerNumber(
+                              value: _amountDisplay,
+                              style: AzStageType.amount(
+                                colors.textPrimary,
+                                size: compact ? 54 : 68,
+                              ),
+                              semanticsLabel:
+                                  '${AzMoney.ghsSymbol} $_amountDisplay',
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      // The amount is the visual anchor. Empty input
-                      // renders as 0; only changed slots roll.
-                      OdometerNumber(
-                        value: _amountDisplay,
-                        style: AzText.money(
-                          colors.textPrimary,
-                          size: compact ? 52 : 64,
-                        ),
-                        semanticsLabel: '${AzMoney.ghsSymbol} $_amountDisplay',
+                      const SizedBox(height: 10),
+                      Text(
+                        'From mobile money',
+                        textAlign: TextAlign.center,
+                        style: AzStageType.line(colors.textSecondary),
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-
-            // Breathing room: everything below (keypad + CTA) stays anchored
-            // to the bottom of the surface.
-            const Expanded(child: SizedBox(width: double.infinity)),
 
             // The keypad stays fixed while the amount changes — it never
             // scrolls independently and never moves under the CTA.
@@ -1983,13 +2000,13 @@ class _SelectedMethodRow extends StatelessWidget {
             'Double tap to change.',
         excludeSemantics: true,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(6, 6, 12, 6),
           // UI-correction Phase A: card/surface fill, NO border — the row
           // reads as one raised surface, separation comes from the fill
           // against the page, not from a stroked box-in-box.
           decoration: BoxDecoration(
             color: colors.softSurface,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
             children: [
@@ -2124,7 +2141,7 @@ class _ChooseMethodRow extends StatelessWidget {
           // Same no-border surface grammar as the selected-method row.
           decoration: BoxDecoration(
             color: colors.softSurface,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
             children: [
@@ -2833,25 +2850,26 @@ class _PrimaryButton extends StatelessWidget {
         opacity: enabled ? 1 : 0.45,
         child: Material(
           color: enabled ? colors.accent : colors.accent.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(999),
           child: InkWell(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(999),
             onTap: onTap,
             child: Container(
               height: 56,
               alignment: Alignment.center,
               child: isBusy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.black,
+                        color: colors.onAccent,
                       ),
                     )
                   : Text(
                       label,
-                      style: const TextStyle(
+                      style: TextStyle(
+                        color: colors.onAccent,
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.2,

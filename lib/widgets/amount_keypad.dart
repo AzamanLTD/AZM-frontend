@@ -182,7 +182,7 @@ class _StageKeyState extends State<_StageKey> {
     final skin = widget.skin;
     final colour = widget.enabled ? skin.ink : skin.inkMuted.withValues(alpha: 0.35);
     final face = widget.keyLabel == 'del'
-        ? Icon(Icons.backspace_rounded, size: 24, color: widget.enabled ? skin.inkMuted : colour)
+        ? Icon(Icons.backspace_outlined, size: 24, color: widget.enabled ? skin.inkMuted : colour)
         : Text(widget.keyLabel, style: AzStageType.key(colour));
     final bloom = widget.height * 1.08;
     return Semantics(

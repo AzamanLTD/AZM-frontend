@@ -126,8 +126,11 @@ Finder _odometerCell(String ch) =>
 void main() {
   AppConfig.enableDemoMode();
 
-  group('Phase A — Phantom top-left composition', () {
-    testWidgets('the amount sits top-LEFT, not centered', (tester) async {
+  group('Add money stage composition', () {
+    // 2026-11-27 money-stage direction (owner reference): the amount is the
+    // centred anchor of the stage, as on Send. This supersedes Phase A's
+    // top-left composition; the ordering rules below are unchanged.
+    testWidgets('the amount is centred on the Add money stage', (tester) async {
       _phoneSize(tester);
       await tester.pumpWidget(_app());
       await _openDeposit(tester);
@@ -135,20 +138,15 @@ void main() {
 
       final zeroRect = tester.getRect(_odometerCell('0'));
       final symbolRect = tester.getRect(find.text('GH₵'));
-      // Viewport is 420 wide. Top-left composition: the cedi symbol is
-      // glued to the 24px page margin and the amount glyph follows it —
-      // both live in the left region. The pre-fix CENTERED instrument put
-      // the symbol at ~left 110 and the glyph at ~left 200.
+      // Viewport is 420 wide: the symbol + amount group straddles the
+      // centreline, never glued to a page margin.
+      final groupCentre = (symbolRect.left + zeroRect.right) / 2;
       expect(
-        symbolRect.left <= 30,
+        (groupCentre - 210).abs() < 24,
         isTrue,
-        reason: 'the amount row must start at the page margin',
+        reason: 'the amount group must be centred (centre at $groupCentre of 420)',
       );
-      expect(
-        zeroRect.left < 140,
-        isTrue,
-        reason: 'the amount must sit in the top-left region, not centered',
-      );
+      expect(symbolRect.left > 60, isTrue, reason: 'not glued to the margin');
       // The funding account now leads the form, above the amount.
       final methodRect = tester.getRect(find.text('Kwame Mensah'));
       final keypadRect = tester.getRect(find.byType(AmountKeypad));
