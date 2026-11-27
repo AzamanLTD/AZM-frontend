@@ -1,81 +1,61 @@
+// lib/widgets/settings_drawer.dart
 // =============================================================================
-// SETTINGS DRAWER — PROFILE HERO, QR & REGROUPED DESTINATIONS
+// AZAMAN — SETTINGS DRAWER (2026-11-27 redesign)
 //
-// PR-B of the Home/Settings refresh (spec 2026-10-12, §1.4):
+// Clean and premium, in the manner of the X side menu: a plain surface (no
+// frosted glass, no glow), an identity header, then BIG destinations with
+// outline icons, a hairline, quieter secondary rows, and a footer with the
+// theme toggle. No staggered entrance and no shimmer: the drawer is revealed
+// by the page sliding away (AzRevealDrawer), and that motion is enough.
 //
-//   • PROFILE HERO — pinned SliverPersistentHeader at the drawer top. The
-//     real profile picture is horizontally centred relative to the DRAWER's
-//     own width and protrudes from the hero surface; @username sits below
-//     the avatar; the KYC badge and public Azaman ID stay visible; a real
-//     scannable QR preview rides beside the identity row and opens a
-//     larger scan-ready popup (payload `azaman://user/$username`,
-//     end-to-end with the add-friend scanner contract in
-//     qr_scanner_screen.dart).
+//   [avatar]                          [QR]
+//   Kofi ✓
+//   @kofi   ·   AZM-8273941 ⧉
 //
-//   • SCROLL-DRIVEN AVATAR (Telegram-inspired) — the hero collapses under
-//     the content as it scrolls: the avatar sinks toward the collapsed bar
-//     purely by interpolating the delegate's own minExtent/maxExtent with
-//     shrinkOffset. No scroll listeners, no whole-drawer rebuilds per tick,
-//     no idle animation loop. Dimensions derive from the drawer's own
-//     constraints; the SafeArea above absorbs the top inset so nothing
-//     hardcodes a notch. The morph is position-proportional (no springs),
-//     which keeps it reduced-motion safe; the section entrance wraps use
-//     MotionTokens.accessibleDuration to collapse travel when the OS asks
-//     for reduced motion.
+//   ○  Profile
+//   ○  Accounts
+//   ○  Verification            Verified
+//   ○  Security & PIN      Biometrics on
+//   ○  Azaman Store
+//   ○  Refer & Earn
+//   ○  Workplace               (employees only)
+//   ─────────────────────────────
+//   Currency                        GHS
+//   All settings
 //
-//   • HERO TAP opens the genuine profile edit flow. Audited 2026-10-13:
-//     ProfileDetailsScreen is a read-only display (avatar, legal name,
-//     UID, KYC, account info — no editing), so the genuine edit surface
-//     (photo pick, name, bio, phone) is ProfileScreen. The hero therefore
-//     routes there; ProfileDetailsScreen remains one tap away in the
-//     PROFILE & IDENTITY group.
+//   ☾                          Azaman 3.1
 //
-//   • REDESIGNED (Phantom-inspired, 2026-10-16) — the drawer is now
-//     identity + destinations, not a second settings hub:
-//     • QUICK ACTIONS — Withdraw / Deposit / QR / Refer as icon-first
-//       glass pills; management rows live below.
-//     • Sentence-case groups: Account (Profile, Verification with the
-//       REAL KYC chip), Money (merged saved-accounts card, Currency with
-//       the live value, Azaman Store), Security (Security & PIN with the
-//       REAL biometric chip from BiometricService).
-//     • Decorative one-word badges, the gear shortcut and the ALL-CAPS
-//       enterprise labels are GONE; state chips show real values only
-//       (empty state renders no chip at all).
-//     • One 'All settings' row routes to the canonical /settings page
-//       (AzRoutes.settings); the footer reads 'Azaman 3.1'.
-//     • _WorkerCard (role-valid only) and the pinned scroll-driven
-//       hero survive untouched.
-//
-// The "Eclipse Glow" backdrop (single static RadialGradient halo, no
-// painters/scan-lines) and the frosted-glass shell are preserved.
+// It works in two homes: inside AzRevealDrawer (the app shell) it is a bare
+// panel and closes through AzRevealDrawerScope; mounted as a plain Scaffold
+// endDrawer it wraps itself in a Drawer and closes by popping, as before.
+// Every destination, the QR popup, the ID copy and the currency picker are
+// unchanged; only the presentation moved.
 // =============================================================================
-
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:azaman/models/currency_model.dart';
 import 'package:azaman/models/user_model.dart';
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/router/route_registry.dart';
-import 'package:azaman/models/currency_model.dart';
-import 'package:azaman/screens/kyc_verification_screen.dart';
-import 'package:azaman/screens/referral_screen.dart';
-import 'package:azaman/services/biometric_service.dart';
 import 'package:azaman/providers/worker_provider.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:azaman/screens/accounts_screen.dart';
+import 'package:azaman/screens/azaman_store_screen.dart';
+import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/screens/profile_details_screen.dart';
 import 'package:azaman/screens/profile_screen.dart';
-import 'package:azaman/screens/accounts_screen.dart';
+import 'package:azaman/screens/referral_screen.dart';
 import 'package:azaman/screens/security_settings.dart';
-import 'package:azaman/screens/azaman_store_screen.dart';
-import 'package:azaman/providers/business_provider.dart';
-import 'package:azaman/theme/motion_tokens.dart';
+import 'package:azaman/services/biometric_service.dart';
+import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/qr_profile_popup.dart';
+import 'package:azaman/widgets/settings/az_reveal_drawer.dart';
 
 class SettingsDrawer extends ConsumerStatefulWidget {
   const SettingsDrawer({super.key});
@@ -85,15 +65,23 @@ class SettingsDrawer extends ConsumerStatefulWidget {
 }
 
 class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
-  // Real state for the Security chip — loaded from the same store the
-  // Security Center screen reads (BiometricService.isEnabled). No fake
-  // badges: if biometrics are off the chip simply doesn't render.
+  // Real state for the Security chip — the same store the Security Center
+  // reads. No fake badges: biometrics off renders no chip.
   bool _biometricsOn = false;
 
   @override
   void initState() {
     super.initState();
     _loadBiometricState();
+    // The business profile is prefetched here (consumed by the
+    // Marketplace), once, not on every build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final biz = ref.read(myBusinessProvider);
+      if (!biz.hasLoaded && !biz.isLoading) {
+        ref.read(myBusinessProvider.notifier).load();
+      }
+    });
   }
 
   Future<void> _loadBiometricState() async {
@@ -101,320 +89,171 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
     if (mounted) setState(() => _biometricsOn = enabled);
   }
 
+  // ── closing and navigating ────────────────────────────────────────────
+
+  /// Close the drawer in whichever home it lives in.
+  void _close() {
+    final scope = AzRevealDrawerScope.maybeOf(context);
+    if (scope != null) {
+      scope.close();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  /// Close, then open [destination] (a screen without a canonical route)
+  /// or [route] (authoritative when the screen has one).
+  void _go({Widget? destination, String? route}) {
+    HapticFeedback.lightImpact();
+    final navigator = Navigator.of(context);
+    final router = GoRouter.maybeOf(context);
+    _close();
+    if (route != null && router != null) {
+      router.push(route);
+    } else if (destination != null) {
+      navigator.push(MaterialPageRoute(builder: (_) => destination));
+    }
+  }
+
+  // ── build ────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final ref = this.ref;
     final colors = ref.watch(themeProvider).colors;
     final user = ref.watch(currentUserProvider).value;
-    // Business profile state is prefetched below and consumed by the
-    // Marketplace floating action button, not rendered in this drawer.
+    final username = (user?.username.isNotEmpty ?? false) ? user!.username : 'Guest';
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!ref.read(myBusinessProvider).hasLoaded &&
-          !ref.read(myBusinessProvider).isLoading) {
-        ref.read(myBusinessProvider.notifier).load();
-      }
-    });
-
-    final username = (user?.username.isNotEmpty ?? false)
-        ? user!.username
-        : 'Guest';
-
-    return Drawer(
-      width: MediaQuery.of(context).size.width * 0.88,
-      backgroundColor: Colors.transparent,
-      // Frosted-glass drawer: BackdropFilter blurs only the drawer area;
-      // the inner content sits on a tinted glass card so foreground copy
-      // reads cleanly without losing the underlying scenery.
-      child: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(28),
-          bottomRight: Radius.circular(28),
-        ),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
-          child: Stack(
-            children: [
-              // Tinted glass card — 92% in light mode for a readable
-              // frosted surface, 72% in dark/midnight where the dark
-              // background already provides contrast.
-              Positioned.fill(
-                child: ColoredBox(
-                  color: colors.background.withValues(
-                    alpha: colors.isDark ? 0.72 : 0.92,
-                  ),
-                ),
-              ),
-              const Positioned.fill(child: _EclipseGlow()),
-
-              SafeArea(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: CustomScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        slivers: [
-                          // ── PROFILE HERO (pinned, scroll-driven) ──────
-                          SliverPersistentHeader(
-                            pinned: true,
-                            delegate: _ProfileHeroDelegate(
-                              username: username,
-                              user: user,
-                            ),
-                          ),
-
-                          // ── GROUPS ─────────────────────────────────────
-                          // (Workstream G1: the duplicate Withdraw/Deposit
-                          // rows were removed from Money; their canonical
-                          // home is the Home + launcher. Refer lives in the
-                          // profile group; QR remains in the hero.)
-                          SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-                            sliver: SliverList(
-                              delegate: SliverChildListDelegate([
-                                _animatedWrapper(
-                                  context,
-                                  delay: 4,
-                                  child: _buildGroup(
-                                    context,
-                                    colors,
-                                    label: 'Account',
-                                    rows: [
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.person_outline,
-                                        'Profile',
-                                        colors,
-                                        destination:
-                                            const ProfileDetailsScreen(),
-                                      ),
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.verified_user_outlined,
-                                        'Verification',
-                                        colors,
-                                        chip: _kycChip(ref),
-                                        destination:
-                                            const KycVerificationScreen(),
-                                      ),
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.card_giftcard_outlined,
-                                        'Refer & Earn',
-                                        colors,
-                                        destination: const ReferralScreen(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-                                _animatedWrapper(
-                                  context,
-                                  delay: 5,
-                                  child: _buildGroup(
-                                    context,
-                                    colors,
-                                    label: 'Money',
-                                    rows: [
-                                      // Workstream G1 — the duplicate Deposit/Withdraw
-                                      // rows are removed: their canonical
-                                      // home is the Home + launcher (Add Cash
-                                      // → /deposit, Withdraw). Saved accounts,
-                                      // Currency and Azaman Store stay.
-                                      _savedAccountsCard(context, colors),
-                                      const SizedBox(height: 4),
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.attach_money,
-                                        'Currency',
-                                        colors,
-                                        chip: ref
-                                            .watch(currencyProvider)
-                                            .name
-                                            .toUpperCase(),
-                                        onTapOverride: () =>
-                                            _pickCurrency(context, colors),
-                                      ),
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.storefront_outlined,
-                                        'Azaman Store',
-                                        colors,
-                                        destination: const AzamanStoreScreen(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 18),
-                                _animatedWrapper(
-                                  context,
-                                  delay: 6,
-                                  child: _buildGroup(
-                                    context,
-                                    colors,
-                                    label: 'Security',
-                                    rows: [
-                                      _buildMenuItem(
-                                        context,
-                                        Icons.lock_outline,
-                                        'Security & PIN',
-                                        colors,
-                                        chip: _biometricsOn
-                                            ? 'Biometrics on'
-                                            : null,
-                                        destination:
-                                            const SecuritySettingsScreen(),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-
-                                // ── BUSINESS TOOLS (role-valid only) ────
-                                // _WorkerCard renders nothing unless the
-                                // signed-in user is an active employee.
-                                _animatedWrapper(
-                                  context,
-                                  delay: 7,
-                                  child: _WorkerCard(colors: colors),
-                                ),
-
-                                const SizedBox(height: 14),
-
-                                // ── CANONICAL SETTINGS ──────────────────
-                                // The drawer is identity + destinations;
-                                // every preference control lives once, in
-                                // the Settings page.
-                                _animatedWrapper(
-                                  context,
-                                  delay: 8,
-                                  child: _buildAllSettingsRow(context, colors),
-                                ),
-
-                                const SizedBox(height: 24),
-                                Center(
-                                  child: Text(
-                                    'Azaman 3.1',
-                                    style: TextStyle(
-                                      color: colors.textTertiary,
-                                      fontSize: 9,
-                                      letterSpacing: 1.2,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                              ]),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // QUICK ACTIONS — the four things people actually open the drawer for.
-  // Circular glass buttons, icon-first, labels underneath. These are
-  // ACTIONS; management rows live in the groups below.
-  /// Sentence-case group: a small muted label above the rows. No caps, no
-  /// enterprise shouting — the rows are the hierarchy.
-  Widget _buildGroup(
-    BuildContext context,
-    AzamanColors colors, {
-    required String label,
-    required List<Widget> rows,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionHeader(label, colors: colors),
-        const SizedBox(height: 6),
-        ...rows,
-      ],
-    );
-  }
-
-  /// The ONE accounts affordance (mockup contract): deposits and
-  /// withdrawals are a single 'Accounts' concept — it opens the hub
-  /// screen that holds both, so the drawer IA never splits them.
-  Widget _savedAccountsCard(BuildContext context, AzamanColors colors) {
-    return _buildSlenderTile(
-      context,
-      colors,
-      title: 'Accounts',
-      subtitle: 'Deposits and payout destinations',
-      icon: Icons.account_balance_wallet_outlined,
-      iconColor: colors.accent,
-      destination: const AccountsScreen(),
-    );
-  }
-
-  /// The single drawer affordance for the canonical Settings page.
-  Widget _buildAllSettingsRow(BuildContext context, AzamanColors colors) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        HapticFeedback.lightImpact();
-        Navigator.of(context).pop();
-        context.push(AzRoutes.settings);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: colors.accent.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colors.accent.withValues(alpha: 0.18)),
-        ),
-        child: Row(
+    // Material (not a bare ColoredBox): outside the Scaffold the rows'
+    // ink still needs a sheet to print on.
+    final panel = Material(
+      color: colors.background,
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Icon(Icons.tune, color: colors.accent, size: 17),
-            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                'All settings',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                ),
+              // A short, fixed list: built eagerly (a lazy list would leave
+              // the secondary rows unbuilt on short screens).
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(24, 20, 16, 12),
+                child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _Header(
+                    colors: colors,
+                    user: user,
+                    username: username,
+                    onOpenProfile: () => _go(destination: const ProfileScreen()),
+                  ),
+                  const SizedBox(height: 22),
+                  _Row(
+                    colors: colors,
+                    icon: Icons.person_outline_rounded,
+                    label: 'Profile',
+                    onTap: () => _go(destination: const ProfileDetailsScreen()),
+                  ),
+                  _Row(
+                    colors: colors,
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'Accounts',
+                    // Deposits and payout destinations: one concept.
+                    onTap: () => _go(destination: const AccountsScreen()),
+                  ),
+                  _Row(
+                    colors: colors,
+                    icon: Icons.verified_outlined,
+                    label: 'Verification',
+                    status: _kycStatus(user?.kycStatus, colors),
+                    onTap: () => _go(destination: const KycVerificationScreen()),
+                  ),
+                  _Row(
+                    colors: colors,
+                    icon: Icons.lock_outline_rounded,
+                    label: 'Security & PIN',
+                    status: _biometricsOn
+                        ? _Status('Biometrics on', colors.textSecondary)
+                        : null,
+                    onTap: () => _go(destination: const SecuritySettingsScreen()),
+                  ),
+                  _Row(
+                    colors: colors,
+                    icon: Icons.storefront_outlined,
+                    label: 'Azaman Store',
+                    onTap: () => _go(destination: const AzamanStoreScreen()),
+                  ),
+                  _Row(
+                    colors: colors,
+                    icon: Icons.card_giftcard_outlined,
+                    label: 'Refer & Earn',
+                    onTap: () => _go(destination: const ReferralScreen()),
+                  ),
+                  // Employees only; renders nothing otherwise.
+                  _WorkplaceRow(colors: colors, onOpen: () => _go(route: AzRoutes.workerHub)),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 14, 8, 14),
+                    child: Divider(height: 1, thickness: 0.6, color: colors.divider),
+                  ),
+                  _Row(
+                    colors: colors,
+                    secondary: true,
+                    icon: Icons.payments_outlined,
+                    label: 'Currency',
+                    status: _Status(
+                      ref.watch(currencyProvider).name.toUpperCase(),
+                      colors.textSecondary,
+                    ),
+                    onTap: () => _pickCurrency(colors),
+                  ),
+                  _Row(
+                    colors: colors,
+                    secondary: true,
+                    icon: Icons.tune_rounded,
+                    label: 'All settings',
+                    onTap: () => _go(route: AzRoutes.settings),
+                  ),
+                ],
+              ),
               ),
             ),
-            Icon(Icons.arrow_forward, color: colors.accent, size: 16),
+            _Footer(colors: colors),
           ],
         ),
       ),
     );
+
+    if (AzRevealDrawerScope.maybeOf(context) != null) return panel;
+    // Plain endDrawer home: the inner edge (LEFT, for a right drawer) is the
+    // one that rounds.
+    return Drawer(
+      width: MediaQuery.of(context).size.width * 0.86,
+      backgroundColor: colors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.horizontal(left: Radius.circular(28)),
+      ),
+      child: panel,
+    );
   }
 
-  /// Real KYC state chip — the same KycStatus the backend returns. No
-  /// decoration: unverified renders no chip at all.
-  String? _kycChip(WidgetRef ref) {
-    final user = ref.watch(currentUserProvider).value;
-    switch (user?.kycStatus) {
+  _Status? _kycStatus(KycStatus? status, AzamanColors colors) {
+    switch (status) {
       case KycStatus.verified:
-        return 'Verified';
+        return _Status('Verified', colors.success);
       case KycStatus.pending:
-        return 'Pending';
+        return _Status('Pending', colors.warning);
       case KycStatus.rejected:
-        return 'Action needed';
+        return _Status('Action needed', colors.danger);
       default:
         return null;
     }
   }
 
-  Future<void> _pickCurrency(BuildContext context, AzamanColors colors) async {
+  Future<void> _pickCurrency(AzamanColors colors) async {
     HapticFeedback.lightImpact();
     final picked = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: colors.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheet) => SafeArea(
         child: Column(
@@ -423,10 +262,7 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
             const SizedBox(height: 10),
             for (final option in const ['USDC', 'GHS'])
               ListTile(
-                title: Text(
-                  option,
-                  style: TextStyle(color: colors.textPrimary),
-                ),
+                title: Text(option, style: TextStyle(color: colors.textPrimary)),
                 onTap: () => Navigator.pop(sheet, option),
               ),
             const SizedBox(height: 8),
@@ -440,1052 +276,308 @@ class _SettingsDrawerState extends ConsumerState<SettingsDrawer> {
           .set(picked == 'GHS' ? DisplayCurrency.ghs : DisplayCurrency.usdc);
     }
   }
-
-  Widget _buildSectionHeader(String title, {required AzamanColors colors}) {
-    return Text(
-      title,
-      style: TextStyle(
-        color: colors.textTertiary,
-        fontSize: 11.5,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.2,
-      ),
-    );
-  }
-
-  Widget _buildSlenderTile(
-    BuildContext context,
-    AzamanColors colors, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color iconColor,
-    Widget? destination,
-    String? route,
-    VoidCallback? onTapOverride,
-  }) {
-    // Slender list-tile pattern: same hit target, ~40% less vertical chrome
-    // than the retired chunky tile — icon plate 32×32, single-line
-    // subtitle, hairline chevron.
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () {
-        if (onTapOverride != null) {
-          HapticFeedback.lightImpact();
-          onTapOverride();
-          return;
-        }
-        if (route != null) {
-          // NEW-A: canonical route is authoritative.
-          HapticFeedback.lightImpact();
-          Navigator.of(context).pop();
-          context.push(route);
-        } else if (destination != null) {
-          HapticFeedback.lightImpact();
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => destination),
-          );
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Row(
-          children: [
-            // Mockup contract: clean bare icons — no plates.
-            Icon(icon, color: iconColor, size: 20),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: colors.textTertiary, fontSize: 11),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward, color: colors.textTertiary, size: 18),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuItem(
-    BuildContext context,
-    IconData icon,
-    String title,
-    AzamanColors colors, {
-    String? chip,
-    Widget? destination,
-    String? route,
-    VoidCallback? onTapOverride,
-  }) {
-    return _SlenderMenuTile(
-      colors: colors,
-      icon: icon,
-      title: title,
-      chip: chip,
-      // NEW-A: when the destination has a canonical route, the route is
-      // authoritative; the widget push remains only for screens without a
-      // GoRoute yet.
-      onTap:
-          onTapOverride ??
-          ((destination == null && route == null)
-              ? null
-              : () {
-                  HapticFeedback.lightImpact();
-                  Navigator.of(context).pop();
-                  if (route != null) {
-                    context.push(route);
-                  } else {
-                    Navigator.of(
-                      context,
-                    ).push(MaterialPageRoute(builder: (_) => destination!));
-                  }
-                }),
-    );
-  }
-
-  Widget _animatedWrapper(
-    BuildContext context, {
-    required int delay,
-    required Widget child,
-  }) {
-    // Reduced motion: the OS-level disableAnimations flag collapses the
-    // entrance duration to zero so sections simply appear.
-    final duration = MotionTokens.accessibleDuration(
-      context,
-      Duration(milliseconds: 500 + (delay * 100)),
-    );
-    return TweenAnimationBuilder<Offset>(
-      tween: Tween(begin: const Offset(40, 0), end: Offset.zero),
-      duration: duration,
-      curve: Curves.easeOutCubic,
-      builder: (context, Offset offset, child) => Transform.translate(
-        offset: offset,
-        child: Opacity(
-          opacity: (1.0 - (offset.dx / 40)).clamp(0.0, 1.0),
-          child: child,
-        ),
-      ),
-      child: child,
-    );
-  }
 }
 
-// =============================================================================
-// ECLIPSE GLOW BACKDROP
-//
-// Pure gradient: a single soft RadialGradient halo radiating from roughly
-// the top-center of the drawer over a pitch-dark base. No painters, no
-// animation, no scan lines, no grids. Kept low-opacity so foreground
-// content remains the focal point.
-// =============================================================================
-class _EclipseGlow extends ConsumerWidget {
-  const _EclipseGlow();
+// ── header ───────────────────────────────────────────────────────────────
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = ref.watch(themeProvider).colors;
-    return IgnorePointer(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          // Base is the scaffold background with a touch deeper to read
-          // as a true "eclipse" silhouette behind the soft halo.
-          color: Color.alphaBlend(
-            Colors.black.withValues(alpha: 0.18),
-            colors.background,
-          ),
-          gradient: RadialGradient(
-            // Halo origin sits slightly above-and-left of center so the
-            // glow falls naturally onto the profile hero area.
-            center: const Alignment(-0.15, -0.85),
-            radius: 1.15,
-            colors: [
-              colors.accent.withValues(alpha: 0.14),
-              colors.accent.withValues(alpha: 0.04),
-              Colors.transparent,
-            ],
-            stops: const [0.0, 0.35, 1.0],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// SLENDER MENU TILE
-//
-//   [icon plate 28×28]   Title              Tag · ›
-//
-// Press feedback: a quick scale-down + a flutter_animate shimmer chained
-// onto the row so each press feels alive without manual
-// AnimationController plumbing.
-// =============================================================================
-class _SlenderMenuTile extends StatefulWidget {
-  final AzamanColors colors;
-  final IconData icon;
-  final String title;
-  final String? chip;
-  final VoidCallback? onTap;
-
-  const _SlenderMenuTile({
+class _Header extends StatelessWidget {
+  const _Header({
     required this.colors,
-    required this.icon,
-    required this.title,
-    required this.chip,
-    required this.onTap,
-  });
-
-  @override
-  State<_SlenderMenuTile> createState() => _SlenderMenuTileState();
-}
-
-class _SlenderMenuTileState extends State<_SlenderMenuTile> {
-  bool _pressed = false;
-  Key _shimmerKey = UniqueKey();
-
-  void _setPressed(bool v) {
-    if (_pressed == v) return;
-    setState(() => _pressed = v);
-  }
-
-  void _onTap() {
-    if (widget.onTap == null) return;
-    setState(() => _shimmerKey = UniqueKey()); // re-trigger shimmer
-    widget.onTap!();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = widget.colors;
-    final disabled = widget.onTap == null;
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) => _setPressed(true),
-      onTapUp: (_) => _setPressed(false),
-      onTapCancel: () => _setPressed(false),
-      onTap: disabled ? null : _onTap,
-      child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1.0,
-        duration: MotionTokens.accessibleDuration(
-          context,
-          const Duration(milliseconds: 110),
-        ),
-        curve: Curves.easeOut,
-        child:
-            Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: colors.textSecondary.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          widget.icon,
-                          color: colors.textSecondary,
-                          size: 15,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          widget.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.1,
-                          ),
-                        ),
-                      ),
-                      if (widget.chip != null && widget.chip!.isNotEmpty) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: colors.accent.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            widget.chip!,
-                            style: TextStyle(
-                              color: colors.accent,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.1,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Icon(
-                        Icons.arrow_forward,
-                        color: colors.divider,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                )
-                .animate(key: _shimmerKey)
-                .fadeIn(duration: 220.ms)
-                .shimmer(
-                  delay: 80.ms,
-                  duration: 900.ms,
-                  color: colors.accent.withValues(alpha: 0.18),
-                ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// WORKER SUB-PORTAL CARD — Shows in settings drawer when user is an employee
-// =============================================================================
-class _WorkerCard extends ConsumerWidget {
-  final dynamic colors;
-  const _WorkerCard({required this.colors});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final empAsync = ref.watch(myEmployeeProvider);
-
-    return empAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (employee) {
-        if (employee == null) return const SizedBox.shrink();
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                colors.accentSecondary.withValues(alpha: 0.08),
-                colors.accentSecondary.withValues(alpha: 0.02),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: colors.accentSecondary.withValues(alpha: 0.15),
-              width: 1,
-            ),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () {
-              HapticFeedback.lightImpact();
-              Navigator.of(context).pop();
-              context.push('/worker');
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: colors.accentSecondary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.badge,
-                      color: colors.accentSecondary,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Workplace',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: colors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          '${employee.title ?? employee.role.name} @ ${employee.businessName ?? "Business"}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colors.textSecondary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: colors.textTertiary,
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// =============================================================================
-// PROFILE HERO — pinned sliver header with the scroll-driven avatar.
-//
-// Geometry (all values derive from the delegate's own extents; the SafeArea
-// above absorbs the OS top inset, so nothing hardcodes a notch):
-//
-//   EXPANDED (maxExtent 224)            COLLAPSED (minExtent 64)
-//   ┌───────────────────────────┐       ┌──────────────────────────┐
-//   │      ╭──────╮              │       │ (avatar sinks into bar) │
-//   │      │avatar│ 88px, top 16 │  ──►  │ ● @username   [verified]│
-//   │      ╰──────╯              │       └──────────────────────────┘
-//   │ ┌─────────────────────────┴─┐
-//   │ │ hero surface (protrudes)  │
-//   │ │      @username (centred)  │
-//   │ │ AZM-ID · badge      [QR] │
-//   │ └───────────────────────────┘
-//   └──────────────────────────────┘
-//
-// The morph is a pure interpolation of shrinkOffset between the two
-// geometries — no controllers, no listeners, no idle loop. The username /
-// identity / QR crossfade with t; conditional inclusion (t bands) keeps
-// the two presentations from fighting each other mid-transition. Under
-// reduced motion the position-proportional morph is inherently safe
-// (nothing springs or overshoots).
-// =============================================================================
-class _ProfileHeroDelegate extends SliverPersistentHeaderDelegate {
-  final String username;
-  final User? user;
-
-  static const double _minExtent = 64;
-  static const double _maxExtent = 224;
-
-  _ProfileHeroDelegate({required this.username, this.user});
-
-  @override
-  double get minExtent => _minExtent;
-
-  @override
-  double get maxExtent => _maxExtent;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    final f = (shrinkOffset / (_maxExtent - _minExtent)).clamp(0.0, 1.0);
-    // STAGE 2: the body receives the scroll FRACTION; its own threshold +
-    // hysteresis logic decides when to run the short collapse/expand.
-    return _ProfileHeroBody(username: username, user: user, scrollFraction: f);
-  }
-
-  @override
-  bool shouldRebuild(_ProfileHeroDelegate oldDelegate) =>
-      // STAGE 2: the delegate's build output depends on shrinkOffset
-      // (the scroll fraction feeds the threshold state), so the child
-      // MUST rebuild on every scroll tick — the previous continuous
-      // design had the same rebuild profile, and the body itself is a
-      // cheap Stack + LayoutBuilder.
-      true;
-}
-
-class _ProfileHeroBody extends ConsumerStatefulWidget {
-  final String username;
-  final User? user;
-
-  /// How far the drawer content is scrolled through the hero's travel
-  /// (0 = top, 1 = fully scrolled past the expanded extent). This is the
-  /// STAGE 2 contract input: the presentation is NOT scroll-linked —
-  /// crossing a threshold (with hysteresis) triggers a short expand or
-  /// collapse animation instead.
-  final double scrollFraction;
-
-  const _ProfileHeroBody({
-    required this.username,
     required this.user,
-    required this.scrollFraction,
+    required this.username,
+    required this.onOpenProfile,
   });
 
-  @override
-  ConsumerState<_ProfileHeroBody> createState() => _ProfileHeroBodyState();
-}
-
-class _ProfileHeroBodyState extends ConsumerState<_ProfileHeroBody>
-    with SingleTickerProviderStateMixin {
-  /// 0 = fully expanded, 1 = fully collapsed. Threshold-driven, animated.
-  double _t = 0;
-
-  bool _collapsed = false;
-
-  static const double _collapseAt = 0.66;
-  static const double _expandAt = 0.33;
-  static const Duration _collapseDuration = Duration(milliseconds: 220);
-
-  @override
-  void didUpdateWidget(covariant _ProfileHeroBody old) {
-    super.didUpdateWidget(old);
-    if (old.scrollFraction != widget.scrollFraction) {
-      _syncThreshold(widget.scrollFraction, animate: true);
-    }
-  }
-
-  /// Hysteresis: collapse only above [_collapseAt], expand only below
-  /// [_expandAt]; inside the dead band the current presentation is kept,
-  /// so slow scrolling near a single threshold can never flicker.
-  void _syncThreshold(double f, {required bool animate}) {
-    final shouldCollapse = f >= _collapseAt;
-    final shouldExpand = f <= _expandAt;
-
-    if (_collapsed) {
-      if (shouldExpand) _setCollapsed(false, animate: animate);
-    } else {
-      if (shouldCollapse) _setCollapsed(true, animate: animate);
-    }
-  }
-
-  late final AnimationController _ctrl = AnimationController(
-    vsync: this,
-    value: _t,
-  );
-
-  void _setCollapsed(bool collapsed, {required bool animate}) {
-    if (_collapsed == collapsed) return;
-    _collapsed = collapsed;
-    if (!animate) {
-      _t = collapsed ? 1.0 : 0.0;
-      _ctrl.value = _t;
-      if (mounted) setState(() {});
-      return;
-    }
-    // Short, restrained roll between presentations. Reduced motion →
-    // the state snaps (MotionTokens honors the OS flag).
-    final duration = MotionTokens.accessibleDuration(
-      context,
-      _collapseDuration,
-    );
-    if (duration == Duration.zero) {
-      _t = collapsed ? 1.0 : 0.0;
-      _ctrl.value = _t;
-      if (mounted) setState(() {});
-      return;
-    }
-    _ctrl.duration = duration;
-    _ctrl.animateTo(collapsed ? 1.0 : 0.0).whenComplete(() {
-      if (mounted) setState(() {});
-    });
-  }
-
-  void _onTick() {
-    setState(() => _t = _ctrl.value);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl.addListener(_onTick);
-    _syncThreshold(widget.scrollFraction, animate: false);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.removeListener(_onTick);
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  static const double _avatarExpanded = 88;
-  static const double _avatarCollapsed = 40;
-  static const double _surfaceExpanded = 128;
-  static const double _surfaceCollapsed = 64;
-
-  void _openProfileEditor(BuildContext context) {
-    HapticFeedback.lightImpact();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = ref.watch(themeProvider).colors;
-    final badgeColor = _kycTint(widget.user?.kycStatus);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-
-        // Interpolated geometry.
-        final avatarSize = lerpDouble(_avatarExpanded, _avatarCollapsed, _t)!;
-        final avatarTop = lerpDouble(16, (h - _avatarCollapsed) / 2, _t)!;
-        final avatarLeft = lerpDouble((w - _avatarExpanded) / 2, 18, _t)!;
-        final surfaceHeight = lerpDouble(
-          _surfaceExpanded,
-          _surfaceCollapsed,
-          _t,
-        )!;
-
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // ── HERO SURFACE ──────────────────────────────────────────
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 0,
-              height: surfaceHeight,
-              child: _HeroSurface(
-                colors: colors,
-                username: widget.username,
-                user: widget.user,
-                t: _t,
-                badgeColor: badgeColor,
-              ),
-            ),
-
-            // ── AVATAR (scroll-driven morph, protrudes over surface) ──
-            Positioned(
-              left: avatarLeft,
-              top: avatarTop,
-              child: Semantics(
-                button: true,
-                label: 'Open profile editor',
-                child: GestureDetector(
-                  key: const ValueKey('profile_hero_avatar'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _openProfileEditor(context),
-                  child: _buildAvatar(colors, avatarSize),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildAvatar(AzamanColors colors, double size) {
-    final hasPhoto =
-        (widget.user?.profilePictureUrl != null &&
-        widget.user!.profilePictureUrl!.isNotEmpty);
-    Widget avatar = Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.accent.withValues(alpha: 0.35),
-            colors.accent.withValues(alpha: 0.10),
-          ],
-        ),
-        border: Border.all(
-          color: colors.accent.withValues(alpha: 0.45),
-          width: 1.0,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: hasPhoto
-          ? ClipOval(
-              child: AzamanNetworkImage(
-                imageUrl: widget.user!.profilePictureUrl!,
-                width: size,
-                height: size,
-                fit: BoxFit.cover,
-                errorWidget: (_, __, ___) => _monogram(colors, size),
-              ),
-            )
-          : _monogram(colors, size),
-    );
-
-    // Verification ring only when fully verified (preserved affordance).
-    if (widget.user?.kycStatus == KycStatus.verified) {
-      avatar = Stack(
-        alignment: Alignment.bottomRight,
-        children: [
-          avatar,
-          Container(
-            width: size * 0.26,
-            height: size * 0.26,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.background,
-              border: Border.all(color: colors.background, width: 2),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.check_circle_outline,
-              color: const Color(0xFF22C55E),
-              size: size * 0.21,
-            ),
-          ),
-        ],
-      );
-    }
-    return avatar;
-  }
-
-  Widget _monogram(AzamanColors colors, double size) {
-    final c = widget.username.trim();
-    final initial = c.isEmpty ? 'A' : c.substring(0, 1).toUpperCase();
-    return Text(
-      initial,
-      style: TextStyle(
-        color: colors.accent,
-        fontSize: size * 0.34,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.5,
-      ),
-    );
-  }
-}
-
-/// The glass surface under the avatar: expanded state carries @username
-/// centred under the avatar, the public Azaman ID row + KYC badge, and
-/// the QR thumbnail; collapsed state is the compact bar with the username
-/// and a small QR affordance. The two presentations crossfade with [t]
-/// and are included in the tree only within their active bands so neither
-/// over-constrains the other's geometry mid-morph.
-class _HeroSurface extends StatelessWidget {
   final AzamanColors colors;
-  final String username;
   final User? user;
-  final double t;
-  final Color badgeColor;
-
-  const _HeroSurface({
-    required this.colors,
-    required this.username,
-    required this.user,
-    required this.t,
-    required this.badgeColor,
-  });
-
-  void _openProfileEditor(BuildContext context) {
-    HapticFeedback.lightImpact();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    );
-  }
+  final String username;
+  final VoidCallback onOpenProfile;
 
   @override
   Widget build(BuildContext context) {
-    final expandedOpacity = (1.0 - t * 1.6).clamp(0.0, 1.0);
-    final collapsedOpacity = (t * 1.6 - 0.6).clamp(0.0, 1.0);
-
-    final uidLine = (user?.azamanId != null && user!.azamanId!.isNotEmpty)
-        ? user!.azamanId!
-        : 'AZM-—';
-
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      // Empty area of the surface opens the profile editor — the QR and
-      // identity affordances below win the arena in their own regions.
-      onTap: () => _openProfileEditor(context),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(20),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color.alphaBlend(
-                Colors.white.withValues(alpha: colors.isDark ? 0.06 : 0.03),
-                colors.card,
-              ),
-              Color.alphaBlend(
-                Colors.white.withValues(alpha: colors.isDark ? 0.015 : 0.0),
-                colors.card,
-              ),
-            ],
-          ),
-          border: Border.all(
-            color: colors.isDark
-                ? Colors.white.withValues(alpha: 0.08)
-                : colors.border,
-            width: 0.8,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(
-                alpha: colors.isDark ? 0.35 : 0.08,
-              ),
-              blurRadius: 18,
-              spreadRadius: -4,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            // ── EXPANDED presentation ────────────────────────────────
-            if (expandedOpacity > 0.02)
-              Positioned.fill(
-                child: Opacity(
-                  opacity: expandedOpacity,
-                  child: IgnorePointer(
-                    ignoring: expandedOpacity < 0.5,
-                    child: Stack(
-                      children: [
-                        // @username centred under the avatar.
-                        Positioned(
-                          top: 34,
-                          left: 12,
-                          right: 12,
-                          child: Center(
-                            child: Text(
-                              '@$username',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.1,
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Identity row: public Azaman ID + copy + KYC badge.
-                        Positioned(
-                          left: 16,
-                          right: 76,
-                          bottom: 30,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      uidLine,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.visible,
-                                      softWrap: false,
-                                      style: TextStyle(
-                                        color: colors.textTertiary,
-                                        fontSize: 11,
-                                        letterSpacing: 0.4,
-                                      ),
-                                    ),
-                                  ),
-                                  if (user?.azamanId != null &&
-                                      user!.azamanId!.isNotEmpty) ...[
-                                    const SizedBox(width: 6),
-                                    GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: () => _copyAzamanId(
-                                        context,
-                                        user!.azamanId!,
-                                      ),
-                                      child: Icon(
-                                        Icons.copy_rounded,
-                                        size: 13,
-                                        color: colors.textTertiary.withValues(
-                                          alpha: 0.7,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              _kycBadge(user?.kycStatus, colors),
-                            ],
-                          ),
-                        ),
-                        // QR preview beside the identity row.
-                        Positioned(
-                          right: 14,
-                          bottom: 14,
-                          child: Semantics(
-                            button: true,
-                            label: 'Show my QR',
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () =>
-                                  showQrProfilePopup(context, username),
-                              child: QrProfileThumbnail(
-                                key: const ValueKey('profile_hero_qr'),
-                                username: username,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-            // ── COLLAPSED presentation (compact bar) ─────────────────
-            if (collapsedOpacity > 0.02)
-              Positioned.fill(
-                child: Opacity(
-                  opacity: collapsedOpacity,
-                  child: IgnorePointer(
-                    ignoring: collapsedOpacity < 0.5,
-                    child: Padding(
-                      // 54 clears the avatar that overlaps the bar's
-                      // left edge (avatar left 18 + 40 + 12 gap, minus
-                      // the surface's own 16px left inset).
-                      padding: const EdgeInsets.only(left: 54, right: 10),
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              '@$username',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.shield_outlined,
-                            color: badgeColor,
-                            size: 13,
-                          ),
-                          const Spacer(),
-                          GestureDetector(
-                            key: const ValueKey('profile_hero_qr_icon'),
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => showQrProfilePopup(context, username),
-                            child: Icon(
-                              Icons.qr_code,
-                              color: colors.textSecondary,
-                              size: 20,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _copyAzamanId(BuildContext context, String azamanId) {
-    Clipboard.setData(ClipboardData(text: azamanId));
-    HapticFeedback.selectionClick();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Copied $azamanId'),
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-}
-
-Color _kycTint(KycStatus? status) {
-  switch (status ?? KycStatus.unverified) {
-    case KycStatus.verified:
-      return const Color(0xFF22C55E);
-    case KycStatus.pending:
-      return const Color(0xFFF59E0B);
-    case KycStatus.rejected:
-    case KycStatus.unverified:
-      return const Color(0xFFEF4444);
-  }
-}
-
-Widget _kycBadge(KycStatus? status, AzamanColors colors) {
-  final s = status ?? KycStatus.unverified;
-  final tint = _kycTint(s);
-
-  late final String label;
-  late final IconData icon;
-  switch (s) {
-    case KycStatus.verified:
-      label = 'Verified';
-      icon = Icons.check_circle_outline;
-    case KycStatus.pending:
-      label = 'Pending';
-      icon = Icons.hourglass_empty;
-    case KycStatus.rejected:
-      label = 'Rejected';
-      icon = Icons.shield_outlined;
-    case KycStatus.unverified:
-      label = 'Unverified';
-      icon = Icons.shield_outlined;
-  }
-
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-    decoration: BoxDecoration(
-      color: tint.withValues(alpha: 0.14),
-      borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: tint.withValues(alpha: 0.55), width: 0.8),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
+    final azamanId = user?.azamanId;
+    final verified = user?.kycStatus == KycStatus.verified;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: tint, size: 11),
-        const SizedBox(width: 5),
-        Text(
-          label.toUpperCase(),
-          style: TextStyle(
-            color: tint,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.0,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              button: true,
+              label: 'Open your profile',
+              excludeSemantics: true,
+              child: GestureDetector(
+                key: const ValueKey('profile_hero_avatar'),
+                onTap: onOpenProfile,
+                child: _Avatar(colors: colors, user: user, username: username, size: 52),
+              ),
+            ),
+            const Spacer(),
+            Semantics(
+              button: true,
+              label: 'Show my Azaman QR code',
+              excludeSemantics: true,
+              child: GestureDetector(
+                onTap: () => showQrProfilePopup(context, username),
+                child: QrProfileThumbnail(
+                  key: const ValueKey('profile_hero_qr'),
+                  username: username,
+                  size: 40,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                username,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ),
+            if (verified) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.verified_rounded, size: 18, color: colors.accent),
+            ],
+          ],
+        ),
+        const SizedBox(height: 3),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            Text(
+              '@$username',
+              style: TextStyle(color: colors.textSecondary, fontSize: 15),
+            ),
+            if (azamanId != null && azamanId.isNotEmpty) ...[
+              Text('·', style: TextStyle(color: colors.textTertiary, fontSize: 15)),
+              GestureDetector(
+                key: const ValueKey('profile_hero_azm'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: azamanId));
+                  HapticFeedback.selectionClick();
+                  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                    SnackBar(
+                      content: Text('Copied $azamanId'),
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      azamanId,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 13.5,
+                        fontFamily: AzText.numericFamily,
+                        fontFeatures: AzText.tabular,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.copy_rounded, size: 13, color: colors.textTertiary),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
       ],
-    ),
-  );
+    );
+  }
+}
+
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.colors, required this.user, required this.username, required this.size});
+
+  final AzamanColors colors;
+  final User? user;
+  final String username;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = user?.profilePictureUrl;
+    final initial = username.trim().isEmpty ? 'A' : username.trim()[0].toUpperCase();
+    final monogram = Center(
+      child: Text(
+        initial,
+        style: TextStyle(color: colors.textPrimary, fontSize: size * 0.4, fontWeight: FontWeight.w800),
+      ),
+    );
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: colors.softSurface),
+      clipBehavior: Clip.antiAlias,
+      child: (url != null && url.isNotEmpty)
+          ? AzamanNetworkImage(
+              imageUrl: url,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => monogram,
+            )
+          : monogram,
+    );
+  }
+}
+
+// ── rows ─────────────────────────────────────────────────────────────────
+
+class _Status {
+  const _Status(this.label, this.color);
+  final String label;
+  final Color color;
+}
+
+/// A destination. Primary rows are big (the X rhythm: 22px type, 26px outline
+/// icon, generous height); secondary rows are quieter.
+class _Row extends StatelessWidget {
+  const _Row({
+    required this.colors,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.status,
+    this.secondary = false,
+  });
+
+  final AzamanColors colors;
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final _Status? status;
+  final bool secondary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: status == null ? label : '$label, ${status!.label}',
+      excludeSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        highlightColor: colors.textPrimary.withValues(alpha: 0.06),
+        splashColor: colors.textPrimary.withValues(alpha: 0.04),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: secondary ? 12 : 14, horizontal: 4),
+          child: Row(
+            children: [
+              Icon(icon, size: secondary ? 22 : 26, color: colors.textPrimary),
+              SizedBox(width: secondary ? 16 : 20),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: secondary ? 16 : 21,
+                    fontWeight: secondary ? FontWeight.w600 : FontWeight.w700,
+                    letterSpacing: secondary ? 0 : -0.2,
+                  ),
+                ),
+              ),
+              if (status != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    status!.label,
+                    style: TextStyle(
+                      color: status!.color,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The workplace entry, for active employees only.
+class _WorkplaceRow extends ConsumerWidget {
+  const _WorkplaceRow({required this.colors, required this.onOpen});
+
+  final AzamanColors colors;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(myEmployeeProvider).maybeWhen(
+          data: (employee) => employee == null
+              ? const SizedBox.shrink()
+              : _Row(
+                  colors: colors,
+                  icon: Icons.badge_outlined,
+                  label: 'Workplace',
+                  onTap: onOpen,
+                ),
+          orElse: () => const SizedBox.shrink(),
+        );
+  }
+}
+
+// ── footer ───────────────────────────────────────────────────────────────
+
+class _Footer extends ConsumerWidget {
+  const _Footer({required this.colors});
+
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = ref.watch(themeProvider);
+    final dark = theme.currentTheme == AzamanTheme.dark;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 24, 16),
+      child: Row(
+        children: [
+          Semantics(
+            button: true,
+            label: dark ? 'Switch to light theme' : 'Switch to dark theme',
+            excludeSemantics: true,
+            child: IconButton(
+              key: const ValueKey('drawer-theme-toggle'),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                theme.setTheme(dark ? AzamanTheme.light : AzamanTheme.dark);
+              },
+              icon: Icon(
+                dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                color: colors.textPrimary,
+                size: 24,
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            'Azaman 3.1',
+            style: TextStyle(color: colors.textTertiary, fontSize: 11, letterSpacing: 0.6),
+          ),
+        ],
+      ),
+    );
+  }
 }

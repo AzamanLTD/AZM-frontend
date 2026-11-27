@@ -24,6 +24,7 @@ import 'package:azaman/widgets/home/plus_action_launcher.dart';
 
 import 'package:azaman/screens/friends/friends_hub_screen.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
+import 'package:azaman/widgets/settings/az_reveal_drawer.dart';
 import 'package:azaman/widgets/drawer_peek_hint.dart';
 import 'package:azaman/widgets/liquid/liquid_launcher.dart';
 import 'package:azaman/widgets/premium_bottom_nav.dart';
@@ -543,6 +544,10 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   /// The + launcher open/close state, shared between the trigger (in the
   /// nav band) and the overlay (in the body stack).
   final PlusLauncherController _plus = PlusLauncherController();
+
+  /// The settings drawer lives UNDER the app: opening slides the whole
+  /// shell (page + nav) aside to reveal it (AzRevealDrawer).
+  final AzRevealDrawerController _drawer = AzRevealDrawerController();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   late final List<Widget?> _pages;
@@ -602,7 +607,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
   }
 
   void _openSettingsDrawer() {
-    _scaffoldKey.currentState?.openEndDrawer();
+    _drawer.open();
   }
 
   // PR-B state preservation: each page keeps a GlobalKey so its element
@@ -767,6 +772,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     _shellSocketService.removeBizNotificationsUpdatedListener();
     _transitionCtrl.dispose();
     _retap.dispose();
+    _drawer.dispose();
     appShellBus.disengage();
     super.dispose();
   }
@@ -910,10 +916,14 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     // user's stored continuation for the EXACT event reference no matter
     // which surface is on screen (or none of them).
     ref.watch(depositSettlementMonitorProvider);
-    return Scaffold(
+    return AzRevealDrawer(
+      controller: _drawer,
+      // The + launcher owns the screen while open: no drawer edge-drag.
+      enabled: !_plus.isOpen,
+      drawer: const SettingsDrawer(),
+      child: Scaffold(
       key: _scaffoldKey,
       backgroundColor: colors.surface,
-      endDrawer: const SettingsDrawer(),
       extendBody: true,
       bottomNavigationBar: PremiumBottomNav(
         // NEW-HOME §8/§10 (audit): the + action trigger sits STRUCTURALLY
@@ -994,10 +1004,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
                 if (_displayedIndex == 0 &&
                     ref.watch(settings_pkg.settingsProvider).vendorTagEnabled)
                   const VendorPullTab(),
-                DrawerPeekHint(
-                  onOpenDrawer: () =>
-                      _scaffoldKey.currentState?.openEndDrawer(),
-                ),
+                DrawerPeekHint(onOpenDrawer: _openSettingsDrawer),
                 // NEW-HOME §8: the floating + action launcher, topmost in the
                 // shell stack. It means "things I can DO" (Recent Activity is
                 // "things that HAPPENED"). The + sits beside the bottom nav;
@@ -1013,6 +1020,7 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
             ),
           ),
         ),
+      ),
       ),
     );
   }

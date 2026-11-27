@@ -25,6 +25,7 @@ import 'package:azaman/providers/worker_provider.dart';
 import 'package:azaman/screens/settings_screen.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/widgets/settings_drawer.dart';
+import 'package:azaman/widgets/settings/az_reveal_drawer.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -41,6 +42,12 @@ const _rootKey = Key('shot-root');
 bool _fontsLoaded = false;
 Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
+  // The real production icon font (committed under test/goldens/fonts), so
+  // icons render as on-device instead of placeholder boxes.
+  final icons = await File('test/goldens/fonts/MaterialIcons-Regular.otf').readAsBytes();
+  await (FontLoader('MaterialIcons')
+        ..addFont(Future<ByteData>.value(ByteData.view(Uint8List.fromList(icons).buffer))))
+      .load();
   final inter = await File('assets/fonts/Inter-Variable.ttf').readAsBytes();
   final interLoader = FontLoader('Inter')
     ..addFont(
@@ -140,10 +147,11 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final scaffoldKey = GlobalKey<ScaffoldState>();
-      // Scene behind the glass: a plausible home backdrop so the frosted
-      // drawer has real scenery to blur in the preview.
+      // The reveal: a plausible app page slides aside to show the drawer
+      // that lives underneath it (AzRevealDrawer, as in the app shell).
       final colors = ThemeProvider.getColors(theme);
+      final drawer = AzRevealDrawerController();
+      addTearDown(drawer.dispose);
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -151,49 +159,63 @@ void main() {
             theme: ThemeProvider.getThemeData(theme),
             home: RepaintBoundary(
               key: _rootKey,
-              child: Scaffold(
-                key: scaffoldKey,
-                backgroundColor: colors.background,
-                endDrawer: const SettingsDrawer(),
-                body: const SizedBox.expand(),
+              child: ColoredBox(
+                color: colors.background,
+                child: AzRevealDrawer(
+                  controller: drawer,
+                  drawer: const SettingsDrawer(),
+                  child: Scaffold(
+                    backgroundColor: colors.surface,
+                    body: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Home', style: TextStyle(color: colors.textPrimary, fontSize: 28, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 20),
+                            for (var i = 0; i < 4; i++)
+                              Container(
+                                height: 96,
+                                margin: const EdgeInsets.only(bottom: 14),
+                                decoration: BoxDecoration(
+                                  color: colors.card,
+                                  borderRadius: BorderRadius.circular(22),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
         ),
       );
-      scaffoldKey.currentState!.openEndDrawer();
+      drawer.open();
       await tester.pump();
-      // Entrance staggers (groups) + the async biometric chip settle.
-      await tester.pump(const Duration(milliseconds: 1500));
-      await tester.pump(const Duration(milliseconds: 1500));
+      await tester.pump(const Duration(milliseconds: 600));
+      // The async biometric chip settles.
+      await tester.pump(const Duration(milliseconds: 600));
 
       // The redesigned contract is on screen before the capture ships.
-      expect(find.text('Account'), findsOneWidget);
-      // G1: duplicate Withdraw row removed — canonical home is the + launcher.
+      expect(drawer.isOpen, isTrue);
+      expect(find.text('Profile'), findsOneWidget);
       expect(find.text('Verified'), findsOneWidget);
       expect(find.text('Biometrics on'), findsOneWidget);
       expect(find.text('All settings'), findsOneWidget);
 
       await _capture(tester, '${mode}_drawer');
 
-      // STAGE 2 evidence: the threshold-triggered COLLAPSED hero. The
-      // slimmed-down drawer fits the 900px preview without scrolling, so
-      // the collapsed bar is exercised on a shorter, real-phone viewport.
-      await tester.binding.setSurfaceSize(const Size(400, 650));
+      // Tapping the visible strip of the slid-away page (its left edge;
+      // its centre is off-screen) closes the drawer.
+      expect(find.byKey(const ValueKey('reveal-drawer-scrim')), findsOneWidget);
+      await tester.tapAt(const Offset(16, 300));
       await tester.pump();
-      final scrollable = tester.state<ScrollableState>(
-        find.byType(Scrollable).first,
-      );
-      expect(scrollable.position.maxScrollExtent, greaterThan(0));
-      scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(
-        find.byKey(const ValueKey('profile_hero_qr_icon')),
-        findsOneWidget,
-        reason: 'the collapsed capture must show the compact bar',
-      );
-      await _capture(tester, '${mode}_drawer_collapsed');
+      await tester.pump(const Duration(milliseconds: 600));
+      expect(drawer.isOpen, isFalse);
     });
 
     testWidgets('settings page preview — $mode', (tester) async {

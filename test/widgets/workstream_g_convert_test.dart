@@ -120,17 +120,16 @@ void main() {
   });
 
   group('G1 — drawer information architecture', () {
-    testWidgets('Money group keeps its legitimate rows', (tester) async {
+    // 2026-11-27 drawer redesign (X-style, no section labels): the money
+    // destinations are still there, as flat rows.
+    testWidgets('the money destinations keep their legitimate rows', (tester) async {
       await _pumpDrawer(tester);
 
-      expect(find.text('Money'), findsOneWidget);
       expect(find.text('Currency'), findsOneWidget);
       expect(find.text('Azaman Store'), findsOneWidget);
-      // The saved-accounts management surface stays in the group.
-      expect(
-        find.textContaining('Deposits and payout destinations'),
-        findsOneWidget,
-      );
+      // The saved-accounts management surface (deposits and payout
+      // destinations, one concept) stays.
+      expect(find.text('Accounts'), findsOneWidget);
     });
 
     testWidgets('duplicate Deposit/Withdraw rows are gone from the drawer', (
