@@ -29,6 +29,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/launcher_drafts.dart';
+import 'package:azaman/widgets/money_stage/money_stage.dart';
 import 'package:azaman/widgets/launcher_exit_prompt.dart';
 import 'package:go_router/go_router.dart';
 
@@ -85,13 +86,16 @@ extension on MomoNetwork {
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 class WithdrawalScreen extends ConsumerStatefulWidget {
-  const WithdrawalScreen({super.key, this.restoredDraft});
+  const WithdrawalScreen({super.key, this.restoredDraft, this.skyPhaseForCaptures = 0});
 
   /// §C continuation — editable inputs restored from a five-minute
   /// launcher draft. LOCAL convenience only; nothing here is a pending
   /// withdrawal. The saved wallet is re-matched by address from the LIVE
   /// wallet list, never trusted from storage.
   final Map<String, dynamic>? restoredDraft;
+
+  /// Pins the sky's drift phase so visual captures are deterministic.
+  final double skyPhaseForCaptures;
 
   @override
   ConsumerState<WithdrawalScreen> createState() => _WithdrawalScreenState();
@@ -1238,8 +1242,10 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Granular theme read (Phase 0b convention).
-    final colors = ref.watch(themeProvider.select((t) => t.colors));
+    // Granular theme read (Phase 0b convention), re-tuned for the
+    // Withdraw stage (harmattan sky): glass surfaces, the sky's ink.
+    final baseColors = ref.watch(themeProvider.select((t) => t.colors));
+    final colors = AzStageSkin.adapt(baseColors, AzMoneyMood.withdraw);
 
     // BUGFIX (2026-05-27): both withdrawal paths debit USDC from
     // `User.availableBalance` server-side (mobile-money via
@@ -1269,8 +1275,11 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         _attemptClose();
       },
       child: Scaffold(
-        backgroundColor: colors.surface,
-        body: _isLoadingWallets
+        backgroundColor: baseColors.surface,
+        body: AzMoneyStage(
+          mood: AzMoneyMood.withdraw,
+          skyPhase: widget.skyPhaseForCaptures,
+          child: _isLoadingWallets
             ? Center(child: CircularProgressIndicator(color: colors.accent))
             : SafeArea(
                 bottom: false,
@@ -1287,19 +1296,13 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
+                          // The rail choice (MoMo | Crypto) is the stage's
+                          // context pill, between the corner buttons.
                           _WithdrawHeader(
                             colors: colors,
                             busy: _isSubmitting,
                             onClose: _attemptClose,
-                          ),
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              20,
-                              compact ? 6 : 10,
-                              20,
-                              0,
-                            ),
-                            child: _buildModeToggle(colors),
+                            center: _buildModeToggle(colors),
                           ),
                           _buildAmountComposition(
                             colors,
@@ -1347,6 +1350,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
                   ),
                 ),
               ),
+        ),
       ),
     );
   }
@@ -1358,88 +1362,63 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
     String balanceLabel,
     bool compact,
   ) {
+    // Centred on the stage: the quiet title, the amount (Inter, tabular)
+    // with its unit, and one line holding what is available plus Max.
     return Padding(
-      padding: EdgeInsets.fromLTRB(24, compact ? 6 : 12, 24, compact ? 8 : 12),
+      padding: EdgeInsets.fromLTRB(24, compact ? 10 : 18, 24, compact ? 8 : 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Text(
-                'Available',
-                style: TextStyle(
-                  color: colors.textTertiary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+          Text('Withdraw', style: AzStageType.stageTitle(colors.textSecondary)),
+          SizedBox(height: compact ? 6 : 10),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                OdometerNumber(
+                  value: _amountDisplay,
+                  style: AzStageType.amount(colors.textPrimary, size: compact ? 48 : 60),
+                  semanticsLabel: '$_amountDisplay $balanceLabel',
                 ),
-              ),
+                const SizedBox(width: 10),
+                Text(balanceLabel, style: AzStageType.unit(colors.textSecondary, size: compact ? 18 : 22)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('Available', style: AzStageType.line(colors.textTertiary)),
               const SizedBox(width: 6),
               Text(
                 '${AzMoney.amount(_availableBalance)} $balanceLabel',
-                style: TextStyle(
-                  color: colors.textSecondary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: AzStageType.line(colors.textSecondary).copyWith(fontWeight: FontWeight.w600),
               ),
-              const Spacer(),
-              // Max — fills the composition with the full balance. Same
-              // vocabulary as the old suffix chip; never enabled
-              // mid-flight.
+              const SizedBox(width: 10),
+              // Max — fills the composition with the full balance; never
+              // enabled mid-flight.
               Semantics(
                 button: true,
                 label: 'Use full balance',
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: _isSubmitting ? null : _setMax,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: colors.softSurface,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                     child: Text(
                       'Max',
                       style: TextStyle(
-                        color: _isSubmitting
-                            ? colors.textTertiary
-                            : colors.textPrimary,
+                        color: _isSubmitting ? colors.textTertiary : colors.textPrimary,
                         fontWeight: FontWeight.w700,
-                        fontSize: 13,
+                        fontSize: 12.5,
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      OdometerNumber(
-                        value: _amountDisplay,
-                        style: AzText.money(
-                          colors.textPrimary,
-                          size: compact ? 46 : 56,
-                        ),
-                        semanticsLabel: '$_amountDisplay $balanceLabel',
-                      ),
-                      const SizedBox(width: 10),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          balanceLabel,
-                          style: AzText.money(
-                            colors.textSecondary,
-                            size: compact ? 18 : 22,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -1555,32 +1534,25 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
           }
           setState(() => _mode = mode);
         },
-        child: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: selected ? colors.accent : colors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
-                  letterSpacing: -0.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: selected ? 28 : 0,
-                height: 2.5,
-                decoration: BoxDecoration(
-                  color: selected ? colors.accent : Colors.transparent,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ],
+        // A segment of the glass rail pill: the chosen rail is filled with
+        // the sky's ink, the other reads as text on glass.
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? colors.accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected ? colors.onAccent : colors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.1,
+            ),
           ),
         ),
       );
@@ -1588,8 +1560,13 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
 
     return Align(
       alignment: Alignment.center,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: colors.softSurface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: colors.divider, width: 0.6),
+        ),
         // Scale-down clamp: the two tiles keep their exact look at every
         // production width; on narrow viewports (or very large text
         // scales) the Row scales down instead of overflowing — the
@@ -3092,53 +3069,29 @@ class _WithdrawHeader extends StatelessWidget {
     required this.colors,
     required this.busy,
     required this.onClose,
+    required this.center,
   });
 
   final AzamanColors colors;
   final bool busy;
   final VoidCallback onClose;
+  final Widget center;
 
   @override
   Widget build(BuildContext context) {
     final bool enabled = !busy;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
         children: [
-          Semantics(
-            button: true,
-            label: enabled ? 'Close Withdraw' : 'Withdrawal in progress',
-            enabled: enabled,
-            excludeSemantics: true,
-            child: GestureDetector(
-              onTap: enabled ? onClose : null,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: colors.softSurface,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.close,
-                  size: 18,
-                  color: enabled ? colors.textPrimary : colors.textTertiary,
-                ),
-              ),
-            ),
+          AzStageRoundButton(
+            icon: Icons.close,
+            onTap: enabled ? onClose : null,
+            semanticsLabel: enabled ? 'Close Withdraw' : 'Withdrawal in progress',
           ),
-          const SizedBox(width: 14),
-          Text(
-            'Withdraw',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
+          const SizedBox(width: 10),
+          Expanded(child: Center(child: center)),
+          const SizedBox(width: 54),
         ],
       ),
     );
