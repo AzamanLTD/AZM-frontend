@@ -4,11 +4,12 @@
 //
 // One unbroken circle around the photo, in two colours that meet:
 //
-//   • the UNVIEWED share is a vivid arc in the user's accent family,
-//     starting at 12 o'clock and running clockwise;
-//   • the VIEWED share continues in grey until it meets the start again;
-//   • arc lengths follow the real counts, so three new stories out of four
-//     read as three-quarters colour;
+//   • the UNVIEWED share is ALWAYS the top: a vivid arc in the user's accent
+//     family, centred on 12 o'clock;
+//   • the VIEWED share is ALWAYS the bottom: a grey arc centred on 6 o'clock;
+//   • the two meet on both sides, and their sizes follow the real counts:
+//     60° seen means a 60° grey arc at the bottom and a 300° coloured arc
+//     over the top (owner direction, 2026-11-27);
 //   • all viewed: a thin, quiet grey ring; nothing at all: no ring.
 //
 // Red is retired (in a money app red means an error), the viewed dots and
@@ -264,6 +265,25 @@ StoryRingSplit storyRingSplit(StoryRingCounts c) {
   return const StoryRingSplit(unviewedFraction: 0, hasRing: false);
 }
 
+/// Where each colour sits, in radians (0 = 3 o'clock, clockwise, as Canvas
+/// draws arcs). Unviewed is always centred on 12 o'clock and viewed always
+/// on 6 o'clock; their sweeps are the split's shares of the full circle, so
+/// the two arcs meet on both sides.
+({double unviewedStart, double unviewedSweep, double viewedStart, double viewedSweep})
+    storyRingArcs(StoryRingSplit split) {
+  if (!split.hasRing) {
+    return (unviewedStart: 0, unviewedSweep: 0, viewedStart: 0, viewedSweep: 0);
+  }
+  final unviewedSweep = split.unviewedFraction * 2 * math.pi;
+  final viewedSweep = 2 * math.pi - unviewedSweep;
+  return (
+    unviewedStart: -math.pi / 2 - unviewedSweep / 2,
+    unviewedSweep: unviewedSweep,
+    viewedStart: math.pi / 2 - viewedSweep / 2,
+    viewedSweep: viewedSweep,
+  );
+}
+
 /// Stroke width: confident when something is new, quieter when all viewed.
 double storyRingStroke(double size, StoryRingSplit split) {
   if (!split.hasRing) return 0;
@@ -285,8 +305,6 @@ class _StoryRingPainter extends CustomPainter {
   final Color unviewedTo;
   final Color viewed;
 
-  static const double _start = -math.pi / 2; // 12 o'clock
-
   @override
   void paint(Canvas canvas, Size size) {
     if (!split.hasRing) return;
@@ -294,15 +312,15 @@ class _StoryRingPainter extends CustomPainter {
       center: size.center(Offset.zero),
       radius: size.shortestSide / 2 - stroke / 2,
     );
-    final coloured = split.unviewedFraction * 2 * math.pi;
+    final arcs = storyRingArcs(split);
 
-    // Grey for the viewed share. Butt caps on both arcs, so the two colours
-    // meet edge to edge with no gap and no overlap.
-    if (split.unviewedFraction < 1) {
+    // Grey, centred on the bottom. Butt caps on both arcs, so the two
+    // colours meet edge to edge on both sides with no gap and no overlap.
+    if (arcs.viewedSweep > 0) {
       canvas.drawArc(
         rect,
-        _start + coloured,
-        2 * math.pi - coloured,
+        arcs.viewedStart,
+        arcs.viewedSweep,
         false,
         Paint()
           ..style = PaintingStyle.stroke
@@ -310,20 +328,22 @@ class _StoryRingPainter extends CustomPainter {
           ..color = viewed,
       );
     }
-    if (coloured > 0) {
+    // Colour, centred on the top: the accent at 12 o'clock, easing to the
+    // secondary accent at both ends, so the arc reads symmetric.
+    if (arcs.unviewedSweep > 0) {
       canvas.drawArc(
         rect,
-        _start,
-        coloured,
+        arcs.unviewedStart,
+        arcs.unviewedSweep,
         false,
         Paint()
           ..style = PaintingStyle.stroke
           ..strokeWidth = stroke
           ..shader = SweepGradient(
             startAngle: 0,
-            endAngle: math.max(coloured, 0.01),
-            colors: [unviewedFrom, unviewedTo],
-            transform: const GradientRotation(_start),
+            endAngle: math.max(arcs.unviewedSweep, 0.01),
+            colors: [unviewedTo, unviewedFrom, unviewedTo],
+            transform: GradientRotation(arcs.unviewedStart),
           ).createShader(rect),
       );
     }

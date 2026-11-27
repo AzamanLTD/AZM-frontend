@@ -11,6 +11,7 @@ import '../goldens/golden_harness.dart';
 
 const _states = <String, StoryRingCounts>{
   'all new': StoryRingCounts(unviewedSilentCount: 3, hasUnviewed: true, unviewedCountKnown: true),
+  '5 of 6 new': StoryRingCounts(unviewedSilentCount: 5, viewedCount: 1, hasUnviewed: true, unviewedCountKnown: true),
   '3 of 4 new': StoryRingCounts(unviewedSilentCount: 3, viewedCount: 1, hasUnviewed: true, unviewedCountKnown: true),
   '1 of 4 new': StoryRingCounts(unviewedSilentCount: 1, viewedCount: 3, hasUnviewed: true, unviewedCountKnown: true),
   'all seen': StoryRingCounts(viewedCount: 4),
@@ -31,7 +32,7 @@ void main() {
       await pumpGoldenSurface(
         tester,
         brightness: dark ? Brightness.dark : Brightness.light,
-        surfaceSize: const Size(520, 150),
+        surfaceSize: const Size(620, 150),
         home: ProviderScope(
           overrides: [themeProvider.overrideWith((ref) => tp)],
           child: Scaffold(

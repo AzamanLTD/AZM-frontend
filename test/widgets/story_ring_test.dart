@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 // =============================================================================
 // P3 — FINAL STORY RING / CIRCULAR STORY SYSTEM (spec §18 test contract).
 //
@@ -132,6 +133,27 @@ void main() {
       final split = storyRingSplit(const StoryRingCounts.empty());
       expect(split.hasRing, isFalse);
       expect(storyRingStroke(64, split), 0);
+    });
+
+    test('unseen is always centred on the top and seen on the bottom', () {
+      for (final f in [0.1, 0.25, 0.5, 0.75, 0.9]) {
+        final arcs = storyRingArcs(StoryRingSplit(unviewedFraction: f, hasRing: true));
+        // Centres: 12 o'clock is -pi/2, 6 o'clock is +pi/2.
+        expect(arcs.unviewedStart + arcs.unviewedSweep / 2, closeTo(-math.pi / 2, 1e-9));
+        expect(arcs.viewedStart + arcs.viewedSweep / 2, closeTo(math.pi / 2, 1e-9));
+        // Together they make the whole circle and meet on both sides.
+        expect(arcs.unviewedSweep + arcs.viewedSweep, closeTo(2 * math.pi, 1e-9));
+        final unviewedEnd = arcs.unviewedStart + arcs.unviewedSweep;
+        expect(unviewedEnd, closeTo(arcs.viewedStart, 1e-9), reason: 'right side joins');
+        expect(arcs.viewedStart + arcs.viewedSweep - 2 * math.pi,
+            closeTo(arcs.unviewedStart, 1e-9), reason: 'left side joins');
+      }
+    });
+
+    test('60 degrees seen: a 300 degree top arc and a 60 degree bottom arc', () {
+      final arcs = storyRingArcs(const StoryRingSplit(unviewedFraction: 300 / 360, hasRing: true));
+      expect(arcs.unviewedSweep * 180 / math.pi, closeTo(300, 1e-9));
+      expect(arcs.viewedSweep * 180 / math.pi, closeTo(60, 1e-9));
     });
 
     test('a fresh group from the feed splits by its real seen flags', () {
