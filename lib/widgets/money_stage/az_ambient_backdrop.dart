@@ -203,13 +203,17 @@ class _AzAmbientBackdropState extends State<AzAmbientBackdrop>
       widget.mood,
       widget.brightness ?? Theme.of(context).brightness,
     );
+    // Clipped: the clouds are large soft circles that would otherwise paint
+    // past the backdrop's box (visible when a sky is a band, not a page).
     return RepaintBoundary(
-      child: AnimatedSwitcher(
+      child: ClipRect(
+        child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 600),
         child: CustomPaint(
           key: ValueKey(palette),
           painter: _SkyPainter(palette: palette, t: _drift),
           size: Size.infinite,
+        ),
         ),
       ),
     );

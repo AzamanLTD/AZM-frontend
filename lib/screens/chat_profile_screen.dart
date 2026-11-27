@@ -29,6 +29,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:azaman/config.dart';
+import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/screens/send_money_screen.dart';
+import 'package:azaman/services/friend_service.dart';
+import 'package:azaman/services/recipient_discovery_service.dart';
+import 'package:azaman/widgets/home/money_route_guard.dart';
+import 'package:azaman/widgets/money_stage/money_stage.dart' show AzStageRoundButton;
+import 'package:azaman/widgets/profile/az_profile_header.dart';
 import 'package:azaman/providers/chat_profile_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/providers/ticket_provider.dart';
@@ -38,20 +45,24 @@ import 'package:azaman/services/chat_profile_service.dart';
 import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/trust_breakdown_sheet.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
-import 'package:azaman/widgets/chat_avatar.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class ChatProfileScreen extends ConsumerStatefulWidget {
   final String friendshipId;
   final String fallbackUsername;
+
+  /// What Message does. Null (opened from the chat itself): go back to the
+  /// chat. Callers that open the profile from elsewhere (the story dial,
+  /// search) pass the way into the conversation.
+  final VoidCallback? onMessage;
+
   const ChatProfileScreen({
     super.key,
     required this.friendshipId,
     required this.fallbackUsername,
+    this.onMessage,
   });
 
   @override
@@ -86,8 +97,8 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
     final profile = state.profile;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
+      backgroundColor: profile == null ? Colors.transparent : colors.background,
+      appBar: profile != null ? null : AppBar(
         backgroundColor: colors.surface,
         elevation: 0,
         iconTheme: IconThemeData(color: colors.textPrimary),
@@ -112,14 +123,7 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
                   )
                 : Column(
                     children: [
-                      _IdentityTier(
-                        profile: profile,
-                        fallbackUsername: widget.fallbackUsername,
-                        colors: colors,
-                        onEditNickname: () => _editNickname(profile),
-                        onShowTrustBreakdown: () =>
-                            _showTrustBreakdown(profile),
-                      ),
+                      _header(profile, colors),
                       Container(
                         margin: const EdgeInsets.fromLTRB(20, 12, 20, 8),
                         padding: const EdgeInsets.all(4),
@@ -215,6 +219,185 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
                   )),
     );
   }
+
+  // ── the profile header (shared with your own profile) ───────────────────
+
+  Widget _header(ChatProfileResponse profile, AzamanColors colors) {
+    final f = profile.friend;
+    final username = f.username.isNotEmpty ? f.username : widget.fallbackUsername;
+    final nickname = profile.myNicknameForFriend;
+    final hasNickname = nickname != null && nickname.isNotEmpty;
+    final kycVerified = f.kycStatus == 'VERIFIED';
+    return AzProfileHeader(
+      seed: f.id,
+      name: hasNickname ? nickname : username,
+      handle: '@$username',
+      avatarUrl: f.profilePictureUrl,
+      verified: f.isVerifiedVendor || kycVerified,
+      verifiedTooltip: f.isVerifiedVendor ? 'Verified vendor' : 'Verified',
+      onBack: () => Navigator.of(context).maybePop(),
+      trailing: AzStageRoundButton(
+        key: const ValueKey('profile-more'),
+        icon: Icons.more_horiz_rounded,
+        onTap: () => _openMore(profile),
+        semanticsLabel: 'More',
+      ),
+      chips: [
+        AzProfileChip(icon: Icons.handshake_outlined, label: 'Friends since ${_monthYear(profile.friendSince)}'),
+        if (f.isVerifiedVendor)
+          AzProfileChip(icon: Icons.storefront_outlined, label: 'Verified vendor', tone: colors.accent)
+        else if (kycVerified)
+          AzProfileChip(icon: Icons.verified_outlined, label: 'Verified', tone: colors.success),
+        if (f.loyaltyTier != null && f.loyaltyTier!.isNotEmpty)
+          AzProfileChip(icon: Icons.workspace_premium_outlined, label: _title(f.loyaltyTier!)),
+      ],
+      stats: [
+        AzProfileStat(
+          value: '${f.completedTransactions}',
+          label: 'Completed',
+          onTap: () => _showTrustBreakdown(profile),
+        ),
+        AzProfileStat(value: f.rating != null ? f.rating!.toStringAsFixed(1) : '\u2014', label: 'Rating'),
+        AzProfileStat(value: '${profile.mutualTradesCompleted}', label: 'Mutual'),
+      ],
+      actions: [
+        AzProfileAction(
+          key: const ValueKey('profile-send'),
+          label: 'Send',
+          icon: Icons.arrow_upward_rounded,
+          primary: true,
+          onTap: () => _send(profile),
+        ),
+        AzProfileAction(
+          key: const ValueKey('profile-message'),
+          label: 'Message',
+          icon: Icons.chat_bubble_outline_rounded,
+          onTap: () {
+            AzamanHaptics.nav();
+            if (widget.onMessage != null) {
+              widget.onMessage!();
+            } else {
+              Navigator.of(context).maybePop();
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Send to this friend: the shared money stage, behind the money lock.
+  void _send(ChatProfileResponse profile) {
+    AzamanHaptics.nav();
+    final f = profile.friend;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => MoneyRouteGuard(
+        child: SendMoneyScreen.toFriend(
+          recipient: SendRecipient.friend(
+            username: f.username.isNotEmpty ? f.username : widget.fallbackUsername,
+            friendshipId: widget.friendshipId,
+          ),
+        ),
+      ),
+    ));
+  }
+
+  Future<void> _openMore(ChatProfileResponse profile) async {
+    AzamanHaptics.toggle();
+    final colors = ref.read(themeProvider).colors;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            ListTile(
+              leading: Icon(Icons.edit_outlined, color: colors.textPrimary),
+              title: Text('Set nickname', style: TextStyle(color: colors.textPrimary)),
+              onTap: () => Navigator.pop(sheet, 'nickname'),
+            ),
+            ListTile(
+              leading: Icon(Icons.task_alt_outlined, color: colors.textPrimary),
+              title: Text('How trust is counted', style: TextStyle(color: colors.textPrimary)),
+              onTap: () => Navigator.pop(sheet, 'trust'),
+            ),
+            ListTile(
+              key: const ValueKey('profile-remove-friend'),
+              leading: Icon(Icons.person_remove_outlined, color: colors.danger),
+              title: Text('Remove friend', style: TextStyle(color: colors.danger)),
+              onTap: () => Navigator.pop(sheet, 'remove'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case 'nickname':
+        await _editNickname(profile);
+      case 'trust':
+        _showTrustBreakdown(profile);
+      case 'remove':
+        await _confirmRemove(profile);
+    }
+  }
+
+  /// Removing a friend ends the chat and the money rail between you; it is
+  /// confirmed first and never silent.
+  Future<void> _confirmRemove(ChatProfileResponse profile) async {
+    final colors = ref.read(themeProvider).colors;
+    final name = profile.friend.username.isNotEmpty ? profile.friend.username : widget.fallbackUsername;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: colors.surface,
+        title: Text('Remove $name?', style: TextStyle(color: colors.textPrimary)),
+        content: Text(
+          'You will no longer be friends. To chat or send money again, one of you has to send a new friend request.',
+          style: TextStyle(color: colors.textSecondary, fontSize: 13),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Remove', style: TextStyle(color: colors.danger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final token = ref.read(authProvider).user?.token;
+    if (token == null) return;
+    bool removed = false;
+    try {
+      removed = await FriendService().removeFriend(widget.friendshipId, token);
+    } catch (_) {
+      removed = false;
+    }
+    if (!mounted) return;
+    if (removed) {
+      AzamanHaptics.confirm();
+      Navigator.of(context).popUntil((r) => r.isFirst);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not remove this friend. Try again.')),
+      );
+    }
+  }
+
+  String _monthYear(DateTime dt) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[dt.month - 1]} ${dt.year}';
+  }
+
+  String _title(String raw) => raw.isEmpty
+      ? raw
+      : raw[0].toUpperCase() + raw.substring(1).toLowerCase().replaceAll('_', ' ');
 
   Future<void> _editNickname(ChatProfileResponse profile) async {
     final colors = ref.read(themeProvider).colors;
@@ -327,278 +510,6 @@ class _ChatProfileScreenState extends ConsumerState<ChatProfileScreen>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IDENTITY TIER
-// ─────────────────────────────────────────────────────────────────────────────
-class _IdentityTier extends StatelessWidget {
-  final ChatProfileResponse profile;
-  final String fallbackUsername;
-  final AzamanColors colors;
-  final VoidCallback onEditNickname;
-  final VoidCallback onShowTrustBreakdown;
-  const _IdentityTier({
-    required this.profile,
-    required this.fallbackUsername,
-    required this.colors,
-    required this.onEditNickname,
-    required this.onShowTrustBreakdown,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final username = profile.friend.username.isNotEmpty
-        ? profile.friend.username
-        : fallbackUsername;
-    final nickname = profile.myNicknameForFriend;
-
-    return PremiumGlassContainer(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      padding: const EdgeInsets.all(20),
-      borderRadius: 24,
-      blur: 30,
-      opacity: 0.15,
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          colors.accent.withValues(alpha: 0.2),
-          colors.card.withValues(alpha: 0.05),
-          colors.accent.withValues(alpha: 0.05),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              ChatAvatar(
-                imageUrl: profile.friend.profilePictureUrl,
-                name: username,
-                size: 64,
-                showOnlineDot: false,
-                heroTag: 'avatar-${profile.friend.id}',
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            nickname?.isNotEmpty == true ? nickname! : username,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        // Phase UI-7: prefer the verified VENDOR badge
-                        // (theme accent) when applicable; fall back to
-                        // the green KYC tick for normal users with
-                        // VERIFIED status. Vendor flag is stricter so
-                        // we check it first.
-                        if (profile.friend.isVerifiedVendor)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 6),
-                            child: Tooltip(
-                              message: 'Verified vendor',
-                              child: Icon(
-                                Icons.check_circle_outline,
-                                color: colors.accent,
-                                size: 18,
-                              ),
-                            ),
-                          )
-                        else if (profile.friend.kycStatus == 'VERIFIED')
-                          const Padding(
-                            padding: EdgeInsets.only(left: 6),
-                            child: Icon(
-                              Icons.check_circle_outline,
-                              color: Color(0xFF22C55E),
-                              size: 18,
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (nickname?.isNotEmpty == true)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          '@$username',
-                          style: TextStyle(
-                            color: colors.textTertiary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Friends since ${_formatDate(profile.friendSince)}',
-                      style: TextStyle(
-                        color: colors.textTertiary,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: onEditNickname,
-                icon: Icon(Icons.edit_outlined, color: colors.accent, size: 20),
-                tooltip: 'Edit nickname',
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // Phase UI-7 (2026-05-27): the stat row now leads with the
-          // GLOBAL completed-transactions count (tappable → breakdown
-          // sheet), the friend's rating, and the mutual-trades number
-          // for relationship context. The previous "Their trades" pill
-          // showed only User.tradesCompleted (P2P only) and was
-          // misleading next to the chat header which shows the global
-          // count. The two now agree.
-          Row(
-            children: [
-              Expanded(
-                child: _StatPill(
-                  icon: Icons.task_alt_outlined,
-                  label: 'Completed',
-                  value: '${profile.friend.completedTransactions}',
-                  colors: colors,
-                  onTap: onShowTrustBreakdown,
-                  highlight: true,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatPill(
-                  icon: Icons.star_outline,
-                  label: 'Rating',
-                  value: profile.friend.rating != null
-                      ? profile.friend.rating!.toStringAsFixed(1)
-                      : '—',
-                  colors: colors,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _StatPill(
-                  icon: Icons.handshake_outlined,
-                  label: 'Mutual',
-                  value: '${profile.mutualTradesCompleted}',
-                  colors: colors,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime dt) {
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[dt.month - 1]} ${dt.year}';
-  }
-}
-
-class _StatPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final AzamanColors colors;
-  final VoidCallback? onTap;
-  final bool highlight;
-  const _StatPill({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.colors,
-    this.onTap,
-    this.highlight = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final iconColor = highlight ? colors.accent : colors.textTertiary;
-    final body = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: highlight
-            ? colors.accent.withValues(alpha: 0.06)
-            : colors.surface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: highlight
-              ? colors.accent.withValues(alpha: 0.30)
-              : colors.divider,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: iconColor, size: 12),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colors.textTertiary,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-              if (onTap != null)
-                Icon(Icons.arrow_forward, color: iconColor, size: 14),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (onTap == null) return body;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: body,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MEDIA TAB (Images + Videos)
 // ─────────────────────────────────────────────────────────────────────────────
 class _MediaTab extends ConsumerWidget {
   final String friendshipId;

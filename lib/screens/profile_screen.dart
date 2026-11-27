@@ -14,15 +14,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:azaman/screens/security_settings.dart';
+import 'package:azaman/widgets/profile/az_profile_header.dart';
+import 'package:azaman/widgets/qr_profile_popup.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/kyc_verification_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/nav_transitions.dart';
-import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -334,28 +335,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final colors = ref.watch(themeProvider).colors;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Text(
-          'Profile',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: colors.surface,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: colors.textPrimary),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.edit_outlined, color: colors.accent, size: 22),
-            onPressed: _showEditSheet,
-            tooltip: 'Edit Profile',
-          ),
-        ],
-      ),
+      backgroundColor: colors.background,
       body: _isLoading
           ? Center(
               child: CircularProgressIndicator(
@@ -375,43 +355,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.only(bottom: 40),
                 child: Column(
                   children: [
-                    _kycBanner(colors),
-                    const SizedBox(height: 28),
-                    _buildAvatarSection(colors),
-                    const SizedBox(height: 24),
-                    _buildKycBadge(colors),
-                    const SizedBox(height: 24),
-                    _buildSection(colors, 'Account Info', [
-                      _buildInfoRow(colors, 'Display Name', _displayName),
-                      _buildInfoRow(colors, 'Username', _username),
+                    _ownHeader(colors),
+                    if (_kycStatus.toUpperCase() != 'VERIFIED') ...[
+                      const SizedBox(height: 18),
+                      _kycBanner(colors),
+                    ],
+                    const SizedBox(height: 22),
+                    _buildSection(colors, 'Account', [
+                      _buildInfoRow(colors, 'Display name', _displayName),
                       _buildInfoRow(colors, 'Email', _email),
+                      if (_phone.isNotEmpty) _buildInfoRow(colors, 'Phone', _phone),
                       _buildInfoRow(colors, 'AZM ID', _azamanId),
                     ]),
-                    _buildSection(colors, 'Stats & Reputation', [
-                      _buildInfoRow(
-                        colors,
-                        'Trades Completed',
-                        '$_tradesCompleted',
-                      ),
-                      _buildInfoRow(
-                        colors,
-                        'Rating',
-                        '${_rating.toStringAsFixed(1)} / 5.0',
-                      ),
-                      _buildInfoRow(
-                        colors,
-                        'Member Since',
-                        _formatDate(_memberSince),
-                      ),
-                      _buildInfoRow(
-                        colors,
-                        'Login Streak',
-                        '$_loginStreak days',
-                      ),
-                    ]),
                     _buildSection(colors, 'Security', [
-                      _buildInfoRow(colors, 'KYC Status', _kycStatus),
-                      _buildInfoRow(colors, 'Two-Factor Auth', 'Enabled'),
+                      _buildInfoRow(colors, 'KYC status', _kycStatus),
+                      // The profile API does not expose two-factor state, so
+                      // nothing is claimed here: the row leads to where it
+                      // is actually managed (it used to say "Enabled" for
+                      // everyone).
+                      _securityLink(colors),
                     ]),
                     // Danger Zone / Delete Account lives at the bottom of
                     // the main Settings screen now (next to Sign Out) —
@@ -420,6 +382,76 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  // ── header (shared layout with other people's profiles) ─────────────────
+
+  Widget _ownHeader(AzamanColors colors) {
+    final name = _displayName.isNotEmpty ? _displayName : _username;
+    final status = _kycStatus.toUpperCase();
+    return AzProfileHeader(
+      seed: int.tryParse(_uid) ?? _username.hashCode,
+      name: name.isEmpty ? 'You' : name,
+      handle: _username.isEmpty ? null : '@$_username',
+      avatarUrl: _avatarUrl,
+      verified: status == 'VERIFIED',
+      subtitle: _bio,
+      onBack: Navigator.of(context).canPop() ? () => Navigator.of(context).maybePop() : null,
+      onAvatarTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
+      chips: [
+        if (_memberSince.isNotEmpty)
+          AzProfileChip(icon: Icons.calendar_today_outlined, label: 'Member since ${_formatDate(_memberSince)}'),
+        if (status == 'PENDING')
+          AzProfileChip(icon: Icons.hourglass_top_rounded, label: 'KYC pending', tone: colors.warning),
+        if (_loginStreak > 1)
+          AzProfileChip(icon: Icons.local_fire_department_outlined, label: '$_loginStreak-day streak'),
+      ],
+      stats: [
+        AzProfileStat(value: '$_tradesCompleted', label: 'Trades'),
+        AzProfileStat(value: _rating > 0 ? _rating.toStringAsFixed(1) : '\u2014', label: 'Rating'),
+        AzProfileStat(value: '$_loginStreak', label: 'Day streak'),
+      ],
+      actions: [
+        AzProfileAction(
+          key: const ValueKey('profile-edit'),
+          label: 'Edit profile',
+          icon: Icons.edit_outlined,
+          primary: true,
+          onTap: _showEditSheet,
+        ),
+        AzProfileAction(
+          key: const ValueKey('profile-qr'),
+          label: '',
+          icon: Icons.qr_code_2_rounded,
+          onTap: _username.isEmpty ? null : () => showQrProfilePopup(context, _username),
+        ),
+      ],
+    );
+  }
+
+  Widget _securityLink(AzamanColors colors) {
+    return InkWell(
+      key: const ValueKey('profile-security-link'),
+      onTap: () => pushWithVerticalTransition(context, const SecuritySettingsScreen()),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Two-factor authentication',
+                style: TextStyle(color: colors.textSecondary, fontSize: 13),
+              ),
+            ),
+            Text(
+              'Manage in Security',
+              style: TextStyle(color: colors.accent, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            Icon(Icons.chevron_right_rounded, color: colors.accent, size: 18),
+          ],
+        ),
+      ),
     );
   }
 
@@ -501,169 +533,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onPressed: _fetchProfile,
             icon: Icon(Icons.refresh, color: colors.accent),
             label: Text('Retry', style: TextStyle(color: colors.accent)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _initialsAvatar(AzamanColors colors) {
-    final initial = _displayName.isNotEmpty
-        ? _displayName[0].toUpperCase()
-        : (_username.isNotEmpty ? _username[0].toUpperCase() : 'A');
-    return Container(
-      width: 88,
-      height: 88,
-      color: colors.accent.withValues(alpha: 0.15),
-      child: Center(
-        child: Text(
-          initial,
-          style: TextStyle(
-            color: colors.accent,
-            fontSize: 32,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvatarSection(AzamanColors colors) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: _isUploadingAvatar ? null : _pickAndUploadAvatar,
-          child: Hero(
-            tag: 'profile-avatar',
-            child: Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                CircleAvatar(
-                  radius: 44,
-                  backgroundColor: colors.card,
-                  child: ClipOval(
-                    child: _avatarUrl != null && _avatarUrl!.isNotEmpty
-                        ? AzamanNetworkImage(
-                            imageUrl: _avatarUrl!,
-                            width: 88,
-                            height: 88,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colors.accent,
-                            ),
-                            errorWidget: (_, __, ___) =>
-                                _initialsAvatar(colors),
-                          )
-                        : _initialsAvatar(colors),
-                  ),
-                ),
-                if (_isUploadingAvatar)
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black.withValues(alpha: 0.45),
-                      ),
-                      child: Center(
-                        child: SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              colors.accent,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.accent,
-                      border: Border.all(color: colors.surface, width: 2.5),
-                    ),
-                    child: Icon(
-                      Icons.camera_alt,
-                      size: 14,
-                      color: colors.isDark ? Colors.black : Colors.white,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          _displayName.isNotEmpty ? _displayName : _username,
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        if (_username.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            '@$_username',
-            style: TextStyle(
-              color: colors.textTertiary,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildKycBadge(AzamanColors colors) {
-    Color badgeColor;
-    IconData badgeIcon;
-    String badgeText;
-
-    switch (_kycStatus.toUpperCase()) {
-      case 'VERIFIED':
-        badgeColor = colors.success;
-        badgeIcon = Icons.check_circle_outline;
-        badgeText = 'Verified';
-        break;
-      case 'PENDING':
-        badgeColor = colors.warning;
-        badgeIcon = Icons.hourglass_empty;
-        badgeText = 'Pending';
-        break;
-      default:
-        badgeColor = colors.danger;
-        badgeIcon = Icons.error_outline;
-        badgeText = 'Unverified';
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: badgeColor.withValues(alpha: 0.08),
-        border: Border.all(color: badgeColor.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(badgeIcon, color: badgeColor, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            'KYC: $badgeText',
-            style: TextStyle(
-              color: badgeColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
           ),
         ],
       ),

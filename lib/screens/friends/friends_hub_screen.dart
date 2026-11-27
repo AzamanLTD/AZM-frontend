@@ -859,7 +859,16 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
               if (e == null) return;
               pushWithVerticalTransition(
                 context,
-                ChatProfileScreen(friendshipId: e.id, fallbackUsername: e.title),
+                ChatProfileScreen(
+                  friendshipId: e.id,
+                  fallbackUsername: e.title,
+                  // From a story there is no chat underneath: Message
+                  // replaces the profile with the conversation.
+                  onMessage: () {
+                    Navigator.of(context).pop();
+                    _openEntry(e);
+                  },
+                ),
               );
             },
             message: (g) {
