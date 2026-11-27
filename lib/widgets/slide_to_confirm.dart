@@ -50,6 +50,8 @@
 
 import 'package:flutter/material.dart';
 
+import 'package:azaman/utils/azaman_haptics.dart';
+
 class SlideToConfirm extends StatefulWidget {
   final String text;
   final Color backgroundColor;
@@ -78,6 +80,9 @@ class SlideToConfirm extends StatefulWidget {
 class SlideToConfirmState extends State<SlideToConfirm>
     with SingleTickerProviderStateMixin {
   double _dragPosition = 0.0;
+
+  /// The threshold tick fires once per crossing, never per frame.
+  bool _pastThreshold = false;
   double _maxDrag = 0.0;
   bool _confirmed = false;
   late AnimationController _resetController;
@@ -134,6 +139,11 @@ class SlideToConfirmState extends State<SlideToConfirm>
     setState(() {
       _dragPosition = (_dragPosition + details.delta.dx).clamp(0.0, _maxDrag);
     });
+    final past = _maxDrag > 0 && _dragPosition / _maxDrag >= _threshold;
+    if (past != _pastThreshold) {
+      _pastThreshold = past;
+      if (past) AzamanHaptics.threshold();
+    }
   }
 
   void _onDragEnd(DragEndDetails details) {
@@ -147,9 +157,11 @@ class SlideToConfirmState extends State<SlideToConfirm>
         _dragPosition = _maxDrag;
         _confirmed = true;
       });
+      AzamanHaptics.commit();
       widget.onConfirmed();
     } else {
       // Animate back to start
+      _pastThreshold = false;
       _resetAnimation = Tween<double>(begin: _dragPosition, end: 0.0).animate(
         CurvedAnimation(parent: _resetController, curve: Curves.elasticOut),
       );
@@ -187,6 +199,12 @@ class SlideToConfirmState extends State<SlideToConfirm>
 
         final progress = _maxDrag > 0 ? _dragPosition / _maxDrag : 0.0;
         final isInactive = !widget.enabled;
+        // The arrow, tick and spinner contrast with the thumb: on a night
+        // stage the thumb is the sky's (white) ink, so white-on-white
+        // would vanish.
+        final onThumb = widget.thumbColor.computeLuminance() > 0.5
+            ? const Color(0xFF15121A)
+            : Colors.white;
 
         return Opacity(
           opacity: isInactive ? 0.6 : 1.0,
@@ -202,25 +220,17 @@ class SlideToConfirmState extends State<SlideToConfirm>
             ),
             child: Stack(
               children: [
-                // Gradient track fill
-                Positioned.fill(
+                // Ink trail: fills from the start to the thumb's far edge,
+                // deepening as the commit point nears.
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: (_dragPosition + _thumbSize).clamp(0.0, constraints.maxWidth),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(30),
-                    child: FractionallySizedBox(
-                      alignment: Alignment.centerLeft,
-                      widthFactor: (progress * 0.85) + 0.15,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              widget.thumbColor.withValues(alpha: 0.1),
-                              widget.thumbColor.withValues(
-                                alpha: 0.3 * progress,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    child: ColoredBox(
+                      color: widget.thumbColor.withValues(alpha: 0.10 + 0.22 * progress),
                     ),
                   ),
                 ),
@@ -232,10 +242,10 @@ class SlideToConfirmState extends State<SlideToConfirm>
                     child: Text(
                       widget.text,
                       style: TextStyle(
-                        color: widget.thumbColor.withValues(alpha: 0.8),
-                        fontSize: 14,
+                        color: widget.thumbColor.withValues(alpha: 0.85),
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
+                        letterSpacing: 0.1,
                       ),
                     ),
                   ),
@@ -265,18 +275,18 @@ class SlideToConfirmState extends State<SlideToConfirm>
                         ],
                       ),
                       child: widget.isLoading
-                          ? const Padding(
-                              padding: EdgeInsets.all(16),
+                          ? Padding(
+                              padding: const EdgeInsets.all(16),
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                color: Colors.white,
+                                color: onThumb,
                               ),
                             )
                           : Icon(
                               _confirmed
                                   ? Icons.check_circle_outline
                                   : Icons.arrow_forward,
-                              color: Colors.white,
+                              color: onThumb,
                               size: 24,
                             ),
                     ),
