@@ -23,6 +23,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show SemanticsService;
 
+import 'package:azaman/widgets/money_stage/money_stage.dart';
 import 'package:azaman/models/currency_catalog.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -262,7 +263,31 @@ class _CurrencyWheelToggleState extends ConsumerState<CurrencyWheelToggle>
 
     final chipRadius = BorderRadius.circular(AzRadius.sm + 2);
 
+    // On a money stage the chip is glass on the sky with the sky's ink;
+    // off a stage it keeps the card + accent border.
+    final skin = AzStageSkin.maybeOf(context);
+
     Widget chip(AzCurrency c, bool isSel) {
+      if (skin != null) {
+        return Container(
+          width: _chipWidth,
+          height: _chipHeight,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSel ? skin.glass : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            border: isSel ? Border.all(color: skin.hairline, width: 0.6) : null,
+          ),
+          child: Text(
+            c.symbol,
+            maxLines: 1,
+            style: AzStageType.unit(
+              isSel ? skin.ink : skin.inkMuted,
+              size: isSel ? 20 : 13,
+            ),
+          ),
+        );
+      }
       return Container(
         width: _chipWidth,
         height: _chipHeight,

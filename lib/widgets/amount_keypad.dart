@@ -28,6 +28,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/money_stage/money_stage.dart';
 
 /// Keys are identified by plain strings: `'0'`..`'9'`, `'.'`, `'del'`.
 class AmountKeypad extends ConsumerWidget {
@@ -74,8 +75,22 @@ class AmountKeypad extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final disabledColor = colors.textTertiary.withValues(alpha: 0.4);
+    // On a money stage the keys take the sky's ink and a press bloom; off a
+    // stage nothing changes.
+    final skin = AzStageSkin.maybeOf(context);
 
     Widget keyCell(String key) {
+      if (skin != null) {
+        return Expanded(
+          child: _StageKey(
+            keyLabel: key,
+            enabled: enabled,
+            height: rowHeight,
+            skin: skin,
+            onKey: onKey,
+          ),
+        );
+      }
       final active = enabled;
       final labelColor = active
           ? (key == 'del' ? colors.textSecondary : colors.textPrimary)
@@ -130,6 +145,94 @@ class AmountKeypad extends ConsumerWidget {
             ],
           ),
       ],
+    );
+  }
+}
+
+/// One key on a money stage: the digit in the sky's ink, a soft bloom under
+/// the finger, a slight press. Same semantics and haptic as the plain key.
+class _StageKey extends StatefulWidget {
+  const _StageKey({
+    required this.keyLabel,
+    required this.enabled,
+    required this.height,
+    required this.skin,
+    required this.onKey,
+  });
+
+  final String keyLabel;
+  final bool enabled;
+  final double height;
+  final AzStageSkin skin;
+  final ValueChanged<String> onKey;
+
+  @override
+  State<_StageKey> createState() => _StageKeyState();
+}
+
+class _StageKeyState extends State<_StageKey> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (_down != v && mounted) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final skin = widget.skin;
+    final colour = widget.enabled ? skin.ink : skin.inkMuted.withValues(alpha: 0.35);
+    final face = widget.keyLabel == 'del'
+        ? Icon(Icons.backspace_rounded, size: 24, color: widget.enabled ? skin.inkMuted : colour)
+        : Text(widget.keyLabel, style: AzStageType.key(colour));
+    final bloom = widget.height * 1.08;
+    return Semantics(
+      button: true,
+      enabled: widget.enabled,
+      label: AmountKeypad.semanticLabel(widget.keyLabel),
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: widget.enabled ? (_) => _set(true) : null,
+        onTapCancel: () => _set(false),
+        onTapUp: (_) => _set(false),
+        onTap: widget.enabled
+            ? () {
+                AzamanHaptics.toggle();
+                widget.onKey(widget.keyLabel);
+              }
+            : null,
+        child: SizedBox(
+          height: widget.height,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AnimatedOpacity(
+                duration: Duration(milliseconds: _down ? 60 : 260),
+                opacity: _down ? 1 : 0,
+                child: AnimatedScale(
+                  duration: Duration(milliseconds: _down ? 90 : 320),
+                  curve: Curves.easeOutCubic,
+                  scale: _down ? 1 : 0.6,
+                  child: Container(
+                    width: bloom,
+                    height: bloom,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: skin.glass,
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedScale(
+                duration: Duration(milliseconds: _down ? 70 : 220),
+                curve: Curves.easeOutCubic,
+                scale: _down ? 0.9 : 1,
+                child: face,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

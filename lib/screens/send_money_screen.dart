@@ -74,6 +74,8 @@ import 'package:azaman/utils/currency_math.dart';
 import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/utils/durable_operation_registry.dart'
     show PendingFinancialOperationException;
+import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/widgets/money_stage/money_stage.dart';
 import 'package:azaman/widgets/slide_to_confirm.dart';
 import 'package:azaman/widgets/amount_keypad.dart';
 import 'package:azaman/widgets/currency_wheel_toggle.dart';
@@ -112,6 +114,7 @@ class SendMoneyScreen extends ConsumerStatefulWidget {
     this.sendOverride,
     this.fxRateOverride,
     this.restoredDraft,
+    this.skyPhaseForCaptures = 0,
   }) : seededFriend = null;
 
   /// Chat entry: the shared composer pre-seeded with the conversation's
@@ -122,6 +125,7 @@ class SendMoneyScreen extends ConsumerStatefulWidget {
     this.discovery,
     this.sendOverride,
     this.fxRateOverride,
+    this.skyPhaseForCaptures = 0,
   }) : seededFriend = recipient,
        initialRecipient = null,
        restoredDraft = null;
@@ -147,6 +151,10 @@ class SendMoneyScreen extends ConsumerStatefulWidget {
   final PeerSendOverride? sendOverride;
 
   final SendRecipient? seededFriend;
+
+  /// Pins the sky's drift phase so visual captures are deterministic.
+  /// Production leaves it at 0 (the sky drifts from there).
+  final double skyPhaseForCaptures;
 
   /// Test/golden seam ONLY: a validated GHS-per-USDC rate for driving the
   /// GHS conversion deterministically. Production callers leave it null —
@@ -761,7 +769,10 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = ref.watch(themeProvider).colors;
+    final baseColors = ref.watch(themeProvider).colors;
+    // Every sub-widget of the Send stage reads this palette: glass cards,
+    // the sky's ink for text and accent, hairline dividers.
+    final colors = AzStageSkin.adapt(baseColors, AzMoneyMood.send);
     final balance = ref.watch(authProvider).user?.availableBalance ?? 0.0;
     final myAzamanId = ref.watch(authProvider).user?.azamanId ?? '';
 
@@ -786,13 +797,17 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: colors.surface,
+        // The Send stage: a dusk sky behind every stage of the flow.
+        backgroundColor: baseColors.surface,
         // Workstream B — Send joins the shared transient-surface grammar
         // (rise-from-bottom route + X close + deliberate pull-to-dismiss):
         // the SAME gesture shell Add Cash, Receive and Convert use. The
         // composition, stages, money action and every financial guard are
         // untouched — only the presentation surface changed.
-        body: SafeArea(
+        body: AzMoneyStage(
+          mood: AzMoneyMood.send,
+          skyPhase: widget.skyPhaseForCaptures,
+          child: SafeArea(
           bottom: false,
           child: PullDownDismissibleSurface(
             onDismiss: _attemptClose,
@@ -839,6 +854,7 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
@@ -977,132 +993,109 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
     final chipRate = _liveRate();
     final osKeyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-          child: _BalanceChip(
-            colors: colors,
-            balance: balance,
-            myAzamanId: myAzamanId,
-            ghsFirst: pref == DisplayCurrency.ghs,
-            rate: chipRate,
-          ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Amount-first composition, the Add Cash anchor.
-                Padding(
-                  padding: EdgeInsets.fromLTRB(4, compact ? 4 : 10, 4, 0),
-                  child: SizedBox(
-                    width: double.infinity,
-                    // GHANA-FIRST: the inline currency wheel rides
-                    // immediately before the amount. It chooses the
-                    // denomination the digits represent (LOCAL to
-                    // this transaction — never the global display
-                    // preference) and a switch CONVERTS the amount.
-                    //
-                    // VERTICAL roller: the selected chip sits fully
-                    // visible with the neighbour units peeking above/
-                    // below, never cropped by the row. The wheel rides
-                    // OUTSIDE the amount's scale-down box so its 44dp
-                    // touch target and published 74×72 geometry hold at
-                    // every width — only the FIGURE ever shrinks to fit.
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: 2),
-                          child: CurrencyWheelToggle(
-                            key: const ValueKey('send-amount-currency'),
-                            axis: CurrencyWheelAxis.vertical,
-                            options: CurrencyCatalog.sendEntryUnits,
-                            selectedIndex: _entryIndex,
-                            onChanged: _onEntryUnitChanged,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: OdometerNumber(
-                              value: _amountDisplay,
-                              style: TextStyle(
-                                color: colors.textPrimary,
-                                fontSize: compact ? 48 : 60,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -1.0,
-                                height: 1.0,
-                              ),
-                              semanticsLabel:
-                                  '$_amountDisplay ${_entryUnit.symbol}',
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
+    final skin = AzStageSkin.maybeOf(context);
+    final ink = skin?.ink ?? colors.textPrimary;
+    final inkMuted = skin?.inkMuted ?? colors.textSecondary;
 
-                // Live paired equivalent — updates while typing, at the
-                // current valid rate. Compose-only: Review freezes.
-                Builder(
-                  builder: (_) {
-                    final amount = _amountValue;
-                    if (amount == null) return const SizedBox.shrink();
-                    final rate = _liveRate();
-                    final other = _entryUnit == CurrencyCatalog.ghs
-                        ? CurrencyCatalog.usdc
-                        : CurrencyCatalog.ghs;
-                    final converted = CurrencyMath.convert(
-                      amount: amount,
-                      from: _entryUnit,
-                      to: other,
-                      ghsPerUsdc: rate ?? 0,
-                    );
-                    if (converted == null) {
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 4, left: 4),
-                        child: Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Send',
+                    key: const ValueKey('send-stage-title'),
+                    style: AzStageType.stageTitle(inkMuted),
+                  ),
+                  const SizedBox(height: 14),
+                  // The amount, centred: the inline wheel chooses what the
+                  // digits mean (GHANA-FIRST, LOCAL to this transaction) and
+                  // a switch CONVERTS the amount. The wheel keeps its 44dp
+                  // target; only the FIGURE ever shrinks to fit.
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      CurrencyWheelToggle(
+                        key: const ValueKey('send-amount-currency'),
+                        axis: CurrencyWheelAxis.vertical,
+                        options: CurrencyCatalog.sendEntryUnits,
+                        selectedIndex: _entryIndex,
+                        onChanged: _onEntryUnitChanged,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: OdometerNumber(
+                            value: _amountDisplay,
+                            // Inter, tabular: digits never jitter while
+                            // typing (the odometer's own requirement).
+                            style: AzStageType.amount(ink, size: compact ? 54 : 68),
+                            semanticsLabel: '$_amountDisplay ${_entryUnit.symbol}',
+                          ),
+                        ),
+                      ),
+                      // Optical balance for the wheel on the left.
+                      SizedBox(width: compact ? 24 : 40),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Live paired equivalent — updates while typing, at the
+                  // current valid rate. Compose-only: Review freezes.
+                  Builder(
+                    builder: (_) {
+                      final amount = _amountValue;
+                      if (amount == null) return const SizedBox.shrink();
+                      final rate = _liveRate();
+                      final other = _entryUnit == CurrencyCatalog.ghs
+                          ? CurrencyCatalog.usdc
+                          : CurrencyCatalog.ghs;
+                      final converted = CurrencyMath.convert(
+                        amount: amount,
+                        from: _entryUnit,
+                        to: other,
+                        ghsPerUsdc: rate ?? 0,
+                      );
+                      if (converted == null) {
+                        return Text(
                           '${other.code} equivalent unavailable — rate not loaded yet',
                           key: const ValueKey('send-amount-equivalent'),
-                          style: TextStyle(
-                            color: colors.textTertiary,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      );
-                    }
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 2, left: 4),
-                      child: Text(
+                          textAlign: TextAlign.center,
+                          style: AzStageType.line(inkMuted),
+                        );
+                      }
+                      return Text(
                         '≈ ${other == CurrencyCatalog.ghs ? AzMoney.ghs(converted) : AzMoney.usdc(converted)}'
                         '${other == CurrencyCatalog.ghs ? '' : ' — the reviewed transfer is in USDC'}',
                         key: const ValueKey('send-amount-equivalent'),
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
+                        textAlign: TextAlign.center,
+                        style: AzStageType.line(inkMuted),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 6),
+                  _BalanceChip(
+                    colors: colors,
+                    balance: balance,
+                    myAzamanId: myAzamanId,
+                    ghsFirst: pref == DisplayCurrency.ghs,
+                    rate: chipRate,
+                  ),
 
-                if (_error != null) ...[
-                  const SizedBox(height: 10),
-                  _ErrorText(colors: colors, message: _error!),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    _ErrorText(colors: colors, message: _error!),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -1130,13 +1123,14 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
           ),
         Padding(
           padding: EdgeInsets.fromLTRB(20, 12, 20, 12 + bottomInset),
-          child: _PrimaryAction(
-            colors: colors,
+          child: AzStagePrimaryButton(
+            key: const ValueKey('send-cta-Review'),
             label: 'Review',
             enabled: _canProgress,
             onTap: _openReview,
+            // The unit the user typed, not always USDC.
             semanticsLabel: _canProgress
-                ? 'Review transfer of $_amountDisplay USDC'
+                ? 'Review transfer of $_amountDisplay ${_entryUnit.code}'
                 : 'Enter an amount and choose a recipient to continue',
           ),
         ),
@@ -1511,54 +1505,29 @@ class _BalanceChip extends StatelessWidget {
     final ghsText = hasRate ? AzMoney.ghs(balance * rate!) : null;
     final ledgerText = '${balance.toStringAsFixed(2)} USDC';
     final primary = ghsFirst ? (ghsText ?? ledgerText) : ledgerText;
-    final details = <String>[
-      if (primary != ledgerText) ledgerText,
-      if (primary == ledgerText && ghsText != null) ghsText,
-      if (myAzamanId.isNotEmpty) 'Your ID: $myAzamanId',
-    ].join(' · ');
-    return Container(
+    // One quiet line under the amount: what can be sent, with the ledger
+    // truth beside its equivalent. The AZM ID no longer rides here: it is
+    // the user's own identity, not a fact about this transfer.
+    final secondary = primary != ledgerText
+        ? ledgerText
+        : (ghsText ?? '');
+    final skin = AzStageSkin.maybeOf(context);
+    final muted = skin?.inkMuted ?? colors.textTertiary;
+    final ink = skin?.ink ?? colors.textPrimary;
+    return Semantics(
       key: const ValueKey('send-balance-chip'),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      decoration: BoxDecoration(
-        color: colors.accentSurface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.wallet_outlined, size: 18, color: colors.accent),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Available: $primary',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: colors.accent,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (details.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    details,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: colors.textTertiary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
+      label: 'Available: $primary${secondary.isEmpty ? '' : ', $secondary'}',
+      excludeSemantics: true,
+      child: Text.rich(
+        TextSpan(children: [
+          TextSpan(text: primary, style: AzStageType.line(ink).copyWith(fontWeight: FontWeight.w600)),
+          TextSpan(text: ' available', style: AzStageType.line(muted)),
+          if (secondary.isNotEmpty)
+            TextSpan(text: '  ·  $secondary', style: AzStageType.line(muted)),
+        ]),
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -1587,7 +1556,6 @@ class _RecipientField extends StatelessWidget {
     if (compact) {
       final title =
           r?.name ?? (lookingUp ? 'Finding recipient…' : 'Choose recipient');
-      final subtitle = r?.identityLine ?? 'Send to a person';
       return ScaleTap(
         key: ValueKey(
           r == null ? 'send-recipient-field' : 'send-recipient-confirmed',
@@ -1599,77 +1567,51 @@ class _RecipientField extends StatelessWidget {
               ? 'Choose recipient'
               : 'Recipient: ${r.identityLine}. Change recipient.',
           excludeSemantics: true,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: colors.softSurface,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (r != null)
-                  _Avatar(colors: colors, url: r.avatarUrl, name: r.name)
-                else
-                  Icon(
-                    Icons.person_add_alt_1_outlined,
-                    size: 18,
-                    color: colors.textSecondary,
+          child: AzStagePill(
+            leading: r != null
+                ? _Avatar(colors: colors, url: r.avatarUrl, name: r.name)
+                : null,
+            // The recipient's REAL identity line (handle, or AZM ID when
+            // there is no handle): never a fabricated @handle (PR #165).
+            caption: r?.identityLine,
+            captionUppercase: false,
+            // Connection status rides the caption line, so the name keeps
+            // the pill's width.
+            captionTrailing: r == null
+                ? null
+                : Text(
+                    r.canReceive ? 'FRIEND' : 'NOT CONNECTED',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    key: ValueKey(
+                      r.canReceive ? 'send-friend-chip' : 'send-not-connected-chip',
+                    ),
+                    style: AzStageType.caption(
+                      r.canReceive
+                          ? (AzStageSkin.maybeOf(context)?.ink ?? colors.textPrimary)
+                          : colors.danger,
+                    ),
                   ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (r != null)
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            fontSize: 10.5,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                if (r != null) ...[
-                  const SizedBox(width: 6),
-                  r.canReceive
-                      ? _FriendChip(colors: colors)
-                      : _NotConnectedChip(colors: colors),
-                ],
-                const SizedBox(width: 4),
-                if (r == null)
-                  Icon(Icons.expand_more, size: 18, color: colors.textTertiary)
-                else
-                  GestureDetector(
+            title: title,
+            trailing: r != null
+                ? GestureDetector(
                     key: const ValueKey('send-recipient-clear'),
                     onTap: onClear,
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
-                      padding: const EdgeInsets.all(2),
+                      padding: const EdgeInsets.all(6),
                       child: Icon(
-                        Icons.close,
-                        size: 14,
-                        color: colors.textTertiary,
+                        Icons.close_rounded,
+                        size: 16,
+                        color: AzStageSkin.maybeOf(context)?.inkMuted ?? colors.textTertiary,
                       ),
                     ),
+                  )
+                : Icon(
+                    Icons.expand_more_rounded,
+                    size: 18,
+                    color: AzStageSkin.maybeOf(context)?.inkMuted ?? colors.textTertiary,
                   ),
-              ],
-            ),
           ),
         ),
       );
@@ -1703,31 +1645,6 @@ class _FriendChip extends StatelessWidget {
   }
 }
 
-class _NotConnectedChip extends StatelessWidget {
-  const _NotConnectedChip({required this.colors});
-  final AzamanColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: const ValueKey('send-not-connected-chip'),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: colors.danger.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        'Not connected',
-        style: TextStyle(
-          color: colors.danger,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.colors, this.url, required this.name});
   final AzamanColors colors;
@@ -1737,15 +1654,16 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final skin = AzStageSkin.maybeOf(context);
     final circle = CircleAvatar(
-      radius: 20,
-      backgroundColor: colors.accentSurface,
+      radius: 18,
+      backgroundColor: skin?.ink.withValues(alpha: skin.isDark ? 0.16 : 0.10) ?? colors.accentSurface,
       backgroundImage: url != null ? NetworkImage(url!) : null,
       child: url == null
           ? Text(
               initial,
               style: TextStyle(
-                color: colors.accent,
+                color: skin?.ink ?? colors.accent,
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
               ),
@@ -1777,30 +1695,36 @@ class _ReviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The VALUE is the fact being confirmed, so it is never truncated; the
+    // label wraps instead (it used to swallow the row and cut the rate to
+    // "1 …").
     return Row(
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 2,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            value,
-            key: valueKey,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: emphasized ? 16.5 : 15,
-              fontWeight: emphasized ? FontWeight.w800 : FontWeight.w700,
-            ),
+        const SizedBox(width: 12),
+        Text(
+          value,
+          key: valueKey,
+          maxLines: 1,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontFamily: AzText.numericFamily,
+            fontFeatures: AzText.tabular,
+            fontSize: emphasized ? 17 : 14.5,
+            fontWeight: emphasized ? FontWeight.w700 : FontWeight.w600,
+            letterSpacing: -0.2,
           ),
         ),
       ],
@@ -1894,61 +1818,6 @@ class _ErrorText extends StatelessWidget {
   }
 }
 
-class _PrimaryAction extends StatelessWidget {
-  const _PrimaryAction({
-    required this.colors,
-    required this.label,
-    required this.enabled,
-    required this.onTap,
-    this.semanticsLabel,
-  });
-
-  final AzamanColors colors;
-  final String label;
-  final bool enabled;
-  final VoidCallback onTap;
-  final String? semanticsLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: semanticsLabel ?? label,
-      child: ScaleTap(
-        onTap: enabled ? onTap : null,
-        child: Container(
-          height: 54,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: enabled ? colors.accent : colors.divider,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Text(
-            label,
-            key: ValueKey('send-cta-$label'),
-            style: TextStyle(
-              color: enabled ? colors.onAccent : colors.textTertiary,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WORKSTREAM B — SEND HEADER — [X] / [←] + title, the Add Cash grammar.
-//
-// Compose/done: an X close (one close affordance, no duplicate controls).
-// Review/sending/unknown: the back-to-edit arrow — a STAGE control, not a
-// close — disabled mid-flight and while the outcome is UNKNOWN (PR #165
-// review finding 2: the composition is frozen until the durable operation
-// resolves).
-// ─────────────────────────────────────────────────────────────────────────────
 class _SendHeader extends StatelessWidget {
   const _SendHeader({
     super.key,
@@ -1991,85 +1860,53 @@ class _SendHeader extends StatelessWidget {
           IgnorePointer(
             key: const ValueKey('send-edit-back'),
             ignoring: frozen,
-            child: Semantics(
-              // container: true keeps the affordance its OWN focusable
-              // semantics node at every stage. Without it the review
-              // stage's scrollable semantics merges this label into the
-              // whole-surface node ("Back to edit\nReview transfer\n…"),
-              // costing screen-reader users a discrete, announced close
-              // target (observed via debugDumpSemanticsTree).
-              container: true,
-              button: true,
-              label: _showsBackToEdit ? 'Back to edit' : 'Close Send',
-              excludeSemantics: true,
-              child: GestureDetector(
-                onTap: _showsBackToEdit ? onBackToEdit : onClose,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: colors.softSurface,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    _showsBackToEdit ? Icons.arrow_back : Icons.close,
-                    size: 18,
-                    color: colors.textPrimary,
-                  ),
-                ),
-              ),
+            // AzStageRoundButton is its OWN semantics container, so the
+            // review stage's scrollable semantics never merges this label
+            // into the whole-surface node.
+            child: AzStageRoundButton(
+              icon: _showsBackToEdit ? Icons.arrow_back_rounded : Icons.close_rounded,
+              onTap: _showsBackToEdit ? onBackToEdit : onClose,
+              semanticsLabel: _showsBackToEdit ? 'Back to edit' : 'Close Send',
             ),
           ),
-          const SizedBox(width: 12),
-          if (_showsBackToEdit)
-            Text(
-              'Review transfer',
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.2,
+          const SizedBox(width: 10),
+          if (stage == _SendStage.done)
+            // The result speaks for itself: no recipient pill, no scanner.
+            const Spacer()
+          else if (_showsBackToEdit)
+            Expanded(
+              child: Center(
+                child: Text(
+                  'Review transfer',
+                  style: AzStageType.pillTitle(
+                    AzStageSkin.maybeOf(context)?.ink ?? colors.textPrimary,
+                  ).copyWith(fontSize: 17),
+                ),
               ),
             )
-          else ...[
+          else
             Expanded(
-              child: _RecipientField(
-                colors: colors,
-                recipient: recipient,
-                lookingUp: lookingUp,
-                onChoose: onChooseRecipient,
-                onClear: onClearRecipient,
-                compact: true,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Semantics(
-              button: true,
-              label: 'Scan recipient QR code',
-              excludeSemantics: true,
-              child: GestureDetector(
-                key: const ValueKey('send-top-qr'),
-                onTap: onScanRecipient,
-                behavior: HitTestBehavior.opaque,
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: colors.softSurface,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.qr_code_scanner_rounded,
-                    size: 20,
-                    color: colors.textPrimary,
-                  ),
+              child: Center(
+                child: _RecipientField(
+                  colors: colors,
+                  recipient: recipient,
+                  lookingUp: lookingUp,
+                  onChoose: onChooseRecipient,
+                  onClear: onClearRecipient,
+                  compact: true,
                 ),
               ),
             ),
-          ],
+          const SizedBox(width: 10),
+          if (_showsBackToEdit || stage == _SendStage.done)
+            const SizedBox(width: 44)
+          else
+            AzStageRoundButton(
+              key: const ValueKey('send-top-qr'),
+              icon: Icons.qr_code_scanner_rounded,
+              onTap: onScanRecipient,
+              semanticsLabel: 'Scan recipient QR code',
+            ),
         ],
       ),
     );

@@ -136,8 +136,11 @@ void expectSelectedChipFullyVisible(WidgetTester tester) {
 
   // The wheel's own box spans exactly the selected chip plus the 14dp
   // peek gutters — the component's published geometry.
-  expect(wheel.width, 74, reason: 'vertical wheel is one chip wide');
-  expect(wheel.height, 72, reason: '44dp chip + 14dp peek above and below');
+  // closeTo: a centred stage seats the wheel at a fractional offset, so the
+  // measured box carries sub-pixel float noise (72.00000000000001). The
+  // published geometry is still exact to a millionth of a dp.
+  expect(wheel.width, closeTo(74, 1e-6), reason: 'vertical wheel is one chip wide');
+  expect(wheel.height, closeTo(72, 1e-6), reason: '44dp chip + 14dp peek above and below');
 
   // ...and that box sits fully on the live viewport at the current size.
   final screen =
