@@ -952,11 +952,14 @@ void main() {
       // GHANA-FIRST SUCCESS: the entered figure leads the sentence; the
       // wire truth is labelled separately — never presented as what the
       // user typed.
+      // The success leads with the entered GHS figure as its hero, then
+      // names the recipient (2026-11-27 success layout).
       expect(
-        find.textContaining('GH\u20B5\u00A05.00 to Ama Mensah'),
-        findsOneWidget,
+        tester.widget<Text>(find.byKey(const ValueKey('send-success-amount'))).data,
+        'GH₵ 5.00',
         reason: 'the GHS entry leads the success message',
       );
+      expect(find.textContaining('to Ama Mensah'), findsOneWidget);
       expect(
         find.text('Transferred on the wire as 0.33 USDC'),
         findsOneWidget,
