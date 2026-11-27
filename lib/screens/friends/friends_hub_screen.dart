@@ -31,7 +31,8 @@ import 'package:azaman/widgets/inbox/inbox_row.dart';
 import 'package:azaman/widgets/stories/inbox_story_rail_sliver.dart';
 import 'package:azaman/widgets/stories/story_rail_compact.dart';
 import 'package:azaman/widgets/stories/story_rail_strip.dart'
-    show StoryRailMetrics;
+    show StoryRailMetrics, StoryPersonActions;
+import 'package:azaman/screens/chat_profile_screen.dart';
 import 'package:azaman/widgets/stories/story_rail_snap_physics.dart';
 
 class FriendsHubScreen extends ConsumerStatefulWidget {
@@ -828,6 +829,23 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             initialGroupIndex: i,
           ),
           onCreate: _pickAndCreateStory,
+          // The story hold dial's left (profile) and right (message):
+          // reachable when the author is someone you have a chat with.
+          personActions: StoryPersonActions(
+            canReach: (g) => _friendEntryFor(g.authorId) != null,
+            openProfile: (g) {
+              final e = _friendEntryFor(g.authorId);
+              if (e == null) return;
+              pushWithVerticalTransition(
+                context,
+                ChatProfileScreen(friendshipId: e.id, fallbackUsername: e.title),
+              );
+            },
+            message: (g) {
+              final e = _friendEntryFor(g.authorId);
+              if (e != null) _openEntry(e);
+            },
+          ),
         ),
         // Center → offset 0 at the top of the viewport.
         SliverMainAxisGroup(
@@ -892,6 +910,16 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       for (final g in groups) InboxEntry.fromGroup(g),
     ]..sort(InboxEntry.compare);
     return list;
+  }
+
+  /// The conversation entry for a user id (a story author), if the user
+  /// has one with them.
+  InboxEntry? _friendEntryFor(int userId) {
+    for (final f in ref.read(friendProvider).friends) {
+      final e = InboxEntry.fromFriend(f);
+      if (e.friendId == userId) return e;
+    }
+    return null;
   }
 
   void _openEntry(InboxEntry e) {

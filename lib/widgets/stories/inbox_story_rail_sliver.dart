@@ -17,11 +17,15 @@ class InboxStoryRailSliver extends StatelessWidget {
   final void Function(List<StoryGroup> groups, int index) onOpenGroup;
   final VoidCallback onCreate;
 
+  /// Profile and Message on the story hold dial (optional).
+  final StoryPersonActions? personActions;
+
   const InboxStoryRailSliver({
     super.key,
     required this.controller,
     required this.onOpenGroup,
     required this.onCreate,
+    this.personActions,
   });
 
   /// 0 = hidden, 1 = fully open. Pure; exposed for tests.
@@ -64,7 +68,11 @@ class InboxStoryRailSliver extends StatelessWidget {
               ),
             );
           },
-          child: StoryRailStrip(onOpenGroup: onOpenGroup, onCreate: onCreate),
+          child: StoryRailStrip(
+            onOpenGroup: onOpenGroup,
+            onCreate: onCreate,
+            personActions: personActions,
+          ),
         ),
       ),
     );
