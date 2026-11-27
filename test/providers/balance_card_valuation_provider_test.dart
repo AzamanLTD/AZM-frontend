@@ -920,6 +920,32 @@ void main() {
       expect(v.rate.kind, FxRateKind.none);
     });
 
+    test('the backend FX_UNAVAILABLE status keeps the native GHS headline '
+        '(same contract as PARTIAL_FX_UNAVAILABLE)', () async {
+      final v = await _val(
+        _container(
+          balance: BalanceData(
+            valuationFieldPresent: true,
+            valuationRaw: valuation367Payload(
+              nativeGhs: 30,
+              usdcEquivalent: null,
+              availableGhsValue: null,
+              rateStatus: 'UNAVAILABLE',
+              valuationStatus: 'FX_UNAVAILABLE',
+              gateOpen: false,
+            ),
+          ),
+        ),
+      );
+      expect(
+        v.availableGhsValue,
+        30,
+        reason: 'the native GHS balance survives FX unavailability',
+      );
+      expect(v.availableUsdcEquivalent, isNull);
+      expect(v.usdcTransactionGateOpen, isFalse);
+    });
+
     test(
       'a DEMO_FALLBACK payload maps the demo rate kind, gate closed',
       () async {

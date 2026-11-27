@@ -267,6 +267,9 @@ void main() {
         seen.add(request);
         call++;
         if (request.url.path.endsWith('/step-up/grant')) {
+          // The exact resolved route, not a suffix: '/api/api/step-up/grant'
+          // also ends with '/step-up/grant' and hid a 404.
+          expect(request.url.path, '/api/step-up/grant');
           final decoded = jsonDecode(request.body) as Map<String, dynamic>;
           if (!decoded.containsKey('totpToken')) {
             return http.Response(
@@ -338,6 +341,9 @@ void main() {
       final bodies = <String>[];
       final mock = MockClient((request) async {
         if (request.url.path.endsWith('/step-up/grant')) {
+          // The exact resolved route, not a suffix: '/api/api/step-up/grant'
+          // also ends with '/step-up/grant' and hid a 404.
+          expect(request.url.path, '/api/step-up/grant');
           final decoded = jsonDecode(request.body) as Map<String, dynamic>;
           if (!decoded.containsKey('totpToken')) {
             return http.Response(jsonEncode({'code': '2FA_REQUIRED'}), 401,
@@ -372,6 +378,9 @@ void main() {
       var economic = 0;
       final mock = MockClient((request) async {
         if (request.url.path.endsWith('/step-up/grant')) {
+          // The exact resolved route, not a suffix: '/api/api/step-up/grant'
+          // also ends with '/step-up/grant' and hid a 404.
+          expect(request.url.path, '/api/step-up/grant');
           final decoded = jsonDecode(request.body) as Map<String, dynamic>;
           if (!decoded.containsKey('totpToken')) {
             return http.Response(jsonEncode({'code': '2FA_REQUIRED'}), 401,

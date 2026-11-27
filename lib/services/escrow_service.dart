@@ -13,8 +13,11 @@
 
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import 'package:azaman/models/escrow_models.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/financial_step_up.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 
 class EscrowService {
@@ -154,8 +157,13 @@ class EscrowService {
     operationType: 'escrow.fund.$escrowId',
     endpoint: '/escrow/fund',
     request: {'escrowId': escrowId},
-    call: (key) =>
-        _mutate('/escrow/fund', {'escrowId': escrowId}, idempotencyKey: key),
+    call: (key) async {
+      // Funding locks money, so the backend asks for a second factor.
+      final res = await _postWithSecondFactor('/escrow/fund', {
+        'escrowId': escrowId,
+      }, key);
+      return _unwrap(jsonDecode(res.body), res.statusCode);
+    },
   );
 
   /// POST /escrow/satisfy {escrowId} — returns whether the escrow is now fully
@@ -167,9 +175,11 @@ class EscrowService {
         request: {'escrowId': escrowId},
         call: (key) async {
           // r42: satisfaction commits the release — same key-lifecycle rule.
-          final res = await _client.post('/escrow/satisfy', {
+          // Satisfaction can release the principal, so it carries the same
+          // second factor as funding.
+          final res = await _postWithSecondFactor('/escrow/satisfy', {
             'escrowId': escrowId,
-          }, idempotencyKey: key);
+          }, key);
           final body = jsonDecode(res.body);
           final escrow = _unwrap(body, res.statusCode);
           return (settled: body['settled'] == true, escrow: escrow);
@@ -226,6 +236,31 @@ class EscrowService {
   );
 
   // ── Internal ───────────────────────────────────────────────────────────────
+
+  /// POST a money-moving escrow action under [key], answering a second-factor
+  /// challenge (2FA_REQUIRED / PASSWORD_REQUIRED) once through the shared
+  /// step-up prompt. The backend checks the second factor BEFORE it claims the
+  /// idempotency key, so the challenged first attempt claims nothing and the
+  /// proof-carrying retry under the same key is the one operation.
+  Future<http.Response> _postWithSecondFactor(
+    String path,
+    Map<String, dynamic> body,
+    String key,
+  ) async {
+    try {
+      return await _client.post(path, body, idempotencyKey: key);
+    } on ApiException catch (e) {
+      final factor = factorFor(e.statusCode, e.code);
+      if (factor == null) rethrow; // not a second-factor challenge
+      final credential = await FinancialStepUp.request(
+        StepUpChallenge(factor: factor, message: e.message),
+      );
+      if (credential == null) rethrow; // dismissed: nothing was sent
+      final stepped = Map<String, dynamic>.from(body)
+        ..[factor.bodyField] = credential.value;
+      return await _client.post(path, stepped, idempotencyKey: key);
+    }
+  }
 
   Future<SmartEscrow> _mutate(
     String path,

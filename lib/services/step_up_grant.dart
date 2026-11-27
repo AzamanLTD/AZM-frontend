@@ -40,8 +40,10 @@ abstract final class StepUpGrantCodes {
   /// Returned by the grant endpoint when the account needs its password.
   static const passwordRequired = 'PASSWORD_REQUIRED';
 
-  /// The grant endpoint's route.
-  static const grantPath = '/api/step-up/grant';
+  /// The grant endpoint's route, relative to [AppConfig.apiUrl] (which already
+  /// ends in `/api`). A leading `/api` here resolved to `/api/api/step-up/grant`
+  /// and every grant request 404ed.
+  static const grantPath = '/step-up/grant';
 
   /// The header the granted token travels in.
   static const grantHeader = 'x-step-up-grant';
