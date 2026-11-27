@@ -70,32 +70,20 @@ abstract final class AzText {
     FontFeature.tabularFigures(),
   ];
 
-  // ── FONT FAMILIES (UI-correction Phase A, 2026-10-03) ─────────────────────
-  // The display/UI family is Comic Neue (the requested Comic-Sans-like feel
-  // WITHOUT Comic Sans MS), bundled locally in pubspec.yaml — never fetched
-  // at runtime, so a money app renders deterministically offline. The
-  // numeric family stays Inter: money figures need tabular-figure stability
-  // (every digit the same width) so a counting balance never jitters.
-  static const String uiFamily = 'ComicNeue';
+  // ── FONT FAMILIES ─────────────────────────────────────────────────────────
+  // 2026-11-27 (owner decision): words and numbers are both Inter, bundled
+  // locally in pubspec.yaml (never fetched at runtime, so a money app renders
+  // deterministically offline). Inter replaces Comic Neue for the UI: the
+  // product's references (X, Phantom) set words in a clean grotesk, and a
+  // money app reads as more trustworthy in one. Numbers keep their own token
+  // so money figures can still diverge (tabular figures are set per style).
+  static const String uiFamily = 'Inter';
   static const String numericFamily = 'Inter';
 
-  /// Comic Neue ships Regular (400) + Bold (700) only. Rather than leaving
-  /// unavailable weights to the engine's closest-weight fallback, the theme
-  /// maps them DELIBERATELY: 800/900 → 700, 600/500 → 400. W400 and W700
-  /// ship as-is. Used by [uiTheme]; the Inter-based ladder ([theme]) is
-  /// untouched so money surfaces keep their exact weights.
-  static FontWeight mapUiWeight(FontWeight w) {
-    switch (w) {
-      case FontWeight.w800:
-      case FontWeight.w900:
-        return FontWeight.w700;
-      case FontWeight.w500:
-      case FontWeight.w600:
-        return FontWeight.w400;
-      default:
-        return w; // w400, w700 (and lighter) exist in the family as-is
-    }
-  }
+  /// Kept as the one seam every UI style passes through. Inter is a variable
+  /// font with every weight, so weights pass through unchanged (Comic Neue
+  /// shipped only 400 and 700 and needed folding).
+  static FontWeight mapUiWeight(FontWeight w) => w;
 
   // â”€â”€ THE LADDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Colors are intentionally null so these merge cleanly with whatever
@@ -272,12 +260,10 @@ abstract final class AzText {
     labelSmall: caption,
   );
 
-  /// The Comic-Neue UI text theme: the same 15-slot ladder as [theme], but
-  /// every style carries [uiFamily] explicitly and runs through
-  /// [mapUiWeight], so the theme never depends on ThemeData plumbing or
-  /// engine weight fallback. Wire this (not [theme]) into ThemeData when the
-  /// UI family is Comic Neue. Money surfaces never pass through here —
-  /// [money] and [delta] carry [numericFamily] themselves.
+  /// The UI text theme: the same 15-slot ladder as [theme], but every style
+  /// carries [uiFamily] explicitly and runs through [mapUiWeight], so the
+  /// theme never depends on ThemeData plumbing. Money surfaces never pass
+  /// through here: [money] and [delta] carry [numericFamily] themselves.
   static TextTheme uiTheme() {
     TextStyle ui(TextStyle s) => s.copyWith(
       fontFamily: uiFamily,

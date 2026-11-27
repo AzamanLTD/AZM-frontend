@@ -456,11 +456,9 @@ class ThemeProvider with ChangeNotifier {
   /// palette so the two cannot disagree.
   static ThemeData _buildComponentTheme(AzamanColors c, Brightness brightness) {
     return ThemeData(
-      // UI-correction Phase A (2026-10-03): the display/UI family is
-      // Comic Neue, bundled locally — see pubspec.yaml fonts: section. Money
-      // and numeric factories pin Inter themselves (AzText.money/delta), so
-      // currency figures keep tabular-figure stability regardless of this.
-      fontFamily: 'ComicNeue',
+      // The UI family (Inter since 2026-11-27, bundled locally; see the
+      // pubspec fonts: section). Read from the one token, never spelled here.
+      fontFamily: AzText.uiFamily,
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,

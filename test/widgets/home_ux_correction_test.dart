@@ -464,13 +464,11 @@ void main() {
         final painter = TextPainter(
           text: TextSpan(
             text: m.text,
-            // The heading renders in the theme's UI family (Comic
-            // Neue, bundled at 400/700 only — the engine resolves the
-            // ladder's w800 to the shipped 700). Measure the REAL
-            // rendering, not a fallback face.
+            // The heading renders in the theme's UI family at the
+            // ladder's own weight. Measure the REAL rendering, not a
+            // fallback face.
             style: AzText.display.copyWith(
-              fontFamily: 'ComicNeue',
-              fontWeight: FontWeight.w700,
+              fontFamily: AzText.uiFamily,
               color: ThemeProvider.getColors(AzamanTheme.light).textPrimary,
             ),
           ),

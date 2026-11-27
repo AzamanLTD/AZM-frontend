@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/intro/app_intro_screen.dart';
 import 'package:azaman/screens/intro/intro_slide_art.dart';
@@ -97,7 +98,7 @@ Future<void> _pumpTour(
               ? Brightness.dark
               : Brightness.light,
           useMaterial3: true,
-          fontFamily: 'ComicNeue',
+          fontFamily: AzText.uiFamily,
         ),
         home: AppIntroScreen(store: _SeenStore()),
       ),

@@ -1,15 +1,10 @@
 // =============================================================================
-// UI-CORRECTION PHASE A — UI TYPOGRAPHY (2026-10-03)
+// UI TYPOGRAPHY
 //
-// Comic Neue becomes the app's display/UI family (bundled locally in
-// pubspec.yaml — never runtime-fetched), while money and numeric factories
-// STAY on Inter for tabular-figure stability. Unavailable weights are
-// mapped deliberately (Comic Neue ships 400 + 700 only):
-//     800/900 → 700,   600/500 → 400,   400/700 stay.
-//
-// The money-pinning assertions fail against the pre-fix implementation
-// (money()/delta() carried NO fontFamily), and the uiTheme wiring pins the
-// deliberate weight mapping that the theme now uses.
+// Since 2026-11-27 (owner decision) words and numbers are both Inter, bundled
+// locally in pubspec.yaml (never runtime-fetched); it replaced Comic Neue
+// (Phase A, 2026-10-03). Inter is variable, so the UI ladder keeps its exact
+// weights. Money and numeric factories pin the numeric family themselves.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -36,27 +31,24 @@ void main() {
     });
 
     test(
-      'the numeric family constant is Inter, the UI family is ComicNeue',
+      'both families are Inter (owner decision 2026-11-27)',
       () {
         expect(AzText.numericFamily, 'Inter');
-        expect(AzText.uiFamily, 'ComicNeue');
+        expect(AzText.uiFamily, 'Inter');
       },
     );
   });
 
-  group('AzText.mapUiWeight — deliberate weight mapping', () {
-    test('800/900 map to 700, 600/500 map to 400, 400/700 ship as-is', () {
-      expect(AzText.mapUiWeight(FontWeight.w800), FontWeight.w700);
-      expect(AzText.mapUiWeight(FontWeight.w900), FontWeight.w700);
-      expect(AzText.mapUiWeight(FontWeight.w600), FontWeight.w400);
-      expect(AzText.mapUiWeight(FontWeight.w500), FontWeight.w400);
-      expect(AzText.mapUiWeight(FontWeight.w700), FontWeight.w700);
-      expect(AzText.mapUiWeight(FontWeight.w400), FontWeight.w400);
+  group('AzText.mapUiWeight — Inter has every weight', () {
+    test('every weight passes through unchanged', () {
+      for (final w in FontWeight.values) {
+        expect(AzText.mapUiWeight(w), w);
+      }
     });
   });
 
-  group('AzText.uiTheme — the Comic-Neue UI text theme', () {
-    test('every slot carries the Comic Neue family', () {
+  group('AzText.uiTheme — the Inter UI text theme', () {
+    test('every slot carries the UI family', () {
       final t = AzText.uiTheme();
       final slots = [
         t.displayLarge,
@@ -77,19 +69,15 @@ void main() {
       ];
       expect(slots.length, 15);
       for (final slot in slots) {
-        expect(slot!.fontFamily, 'ComicNeue');
+        expect(slot!.fontFamily, 'Inter');
       }
     });
 
-    test('unavailable weights are mapped: w800 → w700, w600/w500 → w400', () {
+    test('the ladder keeps its exact weights (no folding)', () {
       final t = AzText.uiTheme();
-      // hero (w800) and display (w800) render Bold.
-      expect(t.displayLarge!.fontWeight, FontWeight.w700);
-      expect(t.displayMedium!.fontWeight, FontWeight.w700);
-      // title (w600) and bodyL (w500) render Regular.
-      expect(t.titleLarge!.fontWeight, FontWeight.w400);
-      expect(t.bodyLarge!.fontWeight, FontWeight.w400);
-      // button (w700) keeps Bold.
+      expect(t.displayLarge!.fontWeight, FontWeight.w800);
+      expect(t.titleLarge!.fontWeight, FontWeight.w600);
+      expect(t.bodyLarge!.fontWeight, FontWeight.w500);
       expect(t.labelLarge!.fontWeight, FontWeight.w700);
     });
 
@@ -107,19 +95,16 @@ void main() {
     );
   });
 
-  group('ThemeProvider — the app theme uses the Comic-Neue UI family', () {
-    test('the app theme is Comic-Neue throughout; money text stays Inter', () {
+  group('ThemeProvider — the app theme uses the UI family', () {
+    test('the app theme is Inter throughout; money text stays Inter', () {
       for (final theme in AzamanTheme.values) {
         final data = ThemeProvider.getThemeData(theme);
-        // The theme's text theme carries the mapped Comic-Neue styles —
+        // The theme's text theme carries the UI-family styles —
         // every slot, display and body alike (raw inline TextStyles inherit
         // this through DefaultTextStyle).
-        expect(data.textTheme.displayLarge!.fontFamily, 'ComicNeue');
-        expect(data.textTheme.bodyMedium!.fontFamily, 'ComicNeue');
-        expect(
-          data.textTheme.displayLarge!.fontWeight,
-          FontWeight.w700, // hero was w800; mapped deliberately
-        );
+        expect(data.textTheme.displayLarge!.fontFamily, 'Inter');
+        expect(data.textTheme.bodyMedium!.fontFamily, 'Inter');
+        expect(data.textTheme.displayLarge!.fontWeight, FontWeight.w800);
         // A money style remains Inter even inside the themed app.
         final money = AzText.money(data.textTheme.bodyLarge!.color!);
         expect(money.fontFamily, 'Inter');

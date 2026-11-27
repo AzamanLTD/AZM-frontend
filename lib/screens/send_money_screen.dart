@@ -1705,7 +1705,9 @@ class _ReviewRow extends StatelessWidget {
         Expanded(
           child: Text(
             label,
-            maxLines: 2,
+            // Wraps, never clips: a long label lost its last word at 2 lines.
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: colors.textSecondary,
               fontSize: 13,
