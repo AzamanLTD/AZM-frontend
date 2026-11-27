@@ -10,6 +10,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:azaman/widgets/home/money_route_guard.dart';
 import 'package:azaman/services/socket_service.dart';
 
 import 'package:azaman/providers/auth_provider.dart';
@@ -521,12 +522,17 @@ class _FriendChatScreenState extends ConsumerState<FriendChatScreen> {
   /// state; the transfer message arrives exactly once through the
   /// backend-created TRANSFER_SENT record.
   Future<void> _openSendComposer() async {
+    // The SAME money gate as the /send route: a chat entry must never land
+    // on a live composer while money is locked (it pushed past
+    // MoneyRouteGuard before, since it does not go through the router).
     final sent = await pushWithVerticalTransition(
       context,
-      SendMoneyScreen.toFriend(
-        recipient: SendRecipient.friend(
-          username: widget.friendUsername,
-          friendshipId: widget.friendshipId,
+      MoneyRouteGuard(
+        child: SendMoneyScreen.toFriend(
+          recipient: SendRecipient.friend(
+            username: widget.friendUsername,
+            friendshipId: widget.friendshipId,
+          ),
         ),
       ),
     );

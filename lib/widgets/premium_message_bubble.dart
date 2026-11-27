@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:azaman/utils/biometric_gate.dart';
 import 'package:azaman/models/chat_message.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
@@ -103,11 +104,15 @@ class _State extends ConsumerState<PremiumMessageBubble>
               size: 11,
               color: c.textTertiary,
             ),
-            const SizedBox(width: -3),
-            Icon(
-              HugeIconsSolid.checkmarkCircle01,
-              size: 11,
-              color: c.textTertiary,
+            // Overlap the second tick by 3px (a negative SizedBox width
+            // trips a constraints assertion in debug builds).
+            Transform.translate(
+              offset: const Offset(-3, 0),
+              child: Icon(
+                HugeIconsSolid.checkmarkCircle01,
+                size: 11,
+                color: c.textTertiary,
+              ),
             ),
           ],
         );
@@ -116,8 +121,10 @@ class _State extends ConsumerState<PremiumMessageBubble>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(HugeIconsSolid.checkmarkCircle02, size: 11, color: c.accent),
-            const SizedBox(width: -3),
-            Icon(HugeIconsSolid.checkmarkCircle02, size: 11, color: c.accent),
+            Transform.translate(
+              offset: const Offset(-3, 0),
+              child: Icon(HugeIconsSolid.checkmarkCircle02, size: 11, color: c.accent),
+            ),
           ],
         );
       case MessageStatus.failed:
@@ -228,6 +235,13 @@ class _State extends ConsumerState<PremiumMessageBubble>
   // Only shown to the payer (the person who received the request, i.e.
   // !isMe on a TRANSFER_REQUEST message). Calls the same endpoints the
   // rest of the app already uses for this (friend_service.dart).
+  void _declineTransferRequest(BuildContext ctx, ChatMessage msg) {
+    final transferId = (msg.metadata ?? const {})['transferId']?.toString();
+    if (transferId == null || _isMe) return; // only the payer can respond
+    HapticFeedback.selectionClick();
+    _fulfillOrDecline(ctx, transferId, fulfill: false);
+  }
+
   void _respondToTransferRequest(
     BuildContext ctx,
     AzamanColors c,
@@ -310,7 +324,14 @@ class _State extends ConsumerState<PremiumMessageBubble>
     if (token == null) return;
     try {
       if (fulfill) {
-        await FriendService().fulfillTransfer(transferId, token);
+        // Paying a request moves money: it passes the same biometric
+        // pre-gate as creating one (opt-in; a cancelled prompt never pays).
+        if (!ctx.mounted) return;
+        await AzamanBiometricGate.run(
+          ctx,
+          () => FriendService().fulfillTransfer(transferId, token),
+          reason: 'Authenticate to pay this request',
+        );
       } else {
         await FriendService().declineTransfer(transferId, token);
       }
@@ -432,8 +453,10 @@ class _State extends ConsumerState<PremiumMessageBubble>
               onAccept: msg.kind == MessageKind.transferRequest && !_isMe
                   ? () => _respondToTransferRequest(context, c, msg)
                   : null,
+              // Decline declines (it used to open the same Pay sheet as
+              // Accept).
               onDecline: msg.kind == MessageKind.transferRequest && !_isMe
-                  ? () => _respondToTransferRequest(context, c, msg)
+                  ? () => _declineTransferRequest(context, msg)
                   : null,
             ),
           ],
