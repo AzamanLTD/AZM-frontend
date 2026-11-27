@@ -196,6 +196,33 @@ class ApiClient {
   /// Where the body carries a legacy in-body identity (clientRequestId),
   /// the helper OVERWRITES it with the instance key: one logical operation,
   /// one identity — in the durable record, in the header, and in the body.
+  /// POST a mutation whose route requires a second factor (`require2FA`), for
+  /// callers that are not durable financial operations (e.g. configuring a
+  /// money-out Smart Route). A 2FA_REQUIRED / PASSWORD_REQUIRED challenge is
+  /// answered once through the shared step-up prompt and the request is sent
+  /// again with the proof in the body. The backend checks the factor before
+  /// running the handler, so the challenged first attempt changed nothing.
+  /// A dismissed prompt rethrows the original refusal.
+  Future<http.Response> postWithSecondFactor(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool requireAuth = true,
+  }) async {
+    try {
+      return await post(endpoint, body, requireAuth: requireAuth);
+    } on ApiException catch (e) {
+      final factor = factorFor(e.statusCode, e.code);
+      if (factor == null) rethrow; // not a second-factor challenge
+      final credential = await FinancialStepUp.request(
+        StepUpChallenge(factor: factor, message: e.message),
+      );
+      if (credential == null) rethrow; // dismissed: nothing was sent
+      final stepped = Map<String, dynamic>.from(body)
+        ..[factor.bodyField] = credential.value;
+      return await post(endpoint, stepped, requireAuth: requireAuth);
+    }
+  }
+
   Future<http.Response> postFinancial(
     String endpoint,
     Map<String, dynamic> body, {

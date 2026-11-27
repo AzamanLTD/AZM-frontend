@@ -131,7 +131,8 @@ class SmartRoutesNotifier extends AsyncNotifier<List<SmartRoute>> {
   }
 
   Future<SmartRoute> create(Map<String, dynamic> body) async {
-    final res = await apiClient.post('/smart-routes', body);
+    // A MoMo-withdrawal or transfer route needs KYC and a second factor.
+    final res = await apiClient.postWithSecondFactor('/smart-routes', body);
     if (res.statusCode != 201) throw Exception(_msg(res.body));
     await refresh();
     final j = jsonDecode(res.body) as Map<String, dynamic>;
@@ -149,14 +150,16 @@ class SmartRoutesNotifier extends AsyncNotifier<List<SmartRoute>> {
       final res = await apiClient.delete('/smart-routes/$routeId');
       if (res.statusCode != 200) throw Exception(_msg(res.body));
     } else {
-      final res = await apiClient.post(endpoint, {});
+      // Resuming re-arms a payout schedule, so it carries the second factor;
+      // pausing only reduces money movement and is not challenged.
+      final res = await apiClient.postWithSecondFactor(endpoint, {});
       if (res.statusCode != 200) throw Exception(_msg(res.body));
     }
     await refresh();
   }
 
   Future<void> runNow(String routeId) async {
-    final res = await apiClient.post('/smart-routes/$routeId/run-now', {});
+    final res = await apiClient.postWithSecondFactor('/smart-routes/$routeId/run-now', {});
     if (res.statusCode != 200) throw Exception(_msg(res.body));
     await refresh();
   }
