@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
+import '../services/financial_step_up.dart';
+import '../services/step_up_grant.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:azaman/config.dart';
 import 'package:azaman/data/demo_interceptor.dart';
@@ -193,6 +196,33 @@ class ApiClient {
   /// Where the body carries a legacy in-body identity (clientRequestId),
   /// the helper OVERWRITES it with the instance key: one logical operation,
   /// one identity — in the durable record, in the header, and in the body.
+  /// POST a mutation whose route requires a second factor (`require2FA`), for
+  /// callers that are not durable financial operations (e.g. configuring a
+  /// money-out Smart Route). A 2FA_REQUIRED / PASSWORD_REQUIRED challenge is
+  /// answered once through the shared step-up prompt and the request is sent
+  /// again with the proof in the body. The backend checks the factor before
+  /// running the handler, so the challenged first attempt changed nothing.
+  /// A dismissed prompt rethrows the original refusal.
+  Future<http.Response> postWithSecondFactor(
+    String endpoint,
+    Map<String, dynamic> body, {
+    bool requireAuth = true,
+  }) async {
+    try {
+      return await post(endpoint, body, requireAuth: requireAuth);
+    } on ApiException catch (e) {
+      final factor = factorFor(e.statusCode, e.code);
+      if (factor == null) rethrow; // not a second-factor challenge
+      final credential = await FinancialStepUp.request(
+        StepUpChallenge(factor: factor, message: e.message),
+      );
+      if (credential == null) rethrow; // dismissed: nothing was sent
+      final stepped = Map<String, dynamic>.from(body)
+        ..[factor.bodyField] = credential.value;
+      return await post(endpoint, stepped, requireAuth: requireAuth);
+    }
+  }
+
   Future<http.Response> postFinancial(
     String endpoint,
     Map<String, dynamic> body, {
@@ -402,6 +432,137 @@ class ApiClient {
     );
   }
 
+  /// WP-J — the ONLY step-up integration point.
+  ///
+  /// The backend mounts `require2FA` BEFORE its idempotency middleware, so a
+  /// credential is spent at middleware time even when the request later
+  /// fails or its response is lost. What that forces here:
+  ///   - exactly ONE re-attempt with a freshly supplied credential;
+  ///   - the SAME endpoint and the SAME idempotency key, so no new operation
+  ///     is created and an original that committed replays instead of
+  ///     charging twice;
+  ///   - the credential goes into a COPY of the body, never into the durable
+  ///     snapshot, so it cannot be persisted, queued offline or replayed
+  ///     from storage;
+  ///   - TOTP_REPLAYED and TOTP_CLAIM_STORE_UNAVAILABLE are rethrown, never
+  ///     retried: one is a spent step, the other an undecided outcome.
+  Future<http.Response> _sendWithStepUp(
+    DurableOperation op,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    required bool requireAuth,
+    required String key,
+  }) async {
+    try {
+      return await post(
+        op.endpoint,
+        body,
+        headers: headers,
+        requireAuth: requireAuth,
+        idempotencyKey: key,
+      );
+    } on ApiException catch (e) {
+      // WP-H action-bound grant: the backend names the exact action it will
+      // accept a grant for. Handled BEFORE the legacy body-factor path because
+      // it is a different contract (grant header, not a body field).
+      if (e.code == StepUpGrantCodes.stepUpRequired) {
+        return await _retryWithStepUpGrant(
+          op,
+          body,
+          headers: headers,
+          requireAuth: requireAuth,
+          key: key,
+          refusal: e,
+        );
+      }
+      final factor = factorFor(e.statusCode, e.code);
+      if (factor == null) rethrow; // not a step-up challenge
+      final credential = await FinancialStepUp.request(
+        StepUpChallenge(factor: factor, message: e.message),
+      );
+      if (credential == null) rethrow; // no prompt installed / dismissed
+      final stepped = Map<String, dynamic>.from(body)
+        ..[factor.bodyField] = credential.value;
+      // One attempt only. A failure here propagates to the disposition below
+      // (401/409/5xx retain the durable instance, 4xx-retryable retires it).
+      return await post(
+        op.endpoint,
+        stepped,
+        headers: headers,
+        requireAuth: requireAuth,
+        idempotencyKey: key,
+      );
+    }
+  }
+
+  /// Steps 2–4 of the WP-H protocol, on top of ONE already-resolved durable
+  /// operation.
+  ///
+  /// The original endpoint, body, Idempotency-Key and material descriptor are
+  /// reused verbatim. Nothing here mints a new key, starts a second operation
+  /// or re-derives the action from screen state: the server's descriptor is
+  /// forwarded as received, and the retry differs only by the grant header.
+  Future<http.Response> _retryWithStepUpGrant(
+    DurableOperation op,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+    required bool requireAuth,
+    required String key,
+    required ApiException refusal,
+  }) async {
+    final challenge = StepUpGrantChallenge.fromBody(refusal.body);
+    if (challenge == null) throw refusal; // not a usable challenge: never invent one
+
+    final protocol = StepUpGrantProtocol(
+      send: (path, grantBody) async {
+        try {
+          final response = await post(
+            path,
+            grantBody,
+            requireAuth: requireAuth,
+          );
+          return StepUpHttpResult(
+            statusCode: response.statusCode,
+            body: _decodeOrNull(response.body),
+          );
+        } on ApiException catch (e) {
+          return StepUpHttpResult(
+            statusCode: e.statusCode,
+            body: e.body,
+            code: e.code,
+          );
+        }
+      },
+    );
+
+    // obtain() throws StepUpCancelled (user dismissed: nothing sent),
+    // StepUpGrantRefused (truthful refusal) or StepUpGrantDigestMismatch
+    // (never transmit the economic action).
+    final grant = await protocol.obtain(challenge);
+
+    final retryHeaders = <String, String>{
+      ...?headers,
+      StepUpGrantCodes.grantHeader: grant.token,
+    };
+    // The retry is the SAME operation: same endpoint, same body, same key.
+    return await post(
+      op.endpoint,
+      body,
+      headers: retryHeaders,
+      requireAuth: requireAuth,
+      idempotencyKey: key,
+    );
+  }
+
+  Map<String, dynamic>? _decodeOrNull(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// The shared wire transmit + durable disposition of one RESOLVED
   /// instance: send with the instance's key, then retire/retain per the
   /// disposition contract (2xx and definitive pre-economic 4xx retire;
@@ -419,12 +580,12 @@ class ApiClient {
       body['clientRequestId'] = key; // one identity, everywhere
     }
     try {
-      final response = await post(
-        op.endpoint,
+      final response = await _sendWithStepUp(
+        op,
         body,
         headers: headers,
         requireAuth: requireAuth,
-        idempotencyKey: key,
+        key: key,
       );
       // 2xx: the authoritative outcome is in hand — terminal.
       await DurableOperationRegistry.retire(op.operationId, account: account);

@@ -16,6 +16,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/widgets/money/native_amount_display.dart';
 import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/widgets/azaman_sheet.dart';
@@ -113,9 +114,19 @@ class _VaultCreateScreenState extends ConsumerState<VaultCreateScreen> {
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      // WP-L — a vault create can move money: never e.toString().
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            safeMoneyErrorText(
+              e,
+              unknownFallback:
+                  'We could not confirm whether the vault was created. Check '
+                  'your vaults before creating it again.',
+            ),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

@@ -68,6 +68,7 @@ import 'package:azaman/providers/friend_provider.dart';
 import 'package:azaman/providers/hologram_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/services/friend_service.dart';
 import 'package:azaman/services/recipient_discovery_service.dart';
 import 'package:azaman/utils/amount_input.dart';
@@ -669,6 +670,15 @@ class _SendMoneyScreenState extends ConsumerState<SendMoneyScreen> {
   }
 
   void _classifyApiException(ApiException e) {
+    // WP-L — an exact refusal code outranks the generic classifier.
+    final mapped = moneyRefusalMessage(e.code);
+    if (mapped != null) {
+      setState(() {
+        _stage = _SendStage.failed;
+        _error = mapped;
+      });
+      return;
+    }
     final statusCode = e.statusCode;
     final body = e.message;
     // PR #165 review finding 2: 409 (idempotent replay collision), 429

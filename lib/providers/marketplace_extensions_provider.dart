@@ -166,13 +166,20 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
     }
   }
 
+  final Map<String, FinancialOperationRef> _payRefs = {};
+
   Future<void> payTab(String tabId, {double? tip}) async {
     if (!mounted || tabId != _tabId) return;
     state = const AsyncValue.loading();
     try {
-      await _api.post('/dine-in/tabs/$tabId/pay', {
-        if (tip != null) 'tipUsdc': tip,
-      });
+      // WP-J — same durable identity as the service path (tabId-keyed), so a
+      // retry after a step-up prompt or a lost response cannot double-charge.
+      await _api.postFinancial(
+        '/dine-in/tabs/$tabId/pay',
+        {if (tip != null) 'tipUsdc': tip},
+        operationType: 'dinein.tabpay',
+        ref: _payRefs.putIfAbsent(tabId, () => FinancialOperationRef()),
+      );
       await loadTab(tabId);
     } catch (error, stackTrace) {
       // A payment response can be lost after the server commits. Re-read the

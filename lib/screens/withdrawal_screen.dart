@@ -41,6 +41,7 @@ import 'package:azaman/providers/platform_config_provider.dart';
 import 'package:azaman/services/azm_spend_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/screens/saved_wallets_screen.dart';
 import 'package:azaman/screens/smart_route/smart_route_list_screen.dart';
@@ -83,6 +84,27 @@ extension on MomoNetwork {
 }
 
 // ── Screen ──────────────────────────────────────────────────────────────────
+
+/// The backend's explicit `destinationType` for a saved payout method, or null
+/// when the destination format is unambiguous (TRC20, EVM) and needs none.
+/// Mirrors AZM-backend services/payoutDestinationClassification.js.
+@visibleForTesting
+String? payoutDestinationTypeFor(String? savedNetwork) {
+  switch ((savedNetwork ?? '').toUpperCase()) {
+    case 'BINANCE_ID':
+    case 'BINANCE_PAY_ID':
+      return 'BINANCE_PAY_ID';
+    case 'MOMO':
+    case 'MTN':
+    case 'MTN_MOMO':
+    case 'TELECEL':
+    case 'VODAFONE':
+    case 'AIRTELTIGO':
+      return 'MOMO';
+    default:
+      return null;
+  }
+}
 
 class WithdrawalScreen extends ConsumerStatefulWidget {
   const WithdrawalScreen({super.key, this.restoredDraft});
@@ -471,7 +493,7 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       // durable instance whose fingerprint EXACTLY matches it (r42
       // exact-instance process-death recovery — never "newest pending").
       final body = <String, dynamic>{
-        'amount': amount,
+        'amount': _amountExact,
         'recipientPhone': phone,
         'network': _selectedNetwork.apiValue,
         // Master Sprint v2: the optional `accountName` field is now used
@@ -574,10 +596,16 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
         // entry (same action in flight — retry converges), any other
         // ANSWERED 4xx/5xx disposition per the helper contract.
         final code = data['code']?.toString();
-        final msg = code == 'AZM_SPEND_FAILED'
-            ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
-            : (data['message']?.toString() ??
-                  'Withdrawal failed (status ${response.statusCode})');
+        // WP-L — a server refusal code carries exact, financially honest
+        // copy. It wins over the raw backend message so a refused payout can
+        // never read as a generic failure (or as a conversion that did not
+        // happen).
+        final msg =
+            moneyRefusalMessage(code) ??
+            (code == 'AZM_SPEND_FAILED'
+                ? 'AZM discount failed: ${data['message'] ?? 'unable to apply'}'
+                : (data['message']?.toString() ??
+                      'Withdrawal failed (status ${response.statusCode})'));
         _showSnack(msg, isError: true);
       }
     } catch (e) {
@@ -629,10 +657,17 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       // The request is reconstructed FIRST, then bound to an unfinished
       // durable instance whose fingerprint EXACTLY matches it (r42
       // exact-instance process-death recovery — never "newest pending").
+      // Numeric destinations are ambiguous on the backend (a 10-digit MoMo
+      // number and a Binance Pay ID look alike), so it refuses them with
+      // DESTINATION_TYPE_REQUIRED unless the client states the type the user
+      // actually chose. TRC20 and EVM addresses are unambiguous and resolve
+      // without one, so no type is guessed for them.
+      final destinationType = payoutDestinationTypeFor(networkPref);
       final body = <String, dynamic>{
-        'amount': amount,
+        'amount': _amountExact,
         'destination': destination,
         'networkPref': networkPref,
+        if (destinationType != null) 'destinationType': destinationType,
       };
       final resolved = await _resolveRecoveryInstance(
         _walletRef,
@@ -1127,7 +1162,9 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
+            content: Text(
+              moneyErrorText(e) ?? e.toString().replaceAll('Exception: ', ''),
+            ),
             backgroundColor: colors.danger,
           ),
         );
@@ -1143,6 +1180,11 @@ class _WithdrawalScreenState extends ConsumerState<WithdrawalScreen> {
   /// meaningful amount (empty/zero). Every validity rule is enforced by
   /// the [AmountInput] state machine before any state exists.
   double? get _amountValue => AmountInput.value(_amountRaw);
+
+  /// The exact decimal string this screen puts on the wire. The backend binds
+  /// the step-up action to the amount and refuses a numeric JSON amount, so the
+  /// customer's own digits are sent, never the parsed double.
+  String get _amountExact => AmountInput.wireAmount(_amountRaw) ?? _amountRaw;
 
   /// The odometer string: grouped integer part, fraction exactly as
   /// typed. Empty input displays as '0' — a resting instrument reads

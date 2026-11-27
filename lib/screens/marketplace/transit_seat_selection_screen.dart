@@ -11,6 +11,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/marketplace/experiences/transit/demo_transit_hold_gateway.dart';
 import 'package:azaman/marketplace/experiences/transit/transit_boarding.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -106,7 +107,15 @@ class _TransitSeatSelectionScreenState
           'MarketplaceBookingException: ',
           '',
         );
-        if (cls == TransitBookingFailureClass.ambiguousOrUnknown) {
+        // WP-L closure: a proven backend refusal (step-up required, insufficient
+        // balance, idempotency conflict) renders the ONE authority's copy, so
+        // transit cannot drift from every other money surface. The transit
+        // taxonomy below only handles what the authority does not prove.
+        final proven = refusalCopyFrom(error);
+        if (proven != null) message = proven.display;
+        if (proven != null) {
+          // keep the authority's copy verbatim
+        } else if (cls == TransitBookingFailureClass.ambiguousOrUnknown) {
           message =
               'We couldn\'t confirm your booking. Check your bookings first — '
               'if the seats aren\'t there, booking the same seats again will '

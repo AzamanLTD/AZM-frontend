@@ -14,6 +14,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/utils/money_refusal_copy.dart';
 import 'package:azaman/providers/vault_provider.dart';
 import 'package:azaman/services/api_client.dart';
 
@@ -343,9 +344,19 @@ class _VaultYieldScreenState extends ConsumerState<VaultYieldScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        // WP-L — a yield action can move money: never e.toString().
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              safeMoneyErrorText(
+                e,
+                unknownFallback:
+                    'We could not confirm this yield action. Check the vault '
+                    'before trying again.',
+              ),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);

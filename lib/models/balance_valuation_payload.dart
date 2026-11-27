@@ -223,6 +223,12 @@ class BackendBalanceValuation {
           'NATIVE_GHS_ONLY' => BackendValuationStatus.nativeGhsOnly,
           'PARTIAL_FX_UNAVAILABLE' =>
             BackendValuationStatus.partialFxUnavailable,
+          // The backend's own name for the same state (AZM-backend
+          // src/services/balanceValuationService.js VALUATION_STATUS):
+          // "estimate unavailable; GHS headline stays fully valid". Treating
+          // it as unknown discarded the whole valuation and blanked the GHS
+          // headline exactly when the rate was down.
+          'FX_UNAVAILABLE' => BackendValuationStatus.partialFxUnavailable,
           _ => null,
         };
     if (rateStatus == null || valuationStatus == null) return null;

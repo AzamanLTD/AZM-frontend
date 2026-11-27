@@ -16,6 +16,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/financial_step_up_sheet.dart';
 
 import 'package:azaman/screens/home_screen.dart';
 import 'package:azaman/widgets/home/home_plus_actions.dart';
@@ -247,10 +248,26 @@ Future<void> _bootstrap() async {
 final ValueNotifier<Object?> _lastFrameworkError = ValueNotifier<Object?>(null);
 
 class AzamanApp extends ConsumerWidget {
+  /// WP-J — the step-up prompt needs a navigator that outlives any route.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+  static bool _stepUpInstalled = false;
+
+  /// WP-J — install the single step-up prompt once, after the navigator is
+  /// mounted. Guarded so rebuilds never stack prompts.
+  static void _installStepUpOnce() {
+    if (_stepUpInstalled) return;
+    _stepUpInstalled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      installFinancialStepUp(rootNavigatorKey);
+    });
+  }
+
   const AzamanApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    _installStepUpOnce();
     // TASK-025: the shell resolves the theme through the active accent —
     // a Marketplace vertical's session accent while one is active, otherwise
     // the user's saved identity. Applied HERE (not per-screen) so nav,

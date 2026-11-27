@@ -9,6 +9,7 @@ import 'dart:convert';
 
 import 'package:meta/meta.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/financial_step_up.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 
 class FriendService {
@@ -373,20 +374,33 @@ class FriendService {
     throw Exception('Failed to request funds: ${response.body}');
   }
 
-  /// Fulfill a pending transfer request (pay it)
+  /// Fulfill a pending transfer request (pay it).
+  ///
+  /// Paying a request debits this user, so the backend asks for the same
+  /// second factor as a direct send (2FA_REQUIRED / PASSWORD_REQUIRED). The
+  /// challenge is answered once, through the shared step-up prompt, and the
+  /// request is re-sent with the proof in the body. Replaying it is safe: the
+  /// transfer request itself is the single-winner identity on the server.
   Future<Map<String, dynamic>> fulfillTransfer(
     String transferId,
     String token,
   ) async {
-    final response = await _api.put(
-      '/friends/transfer/$transferId/fulfill',
-      {},
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+    final path = '/friends/transfer/$transferId/fulfill';
+    try {
+      final response = await _api.put(path, {});
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } on ApiException catch (e) {
+      final factor = factorFor(e.statusCode, e.code);
+      if (factor == null) rethrow; // not a second-factor challenge
+      final credential = await FinancialStepUp.request(
+        StepUpChallenge(factor: factor, message: e.message),
+      );
+      if (credential == null) rethrow; // dismissed: nothing was sent
+      final response = await _api.put(path, {
+        factor.bodyField: credential.value,
+      });
+      return jsonDecode(response.body) as Map<String, dynamic>;
     }
-    throw Exception('Failed to fulfill transfer: ${response.body}');
   }
 
   /// Decline a pending transfer request
