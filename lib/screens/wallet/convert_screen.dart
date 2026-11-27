@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/widgets/money_stage/money_stage.dart';
 import 'package:azaman/providers/currency_provider.dart';
 import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/services/launcher_drafts.dart';
@@ -57,7 +58,10 @@ DateTime Function() kConvertNow = () => DateTime.now().toUtc();
 ///   remain different concepts — this screen never writes the
 ///   preference, and the preference never debits a wallet.
 class ConvertScreen extends ConsumerStatefulWidget {
-  const ConvertScreen({super.key, this.restoredDraft});
+  const ConvertScreen({super.key, this.restoredDraft, this.skyPhaseForCaptures = 0});
+
+  /// Pins the sky's drift phase so visual captures are deterministic.
+  final double skyPhaseForCaptures;
 
   /// §C continuation — the draft's amount/direction restored as an
   /// ESTIMATE-FORM draft (§C.2: Convert is display-only; this is never
@@ -176,7 +180,23 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // The Convert stage (citrus over teal). Every panel here reads the
+    // theme's colour scheme, so the subtree gets a stage scheme: a glass
+    // surface, the sky's ink as text and primary, hairline outlines.
+    final baseTheme = Theme.of(context);
+    final sky = AzSkyPalette.of(AzMoneyMood.convert, baseTheme.brightness);
+    final dark = baseTheme.brightness == Brightness.dark;
+    final theme = baseTheme.copyWith(
+      scaffoldBackgroundColor: Colors.transparent,
+      colorScheme: baseTheme.colorScheme.copyWith(
+        surface: dark ? Colors.white.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.45),
+        onSurface: sky.ink,
+        onSurfaceVariant: sky.inkMuted,
+        primary: sky.ink,
+        onPrimary: dark ? const Color(0xFF15121A) : Colors.white,
+        outlineVariant: sky.ink.withValues(alpha: dark ? 0.14 : 0.10),
+      ),
+    );
     final colors = theme.colorScheme;
     final snapshot = ref.watch(fxRateProvider);
 
@@ -187,9 +207,15 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
       // downward pull closes it. Nothing is pending on this screen, so
       // the pull is always accepted.
       onDismiss: _attemptClose,
-      child: Scaffold(
+      child: AzMoneyStage(
+        mood: AzMoneyMood.convert,
+        skyPhase: widget.skyPhaseForCaptures,
+        child: Theme(
+        data: theme,
+        child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
-          backgroundColor: colors.surface,
+          backgroundColor: Colors.transparent,
           elevation: 0,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
@@ -198,11 +224,20 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
           // the Send/Withdraw surfaces: one explicit close affordance,
           // no back arrow, matching the launcher grammar this surface
           // family shares. Nothing is in flight here, so it always pops.
-          leading: IconButton(
-            key: const Key('convert_close'),
-            icon: Icon(Icons.close, color: colors.onSurface, size: 20),
-            tooltip: 'Close',
-            onPressed: _attemptClose,
+          leadingWidth: 68,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Center(
+              child: Tooltip(
+                message: 'Close',
+                child: AzStageRoundButton(
+                  key: const Key('convert_close'),
+                  icon: Icons.close,
+                  onTap: _attemptClose,
+                  semanticsLabel: 'Close',
+                ),
+              ),
+            ),
           ),
           title: Text(
             'Convert',
@@ -251,6 +286,8 @@ class _ConvertScreenState extends ConsumerState<ConvertScreen> {
           ),
         ),
       ),
+    ),
+    ),
     );
   }
 }
@@ -571,6 +608,9 @@ class _AmountField extends StatelessWidget {
           tracking: 0,
         ),
         isDense: true,
+        // The global input theme fills fields; on the stage the figure
+        // sits directly on the glass panel.
+        filled: false,
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
