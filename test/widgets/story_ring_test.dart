@@ -104,127 +104,42 @@ bool _hasBoxShadowBlur(Container c) {
 // ── TOP grammar (§3, §4) ─────────────────────────────────────────────────────
 
 void main() {
-  group('top dash grammar', () {
-    test('only silent unviewed → ONE solid dash, centred on 12', () {
-      final dashes = storyRingTopDashes(3, 0);
-      expect(dashes, hasLength(1));
-      expect(
-        dashes.single.isSound,
-        isFalse,
-        reason: 'silent stories must render the no-sound (red) dash',
-      );
-      expect(dashes.single.texture, StoryDashTexture.solid);
-      expect(
-        dashes.single.centerHour,
-        12,
-        reason: 'single-type state stays symmetric: centred on 12',
-      );
+  // 2026-11-27 redesign: one connected two-colour ring. The split is pure
+  // geometry, so it is pinned here without a canvas.
+  group('two-colour ring split', () {
+    test('three new out of four reads as three-quarters colour', () {
+      final split = storyRingSplit(const StoryRingCounts(
+        unviewedSilentCount: 3, viewedCount: 1, hasUnviewed: true, unviewedCountKnown: true));
+      expect(split.hasRing, isTrue);
+      expect(split.unviewedFraction, closeTo(0.75, 1e-9));
     });
 
-    test('only sound unviewed → ONE twin-line dash, centred on 12', () {
-      final dashes = storyRingTopDashes(0, 2);
-      expect(dashes, hasLength(1));
-      expect(
-        dashes.single.isSound,
-        isTrue,
-        reason: 'sound stories render the has-sound (purple) dash',
-      );
-      expect(
-        dashes.single.texture,
-        StoryDashTexture.twinLine,
-        reason: 'the colour-independent cue must survive colour-blindness',
-      );
-      expect(dashes.single.centerHour, 12);
+    test('all viewed is an all-grey ring, thinner than an active one', () {
+      final split = storyRingSplit(const StoryRingCounts(viewedCount: 2));
+      expect(split.hasRing, isTrue);
+      expect(split.allViewed, isTrue);
+      final active = storyRingSplit(const StoryRingCounts(
+        unviewedSilentCount: 1, hasUnviewed: true, unviewedCountKnown: true));
+      expect(storyRingStroke(64, split), lessThan(storyRingStroke(64, active)));
     });
 
-    test('both sound states → mirrored pair straddling 12, never more', () {
-      final dashes = storyRingTopDashes(80, 20);
-      expect(
-        dashes,
-        hasLength(2),
-        reason: '§4: at most two dashes, however many stories exist',
-      );
-      expect(
-        dashes[0].centerHour,
-        lessThan(12),
-        reason: 'silent dash sits left of 12',
-      );
-      expect(
-        dashes[1].centerHour,
-        greaterThan(12),
-        reason: 'sound dash sits right of 12',
-      );
-      expect(
-        12 - dashes[0].centerHour,
-        closeTo(dashes[1].centerHour - 12, 0.0001),
-        reason: 'the pair is MIRRORED around 12',
-      );
-      expect(dashes[0].texture, StoryDashTexture.solid);
-      expect(dashes[1].texture, StoryDashTexture.twinLine);
+    test('an unseen flag without a count is all colour, never a guessed fraction', () {
+      final split = storyRingSplit(StoryRingCounts.fromUnseenFlag(true));
+      expect(split.unviewedFraction, 1);
     });
 
-    test('zero unviewed → no dashes at all (resting arc territory)', () {
-      expect(
-        storyRingTopDashes(0, 0),
-        isEmpty,
-        reason: 'the caught-up state must not leave stale colored dashes',
-      );
+    test('no stories: no ring and no stroke', () {
+      final split = storyRingSplit(const StoryRingCounts.empty());
+      expect(split.hasRing, isFalse);
+      expect(storyRingStroke(64, split), 0);
+    });
+
+    test('a fresh group from the feed splits by its real seen flags', () {
+      final split = storyRingSplit(StoryRingCounts.fromGroup(
+          _group([_story(seen: false), _story(seen: true), _story(seen: true), _story(seen: true)])));
+      expect(split.unviewedFraction, closeTo(0.25, 1e-9));
     });
   });
-
-  // ── badge (§5) ─────────────────────────────────────────────────────────────
-
-  group('unviewed badge', () {
-    test('shows the ACTUAL count', () {
-      expect(storyRingBadgeLabel(7), '7');
-      expect(storyRingBadgeLabel(1), '1');
-    });
-
-    test('compacts only past 99 — never a literal +N placeholder', () {
-      expect(storyRingBadgeLabel(99), '99');
-      expect(storyRingBadgeLabel(100), '99+');
-      expect(storyRingBadgeLabel(120), '99+');
-      expect(storyRingBadgeLabel(3).contains('+'), isFalse);
-    });
-  });
-
-  // ── BOTTOM grammar (§7, §8) ─────────────────────────────────────────────────
-
-  group('viewed dot grammar', () {
-    test('odd counts get a true centre dot at exactly 6 o\'clock', () {
-      expect(storyRingViewedDotHours(1), [6]);
-      expect(storyRingViewedDotHours(3), contains(6));
-      expect(storyRingViewedDotHours(3), hasLength(3));
-    });
-
-    test('even counts split evenly around 6, no centre dot', () {
-      final hours = storyRingViewedDotHours(2);
-      expect(hours, hasLength(2));
-      expect(hours, isNot(contains(6)));
-      expect(hours.where((h) => h < 6).length, 1);
-      expect(hours.where((h) => h > 6).length, 1);
-    });
-
-    test('caps at 5 visible dots — no bead chain', () {
-      expect(storyRingViewedDotHours(5), hasLength(5));
-      expect(
-        storyRingViewedDotHours(6),
-        hasLength(5),
-        reason: '§8: past the cap the badge carries the count instead',
-      );
-      expect(storyRingViewedDotHours(50), hasLength(5));
-    });
-
-    test('dots are mirror-symmetric around 6', () {
-      final hours = storyRingViewedDotHours(4);
-      hours.sort();
-      for (var i = 0; i < hours.length; i++) {
-        expect(hours[i], closeTo(12 - hours[hours.length - 1 - i], 0.0001));
-      }
-    });
-  });
-
-  // ── real data path (§9) ─────────────────────────────────────────────────────
 
   group('StoryRingCounts — real data', () {
     test('fromGroup counts seen/unseen EXACTLY from the feed', () {
@@ -261,9 +176,9 @@ void main() {
       expect(counts.hasUnviewed, isFalse);
       expect(counts.isEmpty, isFalse, reason: 'viewed stories still exist');
       expect(
-        storyRingTopDashSpecs(counts),
-        isEmpty,
-        reason: 'caught up — the resting arc, no dash',
+        storyRingSplit(counts).allViewed,
+        isTrue,
+        reason: 'caught up: an all-grey ring, no colour',
       );
     });
 
@@ -306,19 +221,10 @@ void main() {
               'the badge only ever shows a real number',
         );
         expect(counts.badgeMayRender, isFalse);
-        final dashes = storyRingTopDashSpecs(counts);
-        expect(dashes, hasLength(1), reason: 'exactly one presence dash');
         expect(
-          dashes.single.texture,
-          StoryDashTexture.solid,
-          reason:
-              'the no-sound dash — the documented fallback for '
-              'missing audio metadata, not a sound classification',
-        );
-        expect(
-          dashes.single.isSound,
-          isFalse,
-          reason: 'the purple branch stays dormant without real data',
+          storyRingSplit(counts).unviewedFraction,
+          1,
+          reason: 'presence without a count is all colour, never a guess',
         );
       },
     );
@@ -345,23 +251,16 @@ void main() {
       expect(counts.isEmpty, isTrue);
       expect(counts.badgeMayRender, isFalse);
       expect(
-        storyRingTopDashSpecs(counts),
-        isEmpty,
-        reason: 'no dash, no badge — the plain resting ring',
+        storyRingSplit(counts).hasRing,
+        isFalse,
+        reason: 'no story: no ring',
       );
     });
 
     test('empty counts → no story state at all', () {
       const counts = StoryRingCounts.empty();
       expect(counts.isEmpty, isTrue);
-      expect(
-        storyRingTopDashes(
-          counts.unviewedSilentCount,
-          counts.unviewedSoundCount,
-        ),
-        isEmpty,
-      );
-      expect(storyRingViewedDotHours(counts.viewedCount), isEmpty);
+      expect(storyRingSplit(counts).hasRing, isFalse);
     });
   });
 

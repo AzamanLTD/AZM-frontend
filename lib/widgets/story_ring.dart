@@ -1,67 +1,41 @@
-import 'dart:math' as math;
+// lib/widgets/story_ring.dart
+// =============================================================================
+// THE STORY RING (2026-11-27 redesign)
+//
+// One unbroken circle around the photo, in two colours that meet:
+//
+//   • the UNVIEWED share is a vivid arc in the user's accent family,
+//     starting at 12 o'clock and running clockwise;
+//   • the VIEWED share continues in grey until it meets the start again;
+//   • arc lengths follow the real counts, so three new stories out of four
+//     read as three-quarters colour;
+//   • all viewed: a thin, quiet grey ring; nothing at all: no ring.
+//
+// Red is retired (in a money app red means an error), the viewed dots and
+// count badge of the earlier status-glyph design are gone, and the photo
+// fills about 86% of the ring (it was about 62%).
+// =============================================================================
 
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../models/story_model.dart';
 import '../providers/theme_provider.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
-
-// ── StoryRing ─────────────────────────────────────────────────────────────────
-//
-// FINAL STORY IDENTITY (P3, locked 2026-10-06): circular avatar + restrained
-// Apple-like system-glyph ring + sound semantics. The old squircle ring
-// (hasUnseenStory / storyCount segments / glowEnabled bloom) is GONE —
-// circular, not squircle; no glow anywhere, on purpose; one canonical
-// widget for every story surface.
-//
-//   TOP    (unviewed) — at most 2 dashes, one per sound state present,
-//          mirrored around 12 o'clock. A numeric badge at 12 shows the REAL
-//          total unviewed count. Zero unviewed collapses the top into one
-//          unified gray arc (the settled "caught up" glyph).
-//   BOTTOM (viewed)   — one gray dot per viewed story, mirrored around 6
-//          o'clock, capped at [viewedDotCap]; past the cap a numeric badge
-//          carries the real viewed count.
-//
-//   RED    = unviewed story with NO sound (solid stroke)
-//   PURPLE = unviewed story WITH sound (twin fine lines)
-// Colour is never the ONLY cue: the sound dash also gets a distinct stroke
-// texture so the distinction survives colour-blind users.
-//
-// The ring is STATIC at rest (no breathing, no pulse) and renders through a
-// single CustomPainter — no shaders, no blur, no glow layers; it stays
-// cheap when dozens of rings are visible.
-//
-// ── USAGE ────────────────────────────────────────────────────────────────────
-//   StoryRing(
-//     counts: StoryRingCounts.fromGroup(group), // real data, see below
-//     isBoosted: group.isBoosted,
-//     size: 64,
-//   )
-//
-// Zero stories at all (counts empty): plain dim border, same as always.
-// =============================================================================
 
 class StoryRing extends ConsumerWidget {
   final String? avatarUrl;
 
   /// The ring's real state, derived from the story feed. See
-  /// [StoryRingCounts] — never hand-roll fake counts at a call site.
+  /// [StoryRingCounts]; never hand-roll fake counts at a call site.
   final StoryRingCounts counts;
 
-  /// A small independent accent dot at the bottom-right of the ring — for a
-  /// boosted/verified account. Deliberately NOT a ring colour swap: ring
-  /// colour is fully spoken for by the viewed/unviewed language, so
-  /// "boosted" gets its own separate micro-indicator instead.
+  /// A small independent accent dot at the bottom-right of the ring, for a
+  /// boosted/verified account. Ring colour is spoken for by viewed/unviewed,
+  /// so "boosted" keeps its own micro-indicator.
   final bool isBoosted;
 
   final double size;
-
-  /// Above this many viewed stories, collapse to [viewedDotCap] dots plus a
-  /// numeric badge instead of growing the dot row indefinitely. 5 gives a
-  /// true centre dot (two mirrored pairs either side of 6 o'clock) and stays
-  /// close to the dot count in the real Apple glyph.
-  static const int viewedDotCap = 5;
 
   const StoryRing({
     super.key,
@@ -71,18 +45,13 @@ class StoryRing extends ConsumerWidget {
     this.size = 64,
   });
 
-  bool get _hasAnyStory => counts.unviewedTotal > 0 || counts.viewedCount > 0;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
-
-    // Breathing room between the avatar and the ring elements, so dashes and
-    // dots never read as flush against the photo. Bigger than the old
-    // squircle ring's padding on purpose — real geometry lives in that gap.
-    // Scales with size (§13 responsive geometry), zero at 64dp.
-    final ringGap = _hasAnyStory ? size * 0.14 : size * 0.05;
-    final avatarInset = ringGap + (size * 0.05); // + stroke clearance
+    final split = storyRingSplit(counts);
+    final stroke = storyRingStroke(size, split);
+    // Ring, then a thin gap, then the photo: the photo is the subject.
+    final avatarInset = split.hasRing ? stroke + size * 0.035 : 0.0;
 
     return SizedBox(
       width: size,
@@ -94,17 +63,13 @@ class StoryRing extends ConsumerWidget {
             key: const ValueKey('story-ring-paint'),
             size: Size(size, size),
             painter: _StoryRingPainter(
-              counts: counts,
-              silentColor: colors.danger,
-              soundColor: colors.accentSecondary,
-              dimColor: colors.divider,
-              badgeBg: colors.textPrimary,
-              badgeFg: colors.surface,
-              scale: size / 64,
+              split: split,
+              stroke: stroke,
+              unviewedFrom: colors.accent,
+              unviewedTo: colors.accentSecondary,
+              viewed: colors.textTertiary.withValues(alpha: 0.38),
             ),
           ),
-          // The avatar is a real circular profile photo (§1) — ClipOval,
-          // never a squircle.
           Positioned(
             key: const ValueKey('story-ring-avatar'),
             left: avatarInset,
@@ -133,11 +98,7 @@ class StoryRing extends ConsumerWidget {
                   color: colors.accent,
                   border: Border.all(color: colors.surface, width: 2),
                 ),
-                child: Icon(
-                  Icons.check,
-                  size: size * 0.13,
-                  color: colors.surface,
-                ),
+                child: Icon(Icons.check, size: size * 0.13, color: colors.surface),
               ),
             ),
         ],
@@ -146,9 +107,9 @@ class StoryRing extends ConsumerWidget {
   }
 
   Widget _placeholder(AzamanColors colors) => Container(
-    color: colors.softSurface,
-    child: Icon(Icons.person, color: colors.textTertiary, size: size * 0.42),
-  );
+        color: colors.softSurface,
+        child: Icon(Icons.person, color: colors.textTertiary, size: size * 0.42),
+      );
 }
 
 // ── Real-data adapter ────────────────────────────────────────────────────────
@@ -261,298 +222,118 @@ class StoryRingCounts {
   );
 }
 
-// ── Pure layout grammar (testable without a canvas) ──────────────────────────
-//
-// Exposed so the §18 test contract can pin the exact ring grammar as pure
-// functions: which dashes exist, where the dots sit, what the badges say.
 
-enum StoryDashTexture { solid, twinLine }
+// ── Pure geometry (unit-tested) ──────────────────────────────────────────────
 
-class StoryDashSpec {
-  final double centerHour; // 12 = top of the ring
-  final double sweepHours;
-  final StoryDashTexture texture;
-  final bool isSound;
+/// How the ring is split. [unviewedFraction] is the coloured share of the
+/// circle (0..1); the rest is grey. [hasRing] is false when there is no
+/// story at all.
+@immutable
+class StoryRingSplit {
+  const StoryRingSplit({required this.unviewedFraction, required this.hasRing});
 
-  const StoryDashSpec(
-    this.centerHour,
-    this.sweepHours,
-    this.texture, {
-    required this.isSound,
-  });
+  final double unviewedFraction;
+  final bool hasRing;
+
+  bool get allViewed => hasRing && unviewedFraction == 0;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StoryRingSplit &&
+      other.unviewedFraction == unviewedFraction &&
+      other.hasRing == hasRing;
+
+  @override
+  int get hashCode => Object.hash(unviewedFraction, hasRing);
 }
 
-/// TOP grammar: at most one dash per sound state present.
-///   both states    → mirrored pair straddling 12 (silent left, sound right)
-///   one state only → a single dash centred on 12 (ring stays symmetric)
-///   zero unviewed  → no dashes at all (caller renders the resting arc)
-List<StoryDashSpec> storyRingTopDashes(int silent, int sound) {
-  if (silent > 0 && sound > 0) {
-    return const [
-      StoryDashSpec(12 - 0.85, 1.3, StoryDashTexture.solid, isSound: false),
-      StoryDashSpec(12 + 0.85, 1.3, StoryDashTexture.twinLine, isSound: true),
-    ];
+/// The split from REAL counts:
+///   • counted stories: unviewed / (unviewed + viewed);
+///   • an unseen flag with no count (marketplace feed): all colour, never a
+///     guessed fraction;
+///   • only viewed: all grey; nothing: no ring.
+StoryRingSplit storyRingSplit(StoryRingCounts c) {
+  final unviewed = c.unviewedTotal;
+  final total = unviewed + c.viewedCount;
+  if (total > 0) {
+    return StoryRingSplit(unviewedFraction: unviewed / total, hasRing: true);
   }
-  if (sound > 0) {
-    return const [
-      StoryDashSpec(12, 1.7, StoryDashTexture.twinLine, isSound: true),
-    ];
+  if (c.hasUnviewed) {
+    return const StoryRingSplit(unviewedFraction: 1, hasRing: true);
   }
-  if (silent > 0) {
-    return const [
-      StoryDashSpec(12, 1.7, StoryDashTexture.solid, isSound: false),
-    ];
-  }
-  return const [];
+  return const StoryRingSplit(unviewedFraction: 0, hasRing: false);
 }
 
-/// Badge label for a count: the actual number, compacted only past 99
-/// (never a literal "+N" placeholder).
-String storyRingBadgeLabel(int count) => count > 99 ? '99+' : '$count';
-
-/// Grammar input for the ring's top dashes, from a counts state. The
-/// dash count is a RENDERING instruction, never a data claim: an
-/// exact-count feed passes its real split; a count-less source passes
-/// a single presence dash for the explicit hasUnviewed flag. Either way
-/// the model's [StoryRingCounts.unviewedTotal] stays what the source
-/// actually knows — 0/unknown for count-less, never a fake number.
-List<StoryDashSpec> storyRingTopDashSpecs(StoryRingCounts counts) {
-  final silent = counts.unviewedCountKnown
-      ? counts.unviewedSilentCount
-      : (counts.hasUnviewed ? 1 : 0);
-  final sound = counts.unviewedCountKnown ? counts.unviewedSoundCount : 0;
-  return storyRingTopDashes(silent, sound);
+/// Stroke width: confident when something is new, quieter when all viewed.
+double storyRingStroke(double size, StoryRingSplit split) {
+  if (!split.hasRing) return 0;
+  return split.allViewed ? size * 0.03 : size * 0.047;
 }
-
-/// BOTTOM grammar: viewed dots mirrored around 6 o'clock. Odd counts get a
-/// true centre dot; even counts split evenly. Capped at
-/// [StoryRing.viewedDotCap] visible dots — past the cap the badge carries
-/// the real count instead.
-List<double> storyRingViewedDotHours(int viewedCount) {
-  final shown = math.min(viewedCount, StoryRing.viewedDotCap);
-  const dotSpacingHours = 0.62;
-  final hours = <double>[];
-  if (shown.isOdd) {
-    hours.add(6);
-    for (int i = 1; i <= (shown - 1) ~/ 2; i++) {
-      hours.add(6 - i * dotSpacingHours);
-      hours.add(6 + i * dotSpacingHours);
-    }
-  } else {
-    for (int i = 0; i < shown ~/ 2; i++) {
-      final offset = (i + 0.5) * dotSpacingHours;
-      hours.add(6 - offset);
-      hours.add(6 + offset);
-    }
-  }
-  return hours;
-}
-
-// ── Custom painter ──────────────────────────────────────────────────────────
-//
-// Angle convention: Flutter's drawArc takes 0 = 3 o'clock, angles increasing
-// CLOCKWISE. _clock lets the rest of the file say "12 o'clock" / "6 o'clock".
-
-double _clock(double hours) => (hours / 12.0) * 2 * math.pi - (math.pi / 2);
 
 class _StoryRingPainter extends CustomPainter {
-  final StoryRingCounts counts;
-  final Color silentColor;
-  final Color soundColor;
-  final Color dimColor;
-  final Color badgeBg;
-  final Color badgeFg;
-
-  /// All fixed geometry scales with the ring's actual size (§13): 1.0 at the
-  /// 64dp baseline, smaller on the 24dp compact rail, larger on big
-  /// surfaces. Never hard-coded pixels that only work at 64dp.
-  final double scale;
-
   _StoryRingPainter({
-    required this.counts,
-    required this.silentColor,
-    required this.soundColor,
-    required this.dimColor,
-    required this.badgeBg,
-    required this.badgeFg,
-    required this.scale,
+    required this.split,
+    required this.stroke,
+    required this.unviewedFrom,
+    required this.unviewedTo,
+    required this.viewed,
   });
+
+  final StoryRingSplit split;
+  final double stroke;
+  final Color unviewedFrom;
+  final Color unviewedTo;
+  final Color viewed;
+
+  static const double _start = -math.pi / 2; // 12 o'clock
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.shortestSide / 2) - 3.0 * scale;
-
-    if (counts.isEmpty) {
-      // No stories at all — plain dim border, same as the old widget.
-      canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..color = dimColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2 * scale,
-      );
-      return;
-    }
-
-    _paintTop(canvas, center, radius);
-    _paintBottom(canvas, center, radius);
-  }
-
-  // ── TOP: unviewed ──────────────────────────────────────────────────────
-  void _paintTop(Canvas canvas, Offset center, double radius) {
-    if (!counts.hasUnviewed && counts.unviewedTotal == 0) {
-      // Fully caught up — one unified resting arc, the Apple "idle" glyph.
-      final paint = Paint()
-        ..color = dimColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2 * scale
-        ..strokeCap = StrokeCap.round;
-      final rect = Rect.fromCircle(center: center, radius: radius);
-      canvas.drawArc(rect, _clock(10.3), _sweepFor(3.4), false, paint);
-      return;
-    }
-
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    for (final dash in storyRingTopDashSpecs(counts)) {
-      _drawDash(canvas, rect, dash);
-    }
-
-    if (counts.badgeMayRender) {
-      _drawBadge(
-        canvas,
-        center,
-        radius,
-        hour: 12,
-        label: storyRingBadgeLabel(counts.unviewedTotal),
-        bg: badgeBg,
-        fg: badgeFg,
-      );
-    }
-  }
-
-  // ── BOTTOM: viewed ─────────────────────────────────────────────────────
-  void _paintBottom(Canvas canvas, Offset center, double radius) {
-    if (counts.viewedCount == 0) return;
-
-    final dotPaint = Paint()..color = dimColor;
-    final dotRadius = 2.6 * scale;
-
-    for (final h in storyRingViewedDotHours(counts.viewedCount)) {
-      canvas.drawCircle(_pointOnCircle(center, radius, h), dotRadius, dotPaint);
-    }
-
-    if (counts.viewedCount > StoryRing.viewedDotCap) {
-      _drawBadge(
-        canvas,
-        center,
-        radius,
-        hour: 6,
-        label: storyRingBadgeLabel(counts.viewedCount),
-        bg: dimColor,
-        fg: badgeFg,
-      );
-    }
-  }
-
-  // ── shared drawing helpers ─────────────────────────────────────────────
-
-  double _sweepFor(double hours) => (hours / 12.0) * 2 * math.pi;
-
-  Offset _pointOnCircle(Offset center, double radius, double hour) {
-    final a = _clock(hour);
-    return Offset(
-      center.dx + radius * math.cos(a),
-      center.dy + radius * math.sin(a),
+    if (!split.hasRing) return;
+    final rect = Rect.fromCircle(
+      center: size.center(Offset.zero),
+      radius: size.shortestSide / 2 - stroke / 2,
     );
-  }
+    final coloured = split.unviewedFraction * 2 * math.pi;
 
-  void _drawDash(Canvas canvas, Rect rect, StoryDashSpec dash) {
-    final startHour = dash.centerHour - dash.sweepHours / 2;
-    final sweep = _sweepFor(dash.sweepHours);
-    final color = dash.isSound ? soundColor : silentColor;
-
-    if (dash.texture == StoryDashTexture.solid) {
-      // Silent (red): a single solid stroke.
+    // Grey for the viewed share. Butt caps on both arcs, so the two colours
+    // meet edge to edge with no gap and no overlap.
+    if (split.unviewedFraction < 1) {
       canvas.drawArc(
         rect,
-        _clock(startHour),
-        sweep,
+        _start + coloured,
+        2 * math.pi - coloured,
         false,
         Paint()
-          ..color = color
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.6 * scale
-          ..strokeCap = StrokeCap.round,
+          ..strokeWidth = stroke
+          ..color = viewed,
       );
-    } else {
-      // Sound (purple): twin fine lines instead of one thick line — the
-      // colour-independent cue. Same angular footprint as the solid dash so
-      // the two read as the same "size" of element.
-      final radius = rect.width / 2;
-      final inner = Rect.fromCircle(
-        center: rect.center,
-        radius: radius - 1.6 * scale,
-      );
-      final outer = Rect.fromCircle(
-        center: rect.center,
-        radius: radius + 1.6 * scale,
-      );
-      final paint = Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.4 * scale
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(inner, _clock(startHour), sweep, false, paint);
-      canvas.drawArc(outer, _clock(startHour), sweep, false, paint);
     }
-  }
-
-  void _drawBadge(
-    Canvas canvas,
-    Offset center,
-    double radius, {
-    required double hour,
-    required String label,
-    required Color bg,
-    required Color fg,
-  }) {
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: TextStyle(
-          color: fg,
-          fontSize: 8.5 * scale,
-          fontWeight: FontWeight.w800,
-          height: 1.0,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final badgeW = math.max(14.0 * scale, textPainter.width + 7 * scale);
-    final badgeH = 13.0 * scale;
-    final pos = _pointOnCircle(center, radius + 7 * scale, hour);
-
-    final badgeRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: pos, width: badgeW, height: badgeH),
-      Radius.circular(badgeH / 2),
-    );
-    canvas.drawRRect(badgeRect, Paint()..color = bg);
-    textPainter.paint(
-      canvas,
-      Offset(pos.dx - textPainter.width / 2, pos.dy - textPainter.height / 2),
-    );
+    if (coloured > 0) {
+      canvas.drawArc(
+        rect,
+        _start,
+        coloured,
+        false,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..shader = SweepGradient(
+            startAngle: 0,
+            endAngle: math.max(coloured, 0.01),
+            colors: [unviewedFrom, unviewedTo],
+            transform: const GradientRotation(_start),
+          ).createShader(rect),
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _StoryRingPainter old) =>
-      old.counts.unviewedSilentCount != counts.unviewedSilentCount ||
-      old.counts.unviewedSoundCount != counts.unviewedSoundCount ||
-      old.counts.viewedCount != counts.viewedCount ||
-      old.silentColor != silentColor ||
-      old.soundColor != soundColor ||
-      old.dimColor != dimColor ||
-      old.scale != scale;
+  bool shouldRepaint(_StoryRingPainter old) =>
+      old.split != split ||
+      old.stroke != stroke ||
+      old.unviewedFrom != unviewedFrom ||
+      old.unviewedTo != unviewedTo ||
+      old.viewed != viewed;
 }
