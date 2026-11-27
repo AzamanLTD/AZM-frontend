@@ -27,6 +27,8 @@ import 'package:azaman/theme/nav_band_clearance.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/inbox/inbox_entry.dart';
+import 'package:azaman/widgets/inbox/search_friendship.dart';
+import 'package:azaman/screens/person_profile_screen.dart';
 import 'package:azaman/widgets/inbox/inbox_row.dart';
 import 'package:azaman/widgets/stories/inbox_story_rail_sliver.dart';
 import 'package:azaman/widgets/stories/story_morph_overlay.dart';
@@ -674,10 +676,15 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       itemCount: provider.searchResults.length,
       itemBuilder: (context, index) {
         final user = provider.searchResults[index];
-        final requestSent = user['requestSent'] == true;
-        final isFriend = user['isFriend'] == true;
+        final status = searchFriendshipState(user);
+        final requestSent = status == SearchFriendship.requestSent;
+        final isFriend = status == SearchFriendship.friends;
 
-        return Container(
+        return InkWell(
+          key: ValueKey('search-person-${user['id']}'),
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _openPersonFromSearch(user, status),
+          child: Container(
           margin: const EdgeInsets.only(bottom: 4),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
@@ -716,7 +723,8 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                     ),
                     const SizedBox(height: 1),
                     Text(
-                      'ID: ${user['id']}',
+                      // The handle, never the raw numeric database id.
+                      '@${user['username'] ?? ''}',
                       style: TextStyle(
                         color: colors.textTertiary,
                         fontSize: 12,
@@ -743,6 +751,19 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
+                  ),
+                )
+              else if (status == SearchFriendship.requestedYou)
+                Container(
+                  key: const ValueKey('search-requested-you'),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: colors.accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'Requested you',
+                    style: TextStyle(color: colors.accent, fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                 )
               else if (requestSent)
@@ -787,6 +808,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
                   ),
                 ),
             ],
+          ),
           ),
         );
       },
@@ -940,6 +962,47 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
       for (final g in groups) InboxEntry.fromGroup(g),
     ]..sort(InboxEntry.compare);
     return list;
+  }
+
+  /// A people-search result opens a profile: the full one (with Send and
+  /// Message) for a friend, the public one (with Add friend) for anyone
+  /// else. Rows used to do nothing on tap.
+  void _openPersonFromSearch(Map<String, dynamic> user, SearchFriendship status) {
+    HapticFeedback.selectionClick();
+    final rawId = user['id'];
+    final id = rawId is int ? rawId : int.tryParse('$rawId');
+    if (id == null) return;
+    final username = (user['username'] ?? '').toString();
+    if (status == SearchFriendship.friends) {
+      final e = _friendEntryFor(id);
+      if (e != null) {
+        pushWithVerticalTransition(
+          context,
+          ChatProfileScreen(
+            friendshipId: e.id,
+            fallbackUsername: e.title,
+            onMessage: () {
+              Navigator.of(context).pop();
+              _openEntry(e);
+            },
+          ),
+        );
+        return;
+      }
+    }
+    if (status == SearchFriendship.unavailable) return;
+    pushWithVerticalTransition(
+      context,
+      PersonProfileScreen(
+        userId: id,
+        username: username,
+        requestSent: status == SearchFriendship.requestSent,
+        onAddFriend: () {
+          Navigator.of(context).pop();
+          _showAddFriendDialog(user);
+        },
+      ),
+    );
   }
 
   /// The conversation entry for a user id (a story author), if the user
