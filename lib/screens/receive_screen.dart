@@ -29,6 +29,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/utils/amount_input.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/money_stage/money_stage.dart';
 import 'package:azaman/widgets/amount_keypad.dart';
 import 'package:azaman/widgets/odometer_number.dart';
 import 'package:azaman/widgets/pull_down_dismissible_surface.dart';
@@ -40,7 +41,10 @@ import 'package:go_router/go_router.dart' show GoRouterHelper;
 enum _ReceiveTab { fiat, crypto }
 
 class ReceiveScreen extends ConsumerStatefulWidget {
-  const ReceiveScreen({super.key});
+  const ReceiveScreen({super.key, this.skyPhaseForCaptures = 0});
+
+  /// Pins the sky's drift phase so visual captures are deterministic.
+  final double skyPhaseForCaptures;
 
   @override
   ConsumerState<ReceiveScreen> createState() => _ReceiveScreenState();
@@ -436,12 +440,16 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = ref.watch(themeProvider).colors;
     final user = ref.watch(authProvider).user;
     final azamanId = user?.azamanId?.trim() ?? '';
     final progress = _tab == _ReceiveTab.fiat
         ? _requestProgress.value.clamp(0.0, 1.0).toDouble()
         : 0.0;
+    // The sky tells you which mode you are in: lagoon while receiving,
+    // blush once the Request composer has been drawn up (cross-faded).
+    final mood = progress > 0.5 ? AzMoneyMood.request : AzMoneyMood.receive;
+    final baseColors = ref.watch(themeProvider).colors;
+    final colors = AzStageSkin.adapt(baseColors, mood);
     final armed = _reduceMotion ? 0.0 : _armedDepth;
     final scale = _reduceMotion ? 1.0 : 1.0 + 0.14 * progress + 0.045 * armed;
     final wobble = _reduceMotion
@@ -449,13 +457,16 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
         : ActivityHandoffPhysics.wobbleFor(armed);
 
     return Scaffold(
-      backgroundColor: colors.surface,
+      backgroundColor: baseColors.surface,
       // This surface holds no direct text input (the contact search lives
       // in its own modal sheet route with its own keyboard handling), so it
       // must NOT resize under the system keyboard: resizing would overflow
       // the resting composer geometry behind the sheet.
       resizeToAvoidBottomInset: false,
-      body: SafeArea(
+      body: AzMoneyStage(
+        mood: mood,
+        skyPhase: widget.skyPhaseForCaptures,
+        child: SafeArea(
         bottom: false,
         child: PullDownDismissibleSurface(
           onDismiss: _closeSurface,
@@ -464,29 +475,47 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Fiat | Crypto is the stage's context pill, between the
+              // close and the payment-requests corner buttons.
               _ReceiveHeader(
                 colors: colors,
                 onClose: _closeSurface,
                 onOpenRequests: () => context.push(AzRoutes.paymentRequests),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
-                child: Row(
-                  children: [
-                    _ReceiveTabButton(
-                      label: 'Fiat',
-                      selected: _tab == _ReceiveTab.fiat,
-                      onTap: () => _selectTab(_ReceiveTab.fiat),
-                    ),
-                    const SizedBox(width: 28),
-                    _ReceiveTabButton(
-                      label: 'Crypto',
-                      selected: _tab == _ReceiveTab.crypto,
-                      onTap: () => _selectTab(_ReceiveTab.crypto),
-                    ),
-                  ],
+                center: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: colors.softSurface,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: colors.divider, width: 0.6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _ReceiveTabButton(
+                        label: 'Fiat',
+                        selected: _tab == _ReceiveTab.fiat,
+                        colors: colors,
+                        onTap: () => _selectTab(_ReceiveTab.fiat),
+                      ),
+                      _ReceiveTabButton(
+                        label: 'Crypto',
+                        selected: _tab == _ReceiveTab.crypto,
+                        colors: colors,
+                        onTap: () => _selectTab(_ReceiveTab.crypto),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(height: 14),
+              // The stage's quiet title, as on Send, Add money and Withdraw.
+              Center(
+                child: Text(
+                  'Receive',
+                  style: AzStageType.stageTitle(colors.textSecondary),
+                ),
+              ),
+              const SizedBox(height: 6),
               Expanded(
                 child: _tab == _ReceiveTab.crypto
                     ? const CryptoReceivePanel()
@@ -573,6 +602,7 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
             ],
           ),
         ),
+        ),
       ),
     );
   }
@@ -589,12 +619,8 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            'Receive money',
-            style: AzText.titleXl.copyWith(color: colors.textPrimary),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AzSpace.sm),
+          // The stage title above already names the surface; one line
+          // says what to do.
           Text(
             'Share your dedicated Azaman ID to receive money.',
             style: AzText.body.copyWith(color: colors.textSecondary),
@@ -741,8 +767,11 @@ class _ReceiveScreenState extends ConsumerState<ReceiveScreen>
                     ? null
                     : () => _setAmount(amount.toString()),
                 visualDensity: VisualDensity.compact,
-                backgroundColor: colors.softSurface,
-                side: BorderSide(color: colors.border),
+                // Glass pills on the stage (M3 chips ignore a plain
+                // backgroundColor once enabled, so the colour is pinned).
+                color: WidgetStatePropertyAll(colors.softSurface),
+                shape: const StadiumBorder(),
+                side: BorderSide(color: colors.divider, width: 0.6),
                 labelStyle: AzText.bodyS.copyWith(
                   color: colors.textPrimary,
                   fontWeight: FontWeight.w700,
@@ -848,50 +877,35 @@ class _ReceiveHeader extends StatelessWidget {
     required this.colors,
     required this.onClose,
     required this.onOpenRequests,
+    required this.center,
   });
 
   final AzamanColors colors;
   final VoidCallback onClose;
   final VoidCallback onOpenRequests;
+  final Widget center;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       child: Row(
         children: [
-          Semantics(
-            button: true,
-            label: 'Close Receive',
-            child: GestureDetector(
-              onTap: onClose,
-              behavior: HitTestBehavior.opaque,
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: colors.softSurface,
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(Icons.close, size: 18, color: colors.textPrimary),
-              ),
-            ),
+          AzStageRoundButton(
+            icon: Icons.close,
+            onTap: onClose,
+            semanticsLabel: 'Close Receive',
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              'Receive',
-              style: AzText.title.copyWith(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
+          const SizedBox(width: 10),
+          Expanded(child: Center(child: center)),
+          const SizedBox(width: 10),
+          Tooltip(
+            message: 'Payment requests',
+            child: AzStageRoundButton(
+              icon: Icons.receipt_long_rounded,
+              onTap: onOpenRequests,
+              semanticsLabel: 'Payment requests',
             ),
-          ),
-          IconButton(
-            tooltip: 'Payment requests',
-            onPressed: onOpenRequests,
-            icon: Icon(Icons.receipt_long_rounded, color: colors.textPrimary),
           ),
         ],
       ),
@@ -903,16 +917,19 @@ class _ReceiveTabButton extends StatelessWidget {
   const _ReceiveTabButton({
     required this.label,
     required this.selected,
+    required this.colors,
     required this.onTap,
   });
 
   final String label;
   final bool selected;
+  final AzamanColors colors;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context);
+    // A segment of the glass pill: the chosen rail is filled with the
+    // sky's ink.
     return Semantics(
       button: true,
       selected: selected,
@@ -920,34 +937,20 @@ class _ReceiveTabButton extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: AzText.body.copyWith(
-                  color: selected
-                      ? colors.colorScheme.primary
-                      : colors.colorScheme.onSurface.withValues(alpha: 0.58),
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 5),
-              AnimatedContainer(
-                duration: MotionTokens.control,
-                curve: MotionTokens.enter,
-                height: 2,
-                width: selected ? 28 : 8,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? colors.colorScheme.primary
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ],
+        child: AnimatedContainer(
+          duration: MotionTokens.control,
+          curve: MotionTokens.enter,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? colors.accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: AzText.body.copyWith(
+              color: selected ? colors.onAccent : colors.textPrimary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -970,13 +973,11 @@ class _RequestBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = progress.clamp(0.0, 1.0).toDouble();
     final idleSurface = colors.softSurface;
-    final activeSurface = colors.isDark
-        ? const Color(0xFF254B39)
-        : const Color(0xFFC9DDCF);
+    // Active = the sky's ink (the stage's one solid accent), never a
+    // fixed green that clashes with the blush Request sky.
+    final activeSurface = colors.accent;
     final idleInk = colors.textTertiary;
-    final activeInk = colors.isDark
-        ? const Color(0xFFD9EBDD)
-        : const Color(0xFF254B39);
+    final activeInk = colors.onAccent;
 
     return Semantics(
       button: true,
