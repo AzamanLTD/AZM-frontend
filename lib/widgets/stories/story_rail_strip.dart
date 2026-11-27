@@ -66,11 +66,16 @@ class StoryRailStrip extends ConsumerWidget {
   /// Profile and Message on the hold dial; optional.
   final StoryPersonActions? personActions;
 
+  /// The row's horizontal controller, so the story morph can start each
+  /// flight from where an avatar really is.
+  final ScrollController? controller;
+
   const StoryRailStrip({
     super.key,
     required this.onOpenGroup,
     required this.onCreate,
     this.personActions,
+    this.controller,
   });
 
   @override
@@ -87,6 +92,7 @@ class StoryRailStrip extends ConsumerWidget {
       height: StoryRailMetrics.height,
       child: ListView.separated(
         key: const ValueKey('inbox_story_rail_list'),
+        controller: controller,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(
           horizontal: AzSpace.xl,

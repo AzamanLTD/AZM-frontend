@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'package:azaman/models/story_model.dart';
+import 'package:azaman/widgets/stories/story_morph_overlay.dart';
 import 'package:azaman/widgets/stories/story_rail_strip.dart';
 
 class InboxStoryRailSliver extends StatelessWidget {
@@ -20,12 +21,16 @@ class InboxStoryRailSliver extends StatelessWidget {
   /// Profile and Message on the story hold dial (optional).
   final StoryPersonActions? personActions;
 
+  /// The open row's horizontal controller (read by the story morph).
+  final ScrollController? railScroll;
+
   const InboxStoryRailSliver({
     super.key,
     required this.controller,
     required this.onOpenGroup,
     required this.onCreate,
     this.personActions,
+    this.railScroll,
   });
 
   /// 0 = hidden, 1 = fully open. Pure; exposed for tests.
@@ -59,19 +64,20 @@ class InboxStoryRailSliver extends StatelessWidget {
                 extent = 0;
               }
             }
-            return Opacity(
-              opacity: Curves.easeOut.transform(extent),
-              child: Transform.scale(
-                scale: 0.94 + 0.06 * extent,
-                alignment: Alignment.topCenter,
-                child: child,
-              ),
+            // The real row shows only at rest. Between the detents the
+            // StoryMorphOverlay flies the same avatars instead (no
+            // cross-fade: nothing is ever drawn twice).
+            final flying = StoryMorphOverlay.inFlight(extent);
+            return IgnorePointer(
+              ignoring: flying,
+              child: Opacity(opacity: flying ? 0 : 1, child: child),
             );
           },
           child: StoryRailStrip(
             onOpenGroup: onOpenGroup,
             onCreate: onCreate,
             personActions: personActions,
+            controller: railScroll,
           ),
         ),
       ),

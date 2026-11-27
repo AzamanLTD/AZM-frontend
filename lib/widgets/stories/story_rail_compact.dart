@@ -15,6 +15,7 @@ import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/story_ring.dart';
 import 'package:azaman/widgets/stories/inbox_story_rail_sliver.dart';
+import 'package:azaman/widgets/stories/story_morph_overlay.dart';
 
 /// Data-neutral item for the shared collapsed story presentation.
 ///
@@ -238,8 +239,12 @@ class StoryRailCompact extends ConsumerWidget {
                   }
                 }
                 final collapse = Curves.easeOut.transform(extent);
+                // Shown only at rest; between the detents the story morph
+                // flies these same avatars (the strip keeps collapsing its
+                // height so the list moves with the flight).
+                final flying = StoryMorphOverlay.inFlight(extent);
                 return Opacity(
-                  opacity: 1 - collapse,
+                  opacity: flying ? 0 : 1 - collapse,
                   child: IgnorePointer(
                     ignoring: collapse > 0.5,
                     child: SizedBox(

@@ -29,6 +29,7 @@ import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/widgets/inbox/inbox_entry.dart';
 import 'package:azaman/widgets/inbox/inbox_row.dart';
 import 'package:azaman/widgets/stories/inbox_story_rail_sliver.dart';
+import 'package:azaman/widgets/stories/story_morph_overlay.dart';
 import 'package:azaman/widgets/stories/story_rail_compact.dart';
 import 'package:azaman/widgets/stories/story_rail_strip.dart'
     show StoryRailMetrics, StoryPersonActions;
@@ -58,6 +59,10 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
   );
   static const _centerKey = ValueKey('inbox_center');
 
+  /// The open story row's horizontal scroll, read by the story morph so a
+  /// flight starts from where an avatar really is.
+  final ScrollController _railHScroll = ScrollController();
+
   /// Flips on open/closed transitions only (never per frame) so the compact
   /// strip's live region announces "Stories shown/hidden" exactly once.
   /// Starts OPEN — the rail's default state (UX pass C).
@@ -77,6 +82,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
     _searchController.dispose();
     _inboxScroll.removeListener(_onInboxScroll);
     _inboxScroll.dispose();
+    _railHScroll.dispose();
     _railOpenNotifier.dispose();
     super.dispose();
   }
@@ -810,6 +816,20 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
 
     final entries = _entries(provider, groups);
 
+    // Telegram-style stories: the scroll view moves the list and snaps the
+    // rail; the morph layer above it flies the same avatars between the
+    // open row and the collapsed stack while the rail is between detents.
+    return Stack(
+      children: [
+        Positioned.fill(child: _buildInboxScroll(colors, entries, travel)),
+        Positioned.fill(
+          child: StoryMorphOverlay(scroll: _inboxScroll, railScroll: _railHScroll),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInboxScroll(AzamanColors colors, List<InboxEntry> entries, bool travel) {
     return CustomScrollView(
       key: const ValueKey('inbox_scroll'),
       controller: _inboxScroll,
@@ -829,6 +849,7 @@ class _FriendsHubScreenState extends ConsumerState<FriendsHubScreen> {
             initialGroupIndex: i,
           ),
           onCreate: _pickAndCreateStory,
+          railScroll: _railHScroll,
           // The story hold dial's left (profile) and right (message):
           // reachable when the author is someone you have a chat with.
           personActions: StoryPersonActions(
