@@ -1533,7 +1533,10 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
     switch (business.category) {
       case 'FOOD_BEVERAGE':
         return 'Order Now';
+      // Real estate shows its listings (the catalog); only a hotel books a
+      // room here (storePrimaryRoute), so only a hotel says so.
       case 'REAL_ESTATE':
+        return 'See listings';
       case 'HOSPITALITY':
         return 'Book a Room';
       case 'LOGISTICS':
@@ -1560,6 +1563,7 @@ class _MarketStorefrontShellState extends ConsumerState<MarketStorefrontShell> {
       case 'FOOD_BEVERAGE':
         return Icons.restaurant_outlined;
       case 'REAL_ESTATE':
+        return Icons.home_work_outlined;
       case 'HOSPITALITY':
         return Icons.hotel_outlined;
       case 'LOGISTICS':

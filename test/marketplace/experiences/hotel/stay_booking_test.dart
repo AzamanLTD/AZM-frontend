@@ -208,7 +208,7 @@ void main() {
     expect(find.text('Oct 30 → Nov 2 · 3 nights'), findsOneWidget);
   });
 
-  testWidgets('StaySummaryBar shows the live total and gates Reserve', (
+  testWidgets('StaySummaryBar shows the live total and gates the request', (
     tester,
   ) async {
     var reserved = 0;
@@ -233,11 +233,12 @@ void main() {
     expect(find.text('Deluxe · Room 203'), findsOneWidget);
     expect(find.text('\$2550.00 USDC · 3 nights'), findsOneWidget);
 
-    await tester.tap(find.text('Reserve'));
+    // A stay is requested (the hotel confirms; paid at the hotel).
+    await tester.tap(find.text('Request stay'));
     expect(reserved, 1);
   });
 
-  testWidgets('StaySummaryBar disables Reserve without a room', (tester) async {
+  testWidgets('StaySummaryBar disables the request without a room', (tester) async {
     var reserved = 0;
     await tester.pumpWidget(
       MaterialApp(
@@ -258,7 +259,7 @@ void main() {
 
     expect(find.text('Choose a room and dates'), findsOneWidget);
     expect(find.text('—'), findsOneWidget);
-    await tester.tap(find.text('Reserve'), warnIfMissed: false);
+    await tester.tap(find.text('Request stay'), warnIfMissed: false);
     expect(reserved, 0);
   });
 
@@ -327,12 +328,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('YOUR ROOM IS READY'), findsOneWidget);
-    expect(find.text('Welcome to your stay'), findsOneWidget);
+    // A request the hotel has not confirmed or been paid for: it says so
+    // (this used to read "Your room is ready" and "Total paid").
+    expect(find.text('REQUEST SENT'), findsOneWidget);
+    expect(find.text('Your stay is requested'), findsOneWidget);
+    expect(find.text('Total paid'), findsNothing);
     expect(find.text('YOUR STAYS'), findsOneWidget);
     expect(find.text('ROOM 203'), findsOneWidget);
     expect(find.text('Deluxe · Room 203'), findsOneWidget);
-    expect(find.text('\$2550.00 USDC'), findsOneWidget);
+    expect(find.text('\$2550.00 USDC · pay at the hotel'), findsOneWidget);
     expect(find.text('R-77'), findsOneWidget);
     expect(find.text('Done'), findsOneWidget);
   });

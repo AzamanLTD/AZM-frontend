@@ -1,6 +1,12 @@
 // =============================================================================
 // HOTEL ARRIVAL SHEET — booking success as arrival (TASK-015)
 //
+// A stay booked in the app is a REQUEST: the hotel confirms it, and it is
+// paid at the hotel (there is no in-app payment for stays yet). The sheet
+// says exactly that. It used to read "Your room is ready", "Welcome to your
+// stay" and "Total paid" for a reservation nobody had confirmed or paid, and
+// the screen then jumped to a check-in QR that only exists once confirmed.
+//
 // The transit path keeps BookingSuccessSheet; the hotel path celebrates as an
 // ARRIVAL: the room door swings open on its hinge (perspective rotateY), warm
 // light spills from the doorway, the key card materialises with a pop spring
@@ -36,6 +42,12 @@ class HotelArrivalSheet extends ConsumerStatefulWidget {
   final DateTime checkIn;
   final int nights;
   final double totalUsdc;
+  final String? hotelName;
+  final int guests;
+
+  /// Opens Orders & bookings on Reservations (where the check-in QR appears
+  /// once the hotel confirms).
+  final VoidCallback? onViewBookings;
 
   const HotelArrivalSheet({
     super.key,
@@ -44,27 +56,36 @@ class HotelArrivalSheet extends ConsumerStatefulWidget {
     required this.checkIn,
     required this.nights,
     required this.totalUsdc,
+    this.hotelName,
+    this.guests = 1,
+    this.onViewBookings,
   });
 
-  /// Convenience method to show the sheet.
-  static Future<void> show(
+  /// Convenience method to show the sheet. Resolves true when the guest
+  /// chose to view their bookings.
+  static Future<bool?> show(
     BuildContext context, {
     required String reservationRef,
     required HotelRoom room,
     required DateTime checkIn,
     required int nights,
     required double totalUsdc,
+    String? hotelName,
+    int guests = 1,
   }) {
-    return showModalBottomSheet<void>(
+    return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => HotelArrivalSheet(
+      builder: (ctx) => HotelArrivalSheet(
         reservationRef: reservationRef,
         room: room,
         checkIn: checkIn,
         nights: nights,
         totalUsdc: totalUsdc,
+        hotelName: hotelName,
+        guests: guests,
+        onViewBookings: () => Navigator.of(ctx).pop(true),
       ),
     );
   }
@@ -152,13 +173,22 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
               _doorStage(colors),
               const SizedBox(height: AzSpace.xl),
               Text(
-                'YOUR ROOM IS READY',
+                'REQUEST SENT',
                 style: AzText.eyebrow.copyWith(color: colors.textTertiary),
               ),
               const SizedBox(height: AzSpace.xs),
               Text(
-                'Welcome to your stay',
+                'Your stay is requested',
+                textAlign: TextAlign.center,
                 style: AzText.titleXl.copyWith(color: colors.textPrimary),
+              ),
+              const SizedBox(height: AzSpace.xs),
+              Text(
+                '${widget.hotelName ?? 'The hotel'} confirms your request. '
+                'Your check-in QR appears in Orders & bookings once they do.',
+                key: const ValueKey('stay-request-note'),
+                textAlign: TextAlign.center,
+                style: AzText.bodyS.copyWith(color: colors.textSecondary),
               ),
               const SizedBox(height: AzSpace.lg),
               _staysSlot(colors),
@@ -173,7 +203,9 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
                 colors,
                 Icons.calendar_today_rounded,
                 'Check-in',
-                '${widget.checkIn.day}/${widget.checkIn.month}',
+                MaterialLocalizations.of(
+                  context,
+                ).formatMediumDate(widget.checkIn),
               ),
               _row(
                 colors,
@@ -181,11 +213,12 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
                 'Nights',
                 '${widget.nights}',
               ),
+              _row(colors, Icons.group_outlined, 'Guests', '${widget.guests}'),
               _row(
                 colors,
                 Icons.payments_rounded,
-                'Total paid',
-                '\$${widget.totalUsdc.toStringAsFixed(2)} USDC',
+                'Total',
+                '\$${widget.totalUsdc.toStringAsFixed(2)} USDC · pay at the hotel',
               ),
               _row(
                 colors,
@@ -205,10 +238,21 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Done', style: AzText.button),
+                  onPressed:
+                      widget.onViewBookings ?? () => Navigator.pop(context),
+                  child: Text(
+                    widget.onViewBookings != null
+                        ? 'View in Orders & bookings'
+                        : 'Done',
+                    style: AzText.button,
+                  ),
                 ),
               ),
+              if (widget.onViewBookings != null)
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Done'),
+                ),
             ],
           ),
         ),
@@ -459,12 +503,17 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
               fontWeight: FontWeight.w500,
             ),
           ),
-          const Spacer(),
-          Text(
-            value,
-            style: AzText.bodyS.copyWith(
-              color: colors.textPrimary,
-              fontWeight: FontWeight.w700,
+          const SizedBox(width: AzSpace.md),
+          // Long values (the total with where it is paid) wrap, never
+          // overflow.
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: AzText.bodyS.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

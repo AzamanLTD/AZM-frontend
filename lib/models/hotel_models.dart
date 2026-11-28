@@ -36,6 +36,24 @@ class HotelRoom {
   });
 
   bool get isBookable => status.toUpperCase() == 'AVAILABLE';
+
+  /// The same room, not bookable for the dates being looked at (taken,
+  /// blocked or too small): the floor plan greys it out.
+  HotelRoom unavailableForStay() => HotelRoom(
+    id: id,
+    businessProfileId: businessProfileId,
+    roomNumber: roomNumber,
+    roomType: roomType,
+    capacity: capacity,
+    status: 'UNAVAILABLE_FOR_STAY',
+    basePriceUsdc: basePriceUsdc,
+    amenities: amenities,
+    imageUrls: imageUrls,
+    locationId: locationId,
+    floor: floor,
+    bedConfig: bedConfig,
+    weekendPriceUsdc: weekendPriceUsdc,
+  );
   String get displayType => roomType
       .toLowerCase()
       .split('_')
@@ -96,3 +114,71 @@ double _hotelToDouble(dynamic value) {
 
 List<String> _hotelStrings(dynamic value) =>
     value is List ? value.map((item) => item.toString()).toList() : const [];
+
+/// One room in a stay quote: its exact total for the dates (the server's own
+/// per-night pricing) and whether it can be booked, with the reason if not.
+class RoomQuote {
+  final String roomId;
+  final bool bookable;
+  final String? reason;
+  final double totalUsdc;
+  final int capacity;
+
+  const RoomQuote({
+    required this.roomId,
+    required this.bookable,
+    required this.totalUsdc,
+    this.reason,
+    this.capacity = 1,
+  });
+
+  /// Why the room is greyed out, in a few words.
+  String? get reasonLabel => switch (reason) {
+    'TOO_SMALL' => 'Too small for your group',
+    'BOOKED' => 'Taken for these dates',
+    'BLOCKED' => 'Closed for these dates',
+    'ROOM_UNAVAILABLE' => 'Not available',
+    'NO_PRICE' => 'No price set',
+    _ => null,
+  };
+
+  factory RoomQuote.fromJson(Map<String, dynamic> json) => RoomQuote(
+    roomId: json['roomId']?.toString() ?? '',
+    bookable: json['bookable'] == true,
+    reason: json['reason']?.toString(),
+    totalUsdc: double.tryParse('${json['totalUsdc'] ?? 0}') ?? 0,
+    capacity: int.tryParse('${json['capacity'] ?? 1}') ?? 1,
+  );
+}
+
+/// GET /marketplace/business/:bizId/stay-quote: what each room costs for the
+/// chosen dates and guests, and where the stay is paid.
+class StayQuote {
+  final int nights;
+  final int guests;
+
+  /// 'HOTEL': requested in the app, paid at the hotel.
+  final String payAt;
+  final Map<String, RoomQuote> rooms;
+
+  const StayQuote({
+    required this.nights,
+    required this.guests,
+    required this.rooms,
+    this.payAt = 'HOTEL',
+  });
+
+  bool get payAtHotel => payAt.toUpperCase() == 'HOTEL';
+
+  factory StayQuote.fromJson(Map<String, dynamic> json) {
+    final list = (json['rooms'] as List? ?? const []).whereType<Map>().map(
+      (r) => RoomQuote.fromJson(Map<String, dynamic>.from(r)),
+    );
+    return StayQuote(
+      nights: int.tryParse('${json['nights'] ?? 0}') ?? 0,
+      guests: int.tryParse('${json['guests'] ?? 1}') ?? 1,
+      payAt: json['payAt']?.toString() ?? 'HOTEL',
+      rooms: {for (final r in list) r.roomId: r},
+    );
+  }
+}

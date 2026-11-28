@@ -109,3 +109,35 @@ final hotelMarketplaceProvider =
       (ref) =>
           HotelMarketplaceNotifier(ref.watch(hotelMarketplaceServiceProvider)),
     );
+
+/// The quote for one stay request: `bizId|yyyy-mm-dd|yyyy-mm-dd|guests`.
+String stayQuoteKey(
+  String bizId,
+  DateTime checkIn,
+  DateTime checkOut,
+  int guests,
+) {
+  String d(DateTime t) =>
+      '${t.year}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+  return '$bizId|${d(checkIn)}|${d(checkOut)}|$guests';
+}
+
+final stayQuoteProvider = FutureProvider.autoDispose.family<StayQuote, String>((
+  ref,
+  key,
+) {
+  final parts = key.split('|');
+  DateTime day(String s) {
+    final p = s.split('-').map(int.parse).toList();
+    return DateTime(p[0], p[1], p[2]);
+  }
+
+  return ref
+      .watch(hotelMarketplaceServiceProvider)
+      .stayQuote(
+        bizId: parts[0],
+        checkIn: day(parts[1]),
+        checkOut: day(parts[2]),
+        guests: int.parse(parts[3]),
+      );
+});

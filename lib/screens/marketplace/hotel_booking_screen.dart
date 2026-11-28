@@ -1,3 +1,14 @@
+// =============================================================================
+// HOTEL BOOKING — dates and guests first, then a room, then the request.
+//
+// The order a guest decides in: when, how many, which room. The room picker
+// shows which rooms are free for those dates and that group (the server's
+// stay quote: taken, closed or too small rooms are greyed, with the reason),
+// and the total is the server's own per-night price. A stay booked here is a
+// REQUEST that the hotel confirms; it is paid at the hotel. The check-in QR
+// appears in Orders & bookings once the hotel confirms.
+// =============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +19,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/hotel_marketplace_service.dart'
     show HotelBookingFailureClass;
 import 'package:azaman/providers/hotel_marketplace_provider.dart';
+import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -41,6 +53,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
   DateTime? _checkIn;
   DateTime? _checkOut;
   String? _selectedRoomId;
+  int _guests = 1;
 
   /// ONE logical booking intent for the life of this screen (deep-dive
   /// step 6, parity with TransitSeatSelectionScreen._bookingRef): the
@@ -69,20 +82,33 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
           : DateTimeRange(start: now, end: now.add(const Duration(days: 1))),
     );
     if (!mounted || picked == null) return;
+    _setDates(picked.start, picked.end);
+  }
+
+  void _setDates(DateTime start, DateTime end) {
     setState(() {
-      _checkIn = picked.start;
-      _checkOut = picked.end;
+      _checkIn = DateTime(start.year, start.month, start.day);
+      _checkOut = DateTime(end.year, end.month, end.day);
     });
+    _syncStayDecision();
+  }
+
+  void _setGuests(int n, int max) {
+    final next = n.clamp(1, max);
+    if (next == _guests) return;
+    AzamanHaptics.selection();
+    setState(() => _guests = next);
     _syncStayDecision();
   }
 
   /// Mirrors the local picks into the UI-only [StayDecision] (Overhaul 03
   /// §4.1) so the step indicator and docks derive from one object. Price and
-  /// availability authority stays with `hotelMarketplaceProvider`.
+  /// availability authority stays with the server (stay quote).
   void _syncStayDecision() {
     ref.read(stayDecisionProvider(widget.bizId).notifier).state = StayDecision(
       checkIn: _checkIn,
       checkOut: _checkOut,
+      guests: _guests,
       roomId: _selectedRoomId,
     );
   }
@@ -91,6 +117,10 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     if (_checkIn == null || _checkOut == null) return 0;
     return _checkOut!.difference(_checkIn!).inDays;
   }
+
+  String? get _quoteKey => _nights > 0
+      ? stayQuoteKey(widget.bizId, _checkIn!, _checkOut!, _guests)
+      : null;
 
   HotelRoom? _selectedRoom(List<HotelRoom> rooms) {
     if (_selectedRoomId == null) return null;
@@ -139,11 +169,20 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     );
   }
 
+  void _back() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      context.go('/business-market');
+    }
+  }
+
   Future<void> _confirmBooking() async {
     final state = ref.read(hotelMarketplaceProvider);
     final room = _selectedRoom(state.rooms);
-    if (room == null || _checkIn == null || _checkOut == null || _nights < 1)
+    if (room == null || _checkIn == null || _checkOut == null || _nights < 1) {
       return;
+    }
 
     try {
       final reservation = await ref
@@ -153,6 +192,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
             roomId: room.id,
             checkIn: _checkIn!,
             checkOut: _checkOut!,
+            partySize: _guests,
             operationType: _bookingOperationType,
             ref: _bookingRef,
           );
@@ -160,10 +200,13 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
 
       final amount = _reservationAmount(reservation['amountUsdc']);
       final reservationId = (reservation['id'] ?? '').toString();
-      if (reservationId.isEmpty)
+      if (reservationId.isEmpty) {
         throw StateError('Reservation response did not include an id.');
+      }
+      // The hub's Reservations tab lists it from now on.
+      ref.invalidate(myReservationsProvider);
 
-      HotelArrivalSheet.show(
+      final viewBookings = await HotelArrivalSheet.show(
         context,
         reservationRef:
             ((reservation['reservationRef'] ?? reservationId).toString())
@@ -173,14 +216,13 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
         checkIn: _checkIn!,
         nights: _nights,
         totalUsdc: amount,
+        hotelName: state.business?.businessName,
+        guests: _guests,
       );
-
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted)
-          context.pushReplacement(
-            '/marketplace/booking/checkin-qr/$reservationId',
-          );
-      });
+      // No jump to a check-in QR: it exists only once the hotel confirms.
+      if (viewBookings == true && mounted) {
+        context.push('/bookings?tab=reservations');
+      }
     } catch (_) {
       if (!mounted) return;
       // Economic failure presentation (deep-dive step 6, parity with the
@@ -198,21 +240,21 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
           .replaceFirst('HotelMarketplaceException: ', '');
       if (cls == HotelBookingFailureClass.ambiguousOrUnknown) {
         message =
-            'We couldn\'t confirm your reservation. Check your bookings first — '
-            'if it isn\'t there, booking the same room and dates again will '
-            'safely reuse your request.';
+            'We couldn\'t confirm your request. Check Orders & bookings first. '
+            'If it isn\'t there, requesting the same room and dates again '
+            'safely reuses your request.';
       } else if (cls == HotelBookingFailureClass.domainConflict) {
         message =
-            'This reservation request conflicts with an earlier one. Check '
-            'your bookings before booking again.';
+            'This request conflicts with an earlier one. Check Orders & '
+            'bookings before requesting again.';
       } else if (cls == HotelBookingFailureClass.authenticationRequired) {
         message =
-            'Please sign in again, then book the same room and dates — your '
+            'Please sign in again, then request the same room and dates. Your '
             'request will be safely reused.';
       } else if (cls == HotelBookingFailureClass.rateLimited) {
         message =
-            'Too many attempts. Wait a moment, then book the same room and '
-            'dates — your request will be safely reused.';
+            'Too many attempts. Wait a moment, then request the same room and '
+            'dates. Your request will be safely reused.';
       }
       ScaffoldMessenger.of(
         context,
@@ -228,7 +270,36 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     if (state.isLoading && state.business == null) return _loading(colors);
 
     final business = state.business;
+    final key = _quoteKey;
+    final quoteAsync = key == null ? null : ref.watch(stayQuoteProvider(key));
+    final quote = quoteAsync?.valueOrNull;
+    final pricing = quoteAsync != null && quoteAsync.isLoading;
+
+    // Rooms as the guest can book them for these dates and this group.
+    final rooms = quote == null
+        ? state.rooms
+        : [
+            for (final r in state.rooms)
+              (quote.rooms[r.id]?.bookable ?? r.isBookable)
+                  ? r
+                  : r.unavailableForStay(),
+          ];
     final selectedRoom = _selectedRoom(state.rooms);
+    final roomQuote = selectedRoom == null
+        ? null
+        : quote?.rooms[selectedRoom.id];
+    final unavailable = quoteAsync?.hasError == true
+        ? 'Could not price these dates'
+        : (roomQuote != null && !roomQuote.bookable
+              ? roomQuote.reasonLabel ?? 'Not available for these dates'
+              : null);
+    final maxGuests = state.rooms.isEmpty
+        ? 10
+        : state.rooms
+              .map((r) => r.capacity)
+              .reduce((a, b) => a > b ? a : b)
+              .clamp(1, 20);
+
     final penaltyText = business?.businessMeta?['penaltyPolicy'] is Map
         ? 'No-show policy applies according to the hotel\'s published terms.'
         : null;
@@ -245,13 +316,40 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
         isBooking: state.isBooking,
         onReserve: _confirmBooking,
         colors: colors,
+        quotedTotalUsdc: roomQuote?.totalUsdc,
+        pricing: pricing,
+        unavailableReason: unavailable,
+        note: 'The hotel confirms · pay at the hotel',
       ),
       body: CustomScrollView(
         slivers: [
-          SliverToBoxAdapter(
-            child: _ShowcaseSlider(
-              images: business?.showcaseUrls ?? const [],
-              colors: colors,
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 220,
+            backgroundColor: colors.surface,
+            automaticallyImplyLeading: false,
+            leading: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Material(
+                color: Colors.black.withValues(alpha: 0.35),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  key: const ValueKey('hotel-back'),
+                  tooltip: 'Back',
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                  ),
+                  onPressed: _back,
+                ),
+              ),
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              background: _ShowcaseSlider(
+                images: business?.showcaseUrls ?? const [],
+                colors: colors,
+              ),
             ),
           ),
           SliverToBoxAdapter(
@@ -309,20 +407,10 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
               ),
             ),
           ),
+          // 1. When, and how many.
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              child: BuildingCrossSection(
-                rooms: state.rooms,
-                selectedRoomId: _selectedRoomId,
-                onRoomTap: _openRoomDossier,
-                colors: colors,
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -338,6 +426,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                         ),
                       ),
                       IconButton(
+                        key: const ValueKey('hotel-pick-dates'),
                         tooltip: 'Pick exact dates',
                         onPressed: _selectDates,
                         icon: Icon(
@@ -355,12 +444,17 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                     checkOut: _checkOut,
                     nightlyRate: selectedRoom?.basePriceUsdc,
                     weekendRate: selectedRoom?.weekendPriceUsdc,
-                    onRangeChanged: (range) => setState(() {
-                      _checkIn = range.start;
-                      _checkOut = range.end;
-                    }),
+                    onRangeChanged: (range) =>
+                        _setDates(range.start, range.end),
                     onNightAdded: () => AzamanHaptics.threshold(),
                     colors: colors,
+                  ),
+                  const SizedBox(height: AzSpace.md),
+                  _GuestsRow(
+                    guests: _guests,
+                    max: maxGuests,
+                    colors: colors,
+                    onChanged: (n) => _setGuests(n, maxGuests),
                   ),
                   if (penaltyText != null) ...[
                     const SizedBox(height: 11),
@@ -384,18 +478,42 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
                       ],
                     ),
                   ],
-                  if (selectedRoom != null &&
-                      selectedRoom.weekendPriceUsdc != null &&
-                      selectedRoom.weekendPriceUsdc !=
-                          selectedRoom.basePriceUsdc) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Final total uses the hotel\'s date-specific rate calendar.',
-                      style: AzText.caption.copyWith(
-                        color: colors.textTertiary,
-                      ),
+                ],
+              ),
+            ),
+          ),
+          // 2. Which room, among those free for those dates and that group.
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Choose a room',
+                    style: AzText.title.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w800,
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _nights == 0
+                        ? 'Pick your dates first to see which rooms are free.'
+                        : pricing
+                        ? 'Checking which rooms are free…'
+                        : 'Greyed rooms are taken, closed or too small for '
+                              '$_guests ${_guests == 1 ? 'guest' : 'guests'}.',
+                    key: const ValueKey('hotel-rooms-hint'),
+                    style: AzText.caption.copyWith(color: colors.textTertiary),
+                  ),
+                  const SizedBox(height: AzSpace.sm),
+                  BuildingCrossSection(
+                    rooms: rooms,
+                    selectedRoomId: _selectedRoomId,
+                    onRoomTap: _openRoomDossier,
+                    colors: colors,
+                  ),
                 ],
               ),
             ),
@@ -439,6 +557,72 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GuestsRow extends StatelessWidget {
+  const _GuestsRow({
+    required this.guests,
+    required this.max,
+    required this.colors,
+    required this.onChanged,
+  });
+  final int guests;
+  final int max;
+  final dynamic colors;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.divider, width: 0.6),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.group_outlined, size: 20, color: colors.textSecondary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Guests',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('guests-minus'),
+            tooltip: 'Fewer guests',
+            onPressed: guests > 1 ? () => onChanged(guests - 1) : null,
+            icon: const Icon(Icons.remove_circle_outline),
+          ),
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$guests',
+              key: const ValueKey('guests-count'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                fontFeatures: AzText.tabular,
+              ),
+            ),
+          ),
+          IconButton(
+            key: const ValueKey('guests-plus'),
+            tooltip: 'More guests',
+            onPressed: guests < max ? () => onChanged(guests + 1) : null,
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+        ],
       ),
     );
   }

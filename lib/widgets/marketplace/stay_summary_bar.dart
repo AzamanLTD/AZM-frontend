@@ -6,6 +6,11 @@
 // nights × rate = total (tabular money figures, 180ms tick-up), and the
 // Reserve CTA. "Same slot, different semantics."
 //
+// The total is the server's quote for the room and dates when the caller has
+// one (per-night pricing: weekend rates and overrides), never nights x base
+// rate passed off as exact. The CTA requests the stay: the hotel confirms it
+// and it is paid at the hotel ([note]).
+//
 // The total is driven by the caller's state, so it updates live on every
 // scrubber frame. The tick-up is a TweenAnimationBuilder — finite, timer-free,
 // test-safe.
@@ -31,6 +36,20 @@ class StaySummaryBar extends StatelessWidget {
   final VoidCallback onReserve;
   final AzamanColors colors;
 
+  /// The server's exact total for the room and dates (stay quote).
+  final double? quotedTotalUsdc;
+
+  /// The quote is loading: no total shown, the CTA waits.
+  final bool pricing;
+
+  /// The room cannot be booked for these dates (quote said so).
+  final String? unavailableReason;
+
+  final String ctaLabel;
+
+  /// One line under the total, e.g. where the stay is paid.
+  final String? note;
+
   const StaySummaryBar({
     super.key,
     required this.room,
@@ -40,6 +59,11 @@ class StaySummaryBar extends StatelessWidget {
     required this.isBooking,
     required this.onReserve,
     required this.colors,
+    this.quotedTotalUsdc,
+    this.pricing = false,
+    this.unavailableReason,
+    this.ctaLabel = 'Request stay',
+    this.note,
   });
 
   @override
@@ -50,10 +74,12 @@ class StaySummaryBar extends StatelessWidget {
         checkIn != null &&
         checkOut != null &&
         nights > 0 &&
-        !isBooking;
-    final total = room == null
-        ? 0.0
-        : stayTotalFor(room!.basePriceUsdc, nights);
+        !isBooking &&
+        !pricing &&
+        unavailableReason == null;
+    final total =
+        quotedTotalUsdc ??
+        (room == null ? 0.0 : stayTotalFor(room!.basePriceUsdc, nights));
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
@@ -102,20 +128,42 @@ class StaySummaryBar extends StatelessWidget {
                     tween: Tween<double>(end: total),
                     duration: MotionTokens.control,
                     curve: MotionTokens.enter,
-                    builder: (context, value, _) => Text(
-                      nights == 0
-                          ? '—'
-                          : '\$${value.toStringAsFixed(2)} USDC · '
-                                '$nights night${nights == 1 ? '' : 's'}',
-                      style: AzText.money(
-                        colors.accent,
-                        size: AzText.sizeTitleL,
-                        weight: FontWeight.w800,
-                        tracking: -0.4,
+                    // One line: a long total shrinks rather than wraps.
+                    builder: (context, value, _) => FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        nights == 0
+                            ? '—'
+                            : pricing
+                            ? 'Pricing…'
+                            : '\$${value.toStringAsFixed(2)} USDC · '
+                                  '$nights night${nights == 1 ? '' : 's'}',
+                        maxLines: 1,
+                        style: AzText.money(
+                          colors.accent,
+                          size: AzText.sizeTitleL,
+                          weight: FontWeight.w800,
+                          tracking: -0.4,
+                        ),
                       ),
                     ),
                   ),
                 ),
+                if (unavailableReason != null || note != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    unavailableReason ?? note!,
+                    key: const ValueKey('stay-summary-note'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AzText.caption.copyWith(
+                      color: unavailableReason != null
+                          ? colors.warning
+                          : colors.textTertiary,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -148,7 +196,7 @@ class StaySummaryBar extends StatelessWidget {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Reserve', style: AzText.button),
+                  : Text(ctaLabel, style: AzText.button),
             ),
           ),
         ],

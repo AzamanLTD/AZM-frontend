@@ -53,6 +53,29 @@ class HotelMarketplaceService {
     : _client = apiClient ?? ApiClient();
   final ApiClient _client;
 
+  /// Each room's exact total and availability for the dates and guests.
+  Future<StayQuote> stayQuote({
+    required String bizId,
+    required DateTime checkIn,
+    required DateTime checkOut,
+    required int guests,
+  }) async {
+    String d(DateTime t) =>
+        '${t.year.toString().padLeft(4, '0')}-${t.month.toString().padLeft(2, '0')}-${t.day.toString().padLeft(2, '0')}';
+    final response = await _client.get(
+      '/marketplace/business/$bizId/stay-quote'
+      '?checkIn=${d(checkIn)}&checkOut=${d(checkOut)}&guests=$guests',
+    );
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw HotelMarketplaceException(
+        (body['message'] ?? 'Unable to price this stay').toString(),
+        statusCode: response.statusCode,
+      );
+    }
+    return StayQuote.fromJson(body);
+  }
+
   Future<HotelBusinessDetail> fetchHotel(String bizId) async {
     final response = await _client.get('/marketplace/business/$bizId');
     final body = jsonDecode(response.body) as Map<String, dynamic>;
