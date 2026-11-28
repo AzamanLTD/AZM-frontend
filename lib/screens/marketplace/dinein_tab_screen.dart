@@ -11,9 +11,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/dinein_restaurant_ordering_screen.dart';
+import 'package:azaman/widgets/security/second_factor.dart';
 import 'package:azaman/widgets/skeleton_loader.dart';
 
 class DineInTabScreen extends ConsumerStatefulWidget {
@@ -53,9 +55,21 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen>
 
   Future<void> _confirmAndPay() async {
     try {
-      await ref
-          .read(dineInTabProvider(widget.tabId).notifier)
-          .payTab(widget.tabId);
+      // The pay route requires a second factor; ask once and follow the
+      // server if the account needs the other one. Cancel pays nothing.
+      final paid = await withSecondFactor<bool>(
+        context,
+        initial: secondFactorKindFor(ref.read(authProvider).user),
+        title: 'Pay this tab',
+        actionLabel: 'Pay',
+        attempt: (factor) async {
+          await ref
+              .read(dineInTabProvider(widget.tabId).notifier)
+              .payTab(widget.tabId, secondFactor: factor);
+          return true;
+        },
+      );
+      if (paid != true) return;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Payment confirmed! Thank you.')),

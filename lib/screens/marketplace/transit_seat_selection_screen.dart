@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/marketplace/experiences/transit/demo_transit_hold_gateway.dart';
@@ -21,8 +22,10 @@ import 'package:azaman/widgets/seat_selector/transit_hold_ring.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_text.dart';
+import 'package:azaman/widgets/security/second_factor.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 import 'package:azaman/widgets/seat_selector/bus_seat_selector.dart';
 
@@ -37,11 +40,19 @@ class TransitSeatSelectionScreen extends ConsumerStatefulWidget {
   /// wall clock.
   final DateTime Function()? holdClock;
 
+  /// Answers the second-factor prompt in tests; null shows the real sheet.
+  final Future<SecondFactor?> Function({
+    required SecondFactorKind kind,
+    String? errorText,
+  })?
+  secondFactorPrompt;
+
   const TransitSeatSelectionScreen({
     super.key,
     required this.tripId,
     this.holdGateway,
     this.holdClock,
+    this.secondFactorPrompt,
   });
 
   @override
@@ -107,11 +118,30 @@ class _TransitSeatSelectionScreenState
           'MarketplaceBookingException: ',
           '',
         );
-        if (cls == TransitBookingFailureClass.ambiguousOrUnknown) {
+        final code = state.errorCode;
+        if (code == 'INSUFFICIENT_BALANCE') {
+          // Nothing was booked or charged (the whole transaction rolled
+          // back). Refresh the quote so the dock offers Add money.
+          ref.invalidate(transitPaymentQuoteProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Your wallet does not cover this yet. Nothing was charged.',
+              ),
+              backgroundColor: colors.warning,
+              action: SnackBarAction(label: 'Add money', onPressed: _addMoney),
+            ),
+          );
+          return;
+        }
+        if (code != null && code.startsWith('KYC_')) {
           message =
-              'We couldn\'t confirm your booking. Check your bookings first — '
-              'if the seats aren\'t there, booking the same seats again will '
-              'safely reuse your request.';
+              'Verify your identity to pay for seats. Nothing was charged.';
+        } else if (cls == TransitBookingFailureClass.ambiguousOrUnknown) {
+          message =
+              'We couldn\'t confirm your payment. Check your bookings first — '
+              'if the seats aren\'t there, paying for the same seats again '
+              'safely reuses your request and never charges twice.';
         } else if (cls == TransitBookingFailureClass.domainConflict) {
           message =
               'This booking request conflicts with an earlier one. Check your '
@@ -157,6 +187,7 @@ class _TransitSeatSelectionScreenState
             : '${trip.origin} → ${trip.destination}',
         departureTime: trip?.departureAt ?? DateTime.now(),
         pending: !confirmed,
+        paidTotalUsdc: result.paidTotalUsdc,
         keepsake: trip == null || !confirmed
             ? null
             : Column(
@@ -370,21 +401,38 @@ class _TransitSeatSelectionScreenState
     );
   }
 
-  Future<void> _bookSeats() async {
+  /// Books AND pays for the selection from the wallet. The second factor is
+  /// asked once ([withSecondFactor] follows the server if the account needs
+  /// the other one); the result or the failure lands in the booking state.
+  Future<void> _pay(TransitPaymentQuote quote) async {
     final selected = ref.read(selectedSeatsProvider);
     if (selected.isEmpty) return;
     final names = selected
         .map((id) => _passengerNames[id]?.text.trim() ?? '')
         .toList(growable: false);
-    await ref
-        .read(bookingActionProvider.notifier)
-        .bookSeats(
-          tripId: widget.tripId,
-          seatIds: selected.toList(growable: false),
-          passengerNames: names.any((name) => name.isNotEmpty) ? names : null,
-          operationType: _bookingActionId,
-          ref: _bookingRef,
-        );
+    final total = usdcExactLabel(quote.totalUsdc);
+    await withSecondFactor<void>(
+      context,
+      initial: secondFactorKindFor(ref.read(authProvider).user),
+      title: 'Pay $total',
+      actionLabel: 'Pay $total',
+      ask: widget.secondFactorPrompt,
+      attempt: (factor) => ref
+          .read(bookingActionProvider.notifier)
+          .payForSeats(
+            tripId: widget.tripId,
+            seatIds: selected.toList(growable: false),
+            passengerNames: names.any((name) => name.isNotEmpty) ? names : null,
+            secondFactor: factor,
+            operationType: _bookingActionId,
+            ref: _bookingRef,
+          ),
+    );
+  }
+
+  void _addMoney() {
+    if (!mounted) return;
+    context.push('/deposit');
   }
 
   @override
@@ -396,6 +444,13 @@ class _TransitSeatSelectionScreenState
     );
     final selected = ref.watch(selectedSeatsProvider);
     final booking = ref.watch(bookingActionProvider);
+    final quote = selected.isEmpty
+        ? null
+        : ref.watch(
+            transitPaymentQuoteProvider(
+              transitQuoteKey(widget.tripId, selected),
+            ),
+          );
 
     // Snapshot the hold generation for THIS build. The dock's expiry
     // closure must capture the generation of the hold it displays by
@@ -476,11 +531,18 @@ class _TransitSeatSelectionScreenState
               if (selected.isNotEmpty)
                 _BookingDock(
                   selected: selected,
-                  total: _totalFare(availability, selected),
+                  fare: _totalFare(availability, selected),
+                  quote: quote,
                   colors: colors,
                   busy: booking.isLoading,
                   onNames: () => _editPassengerNames(selected, colors),
-                  onBook: _bookSeats,
+                  onPay: _pay,
+                  onAddMoney: _addMoney,
+                  onRetryQuote: () => ref.invalidate(
+                    transitPaymentQuoteProvider(
+                      transitQuoteKey(widget.tripId, selected),
+                    ),
+                  ),
                   holdExpiresAt: _activeHold?.expiresAt,
                   holdClock: widget.holdClock,
                   onHoldExpired: holdGenerationAtBuild == null
@@ -609,31 +671,54 @@ String transitFareLabel(double v) => v == v.roundToDouble()
     ? '\$${v.toStringAsFixed(0)}'
     : '\$${v.toStringAsFixed(2)}';
 
-/// The booking dock: your seats, how long they are held, the fare broken
-/// down, and the one commitment.
+/// A USDC amount exactly as it is charged: at least two decimals, up to six,
+/// trailing zeros trimmed ("$0.60", "$0.603", "$7.035"). A booking fee of a
+/// fraction of a cent is shown as charged, never rounded to "$0.00".
+String usdcExactLabel(double v) {
+  var s = v.toStringAsFixed(6);
+  s = s.replaceFirst(RegExp(r'0+$'), '');
+  if (s.endsWith('.')) s = s.substring(0, s.length - 1);
+  final dot = s.indexOf('.');
+  if (dot < 0) {
+    s = '$s.00';
+  } else if (s.length - dot - 1 == 1) {
+    s = '${s}0';
+  }
+  return '\$$s';
+}
+
+/// The booking dock: your seats, how long they are held, what paying from the
+/// wallet charges (fare + Azaman fee, from the server's quote) and the one
+/// commitment, "Pay".
 ///
-/// It says what the backend does and nothing more. `POST .../book` creates
-/// a PENDING reservation and charges nothing (there is no payment rail for
-/// transit bookings yet), so the action is "Reserve", there is no booking
-/// fee, and the line under the total says no charge is taken now.
+/// It says what the backend does. Pay books AND pays in one transaction
+/// (payWith: WALLET): the fare is debited from the wallet with the fee,
+/// held for the operator and released to them when the trip completes. A
+/// wallet that cannot cover it offers Add money instead of a failing Pay.
 class _BookingDock extends StatelessWidget {
   final Set<String> selected;
-  final double total;
+  final double fare;
+  final AsyncValue<TransitPaymentQuote>? quote;
   final AzamanColors colors;
   final bool busy;
   final VoidCallback onNames;
-  final VoidCallback onBook;
+  final void Function(TransitPaymentQuote quote) onPay;
+  final VoidCallback onAddMoney;
+  final VoidCallback onRetryQuote;
   final DateTime? holdExpiresAt;
   final VoidCallback? onHoldExpired;
   final DateTime Function()? holdClock;
 
   const _BookingDock({
     required this.selected,
-    required this.total,
+    required this.fare,
+    required this.quote,
     required this.colors,
     required this.busy,
     required this.onNames,
-    required this.onBook,
+    required this.onPay,
+    required this.onAddMoney,
+    required this.onRetryQuote,
     this.holdExpiresAt,
     this.onHoldExpired,
     this.holdClock,
@@ -643,6 +728,8 @@ class _BookingDock extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = selected.length;
     final seats = (selected.toList()..sort());
+    final q = quote?.valueOrNull;
+    final quoteFailed = quote?.hasError == true && q == null;
     final onAccent = colors.accent.computeLuminance() > 0.5
         ? Colors.black
         : Colors.white;
@@ -656,6 +743,44 @@ class _BookingDock extends StatelessWidget {
       fontWeight: w,
       fontFeatures: AzText.tabular,
     );
+
+    // The commitment, by what the wallet can do.
+    final String ctaLabel;
+    final VoidCallback? ctaAction;
+    final IconData? ctaIcon;
+    if (busy) {
+      ctaLabel = 'Paying…';
+      ctaAction = null;
+      ctaIcon = null;
+    } else if (quoteFailed) {
+      ctaLabel = 'Try again';
+      ctaAction = onRetryQuote;
+      ctaIcon = Icons.refresh_rounded;
+    } else if (q == null) {
+      ctaLabel = 'Working out the total…';
+      ctaAction = null;
+      ctaIcon = null;
+    } else if (q.canPay) {
+      ctaLabel = 'Pay ${usdcExactLabel(q.totalUsdc)}';
+      ctaAction = () => onPay(q);
+      ctaIcon = null;
+    } else if (q.shortfallUsdc > 0) {
+      ctaLabel = 'Add money';
+      ctaAction = onAddMoney;
+      ctaIcon = Icons.add_rounded;
+    } else {
+      ctaLabel = 'This trip cannot be paid';
+      ctaAction = null;
+      ctaIcon = null;
+    }
+
+    final walletLine = q == null
+        ? (quoteFailed
+              ? 'We could not work out the total. Nothing was charged.'
+              : 'Paid from your Azaman wallet.')
+        : q.shortfallUsdc > 0
+        ? 'Your wallet has ${usdcExactLabel(q.availableUsdc)}. Add ${usdcExactLabel(q.shortfallUsdc)} to pay.'
+        : 'From your wallet · ${usdcExactLabel(q.availableUsdc)} available. Held for the operator until the trip.';
 
     return Container(
       key: const ValueKey('transit-booking-dock'),
@@ -746,21 +871,22 @@ class _BookingDock extends StatelessWidget {
                             style: line(colors.textSecondary),
                           ),
                           TextSpan(
-                            text: transitFareLabel(total),
+                            text: usdcExactLabel(q?.fareUsdc ?? fare),
                             style: line(colors.textPrimary, w: FontWeight.w600),
                           ),
                         ],
                       ),
                     ),
                     Text.rich(
+                      key: const ValueKey('transit-dock-fee'),
                       TextSpan(
                         children: [
                           TextSpan(
-                            text: 'Booking fee  ',
+                            text: 'Azaman fee  ',
                             style: line(colors.textSecondary),
                           ),
                           TextSpan(
-                            text: 'None',
+                            text: q == null ? '…' : usdcExactLabel(q.feeUsdc),
                             style: line(colors.textPrimary, w: FontWeight.w600),
                           ),
                         ],
@@ -791,7 +917,8 @@ class _BookingDock extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    '\$${total.toStringAsFixed(2)} USDC',
+                    q == null ? '…' : '${usdcExactLabel(q.totalUsdc)} USDC',
+                    key: const ValueKey('transit-dock-total'),
                     style: line(
                       colors.textPrimary,
                       w: FontWeight.w800,
@@ -804,9 +931,14 @@ class _BookingDock extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'No charge now. The operator confirms your seats.',
-                  key: const ValueKey('transit-dock-honesty'),
-                  style: line(colors.textTertiary, size: 11.5),
+                  walletLine,
+                  key: const ValueKey('transit-dock-wallet'),
+                  style: line(
+                    q != null && q.shortfallUsdc > 0
+                        ? colors.warning
+                        : colors.textTertiary,
+                    size: 11.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -839,24 +971,24 @@ class _BookingDock extends StatelessWidget {
                   const SizedBox(width: 10),
                   // Owner decision 2026-10-31: the seat map, the fare and the
                   // selection stay browsable while money is locked, because
-                  // they are catalogue. Reserving and paying are not, so only
-                  // the commitment is gated. The guard replaces the button, so
-                  // a locked tap cannot hold a seat.
+                  // they are catalogue. Paying is not, so only the commitment
+                  // is gated. The guard replaces the button, so a locked tap
+                  // cannot pay or hold a seat.
                   Expanded(
                     child: MoneyLockGate(
                       compact: true,
-                      message: 'Unlock to book seats',
+                      message: 'Unlock to pay',
                       child: SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: FilledButton(
-                          key: const ValueKey('transit-dock-reserve'),
+                          key: const ValueKey('transit-dock-pay'),
                           style: FilledButton.styleFrom(
                             backgroundColor: colors.accent,
                             foregroundColor: onAccent,
                             shape: const StadiumBorder(),
                           ),
-                          onPressed: busy ? null : onBook,
+                          onPressed: ctaAction,
                           child: busy
                               ? SizedBox(
                                   width: 18,
@@ -866,12 +998,24 @@ class _BookingDock extends StatelessWidget {
                                     color: onAccent,
                                   ),
                                 )
-                              : Text(
-                                  'Reserve $count seat${count == 1 ? '' : 's'}',
-                                  style: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (ctaIcon != null) ...[
+                                      Icon(ctaIcon, size: 18),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        ctaLabel,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                         ),
                       ),

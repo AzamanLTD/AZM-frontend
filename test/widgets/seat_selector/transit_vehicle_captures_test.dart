@@ -17,6 +17,7 @@ import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
+import 'package:azaman/services/marketplace_booking_service.dart';
 
 bool _fontsLoaded = false;
 Future<void> _loadFace(String family, String path) async {
@@ -183,6 +184,34 @@ SeatAvailability _availability(
 /// on every run.
 final _now = DateTime(2026, 12, 1, 7, 0);
 
+/// Prices the selection like the backend's quote (fare + 0.5% fee) against
+/// a wallet that covers it, without a network call.
+class _QuoteService extends MarketplaceBookingService {
+  _QuoteService(this.seats);
+  final List<TransitSeat> seats;
+
+  @override
+  Future<TransitPaymentQuote> quoteSeats({
+    required String tripId,
+    required List<String> seatIds,
+  }) async {
+    final fare = seatIds.fold<double>(
+      0,
+      (t, id) => t + seats.firstWhere((s) => s.seatId == id).fare,
+    );
+    final fee = double.parse((fare * 0.005).toStringAsFixed(6));
+    return TransitPaymentQuote(
+      seatIds: seatIds,
+      fareUsdc: fare,
+      feeUsdc: fee,
+      feePct: 0.005,
+      totalUsdc: double.parse((fare + fee).toStringAsFixed(6)),
+      availableUsdc: 25.4,
+      canPay: true,
+    );
+  }
+}
+
 class _FixedHoldGateway implements TransitHoldGateway {
   @override
   Future<TransitHoldResult> hold(TransitSeatSelection selection) async =>
@@ -222,6 +251,9 @@ void main() {
             tripDetailProvider(trip.id).overrideWith((ref) async => trip),
             seatAvailabilityProvider(trip.id).overrideWith(
               (ref) async => _availability(trip.id, seats, trip.fareUsdc),
+            ),
+            marketplaceBookingServiceProvider.overrideWithValue(
+              _QuoteService(seats),
             ),
           ],
         );

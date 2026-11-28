@@ -15,6 +15,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/widgets/security/second_factor.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/utils/durable_operation_registry.dart';
 import 'package:azaman/data/demo_interceptor.dart';
@@ -207,6 +208,12 @@ class MarketplaceBookingService {
   /// duplicate seat claims structurally, so a keyless request keeps today's
   /// behavior (the exposure is reconciliation UX only, not duplicate
   /// economics).
+  ///
+  /// With [payWithWallet] the same request pays for the seats from the
+  /// wallet (`payWith: 'WALLET'`): the backend books, funds the booking
+  /// escrow and confirms in one transaction. [secondFactor] carries the
+  /// password or authenticator code the route requires; the durable journal
+  /// strips it, so it is sent but never stored.
   Future<BookSeatResult> bookSeats({
     required String tripId,
     required List<String> seatIds,
@@ -215,6 +222,8 @@ class MarketplaceBookingService {
     String? businessProfileId,
     String? operationType,
     FinancialOperationRef? ref,
+    bool payWithWallet = false,
+    SecondFactor? secondFactor,
   }) async {
     final endpoint = '/marketplace/transit/trips/$tripId/book';
     final body = <String, dynamic>{
@@ -222,6 +231,8 @@ class MarketplaceBookingService {
       'passengerNames': passengerNames,
       'customerNote': customerNote,
       'businessProfileId': businessProfileId,
+      if (payWithWallet) 'payWith': 'WALLET',
+      ...?secondFactor?.toWire(),
     };
 
     if (operationType == null) {
@@ -417,6 +428,24 @@ class MarketplaceBookingService {
     // economic outcome is UNPROVEN. Fail safe as unknown — never "safe to
     // retry blindly", never "definitive".
     return TransitBookingFailureClass.ambiguousOrUnknown;
+  }
+
+  /// What paying for [seatIds] from the wallet would charge (read-only).
+  Future<TransitPaymentQuote> quoteSeats({
+    required String tripId,
+    required List<String> seatIds,
+  }) async {
+    final seats = Uri.encodeQueryComponent(seatIds.join(','));
+    final res = await _client.get(
+      '/marketplace/transit/trips/$tripId/quote?seats=$seats',
+    );
+    final parsed = jsonDecode(res.body) as Map<String, dynamic>;
+    if (parsed['success'] != true) {
+      throw MarketplaceBookingException(
+        parsed['message']?.toString() ?? 'Could not price these seats',
+      );
+    }
+    return TransitPaymentQuote.fromJson(parsed);
   }
 
   /// Cancel a transit booking.

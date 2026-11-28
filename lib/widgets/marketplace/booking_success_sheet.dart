@@ -31,6 +31,10 @@ class BookingSuccessSheet extends ConsumerWidget {
   /// "reserved", not "confirmed", and celebrates quietly.
   final bool pending;
 
+  /// What left the wallet (fare + fee) when the seats were paid in the
+  /// booking request. Shown as "Paid"; without it the row is the fare.
+  final double? paidTotalUsdc;
+
   /// Wire for the panel weight's own scroll view (see [show]). Null keeps
   /// the whisper layout: content-sized, no scrolling.
   final ScrollController? scrollController;
@@ -45,6 +49,7 @@ class BookingSuccessSheet extends ConsumerWidget {
     this.keepsake,
     this.scrollController,
     this.pending = false,
+    this.paidTotalUsdc,
   });
 
   /// Convenience method to show the sheet.
@@ -61,6 +66,7 @@ class BookingSuccessSheet extends ConsumerWidget {
     required DateTime departureTime,
     Widget? keepsake,
     bool pending = false,
+    double? paidTotalUsdc,
   }) {
     if (pending) {
       AzamanHaptics.success();
@@ -81,6 +87,7 @@ class BookingSuccessSheet extends ConsumerWidget {
           route: route,
           departureTime: departureTime,
           pending: pending,
+          paidTotalUsdc: paidTotalUsdc,
         ),
       );
     }
@@ -99,6 +106,7 @@ class BookingSuccessSheet extends ConsumerWidget {
         keepsake: keepsake,
         scrollController: scrollController,
         pending: pending,
+        paidTotalUsdc: paidTotalUsdc,
       ),
     );
   }
@@ -182,8 +190,10 @@ class BookingSuccessSheet extends ConsumerWidget {
           _detailRow(
             colors,
             Icons.payments_rounded,
-            'Total',
-            '\$${totalFare.toStringAsFixed(2)} USDC',
+            paidTotalUsdc != null ? 'Paid from wallet' : 'Total',
+            paidTotalUsdc != null
+                ? '\$${_exact(paidTotalUsdc!)} USDC'
+                : '\$${totalFare.toStringAsFixed(2)} USDC',
           ),
 
           const SizedBox(height: 24),
@@ -274,4 +284,13 @@ class BookingSuccessSheet extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Up to six decimals, at least two (what was actually charged).
+String _exact(double v) {
+  var s = v.toStringAsFixed(6).replaceFirst(RegExp(r'0+$'), '');
+  if (s.endsWith('.')) s = s.substring(0, s.length - 1);
+  final dot = s.indexOf('.');
+  if (dot < 0) return '$s.00';
+  return s.length - dot - 1 == 1 ? '${s}0' : s;
 }

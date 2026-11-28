@@ -403,6 +403,11 @@ class BookSeatResult {
   final double totalFare;
   final String status;
 
+  /// Present when the seats were paid in the same request (wallet pay):
+  /// what left the passenger's wallet, fare plus booking fee.
+  final double? paidTotalUsdc;
+  final double? paidFeeUsdc;
+
   const BookSeatResult({
     required this.success,
     required this.bookingId,
@@ -410,10 +415,15 @@ class BookSeatResult {
     required this.seatIds,
     required this.totalFare,
     required this.status,
+    this.paidTotalUsdc,
+    this.paidFeeUsdc,
   });
+
+  bool get paid => paidTotalUsdc != null;
 
   factory BookSeatResult.fromJson(Map<String, dynamic> json) {
     final booking = json['booking'] as Map<String, dynamic>? ?? {};
+    final payment = json['payment'] as Map<String, dynamic>?;
     return BookSeatResult(
       success: json['success'] == true,
       bookingId: booking['id'] as String? ?? '',
@@ -422,8 +432,53 @@ class BookSeatResult {
           (json['seatIds'] as List?)?.map((s) => s.toString()).toList() ?? [],
       totalFare: _toDouble(json['totalFare']),
       status: booking['status'] as String? ?? 'PENDING',
+      paidTotalUsdc: payment == null ? null : _toDouble(payment['totalUsdc']),
+      paidFeeUsdc: payment == null ? null : _toDouble(payment['feeUsdc']),
     );
   }
+}
+
+// ── WALLET PAY QUOTE ─────────────────────────────────────────────────────────
+
+/// What booking these seats with wallet pay charges, from
+/// GET /marketplace/transit/trips/:id/quote — the same seat pricing and fee
+/// function the booking uses, so the dock shows exactly what will leave the
+/// wallet.
+class TransitPaymentQuote {
+  final List<String> seatIds;
+  final double fareUsdc;
+  final double feeUsdc;
+  final double feePct;
+  final double totalUsdc;
+  final double availableUsdc;
+  final bool canPay;
+
+  const TransitPaymentQuote({
+    required this.seatIds,
+    required this.fareUsdc,
+    required this.feeUsdc,
+    required this.feePct,
+    required this.totalUsdc,
+    required this.availableUsdc,
+    required this.canPay,
+  });
+
+  /// What the wallet is short by, or zero.
+  double get shortfallUsdc =>
+      totalUsdc > availableUsdc ? totalUsdc - availableUsdc : 0;
+
+  factory TransitPaymentQuote.fromJson(Map<String, dynamic> json) =>
+      TransitPaymentQuote(
+        seatIds:
+            (json['seatIds'] as List?)?.map((s) => s.toString()).toList() ??
+            const [],
+        fareUsdc: _toDouble(json['fareUsdc']),
+        feeUsdc: _toDouble(json['feeUsdc']),
+        feePct: _toDouble(json['feePct']),
+        totalUsdc: _toDouble(json['totalUsdc']),
+        availableUsdc: _toDouble(json['availableUsdc']),
+        canPay: json['canPay'] == true,
+      );
 }
 
 // ── BUSINESS STORY (for viral loop) ──────────────────────────────────────────

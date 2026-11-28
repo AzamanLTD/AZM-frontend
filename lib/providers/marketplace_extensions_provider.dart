@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/socket_service.dart';
+import 'package:azaman/widgets/security/second_factor.dart';
 
 class FollowNotifier extends StateNotifier<AsyncValue<bool>> {
   final ApiClient _api;
@@ -166,15 +167,30 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
     }
   }
 
-  Future<void> payTab(String tabId, {double? tip}) async {
+  /// Pays the tab from the wallet. The route requires a second factor
+  /// (require2FA): [secondFactor] carries the password or authenticator code.
+  /// A challenge or a refused factor restores the tab and rethrows, so the
+  /// caller's prompt can ask again; nothing was paid.
+  Future<void> payTab(
+    String tabId, {
+    double? tip,
+    SecondFactor? secondFactor,
+  }) async {
     if (!mounted || tabId != _tabId) return;
+    final before = state;
     state = const AsyncValue.loading();
     try {
       await _api.post('/dine-in/tabs/$tabId/pay', {
         if (tip != null) 'tipUsdc': tip,
+        ...?secondFactor?.toWire(),
       });
       await loadTab(tabId);
     } catch (error, stackTrace) {
+      if (secondFactorChallenge(error) != null ||
+          isSecondFactorRefused(error)) {
+        if (mounted) state = before;
+        rethrow;
+      }
       // A payment response can be lost after the server commits. Re-read the
       // durable tab once before reporting failure so a CLOSED/paid tab is not
       // presented to the customer as an unsuccessful payment.

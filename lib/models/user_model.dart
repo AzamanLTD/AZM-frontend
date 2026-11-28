@@ -105,6 +105,12 @@ class User {
   final BanStatus banStatus;
   final DateTime? banUntil;
 
+  /// Whether the account confirms money actions with an authenticator code
+  /// (true) or the password (false), as `/auth/me` reports it. Null when the
+  /// payload did not say (older responses): the second-factor step then
+  /// starts from the password and follows the server's challenge.
+  final bool? isTwoFactorEnabled;
+
   User({
     required this.id,
     required this.username,
@@ -121,6 +127,7 @@ class User {
     this.kycStatus = KycStatus.unverified,
     this.banStatus = BanStatus.active,
     this.banUntil,
+    this.isTwoFactorEnabled,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -159,6 +166,9 @@ class User {
       kycStatus: KycStatus.fromString(json['kycStatus']),
       banStatus: BanStatus.fromString(json['banStatus']),
       banUntil: toDate(json['banUntil']),
+      isTwoFactorEnabled: json['isTwoFactorEnabled'] is bool
+          ? json['isTwoFactorEnabled'] as bool
+          : null,
     );
   }
 
@@ -178,6 +188,7 @@ class User {
     KycStatus? kycStatus,
     BanStatus? banStatus,
     DateTime? banUntil,
+    bool? isTwoFactorEnabled,
   }) {
     return User(
       id: id ?? this.id,
@@ -196,6 +207,7 @@ class User {
       kycStatus: kycStatus ?? this.kycStatus,
       banStatus: banStatus ?? this.banStatus,
       banUntil: banUntil ?? this.banUntil,
+      isTwoFactorEnabled: isTwoFactorEnabled ?? this.isTwoFactorEnabled,
     );
   }
 }

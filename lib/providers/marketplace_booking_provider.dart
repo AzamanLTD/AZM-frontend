@@ -11,6 +11,7 @@ import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/widgets/security/second_factor.dart';
 
 // ── TRIP LIST ────────────────────────────────────────────────────────────────
 
@@ -69,11 +70,17 @@ class BookingActionState {
   final TransitBookingFailureClass? failureClass;
   final BookSeatResult? result;
 
+  /// The server's own failure code when it sent one (INSUFFICIENT_BALANCE,
+  /// KYC_REQUIRED, SELF_PAYMENT …), so the screen can answer the specific
+  /// case (offer a top-up) instead of a generic message.
+  final String? errorCode;
+
   const BookingActionState({
     this.isLoading = false,
     this.error,
     this.failureClass,
     this.result,
+    this.errorCode,
   });
 
   BookingActionState copyWith({
@@ -130,6 +137,52 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
     }
   }
 
+  /// Books AND pays for the seats from the wallet, behind [secondFactor].
+  ///
+  /// A second-factor challenge or a refused factor is rethrown with the
+  /// state back to idle, so the caller's prompt can ask again (the durable
+  /// instance stays armed: a 401 retains it, and the retry reuses its key).
+  /// Every other failure lands in state like [bookSeats], with its economic
+  /// class and the server's code.
+  Future<void> payForSeats({
+    required String tripId,
+    required List<String> seatIds,
+    required SecondFactor secondFactor,
+    List<String>? passengerNames,
+    String? customerNote,
+    String? businessProfileId,
+    String? operationType,
+    FinancialOperationRef? ref,
+  }) async {
+    state = const BookingActionState(isLoading: true);
+    try {
+      final result = await _svc.bookSeats(
+        tripId: tripId,
+        seatIds: seatIds,
+        passengerNames: passengerNames,
+        customerNote: customerNote,
+        businessProfileId: businessProfileId,
+        operationType: operationType,
+        ref: ref,
+        payWithWallet: true,
+        secondFactor: secondFactor,
+      );
+      state = BookingActionState(result: result);
+    } catch (e) {
+      if (secondFactorChallenge(e) != null || isSecondFactorRefused(e)) {
+        state = const BookingActionState();
+        rethrow;
+      }
+      state = BookingActionState(
+        error: e is ApiException ? e.message : e.toString(),
+        errorCode: e is ApiException ? e.code : null,
+        failureClass: MarketplaceBookingService.classifyTransitBookingFailure(
+          e,
+        ),
+      );
+    }
+  }
+
   Future<bool> cancelBooking(String bookingId) async {
     state = const BookingActionState(isLoading: true);
     try {
@@ -144,6 +197,21 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
 
   void reset() => state = const BookingActionState();
 }
+
+/// The wallet-pay quote for a selection: key is `tripId|1A,1B` (seats
+/// sorted, so the same selection in any order shares one quote).
+final transitPaymentQuoteProvider = FutureProvider.autoDispose
+    .family<TransitPaymentQuote, String>((ref, key) {
+      final sep = key.indexOf('|');
+      final tripId = key.substring(0, sep);
+      final seats = key.substring(sep + 1).split(',');
+      return ref
+          .watch(marketplaceBookingServiceProvider)
+          .quoteSeats(tripId: tripId, seatIds: seats);
+    });
+
+String transitQuoteKey(String tripId, Iterable<String> seatIds) =>
+    '$tripId|${(seatIds.toList()..sort()).join(',')}';
 
 final bookingActionProvider =
     StateNotifierProvider<BookingActionNotifier, BookingActionState>(
