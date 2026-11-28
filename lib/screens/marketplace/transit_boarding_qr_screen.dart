@@ -93,7 +93,7 @@ class TransitBoardingQrScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Scanning it boards you and pays the operator your fare.',
+                  'Scanning it boards you. Your fare goes to the operator when the trip ends.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: colors.textSecondary, fontSize: 13),
                 ),
