@@ -517,6 +517,11 @@ class _ReservationCard extends ConsumerWidget {
       'IN_PROGRESS' ||
       'PENDING_SETTLEMENT' => 'Paid $paid · held until you check in',
       'SETTLED' || 'RELEASED' => 'Paid $paid · paid to the hotel at check-in',
+      // The hotel cancelled: the fee came back too.
+      'REFUNDED' || 'EXPIRED'
+          when r.status.toUpperCase() == 'CANCELLED_BUSINESS' &&
+              r.feeUsdc != null =>
+        'Refunded ${storeUsdcLabel(r.paidUsdc! + r.feeUsdc!)} · the hotel cancelled',
       'REFUNDED' || 'EXPIRED' => 'Refunded $paid',
       'DISPUTED' || 'ADMIN_REVIEW' => 'Paid $paid · under review',
       _ => null,

@@ -497,6 +497,34 @@ void main() {
       expect(bookings.cancelled, ['paid']);
     });
 
+    testWidgets('the hotel cancelled: everything came back, fee included', (
+      tester,
+    ) async {
+      await _pumpHub(
+        tester,
+        tab: HubTab.reservations,
+        stays: [
+          _stay(
+            id: 'gone',
+            status: 'CANCELLED_BUSINESS',
+            escrow: {
+              'status': 'REFUNDED',
+              'amountUsdc': '180',
+              'feeUsdc': '1.8',
+            },
+          ),
+        ],
+      );
+      expect(
+        find.text('Refunded \$181.80 · the hotel cancelled'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('reservation-cancel-gone')),
+        findsNothing,
+      );
+    });
+
     testWidgets('checked in: paid to the hotel, nothing to cancel', (
       tester,
     ) async {
