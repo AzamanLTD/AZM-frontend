@@ -19,8 +19,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
+import 'package:azaman/providers/marketplace_extensions_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/orders_bookings_hub_screen.dart';
 import 'package:azaman/services/api_client.dart';
@@ -157,6 +159,31 @@ class _Storefront extends StorefrontService {
   }) async => {'orders': orders, 'nextCursor': null};
 }
 
+// A table tab as GET /dine-in/my-tabs returns it (a cedi tab).
+DineInTab _tab({String id = 'tab1', String status = 'FINALIZED', String total = '86.50'}) =>
+    DineInTab.fromJson({
+      'id': id,
+      'status': status,
+      'openedAt': DateTime(2026, 12, 5, 8, 15).toIso8601String(),
+      'currency': 'GHS',
+      'subtotalGhs': total,
+      'taxTotalGhs': '0',
+      'tipGhs': '0',
+      'grandTotalGhs': total,
+      'businessProfile': {'businessName': 'Chef Abby'},
+      'table': {'id': 't7', 'label': '7'},
+      'items': [
+        {
+          'id': 'i1',
+          'name': 'Jollof',
+          'quantity': 1,
+          'unitPriceGhs': total,
+          'lineTotalGhs': total,
+          'addedAt': DateTime(2026, 12, 5, 8, 20).toIso8601String(),
+        },
+      ],
+    });
+
 bool _fontsLoaded = false;
 Future<void> _loadFonts() async {
   if (_fontsLoaded) return;
@@ -181,6 +208,7 @@ Future<GoRouter> _pumpHub(
   List<TransitBookingSummary> trips = const [],
   List<ReservationSummary> stays = const [],
   List<BusinessInvoice> bills = const [],
+  List<DineInTab> tabs = const [],
   HubTab tab = HubTab.orders,
   bool dark = true,
   _Bookings? bookings,
@@ -205,6 +233,11 @@ Future<GoRouter> _pumpHub(
             Scaffold(body: Text('boarding ${s.pathParameters['id']}')),
       ),
       GoRoute(
+        path: '/business-market/dine-in/:id',
+        builder: (_, s) =>
+            Scaffold(body: Text('tab ${s.pathParameters['id']}')),
+      ),
+      GoRoute(
         path: '/business-market/invoices/:id',
         builder: (_, s) =>
             Scaffold(body: Text('invoice ${s.pathParameters['id']}')),
@@ -223,6 +256,7 @@ Future<GoRouter> _pumpHub(
         myTransitBookingsProvider.overrideWith((ref) async => trips),
         myReservationsProvider.overrideWith((ref) async => stays),
         myInvoicesProvider.overrideWith((ref) => _Invoices(bills)),
+        myDineInTabsProvider.overrideWith((ref) async => tabs),
         if (bookings != null)
           marketplaceBookingServiceProvider.overrideWithValue(bookings),
       ],
@@ -305,6 +339,21 @@ void main() {
       expect(tasks[4].route, isNull); // its actions are on the Orders tab
     });
 
+    test('a table bill that is ready is a task; an open tab is not', () {
+      final tasks = hubTasks(
+        now: _now,
+        tabs: [_tab(id: 'ready'), _tab(id: 'eating', status: 'OPEN')],
+        invoices: [_bill(id: 'due')],
+      );
+      expect(tasks.map((t) => '${t.kind.name}:${t.id}').toList(), [
+        'payTab:ready',
+        'payBill:due',
+      ]);
+      expect(tasks.first.title, 'Pay GH₵ 86.50');
+      expect(tasks.first.detail, 'Chef Abby · table 7 · bill ready');
+      expect(tasks.first.route, '/business-market/dine-in/ready');
+    });
+
     test('tabs read from a link', () {
       expect(hubTabFromQuery('trips'), HubTab.trips);
       expect(hubTabFromQuery('stays'), HubTab.reservations);
@@ -334,6 +383,27 @@ void main() {
   });
 
   group('the hub', () {
+    testWidgets('Bills shows table tabs first; one opens its tab', (tester) async {
+      await _pumpHub(
+        tester,
+        tab: HubTab.bills,
+        tabs: [_tab(id: 'eating', status: 'OPEN', total: '40.00'), _tab(id: 'ready')],
+        bills: [_bill(id: 'due')],
+      );
+      expect(find.text('At the table'), findsOneWidget);
+      // Ready to pay first.
+      final ready = tester.getTopLeft(find.byKey(const ValueKey('hub-table-tab-ready')));
+      final eating = tester.getTopLeft(find.byKey(const ValueKey('hub-table-tab-eating')));
+      expect(ready.dy, lessThan(eating.dy));
+      expect(find.text('Pay GH₵ 86.50'), findsWidgets); // the task and the tile
+      expect(find.text('GH₵ 40.00'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('hub-table-tab-eating')));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(find.text('tab eating'), findsOneWidget);
+    });
+
     testWidgets('Needs you opens the check-in QR directly', (tester) async {
       await _pumpHub(tester, stays: [_stay(id: 'today')]);
       expect(find.byKey(const ValueKey('hub-needs-you')), findsOneWidget);

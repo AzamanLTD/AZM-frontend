@@ -213,6 +213,19 @@ class DineInTabNotifier extends StateNotifier<AsyncValue<DineInTab?>> {
   }
 }
 
+/// The customer's table tabs still in play: OPEN (eating, running total) and
+/// FINALIZED (the bill is ready to pay). GET /dine-in/my-tabs?set=active.
+final myDineInTabsProvider = FutureProvider.autoDispose<List<DineInTab>>((ref) async {
+  final res = await ref.read(apiClientProvider).get('/dine-in/my-tabs?set=active');
+  final body = jsonDecode(res.body);
+  final list = body is Map ? body['tabs'] : null;
+  if (list is! List) return const [];
+  return list
+      .whereType<Map>()
+      .map((e) => DineInTab.fromJson(Map<String, dynamic>.from(e)))
+      .toList();
+});
+
 final dineInTabProvider = StateNotifierProvider.autoDispose
     .family<DineInTabNotifier, AsyncValue<DineInTab?>, String>(
       (ref, tabId) => DineInTabNotifier(

@@ -11,11 +11,13 @@
 //   Needs you  the few things waiting on the customer right now, most urgent
 //              first: answer an ID-check boarding, pay a saved order, today's
 //              boarding pass or check-in QR, confirm a handed-over order, an
-//              unpaid bill. Each opens the thing itself.
+//              unpaid bill, a table bill the restaurant has ready. Each opens
+//              the thing itself.
 //   Orders     store orders, with Pay / Got it / Report a problem
 //   Trips      transit bookings, boarding QR, the ID-check answer
 //   Reservations  stays and tables, with the check-in QR on the day
-//   Bills      invoices, unpaid first
+//   Bills      table tabs still open or ready to pay, then invoices,
+//              unpaid first
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -24,8 +26,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
+import 'package:azaman/models/marketplace_extensions_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
+import 'package:azaman/providers/marketplace_extensions_provider.dart';
+import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
@@ -52,6 +57,7 @@ enum HubTaskKind {
   checkIn,
   confirmOrder,
   payBill,
+  payTab,
 }
 
 /// One thing waiting on the customer. [route] opens it directly; without
@@ -105,6 +111,7 @@ List<HubTask> hubTasks({
   List<TransitBookingSummary> trips = const [],
   List<ReservationSummary> reservations = const [],
   List<BusinessInvoice> invoices = const [],
+  List<DineInTab> tabs = const [],
   required DateTime now,
 }) {
   final out = <HubTask>[];
@@ -175,6 +182,21 @@ List<HubTask> hubTasks({
         detail: '$store handed it over',
         tab: HubTab.orders,
         id: o['id']?.toString(),
+      ),
+    );
+  }
+  // A table bill the restaurant has ready (FINALIZED): the customer is at
+  // the table, so it comes before invoices.
+  for (final t in tabs.where((t) => t.status == 'FINALIZED')) {
+    out.add(
+      HubTask(
+        kind: HubTaskKind.payTab,
+        title: 'Pay ${t.money(t.grandTotal)}',
+        detail: '${t.businessName.isEmpty ? 'Your table' : t.businessName}'
+            '${t.tableLabel != null ? ' · table ${t.tableLabel}' : ''} · bill ready',
+        tab: HubTab.bills,
+        route: AzRoutes.dineInTab(t.id),
+        id: t.id,
       ),
     );
   }
@@ -261,6 +283,7 @@ class _OrdersBookingsHubScreenState
       trips: ref.watch(myTransitBookingsProvider).valueOrNull ?? const [],
       reservations: ref.watch(myReservationsProvider).valueOrNull ?? const [],
       invoices: ref.watch(myInvoicesProvider).invoices,
+      tabs: ref.watch(myDineInTabsProvider).valueOrNull ?? const [],
       now: widget.now ?? DateTime.now(),
     );
     return Scaffold(
@@ -339,6 +362,7 @@ class _NeedsYou extends StatelessWidget {
     HubTaskKind.checkIn => Icons.qr_code_scanner_rounded,
     HubTaskKind.confirmOrder => Icons.inventory_2_outlined,
     HubTaskKind.payBill => Icons.receipt_long_rounded,
+    HubTaskKind.payTab => Icons.restaurant_rounded,
   };
 
   @override
@@ -709,7 +733,15 @@ class MyBillsView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = ref.watch(themeProvider).colors;
     final state = ref.watch(myInvoicesProvider);
-    if (state.isLoading && state.invoices.isEmpty) {
+    // Ready to pay first, then the open ones, newest first within each.
+    final tabs = [...(ref.watch(myDineInTabsProvider).valueOrNull ?? const <DineInTab>[])]
+      ..sort((a, b) {
+        final ra = a.status == 'FINALIZED';
+        final rb = b.status == 'FINALIZED';
+        if (ra != rb) return ra ? -1 : 1;
+        return b.openedAt.compareTo(a.openedAt);
+      });
+    if (state.isLoading && state.invoices.isEmpty && tabs.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     final bills =
@@ -720,7 +752,7 @@ class MyBillsView extends ConsumerWidget {
             if (ua != ub) return ua ? -1 : 1;
             return b.createdAt.compareTo(a.createdAt);
           });
-    if (bills.isEmpty) {
+    if (bills.isEmpty && tabs.isEmpty) {
       return _HubMessage(
         colors: colors,
         icon: Icons.receipt_long_outlined,
@@ -729,10 +761,31 @@ class MyBillsView extends ConsumerWidget {
       );
     }
     return RefreshIndicator(
-      onRefresh: () => ref.read(myInvoicesProvider.notifier).load(),
+      onRefresh: () async {
+        ref.invalidate(myDineInTabsProvider);
+        await ref.read(myInvoicesProvider.notifier).load();
+      },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
+          if (tabs.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                'At the table',
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final t in tabs) ...[
+              _TableTabTile(tab: t, colors: colors),
+              const SizedBox(height: 10),
+            ],
+            if (bills.isNotEmpty) const SizedBox(height: 8),
+          ],
           for (final i in bills) ...[
             _BillTile(invoice: i, colors: colors),
             const SizedBox(height: 10),
@@ -744,6 +797,74 @@ class MyBillsView extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A table tab: the running total while eating, "Pay" once the bill is
+/// ready. Opens the tab itself (order more, see items, pay).
+class _TableTabTile extends StatelessWidget {
+  const _TableTabTile({required this.tab, required this.colors});
+  final DineInTab tab;
+  final AzamanColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = tab.status == 'FINALIZED';
+    final where = [
+      if (tab.businessName.isNotEmpty) tab.businessName,
+      if (tab.tableLabel != null) 'Table ${tab.tableLabel}',
+    ].join(' · ');
+    return Material(
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        key: ValueKey('hub-table-tab-${tab.id}'),
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => context.push(AzRoutes.dineInTab(tab.id)),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(
+                Icons.restaurant_rounded,
+                color: ready ? colors.accent : colors.textTertiary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      where.isEmpty ? 'Your table' : where,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      ready
+                          ? 'Bill ready · ${tab.items.length} item${tab.items.length == 1 ? '' : 's'}'
+                          : 'Open since ${_clock(tab.openedAt)} · ${tab.items.length} item${tab.items.length == 1 ? '' : 's'}',
+                      style: TextStyle(color: colors.textSecondary, fontSize: 12.5),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                ready ? 'Pay ${tab.money(tab.grandTotal)}' : tab.money(tab.grandTotal),
+                style: TextStyle(
+                  color: ready ? colors.accent : colors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
