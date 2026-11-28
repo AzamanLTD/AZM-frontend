@@ -257,11 +257,14 @@ void main() {
           ref: opRef,
           payWithWallet: true,
           secondFactor: const SecondFactor.password('s3cret-pw'),
+          expectedTotalUsdc: 0.603,
         );
         final req = wire.requests.single;
         final body = jsonDecode(req.body) as Map<String, dynamic>;
         expect(body['payWith'], 'WALLET');
         expect(body['password'], 's3cret-pw');
+        // The approved total travels at six decimals, as the backend compares.
+        expect(body['expectedTotalUsdc'], '0.603000');
         expect(req.headers['Idempotency-Key'], isNotEmpty);
         expect(result.paid, isTrue);
         expect(result.paidTotalUsdc, 0.603);
@@ -349,6 +352,7 @@ void main() {
           tripId: 't-1',
           seatIds: const ['1A'],
           secondFactor: const SecondFactor.password('pw'),
+          expectedTotalUsdc: 0.603,
         ),
         throwsA(isA<ApiException>()),
       );
@@ -372,6 +376,7 @@ void main() {
         tripId: 't-1',
         seatIds: const ['1A'],
         secondFactor: const SecondFactor.password('pw'),
+        expectedTotalUsdc: 0.603,
       );
       expect(n.state.errorCode, 'INSUFFICIENT_BALANCE');
       expect(n.state.result, isNull);

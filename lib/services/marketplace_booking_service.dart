@@ -224,6 +224,7 @@ class MarketplaceBookingService {
     FinancialOperationRef? ref,
     bool payWithWallet = false,
     SecondFactor? secondFactor,
+    double? expectedTotalUsdc,
   }) async {
     final endpoint = '/marketplace/transit/trips/$tripId/book';
     final body = <String, dynamic>{
@@ -232,6 +233,10 @@ class MarketplaceBookingService {
       'customerNote': customerNote,
       'businessProfileId': businessProfileId,
       if (payWithWallet) 'payWith': 'WALLET',
+      // The total the passenger approved (the quote). The backend refuses
+      // with PRICE_CHANGED instead of charging anything else.
+      if (payWithWallet && expectedTotalUsdc != null)
+        'expectedTotalUsdc': expectedTotalUsdc.toStringAsFixed(6),
       ...?secondFactor?.toWire(),
     };
 

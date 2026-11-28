@@ -88,7 +88,14 @@ class _FakeService extends MarketplaceBookingService {
   _FakeService(this.quote);
   TransitPaymentQuote quote;
   final payCalls =
-      <({List<String> seats, bool payWithWallet, SecondFactor? factor})>[];
+      <
+        ({
+          List<String> seats,
+          bool payWithWallet,
+          SecondFactor? factor,
+          double? expectedTotal,
+        })
+      >[];
   Object? payError;
   String payStatus = 'CONFIRMED';
 
@@ -109,11 +116,13 @@ class _FakeService extends MarketplaceBookingService {
     FinancialOperationRef? ref,
     bool payWithWallet = false,
     SecondFactor? secondFactor,
+    double? expectedTotalUsdc,
   }) async {
     payCalls.add((
       seats: seatIds,
       payWithWallet: payWithWallet,
       factor: secondFactor,
+      expectedTotal: expectedTotalUsdc,
     ));
     if (payError != null) throw payError!;
     return BookSeatResult(
@@ -231,6 +240,8 @@ void main() {
     expect(svc.payCalls.single.payWithWallet, isTrue);
     expect(svc.payCalls.single.factor?.toWire(), {'password': 'pw'});
     expect(svc.payCalls.single.seats, ['1A']);
+    // The total the passenger saw is the total they approved.
+    expect(svc.payCalls.single.expectedTotal, 0.603);
 
     expect(find.text('Booking confirmed'), findsOneWidget);
     expect(find.text('Paid from wallet'), findsOneWidget);
@@ -263,6 +274,26 @@ void main() {
     await _settle(tester);
     expect(
       find.text('Your wallet does not cover this yet. Nothing was charged.'),
+      findsOneWidget,
+    );
+    expect(find.text('Booking confirmed'), findsNothing);
+    await _unmount(tester);
+  });
+
+  testWidgets('a price change since the quote charges nothing and says so', (
+    tester,
+  ) async {
+    final svc = await _pump(tester);
+    svc.payError = ApiException(
+      message: 'The price changed.',
+      statusCode: 409,
+      code: 'PRICE_CHANGED',
+    );
+    await _pick(tester, '1A');
+    await tester.tap(find.text(r'Pay $0.603'));
+    await _settle(tester);
+    expect(
+      find.text('The price changed. Check the new total. Nothing was charged.'),
       findsOneWidget,
     );
     expect(find.text('Booking confirmed'), findsNothing);

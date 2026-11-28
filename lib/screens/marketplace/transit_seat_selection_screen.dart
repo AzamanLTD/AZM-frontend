@@ -134,9 +134,26 @@ class _TransitSeatSelectionScreenState
           );
           return;
         }
-        if (code != null && code.startsWith('KYC_')) {
+        if (code == 'PRICE_CHANGED') {
+          // The fare or the fee moved since the quote: nothing was charged.
+          // Show the new total and let the passenger approve it.
+          ref.invalidate(transitPaymentQuoteProvider);
+          message =
+              'The price changed. Check the new total. Nothing was charged.';
+        } else if (code != null && code.startsWith('KYC_')) {
           message =
               'Verify your identity to pay for seats. Nothing was charged.';
+        } else if (code != null &&
+            const {
+              'TRIP_UNAVAILABLE',
+              'TRIP_DEPARTED',
+              'SELF_PAYMENT',
+              'DUPLICATE_SEATS',
+              'PAYEE_UNAVAILABLE',
+            }.contains(code)) {
+          // A definitive refusal before anything was charged: the server's
+          // own words.
+          message = '$message Nothing was charged.';
         } else if (cls == TransitBookingFailureClass.ambiguousOrUnknown) {
           message =
               'We couldn\'t confirm your payment. Check your bookings first — '
@@ -424,6 +441,7 @@ class _TransitSeatSelectionScreenState
             seatIds: selected.toList(growable: false),
             passengerNames: names.any((name) => name.isNotEmpty) ? names : null,
             secondFactor: factor,
+            expectedTotalUsdc: quote.totalUsdc,
             operationType: _bookingActionId,
             ref: _bookingRef,
           ),

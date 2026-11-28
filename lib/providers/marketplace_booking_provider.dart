@@ -148,6 +148,7 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
     required String tripId,
     required List<String> seatIds,
     required SecondFactor secondFactor,
+    required double expectedTotalUsdc,
     List<String>? passengerNames,
     String? customerNote,
     String? businessProfileId,
@@ -166,6 +167,7 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
         ref: ref,
         payWithWallet: true,
         secondFactor: secondFactor,
+        expectedTotalUsdc: expectedTotalUsdc,
       );
       state = BookingActionState(result: result);
     } catch (e) {
