@@ -132,6 +132,9 @@ class HotelMarketplaceService {
     int partySize = 1,
     String? operationType,
     FinancialOperationRef? ref,
+    bool payWithWallet = false,
+    double? expectedTotalUsdc,
+    Map<String, String>? secondFactor,
   }) async {
     final endpoint = '/marketplace/business/$bizId/reservations';
     final body = <String, dynamic>{
@@ -139,7 +142,21 @@ class HotelMarketplaceService {
       'checkInDate': checkIn.toIso8601String(),
       'checkOutDate': checkOut.toIso8601String(),
       'partySize': partySize,
+      // Paid from the wallet, held until check-in: the approved total (the
+      // quote's price + fee) and the second factor go with it. The durable
+      // journal scrubs the factor (DurableOperationRegistry).
+      if (payWithWallet) ...{
+        'payWith': 'WALLET',
+        'expectedTotalUsdc': (expectedTotalUsdc ?? 0).toStringAsFixed(6),
+        ...?secondFactor,
+      },
     };
+    if (payWithWallet && operationType == null) {
+      throw ArgumentError(
+        'HotelMarketplaceService.reserve: paying requires the durable path '
+        '(operationType + ref) so the Idempotency-Key is sent.',
+      );
+    }
 
     if (operationType == null) {
       // Legacy unkeyed path: no durable lifecycle — plain transport.

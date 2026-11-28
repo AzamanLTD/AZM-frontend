@@ -23,6 +23,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/hotel_marketplace_service.dart';
 import 'package:azaman/widgets/marketplace/stay_date_ribbon.dart';
 import 'package:azaman/widgets/marketplace/stay_summary_bar.dart';
+import 'package:azaman/widgets/security/second_factor.dart';
 
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
 
@@ -45,7 +46,9 @@ HotelRoom _room(
 );
 
 class _Hotel extends HotelMarketplaceService {
-  _Hotel() : super();
+  _Hotel({this.payInApp = false, this.reserveError}) : super();
+  final bool payInApp;
+  final Object? reserveError;
   final quotes = <String>[];
   final reserved = <Map<String, Object?>>[];
 
@@ -70,6 +73,36 @@ class _Hotel extends HotelMarketplaceService {
   }) async {
     quotes.add('$guests');
     final nights = checkOut.difference(checkIn).inDays;
+    double fee(double t) => double.parse((t * 0.01).toStringAsFixed(6));
+    double pay(double t) => double.parse((t + fee(t)).toStringAsFixed(6));
+    if (payInApp) {
+      final t101 = 95.5 * nights;
+      final t102 = 130.0 * nights;
+      return StayQuote(
+        nights: nights,
+        guests: guests,
+        payAt: 'APP',
+        rooms: {
+          'room-101': RoomQuote(
+            roomId: 'room-101',
+            bookable: guests <= 2,
+            reason: guests <= 2 ? null : 'TOO_SMALL',
+            totalUsdc: t101,
+            capacity: 2,
+            feeUsdc: fee(t101),
+            payTotalUsdc: pay(t101),
+          ),
+          'room-102': RoomQuote(
+            roomId: 'room-102',
+            bookable: true,
+            totalUsdc: t102,
+            capacity: 4,
+            feeUsdc: fee(t102),
+            payTotalUsdc: pay(t102),
+          ),
+        },
+      );
+    }
     return StayQuote(
       nights: nights,
       guests: guests,
@@ -100,7 +133,25 @@ class _Hotel extends HotelMarketplaceService {
     int partySize = 1,
     String? operationType,
     FinancialOperationRef? ref,
+    bool payWithWallet = false,
+    double? expectedTotalUsdc,
+    Map<String, String>? secondFactor,
   }) async {
+    if (payWithWallet) {
+      reserved.add({
+        'roomId': roomId,
+        'partySize': partySize,
+        'expected': expectedTotalUsdc,
+        'factor': secondFactor,
+      });
+      if (reserveError != null) throw reserveError!;
+      return {
+        'id': 'res-1',
+        'reservationRef': 'RES-7Q2K',
+        'amountUsdc': '95.5',
+        'status': 'CONFIRMED',
+      };
+    }
     reserved.add({'roomId': roomId, 'partySize': partySize});
     return {
       'id': 'res-1',
@@ -309,5 +360,107 @@ void main() {
     await tester.tap(find.text('View in Orders & bookings'));
     await _frames(tester);
     expect(find.text('bookings reservations'), findsOneWidget);
+  });
+
+  group('paying for the stay', () {
+    Future<SecondFactor?> askCode({
+      required SecondFactorKind kind,
+      String? errorText,
+    }) async => const SecondFactor.authenticator('123456');
+
+    Future<void> pumpAndPick(WidgetTester tester, _Hotel svc) async {
+      await tester.binding.setSurfaceSize(const Size(430, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, _) =>
+                HotelBookingScreen(bizId: 'BIZ-H', secondFactorPrompt: askCode),
+          ),
+          GoRoute(
+            path: '/marketplace/booking/checkin-qr/:id',
+            builder: (_, s) =>
+                Scaffold(body: Text('check-in qr ${s.pathParameters['id']}')),
+          ),
+          GoRoute(
+            path: '/bookings',
+            builder: (_, _) => const Scaffold(body: Text('bookings')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [hotelMarketplaceServiceProvider.overrideWithValue(svc)],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await _frames(tester);
+      final day = DateTime.now().add(const Duration(days: 2));
+      await tester.tap(
+        find
+            .descendant(
+              of: find.byType(StayDateRibbon),
+              matching: find.text('${day.day}'),
+            )
+            .first,
+      );
+      await _frames(tester);
+      await tester.tap(find.text('101'));
+      await _frames(tester);
+      await tester.tap(find.text('Select this room'));
+      await _frames(tester);
+    }
+
+    testWidgets('price + fee, the second factor, then the QR is ready', (
+      tester,
+    ) async {
+      final svc = _Hotel(payInApp: true);
+      await pumpAndPick(tester, svc);
+      // 95.50 + 1% fee, exactly as charged.
+      expect(find.text('Pay \$96.455'), findsOneWidget);
+      expect(find.textContaining('Held until you check in'), findsOneWidget);
+
+      await tester.tap(find.text('Pay \$96.455'));
+      await _frames(tester, 30);
+      expect(svc.reserved.single, {
+        'roomId': 'room-101',
+        'partySize': 1,
+        'expected': 96.455,
+        'factor': {'totpToken': '123456'},
+      });
+      expect(find.text('STAY BOOKED'), findsOneWidget);
+      expect(find.text('Your stay is booked'), findsOneWidget);
+      expect(find.byKey(const ValueKey('stay-paid-note')), findsOneWidget);
+      expect(find.text('\$96.455 USDC · held until check-in'), findsOneWidget);
+
+      await tester.tap(find.text('Show check-in QR'));
+      await _frames(tester);
+      expect(find.text('check-in qr res-1'), findsOneWidget);
+    });
+
+    testWidgets('a short balance charges nothing and offers Add money', (
+      tester,
+    ) async {
+      final svc = _Hotel(
+        payInApp: true,
+        reserveError: ApiException(
+          message: 'Insufficient balance.',
+          statusCode: 402,
+          code: 'INSUFFICIENT_BALANCE',
+        ),
+      );
+      await pumpAndPick(tester, svc);
+      await tester.tap(find.text('Pay \$96.455'));
+      await _frames(tester, 20);
+      expect(
+        find.text(
+          'Not enough in your wallet for this stay. Nothing was charged.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Add money'), findsOneWidget);
+      expect(find.text('Your stay is booked'), findsNothing);
+    });
   });
 }

@@ -4,9 +4,13 @@
 // The order a guest decides in: when, how many, which room. The room picker
 // shows which rooms are free for those dates and that group (the server's
 // stay quote: taken, closed or too small rooms are greyed, with the reason),
-// and the total is the server's own per-night price. A stay booked here is a
-// REQUEST that the hotel confirms; it is paid at the hotel. The check-in QR
-// appears in Orders & bookings once the hotel confirms.
+// and the total is the server's own per-night price.
+//
+// Paying (the quote says payAt APP): "Pay $X" charges price + Azaman fee from
+// the wallet behind the second factor; the money is held until the guest
+// checks in with their QR, and the stay is confirmed at once (its QR is
+// ready). A server without in-app pay answers payAt HOTEL: the stay is then a
+// request the hotel confirms, paid at the hotel.
 // =============================================================================
 
 import 'package:flutter/material.dart';
@@ -18,8 +22,12 @@ import 'package:azaman/models/hotel_models.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/hotel_marketplace_service.dart'
     show HotelBookingFailureClass;
+import 'package:azaman/providers/auth_provider.dart';
 import 'package:azaman/providers/hotel_marketplace_provider.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
+import 'package:azaman/widgets/marketplace/store_order_pay.dart'
+    show storeUsdcLabel;
+import 'package:azaman/widgets/security/second_factor.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/theme/az_space.dart';
 import 'package:azaman/theme/az_text.dart';
@@ -43,7 +51,19 @@ double _reservationAmount(dynamic value) {
 
 class HotelBookingScreen extends ConsumerStatefulWidget {
   final String bizId;
-  const HotelBookingScreen({super.key, required this.bizId});
+
+  /// Replaces the second-factor sheet (tests).
+  final Future<SecondFactor?> Function({
+    required SecondFactorKind kind,
+    String? errorText,
+  })?
+  secondFactorPrompt;
+
+  const HotelBookingScreen({
+    super.key,
+    required this.bizId,
+    this.secondFactorPrompt,
+  });
 
   @override
   ConsumerState<HotelBookingScreen> createState() => _HotelBookingScreenState();
@@ -183,19 +203,46 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     if (room == null || _checkIn == null || _checkOut == null || _nights < 1) {
       return;
     }
+    final key = _quoteKey;
+    final quote = key == null
+        ? null
+        : ref.read(stayQuoteProvider(key)).valueOrNull;
+    final roomQuote = quote?.rooms[room.id];
+    final payTotal = roomQuote?.payTotalUsdc;
+    final paying = quote?.payInApp == true && payTotal != null;
+    final notifier = ref.read(hotelMarketplaceProvider.notifier);
+
+    Future<Map<String, dynamic>> reserve({Map<String, String>? factor}) =>
+        notifier.reserve(
+          bizId: widget.bizId,
+          roomId: room.id,
+          checkIn: _checkIn!,
+          checkOut: _checkOut!,
+          partySize: _guests,
+          operationType: _bookingOperationType,
+          ref: _bookingRef,
+          payWithWallet: paying,
+          expectedTotalUsdc: paying ? payTotal : null,
+          secondFactor: factor,
+        );
 
     try {
-      final reservation = await ref
-          .read(hotelMarketplaceProvider.notifier)
-          .reserve(
-            bizId: widget.bizId,
-            roomId: room.id,
-            checkIn: _checkIn!,
-            checkOut: _checkOut!,
-            partySize: _guests,
-            operationType: _bookingOperationType,
-            ref: _bookingRef,
-          );
+      Map<String, dynamic>? reservation;
+      if (paying) {
+        final label = 'Pay ${storeUsdcLabel(payTotal)}';
+        reservation = await withSecondFactor<Map<String, dynamic>>(
+          context,
+          initial: secondFactorKindFor(ref.read(authProvider).user),
+          title: label,
+          actionLabel: label,
+          detail: 'Held until you check in with your QR.',
+          ask: widget.secondFactorPrompt,
+          attempt: (f) => reserve(factor: f.toWire()),
+        );
+        if (reservation == null) return; // closed the second factor
+      } else {
+        reservation = await reserve();
+      }
       if (!mounted) return;
 
       final amount = _reservationAmount(reservation['amountUsdc']);
@@ -206,7 +253,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
       // The hub's Reservations tab lists it from now on.
       ref.invalidate(myReservationsProvider);
 
-      final viewBookings = await HotelArrivalSheet.show(
+      final choice = await HotelArrivalSheet.show(
         context,
         reservationRef:
             ((reservation['reservationRef'] ?? reservationId).toString())
@@ -218,47 +265,86 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
         totalUsdc: amount,
         hotelName: state.business?.businessName,
         guests: _guests,
+        paidUsdc: paying ? payTotal : null,
       );
-      // No jump to a check-in QR: it exists only once the hotel confirms.
-      if (viewBookings == true && mounted) {
+      if (!mounted) return;
+      if (choice == 'qr') {
+        // A paid stay is confirmed: its check-in QR exists now.
+        context.push('/marketplace/booking/checkin-qr/$reservationId');
+      } else if (choice == 'bookings') {
         context.push('/bookings?tab=reservations');
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      // Paying: a short balance offers a top-up; a changed price re-prices.
+      if (e is ApiException && e.code == 'INSUFFICIENT_BALANCE') {
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Not enough in your wallet for this stay. Nothing was charged.',
+            ),
+            action: SnackBarAction(
+              label: 'Add money',
+              onPressed: () => context.push('/deposit'),
+            ),
+          ),
+        );
+        return;
+      }
+      if (e is ApiException && e.code == 'PRICE_CHANGED' && key != null) {
+        ref.invalidate(stayQuoteProvider(key));
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text(
+              'The price changed. Check the new total, then pay. Nothing was charged.',
+            ),
+          ),
+        );
+        return;
+      }
+      if (e is ApiException &&
+          const {
+            'BOOKED',
+            'BLOCKED',
+            'ROOM_UNAVAILABLE',
+            'TOO_SMALL',
+          }.contains(e.code) &&
+          key != null) {
+        ref.invalidate(stayQuoteProvider(key));
+        messenger.showSnackBar(SnackBar(content: Text(e.message)));
+        return;
+      }
       // Economic failure presentation (deep-dive step 6, parity with the
       // transit taxonomy): an UNPROVEN outcome (transport loss, 5xx,
       // 408/425, malformed success) must NOT be asserted as a failed
       // reservation — the room MAY be booked. The durable ref stays armed,
       // so retrying the SAME room and dates reuses the same key and
       // converges (the backend replays the committed reservation exactly).
-      // 409 (key used for a materially different reservation) and
-      // 401/429 get their own guidance; a definitive pre-economic 4xx
-      // surfaces the backend's own message.
-      final state = ref.read(hotelMarketplaceProvider);
-      final cls = state.bookingFailureClass;
-      String message = (state.error ?? 'Unable to complete the booking.')
+      final failed = ref.read(hotelMarketplaceProvider);
+      final cls = failed.bookingFailureClass;
+      String message = (failed.error ?? 'Unable to complete the booking.')
           .replaceFirst('HotelMarketplaceException: ', '');
+      if (e is ApiException) message = e.message;
       if (cls == HotelBookingFailureClass.ambiguousOrUnknown) {
         message =
-            'We couldn\'t confirm your request. Check Orders & bookings first. '
-            'If it isn\'t there, requesting the same room and dates again '
-            'safely reuses your request.';
+            'We couldn\'t confirm your booking. Check Orders & bookings first. '
+            'If it isn\'t there, booking the same room and dates again '
+            'safely reuses your request (you are never charged twice).';
       } else if (cls == HotelBookingFailureClass.domainConflict) {
         message =
-            'This request conflicts with an earlier one. Check Orders & '
-            'bookings before requesting again.';
+            'This booking conflicts with an earlier one. Check Orders & '
+            'bookings before booking again.';
       } else if (cls == HotelBookingFailureClass.authenticationRequired) {
         message =
-            'Please sign in again, then request the same room and dates. Your '
+            'Please sign in again, then book the same room and dates. Your '
             'request will be safely reused.';
       } else if (cls == HotelBookingFailureClass.rateLimited) {
         message =
-            'Too many attempts. Wait a moment, then request the same room and '
+            'Too many attempts. Wait a moment, then book the same room and '
             'dates. Your request will be safely reused.';
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      messenger.showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -288,6 +374,7 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
     final roomQuote = selectedRoom == null
         ? null
         : quote?.rooms[selectedRoom.id];
+    final payInApp = quote?.payInApp == true;
     final unavailable = quoteAsync?.hasError == true
         ? 'Could not price these dates'
         : (roomQuote != null && !roomQuote.bookable
@@ -316,10 +403,18 @@ class _HotelBookingScreenState extends ConsumerState<HotelBookingScreen> {
         isBooking: state.isBooking,
         onReserve: _confirmBooking,
         colors: colors,
-        quotedTotalUsdc: roomQuote?.totalUsdc,
+        quotedTotalUsdc: payInApp
+            ? (roomQuote?.payTotalUsdc ?? roomQuote?.totalUsdc)
+            : roomQuote?.totalUsdc,
         pricing: pricing,
         unavailableReason: unavailable,
-        note: 'The hotel confirms · pay at the hotel',
+        ctaLabel: payInApp && roomQuote?.payTotalUsdc != null
+            ? 'Pay ${storeUsdcLabel(roomQuote!.payTotalUsdc!)}'
+            : 'Request stay',
+        note: payInApp
+            ? 'Held until you check in'
+                  '${roomQuote?.feeUsdc != null ? ' · fee ${storeUsdcLabel(roomQuote!.feeUsdc!)}' : ''}'
+            : 'The hotel confirms · pay at the hotel',
       ),
       body: CustomScrollView(
         slivers: [

@@ -124,12 +124,19 @@ class RoomQuote {
   final double totalUsdc;
   final int capacity;
 
+  /// Paying in the app: the Azaman fee, and price + fee (what the guest
+  /// approves and is charged, held until check-in).
+  final double? feeUsdc;
+  final double? payTotalUsdc;
+
   const RoomQuote({
     required this.roomId,
     required this.bookable,
     required this.totalUsdc,
     this.reason,
     this.capacity = 1,
+    this.feeUsdc,
+    this.payTotalUsdc,
   });
 
   /// Why the room is greyed out, in a few words.
@@ -148,6 +155,12 @@ class RoomQuote {
     reason: json['reason']?.toString(),
     totalUsdc: double.tryParse('${json['totalUsdc'] ?? 0}') ?? 0,
     capacity: int.tryParse('${json['capacity'] ?? 1}') ?? 1,
+    feeUsdc: json['feeUsdc'] == null
+        ? null
+        : double.tryParse('${json['feeUsdc']}'),
+    payTotalUsdc: json['payTotalUsdc'] == null
+        ? null
+        : double.tryParse('${json['payTotalUsdc']}'),
   );
 }
 
@@ -169,6 +182,9 @@ class StayQuote {
   });
 
   bool get payAtHotel => payAt.toUpperCase() == 'HOTEL';
+
+  /// Paid in the app from the wallet, held until the guest checks in.
+  bool get payInApp => payAt.toUpperCase() == 'APP';
 
   factory StayQuote.fromJson(Map<String, dynamic> json) {
     final list = (json['rooms'] as List? ?? const []).whereType<Map>().map(

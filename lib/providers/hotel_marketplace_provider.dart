@@ -74,6 +74,9 @@ class HotelMarketplaceNotifier extends StateNotifier<HotelMarketplaceState> {
     int partySize = 1,
     String? operationType,
     FinancialOperationRef? ref,
+    bool payWithWallet = false,
+    double? expectedTotalUsdc,
+    Map<String, String>? secondFactor,
   }) async {
     state = state.copyWith(isBooking: true, clearError: true);
     try {
@@ -85,6 +88,9 @@ class HotelMarketplaceNotifier extends StateNotifier<HotelMarketplaceState> {
         partySize: partySize,
         operationType: operationType,
         ref: ref,
+        payWithWallet: payWithWallet,
+        expectedTotalUsdc: expectedTotalUsdc,
+        secondFactor: secondFactor,
       );
       state = state.copyWith(isBooking: false);
       return reservation;

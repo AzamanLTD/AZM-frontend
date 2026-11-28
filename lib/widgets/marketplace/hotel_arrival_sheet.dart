@@ -45,9 +45,16 @@ class HotelArrivalSheet extends ConsumerStatefulWidget {
   final String? hotelName;
   final int guests;
 
+  /// Paid in the app (price + fee), held until check-in. Null: a request
+  /// the hotel confirms, paid at the hotel.
+  final double? paidUsdc;
+
   /// Opens Orders & bookings on Reservations (where the check-in QR appears
   /// once the hotel confirms).
   final VoidCallback? onViewBookings;
+
+  /// A paid stay is confirmed at once: its check-in QR is ready.
+  final VoidCallback? onShowQr;
 
   const HotelArrivalSheet({
     super.key,
@@ -58,12 +65,14 @@ class HotelArrivalSheet extends ConsumerStatefulWidget {
     required this.totalUsdc,
     this.hotelName,
     this.guests = 1,
+    this.paidUsdc,
     this.onViewBookings,
+    this.onShowQr,
   });
 
-  /// Convenience method to show the sheet. Resolves true when the guest
-  /// chose to view their bookings.
-  static Future<bool?> show(
+  /// Convenience method to show the sheet. Resolves 'bookings' or 'qr' for
+  /// the guest's choice, null when closed.
+  static Future<String?> show(
     BuildContext context, {
     required String reservationRef,
     required HotelRoom room,
@@ -72,8 +81,9 @@ class HotelArrivalSheet extends ConsumerStatefulWidget {
     required double totalUsdc,
     String? hotelName,
     int guests = 1,
+    double? paidUsdc,
   }) {
-    return showModalBottomSheet<bool>(
+    return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -85,7 +95,9 @@ class HotelArrivalSheet extends ConsumerStatefulWidget {
         totalUsdc: totalUsdc,
         hotelName: hotelName,
         guests: guests,
-        onViewBookings: () => Navigator.of(ctx).pop(true),
+        paidUsdc: paidUsdc,
+        onViewBookings: () => Navigator.of(ctx).pop('bookings'),
+        onShowQr: paidUsdc == null ? null : () => Navigator.of(ctx).pop('qr'),
       ),
     );
   }
@@ -155,6 +167,21 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
     super.dispose();
   }
 
+  bool get paid => widget.paidUsdc != null;
+
+  /// Exactly as charged: 2 to 6 decimals.
+  static String _usdc(double v) {
+    var s = v.toStringAsFixed(6).replaceFirst(RegExp(r'0+$'), '');
+    if (s.endsWith('.')) s = s.substring(0, s.length - 1);
+    final dot = s.indexOf('.');
+    if (dot < 0) {
+      s = '$s.00';
+    } else if (s.length - dot - 1 == 1) {
+      s = '${s}0';
+    }
+    return '\$$s';
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
@@ -173,20 +200,24 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
               _doorStage(colors),
               const SizedBox(height: AzSpace.xl),
               Text(
-                'REQUEST SENT',
+                paid ? 'STAY BOOKED' : 'REQUEST SENT',
                 style: AzText.eyebrow.copyWith(color: colors.textTertiary),
               ),
               const SizedBox(height: AzSpace.xs),
               Text(
-                'Your stay is requested',
+                paid ? 'Your stay is booked' : 'Your stay is requested',
                 textAlign: TextAlign.center,
                 style: AzText.titleXl.copyWith(color: colors.textPrimary),
               ),
               const SizedBox(height: AzSpace.xs),
               Text(
-                '${widget.hotelName ?? 'The hotel'} confirms your request. '
-                'Your check-in QR appears in Orders & bookings once they do.',
-                key: const ValueKey('stay-request-note'),
+                paid
+                    ? 'Paid from your wallet and held until you check in. '
+                          'Show your check-in QR at the front desk; '
+                          '${widget.hotelName ?? 'the hotel'} is paid then.'
+                    : '${widget.hotelName ?? 'The hotel'} confirms your request. '
+                          'Your check-in QR appears in Orders & bookings once they do.',
+                key: ValueKey(paid ? 'stay-paid-note' : 'stay-request-note'),
                 textAlign: TextAlign.center,
                 style: AzText.bodyS.copyWith(color: colors.textSecondary),
               ),
@@ -217,8 +248,10 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
               _row(
                 colors,
                 Icons.payments_rounded,
-                'Total',
-                '\$${widget.totalUsdc.toStringAsFixed(2)} USDC · pay at the hotel',
+                paid ? 'Paid' : 'Total',
+                paid
+                    ? '${_usdc(widget.paidUsdc!)} USDC · held until check-in'
+                    : '\$${widget.totalUsdc.toStringAsFixed(2)} USDC · pay at the hotel',
               ),
               _row(
                 colors,
@@ -239,15 +272,24 @@ class _HotelArrivalSheetState extends ConsumerState<HotelArrivalSheet>
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed:
-                      widget.onViewBookings ?? () => Navigator.pop(context),
+                      widget.onShowQr ??
+                      widget.onViewBookings ??
+                      () => Navigator.pop(context),
                   child: Text(
-                    widget.onViewBookings != null
+                    widget.onShowQr != null
+                        ? 'Show check-in QR'
+                        : widget.onViewBookings != null
                         ? 'View in Orders & bookings'
                         : 'Done',
                     style: AzText.button,
                   ),
                 ),
               ),
+              if (widget.onShowQr != null && widget.onViewBookings != null)
+                TextButton(
+                  onPressed: widget.onViewBookings,
+                  child: const Text('View in Orders & bookings'),
+                ),
               if (widget.onViewBookings != null)
                 TextButton(
                   onPressed: () => Navigator.pop(context),
