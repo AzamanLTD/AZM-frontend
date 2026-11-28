@@ -127,6 +127,50 @@ class MarketplaceBookingService {
     return CheckInResult.fromJson(body);
   }
 
+  /// Boards a transit passenger by their signed boarding code (the only
+  /// boarding that releases a paid fare to the operator at completion).
+  Future<CheckInResult> boardTransit(String token) async {
+    final res = await _client.post('/transit/boarding', {'token': token});
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw MarketplaceBookingException(body['message'] ?? 'Boarding failed');
+    }
+    final booking = body['booking'] as Map<String, dynamic>? ?? const {};
+    return CheckInResult(
+      success: true,
+      isTransit: true,
+      reservationRef: booking['bookingRef']?.toString() ?? '',
+      status: booking['status']?.toString() ?? 'IN_PROGRESS',
+      checkedInAt: DateTime.tryParse('${booking['checkedInAt'] ?? ''}'),
+    );
+  }
+
+  /// The passenger's own transit bookings, newest first.
+  Future<List<TransitBookingSummary>> myTransitBookings() async {
+    final res = await _client.get('/transit/bookings');
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((body['bookings'] as List?) ?? const [])
+        .whereType<Map>()
+        .map(
+          (b) => TransitBookingSummary.fromJson(Map<String, dynamic>.from(b)),
+        )
+        .toList(growable: false);
+  }
+
+  /// The signed boarding code for a booking (inside its boarding window).
+  Future<TransitBoardingCode> transitBoardingCode(String bookingId) async {
+    final res = await _client.get(
+      '/marketplace/transit/bookings/$bookingId/checkin-qr',
+    );
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw MarketplaceBookingException(
+        body['message']?.toString() ?? 'Boarding code unavailable',
+      );
+    }
+    return TransitBoardingCode.fromJson(body);
+  }
+
   /// Business searches by AZM-ID (manual fallback when scanner is down).
   Future<AzamanIdSearchResult> searchByAzamanId(String azamanId) async {
     final res = await _client.post('/marketplace/business/checkin', {

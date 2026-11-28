@@ -121,6 +121,8 @@ import 'package:azaman/screens/marketplace/checkin_qr_screen.dart';
 import 'package:azaman/screens/marketplace/business_checkin_screen.dart';
 import 'package:azaman/screens/marketplace/transit_trip_list_screen.dart';
 import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
+import 'package:azaman/screens/marketplace/my_transit_trips_screen.dart';
+import 'package:azaman/screens/marketplace/transit_boarding_qr_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/worker/worker_hub_screen.dart';
 import 'package:azaman/screens/worker/worker_shifts_screen.dart';
@@ -810,6 +812,19 @@ GoRouter _buildAppRouter() => GoRouter(
       name: AzRouteNames.businessTransitTrips,
       builder: (context, state) => TransitTripListScreen(
         businessProfileId: state.pathParameters['bizId'],
+      ),
+    ),
+    // The passenger's own bookings, and each one's boarding QR.
+    GoRoute(
+      path: '/marketplace/transit/my-trips',
+      name: AzRouteNames.myTransitTrips,
+      builder: (_, __) => const MyTransitTripsScreen(),
+    ),
+    GoRoute(
+      path: '/marketplace/transit/boarding/:bookingId',
+      name: AzRouteNames.transitBoardingQr,
+      builder: (context, state) => TransitBoardingQrScreen(
+        bookingId: state.pathParameters['bookingId']!,
       ),
     ),
     GoRoute(

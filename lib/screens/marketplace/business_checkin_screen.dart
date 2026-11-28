@@ -8,7 +8,6 @@
 // On successful check-in, shows a confirmation card with customer details.
 // =============================================================================
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -282,23 +281,13 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen>
     _isProcessing = true;
     final rawValue = barcode!.rawValue!;
 
-    // Parse the QR payload — it's a JSON string: {"token":"...","type":"AZAMAN_CHECKIN"}
-    // Or it could be a bare token string.
-    String token;
-    try {
-      if (rawValue.startsWith('{')) {
-        final payload = jsonDecode(rawValue) as Map<String, dynamic>;
-        token = payload['token'] as String? ?? rawValue;
-      } else {
-        token = rawValue;
-      }
-    } catch (_) {
-      token = rawValue;
-    }
-
+    // A hotel check-in code or a transit boarding pass: verifyScan reads
+    // which (checkin_scan.dart) and sends it to the endpoint that verifies
+    // it. Boarding a paid passenger by their code is what releases the fare
+    // to the operator when the trip completes.
     ref
         .read(checkInActionProvider.notifier)
-        .verifyToken(token)
+        .verifyScan(rawValue)
         .then((_) {
           _isProcessing = false;
         })
@@ -499,7 +488,7 @@ class _BusinessCheckInScreenState extends ConsumerState<BusinessCheckInScreen>
             const SizedBox(height: 24),
 
             Text(
-              'Checked In!',
+              result.isTransit ? 'Boarded' : 'Checked In!',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,

@@ -227,7 +227,7 @@ class BookingSuccessSheet extends ConsumerWidget {
                   onPressed: () {
                     AzamanHaptics.confirm();
                     Navigator.pop(context);
-                    context.go('/marketplace/transit');
+                    context.push('/marketplace/transit/my-trips');
                   },
                   child: const Text(
                     'View My Trips',

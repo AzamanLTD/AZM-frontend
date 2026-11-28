@@ -295,6 +295,9 @@ class CheckInToken {
 
 class CheckInResult {
   final bool success;
+
+  /// A transit passenger boarded (rather than a hotel guest checked in).
+  final bool isTransit;
   final String? customerAzamanId;
   final String? customerUsername;
   final String? customerProfilePictureUrl;
@@ -305,6 +308,7 @@ class CheckInResult {
 
   const CheckInResult({
     required this.success,
+    this.isTransit = false,
     this.customerAzamanId,
     this.customerUsername,
     this.customerProfilePictureUrl,
@@ -518,6 +522,86 @@ class BusinessStory {
       expiresAt: _toDate(json['expiresAt']),
       username: user?['username']?.toString(),
       userProfilePictureUrl: user?['profilePictureUrl']?.toString(),
+    );
+  }
+}
+
+// ── PASSENGER TRIPS ──────────────────────────────────────────────────────────
+
+/// One of the passenger's transit bookings, from GET /transit/bookings.
+class TransitBookingSummary {
+  final String id;
+  final String bookingRef;
+  final String status;
+  final String origin;
+  final String destination;
+  final DateTime? departureAt;
+  final double amountUsdc;
+  final double feeUsdc;
+  final String? operatorName;
+  final String? boardingMethod;
+
+  const TransitBookingSummary({
+    required this.id,
+    required this.bookingRef,
+    required this.status,
+    required this.origin,
+    required this.destination,
+    required this.amountUsdc,
+    this.feeUsdc = 0,
+    this.departureAt,
+    this.operatorName,
+    this.boardingMethod,
+  });
+
+  /// Paid and waiting to board: the boarding QR applies.
+  bool get canShowBoardingQr => status.toUpperCase() == 'CONFIRMED';
+
+  factory TransitBookingSummary.fromJson(Map<String, dynamic> json) {
+    final business = json['businessProfile'] as Map<String, dynamic>?;
+    final metadata = json['metadata'];
+    final boarding = metadata is Map ? metadata['boarding'] : null;
+    return TransitBookingSummary(
+      id: json['id']?.toString() ?? '',
+      bookingRef: json['bookingRef']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'PENDING',
+      origin: json['pickupAddress']?.toString() ?? '',
+      destination: json['dropoffAddress']?.toString() ?? '',
+      departureAt: json['scheduledAt'] != null
+          ? DateTime.tryParse(json['scheduledAt'].toString())
+          : null,
+      amountUsdc: _toDouble(json['amountUsdc']),
+      feeUsdc: _toDouble(json['feeUsdc']),
+      operatorName: business?['businessName']?.toString(),
+      boardingMethod: boarding is Map ? boarding['method']?.toString() : null,
+    );
+  }
+}
+
+/// The passenger's signed boarding code for one booking, from
+/// GET /marketplace/transit/bookings/:id/checkin-qr. Valid inside the
+/// boarding window (an hour either side of departure), each code for at
+/// most 30 minutes.
+class TransitBoardingCode {
+  final String qrPayload;
+  final DateTime? validFrom;
+  final DateTime? validUntil;
+  final DateTime? expiresAt;
+
+  const TransitBoardingCode({
+    required this.qrPayload,
+    this.validFrom,
+    this.validUntil,
+    this.expiresAt,
+  });
+
+  factory TransitBoardingCode.fromJson(Map<String, dynamic> json) {
+    DateTime? d(Object? v) => v == null ? null : DateTime.tryParse('$v');
+    return TransitBoardingCode(
+      qrPayload: json['qrPayload']?.toString() ?? '',
+      validFrom: d(json['validFrom']),
+      validUntil: d(json['validUntil']),
+      expiresAt: d(json['expiresAt']),
     );
   }
 }

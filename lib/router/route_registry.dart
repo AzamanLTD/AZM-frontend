@@ -91,6 +91,8 @@ abstract final class AzRouteNames {
   static const transitTrips = 'transit-trips';
   static const businessTransitTrips = 'business-transit-trips';
   static const transitSeatSelection = 'transit-seat-selection';
+  static const myTransitTrips = 'my-transit-trips';
+  static const transitBoardingQr = 'transit-boarding-qr';
   static const hotelBooking = 'hotel-booking';
   static const dineInTab = 'dine-in-tab';
   static const businessStories = 'business-stories';

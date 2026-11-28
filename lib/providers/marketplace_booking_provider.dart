@@ -11,6 +11,7 @@ import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/utils/checkin_scan.dart';
 import 'package:azaman/widgets/security/second_factor.dart';
 
 // ── TRIP LIST ────────────────────────────────────────────────────────────────
@@ -200,6 +201,20 @@ class BookingActionNotifier extends StateNotifier<BookingActionState> {
   void reset() => state = const BookingActionState();
 }
 
+/// The passenger's transit bookings (Your trips).
+final myTransitBookingsProvider =
+    FutureProvider.autoDispose<List<TransitBookingSummary>>(
+      (ref) => ref.watch(marketplaceBookingServiceProvider).myTransitBookings(),
+    );
+
+/// The signed boarding code for one booking.
+final transitBoardingCodeProvider = FutureProvider.autoDispose
+    .family<TransitBoardingCode, String>(
+      (ref, bookingId) => ref
+          .watch(marketplaceBookingServiceProvider)
+          .transitBoardingCode(bookingId),
+    );
+
 /// The wallet-pay quote for a selection: key is `tripId|1A,1B` (seats
 /// sorted, so the same selection in any order shares one quote).
 final transitPaymentQuoteProvider = FutureProvider.autoDispose
@@ -263,6 +278,26 @@ class CheckInActionNotifier extends StateNotifier<CheckInActionState> {
     } catch (e) {
       state = CheckInActionState(
         error: e.toString().replaceFirst('MarketplaceBookingException: ', ''),
+      );
+    }
+  }
+
+  /// Routes a scanned code: a transit boarding pass boards the passenger,
+  /// anything else is a hotel check-in token.
+  Future<void> verifyScan(String raw) async {
+    final scan = parseCheckInScan(raw);
+    if (scan.kind == CheckInScanKind.reservation) {
+      return verifyToken(scan.token);
+    }
+    state = const CheckInActionState(isLoading: true);
+    try {
+      final result = await _svc.boardTransit(scan.token);
+      state = CheckInActionState(result: result);
+    } catch (e) {
+      state = CheckInActionState(
+        error: e is ApiException
+            ? e.message
+            : e.toString().replaceFirst('MarketplaceBookingException: ', ''),
       );
     }
   }
