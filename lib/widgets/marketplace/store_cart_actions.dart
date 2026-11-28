@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/widgets/marketplace/product_options_sheet.dart';
 import 'package:azaman/providers/cart_provider.dart';
 import 'package:azaman/router/route_registry.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
@@ -36,16 +37,30 @@ Future<bool> addStoreProductToCart(
     );
     return false;
   }
+  // A product with options (size, add-ons) is configured first; the cart
+  // line carries the choice and its price, and checkout sends the choice
+  // (the server validates and prices it the same way).
+  var unitPrice = product.priceUsdc;
+  var variants = const <String, String>{};
+  if (product.hasOptions) {
+    final choice = await ProductOptionsSheet.show(context, product: product);
+    if (choice == null) return false;
+    unitPrice = choice.unitPrice;
+    variants = choice.variants;
+    quantity = choice.quantity;
+  }
+  if (!context.mounted) return false;
   final cart = ref.read(cartProvider.notifier);
   bool add() => cart.addItem(
     businessProfileId: business.id,
     businessName: business.businessName,
     productId: product.id,
     name: product.name,
-    unitPrice: product.priceUsdc,
+    unitPrice: unitPrice,
     imageUrl: product.imageUrls.isNotEmpty ? product.imageUrls.first : null,
     category: product.category,
     quantity: quantity,
+    variants: variants,
   );
 
   var added = add();

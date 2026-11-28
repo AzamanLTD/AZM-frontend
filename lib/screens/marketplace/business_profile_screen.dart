@@ -249,8 +249,12 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
           .get('/business/$bizId/menu');
       final body = jsonDecode(response.body);
       final sections = body['sections'] as List<dynamic>? ?? [];
+      // The backend sends `uncategorised` (getPublicMenu); the older key is
+      // read too. Reading only the old one hid every product not in a section.
       final uncategorised =
-          body['uncategorisedProducts'] as List<dynamic>? ?? [];
+          (body['uncategorised'] ?? body['uncategorisedProducts'])
+              as List<dynamic>? ??
+          [];
       if (!mounted) return;
       setState(() {
         _menuSections = sections

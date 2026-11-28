@@ -17,6 +17,7 @@
 // =============================================================================
 
 import 'package:flutter/material.dart';
+import 'package:azaman/models/product_options.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared parse helpers
@@ -759,6 +760,10 @@ class BusinessProduct {
   final int totalOrders;
   final List<String> tags;
 
+  /// Variants (Size…) and add-ons; chosen before the product goes in the
+  /// cart (product_options.dart).
+  final List<ProductOptionGroup> optionGroups;
+
   const BusinessProduct({
     required this.id,
     required this.businessProfileId,
@@ -776,9 +781,12 @@ class BusinessProduct {
     this.locationId,
     this.deliveryTerms,
     this.estimatedDelivery,
+    this.optionGroups = const [],
   });
 
   String? get primaryImage => imageUrls.isNotEmpty ? imageUrls.first : null;
+
+  bool get hasOptions => optionGroups.isNotEmpty;
 
   factory BusinessProduct.fromJson(Map<String, dynamic> json) {
     return BusinessProduct(
@@ -802,6 +810,10 @@ class BusinessProduct {
       isActive: json['isActive'] != false,
       totalOrders: _toInt(json['totalOrders']),
       tags: _toStringList(json['tags']),
+      optionGroups: parseProductOptions(
+        json['variants'],
+        json['modifierGroups'],
+      ),
     );
   }
 }
