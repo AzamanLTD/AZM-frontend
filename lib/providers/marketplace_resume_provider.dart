@@ -40,7 +40,8 @@ final marketplaceResumeProvider = Provider<ResumeIntent?>((ref) {
           ? 'Finish your order'
           : 'Finish your order at $name',
       subtitle:
-          '$count item${count == 1 ? '' : 's'} · GH₵ ${cart.subtotal.toStringAsFixed(2)}',
+          // The cart is priced in USDC (cart_screen shows the same figure).
+          '$count item${count == 1 ? '' : 's'} · ${cart.subtotal.toStringAsFixed(2)} USDC',
       businessProfileId: cart.businessProfileId,
     );
   }

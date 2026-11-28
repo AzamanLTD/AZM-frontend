@@ -151,12 +151,46 @@ void main() {
       expect(a.route, '/savings');
     });
 
-    for (final action in ['OPEN_AD', 'OPEN_MARKETPLACE']) {
-      test('$action navigates to marketplace', () {
-        final a = NotificationActionDispatcher.resolve({'action': action});
-        expect(a.route, '/marketplace');
+    // OPEN_AD is a P2P ad: the crypto market. OPEN_MARKETPLACE is the
+    // stores marketplace (it used to open P2P too).
+    test('OPEN_AD navigates to the P2P market', () {
+      final a = NotificationActionDispatcher.resolve({'action': 'OPEN_AD'});
+      expect(a.route, '/marketplace');
+    });
+
+    test(
+      'OPEN_MARKETPLACE opens the stores marketplace, a store, or a category',
+      () {
+        expect(
+          NotificationActionDispatcher.resolve({
+            'action': 'OPEN_MARKETPLACE',
+          }).route,
+          '/business-market',
+        );
+        expect(
+          NotificationActionDispatcher.resolve({
+            'action': 'OPEN_MARKETPLACE',
+            'businessProfileId': 'bp-1',
+          }).route,
+          '/storefront/bp-1',
+        );
+        expect(
+          NotificationActionDispatcher.resolve({
+            'action': 'OPEN_MARKETPLACE',
+            'category': 'FOOD_BEVERAGE',
+          }).route,
+          '/business-market?category=FOOD_BEVERAGE',
+        );
+      },
+    );
+
+    test("VIEW_BUSINESS_ORDER opens the owner's business notifications", () {
+      final a = NotificationActionDispatcher.resolve({
+        'action': 'VIEW_BUSINESS_ORDER',
+        'route': '/business/orders',
       });
-    }
+      expect(a.route, '/business/notifications');
+    });
   });
 
   group('unknown actions', () {

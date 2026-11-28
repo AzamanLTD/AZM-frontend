@@ -20,7 +20,11 @@ import 'package:go_router/go_router.dart';
 import 'package:hugeicons_pro/hugeicons.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:azaman/screens/profile_screen.dart';
+import 'package:azaman/screens/qr_scanner_screen.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
+import 'package:azaman/widgets/nav_transitions.dart';
 
 // ── Search result model ──────────────────────────────────────────────────────
 
@@ -63,22 +67,43 @@ class _QuickAction {
   final String title;
   final String subtitle;
   final IconData icon;
-  final String route;
+
+  /// A registered route, or null when the page has no route and is opened
+  /// directly ([screen]).
+  final String? route;
+  final Widget Function()? screen;
   final List<String> keywords;
 
   _QuickAction({
     required this.title,
     required this.icon,
-    required this.route,
+    this.route,
+    this.screen,
     this.keywords = const [],
-  }) : subtitle = '';
+  }) : subtitle = '',
+       assert(route != null || screen != null);
+}
+
+/// Close search, then open the action. Popping first keeps the pop from
+/// landing on the page that was just opened.
+void _openQuickAction(BuildContext context, _QuickAction action) {
+  AzamanHaptics.nav();
+  final router = GoRouter.of(context);
+  final navigator = Navigator.of(context);
+  final screen = action.screen;
+  navigator.pop();
+  if (action.route != null) {
+    router.push(action.route!);
+  } else if (screen != null) {
+    pushWithVerticalTransition(navigator.context, screen());
+  }
 }
 
 final _quickActions = <_QuickAction>[
   _QuickAction(
     title: 'Send Money',
     icon: HugeIconsSolid.moneySend01,
-    route: '/deposit',
+    route: AzRoutes.send(),
     keywords: ['send', 'transfer', 'pay'],
   ),
   _QuickAction(
@@ -88,15 +113,15 @@ final _quickActions = <_QuickAction>[
     keywords: ['withdraw', 'cash out'],
   ),
   _QuickAction(
-    title: 'New Trade',
+    title: 'P2P trading',
     icon: HugeIconsSolid.exchange01,
-    route: '/trade/create',
+    route: '/marketplace',
     keywords: ['trade', 'exchange', 'buy', 'sell', 'crypto'],
   ),
   _QuickAction(
     title: 'Marketplace',
     icon: HugeIconsSolid.store01,
-    route: '/marketplace',
+    route: AzRoutes.businessMarketHome,
     keywords: ['market', 'shop', 'business', 'store'],
   ),
   _QuickAction(
@@ -126,7 +151,7 @@ final _quickActions = <_QuickAction>[
   _QuickAction(
     title: 'Profile',
     icon: HugeIconsSolid.userCircle,
-    route: '/profile',
+    screen: () => const ProfileScreen(),
     keywords: ['profile', 'settings', 'account'],
   ),
   _QuickAction(
@@ -138,7 +163,7 @@ final _quickActions = <_QuickAction>[
   _QuickAction(
     title: 'QR Scanner',
     icon: HugeIconsSolid.qrCode01,
-    route: '/qr-scanner',
+    screen: () => const QrScannerScreen(),
     keywords: ['qr', 'scan', 'code'],
   ),
   _QuickAction(
@@ -211,11 +236,7 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
             subtitle: action.subtitle,
             category: SearchCategory.pages,
             icon: action.icon,
-            onTap: () {
-              AzamanHaptics.nav();
-              context.push(action.route);
-              Navigator.of(context).pop();
-            },
+            onTap: () => _openQuickAction(context, action),
           ),
         );
       }
@@ -352,11 +373,7 @@ class _UniversalSearchScreenState extends ConsumerState<UniversalSearchScreen> {
           title: action.title,
           subtitle: action.subtitle,
           colors: colors,
-          onTap: () {
-            AzamanHaptics.nav();
-            context.push(action.route);
-            Navigator.of(context).pop();
-          },
+          onTap: () => _openQuickAction(context, action),
         ).animate().fadeIn(duration: 200.ms).slideX(begin: 0.05, end: 0);
       },
     );

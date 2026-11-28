@@ -839,7 +839,11 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/business-market',
       name: AzRouteNames.businessMarketHome,
-      builder: (_, __) => const MarketplaceHomeScreen(),
+      // ?category=<wire> opens the marketplace on that category (home
+      // cards, notifications).
+      builder: (_, state) => MarketplaceHomeScreen(
+        initialCategory: state.uri.queryParameters['category'],
+      ),
     ),
     GoRoute(
       path: '/business-market/:bizId/hotel-booking',

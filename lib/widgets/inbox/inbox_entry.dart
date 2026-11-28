@@ -100,8 +100,17 @@ class InboxEntry {
         ? friendIdRaw
         : int.tryParse('$friendIdRaw');
 
-    final kind = latest?['kind']?.toString().toUpperCase();
-    final isMe = latest?['isMe'] == true;
+    // The backend sends messageType and isFromMe (REST and live updates);
+    // `kind`/`isMe` are the older names, still read.
+    final type = latest?['messageType']?.toString().toUpperCase();
+    final kind =
+        latest?['kind']?.toString().toUpperCase() ??
+        switch (type) {
+          'TRANSFER_SENT' || 'TRANSFER_COMPLETED' => 'TRANSFER',
+          'TRANSFER_REQUEST' => 'REQUEST',
+          _ => null,
+        };
+    final isMe = latest?['isMe'] == true || latest?['isFromMe'] == true;
     final signal = switch (kind) {
       'MONEY' ||
       'TRANSFER' => isMe ? InboxSignal.moneyOut : InboxSignal.moneyIn,

@@ -238,7 +238,7 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen>
                             ),
                           ),
                           Text(
-                            '${item.lineTotal.toStringAsFixed(2)} USDC',
+                            tab.money(item.lineTotal),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -293,7 +293,7 @@ class _DineInTabScreenState extends ConsumerState<DineInTabScreen>
                             ),
                           ),
                           Text(
-                            '${tab.grandTotal.toStringAsFixed(2)} USDC',
+                            tab.money(tab.grandTotal),
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,

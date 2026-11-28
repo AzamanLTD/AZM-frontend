@@ -89,13 +89,16 @@ class _SecuritySettingsScreenState
   void initState() {
     super.initState();
     _loadPendingOperations();
-    // Fetch current 2FA status from user profile
-    // Note: If the User model adds isTwoFactorEnabled in the future,
-    // uncomment the line below. For now we default to false.
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   final user = ref.read(authProvider).user;
-    //   if (user != null) setState(() => _twoFactorEnabled = user.isTwoFactorEnabled);
-    // });
+    // The account's own 2FA flag, until the server's unlock capabilities
+    // answer (_loadUnlockCapabilities). Before, this started "off" for
+    // everyone, so an account with an authenticator was offered to set one up.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final user = ref.read(authProvider).user;
+      if (user?.isTwoFactorEnabled == true && !_twoFactorEnabled) {
+        setState(() => _twoFactorEnabled = true);
+      }
+    });
     _loadBiometricState();
     _loadSessions();
     _loadUnlockCapabilities();

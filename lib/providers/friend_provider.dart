@@ -113,8 +113,15 @@ class FriendProvider with ChangeNotifier {
 
   void _handleFriendMessage(dynamic data) {
     if (data is Map<String, dynamic>) {
-      // Update unread count
-      unreadMessageCount++;
+      // The sender is in the chat room too, so their own message arrives
+      // here: it is never unread for them.
+      final senderId = data['senderId']?.toString();
+      final fromMe = senderId != null && senderId == _userId?.toString();
+      if (!fromMe) unreadMessageCount++;
+      // The same preview the REST list sends: a money or media message reads
+      // as its type ("[TRANSFER SENT]"), and keeps its type for the signal.
+      final messageType = data['messageType']?.toString();
+      final isText = messageType == null || messageType == 'TEXT';
 
       // Update the friend's last message preview in the list
       final friendshipId = data['friendshipId']?.toString();
@@ -130,9 +137,12 @@ class FriendProvider with ChangeNotifier {
           // the legacy flat fields for any older code path that still
           // reads them.
           final newLatest = {
-            'content': data['content'] ?? data['message'] ?? '',
+            'content': isText
+                ? (data['content'] ?? data['message'] ?? '')
+                : '[${messageType.replaceAll('_', ' ')}]',
             'createdAt': data['createdAt'] ?? DateTime.now().toIso8601String(),
-            'isFromMe': false,
+            'isFromMe': fromMe,
+            'messageType': ?messageType,
           };
           final unreadInt = friends[idx]['unreadCount'] is int
               ? friends[idx]['unreadCount'] as int
@@ -142,7 +152,7 @@ class FriendProvider with ChangeNotifier {
             'latestMessage': newLatest,
             'lastMessage': newLatest['content'],
             'lastMessageTime': newLatest['createdAt'],
-            'unreadCount': unreadInt + 1,
+            'unreadCount': fromMe ? unreadInt : unreadInt + 1,
           };
           // Re-sort by latest message time so the row jumps to the top.
           friends.sort((a, b) {

@@ -78,6 +78,10 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
   // Marketplace showcase slides (banner priority #1).
   List<Map<String, dynamic>> _showcaseSlides = const [];
 
+  /// The store's own loyalty program and the user's stamps on it; null when
+  /// the store has none (then no card is shown).
+  UserLoyaltyCard? _loyaltyCard;
+
   // Catalog data for the in-sheet product surface + the full catalog routes.
   List<CatalogSection> _menuSections = const [];
   List<BusinessProduct> _uncategorisedProducts = const [];
@@ -164,6 +168,7 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
       _loadMenu(business.bizId);
       _loadFollowState(business.id);
       _loadShowcase(business.id);
+      _loadLoyalty(business);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -185,6 +190,65 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  /// The store's active loyalty program, with the user's stamps if they
+  /// already have a card. Read-only: it never enrols the user (the card
+  /// endpoint creates one on view, so it is not used here).
+  Future<void> _loadLoyalty(BusinessProfile business) async {
+    try {
+      final client = ref.read(apiClientProvider);
+      final programsRes = await client.get(
+        '/loyalty/business/${business.id}/programs',
+      );
+      final programs =
+          (jsonDecode(programsRes.body)['data'] as List?)
+              ?.whereType<Map>()
+              .map(
+                (e) => BusinessLoyaltyProgram.fromJson(
+                  Map<String, dynamic>.from(e),
+                ),
+              )
+              .where((p) => p.isActive && p.stampsRequired > 0)
+              .toList() ??
+          const [];
+      if (programs.isEmpty) return;
+      final program = programs.first;
+      var stamps = 0;
+      try {
+        final cardsRes = await client.get('/loyalty/me/cards');
+        final cards =
+            (jsonDecode(cardsRes.body)['data'] as List?)?.whereType<Map>() ??
+            const [];
+        for (final c in cards) {
+          final programId =
+              (c['loyaltyProgramId'] ??
+                      (c['loyaltyProgram'] is Map
+                          ? c['loyaltyProgram']['id']
+                          : null))
+                  ?.toString();
+          if (programId == program.id) {
+            stamps = (c['stampsCollected'] as num?)?.toInt() ?? 0;
+            break;
+          }
+        }
+      } catch (_) {
+        /* no cards yet: 0 stamps */
+      }
+      if (!mounted) return;
+      setState(() {
+        _loyaltyCard = UserLoyaltyCard(
+          programId: program.id,
+          businessName: business.businessName,
+          type: program.type,
+          stampsCollected: stamps,
+          stampsRequired: program.stampsRequired,
+          rewardDescription: program.rewardDescription,
+        );
+      });
+    } catch (_) {
+      // No program, or it could not load: show no card rather than a guess.
+    }
   }
 
   Future<void> _loadShowcase(String businessId) async {
@@ -792,23 +856,17 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
   }
 
   Widget _loyaltySection(BusinessProfile business, AzamanColors colors) {
-    // Sample loyalty card — in production, this would be fetched from the API
-    final card = UserLoyaltyCard(
-      programId: business.bizId,
-      businessName: business.businessName,
-      type: LoyaltyType.stampCard,
-      stampsCollected: 7,
-      stampsRequired: 10,
-      rewardDescription: 'Free coffee',
-    );
+    // The store's real program and the user's real stamps (_loadLoyalty);
+    // nothing when the store has no program. (Every store used to show the
+    // same made-up "7/10 Free coffee" card.)
+    final card = _loyaltyCard;
+    if (card == null) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: LoyaltyStampCard(
         card: card,
-        onTap: () {
-          // Future: open loyalty history screen
-        },
+        onTap: () => context.push('/loyalty-cards'),
       ),
     );
   }

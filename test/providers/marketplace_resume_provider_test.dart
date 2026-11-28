@@ -50,7 +50,9 @@ void main() {
     final r = c.read(marketplaceResumeProvider)!;
     expect(r.kind, ResumeKind.cart);
     expect(r.title, 'Finish your order at Auntie Muni');
-    expect(r.subtitle, '3 items · GH₵ 55.00');
+    // The cart is priced in USDC (the cart screen shows the same figure);
+    // the card used to label it GH₵.
+    expect(r.subtitle, '3 items · 55.00 USDC');
     expect(r.businessProfileId, 'bp-1');
   });
 

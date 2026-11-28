@@ -269,6 +269,12 @@ abstract final class AzRoutes {
 
   // ── Business marketplace ─────────────────────────────────────────────────
   static const businessMarketHome = '/business-market';
+
+  /// The stores marketplace, optionally on one category (its wire value).
+  static String businessMarket({String? category}) =>
+      category == null || category.isEmpty
+      ? businessMarketHome
+      : '$businessMarketHome?category=${Uri.encodeQueryComponent(category)}';
   static const businessMarketMix = '/business-market/mix';
   static const businessMarketDashboard = '/business-market/dashboard';
   static const businessMarketOrders = '/business-market/orders';

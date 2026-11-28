@@ -126,9 +126,28 @@ abstract final class NotificationActionDispatcher {
         return const NotificationAction.navigable('/savings');
 
       // ── Marketplace ───────────────────────────────────────────────────
+      // OPEN_AD is a P2P ad (the crypto market). OPEN_MARKETPLACE is the
+      // stores marketplace: the store itself when the payload names it,
+      // else the marketplace (on its category when given) — never P2P.
       case 'OPEN_AD':
-      case 'OPEN_MARKETPLACE':
         return const NotificationAction.navigable('/marketplace');
+      case 'OPEN_MARKETPLACE':
+        final storeId = payload['businessProfileId']?.toString();
+        if (storeId != null && storeId.isNotEmpty) {
+          return NotificationAction.navigable('/storefront/$storeId');
+        }
+        final category = payload['category']?.toString();
+        return NotificationAction.navigable(
+          category == null || category.isEmpty
+              ? '/business-market'
+              : '/business-market?category=${Uri.encodeQueryComponent(category)}',
+        );
+
+      // A new order for the owner's store: their business notifications
+      // (the app has no owner order inbox yet). Older servers sent
+      // route '/business/orders', which matched /business/:bizId.
+      case 'VIEW_BUSINESS_ORDER':
+        return const NotificationAction.navigable('/business/notifications');
 
       // ── Susu deep-link actions (restored 2026-10-25, review 4.2) ────────
       // Established behaviour (handleNotificationTap, Phase 4 susu sprint):

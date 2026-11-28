@@ -93,6 +93,18 @@ class DineInTab {
   final String? locationId;
   final List<DineInTabItem> items;
 
+  /// 'GHS' for a cedi tab (its amounts are the *Ghs columns), 'USDC' for an
+  /// older untagged tab (the *Usdc columns) — the backend's currency
+  /// contract: the two sets never mix.
+  final String currency;
+
+  bool get isGhs => currency == 'GHS';
+
+  /// An amount of this tab, in its own currency.
+  String money(double amount) => isGhs
+      ? 'GH₵ ${amount.toStringAsFixed(2)}'
+      : '${amount.toStringAsFixed(2)} USDC';
+
   DineInTab({
     required this.id,
     required this.status,
@@ -110,9 +122,12 @@ class DineInTab {
     this.tableLabel,
     this.locationId,
     required this.items,
+    this.currency = 'USDC',
   });
 
   factory DineInTab.fromJson(Map<String, dynamic> json) {
+    final ghs = '${json['currency'] ?? ''}'.toUpperCase() == 'GHS';
+    String col(String name) => ghs ? '${name}Ghs' : '${name}Usdc';
     final business = json['businessProfile'] is Map
         ? Map<String, dynamic>.from(json['businessProfile'] as Map)
         : const <String, dynamic>{};
@@ -123,10 +138,11 @@ class DineInTab {
       id: json['id'],
       status: json['status'] ?? 'OPEN',
       openedAt: DateTime.parse(json['openedAt']),
-      subtotal: _decimalToDouble(json['subtotalUsdc']),
-      taxTotal: _decimalToDouble(json['taxTotalUsdc']),
-      tip: _decimalToDouble(json['tipUsdc']),
-      grandTotal: _decimalToDouble(json['grandTotalUsdc']),
+      subtotal: _decimalToDouble(json[col('subtotal')]),
+      taxTotal: _decimalToDouble(json[col('taxTotal')]),
+      tip: _decimalToDouble(json[col('tip')]),
+      grandTotal: _decimalToDouble(json[col('grandTotal')]),
+      currency: ghs ? 'GHS' : 'USDC',
       invoiceRef: json['invoice']?['invoiceRef'],
       businessName: business['businessName'] ?? '',
       businessProfileId: business['id']?.toString(),
@@ -138,7 +154,12 @@ class DineInTab {
       items:
           (json['items'] as List?)
               ?.whereType<Map>()
-              .map((e) => DineInTabItem.fromJson(Map<String, dynamic>.from(e)))
+              .map(
+                (e) => DineInTabItem.fromJson(
+                  Map<String, dynamic>.from(e),
+                  ghs: ghs,
+                ),
+              )
               .toList() ??
           const [],
     );
@@ -162,12 +183,16 @@ class DineInTabItem {
     required this.addedAt,
   });
 
-  factory DineInTabItem.fromJson(Map<String, dynamic> json) => DineInTabItem(
+  /// [ghs]: the tab is a cedi tab, so the line reads its *Ghs columns.
+  factory DineInTabItem.fromJson(
+    Map<String, dynamic> json, {
+    bool ghs = false,
+  }) => DineInTabItem(
     id: json['id'],
     name: json['name'] ?? '',
-    unitPrice: _decimalToDouble(json['unitPriceUsdc']),
+    unitPrice: _decimalToDouble(json[ghs ? 'unitPriceGhs' : 'unitPriceUsdc']),
     quantity: _jsonInt(json['quantity'], fallback: 1),
-    lineTotal: _decimalToDouble(json['lineTotalUsdc']),
+    lineTotal: _decimalToDouble(json[ghs ? 'lineTotalGhs' : 'lineTotalUsdc']),
     addedAt: DateTime.parse(json['addedAt']),
   );
 }

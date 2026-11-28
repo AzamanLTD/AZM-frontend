@@ -147,8 +147,12 @@ List<HomeReminderCardData> homeReminderCards(
         title: intent.title,
         subtitle: intent.subtitle,
         icon: isCart ? HugeIconsSolid.shoppingCart01 : HugeIconsSolid.store01,
+        // The stores marketplace (on the category they were browsing), never
+        // the P2P crypto market (AzRoutes.marketplace).
         onTap: () => context.push(
-          intent.kind == ResumeKind.cart ? AzRoutes.cart : AzRoutes.marketplace,
+          intent.kind == ResumeKind.cart
+              ? AzRoutes.cart
+              : AzRoutes.businessMarket(category: intent.worldWire),
         ),
       ),
     );
@@ -217,7 +221,9 @@ List<HomeReminderCardData> _demoReminderCards(BuildContext context) => [
     title: "Chef Abby's",
     subtitle: 'Restaurants in the Marketplace',
     icon: HugeIconsSolid.store01,
-    onTap: () => context.push(AzRoutes.marketplace),
+    onTap: () => context.push(
+      AzRoutes.storefront('restaurant-001', name: "Chef Abby's"),
+    ),
   ),
   HomeReminderCardData(
     id: 'demo-store-coastline',
@@ -225,7 +231,9 @@ List<HomeReminderCardData> _demoReminderCards(BuildContext context) => [
     title: 'Coastline Suites',
     subtitle: 'Hotels in the Marketplace',
     icon: HugeIconsSolid.building01,
-    onTap: () => context.push(AzRoutes.marketplace),
+    onTap: () => context.push(
+      AzRoutes.storefront('hotel-002', name: 'Coastline Suites'),
+    ),
   ),
 ];
 
