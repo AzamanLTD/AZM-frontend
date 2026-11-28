@@ -314,6 +314,28 @@ class CheckInActionNotifier extends StateNotifier<CheckInActionState> {
     }
   }
 
+  /// Staff checked the passenger's ID: board them. The search stays on
+  /// screen if the server refuses, with its reason.
+  Future<void> boardByIdCheck(TransitPassengerBooking booking) async {
+    final search = state.searchResult;
+    final card = booking.passenger ?? search?.card;
+    state = CheckInActionState(isLoading: true, searchResult: search);
+    try {
+      final result = await _svc.boardByIdCheck(
+        booking.id,
+        card?.azamanId ?? search?.azamanId ?? '',
+      );
+      state = CheckInActionState(result: result.withPassenger(card));
+    } catch (e) {
+      state = CheckInActionState(
+        searchResult: search,
+        error: e is ApiException
+            ? e.message
+            : e.toString().replaceFirst('MarketplaceBookingException: ', ''),
+      );
+    }
+  }
+
   Future<void> directCheckIn(String reservationId) async {
     state = state.copyWith(isLoading: true, error: null);
     try {

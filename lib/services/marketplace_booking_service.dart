@@ -145,6 +145,87 @@ class MarketplaceBookingService {
     );
   }
 
+  /// Board a passenger after checking their ID, beside the QR.
+  /// [azamanId] is staff's confirmation that the person in front of them is
+  /// this booking's passenger; the server refuses a mismatch, a closed
+  /// boarding window, and a business that boards by QR only.
+  Future<CheckInResult> boardByIdCheck(
+    String bookingId,
+    String azamanId,
+  ) async {
+    final res = await _client.post('/transit/bookings/$bookingId/board-by-id', {
+      'azamanId': azamanId,
+    });
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw MarketplaceBookingException(
+        body['message']?.toString() ?? 'Boarding failed',
+      );
+    }
+    final booking = body['booking'] as Map<String, dynamic>? ?? const {};
+    return CheckInResult(
+      success: true,
+      isTransit: true,
+      boardedByIdCheck: true,
+      fareHeldHours: (body['payoutHoldHours'] as num?)?.toInt(),
+      reservationRef: booking['bookingRef']?.toString() ?? '',
+      status: booking['status']?.toString() ?? 'IN_PROGRESS',
+      checkedInAt: DateTime.tryParse('${booking['checkedInAt'] ?? ''}'),
+    );
+  }
+
+  /// The passenger confirms an ID-check boarding ("That was me").
+  Future<void> confirmIdCheckBoarding(String bookingId) async {
+    final res = await _client.post(
+      '/transit/bookings/$bookingId/boarding/confirm',
+      const {},
+    );
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw MarketplaceBookingException(
+        body['message']?.toString() ?? 'Could not confirm',
+      );
+    }
+  }
+
+  /// The passenger reports an ID-check boarding ("Not me"). The fare stays
+  /// held for dispute review. Returns true when it was already reported.
+  Future<bool> reportIdCheckBoarding(String bookingId, {String? reason}) async {
+    final res = await _client.post(
+      '/transit/bookings/$bookingId/boarding/report',
+      {if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim()},
+    );
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw MarketplaceBookingException(
+        body['message']?.toString() ?? 'Could not report',
+      );
+    }
+    return body['alreadyReported'] == true;
+  }
+
+  /// Whether this business lets staff board by ID check (false: QR only).
+  Future<bool> transitBoardingAllowsIdCheck() async {
+    final res = await _client.get('/transit/boarding-policy');
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final policy = body['policy'];
+    return !(policy is Map && policy['allowIdCheck'] == false);
+  }
+
+  Future<bool> setTransitBoardingAllowsIdCheck(bool allow) async {
+    final res = await _client.put('/transit/boarding-policy', {
+      'allowIdCheck': allow,
+    });
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (body['success'] != true) {
+      throw MarketplaceBookingException(
+        body['message']?.toString() ?? 'Could not save',
+      );
+    }
+    final policy = body['policy'];
+    return !(policy is Map && policy['allowIdCheck'] == false);
+  }
+
   /// The passenger's own transit bookings, newest first.
   Future<List<TransitBookingSummary>> myTransitBookings() async {
     final res = await _client.get('/transit/bookings');

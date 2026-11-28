@@ -306,6 +306,13 @@ class CheckInResult {
   final String status;
   final DateTime? checkedInAt;
 
+  /// Boarded by staff after an ID check (not by the passenger's QR).
+  final bool boardedByIdCheck;
+
+  /// Hours after departure an unconfirmed ID-check fare is held before it
+  /// is paid to the operator (the passenger's window to report it).
+  final int? fareHeldHours;
+
   const CheckInResult({
     required this.success,
     this.isTransit = false,
@@ -316,7 +323,27 @@ class CheckInResult {
     required this.reservationRef,
     required this.status,
     this.checkedInAt,
+    this.boardedByIdCheck = false,
+    this.fareHeldHours,
   });
+
+  /// The same result, naming the passenger staff just checked.
+  CheckInResult withPassenger(PassengerIdCard? p) => p == null
+      ? this
+      : CheckInResult(
+          success: success,
+          isTransit: isTransit,
+          customerAzamanId: p.azamanId.isEmpty ? customerAzamanId : p.azamanId,
+          customerUsername: p.shownName,
+          customerProfilePictureUrl:
+              p.profilePictureUrl ?? customerProfilePictureUrl,
+          businessName: businessName,
+          reservationRef: reservationRef,
+          status: status,
+          checkedInAt: checkedInAt,
+          boardedByIdCheck: boardedByIdCheck,
+          fareHeldHours: fareHeldHours,
+        );
 
   factory CheckInResult.fromJson(Map<String, dynamic> json) {
     final reservation = json['reservation'] as Map<String, dynamic>?;
@@ -348,17 +375,49 @@ class AzamanIdSearchResult {
   final String? profilePictureUrl;
   final List<SearchReservation> reservations;
 
+  /// The passenger's name as they show it, and the name on their ID (sent
+  /// only when they hold a booking with this business).
+  final String? displayName;
+  final String? legalName;
+  final bool idVerified;
+
+  /// Their upcoming trips with this business (boarding by ID check).
+  final List<TransitPassengerBooking> transitBookings;
+
+  /// False when the business boards by QR code only.
+  final bool allowIdCheck;
+
   const AzamanIdSearchResult({
     required this.customerId,
     required this.username,
     required this.azamanId,
     this.profilePictureUrl,
     required this.reservations,
+    this.displayName,
+    this.legalName,
+    this.idVerified = false,
+    this.transitBookings = const [],
+    this.allowIdCheck = true,
   });
+
+  String get shownName =>
+      (displayName?.trim().isNotEmpty ?? false) ? displayName! : username;
+
+  /// The passenger as staff check them, for a booking that carries none.
+  PassengerIdCard get card => PassengerIdCard(
+    azamanId: azamanId,
+    username: username,
+    displayName: displayName,
+    legalName: legalName,
+    profilePictureUrl: profilePictureUrl,
+    idVerified: idVerified,
+  );
 
   factory AzamanIdSearchResult.fromJson(Map<String, dynamic> json) {
     final customer = json['customer'] as Map<String, dynamic>? ?? {};
     final reservationsList = json['reservations'] as List? ?? [];
+    final trips = json['transitBookings'] as List? ?? const [];
+    final policy = json['boardingPolicy'];
     return AzamanIdSearchResult(
       customerId: customer['id']?.toString() ?? '',
       username: customer['username']?.toString() ?? 'Unknown',
@@ -367,6 +426,131 @@ class AzamanIdSearchResult {
       reservations: reservationsList
           .map((r) => SearchReservation.fromJson(r as Map<String, dynamic>))
           .toList(),
+      displayName: customer['displayName']?.toString(),
+      legalName: customer['legalName']?.toString(),
+      idVerified: customer['idVerified'] == true,
+      transitBookings: trips
+          .whereType<Map>()
+          .map(
+            (t) =>
+                TransitPassengerBooking.fromJson(Map<String, dynamic>.from(t)),
+          )
+          .toList(growable: false),
+      allowIdCheck: !(policy is Map && policy['allowIdCheck'] == false),
+    );
+  }
+}
+
+// ── ID-CHECK BOARDING (beside the passenger's QR) ────────────────────────────
+
+/// What staff check a passenger against: the account photo, AZM-ID and
+/// names. [legalName] is the name on their ID.
+class PassengerIdCard {
+  final String azamanId;
+  final String? username;
+  final String? displayName;
+  final String? legalName;
+  final String? profilePictureUrl;
+  final bool idVerified;
+
+  const PassengerIdCard({
+    required this.azamanId,
+    this.username,
+    this.displayName,
+    this.legalName,
+    this.profilePictureUrl,
+    this.idVerified = false,
+  });
+
+  String get shownName => (displayName?.trim().isNotEmpty ?? false)
+      ? displayName!
+      : ((username?.trim().isNotEmpty ?? false) ? username! : azamanId);
+
+  factory PassengerIdCard.fromJson(Map<String, dynamic> json) =>
+      PassengerIdCard(
+        azamanId: json['azamanId']?.toString() ?? '',
+        username: json['username']?.toString(),
+        displayName: json['displayName']?.toString(),
+        legalName: json['legalName']?.toString(),
+        profilePictureUrl: json['profilePictureUrl']?.toString(),
+        idVerified: json['idVerified'] == true,
+      );
+}
+
+/// One of a passenger's trips with this business, as staff see it when
+/// they look the passenger up by AZM-ID.
+class TransitPassengerBooking {
+  final String id;
+  final String bookingRef;
+  final String status;
+  final String origin;
+  final String destination;
+  final DateTime? departureAt;
+  final List<String> seatIds;
+  final double amountUsdc;
+
+  /// HELD, PAID_OUT, REPORTED, REFUNDED or UNPAID.
+  final String payment;
+  final PassengerIdCard? passenger;
+  final String? boardingMethod;
+  final DateTime? boardedAt;
+
+  /// Staff may board this passenger by ID check now (CONFIRMED, inside the
+  /// boarding window, and the business allows it).
+  final bool canBoardById;
+  final DateTime? boardingOpensAt;
+  final DateTime? boardingClosesAt;
+
+  const TransitPassengerBooking({
+    required this.id,
+    required this.bookingRef,
+    required this.status,
+    required this.origin,
+    required this.destination,
+    required this.amountUsdc,
+    this.departureAt,
+    this.seatIds = const [],
+    this.payment = 'UNPAID',
+    this.passenger,
+    this.boardingMethod,
+    this.boardedAt,
+    this.canBoardById = false,
+    this.boardingOpensAt,
+    this.boardingClosesAt,
+  });
+
+  bool get isPaid =>
+      payment == 'HELD' || payment == 'PAID_OUT' || payment == 'REPORTED';
+  bool get isWaiting => status.toUpperCase() == 'CONFIRMED';
+  bool get isOnBoard => status.toUpperCase() == 'IN_PROGRESS';
+
+  factory TransitPassengerBooking.fromJson(Map<String, dynamic> json) {
+    DateTime? d(Object? v) => v == null ? null : DateTime.tryParse('$v');
+    final seats = json['seats'] as List? ?? const [];
+    final passenger = json['passenger'];
+    final boarding = json['boarding'];
+    final window = json['boardingWindow'];
+    return TransitPassengerBooking(
+      id: json['id']?.toString() ?? '',
+      bookingRef: json['bookingRef']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'CONFIRMED',
+      origin: json['origin']?.toString() ?? '',
+      destination: json['destination']?.toString() ?? '',
+      departureAt: d(json['departureAt']),
+      seatIds: seats
+          .map((s) => s is Map ? s['seatId']?.toString() : null)
+          .whereType<String>()
+          .toList(growable: false),
+      amountUsdc: _toDouble(json['amountUsdc']),
+      payment: json['payment']?.toString() ?? 'UNPAID',
+      passenger: passenger is Map
+          ? PassengerIdCard.fromJson(Map<String, dynamic>.from(passenger))
+          : null,
+      boardingMethod: boarding is Map ? boarding['method']?.toString() : null,
+      boardedAt: boarding is Map ? d(boarding['at']) : null,
+      canBoardById: json['canBoardById'] == true,
+      boardingOpensAt: window is Map ? d(window['opensAt']) : null,
+      boardingClosesAt: window is Map ? d(window['closesAt']) : null,
     );
   }
 }
@@ -540,6 +724,13 @@ class TransitBookingSummary {
   final double feeUsdc;
   final String? operatorName;
   final String? boardingMethod;
+  final DateTime? boardedAt;
+
+  /// When the passenger confirmed an ID-check boarding ("That was me").
+  final DateTime? boardingConfirmedAt;
+
+  /// Where the fare is: HELD, PAID_OUT, REPORTED, REFUNDED or UNPAID.
+  final String? payment;
 
   const TransitBookingSummary({
     required this.id,
@@ -552,10 +743,25 @@ class TransitBookingSummary {
     this.departureAt,
     this.operatorName,
     this.boardingMethod,
+    this.boardedAt,
+    this.boardingConfirmedAt,
+    this.payment,
   });
 
   /// Paid and waiting to board: the boarding QR applies.
   bool get canShowBoardingQr => status.toUpperCase() == 'CONFIRMED';
+
+  bool get boardedByIdCheck => boardingMethod == 'ID_CHECK';
+
+  /// Staff boarded this passenger after an ID check, the fare is still held,
+  /// and the passenger has not said whether it was them.
+  bool get awaitsBoardingAnswer =>
+      boardedByIdCheck &&
+      boardingConfirmedAt == null &&
+      payment == 'HELD' &&
+      const {'IN_PROGRESS', 'COMPLETED'}.contains(status.toUpperCase());
+
+  bool get isReported => payment == 'REPORTED';
 
   factory TransitBookingSummary.fromJson(Map<String, dynamic> json) {
     final business = json['businessProfile'] as Map<String, dynamic>?;
@@ -574,6 +780,14 @@ class TransitBookingSummary {
       feeUsdc: _toDouble(json['feeUsdc']),
       operatorName: business?['businessName']?.toString(),
       boardingMethod: boarding is Map ? boarding['method']?.toString() : null,
+      boardedAt: boarding is Map && boarding['at'] != null
+          ? DateTime.tryParse('${boarding['at']}')
+          : null,
+      boardingConfirmedAt:
+          boarding is Map && boarding['passengerConfirmedAt'] != null
+          ? DateTime.tryParse('${boarding['passengerConfirmedAt']}')
+          : null,
+      payment: json['payment']?.toString(),
     );
   }
 }

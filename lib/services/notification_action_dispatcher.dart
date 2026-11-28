@@ -185,6 +185,12 @@ abstract final class NotificationActionDispatcher {
                     '?orderRef=${Uri.encodeQueryComponent(orderRef)}',
         );
 
+      // ── Transit: "You were boarded by ID check" → confirm or report it ──
+      case 'OPEN_TRANSIT_TRIPS':
+        return const NotificationAction.navigable(
+          '/marketplace/transit/my-trips',
+        );
+
       // ── KYC proof of residency (restored 4.2) ──────────────────────────
       case 'OPEN_PROOF_OF_RESIDENCY':
         return const NotificationAction.navigable('/proof-of-residency');
