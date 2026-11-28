@@ -80,5 +80,19 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!-- go_router receives universal links (azaman.me) and azaman:// links. -->
+		<key>FlutterDeepLinkingEnabled</key>
+		<true/>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleURLName</key>
+				<string>com.azaman.app</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>azaman</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>

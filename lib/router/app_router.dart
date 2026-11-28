@@ -33,6 +33,7 @@
 // =============================================================================
 
 import 'dart:io';
+import 'package:azaman/router/pending_deep_link.dart';
 import 'package:azaman/screens/story_camera_screen.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -182,6 +183,12 @@ GoRouter _buildAppRouter() => GoRouter(
       return azamanDeepLinkToLocation(state.uri);
     }
     final path = state.uri.path;
+    // A referral link has no page: hold its code for sign-up, then go to
+    // the start (splash / sign-in).
+    if (path.startsWith('/invite/')) {
+      PendingDeepLink.hold(state.uri);
+      return '/';
+    }
     // Public routes always pass
     if (path == '/' ||
         path == '/login' ||
@@ -206,6 +213,9 @@ GoRouter _buildAppRouter() => GoRouter(
           '[Router] auth redirect: "$path" → / '
           '(AuthGuard.isAuthenticated=false)',
         );
+        // A shared link opened while signed out: open it after sign-in
+        // (the shell takes it), instead of losing it.
+        PendingDeepLink.hold(state.uri);
         return '/';
       }
     } catch (e) {

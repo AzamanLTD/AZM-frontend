@@ -49,6 +49,7 @@ import 'package:azaman/screens/marketplace/business_reviews_section.dart';
 import 'package:azaman/providers/marketplace_search_provider.dart';
 import 'package:azaman/providers/server_bookmarks_provider.dart'
     show isBusinessSaved, toggleBusinessSaved;
+import 'package:azaman/router/pending_deep_link.dart';
 
 class BusinessProfileScreen extends ConsumerStatefulWidget {
   final String bizId;
@@ -393,7 +394,7 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
   }
 
   void _shareBusiness(BusinessProfile business) {
-    final shareUrl = 'https://azaman.app/business/${business.bizId}';
+    final shareUrl = '$kAzamanLinkBase/business/${business.bizId}';
     Share.share(
       'Check out ${business.businessName} on AZAMAN! $shareUrl',
       subject: '${business.businessName} on AZAMAN',

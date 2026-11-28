@@ -21,6 +21,8 @@
 // this file.
 // =============================================================================
 
+import 'package:azaman/router/pending_deep_link.dart';
+
 double _decimalToDouble(dynamic v) {
   if (v == null) return 0.0;
   if (v is num) return v.toDouble();
@@ -682,5 +684,5 @@ class SusuInviteRow {
 
   /// Public Invite_Link URL for LINK-channel invites (Req 6.6).
   String? get publicUrl =>
-      token == null ? null : 'https://azaman.app/susu/invite/$token';
+      token == null ? null : '$kAzamanLinkBase/susu/invite/$token';
 }

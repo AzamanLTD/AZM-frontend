@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
+import 'package:azaman/router/pending_deep_link.dart';
 
 class ReferralScreen extends ConsumerStatefulWidget {
   const ReferralScreen({super.key});
@@ -212,7 +213,7 @@ class _ReferralScreenState extends ConsumerState<ReferralScreen> {
                                   final shareText = hasCode
                                       ? "Join Azaman — Ghana's fastest P2P crypto app!\n"
                                             "Use my code: $referralCode\n"
-                                            "https://azaman.app/invite/$referralCode"
+                                            "$kAzamanLinkBase/invite/$referralCode"
                                       : "Join Azaman!";
                                   Share.share(shareText);
                                 }

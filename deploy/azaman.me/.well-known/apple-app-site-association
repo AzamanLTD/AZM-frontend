@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["APPLE_TEAM_ID.com.azaman.app"],
+        "components": [
+          { "/": "/business/*" },
+          { "/": "/storefront/*" },
+          { "/": "/susu/invite/*" },
+          { "/": "/invite/*" }
+        ]
+      }
+    ]
+  }
+}

@@ -52,13 +52,19 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="azaman"/>
             </intent-filter>
-            <!-- Deep links: https for azaman.app/storefront/{id} -->
+            <!-- App links on azaman.me (verified by https://azaman.me/.well-known/assetlinks.json):
+                 a business, a storefront, a Susu invite, a referral. azaman.app is not
+                 Azaman's domain, so links there could never verify. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="https" android:host="azaman.app" android:pathPrefix="/storefront/"/>
+                <data android:scheme="https" android:host="azaman.me" android:pathPrefix="/business/"/>
+                <data android:scheme="https" android:host="azaman.me" android:pathPrefix="/storefront/"/>
+                <data android:scheme="https" android:host="azaman.me" android:pathPrefix="/susu/invite/"/>
+                <data android:scheme="https" android:host="azaman.me" android:pathPrefix="/invite/"/>
             </intent-filter>
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="true"/>
         </activity>
         
         <meta-data

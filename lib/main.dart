@@ -6,6 +6,7 @@
 // =============================================================================
 
 import 'dart:async';
+import 'package:azaman/router/pending_deep_link.dart';
 import 'dart:convert';
 import 'dart:isolate';
 
@@ -595,6 +596,9 @@ class _MainWrapperState extends ConsumerState<MainWrapper>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initUnifiedSocket();
       _initPostFrameStartup();
+      // A shared link that arrived before sign-in (PendingDeepLink).
+      final held = PendingDeepLink.take();
+      if (held != null && mounted) appRouter.push(held);
     });
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:azaman/router/pending_deep_link.dart';
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -28,7 +29,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _influencerController = TextEditingController();
+  // Pre-filled from an azaman.me/invite/<code> link (PendingDeepLink).
+  final _influencerController = TextEditingController(text: PendingDeepLink.referralCode ?? '');
   bool _passwordVisible = false;
 
   bool _isLoading = false;

@@ -35,6 +35,7 @@ import 'package:azaman/widgets/nav_transitions.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
 import 'package:azaman/widgets/az_pull_to_refresh.dart';
+import 'package:azaman/router/pending_deep_link.dart';
 
 class StorefrontScreen extends ConsumerStatefulWidget {
   final String businessProfileId;
@@ -84,7 +85,7 @@ class _StorefrontScreenState extends ConsumerState<StorefrontScreen> {
       {'widgetType': 'app_bar'},
     );
     final shareUrl =
-        'https://azaman.app/storefront/${widget.businessProfileId}';
+        '$kAzamanLinkBase/storefront/${widget.businessProfileId}';
     Share.share(
       'Check out ${widget.businessName ?? 'this business'} on AZAMAN! $shareUrl',
       subject: '${widget.businessName ?? 'Storefront'} on AZAMAN',

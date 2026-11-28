@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.azaman.app",
+      "sha256_cert_fingerprints": [
+        "D7:CB:D9:02:E2:F0:35:10:B9:56:B4:5D:F8:0D:20:B1:74:C5:9B:D3:9D:44:C5:E3:CB:7F:23:BF:4C:AF:6E:76"
+      ]
+    }
+  }
+]
