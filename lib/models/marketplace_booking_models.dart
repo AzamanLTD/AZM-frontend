@@ -838,6 +838,12 @@ class ReservationSummary {
   final String? category;
   final String? bizId;
 
+  /// Paid in the app: the escrow's state (FUNDED = held until check-in,
+  /// SETTLED = paid to the hotel at check-in, REFUNDED), price and fee.
+  final String? escrowStatus;
+  final double? paidUsdc;
+  final double? feeUsdc;
+
   const ReservationSummary({
     required this.id,
     required this.reservationRef,
@@ -850,7 +856,21 @@ class ReservationSummary {
     this.logoUrl,
     this.category,
     this.bizId,
+    this.escrowStatus,
+    this.paidUsdc,
+    this.feeUsdc,
   });
+
+  bool get isPaidHeld => const {
+    'FUNDED',
+    'IN_PROGRESS',
+    'PENDING_SETTLEMENT',
+  }.contains(escrowStatus);
+
+  /// The guest can still cancel (before check-in); a paid stay is refunded.
+  bool canCancel(DateTime now) =>
+      const {'PENDING', 'CONFIRMED'}.contains(status.toUpperCase()) &&
+      (end == null || now.isBefore(end!));
 
   /// Nights for a stay; 0 for a same-day booking (a table).
   int get nights {
@@ -892,6 +912,15 @@ class ReservationSummary {
       logoUrl: business is Map ? business['logoUrl']?.toString() : null,
       category: business is Map ? business['category']?.toString() : null,
       bizId: business is Map ? business['bizId']?.toString() : null,
+      escrowStatus: json['escrow'] is Map
+          ? json['escrow']['status']?.toString()
+          : null,
+      paidUsdc: json['escrow'] is Map
+          ? double.tryParse('${json['escrow']['amountUsdc'] ?? ''}')
+          : null,
+      feeUsdc: json['escrow'] is Map
+          ? double.tryParse('${json['escrow']['feeUsdc'] ?? ''}')
+          : null,
     );
   }
 }

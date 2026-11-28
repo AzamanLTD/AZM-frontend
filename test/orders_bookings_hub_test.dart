@@ -25,6 +25,7 @@ import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/orders_bookings_hub_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/business_service.dart';
+import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
 import 'package:azaman/storefront/services/storefront_service.dart';
 
@@ -90,6 +91,7 @@ ReservationSummary _stay({
   DateTime? start,
   int nights = 2,
   String category = 'HOSPITALITY',
+  Map<String, dynamic>? escrow,
 }) {
   final s = start ?? DateTime(2026, 12, 5, 14);
   return ReservationSummary.fromJson({
@@ -109,6 +111,7 @@ ReservationSummary _stay({
       'category': category,
       'bizId': 'BIZ-1',
     },
+    'escrow': ?escrow,
   });
 }
 
@@ -133,6 +136,14 @@ class _Invoices extends MyInvoicesNotifier {
   }
   @override
   Future<void> load({String? status}) async {}
+}
+
+class _Bookings extends MarketplaceBookingService {
+  final cancelled = <String>[];
+  @override
+  Future<void> cancelReservation(String reservationId) async {
+    cancelled.add(reservationId);
+  }
 }
 
 class _Storefront extends StorefrontService {
@@ -172,6 +183,7 @@ Future<GoRouter> _pumpHub(
   List<BusinessInvoice> bills = const [],
   HubTab tab = HubTab.orders,
   bool dark = true,
+  _Bookings? bookings,
   Size size = const Size(390, 844),
 }) async {
   await tester.binding.setSurfaceSize(size);
@@ -211,6 +223,8 @@ Future<GoRouter> _pumpHub(
         myTransitBookingsProvider.overrideWith((ref) async => trips),
         myReservationsProvider.overrideWith((ref) async => stays),
         myInvoicesProvider.overrideWith((ref) => _Invoices(bills)),
+        if (bookings != null)
+          marketplaceBookingServiceProvider.overrideWithValue(bookings),
       ],
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
@@ -441,5 +455,71 @@ void main() {
         );
       });
     }
+  });
+
+  group('a paid stay', () {
+    testWidgets('says where the money is, and can be cancelled', (
+      tester,
+    ) async {
+      final bookings = _Bookings();
+      await _pumpHub(
+        tester,
+        tab: HubTab.reservations,
+        bookings: bookings,
+        stays: [
+          _stay(
+            id: 'paid',
+            start: DateTime(2026, 12, 9, 14),
+            escrow: {'status': 'FUNDED', 'amountUsdc': '180', 'feeUsdc': '1.8'},
+          ),
+        ],
+      );
+      expect(
+        find.text('Paid \$180.00 · held until you check in'),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const ValueKey('reservation-cancel-paid')));
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(
+        find.text(
+          'You get \$180.00 back in your wallet. The Azaman fee is not refunded.',
+        ),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('reservation-cancel-confirm-paid')),
+      );
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+      expect(bookings.cancelled, ['paid']);
+    });
+
+    testWidgets('checked in: paid to the hotel, nothing to cancel', (
+      tester,
+    ) async {
+      await _pumpHub(
+        tester,
+        tab: HubTab.reservations,
+        stays: [
+          _stay(
+            id: 'in',
+            status: 'CHECKED_IN',
+            escrow: {
+              'status': 'SETTLED',
+              'amountUsdc': '180',
+              'feeUsdc': '1.8',
+            },
+          ),
+        ],
+      );
+      expect(
+        find.text('Paid \$180.00 · paid to the hotel at check-in'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('reservation-cancel-in')), findsNothing);
+    });
   });
 }

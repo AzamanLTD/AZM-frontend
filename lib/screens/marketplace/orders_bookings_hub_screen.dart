@@ -27,6 +27,8 @@ import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/providers/business_provider.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/services/api_client.dart';
+import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/screens/marketplace/my_transit_trips_screen.dart';
 import 'package:azaman/screens/storefront_order_history_screen.dart';
 import 'package:azaman/storefront/providers/storefront_provider.dart';
@@ -497,7 +499,7 @@ class MyReservationsView extends ConsumerWidget {
   }
 }
 
-class _ReservationCard extends StatelessWidget {
+class _ReservationCard extends ConsumerWidget {
   const _ReservationCard({
     required this.r,
     required this.colors,
@@ -506,6 +508,69 @@ class _ReservationCard extends StatelessWidget {
   final ReservationSummary r;
   final AzamanColors colors;
   final DateTime now;
+
+  String? get _money {
+    if (r.paidUsdc == null) return null;
+    final paid = storeUsdcLabel(r.paidUsdc!);
+    return switch (r.escrowStatus) {
+      'FUNDED' ||
+      'IN_PROGRESS' ||
+      'PENDING_SETTLEMENT' => 'Paid $paid · held until you check in',
+      'SETTLED' || 'RELEASED' => 'Paid $paid · paid to the hotel at check-in',
+      'REFUNDED' || 'EXPIRED' => 'Refunded $paid',
+      'DISPUTED' || 'ADMIN_REVIEW' => 'Paid $paid · under review',
+      _ => null,
+    };
+  }
+
+  Future<void> _cancel(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(r.isStay ? 'Cancel this stay?' : 'Cancel this booking?'),
+        content: Text(
+          r.isPaidHeld && r.paidUsdc != null
+              ? 'You get ${storeUsdcLabel(r.paidUsdc!)} back in your wallet. '
+                    'The Azaman fee is not refunded.'
+              : '${r.businessName} is told you are not coming.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep it'),
+          ),
+          FilledButton(
+            key: ValueKey('reservation-cancel-confirm-${r.id}'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Cancel it'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(marketplaceBookingServiceProvider).cancelReservation(r.id);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            r.isPaidHeld
+                ? 'Cancelled. The money is back in your wallet.'
+                : 'Cancelled.',
+          ),
+        ),
+      );
+      ref.invalidate(myReservationsProvider);
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            e is ApiException ? e.message : 'Could not cancel. Try again.',
+          ),
+        ),
+      );
+    }
+  }
 
   String get _status => switch (r.status.toUpperCase()) {
     'PENDING' => 'Requested · waiting for the business',
@@ -528,7 +593,7 @@ class _ReservationCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final guests = r.isStay
         ? '${r.partySize} ${r.partySize == 1 ? 'guest' : 'guests'}'
         : 'Table for ${r.partySize}';
@@ -574,6 +639,19 @@ class _ReservationCard extends StatelessWidget {
               fontFeatures: AzText.tabular,
             ),
           ),
+          if (_money != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              _money!,
+              key: ValueKey('reservation-money-${r.id}'),
+              style: TextStyle(
+                color: r.isPaidHeld ? colors.accent : colors.textSecondary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                fontFeatures: AzText.tabular,
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           Row(
             children: [
@@ -597,6 +675,20 @@ class _ReservationCard extends StatelessWidget {
                 ),
             ],
           ),
+          if (r.canCancel(now))
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                key: ValueKey('reservation-cancel-${r.id}'),
+                style: TextButton.styleFrom(
+                  foregroundColor: colors.danger,
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
+                ),
+                onPressed: () => _cancel(context, ref),
+                child: Text(r.isStay ? 'Cancel stay' : 'Cancel booking'),
+              ),
+            ),
         ],
       ),
     );

@@ -226,6 +226,12 @@ class MarketplaceBookingService {
     return !(policy is Map && policy['allowIdCheck'] == false);
   }
 
+  /// The guest cancels a stay or table before check-in. A stay paid in the
+  /// app is refunded (the price; the Azaman fee is not).
+  Future<void> cancelReservation(String reservationId) async {
+    await _client.patch('/reservations/$reservationId/cancel', body: const {});
+  }
+
   /// The customer's reservations (stays and tables), newest first.
   Future<List<ReservationSummary>> myReservations() async {
     final res = await _client.get('/reservations/me?limit=50');
