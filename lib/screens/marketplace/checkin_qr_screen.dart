@@ -7,19 +7,21 @@
 // Flow:
 //   1. Customer opens this screen from their confirmed reservation detail
 //   2. App calls GET /api/marketplace/reservations/:id/checkin-qr
-//   3. QR code is rendered on screen
-//   4. Business scans it → customer sees check-in confirmation
+//   3. The payload is encoded as a real QR code (qr_flutter)
+//   4. Business scans it (BusinessCheckInScreen parses the same JSON
+//      payload, {"token":…,"type":"AZAMAN_CHECKIN"}) → checked in
+//
+// The code was once a decorative 8x8 grid drawn from the payload bytes, which
+// no scanner could read.
 // =============================================================================
-
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/models/marketplace_booking_models.dart';
-import 'package:azaman/widgets/premium_glass_container.dart';
 
 class CheckInQrScreen extends ConsumerStatefulWidget {
   final String reservationId;
@@ -160,8 +162,8 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
             ),
             const SizedBox(height: 24),
 
-            // QR code — rendered as a simple grid from the payload string
-            // In production, use qr_flutter package for actual QR rendering
+            // The scannable code, on a white tile in either theme: scanners
+            // read dark modules on a light quiet zone, not the inverse.
             AnimatedBuilder(
               animation: _pulseAnimation,
               builder: (context, child) => Container(
@@ -178,13 +180,7 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
                     ),
                   ],
                 ),
-                child: PremiumGlassContainer(
-                  blur: 20,
-                  opacity: 0.08,
-                  borderRadius: 20,
-                  padding: const EdgeInsets.all(16),
-                  child: _buildQrPlaceholder(token.qrPayload, colors),
-                ),
+                child: CheckInCode(payload: token.qrPayload),
               ),
             ),
             const SizedBox(height: 24),
@@ -196,14 +192,15 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
             ),
             const SizedBox(height: 8),
 
-            // Expiry countdown
+            // When the signed token stops working, from the token itself.
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.timer, size: 16, color: colors.textSecondary),
                 const SizedBox(width: 4),
                 Text(
-                  'Valid for 30 minutes',
+                  'Valid until ${MaterialLocalizations.of(context).formatTimeOfDay(TimeOfDay.fromDateTime(token.expiresAt.toLocal()))}',
+                  key: const ValueKey('checkin-qr-expiry'),
                   style: TextStyle(color: colors.textSecondary, fontSize: 12),
                 ),
               ],
@@ -221,38 +218,54 @@ class _CheckInQrScreenState extends ConsumerState<CheckInQrScreen>
       ),
     );
   }
+}
 
-  /// Placeholder QR rendering — in production, use the qr_flutter package.
-  /// For now, we show a visual representation of the token hash.
-  Widget _buildQrPlaceholder(String payload, dynamic colors) {
-    // Generate a deterministic visual from the payload
-    final bytes = utf8.encode(payload);
-    const gridSize = 8;
-    const cellSize = 24.0;
+/// The check-in payload as a scannable QR code: black modules on a white
+/// tile with a quiet zone, medium error correction. An empty payload (a
+/// malformed response) shows a message instead of an unreadable code.
+class CheckInCode extends StatelessWidget {
+  const CheckInCode({super.key, required this.payload, this.size = 216});
 
-    return SizedBox(
-      width: gridSize * cellSize,
-      height: gridSize * cellSize,
-      child: GridView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: gridSize,
-          childAspectRatio: 1,
+  final String payload;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    if (payload.isEmpty) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: const Center(
+          child: Text(
+            'This code could not be created. Try again.',
+            textAlign: TextAlign.center,
+          ),
         ),
-        itemCount: gridSize * gridSize,
-        itemBuilder: (context, index) {
-          final byteIndex = index % bytes.length;
-          final isFilled = (bytes[byteIndex] >> (index % 8)) & 1 == 1;
-          // Corner markers (like real QR codes)
-          final isCorner =
-              (index < 3 ||
-              index % gridSize < 3 ||
-              index >= gridSize * (gridSize - 3));
-          return Container(
-            margin: const EdgeInsets.all(1),
-            color: isFilled || isCorner ? Colors.black : Colors.white,
-          );
-        },
+      );
+    }
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: QrImageView(
+        key: const ValueKey('checkin-qr-code'),
+        data: payload,
+        version: QrVersions.auto,
+        errorCorrectionLevel: QrErrorCorrectLevel.M,
+        size: size,
+        padding: EdgeInsets.zero,
+        backgroundColor: Colors.white,
+        semanticsLabel: 'Check-in code',
+        eyeStyle: const QrEyeStyle(
+          eyeShape: QrEyeShape.square,
+          color: Colors.black,
+        ),
+        dataModuleStyle: const QrDataModuleStyle(
+          dataModuleShape: QrDataModuleShape.square,
+          color: Colors.black,
+        ),
       ),
     );
   }
