@@ -1552,7 +1552,7 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: BusinessResultCard(
-                    key: const ValueKey('map-preview-\${loc.id}'),
+                    key: ValueKey('map-preview-${loc.id}'),
                     business: business,
                   ),
                 );
@@ -1989,11 +1989,10 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
           markers: markersFromSpecs(
             buildNearbyMarkerSpecs(locations),
             onTap: (spec) {
-              final loc = locations.firstWhere(
-                (l) => l.id == spec.id,
-                orElse: () => locations.first,
-              );
-              _showBusinessPreviewSheet(loc);
+              // A pin no longer in the list opens nothing, never the
+              // first business in its place.
+              final loc = nearbyLocationForSpec(locations, spec);
+              if (loc != null) _showBusinessPreviewSheet(loc);
             },
           ),
           myLocationEnabled: true,

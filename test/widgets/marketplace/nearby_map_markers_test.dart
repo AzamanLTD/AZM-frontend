@@ -128,4 +128,21 @@ void main() {
     marker.onTap!.call();
     expect(tapped?.id, 'a');
   });
+
+  group('nearbyLocationForSpec', () {
+    test("finds the tapped pin's own location", () {
+      final rows = [_loc('a', 'RETAIL'), _loc('b', 'FOOD_BEVERAGE')];
+      final spec = buildNearbyMarkerSpecs(rows)[1];
+      expect(nearbyLocationForSpec(rows, spec)?.id, 'b');
+    });
+
+    test(
+      'a pin missing from a refreshed list opens nothing, never the first row',
+      () {
+        final drawn = buildNearbyMarkerSpecs([_loc('gone', 'RETAIL')]).single;
+        final refreshed = [_loc('a', 'RETAIL'), _loc('b', 'FOOD_BEVERAGE')];
+        expect(nearbyLocationForSpec(refreshed, drawn), isNull);
+      },
+    );
+  });
 }

@@ -102,3 +102,16 @@ Set<Marker> markersFromSpecs(
       ),
   };
 }
+
+/// The location a tapped pin stands for, or null when it is no longer in
+/// the list (the list refreshed between drawing the pin and the tap). Never
+/// a substitute: a missing pin must not open some other store.
+BusinessLocation? nearbyLocationForSpec(
+  List<BusinessLocation> locations,
+  NearbyMarkerSpec spec,
+) {
+  for (final loc in locations) {
+    if (loc.id == spec.id) return loc;
+  }
+  return null;
+}
