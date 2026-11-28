@@ -20,6 +20,8 @@ const _mustBeGated = <String, String>{
   '/spending-insights': 'spending totals',
   '/round-up': 'round-up savings amounts',
   '/my-orders': 'order totals and payment state',
+  '/bookings': 'orders, trips, reservations and bills with their amounts',
+  '/marketplace/transit/my-trips': 'trip fares and payment state',
   '/trade/:tradeId': 'trade amount, counterparty and payment method',
   '/vault/:vaultId/yield': 'vault yield figures',
   '/storefront/staking': 'stake amounts and rewards',
@@ -174,9 +176,9 @@ void main() {
     final screen = File(
       'lib/screens/marketplace/transit_seat_selection_screen.dart',
     ).readAsStringSync();
-    final commit = screen.indexOf(
-      "Text(busy ? 'Booking…' : 'Continue to book')",
-    );
+    // The commitment is the dock's Pay button (wallet pay replaced
+    // "Continue to book").
+    final commit = screen.indexOf("key: const ValueKey('transit-dock-pay')");
     expect(commit, greaterThan(-1));
     expect(
       screen.substring(0, commit).lastIndexOf('MoneyLockGate('),
@@ -184,7 +186,7 @@ void main() {
       reason: 'the commitment must sit inside MoneyLockGate',
     );
     expect(
-      screen.contains('toStringAsFixed(2)} USDC'),
+      screen.contains('transitFareLabel(availability.fareUsdc)'),
       isTrue,
       reason: 'the fare stays visible: it is the price, not the member money',
     );

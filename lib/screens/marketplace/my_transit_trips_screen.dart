@@ -25,15 +25,33 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/theme/az_text.dart';
 
-class MyTransitTripsScreen extends ConsumerStatefulWidget {
+class MyTransitTripsScreen extends ConsumerWidget {
   const MyTransitTripsScreen({super.key});
 
   @override
-  ConsumerState<MyTransitTripsScreen> createState() =>
-      _MyTransitTripsScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        title: Text('Your trips', style: TextStyle(color: colors.textPrimary)),
+        backgroundColor: colors.surface,
+        iconTheme: IconThemeData(color: colors.textPrimary),
+      ),
+      body: const MyTransitTripsView(),
+    );
+  }
 }
 
-class _MyTransitTripsScreenState extends ConsumerState<MyTransitTripsScreen> {
+/// The trips list itself (Your trips, and the hub's Trips tab).
+class MyTransitTripsView extends ConsumerStatefulWidget {
+  const MyTransitTripsView({super.key});
+
+  @override
+  ConsumerState<MyTransitTripsView> createState() => _MyTransitTripsViewState();
+}
+
+class _MyTransitTripsViewState extends ConsumerState<MyTransitTripsView> {
   String? _busyId;
 
   String _messageOf(Object e, String fallback) => e is ApiException
@@ -103,42 +121,34 @@ class _MyTransitTripsScreenState extends ConsumerState<MyTransitTripsScreen> {
   Widget build(BuildContext context) {
     final colors = ref.watch(themeProvider).colors;
     final trips = ref.watch(myTransitBookingsProvider);
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text('Your trips', style: TextStyle(color: colors.textPrimary)),
-        backgroundColor: colors.surface,
-        iconTheme: IconThemeData(color: colors.textPrimary),
+    return trips.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => _Message(
+        colors: colors,
+        title: 'We could not load your trips.',
+        action: 'Try again',
+        onAction: () => ref.invalidate(myTransitBookingsProvider),
       ),
-      body: trips.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _Message(
-          colors: colors,
-          title: 'We could not load your trips.',
-          action: 'Try again',
-          onAction: () => ref.invalidate(myTransitBookingsProvider),
-        ),
-        data: (items) => items.isEmpty
-            ? _Message(colors: colors, title: 'No trips yet.')
-            : RefreshIndicator(
-                onRefresh: () => ref.refresh(myTransitBookingsProvider.future),
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  itemCount: items.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) => _TripCard(
-                    trip: items[i],
-                    colors: colors,
-                    busy: _busyId == items[i].id,
-                    onBoardingQr: () => context.push(
-                      '/marketplace/transit/boarding/${items[i].id}',
-                    ),
-                    onConfirmBoarding: () => _confirm(items[i]),
-                    onReportBoarding: () => _report(items[i]),
+      data: (items) => items.isEmpty
+          ? _Message(colors: colors, title: 'No trips yet.')
+          : RefreshIndicator(
+              onRefresh: () => ref.refresh(myTransitBookingsProvider.future),
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                itemCount: items.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, i) => _TripCard(
+                  trip: items[i],
+                  colors: colors,
+                  busy: _busyId == items[i].id,
+                  onBoardingQr: () => context.push(
+                    '/marketplace/transit/boarding/${items[i].id}',
                   ),
+                  onConfirmBoarding: () => _confirm(items[i]),
+                  onReportBoarding: () => _report(items[i]),
                 ),
               ),
-      ),
+            ),
     );
   }
 }

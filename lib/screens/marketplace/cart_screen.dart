@@ -359,7 +359,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 ? TextButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      leaveTo(AzRoutes.storefrontOrderHistory);
+                      leaveTo(AzRoutes.ordersBookingsTab('orders'));
                     },
                     child: const Text('My orders'),
                   )
@@ -367,7 +367,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     key: const ValueKey('order-outcome-view'),
                     onPressed: () {
                       Navigator.pop(ctx);
-                      leaveTo(AzRoutes.storefrontOrderHistory);
+                      leaveTo(AzRoutes.ordersBookingsTab('orders'));
                     },
                     child: Text(
                       outcome == _OrderOutcome.saved

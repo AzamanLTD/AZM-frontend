@@ -92,6 +92,7 @@ abstract final class AzRouteNames {
   static const businessTransitTrips = 'business-transit-trips';
   static const transitSeatSelection = 'transit-seat-selection';
   static const myTransitTrips = 'my-transit-trips';
+  static const ordersBookings = 'orders-bookings';
   static const transitBoardingQr = 'transit-boarding-qr';
   static const hotelBooking = 'hotel-booking';
   static const dineInTab = 'dine-in-tab';
@@ -310,6 +311,10 @@ abstract final class AzRoutes {
       : '/storefront/$businessProfileId?name=${_encode(name)}';
   static const storefrontDiscovery = '/discover/storefronts';
   static const storefrontOrderHistory = '/my-orders';
+
+  /// Orders & bookings: store orders, trips, reservations, bills.
+  static const ordersBookings = '/bookings';
+  static String ordersBookingsTab(String tab) => '/bookings?tab=$tab';
   static const universalSearch = '/search';
   static const spendingInsights = '/spending-insights';
   static const roundUpSavings = '/round-up';

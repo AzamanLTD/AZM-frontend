@@ -254,3 +254,13 @@ class StorefrontDiscoveryQuery {
   @override
   int get hashCode => Object.hash(search, category, limit, offset);
 }
+
+/// The first page of the buyer's store orders (the hub's "Needs you").
+final myStoreOrdersProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
+      final result = await ref
+          .watch(storefrontServiceProvider)
+          .getMyOrders(limit: 20);
+      return (result['orders'] as List?)?.cast<Map<String, dynamic>>() ??
+          const [];
+    });

@@ -82,7 +82,6 @@ import 'package:azaman/screens/settings_screen.dart';
 import 'package:azaman/screens/storefront_staking_screen.dart';
 import 'package:azaman/screens/storefront_screen.dart';
 import 'package:azaman/screens/storefront_discovery_screen.dart';
-import 'package:azaman/screens/storefront_order_history_screen.dart';
 import 'package:azaman/screens/universal_search_screen.dart';
 import 'package:azaman/screens/spending_insights_screen.dart';
 import 'package:azaman/screens/round_up_settings_screen.dart';
@@ -121,7 +120,7 @@ import 'package:azaman/screens/marketplace/checkin_qr_screen.dart';
 import 'package:azaman/screens/marketplace/business_checkin_screen.dart';
 import 'package:azaman/screens/marketplace/transit_trip_list_screen.dart';
 import 'package:azaman/screens/marketplace/transit_seat_selection_screen.dart';
-import 'package:azaman/screens/marketplace/my_transit_trips_screen.dart';
+import 'package:azaman/screens/marketplace/orders_bookings_hub_screen.dart';
 import 'package:azaman/screens/marketplace/transit_boarding_qr_screen.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/worker/worker_hub_screen.dart';
@@ -818,7 +817,11 @@ GoRouter _buildAppRouter() => GoRouter(
     GoRoute(
       path: '/marketplace/transit/my-trips',
       name: AzRouteNames.myTransitTrips,
-      builder: (_, __) => const MyTransitTripsScreen(),
+      // Your trips now lives in Orders & bookings.
+      builder: (_, __) => const MoneyRouteGuard(
+        message: 'Your trips are locked',
+        child: OrdersBookingsHubScreen(initialTab: HubTab.trips),
+      ),
     ),
     GoRoute(
       path: '/marketplace/transit/boarding/:bookingId',
@@ -1022,15 +1025,32 @@ GoRouter _buildAppRouter() => GoRouter(
         child: const StorefrontDiscoveryScreen(),
       ),
     ),
+    // Orders & bookings: one place for store orders, trips, reservations
+    // and bills, and what each is waiting for. /my-orders (older links and
+    // notifications) opens it on Orders.
+    GoRoute(
+      path: '/bookings',
+      name: AzRouteNames.ordersBookings,
+      pageBuilder: (context, state) => risePage(
+        key: state.pageKey,
+        restorationId: state.name,
+        child: MoneyRouteGuard(
+          message: 'Your orders and bookings are locked',
+          child: OrdersBookingsHubScreen(
+            initialTab: hubTabFromQuery(state.uri.queryParameters['tab']),
+          ),
+        ),
+      ),
+    ),
     GoRoute(
       path: '/my-orders',
       name: AzRouteNames.storefrontOrderHistory,
       pageBuilder: (context, state) => risePage(
         key: state.pageKey,
         restorationId: state.name,
-        child: MoneyRouteGuard(
+        child: const MoneyRouteGuard(
           message: 'Your orders are locked',
-          child: const StorefrontOrderHistoryScreen(),
+          child: OrdersBookingsHubScreen(initialTab: HubTab.orders),
         ),
       ),
     ),

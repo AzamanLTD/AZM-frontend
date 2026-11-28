@@ -1104,8 +1104,8 @@ class _MarketplaceHomeScreenState extends ConsumerState<MarketplaceHomeScreen>
           // My Orders
           _iconAction(
             icon: Icons.receipt_long_rounded,
-            // NEW-A: canonical /my-orders location.
-            onTap: () => context.push(AzRoutes.storefrontOrderHistory),
+            // Orders & bookings: orders, trips, reservations, bills.
+            onTap: () => context.push(AzRoutes.ordersBookings),
             colors: colors,
             activeColor: colors.accent,
           ),

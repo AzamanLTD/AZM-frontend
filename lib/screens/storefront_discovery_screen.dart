@@ -130,8 +130,8 @@ class _StorefrontDiscoveryScreenState
         actions: [
           IconButton(
             icon: Icon(Icons.receipt_long_rounded, color: colors.textPrimary),
-            // NEW-A: canonical /my-orders location.
-            onPressed: () => context.push(AzRoutes.storefrontOrderHistory),
+            // Orders & bookings, on Orders.
+            onPressed: () => context.push(AzRoutes.ordersBookingsTab('orders')),
             tooltip: 'My Orders',
           ),
         ],

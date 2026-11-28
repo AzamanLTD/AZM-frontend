@@ -226,6 +226,16 @@ class MarketplaceBookingService {
     return !(policy is Map && policy['allowIdCheck'] == false);
   }
 
+  /// The customer's reservations (stays and tables), newest first.
+  Future<List<ReservationSummary>> myReservations() async {
+    final res = await _client.get('/reservations/me?limit=50');
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return ((body['reservations'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((r) => ReservationSummary.fromJson(Map<String, dynamic>.from(r)))
+        .toList(growable: false);
+  }
+
   /// The passenger's own transit bookings, newest first.
   Future<List<TransitBookingSummary>> myTransitBookings() async {
     final res = await _client.get('/transit/bookings');

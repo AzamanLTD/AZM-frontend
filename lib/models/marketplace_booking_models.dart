@@ -819,3 +819,79 @@ class TransitBoardingCode {
     );
   }
 }
+
+// ── RESERVATIONS (stays and tables) ──────────────────────────────────────────
+
+/// One of the customer's reservations, from GET /reservations/me: a hotel
+/// stay or a table. The check-in QR (CheckInQrScreen) applies from a day
+/// before it starts until it ends, while it is CONFIRMED.
+class ReservationSummary {
+  final String id;
+  final String reservationRef;
+  final String status;
+  final DateTime? start;
+  final DateTime? end;
+  final int partySize;
+  final double amountUsdc;
+  final String businessName;
+  final String? logoUrl;
+  final String? category;
+  final String? bizId;
+
+  const ReservationSummary({
+    required this.id,
+    required this.reservationRef,
+    required this.status,
+    required this.businessName,
+    this.start,
+    this.end,
+    this.partySize = 1,
+    this.amountUsdc = 0,
+    this.logoUrl,
+    this.category,
+    this.bizId,
+  });
+
+  /// Nights for a stay; 0 for a same-day booking (a table).
+  int get nights {
+    if (start == null || end == null) return 0;
+    final a = DateTime(start!.year, start!.month, start!.day);
+    final b = DateTime(end!.year, end!.month, end!.day);
+    return b.difference(a).inDays.clamp(0, 365);
+  }
+
+  bool get isStay => nights > 0 || category == 'HOSPITALITY';
+
+  bool get isActive => const {
+    'PENDING',
+    'CONFIRMED',
+    'CHECKED_IN',
+  }.contains(status.toUpperCase());
+
+  bool canShowCheckInQr(DateTime now) =>
+      status.toUpperCase() == 'CONFIRMED' &&
+      start != null &&
+      end != null &&
+      !now.isBefore(start!.subtract(const Duration(hours: 24))) &&
+      now.isBefore(end!);
+
+  factory ReservationSummary.fromJson(Map<String, dynamic> json) {
+    final business = json['businessProfile'];
+    DateTime? d(Object? v) => v == null ? null : DateTime.tryParse('$v');
+    return ReservationSummary(
+      id: json['id']?.toString() ?? '',
+      reservationRef: json['reservationRef']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'PENDING',
+      start: d(json['startDatetime']),
+      end: d(json['endDatetime']),
+      partySize: (json['partySize'] as num?)?.toInt() ?? 1,
+      amountUsdc: _toDouble(json['amountUsdc']),
+      businessName: business is Map
+          ? (business['businessName']?.toString() ?? 'Reservation')
+          : 'Reservation',
+      logoUrl: business is Map ? business['logoUrl']?.toString() : null,
+      category: business is Map ? business['category']?.toString() : null,
+      bizId: business is Map ? business['bizId']?.toString() : null,
+    );
+  }
+}

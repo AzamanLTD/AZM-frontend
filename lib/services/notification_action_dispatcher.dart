@@ -187,9 +187,7 @@ abstract final class NotificationActionDispatcher {
 
       // ── Transit: "You were boarded by ID check" → confirm or report it ──
       case 'OPEN_TRANSIT_TRIPS':
-        return const NotificationAction.navigable(
-          '/marketplace/transit/my-trips',
-        );
+        return const NotificationAction.navigable('/bookings?tab=trips');
 
       // ── KYC proof of residency (restored 4.2) ──────────────────────────
       case 'OPEN_PROOF_OF_RESIDENCY':

@@ -227,7 +227,7 @@ void main() {
       final a = NotificationActionDispatcher.resolve({
         'action': 'OPEN_TRANSIT_TRIPS',
       });
-      expect(a.route, '/marketplace/transit/my-trips');
+      expect(a.route, '/bookings?tab=trips');
     });
   });
 

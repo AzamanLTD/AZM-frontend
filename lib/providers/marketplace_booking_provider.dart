@@ -207,6 +207,12 @@ final myTransitBookingsProvider =
       (ref) => ref.watch(marketplaceBookingServiceProvider).myTransitBookings(),
     );
 
+/// The customer's reservations (stays and tables).
+final myReservationsProvider =
+    FutureProvider.autoDispose<List<ReservationSummary>>(
+      (ref) => ref.watch(marketplaceBookingServiceProvider).myReservations(),
+    );
+
 /// The signed boarding code for one booking.
 final transitBoardingCodeProvider = FutureProvider.autoDispose
     .family<TransitBoardingCode, String>(

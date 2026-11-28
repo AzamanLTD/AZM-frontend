@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:azaman/providers/auth_provider.dart';
+import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/widgets/marketplace/store_order_pay.dart';
 import 'package:azaman/widgets/security/second_factor.dart';
@@ -41,7 +42,7 @@ StoreOrderStage storeOrderStage(Map<String, dynamic> order) {
   return StoreOrderStage.none;
 }
 
-class StorefrontOrderHistoryScreen extends ConsumerStatefulWidget {
+class StorefrontOrderHistoryScreen extends StatefulWidget {
   const StorefrontOrderHistoryScreen({super.key, this.secondFactorPrompt});
 
   /// Replaces the second-factor sheet (tests).
@@ -52,17 +53,77 @@ class StorefrontOrderHistoryScreen extends ConsumerStatefulWidget {
   secondFactorPrompt;
 
   @override
-  ConsumerState<StorefrontOrderHistoryScreen> createState() =>
+  State<StorefrontOrderHistoryScreen> createState() =>
       _StorefrontOrderHistoryScreenState();
 }
 
 class _StorefrontOrderHistoryScreenState
-    extends ConsumerState<StorefrontOrderHistoryScreen> {
+    extends State<StorefrontOrderHistoryScreen> {
+  String? _statusFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Orders'),
+        actions: [
+          PopupMenuButton<String?>(
+            icon: const Icon(Icons.filter_list),
+            onSelected: (value) => setState(() => _statusFilter = value),
+            itemBuilder: (ctx) => [
+              const PopupMenuItem(value: null, child: Text('All Orders')),
+              const PopupMenuItem(
+                value: 'AWAITING_PAYMENT',
+                child: Text('Not paid'),
+              ),
+              const PopupMenuItem(value: 'PAID', child: Text('Paid')),
+              const PopupMenuItem(
+                value: 'DELIVERED',
+                child: Text('Handed over'),
+              ),
+              const PopupMenuItem(value: 'COMPLETED', child: Text('Completed')),
+              const PopupMenuItem(value: 'CANCELLED', child: Text('Cancelled')),
+            ],
+          ),
+        ],
+      ),
+      body: StoreOrdersView(
+        key: ValueKey(_statusFilter),
+        statusFilter: _statusFilter,
+        secondFactorPrompt: widget.secondFactorPrompt,
+      ),
+    );
+  }
+}
+
+/// The store orders list itself, with each order's payment actions (My
+/// orders, and the hub's Orders tab).
+class StoreOrdersView extends ConsumerStatefulWidget {
+  const StoreOrdersView({
+    super.key,
+    this.statusFilter,
+    this.secondFactorPrompt,
+  });
+
+  final String? statusFilter;
+
+  /// Replaces the second-factor sheet (tests).
+  final Future<SecondFactor?> Function({
+    required SecondFactorKind kind,
+    String? errorText,
+  })?
+  secondFactorPrompt;
+
+  @override
+  ConsumerState<StoreOrdersView> createState() => _StoreOrdersViewState();
+}
+
+class _StoreOrdersViewState extends ConsumerState<StoreOrdersView> {
   bool _loadingMore = false;
   String? _nextCursor;
   List<Map<String, dynamic>> _orders = [];
   bool _loading = true;
-  String? _statusFilter;
+  String? get _statusFilter => widget.statusFilter;
 
   @override
   void initState() {
@@ -88,6 +149,8 @@ class _StorefrontOrderHistoryScreenState
       );
       final newOrders =
           (result['orders'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      // The hub's "Needs you" reads the first page: keep it current.
+      if (reset) ref.invalidate(myStoreOrdersProvider);
       if (mounted) {
         setState(() {
           _orders.addAll(newOrders);
@@ -114,66 +177,40 @@ class _StorefrontOrderHistoryScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Orders'),
-        actions: [
-          PopupMenuButton<String?>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              setState(() => _statusFilter = value);
-              _loadOrders();
+    return _loading
+        ? const Center(child: CircularProgressIndicator())
+        : _orders.isEmpty
+        ? _buildEmptyState()
+        : NotificationListener<ScrollNotification>(
+            onNotification: (notif) {
+              if (notif is ScrollEndNotification &&
+                  notif.metrics.pixels >= notif.metrics.maxScrollExtent - 200) {
+                _loadMore();
+              }
+              return false;
             },
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(value: null, child: Text('All Orders')),
-              const PopupMenuItem(
-                value: 'AWAITING_PAYMENT',
-                child: Text('Awaiting Payment'),
-              ),
-              const PopupMenuItem(value: 'PAID', child: Text('Paid')),
-              const PopupMenuItem(value: 'FULFILLED', child: Text('Fulfilled')),
-              const PopupMenuItem(value: 'DELIVERED', child: Text('Delivered')),
-              const PopupMenuItem(value: 'CANCELLED', child: Text('Cancelled')),
-            ],
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _orders.isEmpty
-          ? _buildEmptyState()
-          : NotificationListener<ScrollNotification>(
-              onNotification: (notif) {
-                if (notif is ScrollEndNotification &&
-                    notif.metrics.pixels >=
-                        notif.metrics.maxScrollExtent - 200) {
-                  _loadMore();
-                }
-                return false;
-              },
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _orders.length + (_nextCursor != null ? 1 : 0),
-                itemBuilder: (ctx, i) {
-                  if (i >= _orders.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  final o = _orders[i];
-                  return _OrderCard(
-                    order: o,
-                    onReorder: () => _reorder(o),
-                    busy: _busyOrderId == o['id'],
-                    onPay: () => _pay(o),
-                    onGotIt: () => _gotIt(o),
-                    onReport: () => _report(o),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _orders.length + (_nextCursor != null ? 1 : 0),
+              itemBuilder: (ctx, i) {
+                if (i >= _orders.length) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
                   );
-                },
-              ),
+                }
+                final o = _orders[i];
+                return _OrderCard(
+                  order: o,
+                  onReorder: () => _reorder(o),
+                  busy: _busyOrderId == o['id'],
+                  onPay: () => _pay(o),
+                  onGotIt: () => _gotIt(o),
+                  onReport: () => _report(o),
+                );
+              },
             ),
-    );
+          );
   }
 
   Widget _buildEmptyState() {
@@ -184,7 +221,7 @@ class _StorefrontOrderHistoryScreenState
           Icon(
             Icons.shopping_bag_outlined,
             size: 64,
-            color: Theme.of(context).colorScheme.outline,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           const SizedBox(height: 16),
           Text(
@@ -197,7 +234,7 @@ class _StorefrontOrderHistoryScreenState
           Text(
             'Orders you place from storefronts will appear here.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -366,7 +403,7 @@ class _StorefrontOrderHistoryScreenState
 
 // ── Order Card ─────────────────────────────────────────────────────────────────
 
-class _OrderCard extends StatelessWidget {
+class _OrderCard extends ConsumerWidget {
   final Map<String, dynamic> order;
   final VoidCallback onReorder;
   final VoidCallback onPay;
@@ -385,7 +422,7 @@ class _OrderCard extends StatelessWidget {
 
   Widget _paymentRow(BuildContext context) {
     final id = order['id']?.toString() ?? '';
-    final outline = Theme.of(context).colorScheme.outline;
+    final outline = Theme.of(context).colorScheme.onSurfaceVariant;
     Text note(String t) => Text(
       t,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: outline),
@@ -444,7 +481,8 @@ class _OrderCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = ref.watch(themeProvider).colors;
     final business = order['businessProfile'] as Map<String, dynamic>?;
     final product = order['product'] as Map<String, dynamic>?;
     final status = order['status'] as String? ?? 'PENDING';
@@ -452,9 +490,16 @@ class _OrderCard extends StatelessWidget {
     final orderRef = order['orderRef'] as String? ?? '';
     final createdAt = order['createdAt'] as String?;
 
-    return Card(
+    // The app's own card surface (the Material card theme drew a heavy
+    // outline in light mode).
+    return Container(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.divider, width: 0.6),
+      ),
       child: InkWell(
         onTap: () => _showOrderDetail(context, order),
         child: Padding(
@@ -494,7 +539,9 @@ class _OrderCard extends StatelessWidget {
                             _formatDate(DateTime.tryParse(createdAt)),
                             style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
-                                  color: Theme.of(context).colorScheme.outline,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                       ],
@@ -506,7 +553,8 @@ class _OrderCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  if (product?['imageUrl'] != null)
+                  // A photo when there is one; no empty grey box when not.
+                  if (product?['imageUrl'] != null) ...[
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: AzamanNetworkImage(
@@ -517,10 +565,9 @@ class _OrderCard extends StatelessWidget {
                         errorWidget: (_, __, ___) =>
                             _productPlaceholder(context),
                       ),
-                    )
-                  else
-                    _productPlaceholder(context),
-                  const SizedBox(width: 12),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,7 +580,7 @@ class _OrderCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          '$amount USDC',
+                          '${storeUsdcLabel(amount)} USDC',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
                                 color: Theme.of(context).colorScheme.primary,
@@ -545,9 +592,11 @@ class _OrderCard extends StatelessWidget {
                   ),
                   Text(
                     orderRef,
+                    // Tabular figures in the app font: a monospace family
+                    // is not bundled, and fell back to boxes.
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      color: Theme.of(context).colorScheme.outline,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -563,19 +612,27 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  Widget _logoPlaceholder(BuildContext context) => Container(
-    width: 40,
-    height: 40,
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Icon(
-      Icons.store,
-      size: 20,
-      color: Theme.of(context).colorScheme.outline,
-    ),
-  );
+  Widget _logoPlaceholder(BuildContext context) {
+    final name = '${order['businessProfile']?['businessName'] ?? ''}'.trim();
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        name.isEmpty ? '?' : name[0].toUpperCase(),
+        style: TextStyle(
+          color: scheme.primary,
+          fontWeight: FontWeight.w800,
+          fontSize: 16,
+        ),
+      ),
+    );
+  }
 
   Widget _productPlaceholder(BuildContext context) => Container(
     width: 48,
@@ -587,7 +644,7 @@ class _OrderCard extends StatelessWidget {
     child: Icon(
       Icons.inventory_2_outlined,
       size: 20,
-      color: Theme.of(context).colorScheme.outline,
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
     ),
   );
 
@@ -717,7 +774,7 @@ class _OrderDetailSheet extends StatelessWidget {
             'Product',
             product?['name'] ?? order['title'] ?? '—',
           ),
-          _section(context, 'Amount', '$amount USDC'),
+          _section(context, 'Amount', '${storeUsdcLabel(amount)} USDC'),
           if (customerNotes != null && customerNotes.isNotEmpty)
             _section(context, 'Customer Notes', customerNotes),
           if (deliveryNotes != null && deliveryNotes.isNotEmpty)
@@ -745,7 +802,7 @@ class _OrderDetailSheet extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontWeight: FontWeight.w500,
             ),
           ),
