@@ -128,11 +128,18 @@ class BusinessService {
     );
   }
 
-  /// GET /business/me — null when the user has no business yet.
+  /// GET /business/me — null when the user has no business of their own.
+  ///
+  /// The backend also answers for staff (their employer's business, with
+  /// access.isOwner false) so the business portal works for them. In the app
+  /// "my business" is the one the user owns: staff keep the worker hub, so an
+  /// employer's business is not theirs here.
   Future<BusinessProfile?> getMyBusiness() async {
     try {
       final res = await _client.get('/business/me');
       final body = jsonDecode(res.body);
+      final access = body is Map ? body['access'] : null;
+      if (access is Map && access['isOwner'] == false) return null;
       final biz = body['business'];
       return biz is Map<String, dynamic> ? BusinessProfile.fromJson(biz) : null;
     } on ApiException catch (e) {
