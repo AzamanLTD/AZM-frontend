@@ -30,16 +30,14 @@ import 'package:animations/animations.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
+import 'package:azaman/widgets/marketplace/store_cart_actions.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
 import 'package:azaman/screens/marketplace/my_invoices_screen.dart';
 import 'package:azaman/screens/marketplace/invoice_detail_screen.dart';
 import 'package:azaman/screens/marketplace/market_storefront_shell.dart';
-import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
-import 'package:azaman/screens/tickets/ticket_workspace_screen.dart';
 import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/business_service.dart';
-import 'package:azaman/services/ticket_service.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 import 'package:azaman/widgets/featured_products_section.dart';
 import 'package:azaman/widgets/restaurant_menu_flip_book.dart';
@@ -295,35 +293,26 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
     }
   }
 
+  /// A product's order button: into the cart (paid from there). With no
+  /// product (the store's main button), the catalog to choose from. These
+  /// used to open the friend-chat deal form, which fails on a store page.
   Future<void> _openOrderSheet({BusinessProduct? product}) async {
     final business = _business;
     if (business == null) return;
-    AzamanHaptics.confirm();
-    final ticket = await showModalBottomSheet<Ticket>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => TicketCreateSheet(
-        preselectedBusiness: business,
-        preselectedProduct: product,
-      ),
-    );
-    if (ticket != null && mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TicketWorkspaceScreen(
-            ticketId: ticket.id,
-            friendUsername: business.businessName,
-          ),
-        ),
-      );
+    if (product == null) {
+      _openCatalogView();
+      return;
     }
+    await addStoreProductToCart(
+      context,
+      ref,
+      business: business,
+      product: product,
+    );
   }
 
   /// Routes the primary CTA: a dedicated booking screen where the vertical
-  /// has one ([storePrimaryRoute]), otherwise the order sheet against the
-  /// business's own catalog.
+  /// has one ([storePrimaryRoute]), otherwise the catalog to add from.
   void _primaryCtaAction() {
     final business = _business;
     if (business == null) return;

@@ -4,6 +4,14 @@
 // Full cart view with quantity controls, item removal, special instructions,
 // order summary, and checkout flow.
 //
+// Checkout creates the order with a held payment (escrow) and then asks the
+// buyer to pay it from the wallet (store_order_pay.dart): the store's own
+// total and fee, the second factor, and the money held until the buyer gets
+// the order. A store that switched held payment off takes payment directly,
+// and the order says so. An order created but not paid stays payable from My
+// orders for 24 hours. ("Purchase confirmed!" used to show for an order no
+// one could pay.)
+//
 // Reference: Bolt Food / Uber Eats cart screen — clean, fast, minimal friction.
 // =============================================================================
 
@@ -22,12 +30,29 @@ import 'package:azaman/storefront/providers/storefront_provider.dart';
 import 'package:azaman/storefront/core/checkout_failure_message.dart';
 import 'package:azaman/storefront/services/storefront_service.dart';
 import 'package:azaman/widgets/azaman_network_image.dart';
+import 'package:azaman/widgets/marketplace/store_order_pay.dart';
+import 'package:azaman/widgets/security/second_factor.dart';
+import 'package:azaman/router/route_registry.dart';
+import 'package:go_router/go_router.dart';
+
+enum _OrderOutcome { paid, saved, shortBalance, direct }
 
 class CartScreen extends ConsumerStatefulWidget {
   /// Called after a successful checkout. Typically navigates back to the marketplace.
   final VoidCallback? onCheckoutComplete;
 
-  const CartScreen({super.key, this.onCheckoutComplete});
+  /// Replaces the second-factor sheet (tests).
+  final Future<SecondFactor?> Function({
+    required SecondFactorKind kind,
+    String? errorText,
+  })?
+  secondFactorPrompt;
+
+  const CartScreen({
+    super.key,
+    this.onCheckoutComplete,
+    this.secondFactorPrompt,
+  });
 
   @override
   ConsumerState<CartScreen> createState() => _CartScreenState();
@@ -48,6 +73,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   // (same key) when the cart is unchanged; a materially different cart
   // begins a genuinely new instance, leaving the old one recoverable.
   final _checkoutRef = FinancialOperationRef();
+  // A store that switched held payment off: its direct order is its own
+  // logical action (a different request), never a retry of the held one.
+  final _directCheckoutRef = FinancialOperationRef();
 
   final _deliveryAddressCtrl = TextEditingController();
   final _orderNotesCtrl = TextEditingController();
@@ -58,6 +86,42 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     _deliveryAddressCtrl.dispose();
     _orderNotesCtrl.dispose();
     super.dispose();
+  }
+
+  static bool _escrowNotOffered(Object e) {
+    final status = e is ApiException
+        ? e.statusCode
+        : (e is StorefrontApiException ? e.statusCode : null);
+    final message = e is ApiException
+        ? e.message
+        : (e is StorefrontApiException ? e.message : '');
+    return status == 403 &&
+        RegExp('escrow', caseSensitive: false).hasMatch(message);
+  }
+
+  Future<bool> _confirmDirectOrder(String? storeName) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pay the store directly?'),
+        content: Text(
+          '${storeName ?? 'This store'} does not take payment in Azaman. '
+          'You can still send the order and pay them when you collect it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            key: const ValueKey('cart-send-direct'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Send order'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
   Future<void> _placeOrder() async {
@@ -83,30 +147,69 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ].join(' | ');
 
       final itemsJson = cart.toCheckoutItems();
+      Future<Map<String, dynamic>> checkout(String mode) =>
+          service.checkoutCart(
+            businessProfileId: cart.businessProfileId!,
+            items: itemsJson,
+            customerNotes: combinedNotes.isNotEmpty ? combinedNotes : null,
+            deliveryNotes: combinedDelivery.isNotEmpty
+                ? combinedDelivery
+                : null,
+            operationType: mode == 'ESCROW'
+                ? _checkoutActionId
+                : '$_checkoutActionId.direct',
+            ref: mode == 'ESCROW' ? _checkoutRef : _directCheckoutRef,
+            paymentMode: mode,
+          );
 
-      final result = await service.checkoutCart(
-        businessProfileId: cart.businessProfileId!,
-        items: itemsJson,
-        customerNotes: combinedNotes.isNotEmpty ? combinedNotes : null,
-        deliveryNotes: combinedDelivery.isNotEmpty ? combinedDelivery : null,
-        operationType: _checkoutActionId,
-        ref: _checkoutRef,
-      );
+      Map<String, dynamic> result;
+      var direct = false;
+      try {
+        result = await checkout('ESCROW');
+      } catch (e) {
+        if (!_escrowNotOffered(e)) rethrow;
+        if (!mounted || !await _confirmDirectOrder(cart.businessName)) return;
+        direct = true;
+        result = await checkout('DIRECT');
+      }
 
+      final itemCount = cart.items.length;
+      final storeName = cart.businessName;
+      // The order exists now (paid or not): the cart's job is done. An
+      // unpaid order is paid from My orders.
       ref.read(cartProvider.notifier).clearCart();
 
+      // The service returns the backend's UNWRAPPED data map
+      // ({order: {...}, idempotent?}).
+      final orderData = result['order'] as Map<String, dynamic>?;
+      var outcome = direct ? _OrderOutcome.direct : _OrderOutcome.saved;
+      if (!direct && orderData != null && mounted) {
+        final payment = StoreOrderPayment.fromOrder(
+          orderData,
+          storeName: storeName,
+        );
+        if (payment != null) {
+          final paid = await payStoreOrder(
+            context,
+            ref,
+            payment,
+            ask: widget.secondFactorPrompt,
+          );
+          outcome = switch (paid) {
+            StorePayResult.paid => _OrderOutcome.paid,
+            StorePayResult.shortBalance => _OrderOutcome.shortBalance,
+            StorePayResult.notPaid => _OrderOutcome.saved,
+          };
+        }
+      }
+
       if (mounted) {
-        AzamanHaptics.confirm();
-        // The service returns the backend's UNWRAPPED data map
-        // ({order: {...}, idempotent?}) — the durable path's malformed-
-        // success guard guarantees ['order'] is a Map, so the orderRef
-        // reaches the confirmation dialog (it was previously read at
-        // result['data']['order'], which is always null after unwrap).
-        final orderData = result['order'] as Map<String, dynamic>?;
+        if (outcome == _OrderOutcome.paid) AzamanHaptics.confirm();
         _showOrderConfirmation(
-          cart.items.length,
-          cart.businessName,
+          itemCount,
+          storeName,
           orderRef: orderData?['orderRef'] as String?,
+          outcome: outcome,
           colors: colors,
         );
         widget.onCheckoutComplete?.call();
@@ -139,14 +242,49 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     int itemCount,
     String? businessName, {
     String? orderRef,
+    required _OrderOutcome outcome,
     required AzamanColors colors,
   }) {
-    final cart = ref.read(cartProvider);
-    final presentation = _CartPresentation.fromPreset(cart.experiencePreset);
+    final store = businessName ?? 'the store';
+    final (title, body, icon, tint) = switch (outcome) {
+      _OrderOutcome.paid => (
+        'Paid · held for you',
+        '$store is paid when you tap Got it, or 3 days after handing your order over if you report no problem.',
+        HugeIconsSolid.checkmarkCircle02,
+        colors.success,
+      ),
+      _OrderOutcome.saved => (
+        'Order saved, not paid',
+        'Pay it from My orders within 24 hours, or it is cancelled.',
+        Icons.schedule_rounded,
+        colors.warning,
+      ),
+      _OrderOutcome.shortBalance => (
+        'Not enough in your wallet',
+        'Your order is saved. Add money, then pay it from My orders within 24 hours.',
+        Icons.account_balance_wallet_outlined,
+        colors.warning,
+      ),
+      _OrderOutcome.direct => (
+        'Order sent',
+        '$store takes payment directly. Pay them when you collect your order.',
+        HugeIconsSolid.checkmarkCircle02,
+        colors.success,
+      ),
+    };
+    final router = GoRouter.maybeOf(context);
+    void leaveTo(String route) {
+      Navigator.of(context).pop(); // the cart
+      if (router != null) {
+        router.push(route);
+      }
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
+        key: ValueKey('order-outcome-${outcome.name}'),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -155,25 +293,28 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               width: 64,
               height: 64,
               decoration: BoxDecoration(
-                color: colors.success.withValues(alpha: 0.12),
+                color: tint.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                HugeIconsSolid.checkmarkCircle02,
-                color: colors.success,
-                size: 36,
-              ),
+              child: Icon(icon, color: tint, size: 36),
             ),
             const SizedBox(height: 16),
             Text(
-              presentation.successTitle,
+              title,
+              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              '$itemCount ${itemCount == 1 ? "item" : "items"} from ${businessName ?? "the store"}',
+              '$itemCount ${itemCount == 1 ? "item" : "items"} from $store',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: colors.textSecondary),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: colors.textSecondary),
             ),
             if (orderRef != null) ...[
               const SizedBox(height: 8),
@@ -200,15 +341,40 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ],
         ),
         actions: [
+          if (outcome == _OrderOutcome.shortBalance)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const ValueKey('order-outcome-add-money'),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  leaveTo('/deposit');
+                },
+                child: const Text('Add money'),
+              ),
+            ),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context);
-              },
-              child: const Text('Track Order'),
-            ),
+            child: outcome == _OrderOutcome.shortBalance
+                ? TextButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      leaveTo(AzRoutes.storefrontOrderHistory);
+                    },
+                    child: const Text('My orders'),
+                  )
+                : FilledButton(
+                    key: const ValueKey('order-outcome-view'),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      leaveTo(AzRoutes.storefrontOrderHistory);
+                    },
+                    child: Text(
+                      outcome == _OrderOutcome.saved
+                          ? 'Pay from My orders'
+                          : 'View order',
+                    ),
+                  ),
           ),
         ],
       ),
@@ -547,6 +713,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           width: double.infinity,
           height: 56,
           child: FilledButton.icon(
+            key: const ValueKey('cart-checkout'),
             onPressed: _isPlacingOrder ? null : _placeOrder,
             style: FilledButton.styleFrom(
               backgroundColor: colors.accent,

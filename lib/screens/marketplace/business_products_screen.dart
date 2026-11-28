@@ -9,9 +9,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:azaman/widgets/marketplace/store_cart_actions.dart';
 import 'package:azaman/models/business_models.dart';
 import 'package:azaman/providers/theme_provider.dart';
-import 'package:azaman/screens/tickets/ticket_create_sheet.dart';
 import 'package:azaman/services/business_service.dart';
 import 'package:azaman/widgets/azaman_empty_state.dart';
 import 'package:azaman/widgets/product_card.dart';
@@ -103,16 +103,11 @@ class _BusinessProductsScreenState
     }
   }
 
+  // Into the cart, paid from there (the deal form needs a chat).
   void _order(BusinessProduct product) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => TicketCreateSheet(
-        preselectedBusiness: _business,
-        preselectedProduct: product,
-      ),
-    );
+    final business = _business;
+    if (business == null) return;
+    addStoreProductToCart(context, ref, business: business, product: product);
   }
 
   @override

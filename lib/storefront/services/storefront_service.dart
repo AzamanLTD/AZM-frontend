@@ -762,6 +762,75 @@ class StorefrontService {
     // key.
   }
 
+  final Map<String, FinancialOperationRef> _orderEscrowRefs = {};
+
+  /// One buyer action on a store order's held payment (Got it, Report a
+  /// problem), with the same durable-key rules as [fundEscrow]: one key per
+  /// logical action, reused across retries, released on a definitive 4xx.
+  Future<Map<String, dynamic>> _orderEscrowAction({
+    required String type,
+    required String endpoint,
+    required Map<String, dynamic> request,
+  }) async {
+    final ref = _orderEscrowRefs.putIfAbsent(
+      type,
+      () => FinancialOperationRef(),
+    );
+    final op = await _resolveOperation(
+      type: type,
+      endpoint: endpoint,
+      request: request,
+      ref: ref,
+    );
+    try {
+      final response = await _apiClient.post(
+        endpoint,
+        request,
+        idempotencyKey: op.key,
+      );
+      await _releaseOperation(ref);
+      final decoded = jsonDecode(response.body);
+      return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+    } on ApiException catch (e) {
+      if (_isDefinitivePreEconomic(e.statusCode)) await _releaseOperation(ref);
+      rethrow;
+    }
+  }
+
+  /// "Got it": the buyer has the order. The store's side was marked when it
+  /// handed the order over, so this pays the store. Behind the second factor
+  /// (POST /escrow/satisfy). True when the payment was released.
+  Future<bool> confirmOrderReceived({
+    required String escrowId,
+    String? totpToken,
+    String? password,
+  }) async {
+    final body = await _orderEscrowAction(
+      type: 'storefront.escrow.satisfy.$escrowId',
+      endpoint: '/escrow/satisfy',
+      request: {
+        'escrowId': escrowId,
+        if (totpToken != null && totpToken.trim().isNotEmpty)
+          'totpToken': totpToken.trim(),
+        if (password != null && password.isNotEmpty) 'password': password,
+      },
+    );
+    return body['settled'] == true;
+  }
+
+  /// "Report a problem": the payment stays held and goes to dispute review
+  /// (POST /escrow/dispute). The store is not paid while it is open.
+  Future<void> reportOrderProblem({
+    required String escrowId,
+    required String reason,
+  }) async {
+    await _orderEscrowAction(
+      type: 'storefront.escrow.dispute.$escrowId',
+      endpoint: '/escrow/dispute',
+      request: {'escrowId': escrowId, 'reason': reason},
+    );
+  }
+
   Future<Map<String, dynamic>> getMyOrders({
     String? status,
     int limit = 20,
