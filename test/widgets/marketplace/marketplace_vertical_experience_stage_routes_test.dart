@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:azaman/models/business_models.dart';
+import 'package:azaman/models/marketplace_booking_models.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/screens/marketplace/business_profile_screen.dart';
 import 'package:azaman/widgets/marketplace/marketplace_vertical_experience_stage.dart';
 
 AzamanColors get _colors => ThemeProvider.getColors(AzamanTheme.dark);
@@ -84,5 +86,83 @@ void main() {
     );
     expect(widget.business.id, 'internal-profile-1');
     expect(widget.business.bizId, 'public-biz-123');
+  });
+
+  testWidgets('transit "View trips" opens the trip list by the internal id', (
+    tester,
+  ) async {
+    String? route;
+    final business = _business('LOGISTICS');
+    final trip = TransitTrip(
+      id: 'trip-1',
+      businessProfileId: business.id,
+      vehicleId: 'v1',
+      routeName: 'Circle - Madina',
+      origin: 'Circle',
+      destination: 'Madina',
+      departureAt: DateTime(2026, 12, 1, 7, 30),
+      fareUsdc: 0.6,
+      availableSeats: 10,
+      status: TripStatus.scheduled,
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          transitTripsProvider(business.id).overrideWith((ref) async => [trip]),
+          seatAvailabilityProvider('trip-1').overrideWith(
+            (ref) async => const SeatAvailability(
+              tripId: 'trip-1',
+              seats: [],
+              availableCount: 0,
+              totalSeats: 0,
+              tripStatus: 'SCHEDULED',
+              fareUsdc: 0.6,
+            ),
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MarketplaceVerticalExperienceStage(
+                business: business,
+                colors: _colors,
+                onNavigate: (value) => route = value,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.text('View trips'));
+    expect(route, '/business-market/internal-profile-1/transit');
+  });
+
+  group("the store page's primary button", () {
+    test('a hotel opens booking by its public bizId (the hotel API key)', () {
+      expect(
+        storePrimaryRoute(_business('HOSPITALITY')),
+        '/business-market/public-biz-123/hotel-booking',
+      );
+    });
+
+    test(
+      'transit opens the trip list by the internal id (the trips filter)',
+      () {
+        expect(
+          storePrimaryRoute(_business('LOGISTICS')),
+          '/business-market/internal-profile-1/transit',
+        );
+      },
+    );
+
+    test(
+      'real estate is not sent to the hotel flow (it refuses non-hotels)',
+      () {
+        expect(storePrimaryRoute(_business('REAL_ESTATE')), isNull);
+        expect(storePrimaryRoute(_business('FOOD_BEVERAGE')), isNull);
+      },
+    );
   });
 }

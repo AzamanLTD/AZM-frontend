@@ -321,25 +321,17 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
     }
   }
 
-  /// Routes the primary CTA to the right flow for the business's vertical:
-  /// FOOD_BEVERAGE opens the order sheet inline; HOSPITALITY/REAL_ESTATE and
-  /// LOGISTICS push to their dedicated booking screens; every other vertical
-  /// opens the order sheet against that business's own product/service
-  /// catalog.
+  /// Routes the primary CTA: a dedicated booking screen where the vertical
+  /// has one ([storePrimaryRoute]), otherwise the order sheet against the
+  /// business's own catalog.
   void _primaryCtaAction() {
     final business = _business;
     if (business == null) return;
-    switch (business.category) {
-      case 'HOSPITALITY':
-      case 'REAL_ESTATE':
-        context.push('/business-market/${business.id}/hotel-booking');
-        return;
-      case 'LOGISTICS':
-        context.push('/business-market/${business.id}/transit');
-        return;
-      case 'FOOD_BEVERAGE':
-      default:
-        _openOrderSheet();
+    final route = storePrimaryRoute(business);
+    if (route != null) {
+      context.push(route);
+    } else {
+      _openOrderSheet();
     }
   }
 
@@ -1225,3 +1217,18 @@ class _BusinessProfileScreenState extends ConsumerState<BusinessProfileScreen> {
     );
   }
 }
+
+/// The dedicated booking screen a store's primary button opens, or null when
+/// the vertical has none (the button then opens the order sheet).
+///
+/// The two routes take different keys because their backends do: the hotel
+/// endpoints look the business up by its public code (`bizId`, "BIZ-…"),
+/// the transit trip list filters by `businessProfileId` (the UUID).
+/// REAL_ESTATE is not sent to the hotel flow: the reservation endpoint
+/// refuses any business that is not HOSPITALITY.
+String? storePrimaryRoute(BusinessProfile business) =>
+    switch (business.category) {
+      'HOSPITALITY' => '/business-market/${business.bizId}/hotel-booking',
+      'LOGISTICS' => '/business-market/${business.id}/transit',
+      _ => null,
+    };

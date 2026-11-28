@@ -180,13 +180,15 @@ void main() {
       await tester.pumpWidget(buildTestApp());
       await tester.pump(const Duration(milliseconds: 500));
 
-      // Legend should have "Standard" (not "Available" since layout has VIP tiers),
-      // "Selected", "Occupied", "Blocked", and "VIP" text
+      // "Standard" (not "Available": the layout has VIP tiers), the
+      // passenger's own seat, taken seats, seats not for sale, and VIP. No
+      // crew entry: this layout has no cab.
       expect(find.text('Standard'), findsOneWidget);
-      expect(find.text('Selected'), findsOneWidget);
-      expect(find.text('Occupied'), findsOneWidget);
-      expect(find.text('Blocked'), findsOneWidget);
+      expect(find.text('Your seat'), findsOneWidget);
+      expect(find.text('Taken'), findsOneWidget);
+      expect(find.text('Not for sale'), findsOneWidget);
       expect(find.text('VIP'), findsOneWidget);
+      expect(find.text('Crew'), findsNothing);
     });
 
     testWidgets('shows checkout dock with Book Now button', (tester) async {

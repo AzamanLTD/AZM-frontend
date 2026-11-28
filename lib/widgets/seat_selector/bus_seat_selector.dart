@@ -18,9 +18,9 @@ import 'dart:ui' as ui;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:azaman/models/marketplace_booking_models.dart' as booking;
+import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/theme/motion_tokens.dart';
 import 'package:azaman/utils/azaman_haptics.dart';
 
@@ -29,7 +29,8 @@ import 'seat_geometry_solver.dart';
 import 'seat_canvas_painter.dart';
 import 'seat_selector_controller.dart';
 export 'seat_selector_controller.dart' show SeatSelectorController;
-export 'seat_canvas_painter.dart' show CabinLighting;
+export 'seat_canvas_painter.dart'
+    show CabinLighting, SeatPalette, SeatLook, SeatGlyphPainter;
 import 'seat_semantics_overlay.dart';
 
 /// The main seat selector widget.
@@ -82,6 +83,11 @@ class BusSeatSelector extends StatefulWidget {
   /// Cabin lighting overlay; null keeps legacy rendering.
   final CabinLighting? cabinLighting;
 
+  /// The smallest scale the opening fit may use. The vehicle is drawn top to
+  /// bottom; when it is taller than the view at this scale it opens at the
+  /// cab (the front) and scrolls down, instead of opening mid-vehicle.
+  final double minFitScale;
+
   const BusSeatSelector({
     super.key,
     required this.layout,
@@ -103,6 +109,7 @@ class BusSeatSelector extends StatefulWidget {
     this.onBook,
     this.isBooking = false,
     this.cabinLighting,
+    this.minFitScale = 0.8,
   });
 
   @override
@@ -112,10 +119,6 @@ class BusSeatSelector extends StatefulWidget {
 class _BusSeatSelectorState extends State<BusSeatSelector>
     with TickerProviderStateMixin {
   late SeatSelectorController _controller;
-
-  // SVG icon cache
-  SeatIconCache? _iconCache;
-  bool _iconsLoading = false;
 
   // Animation controller for the selection pulse ring
   late AnimationController _pulseController;
@@ -132,6 +135,18 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   DateTime? _lastSeatTapFit;
   double _autoFitScale = 1.0;
   double _currentZoomScale = 1.0;
+
+  /// The canvas viewport (the area between the deck switcher and the
+  /// legend), measured by a LayoutBuilder. The fit and the reveal use it,
+  /// never the whole widget, whose height includes the legend and dock.
+  Size? _viewport;
+
+  /// The passenger panned or zoomed; viewport changes then leave their view
+  /// alone instead of refitting.
+  bool _userMoved = false;
+
+  /// The seat most recently selected: a refit keeps it in view.
+  String? _focusSeat;
 
   // One-shot controller for the vertical deck-slice transition.
   late final AnimationController _deckSliceController;
@@ -168,7 +183,6 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     // Load layout if provided
     if (widget.layout != null) {
       _controller.loadLayout(widget.layout!);
-      _loadIcons();
       _scheduleAutoFit();
     }
 
@@ -207,11 +221,8 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     super.didUpdateWidget(oldWidget);
     if (widget.layout != oldWidget.layout && widget.layout != null) {
       _controller.loadLayout(widget.layout!);
-      _loadIcons();
+      _userMoved = false;
       _scheduleAutoFit();
-    } else if (_iconCache == null && !_iconsLoading) {
-      // Retry icon decode if a previous attempt failed (transient failure)
-      _loadIcons();
     }
   }
 
@@ -234,53 +245,16 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     setState(() {}); // Rebuild for dock/legend updates
   }
 
-  Future<void> _loadIcons() async {
-    if (_iconsLoading || _iconCache != null) return;
-    _iconsLoading = true;
-
-    try {
-      final available = await _decodeSvg(
-        'assets/icons/seats/seat_available.svg',
-      );
-      final selected = await _decodeSvg('assets/icons/seats/seat_selected.svg');
-      final occupied = await _decodeSvg('assets/icons/seats/seat_occupied.svg');
-      final blocked = await _decodeSvg('assets/icons/seats/seat_blocked.svg');
-
-      if (mounted) {
-        _iconCache = SeatIconCache(
-          available: available,
-          selected: selected,
-          occupied: occupied,
-          blocked: blocked,
-        );
-        setState(() {});
-      }
-    } catch (e) {
-      // Icons will fall back to simple rect rendering
-      debugPrint('Seat icon decode failed: $e');
-    } finally {
-      _iconsLoading = false;
-    }
-  }
-
-  Future<ui.Picture?> _decodeSvg(String assetPath) async {
-    try {
-      final svg = await vg.loadPicture(SvgAssetLoader(assetPath), null);
-      return svg.picture;
-    } catch (e) {
-      debugPrint('Failed to decode $assetPath: $e');
-      return null;
-    }
-  }
-
-  void _scheduleAutoFit() {
+  void _scheduleAutoFit({bool force = false}) {
     final geometry = _controller.geometry;
     if (geometry == null) return;
 
     // Skip auto-fit if a seat-tap-driven center animation is in flight
     // (within the last 300ms), to prevent the viewport from snapping back
-    // to full-vehicle fit view between rapid seat taps.
-    if (_lastSeatTapFit != null &&
+    // to full-vehicle fit view between rapid seat taps. A viewport change
+    // forces the fit: it keeps the tapped seat in view itself.
+    if (!force &&
+        _lastSeatTapFit != null &&
         DateTime.now().difference(_lastSeatTapFit!) <
             const Duration(milliseconds: 300) &&
         _fitController.isAnimating) {
@@ -292,29 +266,54 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     });
   }
 
-  void _autoFit(Rect bounds) {
+  Size? _viewportSize() {
+    if (!mounted) return null;
+    if (_viewport != null) return _viewport;
     final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null || !mounted) return;
+    return renderBox?.hasSize == true ? renderBox!.size : null;
+  }
 
-    final viewportSize = renderBox.size;
-    if (viewportSize.isEmpty || bounds.isEmpty) return;
+  void _autoFit(Rect bounds) {
+    final viewportSize = _viewportSize();
+    if (viewportSize == null || viewportSize.isEmpty || bounds.isEmpty) {
+      return;
+    }
 
-    // Compute scale to fit bounds in viewport with padding
-    const padding = 40.0;
+    // Fit the whole vehicle when it fits at a readable scale. A long one
+    // fits its width instead and opens at the cab, so the first thing a
+    // passenger sees is the front, the driver and the door.
+    const padding = 16.0;
     final scaleX = (viewportSize.width - padding * 2) / bounds.width;
     final scaleY = (viewportSize.height - padding * 2) / bounds.height;
-    final scale = math.min(scaleX, scaleY);
-    final clampedScale = scale.clamp(0.8, 3.0);
+    final fitAll = math.min(scaleX, scaleY);
+    final clampedScale =
+        (fitAll >= widget.minFitScale ? fitAll : math.min(scaleX, 1.0))
+            .clamp(widget.minFitScale, 1.5)
+            .toDouble();
     _autoFitScale = clampedScale;
     _currentZoomScale = clampedScale;
 
-    // Center the bounds in the viewport
     final offsetX =
         (viewportSize.width - bounds.width * clampedScale) / 2 -
         bounds.left * clampedScale;
-    final offsetY =
-        (viewportSize.height - bounds.height * clampedScale) / 2 -
-        bounds.top * clampedScale;
+    final fitsTall = bounds.height * clampedScale <= viewportSize.height;
+    var offsetY = fitsTall
+        ? (viewportSize.height - bounds.height * clampedScale) / 2 -
+              bounds.top * clampedScale
+        : padding - bounds.top * clampedScale;
+
+    // Keep the passenger's latest seat in view through a refit (the dock
+    // appearing shrinks the viewport).
+    final focus = _focusSeat == null
+        ? null
+        : _controller.geometry?.rectForSeat(_focusSeat!)?.visualRect;
+    if (!fitsTall && focus != null) {
+      const margin = 12.0;
+      final bottom = focus.bottom * clampedScale + offsetY;
+      if (bottom > viewportSize.height - margin) {
+        offsetY -= bottom - (viewportSize.height - margin);
+      }
+    }
 
     // ignore: deprecated_member_use
     final targetMatrix = Matrix4.identity()
@@ -356,6 +355,9 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     final wasSelected = _controller.selectedSeats.contains(seatId);
     final success = _controller.toggleSeat(seatId);
     if (success) {
+      _focusSeat = wasSelected
+          ? (_focusSeat == seatId ? null : _focusSeat)
+          : seatId;
       if (wasSelected) {
         // Deselect: a soft click, not a rung of the ascending ladder.
         AzamanHaptics.selection();
@@ -365,41 +367,40 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
         AzamanHaptics.seatSelected(_controller.selectedSeats.length - 1);
       }
 
-      // Animate viewport to center on the tapped seat
+      // Keep the tapped seat in view (no zoom)
       final geometry = _controller.geometry;
       if (geometry != null) {
         final slotRect = geometry.rectForSeat(seatId);
         if (slotRect != null) {
-          _centerOnRect(slotRect.visualRect);
+          _revealRect(slotRect.visualRect);
         }
       }
     }
   }
 
-  void _centerOnRect(Rect rect) {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null || !mounted) return;
+  void _revealRect(Rect rect) {
+    final viewportSize = _viewportSize();
+    if (viewportSize == null || viewportSize.isEmpty) return;
     _lastSeatTapFit = DateTime.now();
 
-    final viewportSize = renderBox.size;
-    if (viewportSize.isEmpty) return;
+    // Keep the passenger's view: no zoom on a tap. Only when the seat is
+    // partly out of view does the vehicle slide (vertically) to show it.
+    final current = _controller.transformController.value;
+    final scale = current.getMaxScaleOnAxis();
+    final t = current.getTranslation();
+    final top = rect.top * scale + t.y;
+    final bottom = rect.bottom * scale + t.y;
+    const margin = 12.0;
+    if (top >= margin && bottom <= viewportSize.height - margin) return;
+    final dy = top < margin
+        ? margin - top
+        : (viewportSize.height - margin) - bottom;
 
-    const zoomScale = 1.5;
-
-    // Center the rect in the viewport at the target zoom
-    final offsetX =
-        viewportSize.width / 2 - (rect.left + rect.width / 2) * zoomScale;
-    final offsetY =
-        viewportSize.height / 2 - (rect.top + rect.height / 2) * zoomScale;
-
-    // ignore: deprecated_member_use
-    final targetMatrix = Matrix4.identity()
+    final targetMatrix = current.clone()
       // ignore: deprecated_member_use
-      ..translate(offsetX, offsetY)
-      // ignore: deprecated_member_use
-      ..scale(zoomScale);
+      ..translate(0.0, dy / scale);
 
-    _animateMatrix(_controller.transformController.value, targetMatrix);
+    _animateMatrix(current, targetMatrix);
   }
 
   @override
@@ -431,6 +432,7 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
       bodyColor: widget.cardColor.withValues(alpha: 0.35),
       borderColor: widget.dividerColor.withValues(alpha: 0.35),
     );
+    final palette = _palette();
 
     return Column(
       children: [
@@ -439,111 +441,18 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
 
         // ── Main canvas + minimap ───────────────────────────────────────
         Expanded(
-          child: Stack(
-            children: [
-              // Vertical deck slice: the canvas (not the floating minimap)
-              // enters as a slice with perspective when the deck changes.
-              // AnimatedSwitcher is deliberately NOT used here — two live
-              // InteractiveViewers would share one TransformationController
-              // and trip the framework's "already attached" assertion.
-              AnimatedBuilder(
-                animation: _deckSliceAnimation,
-                builder: (context, child) {
-                  final t = _deckSliceAnimation.value;
-                  if (t >= 1.0) return child!;
-                  return Opacity(
-                    opacity: 0.45 + 0.55 * t,
-                    child: Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.identity()
-                        ..setEntry(3, 2, 0.0012) // perspective
-                        ..rotateX(_deckSliceOffset * 0.10 * (1 - t)),
-                      child: FractionalTranslation(
-                        translation: Offset(
-                          0,
-                          _deckSliceOffset * 0.12 * (1 - t),
-                        ),
-                        child: child,
-                      ),
-                    ),
-                  );
-                },
-                child: InteractiveViewer(
-                  transformationController: _controller.transformController,
-                  constrained: false,
-                  minScale: 0.8,
-                  maxScale: 3.0,
-                  boundaryMargin: const EdgeInsets.all(80),
-                  onInteractionUpdate: (details) {
-                    _currentZoomScale = _controller.transformController.value
-                        .getMaxScaleOnAxis();
-                    setState(() {});
-                  },
-                  child: SizedBox(
-                    width: geometry.totalBounds.width,
-                    height: geometry.totalBounds.height,
-                    child: Stack(
-                      children: [
-                        // Canvas painter
-                        CustomPaint(
-                          size: Size(
-                            geometry.totalBounds.width,
-                            geometry.totalBounds.height,
-                          ),
-                          painter: SeatCanvasPainter(
-                            geometry: geometry,
-                            iconCache: _iconCache ?? const SeatIconCache(),
-                            selectedSeats: _controller.selectedSeats,
-                            hullStyle: hullStyle,
-                            accentColor: widget.accentColor,
-                            selectionPulse: _pulseAnimation.value,
-                            currentDeck: _controller.currentDeck,
-                            cabinLighting: widget.cabinLighting,
-                            repaint: Listenable.merge([
-                              _controller,
-                              _pulseAnimation,
-                            ]),
-                          ),
-                        ),
-                        // Semantics overlay
-                        SeatSemanticsOverlay(
-                          geometry: geometry,
-                          selectedSeats: _controller.selectedSeats,
-                          currentDeck: _controller.currentDeck,
-                          onSeatTap: _onSeatTap,
-                          viewportWidth: geometry.totalBounds.width,
-                          viewportHeight: geometry.totalBounds.height,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Floating minimap (top-right) — only show when zoomed in
-              // past the auto-fit overview, so it doesn't overlap seats at full view.
-              if (widget.showMinimap &&
-                  _currentZoomScale > _autoFitScale * 1.15)
-                Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: widget.backgroundColor,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.12),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: _buildMinimap(geometry, hullStyle),
-                  ),
-                ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final size = constraints.biggest;
+              if (_viewport != size) {
+                final hadViewport = _viewport != null;
+                _viewport = size;
+                // The viewport changed under an untouched view (the booking
+                // dock arrived, the sheet resized): refit to it.
+                if (hadViewport && !_userMoved) _scheduleAutoFit(force: true);
+              }
+              return _canvas(geometry, hullStyle, palette);
+            },
           ),
         ),
 
@@ -552,6 +461,120 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
 
         // ── Sticky checkout dock ────────────────────────────────────────
         if (widget.showCheckoutDock) _buildCheckoutDock(),
+      ],
+    );
+  }
+
+  Widget _canvas(
+    ComputedGeometry geometry,
+    HullStyle hullStyle,
+    SeatPalette palette,
+  ) {
+    return Stack(
+      children: [
+        // Vertical deck slice: the canvas (not the floating minimap)
+        // enters as a slice with perspective when the deck changes.
+        // AnimatedSwitcher is deliberately NOT used here — two live
+        // InteractiveViewers would share one TransformationController
+        // and trip the framework's "already attached" assertion.
+        AnimatedBuilder(
+          animation: _deckSliceAnimation,
+          builder: (context, child) {
+            final t = _deckSliceAnimation.value;
+            if (t >= 1.0) return child!;
+            return Opacity(
+              opacity: 0.45 + 0.55 * t,
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0012) // perspective
+                  ..rotateX(_deckSliceOffset * 0.10 * (1 - t)),
+                child: FractionalTranslation(
+                  translation: Offset(0, _deckSliceOffset * 0.12 * (1 - t)),
+                  child: child,
+                ),
+              ),
+            );
+          },
+          child: InteractiveViewer(
+            transformationController: _controller.transformController,
+            constrained: false,
+            minScale: math.min(0.8, widget.minFitScale),
+            maxScale: 3.0,
+            boundaryMargin: const EdgeInsets.all(80),
+            onInteractionUpdate: (details) {
+              // A real pan or pinch (a seat tap is neither): the passenger
+              // owns the view from here.
+              if (details.focalPointDelta != Offset.zero ||
+                  details.scale != 1.0) {
+                _userMoved = true;
+              }
+              _currentZoomScale = _controller.transformController.value
+                  .getMaxScaleOnAxis();
+              setState(() {});
+            },
+            child: SizedBox(
+              width: geometry.totalBounds.width,
+              height: geometry.totalBounds.height,
+              child: Stack(
+                children: [
+                  // Canvas painter
+                  CustomPaint(
+                    size: Size(
+                      geometry.totalBounds.width,
+                      geometry.totalBounds.height,
+                    ),
+                    painter: SeatCanvasPainter(
+                      geometry: geometry,
+                      iconCache: const SeatIconCache(),
+                      palette: palette,
+                      fontFamily: AzText.uiFamily,
+                      selectedSeats: _controller.selectedSeats,
+                      hullStyle: hullStyle,
+                      accentColor: widget.accentColor,
+                      selectionPulse: _pulseAnimation.value,
+                      currentDeck: _controller.currentDeck,
+                      cabinLighting: widget.cabinLighting,
+                      repaint: Listenable.merge([_controller, _pulseAnimation]),
+                    ),
+                  ),
+                  // Semantics overlay
+                  SeatSemanticsOverlay(
+                    geometry: geometry,
+                    selectedSeats: _controller.selectedSeats,
+                    currentDeck: _controller.currentDeck,
+                    onSeatTap: _onSeatTap,
+                    viewportWidth: geometry.totalBounds.width,
+                    viewportHeight: geometry.totalBounds.height,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Floating minimap (top-right) — only show when zoomed in
+        // past the auto-fit overview, so it doesn't overlap seats at full view.
+        if (widget.showMinimap && _currentZoomScale > _autoFitScale * 1.15)
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: widget.backgroundColor,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: _buildMinimap(geometry, hullStyle),
+            ),
+          ),
       ],
     );
   }
@@ -647,44 +670,76 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
     );
   }
 
-  Widget _buildLegend() {
-    final hasTiers = widget.layout!.allSeats.any(
-      (s) => s.tier != SeatTier.standard,
-    );
+  SeatPalette _palette() => SeatPalette.fromTheme(
+    accent: widget.accentColor,
+    surface: widget.surfaceColor,
+    divider: widget.dividerColor,
+    textPrimary: widget.textPrimary,
+    textSecondary: widget.textSecondary,
+    textTertiary: widget.textTertiary,
+    background: widget.backgroundColor,
+    danger: widget.dangerColor,
+  );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: widget.surfaceColor,
+  Widget _buildLegend() {
+    final layout = widget.layout!;
+    final seats = layout.allSeats;
+    final hasTiers = seats.any((s) => s.tier != SeatTier.standard);
+    final hasNotForSale = seats.any(
+      (s) =>
+          s.status == SeatBookStatus.blocked ||
+          s.status == SeatBookStatus.reserved,
+    );
+    final crew = layout.decks
+        .expand((d) => d.grid.expand((r) => r))
+        .where((s) => s.isCrew)
+        .toList();
+    final palette = _palette();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Wrap(
         alignment: WrapAlignment.center,
-        spacing: 20,
+        spacing: 12,
         runSpacing: 8,
         children: [
           _legendItem(
-            'assets/icons/seats/seat_available.svg',
+            palette,
+            SeatLook.open,
             hasTiers ? 'Standard' : 'Available',
           ),
-          _legendItem('assets/icons/seats/seat_selected.svg', 'Selected'),
-          _legendItem('assets/icons/seats/seat_occupied.svg', 'Occupied'),
-          if (widget.layout!.allSeats.any(
-            (s) => s.status == SeatBookStatus.blocked,
-          ))
-            _legendItem('assets/icons/seats/seat_blocked.svg', 'Blocked'),
-          if (hasTiers) _legendItem('assets/icons/seats/seat_vip.svg', 'VIP'),
+          _legendItem(palette, SeatLook.mine, 'Your seat'),
+          _legendItem(palette, SeatLook.taken, 'Taken'),
+          if (hasNotForSale)
+            _legendItem(palette, SeatLook.notForSale, 'Not for sale'),
+          if (hasTiers) _legendItem(palette, SeatLook.open, 'VIP', vip: true),
+          if (crew.isNotEmpty) _legendItem(palette, SeatLook.crew, 'Crew'),
         ],
       ),
     );
   }
 
-  Widget _legendItem(String svgPath, String label) {
+  Widget _legendItem(
+    SeatPalette palette,
+    SeatLook look,
+    String label, {
+    bool vip = false,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SvgPicture.asset(svgPath, width: 18, height: 18),
-        const SizedBox(width: 5),
+        CustomPaint(
+          size: const Size(17, 18),
+          painter: SeatGlyphPainter(palette, look, vip: vip),
+        ),
+        const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(color: widget.textSecondary, fontSize: 11),
+          style: TextStyle(
+            color: widget.textSecondary,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -788,78 +843,143 @@ class _BusSeatSelectorState extends State<BusSeatSelector>
   }
 }
 
-/// Helper: convert a [TransitSeat] list (from the existing booking models)
-/// into a [VehicleLayout] for the new seat selector module.
-/// This adapter allows the new module to consume the existing backend data
-/// without changing the API layer.
+/// Builds the vehicle a passenger sees from the backend's seat map
+/// (`TransitSeatMap.layout`: one `{seatId, row, col, type, tier}` per cell,
+/// as the operator drew it in the business portal).
+///
+/// - Seats sit at the operator's real columns. A column with no seat in any
+///   row is the walkway. When the operator drew no walkway (the editor's
+///   default grid has none), it goes between the two halves, as it always
+///   has.
+/// - Cells marked NONE are empty space, never seats; a missing seat keeps
+///   its width so the columns stay aligned.
+/// - With [withCab], a cab row leads: the driver front-left (Ghana's
+///   vehicles are left-hand drive) and, with [withMate], the mate's seat
+///   front-right, beside the kerb-side door. Neither is ever bookable. The
+///   mate is assumed for anything with eight or more seats (trotros,
+///   Sprinters, coaches) unless [withMate] says otherwise.
 VehicleLayout vehicleLayoutFromSeats({
   required String layoutId,
   required List<booking.TransitSeat> seats,
   String? vehicleType,
   String? vehicleMake,
   String? vehicleModel,
+  bool withCab = true,
+  bool? withMate,
+  String? mateLabel,
 }) {
-  // Group seats by row
-  final rowMap = <int, List<booking.TransitSeat>>{};
-  for (final seat in seats) {
-    rowMap.putIfAbsent(seat.row, () => []).add(seat);
-  }
-  final sortedRows = rowMap.keys.toList()..sort();
-
-  // Build grid: 4 columns per row (existing layout is always 4 cols: A,B,C,D)
-  // Aisle between col 1 and 2 (after first seat)
-  final grid = <List<GridSlot>>[];
-
-  for (final rowNum in sortedRows) {
-    final rowSeats = rowMap[rowNum]!..sort((a, b) => a.col.compareTo(b.col));
-    final row = <GridSlot>[];
-
-    final halfLen = rowSeats.length ~/ 2;
-
-    for (int colIdx = 0; colIdx < rowSeats.length; colIdx++) {
-      final s = rowSeats[colIdx];
-
-      // Map old SeatStatus → new SeatBookStatus
-      final bookStatus = switch (s.status) {
-        booking.SeatStatus.available => SeatBookStatus.available,
-        booking.SeatStatus.occupied => SeatBookStatus.booked,
-        booking.SeatStatus.blocked => SeatBookStatus.blocked,
-      };
-
-      // Map old SeatTier → new SeatTier
-      final tier = switch (s.tier) {
-        booking.SeatTier.economy => SeatTier.standard,
-        booking.SeatTier.standard => SeatTier.standard,
-        booking.SeatTier.vip => SeatTier.vip,
-      };
-
-      row.add(
-        GridSlot(
-          type: SlotType.seat,
-          row: s.row - 1, // 0-indexed
-          col: colIdx + (colIdx >= halfLen ? 1 : 0), // +1 to skip aisle column
-          seatId: s.seatId,
-          seatLabel: s.seatId,
-          tier: tier,
-          status: bookStatus,
-          fare: s.fare,
-        ),
-      );
-
-      // Insert aisle slot after the first half of seats
-      if (colIdx == halfLen - 1 && rowSeats.length > 2) {
-        row.add(GridSlot(type: SlotType.aisle, row: s.row - 1, col: halfLen));
-      }
-    }
-
-    grid.add(row);
-  }
-
-  return VehicleLayout(
+  VehicleLayout build(List<List<GridSlot>> grid) => VehicleLayout(
     id: layoutId,
     vehicleType: vehicleType,
     vehicleMake: vehicleMake,
     vehicleModel: vehicleModel,
     decks: [Deck(deckIndex: 0, grid: grid)],
   );
+
+  final real = seats.where((s) => !s.isSpace).toList();
+  if (real.isEmpty) return build(const []);
+
+  // Columns, trimmed to the span that holds seats.
+  final seatCols = real.map((s) => s.col).toSet();
+  final firstCol = seatCols.reduce(math.min);
+  final lastCol = seatCols.reduce(math.max);
+  final columns = [for (var c = firstCol; c <= lastCol; c++) c];
+  final walkway = {
+    for (final c in columns)
+      if (!seatCols.contains(c)) c,
+  };
+  final byPos = <(int, int), booking.TransitSeat>{
+    for (final s in real) (s.row, s.col): s,
+  };
+  final rows = (real.map((s) => s.row).toSet().toList()..sort());
+
+  // A column empty in at least half the rows is the operator's walkway,
+  // even when a back bench crosses it: it keeps a seat's width (the bench
+  // seat fills it in its row) and no other walkway is added.
+  final drawnGap = columns.any((c) {
+    if (walkway.contains(c)) return false;
+    final missing = rows.where((r) => !byPos.containsKey((r, c))).length;
+    return missing * 2 >= rows.length;
+  });
+  final seatColumnCount = columns.length - walkway.length;
+  // Index in [columns] after which a virtual walkway goes, when the
+  // operator drew none.
+  final splitAfter = walkway.isEmpty && !drawnGap && seatColumnCount > 2
+      ? seatColumnCount ~/ 2 - 1
+      : null;
+
+  GridSlot seatSlot(booking.TransitSeat s, int row, int col) => GridSlot(
+    type: SlotType.seat,
+    row: row,
+    col: col,
+    seatId: s.seatId,
+    seatLabel: s.seatId,
+    tier: switch (s.tier) {
+      booking.SeatTier.economy => SeatTier.standard,
+      booking.SeatTier.standard => SeatTier.standard,
+      booking.SeatTier.vip => SeatTier.vip,
+    },
+    status: switch (s.status) {
+      booking.SeatStatus.available => SeatBookStatus.available,
+      booking.SeatStatus.occupied => SeatBookStatus.booked,
+      booking.SeatStatus.blocked => SeatBookStatus.blocked,
+    },
+    fare: s.fare,
+  );
+
+  /// One grid row across [columns]; [cell] fills each seat column.
+  List<GridSlot> lay(int gridRow, GridSlot Function(int c, int col) cell) {
+    final out = <GridSlot>[];
+    for (var i = 0; i < columns.length; i++) {
+      final c = columns[i];
+      out.add(
+        walkway.contains(c)
+            ? GridSlot(type: SlotType.aisle, row: gridRow, col: out.length)
+            : cell(c, out.length),
+      );
+      if (i == splitAfter) {
+        out.add(GridSlot(type: SlotType.aisle, row: gridRow, col: out.length));
+      }
+    }
+    return out;
+  }
+
+  final grid = <List<GridSlot>>[];
+  if (withCab) {
+    final mate = withMate ?? real.length >= 8;
+    final seatColumns = columns.where((c) => !walkway.contains(c)).toList();
+    grid.add(
+      lay(0, (c, col) {
+        if (c == seatColumns.first) {
+          return GridSlot(
+            type: SlotType.driver,
+            row: 0,
+            col: col,
+            seatLabel: 'Driver',
+          );
+        }
+        if (mate && c == seatColumns.last && seatColumns.length > 1) {
+          return GridSlot(
+            type: SlotType.crew,
+            row: 0,
+            col: col,
+            seatLabel: mateLabel ?? 'Mate',
+          );
+        }
+        return GridSlot(type: SlotType.empty, row: 0, col: col);
+      }),
+    );
+  }
+  for (final r in rows) {
+    final gridRow = grid.length;
+    grid.add(
+      lay(gridRow, (c, col) {
+        final s = byPos[(r, c)];
+        return s == null
+            ? GridSlot(type: SlotType.empty, row: gridRow, col: col)
+            : seatSlot(s, gridRow, col);
+      }),
+    );
+  }
+  return build(grid);
 }

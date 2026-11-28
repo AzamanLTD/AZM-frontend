@@ -136,8 +136,16 @@ Future<void> _pumpScreen(
 }
 
 Future<void> _tapSeat(WidgetTester tester, String seatId) async {
+  // The seat map refits when the booking dock arrives (the dock shrinks its
+  // viewport). Let the refit settle so the tap lands on the seat where it is
+  // drawn, as a passenger's would.
+  for (var i = 0; i < 6; i++) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
   await tester.tap(
-    find.bySemanticsLabel(RegExp('Seat $seatId')),
+    // The seat map's own label ("Seat 1A, Standard, …"), not the journey
+    // thread's "Seat 1A" caption.
+    find.bySemanticsLabel(RegExp('^Seat $seatId,')),
     warnIfMissed: false,
   );
   await tester.pump(const Duration(milliseconds: 50));
@@ -457,7 +465,9 @@ void main() {
         success.expiresAt.difference(before).inMinutes,
         inInclusiveRange(4, 5),
       );
-      expect(success.expiresAt.isBefore(after.add(transitHoldWindow)), isTrue);
+      // No later than a full window after the call returned. Inclusive: on a
+      // coarse clock the call and `after` can share a tick.
+      expect(success.expiresAt.isAfter(after.add(transitHoldWindow)), isFalse);
     });
 
     test('adapts nullable arrivalAt to a 3-hour leg', () {

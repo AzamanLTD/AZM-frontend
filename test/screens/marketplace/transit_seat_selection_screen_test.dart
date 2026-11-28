@@ -87,7 +87,9 @@ void main() {
     await _pump(tester, tripId: 'trip-1', container: container);
 
     expect(find.byType(BusSeatSelector), findsOneWidget);
-    expect(find.text('Accra → Kumasi'), findsNWidgets(2));
+    // The bar says what the screen is for; the strip carries the route.
+    expect(find.text('Choose your seat'), findsOneWidget);
+    expect(find.text('Accra → Kumasi'), findsOneWidget);
     expect(find.text(r'$18'), findsOneWidget);
 
     final selectable = find.bySemanticsLabel(RegExp(r'A1'));

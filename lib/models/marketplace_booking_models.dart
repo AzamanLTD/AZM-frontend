@@ -140,7 +140,9 @@ class TransitTrip {
 
 enum SeatStatus { available, occupied, blocked }
 
-enum SeatType { window, aisle, extra }
+/// [none] is a cell the operator marked as empty space or walkway in the
+/// seat-map editor ("NONE"). It is not a seat and is never drawn as one.
+enum SeatType { window, aisle, extra, none }
 
 enum SeatTier { economy, standard, vip }
 
@@ -163,12 +165,18 @@ class TransitSeat {
     this.fare = 0,
   });
 
+  /// An operator-marked empty cell, not a seat.
+  bool get isSpace => type == SeatType.none;
+
   static SeatType _parseType(String? s) {
     switch (s?.toUpperCase()) {
       case 'WINDOW':
         return SeatType.window;
       case 'AISLE':
         return SeatType.aisle;
+      case 'NONE':
+      case 'EMPTY':
+        return SeatType.none;
       default:
         return SeatType.extra;
     }

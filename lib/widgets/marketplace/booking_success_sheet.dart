@@ -26,6 +26,11 @@ class BookingSuccessSheet extends ConsumerWidget {
   /// the success header and the detail rows.
   final Widget? keepsake;
 
+  /// The booking exists but the operator has not confirmed it yet (the
+  /// backend creates transit bookings PENDING). The sheet then says
+  /// "reserved", not "confirmed", and celebrates quietly.
+  final bool pending;
+
   /// Wire for the panel weight's own scroll view (see [show]). Null keeps
   /// the whisper layout: content-sized, no scrolling.
   final ScrollController? scrollController;
@@ -39,6 +44,7 @@ class BookingSuccessSheet extends ConsumerWidget {
     required this.departureTime,
     this.keepsake,
     this.scrollController,
+    this.pending = false,
   });
 
   /// Convenience method to show the sheet.
@@ -54,11 +60,18 @@ class BookingSuccessSheet extends ConsumerWidget {
     required String route,
     required DateTime departureTime,
     Widget? keepsake,
+    bool pending = false,
   }) {
-    AzamanHaptics.celebration();
-    AzSound.success();
-    if (keepsake == null) {
+    if (pending) {
+      AzamanHaptics.success();
+    } else {
+      AzamanHaptics.celebration();
+      AzSound.success();
+    }
+    if (keepsake == null && !pending) {
       // Receipt-only: a fixed four-row confirmation — a whisper, as before.
+      // (The pending variant carries an extra explanatory line, so like the
+      // keepsake variant it opens as a scrolling panel.)
       return AzamanSheet.showWhisper<void>(
         context,
         builder: (_) => BookingSuccessSheet(
@@ -67,6 +80,7 @@ class BookingSuccessSheet extends ConsumerWidget {
           totalFare: totalFare,
           route: route,
           departureTime: departureTime,
+          pending: pending,
         ),
       );
     }
@@ -84,6 +98,7 @@ class BookingSuccessSheet extends ConsumerWidget {
         departureTime: departureTime,
         keepsake: keepsake,
         scrollController: scrollController,
+        pending: pending,
       ),
     );
   }
@@ -104,12 +119,14 @@ class BookingSuccessSheet extends ConsumerWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: colors.success.withValues(alpha: 0.12),
+              color: (pending ? colors.accent : colors.success).withValues(
+                alpha: 0.12,
+              ),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              Icons.check_circle_rounded,
-              color: colors.success,
+              pending ? Icons.schedule_rounded : Icons.check_circle_rounded,
+              color: pending ? colors.accent : colors.success,
               size: 40,
             ),
           ).animate().scale(
@@ -120,7 +137,7 @@ class BookingSuccessSheet extends ConsumerWidget {
 
           const SizedBox(height: 20),
           Text(
-            'Booking Confirmed!',
+            pending ? 'Seats reserved' : 'Booking confirmed',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w900,
@@ -136,6 +153,14 @@ class BookingSuccessSheet extends ConsumerWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (pending) ...[
+            const SizedBox(height: 10),
+            Text(
+              'The operator confirms your seats. No charge has been taken.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: colors.textSecondary),
+            ),
+          ],
           const SizedBox(height: 24),
           if (keepsake != null) ...[keepsake!, const SizedBox(height: 24)],
 
@@ -157,7 +182,7 @@ class BookingSuccessSheet extends ConsumerWidget {
           _detailRow(
             colors,
             Icons.payments_rounded,
-            'Total Paid',
+            'Total',
             '\$${totalFare.toStringAsFixed(2)} USDC',
           ),
 
@@ -231,13 +256,18 @@ class BookingSuccessSheet extends ConsumerWidget {
               fontWeight: FontWeight.w500,
             ),
           ),
-          const Spacer(),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              color: colors.textPrimary,
-              fontWeight: FontWeight.w700,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

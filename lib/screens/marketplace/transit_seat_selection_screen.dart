@@ -22,6 +22,7 @@ import 'package:azaman/services/api_client.dart';
 import 'package:azaman/services/marketplace_booking_service.dart';
 import 'package:azaman/providers/marketplace_booking_provider.dart';
 import 'package:azaman/providers/theme_provider.dart';
+import 'package:azaman/theme/az_text.dart';
 import 'package:azaman/widgets/marketplace/booking_success_sheet.dart';
 import 'package:azaman/widgets/seat_selector/bus_seat_selector.dart';
 
@@ -143,6 +144,9 @@ class _TransitSeatSelectionScreenState
       _seatController.clearSelection();
       _activeHold = null;
 
+      // The backend creates the booking PENDING and charges nothing; only an
+      // operator-confirmed booking gets the boarding pass.
+      final confirmed = result.status.toUpperCase() == 'CONFIRMED';
       BookingSuccessSheet.show(
         context,
         bookingRef: result.bookingRef,
@@ -152,7 +156,8 @@ class _TransitSeatSelectionScreenState
             ? 'Trip ${widget.tripId}'
             : '${trip.origin} → ${trip.destination}',
         departureTime: trip?.departureAt ?? DateTime.now(),
-        keepsake: trip == null
+        pending: !confirmed,
+        keepsake: trip == null || !confirmed
             ? null
             : Column(
                 mainAxisSize: MainAxisSize.min,
@@ -401,10 +406,10 @@ class _TransitSeatSelectionScreenState
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
+        // The strip under the bar carries the route; the bar says what
+        // this screen is for.
         title: Text(
-          trip == null
-              ? 'Choose seats'
-              : '${trip.origin} → ${trip.destination}',
+          'Choose your seat',
           style: TextStyle(color: colors.textPrimary),
         ),
         backgroundColor: colors.surface,
@@ -585,7 +590,7 @@ class _JourneyStrip extends StatelessWidget {
             ),
           ),
           Text(
-            '\$${availability.fareUsdc.toStringAsFixed(0)}',
+            transitFareLabel(availability.fareUsdc),
             style: TextStyle(
               color: colors.accent,
               fontSize: 13,
@@ -598,6 +603,19 @@ class _JourneyStrip extends StatelessWidget {
   }
 }
 
+/// A fare as the trip states it: whole amounts without cents ("$18"),
+/// anything else to the cent ("$0.60") — never rounded up to a whole unit.
+String transitFareLabel(double v) => v == v.roundToDouble()
+    ? '\$${v.toStringAsFixed(0)}'
+    : '\$${v.toStringAsFixed(2)}';
+
+/// The booking dock: your seats, how long they are held, the fare broken
+/// down, and the one commitment.
+///
+/// It says what the backend does and nothing more. `POST .../book` creates
+/// a PENDING reservation and charges nothing (there is no payment rail for
+/// transit bookings yet), so the action is "Reserve", there is no booking
+/// fee, and the line under the total says no charge is taken now.
 class _BookingDock extends StatelessWidget {
   final Set<String> selected;
   final double total;
@@ -623,49 +641,74 @@ class _BookingDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: colors.card,
-      elevation: 10,
+    final count = selected.length;
+    final seats = (selected.toList()..sort());
+    final onAccent = colors.accent.computeLuminance() > 0.5
+        ? Colors.black
+        : Colors.white;
+    TextStyle line(
+      Color c, {
+      FontWeight w = FontWeight.w500,
+      double size = 13,
+    }) => TextStyle(
+      color: c,
+      fontSize: size,
+      fontWeight: w,
+      fontFeatures: AzText.tabular,
+    );
+
+    return Container(
+      key: const ValueKey('transit-booking-dock'),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(top: BorderSide(color: colors.divider, width: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 24,
+            offset: const Offset(0, -6),
+          ),
+        ],
+      ),
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 10),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 children: [
                   Expanded(
                     child: Wrap(
-                      spacing: 5,
-                      children: selected
-                          .map(
-                            (id) => Chip(
-                              visualDensity: VisualDensity.compact,
-                              label: Text(id),
-                              backgroundColor: colors.accentSurface,
-                              side: BorderSide.none,
-                              labelStyle: TextStyle(
-                                color: colors.accent,
-                                fontWeight: FontWeight.w800,
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final id in seats)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.accent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              id,
+                              style: line(
+                                onAccent,
+                                w: FontWeight.w700,
+                                size: 12.5,
                               ),
                             ),
-                          )
-                          .toList(),
+                          ),
+                      ],
                     ),
                   ),
-                  Text(
-                    '\$${total.toStringAsFixed(2)} USDC',
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-              if (holdExpiresAt != null) ...[
-                Row(
-                  children: [
+                  if (holdExpiresAt != null) ...[
+                    const SizedBox(width: 8),
                     TransitHoldRing(
                       expiresAt: holdExpiresAt,
                       window: transitHoldWindow,
@@ -676,28 +719,122 @@ class _BookingDock extends StatelessWidget {
                       clock: holdClock,
                       onExpired: onHoldExpired,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Seats held for you',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colors.textSecondary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Held for you',
+                      style: line(colors.textTertiary, size: 11.5),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Fare and fee share a line when they fit and wrap when they
+              // don't (large text, narrow phones).
+              SizedBox(
+                width: double.infinity,
+                child: Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  spacing: 16,
+                  runSpacing: 4,
+                  children: [
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text:
+                                'Fare · $count seat${count == 1 ? '' : 's'}  ',
+                            style: line(colors.textSecondary),
+                          ),
+                          TextSpan(
+                            text: transitFareLabel(total),
+                            style: line(colors.textPrimary, w: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: 'Booking fee  ',
+                            style: line(colors.textSecondary),
+                          ),
+                          TextSpan(
+                            text: 'None',
+                            style: line(colors.textPrimary, w: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-              ],
-              const SizedBox(height: 8),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Divider(
+                  height: 1,
+                  thickness: 0.6,
+                  color: colors.divider,
+                ),
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    'Total',
+                    style: line(
+                      colors.textPrimary,
+                      w: FontWeight.w700,
+                      size: 15,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '\$${total.toStringAsFixed(2)} USDC',
+                    style: line(
+                      colors.textPrimary,
+                      w: FontWeight.w800,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'No charge now. The operator confirms your seats.',
+                  key: const ValueKey('transit-dock-honesty'),
+                  style: line(colors.textTertiary, size: 11.5),
+                ),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: onNames,
-                    icon: const Icon(Icons.person_outline_rounded, size: 18),
-                    label: const Text('Names'),
+                  Tooltip(
+                    message: 'Passenger names',
+                    child: Material(
+                      color: colors.surface,
+                      shape: CircleBorder(
+                        side: BorderSide(color: colors.divider),
+                      ),
+                      child: InkWell(
+                        key: const ValueKey('transit-dock-names'),
+                        customBorder: const CircleBorder(),
+                        onTap: onNames,
+                        child: SizedBox(
+                          width: 48,
+                          height: 48,
+                          child: Icon(
+                            Icons.badge_outlined,
+                            size: 21,
+                            color: colors.textSecondary,
+                            semanticLabel: 'Names',
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   // Owner decision 2026-10-31: the seat map, the fare and the
@@ -711,22 +848,31 @@ class _BookingDock extends StatelessWidget {
                       message: 'Unlock to book seats',
                       child: SizedBox(
                         width: double.infinity,
-                        height: 44,
-                        child: FilledButton.icon(
+                        height: 48,
+                        child: FilledButton(
+                          key: const ValueKey('transit-dock-reserve'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: colors.accent,
+                            foregroundColor: onAccent,
+                            shape: const StadiumBorder(),
+                          ),
                           onPressed: busy ? null : onBook,
-                          icon: busy
-                              ? const SizedBox(
+                          child: busy
+                              ? SizedBox(
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
+                                    color: onAccent,
                                   ),
                                 )
-                              : const Icon(
-                                  Icons.arrow_forward_rounded,
-                                  size: 18,
+                              : Text(
+                                  'Reserve $count seat${count == 1 ? '' : 's'}',
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
-                          label: Text(busy ? 'Booking…' : 'Continue to book'),
                         ),
                       ),
                     ),

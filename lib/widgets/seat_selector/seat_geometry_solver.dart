@@ -46,6 +46,10 @@ class SeatGeometryConfig {
   /// Gap between decks in a multi-deck vehicle.
   final double deckGap;
 
+  /// Extra space after the cab row (the row holding the driver), where the
+  /// bulkhead and the crew captions sit.
+  final double cabGap;
+
   const SeatGeometryConfig({
     this.seatWidth = 54,
     this.seatHeight = 54,
@@ -56,6 +60,7 @@ class SeatGeometryConfig {
     this.minHitTarget = 44,
     this.headerHeight = 40,
     this.deckGap = 24,
+    this.cabGap = 18,
   });
 
   /// Default configuration matching the existing seat widget dimensions.
@@ -116,6 +121,18 @@ class ComputedGeometry {
   /// All seat slot rects (excludes aisles, doors, etc.).
   List<SlotRect> get seatRects => allRects.where((r) => r.slot.isSeat).toList();
 
+  /// The driver's and the mate's rects (the cab), in deck 0.
+  List<SlotRect> get crewRects => allRects.where((r) => r.slot.isCrew).toList();
+
+  /// The vertical band the cab occupies, or null for a layout without one.
+  ({double top, double bottom})? get cabBand {
+    final crew = crewRects;
+    if (crew.isEmpty) return null;
+    final top = crew.map((r) => r.visualRect.top).reduce(math.min);
+    final bottom = crew.map((r) => r.visualRect.bottom).reduce(math.max);
+    return (top: top, bottom: bottom);
+  }
+
   /// Find the SlotRect for a given seatId.
   SlotRect? rectForSeat(String seatId) {
     for (final r in allRects) {
@@ -165,9 +182,16 @@ class SeatGeometrySolver {
           final double cellW;
           final double cellH;
 
-          if (slot.type == SlotType.aisle || slot.type == SlotType.empty) {
-            // Aisle/empty: advance by aisle gap, no visible rect
+          if (slot.type == SlotType.aisle) {
+            // Walkway: advance by the aisle gap, no visible rect.
             colX += config.aisleGap;
+            continue;
+          }
+          if (slot.type == SlotType.empty) {
+            // A missing seat inside a seat column keeps the seat's width,
+            // so the columns stay aligned. No visible rect.
+            colX += config.seatWidth + config.colGap;
+            if (colX > maxX) maxX = colX;
             continue;
           }
 
@@ -200,6 +224,9 @@ class SeatGeometrySolver {
         }
 
         rowY += config.seatHeight + config.rowGap;
+        if (row.any((s) => s.type == SlotType.driver)) {
+          rowY += config.cabGap;
+        }
         if (rowY > maxY) maxY = rowY;
       }
 
@@ -210,7 +237,9 @@ class SeatGeometrySolver {
       final dBounds = Rect.fromLTRB(
         0,
         deck.deckIndex == 0 ? 0 : deckStartY,
-        maxX + config.layoutPadding,
+        // maxX includes the gap after the last cell; drop it so the right
+        // margin matches the left.
+        maxX - config.colGap + config.layoutPadding,
         maxY + config.layoutPadding,
       );
       deckBounds[deck.deckIndex] = dBounds;

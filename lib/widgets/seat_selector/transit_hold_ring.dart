@@ -210,6 +210,7 @@ class _HoldRingPainter extends CustomPainter {
       text: TextSpan(
         text: label,
         style: TextStyle(
+          fontFamily: AzText.uiFamily,
           fontSize: 10,
           fontWeight: FontWeight.w800,
           color: color,

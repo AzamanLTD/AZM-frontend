@@ -73,10 +73,15 @@ enum SeatBookStatus {
 
 /// Type of a grid slot — most are seats, but layouts include aisles,
 /// driver position, doors, etc.
+///
+/// [crew] is the mate's (conductor's) seat: drawn in the cab, never sold.
+/// [empty] is a missing seat inside a seat column (it keeps the seat's
+/// width, so the columns stay aligned); [aisle] is the walkway.
 enum SlotType {
   seat,
   aisle,
   driver,
+  crew,
   door,
   restroom,
   stairs,
@@ -87,6 +92,8 @@ enum SlotType {
     'SEAT' => seat,
     'AISLE' => aisle,
     'DRIVER' => driver,
+    'CREW' => crew,
+    'MATE' => crew,
     'DOOR' => door,
     'RESTROOM' => restroom,
     'STAIRS' => stairs,
@@ -99,6 +106,7 @@ enum SlotType {
     seat => 'SEAT',
     aisle => 'AISLE',
     driver => 'DRIVER',
+    crew => 'CREW',
     door => 'DOOR',
     restroom => 'RESTROOM',
     stairs => 'STAIRS',
@@ -137,6 +145,9 @@ class GridSlot {
 
   /// Whether this slot is a seat the user can interact with.
   bool get isSeat => type == SlotType.seat;
+
+  /// The driver's or the mate's seat — drawn, labelled, never bookable.
+  bool get isCrew => type == SlotType.driver || type == SlotType.crew;
 
   /// Whether the user can currently tap this seat (available status only).
   bool get isTappable => isSeat && status.isTappable;

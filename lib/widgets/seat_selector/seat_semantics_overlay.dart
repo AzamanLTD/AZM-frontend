@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 
 import 'seat_geometry_solver.dart';
+import 'seat_layout_models.dart';
 
 /// Builds the semantics overlay for the seat selector.
 class SeatSemanticsOverlay extends StatelessWidget {
@@ -34,49 +35,69 @@ class SeatSemanticsOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final deckRects = geometry.deckRects[currentDeck] ?? [];
 
+    // The driver and the mate are announced but never actionable.
+    final crew = deckRects.where((r) => r.slot.isCrew).map((r) {
+      final isDriver = r.slot.type == SlotType.driver;
+      return Positioned(
+        left: r.visualRect.left,
+        top: r.visualRect.top,
+        width: r.visualRect.width,
+        height: r.visualRect.height,
+        child: Semantics(
+          label: isDriver
+              ? 'Driver'
+              : '${r.slot.seatLabel ?? 'Mate'}, crew seat beside the door, not for booking',
+          child: const SizedBox.expand(),
+        ),
+      );
+    });
+
     return Stack(
       clipBehavior: Clip.none,
-      children: deckRects.where((r) => r.slot.isSeat).map((slotRect) {
-        final slot = slotRect.slot;
-        final isSelected = selectedSeats.contains(slot.seatId);
+      children: [
+        ...crew,
+        ...deckRects.where((r) => r.slot.isSeat).map((slotRect) {
+          final slot = slotRect.slot;
+          final isSelected = selectedSeats.contains(slot.seatId);
 
-        // Build the semantic label
-        final parts = <String>[
-          'Seat ${slot.seatLabel ?? slot.seatId}',
-          slot.tier.label,
-        ];
+          // Build the semantic label
+          final parts = <String>[
+            'Seat ${slot.seatLabel ?? slot.seatId}',
+            slot.tier.label,
+          ];
 
-        if (isSelected) {
-          parts.add('Selected');
-        } else {
-          parts.add(slot.status.label);
-        }
+          if (isSelected) {
+            parts.add('Selected');
+          } else {
+            parts.add(slot.status.label);
+          }
 
-        if (slot.fare > 0) {
-          parts.add('\$${slot.fare.toStringAsFixed(0)}');
-        }
+          if (slot.fare > 0) {
+            parts.add('\$${slot.fare.toStringAsFixed(0)}');
+          }
 
-        final label = parts.join(', ');
+          final label = parts.join(', ');
 
-        // Position the invisible semantics widget at the seat's hit-test rect
-        return Positioned(
-          left: slotRect.hitRect.left,
-          top: slotRect.hitRect.top,
-          width: slotRect.hitRect.width,
-          height: slotRect.hitRect.height,
-          child: Semantics(
-            label: label,
-            button: slot.isTappable,
-            enabled: slot.isTappable,
-            onTap: slot.isTappable ? () => onSeatTap(slot.seatId!) : null,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
+          // Position the invisible semantics widget at the seat's hit-test rect
+          return Positioned(
+            left: slotRect.hitRect.left,
+            top: slotRect.hitRect.top,
+            width: slotRect.hitRect.width,
+            height: slotRect.hitRect.height,
+            child: Semantics(
+              label: label,
+              button: slot.isTappable,
+              enabled: slot.isTappable,
               onTap: slot.isTappable ? () => onSeatTap(slot.seatId!) : null,
-              child: Container(color: Colors.transparent),
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: slot.isTappable ? () => onSeatTap(slot.seatId!) : null,
+                child: Container(color: Colors.transparent),
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }),
+      ],
     );
   }
 }

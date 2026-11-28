@@ -586,7 +586,9 @@ class MarketplaceVerticalExperienceStage extends StatelessWidget {
           businessProfileId: business.id,
           colors: colors,
           onOpenTrips: () =>
-              onNavigate?.call('/business-market/${business.bizId}/transit'),
+              // The trip list filters by businessProfileId (the UUID), not
+              // the public BIZ code the hotel routes use.
+              onNavigate?.call('/business-market/${business.id}/transit'),
         ),
       ],
     );
